@@ -115,6 +115,7 @@
 
   <div class="campaigns-preview">
     <h3>What will be created (all PAUSED — drafts only)</h3>
+    <p style="color:#888;font-size:12px;margin-bottom:10px">Created as Traffic campaigns so they build without a pixel. Once your Meta Pixel is live, change the objective to Leads in Ads Manager — targeting and structure stay the same.</p>
     <div class="campaign-item">
       <div class="campaign-name">📢 Prospecting — £8.33/day</div>
       <div class="adset-list">
@@ -139,7 +140,7 @@
     <h3>✅ Campaigns created successfully</h3>
     <p>Your draft campaigns are now in Meta Ads Manager.<br>
     Go to <strong>Ads Manager → Campaigns</strong> and set the filter to <strong>"All"</strong> to see them.<br><br>
-    Nothing is spending. Unpause when you're ready to go live.</p>
+    Nothing is spending. When your pixel is live, change the campaign objective to <strong>Leads</strong> in Ads Manager, then unpause.</p>
   </div>
 </div>
 
@@ -189,7 +190,7 @@ async function createCampaigns() {
     log('Creating Prospecting campaign…', 'bold');
     const prosp = await apiPost(`${accountId}/campaigns`, token, {
       name: `META_CONV_Prospecting_UK_Platform_${DATE}`,
-      objective: 'OUTCOME_LEADS',
+      objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       daily_budget: 833,
       special_ad_categories: '[]',
@@ -201,9 +202,8 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_Broad_Homeowners_${DATE}`,
       campaign_id: prosp.id,
       status: 'PAUSED',
-      optimization_goal: 'LEAD_GENERATION',
+      optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
-      promoted_object: JSON.stringify({ page_id: pageId }),
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 28,
@@ -220,9 +220,8 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_HomeRenovation_Interest_${DATE}`,
       campaign_id: prosp.id,
       status: 'PAUSED',
-      optimization_goal: 'LEAD_GENERATION',
+      optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
-      promoted_object: JSON.stringify({ page_id: pageId }),
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 30,
@@ -246,7 +245,7 @@ async function createCampaigns() {
     log('Creating Retargeting campaign…', 'bold');
     const retarg = await apiPost(`${accountId}/campaigns`, token, {
       name: `META_CONV_Retarget_UK_Platform_${DATE}`,
-      objective: 'OUTCOME_LEADS',
+      objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       daily_budget: 500,
       special_ad_categories: '[]',
@@ -265,9 +264,8 @@ async function createCampaigns() {
         name: s.name,
         campaign_id: retarg.id,
         status: 'PAUSED',
-        optimization_goal: 'LEAD_GENERATION',
+        optimization_goal: 'LINK_CLICKS',
         billing_event: 'IMPRESSIONS',
-        promoted_object: JSON.stringify({ page_id: pageId }),
         targeting: JSON.stringify({
           geo_locations: { countries: ['GB'] },
           age_min: 25,
