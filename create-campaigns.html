@@ -165,7 +165,7 @@ async function apiPost(path, token, body) {
     body: params.toString(),
   });
   const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
+  if (data.error) throw new Error(`${data.error.message} | code:${data.error.code} subcode:${data.error.error_subcode} | ${data.error.error_user_msg || ''} | ${data.error.error_user_title || ''}`);
   return data;
 }
 
