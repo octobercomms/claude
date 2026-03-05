@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nvelope.co — Campaign Inspector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 36px;
+      width: 100%;
+      max-width: 720px;
+    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 28px; }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 18px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #1877f2; }
+
+    button {
+      width: 100%;
+      padding: 13px;
+      background: #1877f2;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover { background: #1565d8; }
+    button:disabled { background: #9ab8f0; cursor: not-allowed; }
+
+    .output {
+      margin-top: 24px;
+      background: #0d1117;
+      border-radius: 8px;
+      padding: 20px;
+      font-family: "SF Mono", "Fira Code", monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      color: #cdd9e5;
+      white-space: pre-wrap;
+      word-break: break-all;
+      display: none;
+    }
+
+    /* Campaign tree styles */
+    .tree { margin-top: 24px; display: none; }
+    .campaign-block {
+      border: 1.5px solid #e4e4e4;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    .campaign-header {
+      background: #f8f9fa;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .campaign-name { font-weight: 700; font-size: 14px; flex: 1; }
+    .campaign-meta { font-size: 12px; color: #666; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .badge-paused { background: #fff3cd; color: #856404; }
+    .badge-active { background: #d1e7dd; color: #0a5133; }
+    .badge-draft  { background: #e2e8f0; color: #475569; }
+
+    .campaign-id { font-family: monospace; font-size: 11px; color: #999; }
+
+    .adsets { padding: 0 18px 14px; }
+    .adset-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 0;
+      border-top: 1px solid #f0f0f0;
+    }
+    .adset-row:first-child { border-top: none; }
+    .adset-icon { color: #999; margin-top: 1px; flex-shrink: 0; }
+    .adset-name { font-size: 13px; font-weight: 600; flex: 1; }
+    .adset-details { font-size: 11.5px; color: #666; margin-top: 2px; }
+    .adset-id { font-family: monospace; font-size: 11px; color: #bbb; }
+
+    .field-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .field-chip {
+      background: #f0f4ff;
+      border: 1px solid #dbe5ff;
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-size: 11px;
+      color: #3b5bdb;
+    }
+    .field-chip.warn { background: #fff5f5; border-color: #ffd0d0; color: #c0392b; }
+    .field-chip.ok   { background: #f0fdf4; border-color: #bbf7d0; color: #166534; }
+
+    .empty { color: #999; font-size: 13px; padding: 12px 0; }
+    .error-msg { color: #e74c3c; font-size: 13px; margin-top: 12px; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>nvelope.co — Campaign Inspector</h1>
+  <p class="subtitle">Reads your existing Meta campaigns and ad sets so we can update them.</p>
+
+  <label>Meta Access Token</label>
+  <input type="password" id="token" placeholder="Paste your access token" />
+
+  <label>Ad Account ID</label>
+  <input type="text" id="adAccountId" placeholder="act_XXXXXXXXXXXXXXXXX" />
+
+  <button id="fetchBtn" onclick="fetchAll()">Fetch Campaigns</button>
+
+  <div id="errorMsg" class="error-msg"></div>
+  <div class="tree" id="tree"></div>
+  <div class="output" id="rawOutput"></div>
+</div>
+
+<script>
+const API = 'https://graph.facebook.com/v22.0';
+
+async function apiFetch(path, params = {}) {
+  const token = document.getElementById('token').value.trim();
+  const url = new URL(`${API}/${path}`);
+  url.searchParams.set('access_token', token);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+  const res = await fetch(url.toString());
+  const data = await res.json();
+  if (data.error) throw new Error(`${data.error.message} (code:${data.error.code} sub:${data.error.error_subcode ?? '–'})`);
+  return data;
+}
+
+function fmt(label, val) {
+  if (val === undefined || val === null || val === '') return '';
+  return `${label}: ${val}`;
+}
+
+function budgetStr(adset) {
+  if (adset.daily_budget) return `£${(adset.daily_budget / 100).toFixed(2)}/day`;
+  if (adset.lifetime_budget) return `£${(adset.lifetime_budget / 100).toFixed(2)} lifetime`;
+  return 'no budget';
+}
+
+function statusBadge(status) {
+  const map = { PAUSED: 'badge-paused', ACTIVE: 'badge-active', CAMPAIGN_PAUSED: 'badge-paused' };
+  return `<span class="badge ${map[status] ?? 'badge-draft'}">${status}</span>`;
+}
+
+function chips(adset) {
+  const out = [];
+  if (adset.optimization_goal) out.push(`<span class="field-chip">${adset.optimization_goal}</span>`);
+  if (adset.bid_strategy)      out.push(`<span class="field-chip">${adset.bid_strategy}</span>`);
+  if (adset.bid_amount)        out.push(`<span class="field-chip ok">bid £${(adset.bid_amount/100).toFixed(2)}</span>`);
+  if (adset.promoted_object?.pixel_id) out.push(`<span class="field-chip ok">pixel ${adset.promoted_object.pixel_id}</span>`);
+  else out.push(`<span class="field-chip warn">no pixel</span>`);
+
+  const t = adset.targeting || {};
+  if (t.custom_audiences?.length) {
+    out.push(`<span class="field-chip ok">${t.custom_audiences.length} custom audience(s)</span>`);
+  } else {
+    out.push(`<span class="field-chip warn">no custom audiences</span>`);
+  }
+  if (t.geo_locations?.countries?.length) out.push(`<span class="field-chip">${t.geo_locations.countries.join(', ')}</span>`);
+  if (t.age_min || t.age_max) out.push(`<span class="field-chip">age ${t.age_min ?? '?'}–${t.age_max ?? '?'}</span>`);
+  return out.join(' ');
+}
+
+async function fetchAll() {
+  const btn = document.getElementById('fetchBtn');
+  const tree = document.getElementById('tree');
+  const raw  = document.getElementById('rawOutput');
+  const err  = document.getElementById('errorMsg');
+  const adAccountId = document.getElementById('adAccountId').value.trim();
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  tree.style.display = 'none';
+  raw.style.display  = 'none';
+  err.textContent    = '';
+  tree.innerHTML     = '';
+
+  try {
+    // 1. Fetch campaigns
+    const campaignFields = 'id,name,status,objective,daily_budget,lifetime_budget,special_ad_categories';
+    const cData = await apiFetch(`${adAccountId}/campaigns`, { fields: campaignFields, limit: 50 });
+    const campaigns = cData.data ?? [];
+
+    // 2. Fetch ALL ad sets for the account in one call
+    const adsetFields = 'id,name,status,campaign_id,daily_budget,lifetime_budget,optimization_goal,bid_strategy,bid_amount,promoted_object,targeting';
+    const aData = await apiFetch(`${adAccountId}/adsets`, { fields: adsetFields, limit: 200 });
+    const allAdsets = aData.data ?? [];
+
+    // Group ad sets by campaign
+    const adsetsByCampaign = {};
+    for (const as of allAdsets) {
+      if (!adsetsByCampaign[as.campaign_id]) adsetsByCampaign[as.campaign_id] = [];
+      adsetsByCampaign[as.campaign_id].push(as);
+    }
+
+    // 3. Render tree
+    if (campaigns.length === 0) {
+      tree.innerHTML = '<p class="empty">No campaigns found in this ad account.</p>';
+    } else {
+      for (const c of campaigns) {
+        const adsets = adsetsByCampaign[c.id] ?? [];
+        const budget = c.daily_budget ? `£${(c.daily_budget/100).toFixed(2)}/day` :
+                       c.lifetime_budget ? `£${(c.lifetime_budget/100).toFixed(2)} lifetime` : '';
+
+        let adsetHtml = '';
+        if (adsets.length === 0) {
+          adsetHtml = '<p class="empty">No ad sets</p>';
+        } else {
+          for (const as of adsets) {
+            adsetHtml += `
+              <div class="adset-row">
+                <div class="adset-icon">›</div>
+                <div style="flex:1">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span class="adset-name">${as.name}</span>
+                    ${statusBadge(as.status)}
+                  </div>
+                  <div class="adset-details">${budgetStr(as)} &nbsp;·&nbsp; <span class="adset-id">${as.id}</span></div>
+                  <div class="field-row">${chips(as)}</div>
+                </div>
+              </div>`;
+          }
+        }
+
+        tree.innerHTML += `
+          <div class="campaign-block">
+            <div class="campaign-header">
+              <div style="flex:1">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+                  <span class="campaign-name">${c.name}</span>
+                  ${statusBadge(c.status)}
+                </div>
+                <div class="campaign-meta">${c.objective ?? ''} ${budget ? '· ' + budget : ''}</div>
+                <div class="campaign-id">${c.id}</div>
+              </div>
+            </div>
+            <div class="adsets">${adsetHtml}</div>
+          </div>`;
+      }
+    }
+
+    // 4. Show raw JSON below the tree for debugging
+    raw.textContent = JSON.stringify({ campaigns, adsets: allAdsets }, null, 2);
+    raw.style.display = 'block';
+    tree.style.display = 'block';
+
+  } catch (e) {
+    err.textContent = '✕ ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Fetch Campaigns';
+  }
+}
+</script>
+</body>
+</html>
