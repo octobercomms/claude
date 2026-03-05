@@ -6,10 +6,14 @@
   "type": "module",
   "scripts": {
     "verify": "node src/verify-connection.js",
-    "accounts": "node src/verify-connection.js"
+    "create-campaigns": "node src/create-campaigns.js",
+    "optimizer": "node src/optimizer.js",
+    "find-interests": "node src/find-interests.js"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "dotenv": "^16.4.5",
-    "node-fetch": "^3.3.2"
+    "node-fetch": "^3.3.2",
+    "readline": "^1.3.0"
   }
 }
