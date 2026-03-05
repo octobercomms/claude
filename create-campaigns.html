@@ -110,6 +110,9 @@
   <label for="account">Ad Account ID</label>
   <input type="text" id="account" placeholder="act_822053484257767" value="act_822053484257767">
 
+  <label for="pageId">Facebook Page ID <span style="font-weight:400;color:#888">(find it: Facebook Page → About → scroll to Page ID)</span></label>
+  <input type="text" id="pageId" placeholder="e.g. 123456789012345">
+
   <div class="campaigns-preview">
     <h3>What will be created (all PAUSED — drafts only)</h3>
     <div class="campaign-item">
@@ -169,10 +172,11 @@ async function apiPost(path, token, body) {
 async function createCampaigns() {
   const token = document.getElementById('token').value.trim();
   const accountId = document.getElementById('account').value.trim();
+  const pageId = document.getElementById('pageId').value.trim();
   const btn = document.getElementById('btn');
 
-  if (!token || !accountId) {
-    alert('Please fill in both the access token and ad account ID.');
+  if (!token || !accountId || !pageId) {
+    alert('Please fill in the access token, ad account ID, and Facebook Page ID.');
     return;
   }
 
@@ -200,6 +204,7 @@ async function createCampaigns() {
       optimization_goal: 'LEAD_GENERATION',
       billing_event: 'IMPRESSIONS',
       bid_amount: 500,
+      promoted_object: JSON.stringify({ page_id: pageId }),
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 28,
@@ -219,6 +224,7 @@ async function createCampaigns() {
       optimization_goal: 'LEAD_GENERATION',
       billing_event: 'IMPRESSIONS',
       bid_amount: 500,
+      promoted_object: JSON.stringify({ page_id: pageId }),
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 30,
@@ -264,6 +270,7 @@ async function createCampaigns() {
         optimization_goal: 'LEAD_GENERATION',
         billing_event: 'IMPRESSIONS',
         bid_amount: 500,
+        promoted_object: JSON.stringify({ page_id: pageId }),
         targeting: JSON.stringify({
           geo_locations: { countries: ['GB'] },
           age_min: 25,
