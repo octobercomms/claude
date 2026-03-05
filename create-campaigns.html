@@ -192,7 +192,6 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_Platform_${DATE}`,
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
-      daily_budget: 833,
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${prosp.id}`, 'ok');
@@ -202,6 +201,7 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_Broad_Homeowners_${DATE}`,
       campaign_id: prosp.id,
       status: 'PAUSED',
+      daily_budget: 500,
       optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
       targeting: JSON.stringify({
@@ -220,6 +220,7 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_HomeRenovation_Interest_${DATE}`,
       campaign_id: prosp.id,
       status: 'PAUSED',
+      daily_budget: 333,
       optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
       targeting: JSON.stringify({
@@ -247,7 +248,6 @@ async function createCampaigns() {
       name: `META_CONV_Retarget_UK_Platform_${DATE}`,
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
-      daily_budget: 500,
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${retarg.id}`, 'ok');
@@ -264,6 +264,7 @@ async function createCampaigns() {
         name: s.name,
         campaign_id: retarg.id,
         status: 'PAUSED',
+        daily_budget: 167,
         optimization_goal: 'LINK_CLICKS',
         billing_event: 'IMPRESSIONS',
         targeting: JSON.stringify({
