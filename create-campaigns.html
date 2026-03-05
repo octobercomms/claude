@@ -193,6 +193,7 @@ async function createCampaigns() {
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       daily_budget: 833,
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${prosp.id}`, 'ok');
@@ -204,7 +205,6 @@ async function createCampaigns() {
       status: 'PAUSED',
       optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
-      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 28,
@@ -223,7 +223,6 @@ async function createCampaigns() {
       status: 'PAUSED',
       optimization_goal: 'LINK_CLICKS',
       billing_event: 'IMPRESSIONS',
-      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       targeting: JSON.stringify({
         geo_locations: { countries: ['GB'] },
         age_min: 30,
@@ -250,6 +249,7 @@ async function createCampaigns() {
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
       daily_budget: 500,
+      bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${retarg.id}`, 'ok');
@@ -268,7 +268,6 @@ async function createCampaigns() {
         status: 'PAUSED',
         optimization_goal: 'LINK_CLICKS',
         billing_event: 'IMPRESSIONS',
-        bid_strategy: 'LOWEST_COST_WITHOUT_CAP',
         targeting: JSON.stringify({
           geo_locations: { countries: ['GB'] },
           age_min: 25,
