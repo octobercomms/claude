@@ -28,7 +28,7 @@ export const CAMPAIGNS = [
           age_max: 60,
           // No interest targeting — Advantage+ finds the right audience automatically
           publisher_platforms: ['facebook', 'instagram'],
-          facebook_positions: ['feed', 'story', 'reels', 'right_hand_column'],
+          facebook_positions: ['feed', 'story', 'facebook_reels', 'right_hand_column'],
           instagram_positions: ['stream', 'story', 'reels'],
         },
         // Creative brief (to attach ads manually or via create-ads.js)
@@ -57,7 +57,7 @@ export const CAMPAIGNS = [
             },
           ],
           publisher_platforms: ['facebook', 'instagram'],
-          facebook_positions: ['feed', 'story', 'reels'],
+          facebook_positions: ['feed', 'story', 'facebook_reels'],
           instagram_positions: ['stream', 'story', 'reels'],
         },
         creative_notes: 'Carousel format. Cards: portfolio projects → studio CTA. Headline per card: project name. Final card CTA: "Start Your Project Brief →"',
@@ -120,7 +120,7 @@ export const CAMPAIGNS = [
           age_min: 25,
           age_max: 65,
           publisher_platforms: ['facebook', 'instagram'],
-          facebook_positions: ['feed', 'story', 'reels'],
+          facebook_positions: ['feed', 'story', 'facebook_reels'],
           instagram_positions: ['stream', 'story', 'reels'],
           // custom_audiences: [{ id: 'ALL_VISITORS_AUDIENCE_ID' }]  ← add after Pixel has data
         },
