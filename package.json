@@ -1,0 +1,15 @@
+{
+  "name": "claude-ads",
+  "version": "1.0.0",
+  "description": "Meta Ads API integration for nvelope.co",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "verify": "node src/verify-connection.js",
+    "accounts": "node src/verify-connection.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "node-fetch": "^3.3.2"
+  }
+}
