@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>nvelope.co — Meta Campaign Creator</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f5;
+      color: #1a1a1a;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      padding: 36px;
+      width: 100%;
+      max-width: 620px;
+    }
+    h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 28px; }
+
+    label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: #444; }
+    input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      font-family: monospace;
+    }
+    input:focus { outline: none; border-color: #0066ff; box-shadow: 0 0 0 3px rgba(0,102,255,0.12); }
+
+    .campaigns-preview {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 24px;
+      font-size: 13px;
+    }
+    .campaigns-preview h3 { font-size: 13px; font-weight: 700; margin-bottom: 10px; color: #333; }
+    .campaign-item { margin-bottom: 10px; }
+    .campaign-name { font-weight: 600; color: #1a1a1a; }
+    .adset-list { margin-top: 4px; padding-left: 16px; color: #666; line-height: 1.8; }
+
+    button {
+      width: 100%;
+      padding: 14px;
+      background: #0066ff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    button:hover:not(:disabled) { background: #0052cc; }
+    button:disabled { background: #99b8ff; cursor: not-allowed; }
+
+    .log {
+      margin-top: 24px;
+      background: #111;
+      color: #e0e0e0;
+      border-radius: 8px;
+      padding: 16px;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.7;
+      max-height: 360px;
+      overflow-y: auto;
+      display: none;
+    }
+    .log.visible { display: block; }
+    .log .ok { color: #4caf50; }
+    .log .err { color: #f44336; }
+    .log .dim { color: #888; }
+    .log .bold { font-weight: 700; color: #fff; }
+
+    .success-box {
+      margin-top: 20px;
+      background: #e8f5e9;
+      border: 1px solid #a5d6a7;
+      border-radius: 8px;
+      padding: 16px;
+      font-size: 14px;
+      display: none;
+    }
+    .success-box.visible { display: block; }
+    .success-box h3 { color: #2e7d32; margin-bottom: 8px; }
+    .success-box p { color: #388e3c; line-height: 1.6; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>nvelope.co — Campaign Creator</h1>
+  <p class="subtitle">Creates your Meta draft campaigns. Nothing goes live until you choose to.</p>
+
+  <label for="token">Meta Access Token</label>
+  <input type="password" id="token" placeholder="EAANLYf0..." value="EAANLYf0UGHcBQzEpvVHH2Hs8eZCPsxQ9XvDQxTEK8ovw5hgXbmwioVT1KIK9AbtUAwT1rHq9dTy1ehfFawjyilm7rhmk8zi1u5ht3VGSr7y8hU8YPZBf00y87ZBsrBZBFlVltWSSZCOZADEnWQGFj32xgSTdvZCI1xZA4knszJ15UHCiNpB3RIFo3TGpt7aZADsfTpl7YuteZBOBAtpwoLm5aomCAMMRJIBnnqZC7SyOUXIkGhZCMLDZCet3MI5hfjHwrXJUMZBQxTRtzZCFQrVbZBZAIXCcWotwQYdshCYN5441r4gZDZD">
+
+  <label for="account">Ad Account ID</label>
+  <input type="text" id="account" placeholder="act_822053484257767" value="act_822053484257767">
+
+  <div class="campaigns-preview">
+    <h3>What will be created (all PAUSED — drafts only)</h3>
+    <div class="campaign-item">
+      <div class="campaign-name">📢 Prospecting — £8.33/day</div>
+      <div class="adset-list">
+        › Broad Homeowners (Advantage+ — Meta finds the audience)<br>
+        › Home Renovation &amp; Design (interest targeting)
+      </div>
+    </div>
+    <div class="campaign-item">
+      <div class="campaign-name">🔁 Retargeting — £5/day</div>
+      <div class="adset-list">
+        › Studio page visitors — last 7 days<br>
+        › Quiz starters — last 14 days<br>
+        › All site visitors — last 30 days
+      </div>
+    </div>
+  </div>
+
+  <button id="btn" onclick="createCampaigns()">Create Draft Campaigns</button>
+
+  <div class="log" id="log"></div>
+  <div class="success-box" id="successBox">
+    <h3>✅ Campaigns created successfully</h3>
+    <p>Your draft campaigns are now in Meta Ads Manager.<br>
+    Go to <strong>Ads Manager → Campaigns</strong> and set the filter to <strong>"All"</strong> to see them.<br><br>
+    Nothing is spending. Unpause when you're ready to go live.</p>
+  </div>
+</div>
+
+<script>
+const API = 'https://graph.facebook.com/v22.0';
+const DATE = new Date().toISOString().slice(0,7).replace('-',''); // e.g. 202603
+
+function log(msg, type = '') {
+  const el = document.getElementById('log');
+  el.classList.add('visible');
+  const line = document.createElement('div');
+  if (type) line.className = type;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+async function apiPost(path, token, body) {
+  const params = new URLSearchParams({ access_token: token, ...body });
+  const res = await fetch(`${API}/${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: params.toString(),
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data;
+}
+
+async function createCampaigns() {
+  const token = document.getElementById('token').value.trim();
+  const accountId = document.getElementById('account').value.trim();
+  const btn = document.getElementById('btn');
+
+  if (!token || !accountId) {
+    alert('Please fill in both the access token and ad account ID.');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Creating campaigns…';
+  document.getElementById('successBox').classList.remove('visible');
+
+  try {
+    // ── Prospecting campaign ──────────────────────────────────────────────
+    log('Creating Prospecting campaign…', 'bold');
+    const prosp = await apiPost(`${accountId}/campaigns`, token, {
+      name: `META_CONV_Prospecting_UK_Platform_${DATE}`,
+      objective: 'OUTCOME_LEADS',
+      status: 'PAUSED',
+      daily_budget: 833,
+      special_ad_categories: '[]',
+    });
+    log(`  ✓ Campaign created — ID: ${prosp.id}`, 'ok');
+
+    log('  Creating ad set: Broad Homeowners…', 'dim');
+    const broadSet = await apiPost(`${accountId}/adsets`, token, {
+      name: `META_CONV_Prospecting_UK_Broad_Homeowners_${DATE}`,
+      campaign_id: prosp.id,
+      status: 'PAUSED',
+      optimization_goal: 'LEAD_GENERATION',
+      billing_event: 'IMPRESSIONS',
+      bid_amount: 500,
+      targeting: JSON.stringify({
+        geo_locations: { countries: ['GB'] },
+        age_min: 28,
+        age_max: 60,
+        publisher_platforms: ['facebook','instagram'],
+        facebook_positions: ['feed','story','reels'],
+        instagram_positions: ['stream','story','reels'],
+      }),
+    });
+    log(`    ✓ Ad set created — ID: ${broadSet.id}`, 'ok');
+
+    log('  Creating ad set: Home Renovation Interest…', 'dim');
+    const interestSet = await apiPost(`${accountId}/adsets`, token, {
+      name: `META_CONV_Prospecting_UK_HomeRenovation_Interest_${DATE}`,
+      campaign_id: prosp.id,
+      status: 'PAUSED',
+      optimization_goal: 'LEAD_GENERATION',
+      billing_event: 'IMPRESSIONS',
+      bid_amount: 500,
+      targeting: JSON.stringify({
+        geo_locations: { countries: ['GB'] },
+        age_min: 30,
+        age_max: 65,
+        flexible_spec: [{
+          interests: [
+            { id: '6003543124424', name: 'Home improvement' },
+            { id: '6003465471591', name: 'Interior design' },
+            { id: '6003490028082', name: 'Architecture' },
+          ],
+        }],
+        publisher_platforms: ['facebook','instagram'],
+        facebook_positions: ['feed','story','reels'],
+        instagram_positions: ['stream','story','reels'],
+      }),
+    });
+    log(`    ✓ Ad set created — ID: ${interestSet.id}`, 'ok');
+
+    // ── Retargeting campaign ──────────────────────────────────────────────
+    log('', '');
+    log('Creating Retargeting campaign…', 'bold');
+    const retarg = await apiPost(`${accountId}/campaigns`, token, {
+      name: `META_CONV_Retarget_UK_Platform_${DATE}`,
+      objective: 'OUTCOME_LEADS',
+      status: 'PAUSED',
+      daily_budget: 500,
+      special_ad_categories: '[]',
+    });
+    log(`  ✓ Campaign created — ID: ${retarg.id}`, 'ok');
+
+    const retargetSets = [
+      { name: `META_CONV_Retarget_UK_StudioVisitors_7d_${DATE}`,  label: 'Studio Visitors 7d'  },
+      { name: `META_CONV_Retarget_UK_QuizStarters_14d_${DATE}`,   label: 'Quiz Starters 14d'   },
+      { name: `META_CONV_Retarget_UK_AllVisitors_30d_${DATE}`,    label: 'All Visitors 30d'    },
+    ];
+
+    for (const s of retargetSets) {
+      log(`  Creating ad set: ${s.label}…`, 'dim');
+      const set = await apiPost(`${accountId}/adsets`, token, {
+        name: s.name,
+        campaign_id: retarg.id,
+        status: 'PAUSED',
+        optimization_goal: 'LEAD_GENERATION',
+        billing_event: 'IMPRESSIONS',
+        bid_amount: 500,
+        targeting: JSON.stringify({
+          geo_locations: { countries: ['GB'] },
+          age_min: 25,
+          age_max: 65,
+          publisher_platforms: ['facebook','instagram'],
+          facebook_positions: ['feed','story'],
+          instagram_positions: ['stream','story'],
+        }),
+      });
+      log(`    ✓ Ad set created — ID: ${set.id}`, 'ok');
+    }
+
+    log('', '');
+    log('All done! Campaigns are PAUSED in Ads Manager.', 'ok');
+    document.getElementById('successBox').classList.add('visible');
+    btn.textContent = '✓ Campaigns Created';
+
+  } catch (err) {
+    log(`✗ Error: ${err.message}`, 'err');
+    btn.disabled = false;
+    btn.textContent = 'Retry';
+  }
+}
+</script>
+</body>
+</html>
