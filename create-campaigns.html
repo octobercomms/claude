@@ -192,6 +192,7 @@ async function createCampaigns() {
       name: `META_CONV_Prospecting_UK_Platform_${DATE}`,
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
+      is_adset_budget_sharing_enabled: 'false',
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${prosp.id}`, 'ok');
@@ -248,6 +249,7 @@ async function createCampaigns() {
       name: `META_CONV_Retarget_UK_Platform_${DATE}`,
       objective: 'OUTCOME_TRAFFIC',
       status: 'PAUSED',
+      is_adset_budget_sharing_enabled: 'false',
       special_ad_categories: '[]',
     });
     log(`  ✓ Campaign created — ID: ${retarg.id}`, 'ok');
