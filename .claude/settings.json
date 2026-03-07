@@ -1,0 +1,9 @@
+{
+  "skills": [
+    {
+      "name": "blog",
+      "source": "https://github.com/AgriciDaniel/claude-blog",
+      "installedAt": "~/.claude/skills/blog"
+    }
+  ]
+}
