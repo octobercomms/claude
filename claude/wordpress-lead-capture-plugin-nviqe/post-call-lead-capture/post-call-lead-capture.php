@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Post-Call Lead Capture
+ * Plugin Name: Brevo Post-Call Lead Capture
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: After a client call, capture prospect details and send a branded follow-up email via Brevo with report, booking, and payment links.
  * Version:     1.1.0
