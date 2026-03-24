@@ -104,7 +104,7 @@ class PCLC_Email {
 
 		return self::dispatch(
 			$architect_email,
-			'',
+			PCLC_Settings::get( 'sender_name', 'Architect' ),
 			sprintf(
 				/* translators: 1: follow-up number, 2: contact full name */
 				__( 'Follow-Up %1$d: %2$s', 'post-call-lead-capture' ),
@@ -140,7 +140,7 @@ class PCLC_Email {
 	public static function send_test_architect_followup( $contact, $followup_number, $recipient ) {
 		return self::dispatch(
 			$recipient,
-			'',
+			PCLC_Settings::get( 'sender_name', 'Architect' ),
 			sprintf( '[TEST] Follow-Up %d: %s', $followup_number, $contact->first_name . ' ' . $contact->last_name ),
 			self::build_architect_html( $contact, $followup_number )
 		);
