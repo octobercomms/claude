@@ -45,8 +45,8 @@ class PCLC_Scheduler {
 			return;
 		}
 
-		// Only fire second follow-up if chase email was not already sent.
-		if ( $contact->chase_email_sent ) {
+		// Only fire second follow-up if neither the chase nor cold email was already sent.
+		if ( $contact->chase_email_sent || $contact->cold_email_sent ) {
 			return;
 		}
 
