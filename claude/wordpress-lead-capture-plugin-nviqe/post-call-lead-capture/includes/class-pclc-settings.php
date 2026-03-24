@@ -245,7 +245,7 @@ class PCLC_Settings {
 						</td>
 					</tr>
 					<tr>
-						<th><label for="pclc_chase_paragraph"><?php esc_html_e( 'Chase Email Body', 'post-call-lead-capture' ); ?></label></th>
+						<th><label for="pclc_chase_paragraph"><?php esc_html_e( 'Follow-Up Email Body', 'post-call-lead-capture' ); ?></label></th>
 						<td>
 							<?php
 							wp_editor(
@@ -259,7 +259,7 @@ class PCLC_Settings {
 								)
 							);
 							?>
-							<p class="description"><?php esc_html_e( 'Sent to the client when you click "Send Follow-Up Email" in Follow-Up Prompt #1 (~28 days).', 'post-call-lead-capture' ); ?></p>
+							<p class="description"><?php esc_html_e( 'Sent to the client when you click "Send Follow-Up Email" from the Follow-Up Prompt to Architect (~28 days).', 'post-call-lead-capture' ); ?></p>
 						</td>
 					</tr>
 					<tr>
@@ -359,28 +359,28 @@ class PCLC_Settings {
 					</td>
 				</tr>
 				<tr>
-					<th><?php esc_html_e( 'Chase Email', 'post-call-lead-capture' ); ?></th>
-					<td>
-						<button type="button" class="button pclc-test-email-btn" data-type="chase"><?php esc_html_e( 'Send Test', 'post-call-lead-capture' ); ?></button>
-						<span class="pclc-test-result" style="margin-left:10px;"></span>
-					</td>
-				</tr>
-				<tr>
-					<th><?php esc_html_e( 'Follow-Up Prompt #1 (to Architect)', 'post-call-lead-capture' ); ?></th>
+					<th><?php esc_html_e( 'Follow-Up Prompt to Architect', 'post-call-lead-capture' ); ?></th>
 					<td>
 						<button type="button" class="button pclc-test-email-btn" data-type="followup_1"><?php esc_html_e( 'Send Test', 'post-call-lead-capture' ); ?></button>
 						<span class="pclc-test-result" style="margin-left:10px;"></span>
 					</td>
 				</tr>
 				<tr>
-					<th><?php esc_html_e( 'Follow-Up Prompt #2 (to Architect)', 'post-call-lead-capture' ); ?></th>
+					<th><?php esc_html_e( 'Follow-Up Email to Client', 'post-call-lead-capture' ); ?></th>
+					<td>
+						<button type="button" class="button pclc-test-email-btn" data-type="chase"><?php esc_html_e( 'Send Test', 'post-call-lead-capture' ); ?></button>
+						<span class="pclc-test-result" style="margin-left:10px;"></span>
+					</td>
+				</tr>
+				<tr>
+					<th><?php esc_html_e( 'Cold Re-Engage Prompt to Architect', 'post-call-lead-capture' ); ?></th>
 					<td>
 						<button type="button" class="button pclc-test-email-btn" data-type="followup_2"><?php esc_html_e( 'Send Test', 'post-call-lead-capture' ); ?></button>
 						<span class="pclc-test-result" style="margin-left:10px;"></span>
 					</td>
 				</tr>
 				<tr>
-					<th><?php esc_html_e( 'Cold Re-Engage Email (to Client)', 'post-call-lead-capture' ); ?></th>
+					<th><?php esc_html_e( 'Cold Re-Engage Email to Client', 'post-call-lead-capture' ); ?></th>
 					<td>
 						<button type="button" class="button pclc-test-email-btn" data-type="cold"><?php esc_html_e( 'Send Test', 'post-call-lead-capture' ); ?></button>
 						<span class="pclc-test-result" style="margin-left:10px;"></span>
