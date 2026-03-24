@@ -115,13 +115,17 @@ class PCLC_Email {
 			return false;
 		}
 
+		$subject_prefix = ( 2 === intval( $followup_number ) )
+			? __( 'Cold Re-Engage Prompt', 'post-call-lead-capture' )
+			: __( 'Follow-Up Prompt', 'post-call-lead-capture' );
+
 		return self::dispatch(
 			$architect_email,
 			PCLC_Settings::get( 'sender_name', 'Architect' ),
 			sprintf(
-				/* translators: 1: follow-up number, 2: contact full name */
-				__( 'Follow-Up %1$d: %2$s', 'post-call-lead-capture' ),
-				$followup_number,
+				/* translators: 1: subject prefix, 2: contact full name */
+				__( '%1$s: %2$s', 'post-call-lead-capture' ),
+				$subject_prefix,
 				$contact->first_name . ' ' . $contact->last_name
 			),
 			self::build_architect_html( $contact, $followup_number )
@@ -163,7 +167,7 @@ class PCLC_Email {
 		return self::dispatch(
 			$recipient,
 			PCLC_Settings::get( 'sender_name', 'Architect' ),
-			sprintf( '[TEST] Follow-Up %d: %s', $followup_number, $contact->first_name . ' ' . $contact->last_name ),
+			sprintf( '[TEST] %s: %s', ( 2 === intval( $followup_number ) ) ? 'Cold Re-Engage Prompt' : 'Follow-Up Prompt', $contact->first_name . ' ' . $contact->last_name ),
 			self::build_architect_html( $contact, $followup_number )
 		);
 	}
@@ -241,12 +245,12 @@ class PCLC_Email {
 		if ( 'new_build' === $project_type ) {
 			return array(
 				'url'   => PCLC_Settings::get( 'new_build_report_url' ),
-				'label' => __( 'View Your New Build Pre-Design Report', 'post-call-lead-capture' ),
+				'label' => __( 'Sample Pre-Design Report', 'post-call-lead-capture' ),
 			);
 		}
 		return array(
 			'url'   => PCLC_Settings::get( 'renovation_report_url' ),
-			'label' => __( 'View Your Renovation Pre-Design Report', 'post-call-lead-capture' ),
+			'label' => __( 'Sample Pre-Design Report', 'post-call-lead-capture' ),
 		);
 	}
 
@@ -267,7 +271,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $before_after, __( 'View Our Before & After Projects', 'post-call-lead-capture' ) );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Follow-Up Call', 'post-call-lead-capture' ) );
@@ -289,7 +293,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $report['url'], $report['label'] );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Call', 'post-call-lead-capture' ) );
@@ -311,7 +315,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $report['url'], $report['label'] );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Call', 'post-call-lead-capture' ) );
@@ -366,7 +370,8 @@ class PCLC_Email {
 			? __( 'Send Cold Re-Engage Email to Client', 'post-call-lead-capture' )
 			: __( 'Send Follow-Up Email to Client', 'post-call-lead-capture' );
 
-		$content = '<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;">Follow-Up Prompt #' . intval( $followup_number ) . '</p>';
+		$heading  = $is_cold ? 'Cold Re-Engage Prompt' : 'Follow-Up Prompt';
+		$content = '<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;">' . esc_html( $heading ) . '</p>';
 
 		if ( $days_text ) {
 			$content .= '<p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">This is your reminder that it has been <strong>' . esc_html( $days_text ) . '</strong> since you sent the first email. Click below to action the follow-up for:</p>';
@@ -397,7 +402,7 @@ class PCLC_Email {
 			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $report['url'] ) . '">' . esc_html( $report['label'] ) . '</a></p>';
 		}
 		if ( $payment_url ) {
-			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $payment_url ) . '">' . esc_html__( 'Secure Your Project Fee', 'post-call-lead-capture' ) . '</a></p>';
+			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $payment_url ) . '">' . esc_html__( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) . '</a></p>';
 		}
 		if ( $booking_url ) {
 			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $booking_url ) . '">' . esc_html__( 'Book a Call', 'post-call-lead-capture' ) . '</a></p>';
