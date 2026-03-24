@@ -3,7 +3,7 @@
  * Plugin Name: Brevo Post-Call Lead Capture
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: After a client call, capture prospect details and send a branded follow-up email via Brevo with report, booking, and payment links.
- * Version:     1.1.0
+ * Version:     1.3.0
  * Author:      OctoberComms
  * License:     GPL-2.0-or-later
  * Text Domain: post-call-lead-capture
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'PCLC_VERSION', '1.1.0' );
+define( 'PCLC_VERSION', '1.3.0' );
 define( 'PCLC_PLUGIN_FILE', __FILE__ );
 define( 'PCLC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PCLC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -29,6 +29,11 @@ register_activation_hook( __FILE__, array( 'PCLC_Database', 'create_table' ) );
 register_deactivation_hook( __FILE__, array( 'PCLC_Scheduler', 'clear_all_cron' ) );
 
 function pclc_init() {
+	// Run DB upgrade when plugin version changes (e.g. new columns).
+	if ( get_option( 'pclc_db_version' ) !== PCLC_VERSION ) {
+		PCLC_Database::create_table();
+	}
+
 	PCLC_Settings::init();
 	PCLC_Form::init();
 	PCLC_Scheduler::init();
