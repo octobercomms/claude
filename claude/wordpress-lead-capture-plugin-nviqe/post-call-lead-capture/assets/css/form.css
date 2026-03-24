@@ -1,0 +1,82 @@
+#pclc-form-wrap {
+	max-width: 520px;
+	margin: 0 auto;
+	font-family: inherit;
+}
+
+#pclc-lead-capture-form .pclc-field-group {
+	margin-bottom: 18px;
+}
+
+#pclc-lead-capture-form label {
+	display: block;
+	margin-bottom: 5px;
+	font-weight: 600;
+	font-size: 14px;
+}
+
+#pclc-lead-capture-form .required {
+	color: #c00;
+}
+
+#pclc-lead-capture-form input[type="text"],
+#pclc-lead-capture-form input[type="email"],
+#pclc-lead-capture-form select {
+	width: 100%;
+	padding: 10px 12px;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	font-size: 15px;
+	box-sizing: border-box;
+	line-height: 1.4;
+}
+
+#pclc-lead-capture-form input:focus,
+#pclc-lead-capture-form select:focus {
+	outline: none;
+	border-color: #1a1a1a;
+	box-shadow: 0 0 0 2px rgba(26,26,26,0.15);
+}
+
+#pclc-submit-btn {
+	display: inline-block;
+	padding: 12px 32px;
+	background-color: #1a1a1a;
+	color: #ffffff;
+	border: none;
+	border-radius: 3px;
+	font-size: 15px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+#pclc-submit-btn:hover {
+	background-color: #444444;
+}
+
+#pclc-submit-btn:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.pclc-messages {
+	margin-bottom: 12px;
+	font-size: 14px;
+}
+
+.pclc-messages .pclc-error {
+	color: #c00;
+	background: #fff0f0;
+	border: 1px solid #f5c6c6;
+	padding: 8px 12px;
+	border-radius: 3px;
+	margin-bottom: 6px;
+}
+
+.pclc-messages .pclc-success {
+	color: #155724;
+	background: #d4edda;
+	border: 1px solid #c3e6cb;
+	padding: 8px 12px;
+	border-radius: 3px;
+}
