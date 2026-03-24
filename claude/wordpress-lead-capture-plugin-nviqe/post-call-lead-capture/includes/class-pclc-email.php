@@ -245,12 +245,12 @@ class PCLC_Email {
 		if ( 'new_build' === $project_type ) {
 			return array(
 				'url'   => PCLC_Settings::get( 'new_build_report_url' ),
-				'label' => __( 'View Your New Build Pre-Design Report', 'post-call-lead-capture' ),
+				'label' => __( 'Sample Pre-Design Report', 'post-call-lead-capture' ),
 			);
 		}
 		return array(
 			'url'   => PCLC_Settings::get( 'renovation_report_url' ),
-			'label' => __( 'View Your Renovation Pre-Design Report', 'post-call-lead-capture' ),
+			'label' => __( 'Sample Pre-Design Report', 'post-call-lead-capture' ),
 		);
 	}
 
@@ -271,7 +271,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $before_after, __( 'View Our Before & After Projects', 'post-call-lead-capture' ) );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Follow-Up Call', 'post-call-lead-capture' ) );
@@ -293,7 +293,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $report['url'], $report['label'] );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Call', 'post-call-lead-capture' ) );
@@ -315,7 +315,7 @@ class PCLC_Email {
 			$content .= self::cta_button( $report['url'], $report['label'] );
 		}
 		if ( $payment_url ) {
-			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+			$content .= self::cta_button( $payment_url, __( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) );
 		}
 		if ( $booking_url ) {
 			$content .= self::cta_button( $booking_url, __( 'Book a Call', 'post-call-lead-capture' ) );
@@ -402,7 +402,7 @@ class PCLC_Email {
 			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $report['url'] ) . '">' . esc_html( $report['label'] ) . '</a></p>';
 		}
 		if ( $payment_url ) {
-			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $payment_url ) . '">' . esc_html__( 'Secure Your Project Fee', 'post-call-lead-capture' ) . '</a></p>';
+			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $payment_url ) . '">' . esc_html__( 'Pay Your Pre-Design Fee', 'post-call-lead-capture' ) . '</a></p>';
 		}
 		if ( $booking_url ) {
 			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $booking_url ) . '">' . esc_html__( 'Book a Call', 'post-call-lead-capture' ) . '</a></p>';
