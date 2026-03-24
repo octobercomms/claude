@@ -126,27 +126,32 @@ class PCLC_Settings {
 		}
 
 		// Build a dummy contact object.
-		$contact               = new stdClass();
-		$contact->id           = 0;
-		$contact->first_name   = 'Jane';
-		$contact->last_name    = 'Smith';
-		$contact->email        = $test_recipient;
-		$contact->project_type = 'new_build';
+		$dummy               = new stdClass();
+		$dummy->id           = 0;
+		$dummy->first_name   = 'Jane';
+		$dummy->last_name    = 'Smith';
+		$dummy->email        = $test_recipient;
+		$dummy->project_type = 'new_build';
+		$dummy->date_created = current_time( 'mysql' );
 
 		$result = false;
 
 		switch ( $type ) {
 			case 'initial':
-				$result = PCLC_Email::send_test_initial( $contact, $test_recipient );
+				$result = PCLC_Email::send_test_initial( $dummy, $test_recipient );
 				break;
 			case 'chase':
-				$result = PCLC_Email::send_test_chase( $contact, $test_recipient );
+				$result = PCLC_Email::send_test_chase( $dummy, $test_recipient );
 				break;
 			case 'followup_1':
-				$result = PCLC_Email::send_test_architect_followup( $contact, 1, $test_recipient );
-				break;
 			case 'followup_2':
-				$result = PCLC_Email::send_test_architect_followup( $contact, 2, $test_recipient );
+				$followup_number = ( 'followup_1' === $type ) ? 1 : 2;
+				// Use the most recent real contact so the action links are functional.
+				$contact = PCLC_Database::get_latest_contact();
+				if ( ! $contact ) {
+					$contact = $dummy;
+				}
+				$result = PCLC_Email::send_test_architect_followup( $contact, $followup_number, $test_recipient );
 				break;
 			default:
 				wp_send_json_error( array( 'message' => __( 'Unknown email type.', 'post-call-lead-capture' ) ) );

@@ -280,6 +280,19 @@ class PCLC_Email {
 		$full_name = esc_html( $contact->first_name . ' ' . $contact->last_name );
 		$email     = esc_html( $contact->email );
 
+		// Calculate days since the first email was sent.
+		$days_text = '';
+		if ( ! empty( $contact->date_created ) ) {
+			$created   = new DateTime( $contact->date_created );
+			$now       = new DateTime( current_time( 'mysql' ) );
+			$days_int  = (int) $now->diff( $created )->days;
+			$days_text = sprintf(
+				/* translators: %d: number of days */
+				_n( '1 day', '%d days', $days_int, 'post-call-lead-capture' ),
+				$days_int
+			);
+		}
+
 		$delete_token = self::generate_action_token( $contact->id, 'delete' );
 		$chase_token  = self::generate_action_token( $contact->id, 'chase' );
 
@@ -301,8 +314,14 @@ class PCLC_Email {
 			home_url( '/' )
 		);
 
-		$content  = '<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;">Follow-Up Prompt #' . intval( $followup_number ) . '</p>';
-		$content .= '<p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">This is your reminder to action the follow-up for:</p>';
+		$content = '<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;">Follow-Up Prompt #' . intval( $followup_number ) . '</p>';
+
+		if ( $days_text ) {
+			$content .= '<p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">This is your reminder that it has been <strong>' . esc_html( $days_text ) . '</strong> since you sent the first email. Click below to action the follow-up for:</p>';
+		} else {
+			$content .= '<p style="margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">This is your reminder to action the follow-up for:</p>';
+		}
+
 		$content .= '<table cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;">';
 		$content .= '<tr><td style="padding:8px 16px 8px 0;color:#555555;">Name</td><td style="padding:8px 0;font-weight:bold;">' . $full_name . '</td></tr>';
 		$content .= '<tr><td style="padding:8px 16px 8px 0;color:#555555;">Email</td><td style="padding:8px 0;">' . $email . '</td></tr>';
@@ -310,6 +329,29 @@ class PCLC_Email {
 		$content .= self::cta_button( $chase_url, __( 'Send Follow-Up Email to Client', 'post-call-lead-capture' ) );
 		$content .= self::cta_button( $delete_url, __( 'Delete This Contact', 'post-call-lead-capture' ) );
 		$content .= '<p style="margin:20px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;">These links are unique to this contact. Clicking Delete will suppress all further emails for this prospect.</p>';
+
+		// Preview of the chase email that will be sent to the client.
+		$chase_para  = PCLC_Settings::get( 'chase_paragraph' );
+		$payment_url = PCLC_Settings::get( 'stripe_payment_url' );
+		$booking_url = PCLC_Settings::get( 'booking_url' );
+		$report      = self::get_report( $contact->project_type );
+
+		$preview  = '<p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;text-transform:uppercase;color:#888888;letter-spacing:0.05em;">Preview — email that will be sent to ' . esc_html( $contact->first_name ) . '</p>';
+		$preview .= '<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;">Hi ' . esc_html( $contact->first_name ) . ',</p>';
+		if ( $chase_para ) {
+			$preview .= '<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;">' . wp_kses_post( $chase_para ) . '</p>';
+		}
+		if ( $report['url'] ) {
+			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $report['url'] ) . '">' . esc_html( $report['label'] ) . '</a></p>';
+		}
+		if ( $payment_url ) {
+			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $payment_url ) . '">' . esc_html__( 'Secure Your Project Fee', 'post-call-lead-capture' ) . '</a></p>';
+		}
+		if ( $booking_url ) {
+			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $booking_url ) . '">' . esc_html__( 'Book a Call', 'post-call-lead-capture' ) . '</a></p>';
+		}
+
+		$content .= '<div style="margin:32px 0 0 0;padding:20px 24px;background-color:#f7f7f7;border-left:4px solid #cccccc;">' . $preview . '</div>';
 
 		// Architect prompt emails do not include the client signature.
 		return self::email_wrapper( $content, false );
