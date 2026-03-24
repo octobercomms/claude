@@ -111,6 +111,16 @@ class PCLC_Database {
 		);
 	}
 
+	public static function get_latest_contact() {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . self::TABLE_NAME;
+
+		return $wpdb->get_row(
+			"SELECT * FROM {$table_name} WHERE status = 'active' ORDER BY id DESC LIMIT 1"
+		);
+	}
+
 	public static function drop_table() {
 		global $wpdb;
 
