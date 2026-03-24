@@ -94,6 +94,19 @@ class PCLC_Email {
 		);
 	}
 
+	public static function send_cold_email( $contact_id ) {
+		$contact = PCLC_Database::get_contact( $contact_id );
+		if ( ! $contact ) {
+			return false;
+		}
+		return self::dispatch(
+			$contact->email,
+			$contact->first_name . ' ' . $contact->last_name,
+			'Re: Your project — ' . PCLC_Settings::get( 'email_subject', 'Your Project Resources' ),
+			self::build_cold_html( $contact )
+		);
+	}
+
 	public static function send_architect_followup( $contact_id, $followup_number ) {
 		$contact         = PCLC_Database::get_contact( $contact_id );
 		$architect_email = PCLC_Settings::get( 'architect_email' );
@@ -134,6 +147,15 @@ class PCLC_Email {
 			$contact->first_name . ' ' . $contact->last_name,
 			'[TEST] Checking in — ' . PCLC_Settings::get( 'email_subject', 'Your Project Resources' ),
 			self::build_chase_html( $contact )
+		);
+	}
+
+	public static function send_test_cold( $contact, $recipient ) {
+		return self::dispatch(
+			$recipient,
+			$contact->first_name . ' ' . $contact->last_name,
+			'[TEST] Re: Your project — ' . PCLC_Settings::get( 'email_subject', 'Your Project Resources' ),
+			self::build_cold_html( $contact )
 		);
 	}
 
@@ -276,6 +298,28 @@ class PCLC_Email {
 		return self::email_wrapper( $content );
 	}
 
+	private static function build_cold_html( $contact ) {
+		$cold_para   = PCLC_Settings::get( 'cold_paragraph' );
+		$payment_url = PCLC_Settings::get( 'stripe_payment_url' );
+		$booking_url = PCLC_Settings::get( 'booking_url' );
+		$report      = self::get_report( $contact->project_type );
+
+		$content  = '<p style="margin:0 0 20px 0;">Hi ' . esc_html( $contact->first_name ) . ',</p>';
+		$content .= '<p style="margin:0 0 28px 0;">' . wp_kses_post( $cold_para ) . '</p>';
+
+		if ( $report['url'] ) {
+			$content .= self::cta_button( $report['url'], $report['label'] );
+		}
+		if ( $payment_url ) {
+			$content .= self::cta_button( $payment_url, __( 'Secure Your Project Fee', 'post-call-lead-capture' ) );
+		}
+		if ( $booking_url ) {
+			$content .= self::cta_button( $booking_url, __( 'Book a Call', 'post-call-lead-capture' ) );
+		}
+
+		return self::email_wrapper( $content );
+	}
+
 	private static function build_architect_html( $contact, $followup_number ) {
 		$full_name = esc_html( $contact->first_name . ' ' . $contact->last_name );
 		$email     = esc_html( $contact->email );
@@ -293,8 +337,12 @@ class PCLC_Email {
 			);
 		}
 
+		// Prompt #2 uses the cold re-engage action/email; Prompt #1 uses chase.
+		$is_cold      = ( 2 === intval( $followup_number ) );
+		$client_action = $is_cold ? 'cold' : 'chase';
+
 		$delete_token = self::generate_action_token( $contact->id, 'delete' );
-		$chase_token  = self::generate_action_token( $contact->id, 'chase' );
+		$client_token = self::generate_action_token( $contact->id, $client_action );
 
 		$delete_url = add_query_arg(
 			array(
@@ -305,14 +353,18 @@ class PCLC_Email {
 			home_url( '/' )
 		);
 
-		$chase_url = add_query_arg(
+		$client_url = add_query_arg(
 			array(
-				'pclc_action'     => 'chase',
+				'pclc_action'     => $client_action,
 				'pclc_contact_id' => $contact->id,
-				'pclc_token'      => $chase_token,
+				'pclc_token'      => $client_token,
 			),
 			home_url( '/' )
 		);
+
+		$send_btn_label = $is_cold
+			? __( 'Send Cold Re-Engage Email to Client', 'post-call-lead-capture' )
+			: __( 'Send Follow-Up Email to Client', 'post-call-lead-capture' );
 
 		$content = '<p style="margin:0 0 8px 0;font-family:Arial,Helvetica,sans-serif;font-size:18px;font-weight:bold;">Follow-Up Prompt #' . intval( $followup_number ) . '</p>';
 
@@ -326,20 +378,20 @@ class PCLC_Email {
 		$content .= '<tr><td style="padding:8px 16px 8px 0;color:#555555;">Name</td><td style="padding:8px 0;font-weight:bold;">' . $full_name . '</td></tr>';
 		$content .= '<tr><td style="padding:8px 16px 8px 0;color:#555555;">Email</td><td style="padding:8px 0;">' . $email . '</td></tr>';
 		$content .= '</table>';
-		$content .= self::cta_button( $chase_url, __( 'Send Follow-Up Email to Client', 'post-call-lead-capture' ) );
+		$content .= self::cta_button( $client_url, $send_btn_label );
 		$content .= self::cta_button( $delete_url, __( 'Delete This Contact', 'post-call-lead-capture' ) );
 		$content .= '<p style="margin:20px 0 0 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#888888;">These links are unique to this contact. Clicking Delete will suppress all further emails for this prospect.</p>';
 
-		// Preview of the chase email that will be sent to the client.
-		$chase_para  = PCLC_Settings::get( 'chase_paragraph' );
+		// Preview of the email that will be sent to the client.
+		$body_para   = $is_cold ? PCLC_Settings::get( 'cold_paragraph' ) : PCLC_Settings::get( 'chase_paragraph' );
 		$payment_url = PCLC_Settings::get( 'stripe_payment_url' );
 		$booking_url = PCLC_Settings::get( 'booking_url' );
 		$report      = self::get_report( $contact->project_type );
 
 		$preview  = '<p style="margin:0 0 10px 0;font-family:Arial,Helvetica,sans-serif;font-size:12px;font-weight:bold;text-transform:uppercase;color:#888888;letter-spacing:0.05em;">Preview — email that will be sent to ' . esc_html( $contact->first_name ) . '</p>';
 		$preview .= '<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;">Hi ' . esc_html( $contact->first_name ) . ',</p>';
-		if ( $chase_para ) {
-			$preview .= '<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;">' . wp_kses_post( $chase_para ) . '</p>';
+		if ( $body_para ) {
+			$preview .= '<p style="margin:0 0 12px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;">' . wp_kses_post( $body_para ) . '</p>';
 		}
 		if ( $report['url'] ) {
 			$preview .= '<p style="margin:8px 0;font-family:Arial,Helvetica,sans-serif;font-size:13px;">&#x1F517; <a href="' . esc_url( $report['url'] ) . '">' . esc_html( $report['label'] ) . '</a></p>';

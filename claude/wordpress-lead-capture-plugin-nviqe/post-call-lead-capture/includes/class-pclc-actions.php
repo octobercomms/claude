@@ -23,7 +23,7 @@ class PCLC_Actions {
 			return;
 		}
 
-		if ( ! in_array( $action, array( 'delete', 'chase' ), true ) ) {
+		if ( ! in_array( $action, array( 'delete', 'chase', 'cold' ), true ) ) {
 			return;
 		}
 
@@ -85,6 +85,34 @@ class PCLC_Actions {
 
 			wp_die(
 				esc_html__( 'Chase email sent successfully.', 'post-call-lead-capture' ),
+				esc_html__( 'Email Sent', 'post-call-lead-capture' ),
+				array( 'response' => 200 )
+			);
+		}
+
+		if ( 'cold' === $action ) {
+			if ( $contact->cold_email_sent ) {
+				wp_die(
+					esc_html__( 'A cold re-engage email has already been sent to this contact.', 'post-call-lead-capture' ),
+					esc_html__( 'Already Sent', 'post-call-lead-capture' ),
+					array( 'response' => 200 )
+				);
+			}
+
+			$result = PCLC_Email::send_cold_email( $contact_id );
+
+			if ( is_wp_error( $result ) ) {
+				wp_die(
+					esc_html__( 'There was a problem sending the cold re-engage email. Please try again or check your Brevo settings.', 'post-call-lead-capture' ),
+					esc_html__( 'Send Error', 'post-call-lead-capture' ),
+					array( 'response' => 500 )
+				);
+			}
+
+			PCLC_Database::mark_cold_email_sent( $contact_id );
+
+			wp_die(
+				esc_html__( 'Cold re-engage email sent successfully.', 'post-call-lead-capture' ),
 				esc_html__( 'Email Sent', 'post-call-lead-capture' ),
 				array( 'response' => 200 )
 			);
