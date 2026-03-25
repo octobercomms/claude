@@ -1,0 +1,16 @@
+{
+  "name": "ada-compliance-checker",
+  "version": "1.0.0",
+  "description": "Web app to check ADA/WCAG accessibility compliance",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0",
+    "express": "^4.18.0"
+  }
+}
