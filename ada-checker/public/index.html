@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ADA Compliance Checker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <a href="#main" class="skip-link">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="container">
+      <div class="logo">
+        <span class="logo-icon" aria-hidden="true">&#9673;</span>
+        <span class="logo-text">ADA Checker</span>
+      </div>
+      <p class="tagline">WCAG 2.1 Accessibility Audit Tool</p>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <section class="hero" aria-labelledby="hero-heading">
+      <h1 id="hero-heading">Check Your Website for ADA Compliance</h1>
+      <p class="hero-sub">Analyzes 14 accessibility criteria based on WCAG 2.1 guidelines. Enter any public URL to get an instant report.</p>
+    </section>
+
+    <section class="checker-form" aria-labelledby="form-heading">
+      <h2 id="form-heading" class="sr-only">URL Input</h2>
+      <form id="checkForm" novalidate>
+        <div class="input-row">
+          <label for="urlInput" class="sr-only">Website URL</label>
+          <input
+            type="url"
+            id="urlInput"
+            name="url"
+            placeholder="https://example.com"
+            autocomplete="url"
+            aria-describedby="url-hint"
+            required
+          />
+          <button type="submit" id="submitBtn">
+            <span class="btn-text">Analyze</span>
+            <span class="btn-spinner" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p id="url-hint" class="input-hint">Enter the full URL including https://</p>
+      </form>
+    </section>
+
+    <div id="errorBox" class="error-box" role="alert" aria-live="polite" hidden></div>
+
+    <div id="results" hidden>
+      <section class="score-section" aria-labelledby="score-heading">
+        <h2 id="score-heading" class="sr-only">Accessibility Score</h2>
+        <div class="score-card">
+          <div class="score-ring-wrap" role="img" aria-labelledby="scoreLabel">
+            <svg class="score-ring" viewBox="0 0 120 120" aria-hidden="true">
+              <circle class="ring-bg" cx="60" cy="60" r="52" />
+              <circle class="ring-fill" id="ringFill" cx="60" cy="60" r="52" />
+            </svg>
+            <div class="score-inner">
+              <span id="scoreNumber" class="score-number">--</span>
+              <span class="score-label">/100</span>
+            </div>
+          </div>
+          <p id="scoreLabel" class="score-verdict"></p>
+        </div>
+        <div class="score-meta">
+          <div class="meta-item">
+            <span class="meta-count critical" id="criticalCount">0</span>
+            <span class="meta-label">Critical</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-count serious" id="seriousCount">0</span>
+            <span class="meta-label">Serious</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-count moderate" id="moderateCount">0</span>
+            <span class="meta-label">Moderate</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-count pass" id="passCount">0</span>
+            <span class="meta-label">Passed</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="issues-section" aria-labelledby="issues-heading">
+        <h2 id="issues-heading">Issues Found <span id="issuesBadge" class="badge"></span></h2>
+        <div id="issuesList" class="checks-list"></div>
+      </section>
+
+      <section class="passes-section" aria-labelledby="passes-heading">
+        <h2 id="passes-heading">Passed Checks <span id="passesBadge" class="badge badge-pass"></span></h2>
+        <div id="passesList" class="checks-list"></div>
+      </section>
+
+      <section class="legend-section" aria-labelledby="legend-heading">
+        <h2 id="legend-heading">Severity Guide</h2>
+        <dl class="legend">
+          <div class="legend-item">
+            <dt><span class="chip critical">Critical</span></dt>
+            <dd>Blocks access for users with disabilities. Must fix immediately.</dd>
+          </div>
+          <div class="legend-item">
+            <dt><span class="chip serious">Serious</span></dt>
+            <dd>Significantly impairs usability. Should fix before launch.</dd>
+          </div>
+          <div class="legend-item">
+            <dt><span class="chip moderate">Moderate</span></dt>
+            <dd>Creates friction but partial workarounds exist.</dd>
+          </div>
+          <div class="legend-item">
+            <dt><span class="chip minor">Minor</span></dt>
+            <dd>Low impact; fix when convenient.</dd>
+          </div>
+          <div class="legend-item">
+            <dt><span class="chip info">Info</span></dt>
+            <dd>Requires manual review or is advisory only.</dd>
+          </div>
+        </dl>
+      </section>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Based on <a href="https://www.w3.org/WAI/WCAG21/quickref/" target="_blank" rel="noopener">WCAG 2.1</a> guidelines. Static HTML analysis — does not execute JavaScript or check color contrast dynamically.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
