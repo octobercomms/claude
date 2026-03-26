@@ -6,703 +6,532 @@
   <title>Falcon Enamelware — Product Specifications</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 13px; background: #eef1f5; color: #2d2d2d; }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 13px;
-      background: #f0f2f5;
-      color: #2d2d2d;
-    }
+    header { background: #1c3d5e; color: white; padding: 24px 32px; border-bottom: 4px solid #2e6da4; }
+    header h1 { font-size: 21px; font-weight: 700; }
+    header p { margin-top: 5px; font-size: 12px; opacity: 0.65; }
 
-    header {
-      background: #1c3d5e;
-      color: white;
-      padding: 28px 32px;
-      border-bottom: 4px solid #2e6da4;
-    }
+    .legend { display: flex; gap: 20px; margin-top: 10px; flex-wrap: wrap; }
+    .legend span { font-size: 11px; opacity: 0.8; display: flex; align-items: center; gap: 5px; }
+    .swatch { width: 12px; height: 12px; border-radius: 2px; display: inline-block; }
 
-    header h1 {
-      font-size: 22px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-    }
+    .wrap { padding: 20px; overflow-x: auto; }
 
-    header p {
-      margin-top: 6px;
-      font-size: 12px;
-      opacity: 0.65;
-      line-height: 1.6;
-    }
+    table { border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 6px rgba(0,0,0,.1); min-width: 1100px; width: 100%; }
 
-    .legend {
-      display: flex;
-      gap: 20px;
-      margin-top: 12px;
-      flex-wrap: wrap;
-    }
+    /* Header rows */
+    thead tr.h1 th { background: #1c3d5e; color: white; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; padding: 11px 9px; border: 1px solid rgba(255,255,255,.12); text-align: center; vertical-align: middle; }
+    thead tr.h1 th.uk { background: #1a4a78; }
+    thead tr.h1 th.us { background: #1a5a38; }
+    thead tr.h2 th { font-size: 11px; font-weight: 600; padding: 7px 8px; border: 1px solid rgba(255,255,255,.12); text-align: center; vertical-align: middle; line-height: 1.35; }
+    thead tr.h2 th.uk { background: #2558a0; color: #c8ddf5; }
+    thead tr.h2 th.us { background: #1f6b44; color: #bde6cc; }
+    thead { position: sticky; top: 0; z-index: 10; }
 
-    .legend-item {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 11px;
-      opacity: 0.85;
-    }
+    /* Category separator */
+    tr.cat td { background: #dce8f2; color: #1c3d5e; font-weight: 700; font-size: 11px; text-transform: uppercase; letter-spacing: .7px; padding: 6px 12px; border-top: 2px solid #aac4de; border-bottom: 1px solid #aac4de; }
 
-    .legend-swatch {
-      width: 14px;
-      height: 14px;
-      border-radius: 3px;
-    }
+    /* Standard row */
+    tr.std td { background: #fff; padding: 7px 8px; border: 1px solid #e4e9ee; vertical-align: middle; text-align: center; }
+    tr.std:hover td { background: #f3f8ff; }
 
-    .table-container {
-      padding: 20px 20px 48px;
-      overflow-x: auto;
-    }
+    /* Set parent row */
+    tr.set-p td { background: #fdf8f0; padding: 7px 8px; border: 1px solid #ede4cf; vertical-align: middle; text-align: center; }
+    tr.set-p:hover td { background: #faf1e0; }
 
-    table {
-      border-collapse: collapse;
-      min-width: 1280px;
-      width: 100%;
-      background: white;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.09);
-    }
+    /* Set child row */
+    tr.set-c td { background: #fffdf7; padding: 6px 8px; border: 1px solid #f0e8d4; vertical-align: middle; text-align: center; }
+    tr.set-c:hover td { background: #fff8e8; }
 
-    /* ── HEADER ── */
-    thead {
-      position: sticky;
-      top: 0;
-      z-index: 20;
-    }
+    /* Cell types */
+    td.img { width: 88px; padding: 5px !important; }
+    .thumb { width: 76px; height: 76px; background: #f0f5fb; border: 2.5px solid #1c3d5e; border-radius: 5px; margin: auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .thumb img { width: 100%; height: 100%; object-fit: contain; }
 
-    thead tr.h-top th {
-      background: #1c3d5e;
-      color: white;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      padding: 12px 10px;
-      border: 1px solid rgba(255,255,255,0.12);
-      text-align: center;
-      vertical-align: middle;
-    }
+    td.name { text-align: left !important; font-weight: 600; padding-left: 10px !important; min-width: 170px; }
+    td.item { text-align: left !important; min-width: 200px; padding-left: 8px !important; }
+    td.item .note { font-size: 10px; color: #999; font-style: italic; display: block; }
+    td.set-hdr { font-weight: 600; color: #b07a18; font-size: 11.5px; }
+    td.child { padding-left: 20px !important; color: #555; }
+    td.child::before { content: "↳ "; color: #c49a3c; }
 
-    thead tr.h-top th.th-uk { background: #1a4c7a; }
-    thead tr.h-top th.th-us { background: #185e3c; }
+    /* Measurement column borders */
+    td.uk1 { border-left: 2px solid #7fb3d9 !important; }
+    td.us1 { border-left: 2px solid #6abf8c !important; }
+    thead tr.h2 th.uk1 { border-left: 2px solid rgba(255,255,255,.4) !important; }
+    thead tr.h2 th.us1 { border-left: 2px solid rgba(255,255,255,.4) !important; }
 
-    thead tr.h-sub th {
-      font-size: 11px;
-      font-weight: 600;
-      padding: 7px 8px;
-      border: 1px solid rgba(255,255,255,0.12);
-      text-align: center;
-      vertical-align: middle;
-      line-height: 1.4;
-      background: #2558a0;
-      color: #c8ddf5;
-    }
+    /* Empty data cells */
+    td.d { min-width: 68px; }
+    td.d:empty { background: rgba(0,0,0,.015) !important; }
 
-    thead tr.h-sub th.sub-uk { background: #2558a0; color: #c8ddf5; }
-    thead tr.h-sub th.sub-us { background: #1f6b44; color: #c0e8d0; }
-
-    /* ── CATEGORY ROWS ── */
-    tr.cat-row td {
-      background: #dce8f2;
-      color: #1c3d5e;
-      font-weight: 700;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      padding: 7px 12px;
-      border-top: 2px solid #aac5df;
-      border-bottom: 1px solid #aac5df;
-    }
-
-    /* ── STANDARD ROWS ── */
-    tbody tr.std td {
-      background: #ffffff;
-      padding: 7px 8px;
-      border: 1px solid #e5eaef;
-      vertical-align: middle;
-      text-align: center;
-    }
-
-    tbody tr.std:hover td { background: #f2f7ff; }
-
-    /* ── SET PARENT ROWS ── */
-    tbody tr.set-head td {
-      background: #fdf8f0;
-      padding: 7px 8px;
-      border: 1px solid #ede5d0;
-      vertical-align: middle;
-      text-align: center;
-    }
-
-    tbody tr.set-head:hover td { background: #faf2e2; }
-
-    /* ── SET CHILD ROWS ── */
-    tbody tr.set-child td {
-      background: #fffdf8;
-      padding: 6px 8px;
-      border: 1px solid #f0ead8;
-      vertical-align: middle;
-      text-align: center;
-    }
-
-    tbody tr.set-child:hover td { background: #fff8ed; }
-
-    /* ── CELL TYPES ── */
-    td.name-cell {
-      text-align: left !important;
-      font-weight: 600;
-      padding-left: 10px !important;
-      min-width: 180px;
-    }
-
-    td.item-cell {
-      text-align: left !important;
-      min-width: 160px;
-    }
-
-    td.item-cell.set-label {
-      font-weight: 600;
-      color: #b07d1a;
-      font-size: 11.5px;
-    }
-
-    td.item-cell.child-item {
-      padding-left: 22px !important;
-      color: #555;
-      font-size: 12px;
-    }
-
-    td.item-cell.child-item::before {
-      content: "↳ ";
-      color: #c49a3c;
-    }
-
-    td.uk-border { border-left: 2px solid #7fb3d9 !important; }
-    td.us-border { border-left: 2px solid #6abf8c !important; }
-
-    /* ── THUMBNAIL ── */
-    td.img-cell {
-      width: 94px;
-      padding: 5px !important;
-    }
-
-    .thumb {
-      width: 80px;
-      height: 80px;
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #f5f8fc;
-      border: 2.5px solid #1c3d5e;
-      margin: 0 auto;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* Enamelware rim effect */
-    .thumb::after {
-      content: '';
-      position: absolute;
-      inset: 3px;
-      border-radius: 3px;
-      border: 1.5px solid rgba(255,255,255,0.6);
-      pointer-events: none;
-    }
-
-    .thumb img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .thumb-label {
-      font-size: 9px;
-      color: #1c3d5e;
-      text-align: center;
-      font-weight: 600;
-      line-height: 1.4;
-      padding: 4px;
-    }
-
-    /* data cells that are empty */
-    td.d:empty {
-      background: #fafbfc !important;
-    }
-
-    footer-note {
-      display: block;
-      padding: 14px 24px 32px;
-      font-size: 11px;
-      color: #888;
-      line-height: 1.8;
-    }
+    footer { padding: 14px 24px 32px; font-size: 11px; color: #888; line-height: 1.9; }
+    footer strong { color: #666; }
+    code { background: #f0f0f0; padding: 1px 4px; border-radius: 2px; }
   </style>
 </head>
 <body>
 
 <header>
   <h1>Falcon Enamelware — Product Specifications</h1>
-  <p>
-    Blue enamel / white rim variant &nbsp;·&nbsp;
-    All measurement cells are blank — ready to fill in &nbsp;·&nbsp;
-    Replace thumbnail placeholders with product image URLs
-  </p>
+  <p>Blue / White rim variant &nbsp;·&nbsp; Images and dimensions to be added in subsequent passes</p>
   <div class="legend">
-    <div class="legend-item"><div class="legend-swatch" style="background:#fff8ed;border:1px solid #ede5d0;"></div> Set product (parent)</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#fffdf8;border:1px solid #f0ead8;"></div> Set component (child item)</div>
-    <div class="legend-item"><div class="legend-swatch" style="background:#fff;border:1px solid #e5eaef;"></div> Individual product</div>
+    <span><i class="swatch" style="background:#fdf8f0;border:1px solid #ede4cf;"></i> Set (parent row = packaged box)</span>
+    <span><i class="swatch" style="background:#fffdf7;border:1px solid #f0e8d4;"></i> Set component</span>
+    <span><i class="swatch" style="background:#fff;border:1px solid #e4e9ee;"></i> Individual product</span>
   </div>
 </header>
 
-<div class="table-container">
+<div class="wrap">
 <table>
-  <thead>
-    <tr class="h-top">
-      <th rowspan="2" style="width:94px;">Image</th>
-      <th rowspan="2" style="text-align:left;padding-left:10px;min-width:185px;">Product Name</th>
-      <th rowspan="2" style="text-align:left;padding-left:10px;min-width:165px;">Item / Component</th>
-      <th colspan="5" class="th-uk">UK Measurements</th>
-      <th colspan="5" class="th-us">US Measurements</th>
-    </tr>
-    <tr class="h-sub">
-      <th class="sub-uk" style="border-left:2px solid #5a99d4;" title="For round items: outer/top diameter. For oval or rectangular: length.">
-        Top Ø / Length<br><span style="font-weight:400;opacity:.7">(cm)</span>
-      </th>
-      <th class="sub-uk" title="For tapered items (bowls, tumblers, fruit bowls): base/bottom diameter. For oval or rectangular: width. Leave blank for straight-sided items.">
-        Base Ø / Width<br><span style="font-weight:400;opacity:.7">(cm)</span>
-      </th>
-      <th class="sub-uk" title="Height for upright items (mugs, jugs). Depth for dishes, plates, bowls.">
-        Height / Depth<br><span style="font-weight:400;opacity:.7">(cm)</span>
-      </th>
-      <th class="sub-uk">Volume<br><span style="font-weight:400;opacity:.7">(ml)</span></th>
-      <th class="sub-uk">Weight<br><span style="font-weight:400;opacity:.7">(g)</span></th>
-      <th class="sub-us" style="border-left:2px solid #4aac72;" title="For round items: outer/top diameter. For oval or rectangular: length.">
-        Top Ø / Length<br><span style="font-weight:400;opacity:.7">(in)</span>
-      </th>
-      <th class="sub-us" title="For tapered items (bowls, tumblers, fruit bowls): base/bottom diameter. For oval or rectangular: width. Leave blank for straight-sided items.">
-        Base Ø / Width<br><span style="font-weight:400;opacity:.7">(in)</span>
-      </th>
-      <th class="sub-us" title="Height for upright items (mugs, jugs). Depth for dishes, plates, bowls.">
-        Height / Depth<br><span style="font-weight:400;opacity:.7">(in)</span>
-      </th>
-      <th class="sub-us">Volume<br><span style="font-weight:400;opacity:.7">(fl oz)</span></th>
-      <th class="sub-us">Weight<br><span style="font-weight:400;opacity:.7">(lb)</span></th>
-    </tr>
-  </thead>
-  <tbody>
-
-  <!-- ═══════════════════════════════════════════ MUGS & CUPS -->
-  <tr class="cat-row"><td colspan="13">Mugs &amp; Cups</td></tr>
-
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Classic<br>Mug</div></div></td>
-    <td class="name-cell">Classic Mug</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+<thead>
+  <tr class="h1">
+    <th rowspan="2" style="width:88px;">Image</th>
+    <th rowspan="2" style="text-align:left;padding-left:10px;">Product Name</th>
+    <th rowspan="2" style="text-align:left;padding-left:8px;">Item / Component</th>
+    <th colspan="5" class="uk">UK Measurements</th>
+    <th colspan="5" class="us">US Measurements</th>
   </tr>
+  <tr class="h2">
+    <th class="uk uk1" title="Round: outer/top diameter. Oval or rectangular: length.">Top Ø / Length<br><small>(cm)</small></th>
+    <th class="uk" title="Tapered items: base diameter. Oval/rect: width. Blank for straight-sided round.">Base Ø / Width<br><small>(cm)</small></th>
+    <th class="uk" title="Height for upright items; depth for dishes and plates.">Height / Depth<br><small>(cm)</small></th>
+    <th class="uk">Volume<br><small>(ml)</small></th>
+    <th class="uk">Weight<br><small>(g)</small></th>
+    <th class="us us1" title="Round: outer/top diameter. Oval or rectangular: length.">Top Ø / Length<br><small>(in)</small></th>
+    <th class="us" title="Tapered items: base diameter. Oval/rect: width. Blank for straight-sided round.">Base Ø / Width<br><small>(in)</small></th>
+    <th class="us" title="Height for upright items; depth for dishes and plates.">Height / Depth<br><small>(in)</small></th>
+    <th class="us">Volume<br><small>(fl oz)</small></th>
+    <th class="us">Weight<br><small>(lb)</small></th>
+  </tr>
+</thead>
+<tbody>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Morning<br>Mug</div></div></td>
-    <td class="name-cell">Morning Mug</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ DRINKS ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Drinks</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Pint<br>Tumbler</div></div></td>
-    <td class="name-cell">Pint Tumbler</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Mug"></div></td>
+  <td class="name">Mug</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Half Pint<br>Tumbler</div></div></td>
-    <td class="name-cell">Half Pint Tumbler</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Tall Tumbler"></div></td>
+  <td class="name">Tall Tumbler</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Espresso<br>Cup</div></div></td>
-    <td class="name-cell">Espresso Cup &amp; Saucer</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Tumbler"></div></td>
+  <td class="name">Tumbler</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Mini Tumbler"></div></td>
+  <td class="name">Mini Tumbler</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- ═══════════════════════════════════════════════ PLATES -->
-  <tr class="cat-row"><td colspan="13">Plates</td></tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Espresso Cup"></div></td>
+  <td class="name">Espresso Cup</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- PLATE SET -->
-  <tr class="set-head">
-    <td class="img-cell" rowspan="4"><div class="thumb"><div class="thumb-label">Plate<br>Set</div></div></td>
-    <td class="name-cell" rowspan="4">Plate Set</td>
-    <td class="item-cell set-label">Complete Set (packaged)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Dinner Plate (large)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Side Plate (medium)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Side Plate (small)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ TEAPOTS ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Teapots</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Dinner<br>Plate</div></div></td>
-    <td class="name-cell">Dinner Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Teapot"></div></td>
+  <td class="name">Teapot</td>
+  <td class="item">—<span class="note">Top Ø/L = body Ø · Base Ø/W = overall width incl. spout &amp; handle</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Side<br>Plate</div></div></td>
-    <td class="name-cell">Side Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ JUGS ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Jugs</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Soup<br>Plate</div></div></td>
-    <td class="name-cell">Soup Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="1 Pint Jug"></div></td>
+  <td class="name">1 Pint Jug</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Lipped<br>Plate</div></div></td>
-    <td class="name-cell">Lipped Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="2 Pint Jug"></div></td>
+  <td class="name">2 Pint Jug</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Oval<br>Plate</div></div></td>
-    <td class="name-cell">Oval Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="3 Pint Jug"></div></td>
+  <td class="name">3 Pint Jug</td>
+  <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
+<!-- ═══════════════════════════ PLATES ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Plates</td></tr>
 
-  <!-- ════════════════════════════════════════════════ BOWLS -->
-  <tr class="cat-row"><td colspan="13">Bowls</td></tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="24cm Plates"></div></td>
+  <td class="name">24cm Plates</td>
+  <td class="item">—<span class="note">sold as set of 4 · dimensions per plate</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- PREP SET -->
-  <tr class="set-head">
-    <td class="img-cell" rowspan="4"><div class="thumb"><div class="thumb-label">Prep<br>Set</div></div></td>
-    <td class="name-cell" rowspan="4">Prep Set</td>
-    <td class="item-cell set-label">Complete Set (packaged)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Prep Bowl (large)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Prep Bowl (medium)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Prep Bowl (small)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Deep Plates"></div></td>
+  <td class="name">Deep Plates</td>
+  <td class="item">—<span class="note">sold as set of 4 · dimensions per plate</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Mixing<br>Bowl</div></div></td>
-    <td class="name-cell">Mixing Bowl</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Small Side Plates"></div></td>
+  <td class="name">Small Side Plates</td>
+  <td class="item">—<span class="note">sold as set · dimensions per plate</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Fruit<br>Bowl</div></div></td>
-    <td class="name-cell">Fruit Bowl</td>
-    <td class="item-cell" title="Tapered — use Top Ø for rim diameter and Base Ø for foot diameter">Tapered — fill Top Ø &amp; Base Ø</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Oval Plate"></div></td>
+  <td class="name">Oval Plate</td>
+  <td class="item">—<span class="note">oval — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Colander</div></div></td>
-    <td class="name-cell">Colander</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ BOWLS & SERVING ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Bowls &amp; Serving</td></tr>
 
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="12cm Bowls"></div></td>
+  <td class="name">12cm Bowls</td>
+  <td class="item">—<span class="note">sold as set of 4 · dimensions per bowl</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- ═══════════════════════════════════════════ BAKEWARE -->
-  <tr class="cat-row"><td colspan="13">Bakeware</td></tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Large Serving Dish"></div></td>
+  <td class="name">Large Serving Dish</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- BAKE SET -->
-  <tr class="set-head">
-    <td class="img-cell" rowspan="4"><div class="thumb"><div class="thumb-label">Bake<br>Set</div></div></td>
-    <td class="name-cell" rowspan="4">Bake Set</td>
-    <td class="item-cell set-label">Complete Set (packaged)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Baking Pan (large)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Baking Pan (small)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Pie Dish</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Medium Serving Dish"></div></td>
+  <td class="name">Medium Serving Dish</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Pie<br>Dish</div></div></td>
-    <td class="name-cell">Pie Dish</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Fruit Bowl"></div></td>
+  <td class="name">Fruit Bowl</td>
+  <td class="item">—<span class="note">footed — fill Top Ø &amp; Base Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Pie<br>Plate</div></div></td>
-    <td class="name-cell">Pie Plate</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Dog Bowl"></div></td>
+  <td class="name">Dog Bowl</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Rect.<br>Oven Dish</div></div></td>
-    <td class="name-cell">Rectangular Oven Dish</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- Serving Dish Set -->
+<tr class="set-p">
+  <td class="img" rowspan="3"><div class="thumb"><img src="" alt="Serving Dish Set"></div></td>
+  <td class="name" rowspan="3">Serving Dish Set</td>
+  <td class="item set-hdr">Complete Set (packaged)</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">Large Serving Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">Medium Serving Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Oval<br>Oven Dish</div></div></td>
-    <td class="name-cell">Oval Oven Dish</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ BAKEWARE ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Bakeware &amp; Bake Sets</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Baking<br>Tray</div></div></td>
-    <td class="name-cell">Baking Tray</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- Bake Set -->
+<tr class="set-p">
+  <td class="img" rowspan="6"><div class="thumb"><img src="" alt="Bake Set"></div></td>
+  <td class="name" rowspan="6">Bake Set</td>
+  <td class="item set-hdr">Complete Set (packaged)</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">37cm Bake Pan<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">34cm Bake Pan<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">31cm Bake Pan<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">20cm Pie Dish (× 2)<span class="note">oval — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child" style="font-style:italic;color:#aaa;font-size:11px;">Set total weight</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Loaf<br>Pan</div></div></td>
-    <td class="name-cell">Loaf Pan</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- Pie Set -->
+<tr class="set-p">
+  <td class="img" rowspan="7"><div class="thumb"><img src="" alt="Pie Set"></div></td>
+  <td class="name" rowspan="7">Pie Set</td>
+  <td class="item set-hdr">Complete Set (packaged)</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">30cm Pie Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">28cm Pie Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">26cm Pie Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">24cm Pie Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">20cm Pie Dish</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child" style="font-style:italic;color:#aaa;font-size:11px;">Set total weight</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
+<!-- Pie Dishes (set of 4) -->
+<tr class="set-p">
+  <td class="img" rowspan="2"><div class="thumb"><img src="" alt="Pie Dishes"></div></td>
+  <td class="name" rowspan="2">Pie Dishes</td>
+  <td class="item set-hdr">Complete Set (packaged)</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">20cm Pie Dish (× 4)<span class="note">oval — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- ════════════════════════════════════ JUGS & POURERS -->
-  <tr class="cat-row"><td colspan="13">Jugs &amp; Pourers</td></tr>
+<!-- Individual bakeware -->
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Cake Tin"></div></td>
+  <td class="name">Cake Tin</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Conical<br>Jug 0.5L</div></div></td>
-    <td class="name-cell">Conical Jug (0.5 L)</td>
-    <td class="item-cell" title="Tapered — use Top Ø for rim diameter and Base Ø for base diameter">Tapered — fill Top Ø &amp; Base Ø</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Decorative Cake Tin"></div></td>
+  <td class="name">Decorative Cake Tin</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Conical<br>Jug 1.0L</div></div></td>
-    <td class="name-cell">Conical Jug (1.0 L)</td>
-    <td class="item-cell" title="Tapered — use Top Ø for rim diameter and Base Ø for base diameter">Tapered — fill Top Ø &amp; Base Ø</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Loaf Tin"></div></td>
+  <td class="name">Loaf Tin</td>
+  <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Conical<br>Jug 1.5L</div></div></td>
-    <td class="name-cell">Conical Jug (1.5 L)</td>
-    <td class="item-cell" title="Tapered — use Top Ø for rim diameter and Base Ø for base diameter">Tapered — fill Top Ø &amp; Base Ø</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Square Bake Tray"></div></td>
+  <td class="name">Square Bake Tray</td>
+  <td class="item">—<span class="note">square — Top Ø/L = side length · Base Ø/W = same</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Milk<br>Jug</div></div></td>
-    <td class="name-cell">Milk Jug</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Cake Stand"></div></td>
+  <td class="name">Cake Stand</td>
+  <td class="item">—<span class="note">footed — Top Ø = plate rim Ø · Base Ø = foot Ø</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Filter<br>Coffee Jug</div></div></td>
-    <td class="name-cell">Filter Coffee Jug</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ PREP SET ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Prep Set</td></tr>
 
+<!-- Prep Set -->
+<tr class="set-p">
+  <td class="img" rowspan="8"><div class="thumb"><img src="" alt="Prep Set"></div></td>
+  <td class="name" rowspan="8">Prep Set</td>
+  <td class="item set-hdr">Complete Set (packaged)</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">24cm Mixing Bowl</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">24cm Colander</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">18cm Mixing Bowl</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">16cm Mixing Bowl</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">14cm Mixing Bowl</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child">12cm Mixing Bowl</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
+<tr class="set-c">
+  <td class="item child" style="font-style:italic;color:#aaa;font-size:11px;">Set total weight</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- ══════════════════════════════════════════ TEAPOTS -->
-  <tr class="cat-row"><td colspan="13">Teapots</td></tr>
+<!-- ═══════════════════════════ TRAYS & SMALL DISHES ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Trays &amp; Small Dishes</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Teapot<br>0.5 L</div></div></td>
-    <td class="name-cell">Teapot (0.5 L)</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Serving Tray"></div></td>
+  <td class="name">Serving Tray</td>
+  <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Teapot<br>1.0 L</div></div></td>
-    <td class="name-cell">Teapot (1.0 L)</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Small Tray"></div></td>
+  <td class="name">Small Tray</td>
+  <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Small Sauce Dish"></div></td>
+  <td class="name">Small Sauce Dish</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <!-- ═════════════════════════════════ TABLE & STORAGE -->
-  <tr class="cat-row"><td colspan="13">Table &amp; Storage</td></tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Pinch Pot"></div></td>
+  <td class="name">Pinch Pot</td>
+  <td class="item">—</td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Butter<br>Dish</div></div></td>
-    <td class="name-cell">Butter Dish</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<!-- ═══════════════════════════ HOME ═══════════════════════════ -->
+<tr class="cat"><td colspan="13">Home &amp; Kitchen</td></tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Storage<br>Jar</div></div></td>
-    <td class="name-cell">Storage Jar</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Utensil Pot"></div></td>
+  <td class="name">Utensil Pot</td>
+  <td class="item">—<span class="note">wider at base — Top Ø = rim · Base Ø = foot</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Egg<br>Cup</div></div></td>
-    <td class="name-cell">Egg Cup</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
+<tr class="std">
+  <td class="img"><div class="thumb"><img src="" alt="Soap Dish"></div></td>
+  <td class="name">Soap Dish</td>
+  <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
+  <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+  <td class="d us1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
+</tr>
 
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Cake<br>Stand</div></div></td>
-    <td class="name-cell">Cake Stand</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-
-  <tr class="std">
-    <td class="img-cell"><div class="thumb"><div class="thumb-label">Sauce<br>Boat</div></div></td>
-    <td class="name-cell">Sauce Boat</td>
-    <td class="item-cell">—</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-
-  <!-- DIP SET -->
-  <tr class="set-head">
-    <td class="img-cell" rowspan="4"><div class="thumb"><div class="thumb-label">Dip<br>Set</div></div></td>
-    <td class="name-cell" rowspan="4">Dip Set</td>
-    <td class="item-cell set-label">Complete Set (packaged)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Dip Pot (large)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Dip Pot (medium)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Dip Pot (small)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-
-  <!-- MINI TUMBLERS SET -->
-  <tr class="set-head">
-    <td class="img-cell" rowspan="3"><div class="thumb"><div class="thumb-label">Mini<br>Tumblers</div></div></td>
-    <td class="name-cell" rowspan="3">Mini Tumblers Set</td>
-    <td class="item-cell set-label">Complete Set (packaged)</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item" title="Tapered — use Top Ø for rim diameter and Base Ø for base diameter">Mini Tumbler (each) — Tapered</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-  <tr class="set-child">
-    <td class="item-cell child-item">Serving Tray</td>
-    <td class="d uk-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-    <td class="d us-border"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
-  </tr>
-
-  </tbody>
+</tbody>
 </table>
 </div>
 
-<footer-note>
+<footer>
   <strong>Column guide:</strong>
-  &nbsp;Top Ø / Length — outer diameter at widest point (rim for tapered items), or length for rectangular/oval items.
-  &nbsp;Base Ø / Width — base diameter for tapered items (tumblers, fruit bowl, conical jugs); width for rectangular/oval. Leave blank for straight-sided round items.
-  &nbsp;Height / Depth — overall height for upright items; internal depth for dishes, plates, bowls.
-  &nbsp;Set packaged dimensions refer to the outer box unless otherwise noted.
-  &nbsp;US fractions should be rounded to the nearest ⅛&quot;.
+  Top Ø / Length — outer/top diameter for round items; length for rectangular/oval items. &nbsp;
+  Base Ø / Width — base diameter for footed/tapered items; width for rectangular/oval; leave blank for straight-sided round. &nbsp;
+  Height / Depth — height for upright items; internal depth for dishes &amp; plates. &nbsp;
+  Set parent rows show packaged box dimensions &amp; total weight. &nbsp;
+  US fractions rounded to nearest ⅛&quot;.
   <br>
-  <strong>Thumbnails:</strong> Replace each <code>&lt;div class="thumb-label"&gt;</code> block with <code>&lt;img src="URL" alt="..."&gt;</code> using the blue/white rim variant product image URLs.
-</footer-note>
+  <strong>Images:</strong> Replace each <code>&lt;img src=""&gt;</code> with the actual product image URL (blue/white rim variant).
+</footer>
 
 </body>
 </html>
