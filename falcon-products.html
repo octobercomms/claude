@@ -46,8 +46,15 @@
 
     /* Cell types */
     td.img { width: 88px; padding: 5px !important; }
-    .thumb { width: 76px; height: 76px; background: #f0f5fb; border: 2.5px solid #1c3d5e; border-radius: 5px; margin: auto; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    .thumb img { width: 100%; height: 100%; object-fit: contain; }
+    .thumb { width: 76px; height: 76px; background: #f0f5fb; border: 2.5px solid #1c3d5e; border-radius: 5px; margin: auto; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; }
+    .thumb a { display: flex; width: 100%; height: 100%; align-items: center; justify-content: center; text-decoration: none; }
+    .thumb img { width: 100%; height: 100%; object-fit: contain; display: block; }
+    /* When img src is empty show a styled placeholder */
+    .thumb img[src=""] { display: none; }
+    .thumb a::after { content: attr(data-name); font-size: 8.5px; font-weight: 600; color: #1c3d5e; text-align: center; line-height: 1.4; padding: 4px; opacity: .75; white-space: pre-wrap; }
+    .thumb a:has(img:not([src=""])) { }
+    .thumb:hover { border-color: #2e6da4; background: #e4eff9; }
+    .thumb a:hover::after { opacity: 1; }
 
     td.name { text-align: left !important; font-weight: 600; padding-left: 10px !important; min-width: 170px; }
     td.item { text-align: left !important; min-width: 200px; padding-left: 8px !important; }
@@ -112,7 +119,7 @@
 <tr class="cat"><td colspan="13">Drinks</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Mug"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/mug" target="_blank" data-name="Mug"><img src="" alt="Mug – Blue/White Rim"></a></div></td>
   <td class="name">Mug</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -120,7 +127,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Tall Tumbler"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/tall-tumbler" target="_blank" data-name="Tall Tumbler"><img src="" alt="Tall Tumbler – Blue/White Rim"></a></div></td>
   <td class="name">Tall Tumbler</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -128,7 +135,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Tumbler"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/tumbler" target="_blank" data-name="Tumbler"><img src="" alt="Tumbler – Blue/White Rim"></a></div></td>
   <td class="name">Tumbler</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -136,7 +143,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Mini Tumbler"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/mini-tumbler" target="_blank" data-name="Mini Tumbler"><img src="" alt="Mini Tumbler – Blue/White Rim"></a></div></td>
   <td class="name">Mini Tumbler</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -144,7 +151,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Espresso Cup"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/espresso-cup" target="_blank" data-name="Espresso Cup"><img src="" alt="Espresso Cup – Blue/White Rim"></a></div></td>
   <td class="name">Espresso Cup</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -155,7 +162,7 @@
 <tr class="cat"><td colspan="13">Teapots</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Teapot"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/teapot" target="_blank" data-name="Teapot"><img src="" alt="Teapot – Blue/White Rim"></a></div></td>
   <td class="name">Teapot</td>
   <td class="item">—<span class="note">Top Ø/L = body Ø · Base Ø/W = overall width incl. spout &amp; handle</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -166,7 +173,7 @@
 <tr class="cat"><td colspan="13">Jugs</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="1 Pint Jug"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/1-pint-jug" target="_blank" data-name="1 Pint Jug"><img src="" alt="1 Pint Jug – Blue/White Rim"></a></div></td>
   <td class="name">1 Pint Jug</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -174,7 +181,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="2 Pint Jug"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/2-pint-jug" target="_blank" data-name="2 Pint Jug"><img src="" alt="2 Pint Jug – Blue/White Rim"></a></div></td>
   <td class="name">2 Pint Jug</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -182,7 +189,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="3 Pint Jug"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/3-pint-jug" target="_blank" data-name="3 Pint Jug"><img src="" alt="3 Pint Jug – Blue/White Rim"></a></div></td>
   <td class="name">3 Pint Jug</td>
   <td class="item">—<span class="note">tapered — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -193,7 +200,7 @@
 <tr class="cat"><td colspan="13">Plates</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="24cm Plates"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/24cm-plates" target="_blank" data-name="24cm Plates"><img src="" alt="24cm Plates – Blue/White Rim"></a></div></td>
   <td class="name">24cm Plates</td>
   <td class="item">—<span class="note">sold as set of 4 · dimensions per plate</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -201,7 +208,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Deep Plates"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/deep-plates" target="_blank" data-name="Deep Plates"><img src="" alt="Deep Plates – Blue/White Rim"></a></div></td>
   <td class="name">Deep Plates</td>
   <td class="item">—<span class="note">sold as set of 4 · dimensions per plate</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -209,7 +216,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Small Side Plates"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/small-side-plates" target="_blank" data-name="Small Side Plates"><img src="" alt="Small Side Plates – Blue/White Rim"></a></div></td>
   <td class="name">Small Side Plates</td>
   <td class="item">—<span class="note">sold as set · dimensions per plate</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -217,7 +224,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Oval Plate"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/oval-plate" target="_blank" data-name="Oval Plate"><img src="" alt="Oval Plate – Blue/White Rim"></a></div></td>
   <td class="name">Oval Plate</td>
   <td class="item">—<span class="note">oval — Top Ø/L = length · Base Ø/W = width</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -228,7 +235,7 @@
 <tr class="cat"><td colspan="13">Bowls &amp; Serving</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="12cm Bowls"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/12cm-bowls" target="_blank" data-name="12cm Bowls"><img src="" alt="12cm Bowls – Blue/White Rim"></a></div></td>
   <td class="name">12cm Bowls</td>
   <td class="item">—<span class="note">sold as set of 4 · dimensions per bowl</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -236,7 +243,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Large Serving Dish"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/large-serving-dish" target="_blank" data-name="Large Serving Dish"><img src="" alt="Large Serving Dish – Blue/White Rim"></a></div></td>
   <td class="name">Large Serving Dish</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -244,7 +251,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Medium Serving Dish"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/medium-serving-dish" target="_blank" data-name="Medium Serving Dish"><img src="" alt="Medium Serving Dish – Blue/White Rim"></a></div></td>
   <td class="name">Medium Serving Dish</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -252,7 +259,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Fruit Bowl"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/fruit-bowl" target="_blank" data-name="Fruit Bowl"><img src="" alt="Fruit Bowl – Blue/White Rim"></a></div></td>
   <td class="name">Fruit Bowl</td>
   <td class="item">—<span class="note">footed — fill Top Ø &amp; Base Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -260,7 +267,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Dog Bowl"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/dog-bowl" target="_blank" data-name="Dog Bowl"><img src="" alt="Dog Bowl – Blue/White Rim"></a></div></td>
   <td class="name">Dog Bowl</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -269,7 +276,7 @@
 
 <!-- Serving Dish Set -->
 <tr class="set-p">
-  <td class="img" rowspan="3"><div class="thumb"><img src="" alt="Serving Dish Set"></div></td>
+  <td class="img" rowspan="3"><div class="thumb"><a href="https://www.falconenamelware.com/products/serving-dish-set" target="_blank" data-name="Serving Dish Set"><img src="" alt="Serving Dish Set – Blue/White Rim"></a></div></td>
   <td class="name" rowspan="3">Serving Dish Set</td>
   <td class="item set-hdr">Complete Set (packaged)</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -291,7 +298,7 @@
 
 <!-- Bake Set -->
 <tr class="set-p">
-  <td class="img" rowspan="6"><div class="thumb"><img src="" alt="Bake Set"></div></td>
+  <td class="img" rowspan="6"><div class="thumb"><a href="https://www.falconenamelware.com/products/bake-set" target="_blank" data-name="Bake Set"><img src="" alt="Bake Set – Blue/White Rim"></a></div></td>
   <td class="name" rowspan="6">Bake Set</td>
   <td class="item set-hdr">Complete Set (packaged)</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -325,7 +332,7 @@
 
 <!-- Pie Set -->
 <tr class="set-p">
-  <td class="img" rowspan="7"><div class="thumb"><img src="" alt="Pie Set"></div></td>
+  <td class="img" rowspan="7"><div class="thumb"><a href="https://www.falconenamelware.com/products/pie-set" target="_blank" data-name="Pie Set"><img src="" alt="Pie Set – Blue/White Rim"></a></div></td>
   <td class="name" rowspan="7">Pie Set</td>
   <td class="item set-hdr">Complete Set (packaged)</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -364,7 +371,7 @@
 
 <!-- Pie Dishes (set of 4) -->
 <tr class="set-p">
-  <td class="img" rowspan="2"><div class="thumb"><img src="" alt="Pie Dishes"></div></td>
+  <td class="img" rowspan="2"><div class="thumb"><a href="https://www.falconenamelware.com/products/pie-dishes" target="_blank" data-name="Pie Dishes"><img src="" alt="Pie Dishes – Blue/White Rim"></a></div></td>
   <td class="name" rowspan="2">Pie Dishes</td>
   <td class="item set-hdr">Complete Set (packaged)</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -378,7 +385,7 @@
 
 <!-- Individual bakeware -->
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Cake Tin"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/cake-tin" target="_blank" data-name="Cake Tin"><img src="" alt="Cake Tin – Blue/White Rim"></a></div></td>
   <td class="name">Cake Tin</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -386,7 +393,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Decorative Cake Tin"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/decorative-cake-tin" target="_blank" data-name="Decorative Cake Tin"><img src="" alt="Decorative Cake Tin – Blue/White Rim"></a></div></td>
   <td class="name">Decorative Cake Tin</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -394,7 +401,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Loaf Tin"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/loaf-tin" target="_blank" data-name="Loaf Tin"><img src="" alt="Loaf Tin – Blue/White Rim"></a></div></td>
   <td class="name">Loaf Tin</td>
   <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -402,7 +409,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Square Bake Tray"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/square-bake-tray" target="_blank" data-name="Square Bake Tray"><img src="" alt="Square Bake Tray – Blue/White Rim"></a></div></td>
   <td class="name">Square Bake Tray</td>
   <td class="item">—<span class="note">square — Top Ø/L = side length · Base Ø/W = same</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -410,7 +417,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Cake Stand"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/cake-stand" target="_blank" data-name="Cake Stand"><img src="" alt="Cake Stand – Blue/White Rim"></a></div></td>
   <td class="name">Cake Stand</td>
   <td class="item">—<span class="note">footed — Top Ø = plate rim Ø · Base Ø = foot Ø</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -422,7 +429,7 @@
 
 <!-- Prep Set -->
 <tr class="set-p">
-  <td class="img" rowspan="8"><div class="thumb"><img src="" alt="Prep Set"></div></td>
+  <td class="img" rowspan="8"><div class="thumb"><a href="https://www.falconenamelware.com/products/prep-set" target="_blank" data-name="Prep Set"><img src="" alt="Prep Set – Blue/White Rim"></a></div></td>
   <td class="name" rowspan="8">Prep Set</td>
   <td class="item set-hdr">Complete Set (packaged)</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -468,7 +475,7 @@
 <tr class="cat"><td colspan="13">Trays &amp; Small Dishes</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Serving Tray"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/serving-tray" target="_blank" data-name="Serving Tray"><img src="" alt="Serving Tray – Blue/White Rim"></a></div></td>
   <td class="name">Serving Tray</td>
   <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -476,7 +483,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Small Tray"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/small-tray" target="_blank" data-name="Small Tray"><img src="" alt="Small Tray – Blue/White Rim"></a></div></td>
   <td class="name">Small Tray</td>
   <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -484,7 +491,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Small Sauce Dish"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/small-sauce-dish" target="_blank" data-name="Small Sauce Dish"><img src="" alt="Small Sauce Dish – Blue/White Rim"></a></div></td>
   <td class="name">Small Sauce Dish</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -492,7 +499,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Pinch Pot"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/pinch-pot" target="_blank" data-name="Pinch Pot"><img src="" alt="Pinch Pot – Blue/White Rim"></a></div></td>
   <td class="name">Pinch Pot</td>
   <td class="item">—</td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -503,7 +510,7 @@
 <tr class="cat"><td colspan="13">Home &amp; Kitchen</td></tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Utensil Pot"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/utensil-pot" target="_blank" data-name="Utensil Pot"><img src="" alt="Utensil Pot – Blue/White Rim"></a></div></td>
   <td class="name">Utensil Pot</td>
   <td class="item">—<span class="note">wider at base — Top Ø = rim · Base Ø = foot</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
@@ -511,7 +518,7 @@
 </tr>
 
 <tr class="std">
-  <td class="img"><div class="thumb"><img src="" alt="Soap Dish"></div></td>
+  <td class="img"><div class="thumb"><a href="https://www.falconenamelware.com/products/soap-dish" target="_blank" data-name="Soap Dish"><img src="" alt="Soap Dish – Blue/White Rim"></a></div></td>
   <td class="name">Soap Dish</td>
   <td class="item">—<span class="note">rect. — Top Ø/L = length · Base Ø/W = width</span></td>
   <td class="d uk1"></td><td class="d"></td><td class="d"></td><td class="d"></td><td class="d"></td>
