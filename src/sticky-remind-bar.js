@@ -6,9 +6,9 @@
  */
 
 const CONFIG = {
-  brevoApiKey: '',        // Your Brevo API key
-  brevoListId: null,      // e.g. 5  — the list ID to add contacts to
-  brevoTemplateId: null,  // e.g. 12 — the Brevo transactional template ID
+  brevoApiKey: '',        // Your Brevo API key (single account, shared across all pages)
+  brevoListId: null,      // Fallback list ID — overridden per-page via #nvelope-brevo-list-id hidden input
+  brevoTemplateId: null,  // Fallback template ID — overridden per-page via #nvelope-brevo-template-id hidden input
   cookieName: 'nvelope_remind_dismissed',
   cookieDays: 30,
 };
@@ -76,14 +76,24 @@ function dismissBar(bar) {
 // ---------------------------------------------------------------------------
 
 function getPageMeta() {
-  const studioNameEl = document.getElementById('nvelope-studio-name')
+  const studioNameEl   = document.getElementById('nvelope-studio-name')
     || document.querySelector('[name="studio_name"]');
-  const studioUrlEl  = document.getElementById('nvelope-studio-url')
+  const studioUrlEl    = document.getElementById('nvelope-studio-url')
     || document.querySelector('[name="studio_url"]');
+  const listIdEl       = document.getElementById('nvelope-brevo-list-id')
+    || document.querySelector('[name="brevo_list_id"]');
+  const templateIdEl   = document.getElementById('nvelope-brevo-template-id')
+    || document.querySelector('[name="brevo_template_id"]');
+
+  const rawListId    = listIdEl    ? listIdEl.value.trim()    : null;
+  const rawTemplId   = templateIdEl ? templateIdEl.value.trim() : null;
 
   return {
-    studioName: studioNameEl ? studioNameEl.value || studioNameEl.textContent.trim() : '',
-    studioUrl:  studioUrlEl  ? studioUrlEl.value  || studioUrlEl.textContent.trim()  : window.location.href,
+    studioName:   studioNameEl ? studioNameEl.value || studioNameEl.textContent.trim() : '',
+    studioUrl:    studioUrlEl  ? studioUrlEl.value  || studioUrlEl.textContent.trim()  : window.location.href,
+    // Per-page overrides; fall back to CONFIG values if not present on this page
+    brevoListId:     rawListId   ? parseInt(rawListId, 10)   : CONFIG.brevoListId,
+    brevoTemplateId: rawTemplId  ? parseInt(rawTemplId, 10)  : CONFIG.brevoTemplateId,
   };
 }
 
@@ -91,7 +101,7 @@ function getPageMeta() {
 // Brevo API calls
 // ---------------------------------------------------------------------------
 
-async function brevoUpsertContact(email, studioName, studioUrl) {
+async function brevoUpsertContact(email, studioName, studioUrl, listId) {
   const payload = {
     email,
     attributes: {
@@ -102,8 +112,8 @@ async function brevoUpsertContact(email, studioName, studioUrl) {
     updateEnabled: true,
   };
 
-  if (CONFIG.brevoListId) {
-    payload.listIds = [CONFIG.brevoListId];
+  if (listId) {
+    payload.listIds = [listId];
   }
 
   const res = await fetch('https://api.brevo.com/v3/contacts', {
@@ -122,10 +132,10 @@ async function brevoUpsertContact(email, studioName, studioUrl) {
   }
 }
 
-async function brevoSendReminder(email, studioName, studioUrl) {
+async function brevoSendReminder(email, studioName, studioUrl, templateId) {
   const payload = {
     to: [{ email }],
-    templateId: CONFIG.brevoTemplateId,
+    templateId,
     params: {
       STUDIO_NAME: studioName,
       STUDIO_URL:  studioUrl,
@@ -170,13 +180,13 @@ async function handleSubmit(bar) {
   button.disabled = true;
   button.textContent = 'Sending…';
 
-  const { studioName, studioUrl } = getPageMeta();
+  const { studioName, studioUrl, brevoListId, brevoTemplateId } = getPageMeta();
 
   try {
-    await brevoUpsertContact(email, studioName, studioUrl);
+    await brevoUpsertContact(email, studioName, studioUrl, brevoListId);
 
-    if (CONFIG.brevoTemplateId) {
-      await brevoSendReminder(email, studioName, studioUrl);
+    if (brevoTemplateId) {
+      await brevoSendReminder(email, studioName, studioUrl, brevoTemplateId);
     }
 
     setCookie(CONFIG.cookieName, '1', CONFIG.cookieDays);
