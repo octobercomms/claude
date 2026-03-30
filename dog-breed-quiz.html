@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Which Dog Breed Is Right for You?</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #fdf8f3;
+      --card: #ffffff;
+      --primary: #c2622a;
+      --primary-dark: #a04f20;
+      --accent: #f5a623;
+      --text: #2d2012;
+      --muted: #8a6f55;
+      --border: #e8d9c8;
+      --option-hover: #fef3e8;
+      --option-selected: #fde8d0;
+      --radius: 14px;
+      --shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px 60px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header .paw { font-size: 2.4rem; display: block; margin-bottom: 8px; }
+    header h1 {
+      font-size: clamp(1.6rem, 4vw, 2.4rem);
+      font-weight: 800;
+      color: var(--primary);
+      line-height: 1.2;
+    }
+    header p {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    .quiz-container {
+      width: 100%;
+      max-width: 640px;
+    }
+
+    /* Progress bar */
+    .progress-wrap {
+      margin-bottom: 28px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--primary));
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    /* Question card */
+    .card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 32px 28px;
+      animation: fadeSlide 0.35s ease forwards;
+    }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .question-icon { font-size: 2rem; margin-bottom: 10px; display: block; }
+    .question-text {
+      font-size: 1.18rem;
+      font-weight: 700;
+      line-height: 1.4;
+      margin-bottom: 22px;
+    }
+
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.18s, border-color 0.18s, transform 0.12s;
+      user-select: none;
+    }
+    .option:hover { background: var(--option-hover); border-color: var(--accent); transform: translateX(2px); }
+    .option.selected { background: var(--option-selected); border-color: var(--primary); }
+    .option-emoji { font-size: 1.4rem; flex-shrink: 0; }
+    .option-label { font-size: 0.97rem; font-weight: 500; }
+
+    /* Navigation */
+    .nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 24px;
+      gap: 12px;
+    }
+    .btn {
+      padding: 12px 24px;
+      border-radius: 99px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.12s, opacity 0.18s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn-back {
+      background: transparent;
+      color: var(--muted);
+      border: 2px solid var(--border);
+    }
+    .btn-back:hover { background: var(--border); color: var(--text); }
+    .btn-next {
+      background: var(--primary);
+      color: #fff;
+      margin-left: auto;
+    }
+    .btn-next:hover { background: var(--primary-dark); }
+    .btn-next:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-next:disabled:hover { background: var(--primary); transform: none; }
+
+    /* Result card */
+    .result-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 36px 28px;
+      text-align: center;
+      animation: fadeSlide 0.4s ease forwards;
+    }
+    .result-badge {
+      font-size: 4rem;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .result-match {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+    .result-breed {
+      font-size: clamp(1.8rem, 5vw, 2.6rem);
+      font-weight: 900;
+      color: var(--primary);
+      line-height: 1.1;
+      margin-bottom: 16px;
+    }
+    .result-desc {
+      font-size: 1rem;
+      color: var(--muted);
+      line-height: 1.65;
+      max-width: 480px;
+      margin: 0 auto 24px;
+    }
+    .traits {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 28px;
+    }
+    .trait {
+      background: var(--option-selected);
+      color: var(--primary-dark);
+      border-radius: 99px;
+      padding: 5px 14px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .btn-restart {
+      background: var(--primary);
+      color: #fff;
+      padding: 13px 32px;
+      border-radius: 99px;
+      border: none;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.18s;
+    }
+    .btn-restart:hover { background: var(--primary-dark); }
+
+    /* Intro screen */
+    .intro-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 40px 28px;
+      text-align: center;
+    }
+    .intro-card .big-emoji { font-size: 4rem; display: block; margin-bottom: 16px; }
+    .intro-card h2 { font-size: 1.5rem; font-weight: 800; margin-bottom: 12px; color: var(--text); }
+    .intro-card p { color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+    .intro-steps {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .step {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .step span { display: block; font-size: 1.2rem; margin-bottom: 2px; }
+    .btn-start {
+      background: var(--primary);
+      color: #fff;
+      padding: 14px 40px;
+      border-radius: 99px;
+      border: none;
+      font-size: 1.05rem;
+      font-weight: 800;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.12s;
+    }
+    .btn-start:hover { background: var(--primary-dark); transform: scale(1.03); }
+  </style>
+</head>
+<body>
+
+<header>
+  <span class="paw">🐾</span>
+  <h1>Which Dog Breed Is<br>Right for You?</h1>
+  <p>Answer a few lifestyle questions to find your perfect match</p>
+</header>
+
+<div class="quiz-container" id="app"></div>
+
+<script>
+const questions = [
+  {
+    id: "home",
+    icon: "🏠",
+    text: "What's your living situation?",
+    options: [
+      { emoji: "🏙️", label: "Small apartment in the city", value: "small" },
+      { emoji: "🏘️", label: "House with a small yard", value: "medium" },
+      { emoji: "🏡", label: "House with a large yard", value: "large" },
+      { emoji: "🌾", label: "Rural property with lots of land", value: "rural" },
+    ],
+  },
+  {
+    id: "activity",
+    icon: "🏃",
+    text: "How active is your lifestyle?",
+    options: [
+      { emoji: "🛋️", label: "Pretty relaxed — I love my couch", value: "low" },
+      { emoji: "🚶", label: "Moderate — daily walks sound great", value: "moderate" },
+      { emoji: "🚴", label: "Active — I jog or hike regularly", value: "high" },
+      { emoji: "🏋️", label: "Very active — outdoors is my happy place", value: "very_high" },
+    ],
+  },
+  {
+    id: "time",
+    icon: "⏰",
+    text: "How much time can you dedicate to your dog daily?",
+    options: [
+      { emoji: "🕐", label: "Under 1 hour", value: "low" },
+      { emoji: "🕑", label: "1–2 hours", value: "moderate" },
+      { emoji: "🕒", label: "3–4 hours", value: "high" },
+      { emoji: "🕓", label: "I'm home most of the day", value: "very_high" },
+    ],
+  },
+  {
+    id: "experience",
+    icon: "🎓",
+    text: "What's your dog-owning experience?",
+    options: [
+      { emoji: "🐣", label: "First-time dog owner", value: "none" },
+      { emoji: "🐥", label: "Had a dog growing up", value: "some" },
+      { emoji: "🐕", label: "Owned my own dog before", value: "moderate" },
+      { emoji: "🦮", label: "Experienced — I've trained multiple dogs", value: "expert" },
+    ],
+  },
+  {
+    id: "kids",
+    icon: "👨‍👩‍👧",
+    text: "Do you have children or plan to?",
+    options: [
+      { emoji: "🚫", label: "No, and unlikely to", value: "none" },
+      { emoji: "🔮", label: "No kids now but maybe someday", value: "future" },
+      { emoji: "👶", label: "Yes, young children (under 8)", value: "young" },
+      { emoji: "🧒", label: "Yes, older children (8+)", value: "older" },
+    ],
+  },
+  {
+    id: "shedding",
+    icon: "💨",
+    text: "How do you feel about dog hair and grooming?",
+    options: [
+      { emoji: "😬", label: "Allergies or really hate hair — the less the better", value: "none" },
+      { emoji: "🧹", label: "I can handle a little vacuuming", value: "low" },
+      { emoji: "😌", label: "Doesn't bother me much", value: "moderate" },
+      { emoji: "😍", label: "I love grooming — bring on the fluff!", value: "high" },
+    ],
+  },
+  {
+    id: "vibe",
+    icon: "✨",
+    text: "What vibe are you looking for in a dog?",
+    options: [
+      { emoji: "😴", label: "Calm and cuddly companion", value: "calm" },
+      { emoji: "🎾", label: "Playful and energetic buddy", value: "playful" },
+      { emoji: "🧠", label: "Smart and trainable partner", value: "smart" },
+      { emoji: "💪", label: "Loyal protector of the family", value: "protective" },
+    ],
+  },
+  {
+    id: "alone",
+    icon: "🏠",
+    text: "How often will the dog be left alone?",
+    options: [
+      { emoji: "🏠", label: "Rarely — someone's almost always home", value: "low" },
+      { emoji: "🕐", label: "A few hours most days", value: "moderate" },
+      { emoji: "💼", label: "A full workday (8+ hours)", value: "high" },
+      { emoji: "❓", label: "It varies a lot", value: "varies" },
+    ],
+  },
+];
+
+// Breed database with scoring weights
+const breeds = [
+  {
+    name: "Golden Retriever",
+    emoji: "🦮",
+    desc: "Gentle, friendly, and endlessly patient — the Golden Retriever is one of the most beloved family dogs for good reason. They're eager to please, highly trainable, and love being part of every activity.",
+    traits: ["Family-friendly", "Easy to train", "Loves water", "Sociable", "Affectionate"],
+    score: (a) => {
+      let s = 0;
+      if (["large","rural","medium"].includes(a.home)) s += 2;
+      if (["moderate","high","very_high"].includes(a.activity)) s += 2;
+      if (["moderate","high","very_high"].includes(a.time)) s += 2;
+      if (["some","moderate","expert"].includes(a.experience)) s += 1;
+      if (["young","older","future"].includes(a.kids)) s += 3;
+      if (["moderate","high"].includes(a.shedding)) s += 2;
+      if (["playful","smart"].includes(a.vibe)) s += 2;
+      if (["low","moderate"].includes(a.alone)) s += 2;
+      return s;
+    },
+  },
+  {
+    name: "Labrador Retriever",
+    emoji: "🐕",
+    desc: "The ultimate all-rounder. Labs are energetic, friendly, and fiercely loyal. They adapt well to active families, love to swim and fetch, and have an irresistible sunny personality.",
+    traits: ["Energetic", "Loyal", "Kid-friendly", "Adaptable", "Food-motivated"],
+    score: (a) => {
+      let s = 0;
+      if (["large","rural"].includes(a.home)) s += 2;
+      if (["high","very_high","moderate"].includes(a.activity)) s += 3;
+      if (["high","very_high"].includes(a.time)) s += 2;
+      if (["young","older"].includes(a.kids)) s += 3;
+      if (["low","moderate"].includes(a.shedding)) s += 1;
+      if (["playful","smart"].includes(a.vibe)) s += 2;
+      if (["low","moderate"].includes(a.alone)) s += 1;
+      return s;
+    },
+  },
+  {
+    name: "French Bulldog",
+    emoji: "🐾",
+    desc: "Compact, charming, and surprisingly low-maintenance — the Frenchie is perfect for apartment living. They're affectionate couch companions who need minimal exercise and thrive on human connection.",
+    traits: ["Apartment-friendly", "Low energy", "Affectionate", "Minimal exercise", "Quiet"],
+    score: (a) => {
+      let s = 0;
+      if (["small","medium"].includes(a.home)) s += 3;
+      if (["low","moderate"].includes(a.activity)) s += 3;
+      if (["low","moderate"].includes(a.time)) s += 2;
+      if (["none","some"].includes(a.experience)) s += 2;
+      if (["older","none","future"].includes(a.kids)) s += 1;
+      if (["none","low"].includes(a.shedding)) s += 2;
+      if (["calm"].includes(a.vibe)) s += 3;
+      if (["moderate","high"].includes(a.alone)) s += 1;
+      return s;
+    },
+  },
+  {
+    name: "Border Collie",
+    emoji: "🐩",
+    desc: "The Einstein of dog breeds — Border Collies are breathtakingly intelligent, athletic, and driven. They thrive with experienced owners who can give them a job and lots of mental stimulation.",
+    traits: ["Highly intelligent", "Athletic", "Trainable", "Herding instinct", "Energetic"],
+    score: (a) => {
+      let s = 0;
+      if (["large","rural"].includes(a.home)) s += 3;
+      if (["very_high","high"].includes(a.activity)) s += 4;
+      if (["high","very_high"].includes(a.time)) s += 3;
+      if (["moderate","expert"].includes(a.experience)) s += 3;
+      if (["moderate","high"].includes(a.shedding)) s += 1;
+      if (["smart"].includes(a.vibe)) s += 4;
+      if (["low"].includes(a.alone)) s += 2;
+      return s;
+    },
+  },
+  {
+    name: "Cavalier King Charles Spaniel",
+    emoji: "🐕‍🦺",
+    desc: "The ultimate lap dog. Cavaliers are gentle, affectionate, and adaptable — equally happy in an apartment or a cottage. They love children, get along with everyone, and crave companionship.",
+    traits: ["Gentle", "Affectionate", "Good with kids", "Adaptable", "Low-energy"],
+    score: (a) => {
+      let s = 0;
+      if (["small","medium"].includes(a.home)) s += 2;
+      if (["low","moderate"].includes(a.activity)) s += 3;
+      if (["low","moderate"].includes(a.time)) s += 2;
+      if (["none","some"].includes(a.experience)) s += 3;
+      if (["young","older","future"].includes(a.kids)) s += 3;
+      if (["low","moderate"].includes(a.shedding)) s += 1;
+      if (["calm"].includes(a.vibe)) s += 4;
+      if (["low","moderate"].includes(a.alone)) s += 1;
+      return s;
+    },
+  },
+  {
+    name: "Poodle",
+    emoji: "🐩",
+    desc: "Poodles are elegant, hypoallergenic, and remarkably smart. They come in three sizes and are one of the best breeds for people with allergies. Highly trainable and social, they love showing off.",
+    traits: ["Hypoallergenic", "Intelligent", "Low-shedding", "Trainable", "Elegant"],
+    score: (a) => {
+      let s = 0;
+      if (["none","low"].includes(a.shedding)) s += 5;
+      if (["moderate","expert"].includes(a.experience)) s += 2;
+      if (["smart","playful"].includes(a.vibe)) s += 3;
+      if (["moderate","high","very_high"].includes(a.time)) s += 1;
+      if (["young","older"].includes(a.kids)) s += 2;
+      if (["moderate","high"].includes(a.activity)) s += 1;
+      return s;
+    },
+  },
+  {
+    name: "German Shepherd",
+    emoji: "🐕",
+    desc: "Brave, loyal, and highly intelligent — German Shepherds are natural protectors and working dogs. With proper training and socialization, they're wonderful family companions and fiercely devoted.",
+    traits: ["Loyal", "Protective", "Intelligent", "Trainable", "Active"],
+    score: (a) => {
+      let s = 0;
+      if (["large","rural","medium"].includes(a.home)) s += 2;
+      if (["high","very_high"].includes(a.activity)) s += 3;
+      if (["high","very_high"].includes(a.time)) s += 2;
+      if (["moderate","expert"].includes(a.experience)) s += 3;
+      if (["moderate","high"].includes(a.shedding)) s += 1;
+      if (["protective","smart"].includes(a.vibe)) s += 4;
+      if (["low","moderate"].includes(a.alone)) s += 1;
+      return s;
+    },
+  },
+  {
+    name: "Shih Tzu",
+    emoji: "🐶",
+    desc: "A little dog with a big heart. Shih Tzus were bred to be companions and excel at it — they're calm, loving, and happy in small spaces. Ideal for relaxed owners who love grooming and cuddles.",
+    traits: ["Compact", "Affectionate", "Low-energy", "Good with seniors", "Loves grooming"],
+    score: (a) => {
+      let s = 0;
+      if (["small"].includes(a.home)) s += 3;
+      if (["low"].includes(a.activity)) s += 4;
+      if (["low","moderate"].includes(a.time)) s += 2;
+      if (["none","some"].includes(a.experience)) s += 2;
+      if (["high"].includes(a.shedding)) s += 2;
+      if (["calm"].includes(a.vibe)) s += 3;
+      if (["moderate","high"].includes(a.alone)) s += 2;
+      return s;
+    },
+  },
+  {
+    name: "Siberian Husky",
+    emoji: "🐺",
+    desc: "Born to run — Huskies are stunning, spirited, and built for adventure. They thrive with active owners who can match their energy. Highly social and vocal, they're a commitment but an unforgettable one.",
+    traits: ["Athletic", "Independent", "Striking looks", "High energy", "Pack-oriented"],
+    score: (a) => {
+      let s = 0;
+      if (["large","rural"].includes(a.home)) s += 3;
+      if (["very_high","high"].includes(a.activity)) s += 5;
+      if (["high","very_high"].includes(a.time)) s += 3;
+      if (["moderate","expert"].includes(a.experience)) s += 2;
+      if (["moderate","high"].includes(a.shedding)) s += 2;
+      if (["playful","protective"].includes(a.vibe)) s += 2;
+      if (["low"].includes(a.alone)) s += 2;
+      return s;
+    },
+  },
+  {
+    name: "Basset Hound",
+    emoji: "🐕",
+    desc: "Laid-back, loveable, and pleasantly stubborn — Basset Hounds are the couch connoisseurs of the dog world. They're great with kids, low-energy, and deeply loyal in their own unhurried way.",
+    traits: ["Low energy", "Gentle", "Good with kids", "Loyal", "Independent"],
+    score: (a) => {
+      let s = 0;
+      if (["small","medium"].includes(a.home)) s += 2;
+      if (["low"].includes(a.activity)) s += 4;
+      if (["low","moderate"].includes(a.time)) s += 3;
+      if (["none","some"].includes(a.experience)) s += 2;
+      if (["young","older"].includes(a.kids)) s += 2;
+      if (["low","moderate"].includes(a.shedding)) s += 1;
+      if (["calm"].includes(a.vibe)) s += 3;
+      if (["moderate","high","varies"].includes(a.alone)) s += 2;
+      return s;
+    },
+  },
+];
+
+// State
+let screen = "intro"; // intro | quiz | result
+let current = 0;
+let answers = {};
+
+function getApp() { return document.getElementById("app"); }
+
+function render() {
+  if (screen === "intro") renderIntro();
+  else if (screen === "quiz") renderQuiz();
+  else renderResult();
+}
+
+function renderIntro() {
+  getApp().innerHTML = `
+    <div class="intro-card">
+      <span class="big-emoji">🐶</span>
+      <h2>Find Your Perfect Dog Match</h2>
+      <p>Answer 8 short questions about your lifestyle and we'll suggest the breed that fits you best.</p>
+      <div class="intro-steps">
+        <div class="step"><span>🏠</span>Where you live</div>
+        <div class="step"><span>🏃</span>Activity level</div>
+        <div class="step"><span>👨‍👩‍👧</span>Family life</div>
+        <div class="step"><span>✨</span>Personal vibe</div>
+      </div>
+      <button class="btn-start" onclick="startQuiz()">Start the Quiz →</button>
+    </div>
+  `;
+}
+
+function startQuiz() {
+  screen = "quiz";
+  current = 0;
+  answers = {};
+  render();
+}
+
+function renderQuiz() {
+  const q = questions[current];
+  const total = questions.length;
+  const pct = Math.round((current / total) * 100);
+  const selected = answers[q.id];
+
+  getApp().innerHTML = `
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Question ${current + 1} of ${total}</span>
+        <span>${pct}% complete</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div class="card">
+      <span class="question-icon">${q.icon}</span>
+      <div class="question-text">${q.text}</div>
+      <div class="options">
+        ${q.options.map(opt => `
+          <div class="option ${selected === opt.value ? 'selected' : ''}" onclick="selectOption('${q.id}','${opt.value}')">
+            <span class="option-emoji">${opt.emoji}</span>
+            <span class="option-label">${opt.label}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="nav">
+        ${current > 0 ? `<button class="btn btn-back" onclick="goBack()">← Back</button>` : '<span></span>'}
+        <button class="btn btn-next" onclick="goNext()" ${!selected ? 'disabled' : ''}>
+          ${current === total - 1 ? 'See My Match 🐾' : 'Next →'}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function selectOption(qid, value) {
+  answers[qid] = value;
+  render();
+}
+
+function goNext() {
+  const q = questions[current];
+  if (!answers[q.id]) return;
+  if (current < questions.length - 1) {
+    current++;
+    render();
+  } else {
+    showResult();
+  }
+}
+
+function goBack() {
+  if (current > 0) { current--; render(); }
+}
+
+function showResult() {
+  screen = "result";
+  render();
+}
+
+function getTopBreed() {
+  let best = null, bestScore = -1;
+  for (const breed of breeds) {
+    const s = breed.score(answers);
+    if (s > bestScore) { bestScore = s; best = breed; }
+  }
+  return best;
+}
+
+function renderResult() {
+  const breed = getTopBreed();
+  getApp().innerHTML = `
+    <div class="result-card">
+      <span class="result-badge">${breed.emoji}</span>
+      <div class="result-match">Your Perfect Match</div>
+      <div class="result-breed">${breed.name}</div>
+      <p class="result-desc">${breed.desc}</p>
+      <div class="traits">
+        ${breed.traits.map(t => `<span class="trait">${t}</span>`).join('')}
+      </div>
+      <button class="btn-restart" onclick="startQuiz()">↩ Retake the Quiz</button>
+    </div>
+  `;
+}
+
+// Boot
+render();
+</script>
+</body>
+</html>
