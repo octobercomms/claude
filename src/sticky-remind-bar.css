@@ -1,0 +1,150 @@
+/* =========================================================
+   Sticky "Remind me on desktop" bar
+   ========================================================= */
+
+#nvelope-remind-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 16px;
+  background: #1a1a1a;
+  color: #ffffff;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 14px;
+  gap: 12px;
+}
+
+/* Inner wrapper centres the label + form row */
+.nvelope-remind-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+/* Label */
+.nvelope-remind-label {
+  white-space: nowrap;
+  font-weight: 500;
+  color: #ffffff;
+  margin: 0;
+}
+
+/* Form row: input + button side by side */
+.nvelope-remind-form-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Email input */
+.nvelope-remind-input {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-size: 14px;
+  font-family: inherit;
+  width: 220px;
+  max-width: 100%;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.nvelope-remind-input::placeholder {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.nvelope-remind-input:focus {
+  border-color: rgba(255, 255, 255, 0.7);
+}
+
+/* Submit button */
+.nvelope-remind-submit {
+  height: 32px;
+  padding: 0 16px;
+  background: #ffffff;
+  color: #1a1a1a;
+  border: none;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.2s;
+}
+
+.nvelope-remind-submit:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.nvelope-remind-submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Inline confirmation message */
+.nvelope-remind-confirmation {
+  margin: 0;
+  font-weight: 500;
+  color: #ffffff;
+  text-align: center;
+}
+
+/* Close (X) button */
+.nvelope-remind-close {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.nvelope-remind-close:hover {
+  color: #ffffff;
+}
+
+/* =========================================================
+   Responsive: stack label above form row on narrow screens
+   ========================================================= */
+
+@media (max-width: 520px) {
+  #nvelope-remind-bar {
+    min-height: 64px;
+    padding: 8px 12px;
+  }
+
+  .nvelope-remind-label {
+    width: 100%;
+    text-align: center;
+    font-size: 13px;
+  }
+
+  .nvelope-remind-input {
+    width: 160px;
+  }
+}
