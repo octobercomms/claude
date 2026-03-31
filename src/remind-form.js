@@ -16,10 +16,13 @@ document.addEventListener('submit', async function (e) {
 
   button.disabled = true;
 
-  const listId     = parseInt(form.dataset.listId, 10)     || null;
-  const templateId = parseInt(form.dataset.templateId, 10) || null;
-  const studioName = form.dataset.studioName || '';
-  const studioUrl  = form.dataset.studioUrl  || window.location.href;
+  // remindFormPage is injected by wp_localize_script and is more reliable
+  // than data attributes when the shortcode runs in an Elementor header template.
+  const page      = (typeof remindFormPage !== 'undefined') ? remindFormPage : {};
+  const listId     = page.listId     || parseInt(form.dataset.listId, 10)     || null;
+  const templateId = page.templateId || parseInt(form.dataset.templateId, 10) || null;
+  const studioName = page.studioName || form.dataset.studioName || '';
+  const studioUrl  = page.studioUrl  || form.dataset.studioUrl  || window.location.href;
 
   try {
     // 1. Upsert contact

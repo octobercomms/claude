@@ -21,6 +21,23 @@ add_action('wp_enqueue_scripts', function () {
     );
 });
 
+// Runs after the main query is set — reliably gets the correct page ID
+// even when the shortcode is rendered inside an Elementor header template.
+add_action('wp', function () {
+    if ( ! wp_script_is('remind-form', 'enqueued') ) return;
+
+    $page_id     = get_queried_object_id();
+    $list_id     = get_post_meta($page_id, 'brevo_list_id', true);
+    $template_id = get_post_meta($page_id, 'brevo_template_id', true);
+
+    wp_localize_script('remind-form', 'remindFormPage', [
+        'listId'     => $list_id     ? (int) $list_id     : null,
+        'templateId' => $template_id ? (int) $template_id : null,
+        'studioName' => get_the_title($page_id),
+        'studioUrl'  => get_permalink($page_id),
+    ]);
+});
+
 add_shortcode('remind_me_form', function ($atts) {
     $a = shortcode_atts([
         'list_id'     => '',   // fallback if not set via custom field
