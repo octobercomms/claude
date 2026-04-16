@@ -4,6 +4,96 @@
       "name": "blog",
       "source": "https://github.com/AgriciDaniel/claude-blog",
       "installedAt": "~/.claude/skills/blog"
+    },
+    {
+      "name": "architect-foundations",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/architect-foundations"
+    },
+    {
+      "name": "design-theory",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/design-theory"
+    },
+    {
+      "name": "building-programming",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-programming"
+    },
+    {
+      "name": "building-typology",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-typology"
+    },
+    {
+      "name": "concept-design",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/concept-design"
+    },
+    {
+      "name": "spatial-planning",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/spatial-planning"
+    },
+    {
+      "name": "building-envelope",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-envelope"
+    },
+    {
+      "name": "structural-systems",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/structural-systems"
+    },
+    {
+      "name": "building-services",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-services"
+    },
+    {
+      "name": "daylighting-design",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/daylighting-design"
+    },
+    {
+      "name": "material-selection",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/material-selection"
+    },
+    {
+      "name": "building-codes",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-codes"
+    },
+    {
+      "name": "accessibility-design",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/accessibility-design"
+    },
+    {
+      "name": "fire-life-safety",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/fire-life-safety"
+    },
+    {
+      "name": "acoustic-design",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/acoustic-design"
+    },
+    {
+      "name": "building-sustainability",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/building-sustainability"
+    },
+    {
+      "name": "construction-documentation",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/construction-documentation"
+    },
+    {
+      "name": "architect-calculator",
+      "source": "https://github.com/Amanbh997/Skills-Architects",
+      "installedAt": "~/.claude/skills/architect-calculator"
     }
   ]
 }
