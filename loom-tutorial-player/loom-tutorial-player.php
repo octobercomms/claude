@@ -22,11 +22,12 @@ class Loom_Tutorial_Player {
 	// -------------------------------------------------------------------------
 
 	public function add_meta_box() {
+		$post_types = get_post_types( [ 'show_ui' => true ], 'names' );
 		add_meta_box(
 			'loom_tutorial_videos',
 			'Video Tutorials',
 			[ $this, 'render_meta_box' ],
-			[ 'page', 'post' ],
+			array_values( $post_types ),
 			'normal',
 			'high'
 		);
@@ -101,7 +102,9 @@ class Loom_Tutorial_Player {
 
 	public function admin_scripts() {
 		$screen = get_current_screen();
-		if ( ! $screen || ! in_array( $screen->id, [ 'page', 'post' ], true ) ) return;
+		if ( ! $screen ) return;
+		$post_types = get_post_types( [ 'show_ui' => true ], 'names' );
+		if ( ! in_array( $screen->id, array_values( $post_types ), true ) ) return;
 		?>
 		<style>
 			.loom-video-row { margin-bottom: 8px; }
@@ -234,7 +237,7 @@ class Loom_Tutorial_Player {
 	}
 
 	public function append_videos( $content ) {
-		if ( ! is_singular( [ 'page', 'post' ] ) || ! in_the_loop() || ! is_main_query() ) {
+		if ( ! is_singular() || ! in_the_loop() || ! is_main_query() ) {
 			return $content;
 		}
 		return $content . $this->render_videos( get_the_ID() );
