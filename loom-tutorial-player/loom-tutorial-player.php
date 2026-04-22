@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name: Loom Tutorial Player
+ * Plugin Name: Video Tutorials
  * Description: Add Loom tutorial videos to client pages. Manage videos from the page editor and they display automatically on the frontend.
  * Version: 1.0.0
  * License: GPL2
@@ -24,7 +24,7 @@ class Loom_Tutorial_Player {
 	public function add_meta_box() {
 		add_meta_box(
 			'loom_tutorial_videos',
-			'Loom Tutorial Videos',
+			'Video Tutorials',
 			[ $this, 'render_meta_box' ],
 			[ 'page', 'post' ],
 			'normal',
