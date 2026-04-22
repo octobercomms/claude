@@ -11,11 +11,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Loom_Tutorial_Player {
 
 	public function __construct() {
-		add_action( 'add_meta_boxes',   [ $this, 'add_meta_box' ] );
-		add_action( 'save_post',        [ $this, 'save_meta' ] );
-		add_action( 'admin_footer',     [ $this, 'admin_scripts' ] );
-		add_filter( 'the_content',      [ $this, 'append_videos' ] );
-		add_shortcode( 'loom_videos',   [ $this, 'shortcode' ] );
+		add_action( 'add_meta_boxes', [ $this, 'add_meta_box' ] );
+		add_action( 'save_post',      [ $this, 'save_meta' ] );
+		add_action( 'admin_footer',   [ $this, 'admin_scripts' ] );
+		add_filter( 'the_content',    [ $this, 'append_videos' ] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -234,18 +233,11 @@ class Loom_Tutorial_Player {
 		return $out;
 	}
 
-	// Appends videos automatically after the page content
 	public function append_videos( $content ) {
 		if ( ! is_singular( [ 'page', 'post' ] ) || ! in_the_loop() || ! is_main_query() ) {
 			return $content;
 		}
 		return $content . $this->render_videos( get_the_ID() );
-	}
-
-	// Optional shortcode: [loom_videos] or [loom_videos id="123"]
-	public function shortcode( $atts ) {
-		$atts = shortcode_atts( [ 'id' => get_the_ID() ], $atts );
-		return $this->render_videos( (int) $atts['id'] );
 	}
 }
 
