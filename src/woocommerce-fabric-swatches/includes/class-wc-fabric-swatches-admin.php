@@ -53,8 +53,11 @@ class WC_Fabric_Swatches_Admin {
 
 		$product = wc_get_product( $post->ID );
 
+		$selected_attr = get_post_meta( $post->ID, '_fabric_swatch_attribute', true );
+
 		wp_localize_script( 'wc-fabric-swatches-admin', 'wcFabricSwatchesAdmin', [
 			'attributes'        => $this->get_attribute_data( $product ),
+			'selectedAttribute' => $selected_attr ?: '',
 			'confirmChangeAttr' => __( 'Changing the attribute will reset term assignments. Continue?', 'wc-fabric-swatches' ),
 			'confirmRemove'     => __( 'Remove this group?', 'wc-fabric-swatches' ),
 			'noTerms'           => __( 'No terms available for this attribute.', 'wc-fabric-swatches' ),
@@ -96,13 +99,6 @@ class WC_Fabric_Swatches_Admin {
 		$attr_terms = isset( $attributes[ $selected_attr ] ) ? $attributes[ $selected_attr ]['terms'] : [];
 
 		wp_nonce_field( 'wc_fabric_swatches_save', 'wc_fabric_swatches_nonce' );
-
-		// Pass current saved state to JS for dynamic add-group / attr-change behaviour
-		wp_add_inline_script(
-			'wc-fabric-swatches-admin',
-			'wcFabricSwatchesAdmin.selectedAttribute = ' . wp_json_encode( $selected_attr ) . ';',
-			'after'
-		);
 		?>
 
 		<div id="wc-fabric-swatches-root">

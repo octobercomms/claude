@@ -2,6 +2,11 @@
 jQuery( function ( $ ) {
 	'use strict';
 
+	// Guard: only run on product edit screens where our data object was injected
+	if ( typeof wcFabricSwatchesAdmin === 'undefined' ) {
+		return;
+	}
+
 	var $groupsWrap = $( '#wc-fabric-swatches-groups' );
 	var $addBtn     = $( '#wc-fabric-swatches-add-group' );
 	var $attrSelect = $( '#fabric-swatch-attribute' );

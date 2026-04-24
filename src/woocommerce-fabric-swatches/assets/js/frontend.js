@@ -11,11 +11,15 @@
 	// Init
 	// -------------------------------------------------------------------------
 	function init() {
+		if ( typeof wcFabricSwatches === 'undefined' ) {
+			return;
+		}
+
 		$drawer  = $( '.wc-fabric-swatches-drawer' );
 		$overlay = $( '.wc-fabric-swatches-overlay' );
 		$body    = $( 'body' );
 
-		if ( ! $drawer.length || ! wcFabricSwatches ) {
+		if ( ! $drawer.length ) {
 			return;
 		}
 
