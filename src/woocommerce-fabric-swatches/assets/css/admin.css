@@ -1,0 +1,166 @@
+/* =========================================================================
+   WC Fabric Swatches – Admin styles
+   ========================================================================= */
+
+/* --- Groups container ---------------------------------------------------- */
+
+.wc-fabric-swatches-groups {
+	margin-bottom: 16px;
+}
+
+.wc-fabric-swatches-group {
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	margin-bottom: 12px;
+	background: #fff;
+}
+
+/* --- Group header -------------------------------------------------------- */
+
+.wc-fabric-swatches-group-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 10px 14px;
+	background: #f6f7f7;
+	border-bottom: 1px solid #dcdcde;
+	border-radius: 3px 3px 0 0;
+	cursor: default;
+	user-select: none;
+}
+
+.wc-fabric-swatches-group-title-display {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.wc-fabric-swatches-group-actions {
+	display: flex;
+	gap: 10px;
+}
+
+/* --- Group body ---------------------------------------------------------- */
+
+.wc-fabric-swatches-group-body {
+	padding: 16px;
+}
+
+/* --- Group fields grid -------------------------------------------------- */
+
+.wc-fabric-swatches-group-fields {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin-bottom: 20px;
+}
+
+.wc-fabric-swatches-field--full {
+	grid-column: 1 / -1;
+}
+
+.wc-fabric-swatches-field label {
+	display: block;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #646970;
+	margin-bottom: 5px;
+}
+
+/* --- Swatches list ------------------------------------------------------- */
+
+.wc-fabric-swatches-swatches-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+/* --- Individual swatch item ---------------------------------------------- */
+
+.wc-fabric-swatch-item {
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	background: #f9f9f9;
+	padding: 12px;
+}
+
+.wc-fabric-swatch-item-inner {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+}
+
+/* --- Image fields -------------------------------------------------------- */
+
+.wc-fabric-swatch-image-field {
+	text-align: center;
+	flex-shrink: 0;
+}
+
+.wc-fabric-swatch-image-label {
+	display: block;
+	font-size: 10px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: #646970;
+	margin-bottom: 6px;
+}
+
+.wc-fabric-swatch-image-wrap {
+	width: 72px;
+	height: 72px;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+	overflow: hidden;
+	background: #f0f0f0;
+	margin: 0 auto 6px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wc-fabric-swatch-image-wrap img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.wc-fabric-swatch-image-buttons {
+	display: flex;
+	gap: 4px;
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+/* --- Swatch text fields -------------------------------------------------- */
+
+.wc-fabric-swatch-fields {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
+.wc-fabric-swatch-field-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	color: #646970;
+	margin-bottom: 2px;
+}
+
+.wc-fabric-swatch-fields input.regular-text {
+	width: 100%;
+}
+
+/* --- Utilities ------------------------------------------------------------ */
+
+.hidden {
+	display: none !important;
+}

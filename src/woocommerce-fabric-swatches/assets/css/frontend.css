@@ -1,0 +1,314 @@
+/* =========================================================================
+   WC Fabric Swatches – Frontend styles
+   ========================================================================= */
+
+/* -------------------------------------------------------------------------
+   Trigger area (shown in product summary)
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-trigger-wrap {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+	padding: 14px 0;
+	border-top: 1px solid #e8e8e8;
+	border-bottom: 1px solid #e8e8e8;
+	margin: 16px 0 0;
+}
+
+.wc-fabric-swatches-selected {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex: 1;
+	min-width: 0;
+}
+
+.wc-fabric-swatches-selected-preview {
+	flex-shrink: 0;
+	width: 38px;
+	height: 38px;
+	border-radius: 50%;
+	overflow: hidden;
+	border: 1px solid #ddd;
+	background: #f2f2f2;
+}
+
+.wc-fabric-swatches-selected-preview img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+}
+
+.wc-fabric-swatches-selected-name {
+	font-size: 14px;
+	color: #555;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wc-fabric-swatches-open-drawer {
+	flex-shrink: 0;
+	white-space: nowrap;
+}
+
+/* "Further swatches" note */
+.wc-fabric-swatches-note {
+	font-size: 12px;
+	color: #888;
+	margin: 8px 0 16px;
+	font-style: italic;
+}
+
+/* -------------------------------------------------------------------------
+   Overlay / backdrop
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba( 0, 0, 0, 0.45 );
+	z-index: 9000;
+	opacity: 0;
+	visibility: hidden;
+	transition: opacity 0.3s ease, visibility 0.3s ease;
+	cursor: pointer;
+}
+
+.wc-fabric-swatches-overlay.is-visible {
+	opacity: 1;
+	visibility: visible;
+}
+
+/* -------------------------------------------------------------------------
+   Drawer shell
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-drawer {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	width: 420px;
+	max-width: 100vw;
+	background: #fff;
+	z-index: 9001;
+	display: flex;
+	flex-direction: column;
+	transform: translateX( 100% );
+	transition: transform 0.35s cubic-bezier( 0.4, 0, 0.2, 1 );
+	box-shadow: -2px 0 32px rgba( 0, 0, 0, 0.14 );
+}
+
+.wc-fabric-swatches-drawer.is-open {
+	transform: translateX( 0 );
+}
+
+/* Prevent body scroll while drawer is open */
+body.wc-fabric-swatches-open {
+	overflow: hidden;
+}
+
+/* -------------------------------------------------------------------------
+   Drawer header
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-drawer-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 20px 24px;
+	border-bottom: 1px solid #e8e8e8;
+	flex-shrink: 0;
+}
+
+.wc-fabric-swatches-drawer-title {
+	font-size: 17px;
+	font-weight: 500;
+	margin: 0;
+	letter-spacing: 0.02em;
+	line-height: 1.2;
+}
+
+.wc-fabric-swatches-close {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	color: #1a1a1a;
+	border-radius: 50%;
+	transition: background 0.15s ease;
+	flex-shrink: 0;
+}
+
+.wc-fabric-swatches-close:hover {
+	background: #f0f0f0;
+}
+
+.wc-fabric-swatches-close:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------------------
+   Drawer scrollable body
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-drawer-body {
+	flex: 1;
+	overflow-y: auto;
+	-webkit-overflow-scrolling: touch;
+	padding: 24px;
+}
+
+/* -------------------------------------------------------------------------
+   Swatch groups
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-group {
+	margin-bottom: 36px;
+}
+
+.wc-fabric-swatches-group:last-child {
+	margin-bottom: 0;
+}
+
+.wc-fabric-swatches-group-heading {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	margin-bottom: 4px;
+}
+
+.wc-fabric-swatches-group-name {
+	font-size: 11px;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: 0.12em;
+	margin: 0;
+	color: #1a1a1a;
+}
+
+.wc-fabric-swatches-group-price {
+	font-size: 12px;
+	color: #888;
+}
+
+.wc-fabric-swatches-group-desc {
+	font-size: 13px;
+	color: #666;
+	line-height: 1.5;
+	margin: 4px 0 16px;
+}
+
+/* -------------------------------------------------------------------------
+   Swatch grid
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatches-grid {
+	display: grid;
+	grid-template-columns: repeat( 4, 1fr );
+	gap: 12px;
+	margin-top: 14px;
+}
+
+/* -------------------------------------------------------------------------
+   Individual swatch button
+   ------------------------------------------------------------------------- */
+
+.wc-fabric-swatch-btn {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 5px;
+	padding: 0;
+	border: none;
+	background: transparent;
+	cursor: pointer;
+	text-align: center;
+	font-family: inherit;
+}
+
+.wc-fabric-swatch-btn:focus-visible {
+	outline: 2px solid #1a1a1a;
+	outline-offset: 3px;
+	border-radius: 2px;
+}
+
+/* Square fabric tile */
+.wc-fabric-swatch-tile {
+	display: block;
+	width: 100%;
+	aspect-ratio: 1 / 1;
+	border-radius: 2px;
+	overflow: hidden;
+	border: 2px solid transparent;
+	transition: border-color 0.18s ease, box-shadow 0.18s ease;
+	background: #f0f0f0;
+}
+
+.wc-fabric-swatch-tile img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.wc-fabric-swatch-placeholder {
+	display: block;
+	width: 100%;
+	height: 100%;
+	background: repeating-linear-gradient(
+		45deg,
+		#e0e0e0,
+		#e0e0e0 4px,
+		#ebebeb 4px,
+		#ebebeb 8px
+	);
+}
+
+/* Hover & selected states */
+.wc-fabric-swatch-btn:hover .wc-fabric-swatch-tile {
+	border-color: #aaa;
+}
+
+.wc-fabric-swatch-btn.is-selected .wc-fabric-swatch-tile {
+	border-color: #1a1a1a;
+	box-shadow: 0 0 0 1px #1a1a1a;
+}
+
+/* Labels below tile */
+.wc-fabric-swatch-name {
+	display: block;
+	font-size: 10px;
+	line-height: 1.35;
+	color: #333;
+	word-break: break-word;
+}
+
+.wc-fabric-swatch-price {
+	display: block;
+	font-size: 10px;
+	color: #888;
+}
+
+/* -------------------------------------------------------------------------
+   Responsive
+   ------------------------------------------------------------------------- */
+
+@media ( max-width: 480px ) {
+	.wc-fabric-swatches-drawer {
+		width: 100vw;
+	}
+
+	.wc-fabric-swatches-grid {
+		grid-template-columns: repeat( 3, 1fr );
+	}
+}
