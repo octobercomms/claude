@@ -1,41 +1,43 @@
-/* global jQuery, wp, wcFabricSwatchesAdmin */
+/* global jQuery, wcFabricSwatchesAdmin */
 jQuery( function ( $ ) {
 	'use strict';
 
-	// -------------------------------------------------------------------------
-	// Re-index all group + swatch name attributes after any DOM change
-	// -------------------------------------------------------------------------
-	function reIndex() {
-		$( '.wc-fabric-swatches-group' ).each( function ( gi ) {
-			var $group = $( this );
-			$group.attr( 'data-group-index', gi );
+	var $groupsWrap = $( '#wc-fabric-swatches-groups' );
+	var $addBtn     = $( '#wc-fabric-swatches-add-group' );
+	var $attrSelect = $( '#fabric-swatch-attribute' );
 
-			// Re-index every named input/textarea inside this group
-			$group.find( '[name]' ).each( function () {
-				var name = $( this ).attr( 'name' );
-				name = name.replace( /fabric_swatch_groups\[\d+\]/, 'fabric_swatch_groups[' + gi + ']' );
-				$( this ).attr( 'name', name );
-			} );
+	// -------------------------------------------------------------------------
+	// Attribute change
+	// -------------------------------------------------------------------------
+	$attrSelect.on( 'change', function () {
+		var newAttr = $( this ).val();
 
-			// Re-index each swatch within the group
-			$group.find( '.wc-fabric-swatch-item' ).each( function ( si ) {
-				$( this ).attr( 'data-swatch-index', si );
-				$( this ).find( '[name]' ).each( function () {
-					var name = $( this ).attr( 'name' );
-					name = name.replace( /\[swatches\]\[\d+\]/, '[swatches][' + si + ']' );
-					$( this ).attr( 'name', name );
-				} );
-			} );
+		if ( $groupsWrap.find( '.wc-fabric-swatches-group' ).length ) {
+			if ( ! window.confirm( wcFabricSwatchesAdmin.confirmChangeAttr ) ) {
+				$( this ).val( wcFabricSwatchesAdmin.selectedAttribute );
+				return;
+			}
+		}
+
+		wcFabricSwatchesAdmin.selectedAttribute = newAttr;
+
+		// Refresh the term checkboxes in every existing group (clear selections)
+		$groupsWrap.find( '.wc-fabric-swatches-group' ).each( function () {
+			var gi = $( this ).attr( 'data-group-index' );
+			$( this ).find( '.wc-fabric-swatches-terms-list' )
+				.html( buildTermCheckboxes( gi, newAttr, [] ) );
 		} );
-	}
+
+		$addBtn.toggle( !! newAttr );
+	} );
 
 	// -------------------------------------------------------------------------
 	// Add group
 	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatches-add-group', function () {
-		var gi = $( '.wc-fabric-swatches-group' ).length;
-		var tpl = wp.template( 'swatch-group' );
-		$( '#wc-fabric-swatches-groups' ).append( tpl( { groupIndex: gi } ) );
+	$addBtn.on( 'click', function () {
+		var gi   = $groupsWrap.find( '.wc-fabric-swatches-group' ).length;
+		var attr = $attrSelect.val();
+		$groupsWrap.append( buildGroupHtml( gi, {}, attr ) );
 	} );
 
 	// -------------------------------------------------------------------------
@@ -50,17 +52,18 @@ jQuery( function ( $ ) {
 	} );
 
 	// -------------------------------------------------------------------------
-	// Toggle group body visibility
+	// Toggle group body
 	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatches-toggle-group, .wc-fabric-swatches-group-header', function ( e ) {
-		// Don't toggle when clicking action buttons
+	$( document ).on( 'click', '.wc-fabric-swatches-group-header', function ( e ) {
 		if ( $( e.target ).is( 'button' ) || $( e.target ).closest( '.wc-fabric-swatches-group-actions' ).length ) {
 			return;
 		}
-		$( this ).closest( '.wc-fabric-swatches-group' ).find( '.wc-fabric-swatches-group-body' ).slideToggle( 200 );
+		$( this ).closest( '.wc-fabric-swatches-group' )
+			.find( '.wc-fabric-swatches-group-body' )
+			.slideToggle( 200 );
 	} );
 
-	// Keep header title display in sync with input
+	// Keep header title display in sync while typing
 	$( document ).on( 'input', '.wc-fabric-swatches-group-title-input', function () {
 		var val = $( this ).val().trim() || 'New Group';
 		$( this ).closest( '.wc-fabric-swatches-group' )
@@ -69,68 +72,106 @@ jQuery( function ( $ ) {
 	} );
 
 	// -------------------------------------------------------------------------
-	// Add swatch to a group
+	// Re-index after DOM changes
 	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatches-add-swatch', function () {
-		var $group = $( this ).closest( '.wc-fabric-swatches-group' );
-		var gi     = $group.attr( 'data-group-index' );
-		var si     = $group.find( '.wc-fabric-swatch-item' ).length;
-		var tpl    = wp.template( 'swatch-item' );
-		$group.find( '.wc-fabric-swatches-swatches-list' ).append( tpl( { groupIndex: gi, swatchIndex: si } ) );
-	} );
-
-	// -------------------------------------------------------------------------
-	// Remove swatch
-	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatch-remove', function () {
-		$( this ).closest( '.wc-fabric-swatch-item' ).remove();
-		reIndex();
-	} );
-
-	// -------------------------------------------------------------------------
-	// Media library image picker
-	// Each click opens a fresh wp.media frame so the 'select' callback always
-	// has the correct button reference captured in the closure.
-	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatch-upload-image', function () {
-		var $btn  = $( this );
-		var type  = $btn.data( 'type' ); // 'fabric' or 'product'
-		var $field = $btn.closest( '.wc-fabric-swatch-image-field' );
-
-		var frame = wp.media( {
-			title:    wcFabricSwatchesAdmin.chooseImage,
-			button:   { text: wcFabricSwatchesAdmin.chooseImageBtn },
-			multiple: false,
-			library:  { type: 'image' },
+	function reIndex() {
+		$groupsWrap.find( '.wc-fabric-swatches-group' ).each( function ( gi ) {
+			$( this ).attr( 'data-group-index', gi );
+			$( this ).find( '[name]' ).each( function () {
+				$( this ).attr( 'name',
+					$( this ).attr( 'name' )
+						.replace( /fabric_swatch_groups\[\d+\]/, 'fabric_swatch_groups[' + gi + ']' )
+				);
+			} );
 		} );
+	}
 
-		frame.on( 'select', function () {
-			var attachment = frame.state().get( 'selection' ).first().toJSON();
-			var imgUrl = attachment.sizes && attachment.sizes.thumbnail
-				? attachment.sizes.thumbnail.url
-				: attachment.url;
+	// -------------------------------------------------------------------------
+	// HTML builders
+	// -------------------------------------------------------------------------
 
-			$field.find( '.wc-fabric-swatch-image-wrap img' ).remove();
-			$field.find( '.wc-fabric-swatch-image-wrap' ).prepend( '<img src="' + imgUrl + '" alt="">' );
-			$field.find( '.wc-fabric-swatch-remove-image' ).removeClass( 'hidden' );
+	function buildGroupHtml( gi, group, attrTaxonomy ) {
+		var title      = esc( group.title || '' );
+		var desc       = esc( group.description || '' );
+		var priceLabel = esc( group.price_label || '' );
+		var termSlugs  = group.term_slugs || [];
 
-			if ( type === 'fabric' ) {
-				$field.find( '.wc-fabric-swatch-image-id' ).val( attachment.id );
+		return (
+			'<div class="wc-fabric-swatches-group" data-group-index="' + gi + '">' +
+				'<div class="wc-fabric-swatches-group-header">' +
+					'<span class="wc-fabric-swatches-group-title-display">' + ( title || 'New Group' ) + '</span>' +
+					'<span class="wc-fabric-swatches-group-actions">' +
+						'<button type="button" class="button-link wc-fabric-swatches-toggle-group">Toggle</button>' +
+						'<button type="button" class="button-link-delete wc-fabric-swatches-remove-group">Remove</button>' +
+					'</span>' +
+				'</div>' +
+				'<div class="wc-fabric-swatches-group-body">' +
+					'<div class="wc-fabric-swatches-group-fields">' +
+						'<div class="wc-fabric-swatches-field">' +
+							'<label>Group Title</label>' +
+							'<input type="text" name="fabric_swatch_groups[' + gi + '][title]" value="' + title + '" class="wc-fabric-swatches-group-title-input regular-text" placeholder="e.g. Category A">' +
+						'</div>' +
+						'<div class="wc-fabric-swatches-field">' +
+							'<label>Price Label</label>' +
+							'<input type="text" name="fabric_swatch_groups[' + gi + '][price_label]" value="' + priceLabel + '" class="regular-text" placeholder="e.g. From £X">' +
+						'</div>' +
+						'<div class="wc-fabric-swatches-field wc-fabric-swatches-field--full">' +
+							'<label>Description</label>' +
+							'<textarea name="fabric_swatch_groups[' + gi + '][description]" rows="2" class="large-text" placeholder="Optional description">' + desc + '</textarea>' +
+						'</div>' +
+					'</div>' +
+					'<div class="wc-fabric-swatches-terms-list">' +
+						buildTermCheckboxes( gi, attrTaxonomy, termSlugs ) +
+					'</div>' +
+				'</div>' +
+			'</div>'
+		);
+	}
+
+	function buildTermCheckboxes( gi, attrTaxonomy, selectedSlugs ) {
+		var attr  = wcFabricSwatchesAdmin.attributes[ attrTaxonomy ];
+		var terms = attr ? attr.terms : [];
+
+		if ( ! terms || ! terms.length ) {
+			return '<p class="description">' + wcFabricSwatchesAdmin.noTerms + '</p>';
+		}
+
+		var html = '<p class="wc-fabric-swatches-terms-label">' + wcFabricSwatchesAdmin.termsLabel + '</p>' +
+			'<div class="wc-fabric-swatches-terms-grid">';
+
+		terms.forEach( function ( term ) {
+			var checked = selectedSlugs.indexOf( term.slug ) !== -1 ? ' checked' : '';
+			var preview = '';
+
+			if ( term.imageUrl ) {
+				preview = '<img src="' + esc( term.imageUrl ) + '" alt="' + esc( term.name ) + '">';
+			} else if ( term.color ) {
+				preview = '<span class="wc-fabric-term-color" style="background:' + esc( term.color ) + '"></span>';
 			} else {
-				$field.find( '.wc-fabric-swatch-product-image-id' ).val( attachment.id );
+				preview = '<span class="wc-fabric-term-placeholder"></span>';
 			}
+
+			html +=
+				'<label class="wc-fabric-term-option">' +
+					'<input type="checkbox" name="fabric_swatch_groups[' + gi + '][term_slugs][]" value="' + esc( term.slug ) + '"' + checked + '>' +
+					'<span class="wc-fabric-term-preview">' + preview + '</span>' +
+					'<span class="wc-fabric-term-name">' + esc( term.name ) + '</span>' +
+				'</label>';
 		} );
 
-		frame.open();
-	} );
+		html += '</div>';
+		return html;
+	}
 
 	// -------------------------------------------------------------------------
-	// Remove image
+	// Minimal HTML escaping for dynamic content
 	// -------------------------------------------------------------------------
-	$( document ).on( 'click', '.wc-fabric-swatch-remove-image', function () {
-		var $field = $( this ).closest( '.wc-fabric-swatch-image-field' );
-		$field.find( '.wc-fabric-swatch-image-wrap img' ).remove();
-		$field.find( '.wc-fabric-swatch-image-id, .wc-fabric-swatch-product-image-id' ).val( '' );
-		$( this ).addClass( 'hidden' );
-	} );
+	function esc( str ) {
+		return String( str )
+			.replace( /&/g, '&amp;' )
+			.replace( /"/g, '&quot;' )
+			.replace( /'/g, '&#x27;' )
+			.replace( /</g, '&lt;' )
+			.replace( />/g, '&gt;' );
+	}
 } );

@@ -2,6 +2,18 @@
    WC Fabric Swatches – Frontend styles
    ========================================================================= */
 
+/* Hide the CartFlows / Variation Swatches table row for the fabric attribute */
+tr.wc-fabric-swatches-hidden-row {
+	display: none !important;
+}
+
+/* Full-colour fill for colour-type swatches (no image) */
+.wc-fabric-swatch-color {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
 /* -------------------------------------------------------------------------
    Trigger area (shown in product summary)
    ------------------------------------------------------------------------- */
