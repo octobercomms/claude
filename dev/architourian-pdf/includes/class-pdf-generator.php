@@ -262,32 +262,20 @@ class AIPDF_PDF_Generator {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Load an SVG file, strip everything before the <svg tag, optionally set dimensions.
-	 * Strips XML declarations, DOCTYPE, comments etc. which mPDF renders as literal text.
+	 * Return an <img> tag pointing to the SVG file on disk.
+	 * Using <img src="path"> is more reliable in mPDF than inline SVG —
+	 * it avoids XML declaration artefacts and respects width/height constraints.
 	 */
 	private static function svg_tag( $attachment_id, $width = '', $height = '' ) {
 		if ( ! $attachment_id ) return '';
 		$path = get_attached_file( $attachment_id );
 		if ( ! $path || ! file_exists( $path ) ) return '';
 
-		$svg = file_get_contents( $path );
+		$style = '';
+		if ( $width )  $style .= 'width:'  . $width  . ';';
+		if ( $height ) $style .= 'height:' . $height . ';';
 
-		// Find the opening <svg tag and discard everything before it.
-		// This reliably removes <?xml?>, <!DOCTYPE>, comments, BOM characters, etc.
-		$start = stripos( $svg, '<svg' );
-		if ( $start === false ) return ''; // not a valid SVG
-		$svg = substr( $svg, $start );
-
-		// Override width/height on the root <svg> element
-		if ( $width || $height ) {
-			$svg = preg_replace( '/<svg\b([^>]*?)\s+width="[^"]*"/i',  '<svg$1', $svg );
-			$svg = preg_replace( '/<svg\b([^>]*?)\s+height="[^"]*"/i', '<svg$1', $svg );
-			$attrs  = $width  ? ' width="'  . esc_attr( $width )  . '"' : '';
-			$attrs .= $height ? ' height="' . esc_attr( $height ) . '"' : '';
-			$svg = preg_replace( '/<svg\b/i', '<svg' . $attrs, $svg, 1 );
-		}
-
-		return $svg;
+		return '<img src="' . esc_attr( $path ) . '"' . ( $style ? ' style="' . $style . '"' : '' ) . '>';
 	}
 
 	/**
