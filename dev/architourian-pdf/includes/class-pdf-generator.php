@@ -194,7 +194,9 @@ class AIPDF_PDF_Generator {
 		if ( $processed !== $value ) return wp_strip_all_tags( $processed );
 		preg_match_all( '/price="(\d+)"/', $value, $matches );
 		if ( ! empty( $matches[1] ) ) {
-			return implode( ' – ', array_map( fn( $p ) => '£' . number_format( (int) $p ), $matches[1] ) );
+			return implode( ' – ', array_map( function( $p ) {
+				return '£' . number_format( (int) $p );
+			}, $matches[1] ) );
 		}
 		return $value;
 	}
@@ -310,7 +312,7 @@ class AIPDF_PDF_Generator {
 			return array_fill( 0, $num_cols, $html );
 		}
 		// Weight h3 headings as 2 to keep sections together
-		$weights      = array_map( fn( $el ) => strpos( $el, '<h3' ) !== false ? 2 : 1, $elements );
+		$weights      = array_map( function( $el ) { return strpos( $el, '<h3' ) !== false ? 2 : 1; }, $elements );
 		$total_weight = array_sum( $weights );
 		$target       = $total_weight / $num_cols;
 
