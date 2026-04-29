@@ -1,14 +1,4 @@
-<?php
-/**
- * Plugin Name: Architourian Ticker Link
- * Description: Conditionally wraps ticker text with a link when ticker_link is set in the repeater item.
- * Version: 1.0.0
- */
-
-if ( ! defined( 'ABSPATH' ) ) {
-	exit;
-}
-
+// Ticker: wrap ticker_text in a link when ticker_link is set
 add_filter( 'jet-engine/listing/dynamic-field/result', function ( $result, $settings, $tag ) {
 	if (
 		empty( $settings['dynamic_field_post_meta_custom'] ) ||
