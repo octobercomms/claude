@@ -85,19 +85,21 @@ class AIPDF_PDF_Generator {
 		if ( ! current_user_can( 'manage_options' ) ) {
 			wp_send_json_error( 'Unauthorised.' );
 		}
-		wp_send_json_success( [
-			'php_version'     => PHP_VERSION,
-			'php_version_id'  => PHP_VERSION_ID,
-			'vendor_exists'   => file_exists( AIPDF_VENDOR ),
-			'plugin_path'     => AIPDF_PATH,
-			'plugin_version'  => AIPDF_VERSION,
-			'memory_limit'    => ini_get( 'memory_limit' ),
-			'max_exec_time'   => ini_get( 'max_execution_time' ),
-			'class_methods'   => get_class_methods( __CLASS__ ),
-			'file_path'       => __FILE__,
-			'file_size'       => filesize( __FILE__ ),
-			'file_mtime'      => date( 'Y-m-d H:i:s', filemtime( __FILE__ ) ),
-		] );
+		$response = [
+			'php_version'    => PHP_VERSION,
+			'vendor_exists'  => file_exists( AIPDF_VENDOR ),
+			'plugin_version' => AIPDF_VERSION,
+			'file_mtime'     => date( 'Y-m-d H:i:s', filemtime( __FILE__ ) ),
+			'class_methods'  => get_class_methods( __CLASS__ ),
+		];
+		$post_id = isset( $_GET['post_id'] ) ? intval( $_GET['post_id'] ) : 0;
+		if ( $post_id ) {
+			$raw = get_post_meta( $post_id );
+			$response['post_meta'] = array_map( function( $v ) {
+				return maybe_unserialize( $v[0] );
+			}, $raw );
+		}
+		wp_send_json_success( $response );
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -126,17 +128,15 @@ class AIPDF_PDF_Generator {
 		// Overview
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::overview_page( $data ) );
-		self::write_ref_code( $mpdf, $data['tour_reference'] );
 
 		// Day pages — 2 days per page
 		$days = self::get_days( $post_id );
 		if ( ! empty( $days ) ) {
-			$pairs     = array_chunk( $days, 2 );
-			$last_idx  = count( $pairs ) - 1;
+			$pairs    = array_chunk( $days, 2 );
+			$last_idx = count( $pairs ) - 1;
 			foreach ( $pairs as $i => $pair ) {
 				$mpdf->AddPage();
 				$mpdf->WriteHTML( self::days_page( $data, $pair, $i + 2, $i === $last_idx ) );
-				self::write_ref_code( $mpdf, $data['tour_reference'] );
 			}
 		}
 
@@ -144,7 +144,6 @@ class AIPDF_PDF_Generator {
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
 			$mpdf->WriteHTML( self::terms_page( $data ) );
-			self::write_ref_code( $mpdf, $data['tour_reference'] );
 		}
 
 		// Back cover
@@ -159,23 +158,16 @@ class AIPDF_PDF_Generator {
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
 
-	/**
-	 * Add the rotated reference code to the right edge of the current page
-	 * using mPDF native rendering (CSS writing-mode not reliably supported).
-	 */
-	private static function write_ref_code( $mpdf, $ref ) {
-		if ( ! $ref ) return;
-		$mpdf->SetFont( 'courier', '', 6.5 );
-		$mpdf->SetTextColor( 0, 0, 0 );
-		// Each char stacked: x=204mm, starting from y=16mm, ~3.5mm per char
-		$x    = 204;
-		$y    = 16;
-		$step = 3.5;
-		$chars = mb_str_split( $ref );
-		foreach ( $chars as $char ) {
-			$mpdf->Text( $x, $y, $char );
-			$y += $step;
+	/** Reference code stacked vertically on the right edge as HTML. */
+	private static function ref_code_html( $ref ) {
+		if ( ! $ref ) return '';
+		$divs = '';
+		foreach ( mb_str_split( $ref ) as $char ) {
+			$divs .= '<div>' . esc_html( $char ) . '</div>';
 		}
+		return '<div style="position:absolute; top:16mm; left:204mm; width:5mm;
+			font-size:6.5pt; font-family:\'Courier New\',Courier,monospace;
+			line-height:3.5mm;">' . $divs . '</div>';
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -434,10 +426,10 @@ class AIPDF_PDF_Generator {
 		// Centre column
 		$centre = '';
 		if ( $d['starting_point'] ) {
-			$centre .= '<p>Starting point:<br/>' . esc_html( $d['starting_point'] ) . '</p>';
+			$centre .= '<p>Starting point<br>' . esc_html( $d['starting_point'] ) . '</p>';
 		}
 		if ( $d['end_point'] ) {
-			$centre .= '<p>End Point:<br/>' . esc_html( $d['end_point'] ) . '</p>';
+			$centre .= '<p>End point<br>' . esc_html( $d['end_point'] ) . '</p>';
 		}
 
 		// Right column
@@ -492,6 +484,8 @@ class AIPDF_PDF_Generator {
 
 </div>
 
+<?php echo self::ref_code_html( $d['tour_reference'] ); ?>
+
 </body></html>
 		<?php return ob_get_clean();
 	}
@@ -533,7 +527,9 @@ class AIPDF_PDF_Generator {
 <div style="position:absolute; top:230mm; left:137mm; width:55mm; text-align:right;">
 	<?php echo $svg; ?>
 </div>
-	<?php endif;
+	<?php echo self::ref_code_html( $d['tour_reference'] ); ?>
+
+<?php endif;
 endif; ?>
 
 </body></html>
@@ -545,25 +541,25 @@ endif; ?>
 		$content = self::format_terms( $d['terms_text'] );
 		$cols    = self::split_into_cols( $content, 3 );
 
-		// 3 columns × 54mm + 2 gutters × 6mm = 174mm total
-		// Col left positions (from page left edge): 18, 78, 138mm
-		$col_w = 54;
-		$gutter = 6;
-		$tc_top = 50; // mm from top
-
-		$tc_col_style = 'font-size:8.5pt; line-height:1.5; font-family:"Courier New",Courier,monospace;';
+		$tc_col_style = 'vertical-align:top; font-size:8.5pt; line-height:1.5;
+			font-family:\'Courier New\',Courier,monospace;';
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand, '', 'Terms &amp; Conditions' ); ?>
 
-<?php foreach ( $cols as $i => $col_html ) :
-	$left = self::ML + $i * ( $col_w + $gutter ); ?>
-<div style="position:absolute; top:<?php echo $tc_top; ?>mm; left:<?php echo $left; ?>mm; width:<?php echo $col_w; ?>mm; <?php echo $tc_col_style; ?>">
-	<?php echo $col_html; ?>
+<?php echo self::ref_code_html( $d['tour_reference'] ); ?>
+
+<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td style="width:33%; padding-right:6mm; <?php echo $tc_col_style; ?>"><?php echo $cols[0]; ?></td>
+			<td style="width:33%; padding-right:6mm; <?php echo $tc_col_style; ?>"><?php echo $cols[1]; ?></td>
+			<td style="width:34%; <?php echo $tc_col_style; ?>"><?php echo $cols[2]; ?></td>
+		</tr>
+	</table>
 </div>
-<?php endforeach; ?>
 
 </body></html>
 		<?php return ob_get_clean();
@@ -592,11 +588,11 @@ endif; ?>
 				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
 			</td>
 			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55;">
-				<?php echo esc_html( $d['contact_name'] ); ?><br/>
+				<?php echo esc_html( $d['contact_name'] ); ?><br>
 				<?php echo esc_html( $d['contact_phone'] ); ?>
 			</td>
 			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; text-align:right;">
-				<?php echo esc_html( $d['contact_email'] ); ?><br/>
+				<?php echo esc_html( $d['contact_email'] ); ?><br>
 				<?php echo esc_html( $d['contact_website'] ); ?>
 			</td>
 		</tr>
