@@ -1,9 +1,6 @@
 <?php
 /**
  * PDF generation logic using mPDF.
- *
- * Reads custom fields from the post and renders a multi-page branded PDF
- * matching the Architourian itinerary template.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -11,12 +8,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class AIPDF_PDF_Generator {
 
+	// A4 layout constants (mm)
+	const PW   = 210;  // page width
+	const PH   = 297;  // page height
+	const ML   = 18;   // margin left
+	const MT   = 15;   // margin top
+	const MB   = 18;   // margin bottom (used for top calculations)
+	const CW   = 174;  // content width (PW - ML - ML)
+
 	public static function init() {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_button_script' ] );
 		add_action( 'wp_ajax_aipdf_generate',        [ __CLASS__, 'handle_ajax' ] );
 		add_action( 'wp_ajax_nopriv_aipdf_generate', [ __CLASS__, 'handle_ajax' ] );
-
-		// Shortcode: [aipdf_download_button]
 		add_shortcode( 'aipdf_download_button', [ __CLASS__, 'shortcode' ] );
 	}
 
@@ -37,32 +40,23 @@ class AIPDF_PDF_Generator {
 	public static function shortcode( $atts ) {
 		$atts = shortcode_atts( [ 'post_id' => get_the_ID() ], $atts );
 		$pid  = intval( $atts['post_id'] );
-		if ( ! $pid ) {
-			return '';
-		}
+		if ( ! $pid ) return '';
 		return sprintf(
 			'<button class="aipdf-download-btn" data-post-id="%d">Download Itinerary PDF</button>',
 			$pid
 		);
 	}
 
-	/**
-	 * AJAX handler — streams the PDF directly to the browser as a download.
-	 */
 	public static function handle_ajax() {
 		check_ajax_referer( 'aipdf_generate', 'nonce' );
-
 		$post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			wp_send_json_error( 'Invalid post.' );
 		}
-
 		if ( ! file_exists( AIPDF_VENDOR ) ) {
 			wp_send_json_error( 'mPDF not installed. Run composer install in the plugin directory.' );
 		}
-
 		require_once AIPDF_VENDOR;
-
 		try {
 			self::generate( $post_id );
 		} catch ( Exception $e ) {
@@ -71,59 +65,82 @@ class AIPDF_PDF_Generator {
 		exit;
 	}
 
-	/**
-	 * Build and stream the PDF for the given post.
-	 */
+	// ─────────────────────────────────────────────────────────────────────────
+	// Main generator
+	// ─────────────────────────────────────────────────────────────────────────
+
 	public static function generate( $post_id ) {
 		$data = self::collect_fields( $post_id );
 
 		$mpdf = new \Mpdf\Mpdf( [
-			'format'       => 'A4',
-			'margin_top'   => 0,
-			'margin_right' => 0,
-			'margin_bottom'=> 0,
-			'margin_left'  => 0,
-			'default_font' => 'courier',
+			'format'        => 'A4',
+			'margin_top'    => 0,
+			'margin_right'  => 0,
+			'margin_bottom' => 0,
+			'margin_left'   => 0,
+			'default_font'  => 'courier',
 		] );
+		$mpdf->showImageErrors    = true;
+		$mpdf->autoScriptToLang   = false;
+		$mpdf->useSubstitutions   = false;
 
-		$mpdf->SetProtection( [] );
-		$mpdf->showImageErrors = true;
-		$mpdf->autoScriptToLang = false;
-
-		// ── Page 1: Cover ────────────────────────────────────────────────
+		// Cover
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::cover_page( $data ) );
 
-		// ── Page 2: Overview ─────────────────────────────────────────────
+		// Overview
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::overview_page( $data ) );
+		self::write_ref_code( $mpdf, $data['tour_reference'] );
 
-		// ── Pages 3+: Day-by-day (2 days per page) ───────────────────────
+		// Day pages — 2 days per page
 		$days = self::get_days( $post_id );
 		if ( ! empty( $days ) ) {
-			$pairs        = array_chunk( $days, 2 );
-			$last_pair    = count( $pairs ) - 1;
+			$pairs     = array_chunk( $days, 2 );
+			$last_idx  = count( $pairs ) - 1;
 			foreach ( $pairs as $i => $pair ) {
 				$mpdf->AddPage();
-				$page_num = $i + 2; // Page 2 = overview, so days start at page 3 (display as "page 2" etc.)
-				$show_svg = ( $i === $last_pair ); // illustration on last day page
-				$mpdf->WriteHTML( self::days_page( $data, $pair, $page_num, $show_svg ) );
+				$mpdf->WriteHTML( self::days_page( $data, $pair, $i + 2, $i === $last_idx ) );
+				self::write_ref_code( $mpdf, $data['tour_reference'] );
 			}
 		}
 
-		// ── Terms & Conditions ───────────────────────────────────────────
+		// Terms & Conditions
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
 			$mpdf->WriteHTML( self::terms_page( $data ) );
+			self::write_ref_code( $mpdf, $data['tour_reference'] );
 		}
 
-		// ── Back cover ───────────────────────────────────────────────────
+		// Back cover
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Stream to browser
-		$filename = sanitize_file_name( ( $data['tour_subtitle'] ?: 'itinerary' ) . '.pdf' );
+		// Filename: "Architourian Itinerary {subtitle} YYYYMMDD.pdf"
+		$subtitle = $data['tour_subtitle'] ?: get_the_title( $post_id );
+		$filename = sanitize_file_name(
+			'Architourian Itinerary ' . $subtitle . ' ' . date( 'Ymd' ) . '.pdf'
+		);
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
+	}
+
+	/**
+	 * Add the rotated reference code to the right edge of the current page
+	 * using mPDF native rendering (CSS writing-mode not reliably supported).
+	 */
+	private static function write_ref_code( $mpdf, $ref ) {
+		if ( ! $ref ) return;
+		$mpdf->SetFont( 'courier', '', 6.5 );
+		$mpdf->SetTextColor( 0, 0, 0 );
+		// Each char stacked: x=204mm, starting from y=16mm, ~3.5mm per char
+		$x    = 204;
+		$y    = 16;
+		$step = 3.5;
+		$chars = mb_str_split( $ref );
+		foreach ( $chars as $char ) {
+			$mpdf->Text( $x, $y, $char );
+			$y += $step;
+		}
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -134,27 +151,20 @@ class AIPDF_PDF_Generator {
 		$f = function( $key ) use ( $post_id ) {
 			if ( function_exists( 'get_field' ) ) {
 				$val = get_field( $key, $post_id );
-				if ( $val !== null && $val !== false && $val !== '' ) {
-					return $val;
-				}
+				if ( $val !== null && $val !== false && $val !== '' ) return $val;
 			}
 			return get_post_meta( $post_id, $key, true );
 		};
 
-		// Build included/not-included lists from existing numbered fields
-		$included_items     = [];
-		$not_included_items = [];
+		$included_items = $not_included_items = [];
 		for ( $i = 1; $i <= 10; $i++ ) {
-			$v = $f( 'included_' . $i );
-			if ( $v ) $included_items[] = $v;
-			$v = $f( 'not_included_' . $i );
-			if ( $v ) $not_included_items[] = $v;
+			$v = $f( 'included_' . $i );     if ( $v ) $included_items[]     = $v;
+			$v = $f( 'not_included_' . $i ); if ( $v ) $not_included_items[] = $v;
 		}
 
 		return [
 			'post_id'            => $post_id,
 			'post_title'         => get_the_title( $post_id ),
-			// New PDF-specific fields
 			'tour_subtitle'      => $f( 'pdf_tour_subtitle' ),
 			'tour_reference'     => $f( 'pdf_tour_reference' ),
 			'trip_description'   => $f( 'pdf_trip_description' ),
@@ -164,13 +174,11 @@ class AIPDF_PDF_Generator {
 			'days_svg_id'        => intval( $f( 'pdf_days_svg_id' ) ),
 			'back_cover_svg_id'  => intval( $f( 'pdf_back_cover_svg_id' ) ),
 			'terms_text'         => $f( 'pdf_terms_text' ) ?: AIPDF_Settings::get( 'terms_text', '' ),
-			// Existing tour fields
 			'group_size'         => $f( 'group_size' ),
 			'guide_price'        => self::parse_price_field( $f( 'guide_price' ) ),
 			'nights'             => $f( 'nights' ),
 			'included_items'     => $included_items,
 			'not_included_items' => $not_included_items,
-			// Global brand settings
 			'brand_name'         => AIPDF_Settings::get( 'brand_name', 'Architourian' ),
 			'logo_mark_id'       => intval( AIPDF_Settings::get( 'logo_mark_id', 0 ) ),
 			'contact_name'       => AIPDF_Settings::get( 'contact_name' ),
@@ -180,25 +188,13 @@ class AIPDF_PDF_Generator {
 		];
 	}
 
-	/**
-	 * Handle guide_price field which may contain [currency price="3300"] shortcodes.
-	 * Tries do_shortcode() first; falls back to extracting numbers.
-	 */
 	private static function parse_price_field( $value ) {
-		if ( empty( $value ) ) {
-			return '';
-		}
+		if ( empty( $value ) ) return '';
 		$processed = do_shortcode( $value );
-		// If shortcode ran successfully, strip any wrapper HTML
-		if ( $processed !== $value ) {
-			return wp_strip_all_tags( $processed );
-		}
-		// Fallback: extract numbers from price="XXXX" attributes
+		if ( $processed !== $value ) return wp_strip_all_tags( $processed );
 		preg_match_all( '/price="(\d+)"/', $value, $matches );
 		if ( ! empty( $matches[1] ) ) {
-			return implode( ' – ', array_map( function ( $p ) {
-				return '£' . number_format( (int) $p );
-			}, $matches[1] ) );
+			return implode( ' – ', array_map( fn( $p ) => '£' . number_format( (int) $p ), $matches[1] ) );
 		}
 		return $value;
 	}
@@ -212,533 +208,87 @@ class AIPDF_PDF_Generator {
 			}
 			return get_post_meta( $post_id, $key, true );
 		};
-
-		// Use existing day_N_title + day_N_text fields
 		for ( $i = 1; $i <= 12; $i++ ) {
 			$title   = $f( 'day_' . $i . '_title' );
 			$content = $f( 'day_' . $i . '_text' );
-			if ( empty( $title ) && empty( $content ) ) {
-				continue;
-			}
+			if ( empty( $title ) && empty( $content ) ) continue;
 			$days[] = [
 				'title'   => $title ?: ( 'Day ' . $i ),
 				'content' => $content,
 			];
 		}
-
 		return $days;
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
-	// Shared helpers
+	// Helpers
 	// ─────────────────────────────────────────────────────────────────────────
 
-	private static function svg_tag( $attachment_id, $style = '' ) {
-		if ( ! $attachment_id ) {
-			return '';
-		}
+	/**
+	 * Load an SVG file, strip XML/DOCTYPE declarations, optionally set dimensions.
+	 */
+	private static function svg_tag( $attachment_id, $width = '', $height = '' ) {
+		if ( ! $attachment_id ) return '';
 		$path = get_attached_file( $attachment_id );
-		if ( ! $path || ! file_exists( $path ) ) {
-			return '';
-		}
-		// Inline the SVG so mPDF renders it faithfully
+		if ( ! $path || ! file_exists( $path ) ) return '';
+
 		$svg = file_get_contents( $path );
-		if ( $style ) {
-			// Inject style attribute on the root <svg> element
-			$svg = preg_replace( '/<svg\b/', '<svg style="' . esc_attr( $style ) . '"', $svg, 1 );
+
+		// Strip XML declaration and DOCTYPE — mPDF renders these as text
+		$svg = preg_replace( '/\s*<\?xml[^?]*\?>\s*/i', '', $svg );
+		$svg = preg_replace( '/\s*<!DOCTYPE[^>]*>\s*/i', '', $svg );
+		$svg = trim( $svg );
+
+		// Inject explicit dimensions onto the root <svg> element
+		if ( $width || $height ) {
+			$attrs  = $width  ? ' width="'  . esc_attr( $width )  . '"' : '';
+			$attrs .= $height ? ' height="' . esc_attr( $height ) . '"' : '';
+			// Remove existing width/height attrs so ours take precedence
+			$svg = preg_replace( '/<svg\b([^>]*)\s+width="[^"]*"/i',  '<svg$1', $svg );
+			$svg = preg_replace( '/<svg\b([^>]*)\s+height="[^"]*"/i', '<svg$1', $svg );
+			$svg = preg_replace( '/<svg\b/i', '<svg' . $attrs, $svg, 1 );
 		}
+
 		return $svg;
 	}
 
 	/**
-	 * Convert plain textarea content to HTML.
-	 * Lines beginning with – (en dash) or - become list items.
-	 * Blank lines become paragraph breaks.
+	 * Format plain textarea text into HTML paragraphs / bullet lists.
+	 * Lines beginning with – or - become list items.
 	 */
 	private static function format_body( $text ) {
-		if ( empty( $text ) ) {
-			return '';
-		}
-		// If it contains HTML tags already (WYSIWYG), return as-is
-		if ( strip_tags( $text ) !== $text ) {
-			return wp_kses_post( $text );
-		}
+		if ( empty( $text ) ) return '';
+		if ( strip_tags( $text ) !== $text ) return wp_kses_post( $text );
 
-		$lines  = explode( "\n", trim( $text ) );
-		$output = '';
+		$lines   = explode( "\n", trim( $text ) );
+		$output  = '';
 		$in_list = false;
 
 		foreach ( $lines as $line ) {
 			$line = rtrim( $line );
-
 			if ( preg_match( '/^[\-–—]\s*(.+)/', $line, $m ) ) {
-				if ( ! $in_list ) {
-					$output  .= '<ul>';
-					$in_list  = true;
-				}
+				if ( ! $in_list ) { $output .= '<ul>'; $in_list = true; }
 				$output .= '<li>' . esc_html( $m[1] ) . '</li>';
 			} else {
-				if ( $in_list ) {
-					$output .= '</ul>';
-					$in_list = false;
-				}
-				if ( $line === '' ) {
-					$output .= '<br/>';
-				} else {
-					$output .= '<p>' . esc_html( $line ) . '</p>';
-				}
+				if ( $in_list ) { $output .= '</ul>'; $in_list = false; }
+				$output .= $line === '' ? '' : '<p>' . esc_html( $line ) . '</p>';
 			}
 		}
-		if ( $in_list ) {
-			$output .= '</ul>';
-		}
+		if ( $in_list ) $output .= '</ul>';
 		return $output;
 	}
 
-	/** Shared CSS injected on every page. */
-	private static function base_css() {
-		return '
-		<style>
-			* { font-family: "Courier New", Courier, monospace; font-size: 9.5pt; color: #000; box-sizing: border-box; }
-			body { margin: 0; padding: 0; }
-
-			/* ── Inner page header ────────────────────────── */
-			.page-header {
-				position: absolute;
-				top: 18mm;
-				left: 18mm;
-				right: 18mm;
-				height: 12mm;
-			}
-			.page-header table { width: 100%; border-collapse: collapse; }
-			.page-header td { vertical-align: top; padding: 0; }
-			.page-header .brand { font-weight: bold; font-size: 10pt; white-space: nowrap; }
-			.page-header .subtitle { font-size: 8.5pt; line-height: 1.4; }
-			.page-header .section-label { text-align: right; font-size: 9pt; white-space: nowrap; }
-
-			/* Rotated reference code — right edge */
-			.ref-code {
-				position: absolute;
-				top: 0;
-				right: 0;
-				width: 8mm;
-				writing-mode: vertical-rl;
-				text-orientation: mixed;
-				transform: rotate(180deg);
-				font-size: 7pt;
-				letter-spacing: 0.5pt;
-				white-space: nowrap;
-			}
-
-			/* ── Overview page ────────────────────────────── */
-			.overview-body {
-				position: absolute;
-				top: 52mm;
-				left: 18mm;
-				right: 18mm;
-			}
-			.overview-cols table { width: 100%; border-collapse: collapse; }
-			.overview-cols td {
-				vertical-align: top;
-				width: 33.33%;
-				padding-right: 8mm;
-				font-size: 9pt;
-				line-height: 1.55;
-			}
-			.overview-cols td:last-child { padding-right: 0; }
-
-			.included-section { margin-top: 14mm; }
-			.included-section h2 {
-				font-size: 11pt;
-				font-weight: bold;
-				margin: 0 0 4mm 0;
-				padding: 0;
-			}
-			.included-section p, .included-section ul {
-				font-size: 9pt;
-				line-height: 1.55;
-				margin: 0 0 2mm 0;
-				padding: 0;
-			}
-			.included-section ul { list-style: none; padding: 0; margin: 0; }
-			.included-section ul li::before { content: "– "; }
-			.included-section ul li { margin-bottom: 1.5mm; }
-
-			/* ── Days pages ───────────────────────────────── */
-			.days-body {
-				position: absolute;
-				top: 52mm;
-				left: 18mm;
-				right: 18mm;
-				bottom: 25mm;
-			}
-			.days-cols { width: 100%; border-collapse: collapse; }
-			.days-cols td {
-				vertical-align: top;
-				width: 50%;
-				padding-right: 10mm;
-			}
-			.days-cols td:last-child { padding-right: 0; }
-			.day-heading {
-				font-size: 14pt;
-				font-weight: bold;
-				margin: 0 0 4mm 0;
-			}
-			.day-content ul { list-style: none; padding: 0; margin: 0; }
-			.day-content ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
-			.day-content ul li::before { content: "– "; }
-			.day-content p { font-size: 9pt; line-height: 1.5; margin: 0 0 2mm 0; }
-
-			/* Page number */
-			.page-num {
-				position: absolute;
-				bottom: 12mm;
-				left: 18mm;
-				font-size: 8.5pt;
-			}
-
-			/* Days illustration */
-			.days-illustration {
-				position: absolute;
-				bottom: 8mm;
-				right: 18mm;
-				width: 55mm;
-				height: 45mm;
-				text-align: right;
-			}
-			.days-illustration svg { max-width: 100%; max-height: 100%; }
-
-			/* ── Cover page ───────────────────────────────── */
-			.cover-illustration {
-				position: absolute;
-				top: 60mm;
-				left: 50%;
-				transform: translateX(-50%);
-				width: 150mm;
-				text-align: center;
-			}
-			.cover-illustration svg { max-width: 150mm; max-height: 110mm; }
-
-			.cover-footer {
-				position: absolute;
-				bottom: 18mm;
-				left: 18mm;
-				right: 18mm;
-				height: 18mm;
-			}
-			.cover-footer table { width: 100%; border-collapse: collapse; }
-			.cover-footer td { vertical-align: bottom; padding: 0; }
-			.cover-footer .logo-cell { width: 22mm; }
-			.cover-footer .logo-cell svg { width: 14mm; height: 14mm; }
-			.cover-footer .brand-cell { width: 45mm; }
-			.cover-footer .brand-cell .brand { font-size: 11pt; font-weight: bold; }
-			.cover-footer .subtitle-cell {
-				font-size: 8.5pt;
-				line-height: 1.4;
-				text-align: left;
-			}
-
-			/* ── Terms & Conditions ──────────────────────── */
-			.tc-body {
-				position: absolute;
-				top: 52mm;
-				left: 18mm;
-				right: 18mm;
-				bottom: 18mm;
-				column-count: 3;
-				column-gap: 8mm;
-			}
-			.tc-body p { font-size: 8.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
-			.tc-body h3 {
-				font-size: 8.5pt;
-				font-weight: bold;
-				margin: 4mm 0 1.5mm 0;
-				font-family: "Courier New", Courier, monospace;
-			}
-			.tc-body ul, .tc-body ol { padding: 0; margin: 0 0 2.5mm 0; list-style: none; }
-			.tc-body ul li, .tc-body ol li { font-size: 8.5pt; line-height: 1.5; margin-bottom: 1.5mm; }
-
-			/* ── Back cover ───────────────────────────────── */
-			.backcover-illustration {
-				position: absolute;
-				top: 60mm;
-				left: 50%;
-				transform: translateX(-50%);
-				width: 130mm;
-				text-align: center;
-			}
-			.backcover-illustration svg { max-width: 130mm; max-height: 120mm; }
-
-			.backcover-footer {
-				position: absolute;
-				bottom: 18mm;
-				left: 18mm;
-				right: 18mm;
-			}
-			.backcover-footer table { width: 100%; border-collapse: collapse; }
-			.backcover-footer td { vertical-align: bottom; padding: 0; }
-			.backcover-footer .brand { font-size: 11pt; font-weight: bold; }
-			.backcover-footer .contact-col { font-size: 8.5pt; line-height: 1.55; }
-		</style>
-		';
-	}
-
-	// ─────────────────────────────────────────────────────────────────────────
-	// Page renderers
-	// ─────────────────────────────────────────────────────────────────────────
-
-	private static function cover_page( $d ) {
-		$cover_svg   = self::svg_tag( $d['cover_svg_id'] );
-		$logo_svg    = self::svg_tag( $d['logo_mark_id'] );
-		$brand       = esc_html( $d['brand_name'] );
-		$subtitle    = esc_html( $d['tour_subtitle'] );
-
-		ob_start();
-		?>
-		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
-
-		<?php if ( $cover_svg ) : ?>
-		<div class="cover-illustration">
-			<?php echo $cover_svg; ?>
-		</div>
-		<?php endif; ?>
-
-		<div class="cover-footer">
-			<table>
-				<tr>
-					<td class="logo-cell">
-						<?php echo $logo_svg; ?>
-					</td>
-					<td class="brand-cell">
-						<span class="brand"><?php echo $brand; ?></span>
-					</td>
-					<td class="subtitle-cell">
-						<?php echo $subtitle; ?>
-					</td>
-				</tr>
-			</table>
-		</div>
-
-		</body></html>
-		<?php
-		return ob_get_clean();
-	}
-
-	private static function overview_page( $d ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = esc_html( $d['tour_subtitle'] );
-		$ref      = esc_html( $d['tour_reference'] );
-
-		// Left column — trip description
-		$trip_desc = self::format_body( $d['trip_description'] );
-
-		// Centre column — starting/end point
-		$centre = '';
-		if ( $d['starting_point'] ) {
-			$centre .= '<p>Starting point:<br/>' . esc_html( $d['starting_point'] ) . '</p>';
-		}
-		if ( $d['end_point'] ) {
-			$centre .= '<p>End Point:<br/>' . esc_html( $d['end_point'] ) . '</p>';
-		}
-
-		// Right column — group size & price (from existing fields)
-		$right = '';
-		if ( $d['group_size'] ) {
-			$right .= '<p>Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
-		}
-		if ( $d['guide_price'] ) {
-			$right .= '<p>' . esc_html( $d['guide_price'] ) . ' per person.</p>';
-		}
-
-		// Included section — built from included_1…included_N + not_included_1…N
-		$has_included = ! empty( $d['included_items'] ) || ! empty( $d['not_included_items'] );
-
-		ob_start();
-		?>
-		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
-
-		<!-- Header -->
-		<div class="page-header">
-			<table>
-				<tr>
-					<td style="width:28mm;"><span class="brand"><?php echo $brand; ?></span></td>
-					<td><span class="subtitle"><?php echo $subtitle; ?></span></td>
-					<td style="width:30mm;"><span class="section-label">Itinerary</span></td>
-				</tr>
-			</table>
-			<?php if ( $ref ) : ?>
-			<div class="ref-code"><?php echo $ref; ?></div>
-			<?php endif; ?>
-		</div>
-
-		<!-- Overview body -->
-		<div class="overview-body">
-			<div class="overview-cols">
-				<table>
-					<tr>
-						<td><?php echo $trip_desc; ?></td>
-						<td><?php echo $centre; ?></td>
-						<td><?php echo $right; ?></td>
-					</tr>
-				</table>
-			</div>
-
-			<?php if ( $has_included ) : ?>
-			<div class="included-section">
-				<?php if ( ! empty( $d['included_items'] ) ) : ?>
-				<h2>Included in the trip</h2>
-				<ul>
-					<?php foreach ( $d['included_items'] as $item ) : ?>
-					<li><?php echo esc_html( $item ); ?></li>
-					<?php endforeach; ?>
-				</ul>
-				<?php endif; ?>
-
-				<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
-				<h2>Not included</h2>
-				<ul>
-					<?php foreach ( $d['not_included_items'] as $item ) : ?>
-					<li><?php echo esc_html( $item ); ?></li>
-					<?php endforeach; ?>
-				</ul>
-				<?php endif; ?>
-			</div>
-			<?php endif; ?>
-		</div>
-
-		</body></html>
-		<?php
-		return ob_get_clean();
-	}
-
-	private static function days_page( $d, $pair, $page_num, $show_svg = false ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = esc_html( $d['tour_subtitle'] );
-		$ref      = esc_html( $d['tour_reference'] );
-
-		// Build two columns
-		$cols = '';
-		foreach ( $pair as $day ) {
-			$heading = esc_html( $day['title'] );
-			$content = self::format_body( $day['content'] );
-			$cols   .= '<td><div class="day-heading">' . $heading . '</div><div class="day-content">' . $content . '</div></td>';
-		}
-		// If only one day in the pair, add an empty column
-		if ( count( $pair ) === 1 ) {
-			$cols .= '<td></td>';
-		}
-
-		$svg_html = '';
-		if ( $show_svg ) {
-			$svg = self::svg_tag( $d['days_svg_id'] );
-			if ( $svg ) {
-				$svg_html = '<div class="days-illustration">' . $svg . '</div>';
-			}
-		}
-
-		ob_start();
-		?>
-		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
-
-		<!-- Header -->
-		<div class="page-header">
-			<table>
-				<tr>
-					<td style="width:28mm;">
-						<span class="brand"><?php echo $brand; ?></span>
-					</td>
-					<td>
-						<span class="subtitle"><?php echo $subtitle; ?></span>
-					</td>
-					<td style="width:30mm;">
-						<span class="section-label">Itinerary</span>
-					</td>
-				</tr>
-			</table>
-			<?php if ( $ref ) : ?>
-			<div class="ref-code"><?php echo $ref; ?></div>
-			<?php endif; ?>
-		</div>
-
-		<!-- Day content -->
-		<div class="days-body">
-			<table class="days-cols">
-				<tr><?php echo $cols; ?></tr>
-			</table>
-		</div>
-
-		<!-- Page number -->
-		<div class="page-num">page <?php echo esc_html( $page_num ); ?></div>
-
-		<!-- Optional illustration -->
-		<?php echo $svg_html; ?>
-
-		</body></html>
-		<?php
-		return ob_get_clean();
-	}
-
-	private static function terms_page( $d ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = esc_html( $d['tour_subtitle'] );
-		$ref      = esc_html( $d['tour_reference'] );
-		$content  = self::format_terms( $d['terms_text'] );
-
-		ob_start();
-		?>
-		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
-
-		<!-- Header — "Terms & Conditions" replaces "Itinerary" -->
-		<div class="page-header">
-			<table>
-				<tr>
-					<td style="width:28mm;">
-						<span class="brand"><?php echo $brand; ?></span>
-					</td>
-					<td>
-						<span class="subtitle">Terms &amp; Conditions</span>
-					</td>
-					<td style="width:30mm;"></td>
-				</tr>
-			</table>
-			<?php if ( $ref ) : ?>
-			<div class="ref-code"><?php echo $ref; ?></div>
-			<?php endif; ?>
-		</div>
-
-		<!-- 3-column body -->
-		<div class="tc-body">
-			<?php echo $content; ?>
-		</div>
-
-		</body></html>
-		<?php
-		return ob_get_clean();
-	}
-
 	/**
-	 * Format T&C text into HTML suitable for the 3-column layout.
-	 * Lines like "1) Your Fitness" become <h3> headings.
-	 * Already-HTML content is passed through.
+	 * Format T&C text: numbered headings (e.g. "1) Heading") become <h3>.
 	 */
 	private static function format_terms( $text ) {
-		if ( empty( $text ) ) {
-			return '';
-		}
-		// Already HTML — pass through with allowed tags
-		if ( strip_tags( $text ) !== $text ) {
-			return wp_kses_post( $text );
-		}
+		if ( empty( $text ) ) return '';
+		if ( strip_tags( $text ) !== $text ) return wp_kses_post( $text );
 
-		$lines  = explode( "\n", trim( $text ) );
 		$output = '';
-
-		foreach ( $lines as $line ) {
+		foreach ( explode( "\n", trim( $text ) ) as $line ) {
 			$line = rtrim( $line );
-			if ( $line === '' ) {
-				continue;
-			}
-			// Numbered section headings: "1) Heading" or "1. Heading"
+			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
 				$output .= '<h3>' . esc_html( $line ) . '</h3>';
 			} else {
@@ -748,45 +298,316 @@ class AIPDF_PDF_Generator {
 		return $output;
 	}
 
-	private static function back_cover_page( $d ) {
-		$back_svg  = self::svg_tag( $d['back_cover_svg_id'] );
-		$logo_svg  = self::svg_tag( $d['logo_mark_id'] );
+	/**
+	 * Split an HTML string of <p> and <h3> elements into N balanced columns.
+	 * Returns array of N HTML strings.
+	 */
+	private static function split_into_cols( $html, $num_cols = 3 ) {
+		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
+		$elements = $matches[0];
+		if ( empty( $elements ) ) {
+			return array_fill( 0, $num_cols, $html );
+		}
+		// Weight h3 headings as 2 to keep sections together
+		$weights      = array_map( fn( $el ) => strpos( $el, '<h3' ) !== false ? 2 : 1, $elements );
+		$total_weight = array_sum( $weights );
+		$target       = $total_weight / $num_cols;
+
+		$cols       = array_fill( 0, $num_cols, '' );
+		$col        = 0;
+		$col_weight = 0;
+
+		foreach ( $elements as $i => $el ) {
+			$cols[ $col ] .= $el;
+			$col_weight   += $weights[ $i ];
+			if ( $col < $num_cols - 1 && $col_weight >= $target ) {
+				$col++;
+				$col_weight = 0;
+			}
+		}
+		return $cols;
+	}
+
+	/** Shared CSS loaded on every page. */
+	private static function css() {
+		return '<style>
+		* {
+			font-family: "Courier New", Courier, monospace;
+			font-size: 9pt;
+			color: #000;
+			box-sizing: border-box;
+		}
+		body { margin: 0; padding: 0; }
+
+		/* ── Overview info columns ── */
+		.ov-col { vertical-align: top; font-size: 9pt; line-height: 1.55; padding-right: 8mm; }
+		.ov-col:last-child { padding-right: 0; }
+		.ov-col p { margin: 0 0 3mm 0; }
+
+		/* ── Included section ── */
+		.incl h2 { font-size: 11pt; font-weight: bold; margin: 0 0 3mm 0; padding: 0; }
+		.incl ul  { list-style: none; padding: 0; margin: 0 0 2mm 0; }
+		.incl ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 1.5mm; }
+		.incl ul li::before { content: ""; }
+		.incl p   { font-size: 9pt; line-height: 1.5; margin: 0 0 2mm 0; }
+
+		/* ── Day pages ── */
+		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 4mm 0; }
+		.day-body ul  { list-style: none; padding: 0; margin: 0; }
+		.day-body ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
+		.day-body ul li::before { content: "\2013\00a0"; }
+		.day-body p   { font-size: 9pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
+
+		/* ── T&C columns ── */
+		.tc-col { vertical-align: top; font-size: 8.5pt; line-height: 1.5; padding-right: 7mm; }
+		.tc-col:last-child { padding-right: 0; }
+		.tc-col h3 { font-size: 8.5pt; font-weight: bold; margin: 0 0 1.5mm 0; }
+		.tc-col p  { margin: 0 0 2.5mm 0; }
+		</style>';
+	}
+
+	// ─────────────────────────────────────────────────────────────────────────
+	// Page renderers
+	// ─────────────────────────────────────────────────────────────────────────
+
+	private static function cover_page( $d ) {
+		// Center SVG: A4 = 210mm, use 148mm wide SVG → left = (210-148)/2 = 31mm
+		$cover_svg = self::svg_tag( $d['cover_svg_id'], '148mm', '' );
+		$logo_svg  = self::svg_tag( $d['logo_mark_id'], '13mm', '13mm' );
 		$brand     = esc_html( $d['brand_name'] );
-		$name      = esc_html( $d['contact_name'] );
-		$phone     = esc_html( $d['contact_phone'] );
-		$email     = esc_html( $d['contact_email'] );
-		$website   = esc_html( $d['contact_website'] );
+		$subtitle  = nl2br( esc_html( $d['tour_subtitle'] ) );
 
-		ob_start();
-		?>
-		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
+		// Footer top = PH - MB - footer_height ≈ 297 - 18 - 16 = 263mm
+		ob_start(); ?>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-		<?php if ( $back_svg ) : ?>
-		<div class="backcover-illustration">
-			<?php echo $back_svg; ?>
-		</div>
+<div style="position:absolute; top:52mm; left:31mm; width:148mm; text-align:center;">
+	<?php echo $cover_svg; ?>
+</div>
+
+<div style="position:absolute; top:263mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td style="width:16mm; vertical-align:bottom;"><?php echo $logo_svg; ?></td>
+			<td style="width:48mm; vertical-align:bottom; padding-left:3mm;">
+				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
+			</td>
+			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.4;">
+				<?php echo $subtitle; ?>
+			</td>
+		</tr>
+	</table>
+</div>
+
+</body></html>
+		<?php return ob_get_clean();
+	}
+
+	private static function overview_page( $d ) {
+		$brand    = esc_html( $d['brand_name'] );
+		$subtitle = nl2br( esc_html( $d['tour_subtitle'] ) );
+
+		// Centre column
+		$centre = '';
+		if ( $d['starting_point'] ) {
+			$centre .= '<p>Starting point:<br/>' . esc_html( $d['starting_point'] ) . '</p>';
+		}
+		if ( $d['end_point'] ) {
+			$centre .= '<p>End Point:<br/>' . esc_html( $d['end_point'] ) . '</p>';
+		}
+
+		// Right column
+		$right = '';
+		if ( $d['group_size'] ) {
+			$right .= '<p>Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
+		}
+		if ( $d['guide_price'] ) {
+			$right .= '<p>' . nl2br( esc_html( $d['guide_price'] ) ) . ' per person.</p>';
+		}
+
+		// Left column
+		$left = self::format_body( $d['trip_description'] );
+
+		$has_incl = ! empty( $d['included_items'] ) || ! empty( $d['not_included_items'] );
+
+		ob_start(); ?>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+
+<?php echo self::inner_header( $brand, $subtitle, 'Itinerary' ); ?>
+
+<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td class="ov-col" style="width:33%;"><?php echo $left; ?></td>
+			<td class="ov-col" style="width:33%;"><?php echo $centre; ?></td>
+			<td class="ov-col" style="width:34%;"><?php echo $right; ?></td>
+		</tr>
+	</table>
+
+	<?php if ( $has_incl ) : ?>
+	<div class="incl" style="margin-top:14mm;">
+		<?php if ( ! empty( $d['included_items'] ) ) : ?>
+			<h2>Included in the trip</h2>
+			<ul>
+				<?php foreach ( $d['included_items'] as $item ) : ?>
+				<li><?php echo esc_html( $item ); ?></li>
+				<?php endforeach; ?>
+			</ul>
 		<?php endif; ?>
+		<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
+			<h2 style="margin-top:4mm;">Not included</h2>
+			<ul>
+				<?php foreach ( $d['not_included_items'] as $item ) : ?>
+				<li><?php echo esc_html( $item ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
+	</div>
+	<?php endif; ?>
 
-		<div class="backcover-footer">
-			<table>
-				<tr>
-					<td style="width:50mm;" class="contact-col">
-						<span class="brand"><?php echo $brand; ?></span>
-					</td>
-					<td class="contact-col">
-						<?php echo $name; ?><br/>
-						<?php echo $phone; ?>
-					</td>
-					<td class="contact-col" style="text-align:right;">
-						<?php echo $email; ?><br/>
-						<?php echo $website; ?>
-					</td>
-				</tr>
-			</table>
-		</div>
+</div>
 
-		</body></html>
-		<?php
-		return ob_get_clean();
+</body></html>
+		<?php return ob_get_clean();
+	}
+
+	private static function days_page( $d, $pair, $page_num, $show_svg = false ) {
+		$brand    = esc_html( $d['brand_name'] );
+		$subtitle = nl2br( esc_html( $d['tour_subtitle'] ) );
+
+		ob_start(); ?>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+
+<?php echo self::inner_header( $brand, $subtitle, 'Itinerary' ); ?>
+
+<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+		<?php foreach ( $pair as $day ) : ?>
+			<td style="width:50%; vertical-align:top; padding-right:10mm;">
+				<div class="day-head"><?php echo esc_html( $day['title'] ); ?></div>
+				<div class="day-body"><?php echo self::format_body( $day['content'] ); ?></div>
+			</td>
+		<?php endforeach; ?>
+		<?php if ( count( $pair ) === 1 ) : ?>
+			<td style="width:50%;"></td>
+		<?php endif; ?>
+		</tr>
+	</table>
+</div>
+
+<!-- Page number — top: PH - MB - 5 = 274mm -->
+<div style="position:absolute; top:274mm; left:<?php echo self::ML; ?>mm; font-size:8.5pt;">
+	page <?php echo esc_html( $page_num ); ?>
+</div>
+
+<?php if ( $show_svg ) :
+	$svg = self::svg_tag( $d['days_svg_id'], '55mm', '' );
+	if ( $svg ) : ?>
+<!-- Illustration — bottom-right: top ≈ 230mm, right edge at 192mm → left=137mm -->
+<div style="position:absolute; top:230mm; left:137mm; width:55mm; text-align:right;">
+	<?php echo $svg; ?>
+</div>
+	<?php endif;
+endif; ?>
+
+</body></html>
+		<?php return ob_get_clean();
+	}
+
+	private static function terms_page( $d ) {
+		$brand    = esc_html( $d['brand_name'] );
+		$content  = self::format_terms( $d['terms_text'] );
+		$cols     = self::split_into_cols( $content, 3 );
+		// Col width: CW / 3 with 7mm gutters → each col ≈ 53mm content + 7mm gutter
+		$col_w = floor( self::CW / 3 );
+
+		ob_start(); ?>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+
+<?php echo self::inner_header( $brand, '', 'Terms &amp; Conditions' ); ?>
+
+<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<?php foreach ( $cols as $i => $col_html ) : ?>
+			<td class="tc-col" style="width:<?php echo $col_w; ?>mm;">
+				<?php echo $col_html; ?>
+			</td>
+			<?php endforeach; ?>
+		</tr>
+	</table>
+</div>
+
+</body></html>
+		<?php return ob_get_clean();
+	}
+
+	private static function back_cover_page( $d ) {
+		$back_svg = self::svg_tag( $d['back_cover_svg_id'], '130mm', '' );
+		$logo_svg = self::svg_tag( $d['logo_mark_id'], '13mm', '13mm' );
+		$brand    = esc_html( $d['brand_name'] );
+
+		ob_start(); ?>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+
+<?php if ( $back_svg ) : ?>
+<!-- Centre illustration: left = (210-130)/2 = 40mm -->
+<div style="position:absolute; top:60mm; left:40mm; width:130mm; text-align:center;">
+	<?php echo $back_svg; ?>
+</div>
+<?php endif; ?>
+
+<!-- Footer: top = 297 - 18 - 16 = 263mm -->
+<div style="position:absolute; top:263mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td style="width:48mm; vertical-align:bottom;">
+				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
+			</td>
+			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55;">
+				<?php echo esc_html( $d['contact_name'] ); ?><br/>
+				<?php echo esc_html( $d['contact_phone'] ); ?>
+			</td>
+			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; text-align:right;">
+				<?php echo esc_html( $d['contact_email'] ); ?><br/>
+				<?php echo esc_html( $d['contact_website'] ); ?>
+			</td>
+		</tr>
+	</table>
+</div>
+
+</body></html>
+		<?php return ob_get_clean();
+	}
+
+	/**
+	 * Shared inner-page header (Architourian | subtitle | section label).
+	 * Reference code is added separately via write_ref_code().
+	 */
+	private static function inner_header( $brand, $subtitle, $section_label ) {
+		// Column widths: brand=30mm, section=28mm, subtitle fills the rest
+		$brand_w   = 30;
+		$section_w = 28;
+		$sub_w     = self::CW - $brand_w - $section_w;
+
+		ob_start(); ?>
+<div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+	<table width="<?php echo self::CW; ?>mm" border="0" cellpadding="0" cellspacing="0">
+		<tr>
+			<td style="width:<?php echo $brand_w; ?>mm; vertical-align:top;">
+				<strong style="font-size:10pt;"><?php echo $brand; ?></strong>
+			</td>
+			<td style="width:<?php echo $sub_w; ?>mm; vertical-align:top; font-size:8.5pt; line-height:1.4;">
+				<?php echo $subtitle; ?>
+			</td>
+			<td style="width:<?php echo $section_w; ?>mm; vertical-align:top; text-align:right; font-size:9pt;">
+				<?php echo $section_label; ?>
+			</td>
+		</tr>
+	</table>
+</div>
+		<?php return ob_get_clean();
 	}
 }
