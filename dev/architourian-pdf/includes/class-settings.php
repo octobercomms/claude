@@ -39,7 +39,7 @@ class AIPDF_Settings {
 		foreach ( $text_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? sanitize_text_field( $input[ $key ] ) : '';
 		}
-		$id_fields = [ 'logo_mark_id', 'logo_mark_cover_id' ];
+		$id_fields = [ 'logo_mark_id', 'wordmark_id', 'days_svg_2_id' ];
 		foreach ( $id_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? absint( $input[ $key ] ) : 0;
 		}
@@ -85,10 +85,24 @@ class AIPDF_Settings {
 						</td>
 					</tr>
 					<tr>
-						<th scope="row">Logo Mark (inner pages &amp; cover footer)</th>
+						<th scope="row">Corner Logo (cover &amp; back cover)</th>
 						<td>
 							<?php self::render_svg_upload( 'logo_mark_id', $opts['logo_mark_id'] ?? 0 ); ?>
-							<p class="description">Small square bracket icon used in the bottom-left of the cover and header of inner pages.</p>
+							<p class="description">Small square bracket icon shown bottom-left of the cover page and back cover.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Wordmark SVG (inner page headers)</th>
+						<td>
+							<?php self::render_svg_upload( 'wordmark_id', $opts['wordmark_id'] ?? 0 ); ?>
+							<p class="description">The "Architourian" wordmark SVG used in the header of every inner page. Falls back to plain text if not set.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Day Illustration 2 (2nd day page)</th>
+						<td>
+							<?php self::render_svg_upload( 'days_svg_2_id', $opts['days_svg_2_id'] ?? 0 ); ?>
+							<p class="description">SVG illustration shown bottom-right of the second day page. Falls back to Day Illustration 1 if not set.</p>
 						</td>
 					</tr>
 					<tr>

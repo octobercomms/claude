@@ -135,7 +135,7 @@ class AIPDF_PDF_Generator {
 			$chunks = array_chunk( $days, 4 );
 			foreach ( $chunks as $i => $chunk ) {
 				$mpdf->AddPage();
-				$mpdf->WriteHTML( self::days_page( $data, $chunk, $i + 2 ) );
+				$mpdf->WriteHTML( self::days_page( $data, $chunk, $i + 2, $i ) );
 			}
 		}
 
@@ -204,6 +204,8 @@ class AIPDF_PDF_Generator {
 			'not_included_items' => $not_included_items,
 			'brand_name'         => AIPDF_Settings::get( 'brand_name', 'Architourian' ),
 			'logo_mark_id'       => intval( AIPDF_Settings::get( 'logo_mark_id', 0 ) ),
+			'wordmark_id'        => intval( AIPDF_Settings::get( 'wordmark_id', 0 ) ),
+			'days_svg_2_id'      => intval( AIPDF_Settings::get( 'days_svg_2_id', 0 ) ),
 			'contact_name'       => AIPDF_Settings::get( 'contact_name' ),
 			'contact_phone'      => AIPDF_Settings::get( 'contact_phone' ),
 			'contact_email'      => AIPDF_Settings::get( 'contact_email' ),
@@ -415,9 +417,17 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
+	/** Returns SVG wordmark img tag, or bold text fallback if no SVG uploaded. */
+	private static function wordmark_html( $d ) {
+		$svg = self::svg_tag( $d['wordmark_id'], '28mm', '' );
+		if ( $svg ) return $svg;
+		return '<strong style="font-size:10pt; font-family:\'Courier New\',Courier,monospace;">'
+			. esc_html( $d['brand_name'] ) . '</strong>';
+	}
+
 	private static function overview_page( $d ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
+		$brand_html = self::wordmark_html( $d );
+		$subtitle   = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
 
 		// Centre column
 		$p = 'style="margin:0 0 1mm 0;font-size:9pt;line-height:1.4;"';
@@ -446,7 +456,7 @@ class AIPDF_PDF_Generator {
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand, $subtitle, 'Itinerary' ); ?>
+<?php echo self::inner_header( $brand_html, $subtitle, 'Itinerary' ); ?>
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 
@@ -487,15 +497,15 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	private static function days_page( $d, $chunk, $page_num ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
+	private static function days_page( $d, $chunk, $page_num, $page_index = 0 ) {
+		$brand_html = self::wordmark_html( $d );
+		$subtitle   = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
 		$rows     = array_chunk( $chunk, 2 );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand, $subtitle, 'Itinerary' ); ?>
+<?php echo self::inner_header( $brand_html, $subtitle, 'Itinerary' ); ?>
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table width="100%" border="0" cellpadding="0" cellspacing="0">
@@ -524,7 +534,9 @@ class AIPDF_PDF_Generator {
 </div>
 
 <?php
-	$svg = self::svg_tag( $d['days_svg_id'], '55mm', '' );
+	$svg_id = ( $page_index > 0 && $d['days_svg_2_id'] )
+		? $d['days_svg_2_id'] : $d['days_svg_id'];
+	$svg = self::svg_tag( $svg_id, '55mm', '' );
 	if ( $svg ) : ?>
 <!-- Illustration — bottom-right -->
 <div style="position:absolute; top:230mm; left:137mm; width:55mm; text-align:right;">
@@ -538,8 +550,8 @@ class AIPDF_PDF_Generator {
 	}
 
 	private static function terms_page( $d ) {
-		$brand   = esc_html( $d['brand_name'] );
-		$content = self::format_terms( $d['terms_text'] );
+		$brand_html = self::wordmark_html( $d );
+		$content    = self::format_terms( $d['terms_text'] );
 		$cols    = self::split_into_cols( $content, 3 );
 
 		$tc_col_style = 'vertical-align:top; font-size:8.5pt; line-height:1.5;
@@ -548,7 +560,7 @@ class AIPDF_PDF_Generator {
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand, '', 'Terms &amp; Conditions' ); ?>
+<?php echo self::inner_header( $brand_html, '', 'Terms &amp; Conditions' ); ?>
 
 <?php echo self::ref_code_html( $d['tour_reference'] ); ?>
 
@@ -609,7 +621,7 @@ class AIPDF_PDF_Generator {
 	 * Uses table-layout:fixed with percentages — most reliable in mPDF.
 	 * Reference code is added separately via write_ref_code().
 	 */
-	private static function inner_header( $brand, $subtitle, $section_label ) {
+	private static function inner_header( $brand_html, $subtitle, $section_label ) {
 		ob_start(); ?>
 <div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table style="width:100%; table-layout:fixed; border-collapse:collapse;" cellpadding="0" cellspacing="0">
@@ -620,7 +632,7 @@ class AIPDF_PDF_Generator {
 		</colgroup>
 		<tr>
 			<td style="vertical-align:top; padding:0;">
-				<strong style="font-size:10pt; font-family:'Courier New',Courier,monospace;"><?php echo $brand; ?></strong>
+				<?php echo $brand_html; ?>
 			</td>
 			<td style="vertical-align:top; padding:0; font-size:7.5pt; line-height:1.3; white-space:nowrap; font-family:'Courier New',Courier,monospace;">
 				<?php echo $subtitle; ?>
