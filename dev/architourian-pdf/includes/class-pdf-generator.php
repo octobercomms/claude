@@ -111,6 +111,12 @@ class AIPDF_PDF_Generator {
 			}
 		}
 
+		// ── Terms & Conditions ───────────────────────────────────────────
+		if ( ! empty( $data['terms_text'] ) ) {
+			$mpdf->AddPage();
+			$mpdf->WriteHTML( self::terms_page( $data ) );
+		}
+
 		// ── Back cover ───────────────────────────────────────────────────
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
@@ -150,6 +156,8 @@ class AIPDF_PDF_Generator {
 			'cover_svg_id'      => intval( $f( 'pdf_cover_svg_id' ) ),
 			'days_svg_id'       => intval( $f( 'pdf_days_svg_id' ) ),
 			'back_cover_svg_id' => intval( $f( 'pdf_back_cover_svg_id' ) ),
+			// T&C: per-tour field overrides global plugin setting
+			'terms_text'        => $f( 'pdf_terms_text' ) ?: AIPDF_Settings::get( 'terms_text', '' ),
 			// Global brand settings
 			'brand_name'        => AIPDF_Settings::get( 'brand_name', 'Architourian' ),
 			'logo_mark_id'      => intval( AIPDF_Settings::get( 'logo_mark_id', 0 ) ),
@@ -400,6 +408,26 @@ class AIPDF_PDF_Generator {
 				text-align: left;
 			}
 
+			/* ── Terms & Conditions ──────────────────────── */
+			.tc-body {
+				position: absolute;
+				top: 52mm;
+				left: 18mm;
+				right: 18mm;
+				bottom: 18mm;
+				column-count: 3;
+				column-gap: 8mm;
+			}
+			.tc-body p { font-size: 8.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
+			.tc-body h3 {
+				font-size: 8.5pt;
+				font-weight: bold;
+				margin: 4mm 0 1.5mm 0;
+				font-family: "Courier New", Courier, monospace;
+			}
+			.tc-body ul, .tc-body ol { padding: 0; margin: 0 0 2.5mm 0; list-style: none; }
+			.tc-body ul li, .tc-body ol li { font-size: 8.5pt; line-height: 1.5; margin-bottom: 1.5mm; }
+
 			/* ── Back cover ───────────────────────────────── */
 			.backcover-illustration {
 				position: absolute;
@@ -605,6 +633,76 @@ class AIPDF_PDF_Generator {
 		</body></html>
 		<?php
 		return ob_get_clean();
+	}
+
+	private static function terms_page( $d ) {
+		$brand    = esc_html( $d['brand_name'] );
+		$subtitle = esc_html( $d['tour_subtitle'] );
+		$ref      = esc_html( $d['tour_reference'] );
+		$content  = self::format_terms( $d['terms_text'] );
+
+		ob_start();
+		?>
+		<!DOCTYPE html><html><head><?php echo self::base_css(); ?></head><body>
+
+		<!-- Header — "Terms & Conditions" replaces "Itinerary" -->
+		<div class="page-header">
+			<table>
+				<tr>
+					<td style="width:28mm;">
+						<span class="brand"><?php echo $brand; ?></span>
+					</td>
+					<td>
+						<span class="subtitle">Terms &amp; Conditions</span>
+					</td>
+					<td style="width:30mm;"></td>
+				</tr>
+			</table>
+			<?php if ( $ref ) : ?>
+			<div class="ref-code"><?php echo $ref; ?></div>
+			<?php endif; ?>
+		</div>
+
+		<!-- 3-column body -->
+		<div class="tc-body">
+			<?php echo $content; ?>
+		</div>
+
+		</body></html>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * Format T&C text into HTML suitable for the 3-column layout.
+	 * Lines like "1) Your Fitness" become <h3> headings.
+	 * Already-HTML content is passed through.
+	 */
+	private static function format_terms( $text ) {
+		if ( empty( $text ) ) {
+			return '';
+		}
+		// Already HTML — pass through with allowed tags
+		if ( strip_tags( $text ) !== $text ) {
+			return wp_kses_post( $text );
+		}
+
+		$lines  = explode( "\n", trim( $text ) );
+		$output = '';
+
+		foreach ( $lines as $line ) {
+			$line = rtrim( $line );
+			if ( $line === '' ) {
+				continue;
+			}
+			// Numbered section headings: "1) Heading" or "1. Heading"
+			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
+				$output .= '<h3>' . esc_html( $line ) . '</h3>';
+			} else {
+				$output .= '<p>' . esc_html( $line ) . '</p>';
+			}
+		}
+		return $output;
 	}
 
 	private static function back_cover_page( $d ) {

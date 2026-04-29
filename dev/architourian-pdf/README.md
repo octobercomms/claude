@@ -60,6 +60,7 @@ Create the following fields on your Tour post type. Field names must match exact
 | `pdf_day_1` … `pdf_day_12` | Textarea | Day content. Lines starting with `–` or `-` become bullet points |
 | `pdf_days_svg_id` | Number / Media | SVG illustration for bottom-right of final day page |
 | `pdf_back_cover_svg_id` | Number / Media | Back cover page illustration |
+| `pdf_terms_text` | Textarea / WYSIWYG | Per-tour T&C override. If empty, falls back to the global T&C in plugin settings |
 
 ### Day content format
 
@@ -111,6 +112,24 @@ The plugin expects:
 - **Cover SVG** — large architectural illustration, centred on the cover page
 - **Days SVG** — smaller illustration, appears bottom-right of the final day page
 - **Back cover SVG** — large illustration, centred on the back cover
+
+## Terms & Conditions
+
+The T&C page uses a 3-column flowing layout (matching page 6 of the template).
+
+- **Global T&C** is entered once in **Settings → Architourian PDF** and appears on every PDF
+- **Per-tour override**: add a `pdf_terms_text` field to the tour post to replace the global text for that tour
+- The page uses the same header as inner pages but with "Terms & Conditions" as the section label
+- Numbered headings like `1) Your Fitness` are auto-detected and rendered bold
+- The T&C page is omitted entirely if no text is set
+
+## Page Order
+
+1. Cover (SVG illustration + tour subtitle)
+2. Overview (trip info + included)
+3–N. Day pages (2 days per page)
+N+1. Terms & Conditions (3-column, if text is set)
+Last. Back cover (SVG illustration + contact)
 
 ## Design Notes
 

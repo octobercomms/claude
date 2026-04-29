@@ -43,6 +43,9 @@ class AIPDF_Settings {
 		foreach ( $id_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? absint( $input[ $key ] ) : 0;
 		}
+		$clean['terms_text'] = isset( $input['terms_text'] )
+			? wp_kses_post( $input['terms_text'] )
+			: '';
 		return $clean;
 	}
 
@@ -108,6 +111,28 @@ class AIPDF_Settings {
 						<td><input type="text" name="<?php echo self::OPTION; ?>[contact_website]"
 							value="<?php echo esc_attr( $opts['contact_website'] ?? '' ); ?>" class="regular-text" /></td>
 					</tr>
+					<tr>
+						<th scope="row"><label for="aipdf_terms_text">Terms &amp; Conditions Text</label></th>
+						<td>
+							<p class="description" style="margin-bottom:6px;">
+								Global T&amp;C appended to every itinerary PDF. Use numbered headings like <code>1) Your Fitness</code>.
+								Paste plain text — line breaks are preserved, or use basic HTML.
+								Override per-tour with the <code>pdf_terms_text</code> custom field.
+							</p>
+							<?php
+							wp_editor(
+								$opts['terms_text'] ?? '',
+								'aipdf_terms_text',
+								[
+									'textarea_name' => self::OPTION . '[terms_text]',
+									'textarea_rows' => 20,
+									'media_buttons' => false,
+									'teeny'         => true,
+								]
+							);
+							?>
+						</td>
+					</tr>
 				</table>
 				<?php submit_button(); ?>
 			</form>
@@ -130,6 +155,7 @@ class AIPDF_Settings {
 					<tr><td><code>pdf_day_1</code> … <code>pdf_day_12</code></td><td>Textarea</td><td>Day-by-day content. Each line starting with – is a bullet point.</td></tr>
 					<tr><td><code>pdf_days_svg_id</code></td><td>Media / Number</td><td>SVG illustration shown bottom-right of day pages</td></tr>
 					<tr><td><code>pdf_back_cover_svg_id</code></td><td>Media / Number</td><td>Back cover page illustration</td></tr>
+					<tr><td><code>pdf_terms_text</code></td><td>Textarea / WYSIWYG</td><td>Per-tour T&amp;C override. If empty, the global T&amp;C from plugin settings is used.</td></tr>
 				</tbody>
 			</table>
 		</div>
