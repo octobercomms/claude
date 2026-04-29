@@ -225,7 +225,8 @@ class AIPDF_PDF_Generator {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	/**
-	 * Load an SVG file, strip XML/DOCTYPE declarations, optionally set dimensions.
+	 * Load an SVG file, strip everything before the <svg tag, optionally set dimensions.
+	 * Strips XML declarations, DOCTYPE, comments etc. which mPDF renders as literal text.
 	 */
 	private static function svg_tag( $attachment_id, $width = '', $height = '' ) {
 		if ( ! $attachment_id ) return '';
@@ -234,18 +235,18 @@ class AIPDF_PDF_Generator {
 
 		$svg = file_get_contents( $path );
 
-		// Strip XML declaration and DOCTYPE — mPDF renders these as text
-		$svg = preg_replace( '/\s*<\?xml[^?]*\?>\s*/i', '', $svg );
-		$svg = preg_replace( '/\s*<!DOCTYPE[^>]*>\s*/i', '', $svg );
-		$svg = trim( $svg );
+		// Find the opening <svg tag and discard everything before it.
+		// This reliably removes <?xml?>, <!DOCTYPE>, comments, BOM characters, etc.
+		$start = stripos( $svg, '<svg' );
+		if ( $start === false ) return ''; // not a valid SVG
+		$svg = substr( $svg, $start );
 
-		// Inject explicit dimensions onto the root <svg> element
+		// Override width/height on the root <svg> element
 		if ( $width || $height ) {
+			$svg = preg_replace( '/<svg\b([^>]*?)\s+width="[^"]*"/i',  '<svg$1', $svg );
+			$svg = preg_replace( '/<svg\b([^>]*?)\s+height="[^"]*"/i', '<svg$1', $svg );
 			$attrs  = $width  ? ' width="'  . esc_attr( $width )  . '"' : '';
 			$attrs .= $height ? ' height="' . esc_attr( $height ) . '"' : '';
-			// Remove existing width/height attrs so ours take precedence
-			$svg = preg_replace( '/<svg\b([^>]*)\s+width="[^"]*"/i',  '<svg$1', $svg );
-			$svg = preg_replace( '/<svg\b([^>]*)\s+height="[^"]*"/i', '<svg$1', $svg );
 			$svg = preg_replace( '/<svg\b/i', '<svg' . $attrs, $svg, 1 );
 		}
 
@@ -358,11 +359,9 @@ class AIPDF_PDF_Generator {
 		.day-body ul li::before { content: "\2013\00a0"; }
 		.day-body p   { font-size: 9pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
 
-		/* ── T&C columns ── */
-		.tc-col { vertical-align: top; font-size: 8.5pt; line-height: 1.5; padding-right: 7mm; }
-		.tc-col:last-child { padding-right: 0; }
-		.tc-col h3 { font-size: 8.5pt; font-weight: bold; margin: 0 0 1.5mm 0; }
-		.tc-col p  { margin: 0 0 2.5mm 0; }
+		/* ── T&C — used inside absolutely-positioned column divs ── */
+		h3 { font-size: 8.5pt; font-weight: bold; margin: 3.5mm 0 1mm 0; padding: 0; }
+		h3:first-child { margin-top: 0; }
 		</style>';
 	}
 
@@ -517,28 +516,29 @@ endif; ?>
 	}
 
 	private static function terms_page( $d ) {
-		$brand    = esc_html( $d['brand_name'] );
-		$content  = self::format_terms( $d['terms_text'] );
-		$cols     = self::split_into_cols( $content, 3 );
-		// Col width: CW / 3 with 7mm gutters → each col ≈ 53mm content + 7mm gutter
-		$col_w = floor( self::CW / 3 );
+		$brand   = esc_html( $d['brand_name'] );
+		$content = self::format_terms( $d['terms_text'] );
+		$cols    = self::split_into_cols( $content, 3 );
+
+		// 3 columns × 54mm + 2 gutters × 6mm = 174mm total
+		// Col left positions (from page left edge): 18, 78, 138mm
+		$col_w = 54;
+		$gutter = 6;
+		$tc_top = 50; // mm from top
+
+		$tc_col_style = 'font-size:8.5pt; line-height:1.5; font-family:"Courier New",Courier,monospace;';
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand, '', 'Terms &amp; Conditions' ); ?>
 
-<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
-	<table width="100%" border="0" cellpadding="0" cellspacing="0">
-		<tr>
-			<?php foreach ( $cols as $i => $col_html ) : ?>
-			<td class="tc-col" style="width:<?php echo $col_w; ?>mm;">
-				<?php echo $col_html; ?>
-			</td>
-			<?php endforeach; ?>
-		</tr>
-	</table>
+<?php foreach ( $cols as $i => $col_html ) :
+	$left = self::ML + $i * ( $col_w + $gutter ); ?>
+<div style="position:absolute; top:<?php echo $tc_top; ?>mm; left:<?php echo $left; ?>mm; width:<?php echo $col_w; ?>mm; <?php echo $tc_col_style; ?>">
+	<?php echo $col_html; ?>
 </div>
+<?php endforeach; ?>
 
 </body></html>
 		<?php return ob_get_clean();
@@ -584,25 +584,26 @@ endif; ?>
 
 	/**
 	 * Shared inner-page header (Architourian | subtitle | section label).
+	 * Uses table-layout:fixed with percentages — most reliable in mPDF.
 	 * Reference code is added separately via write_ref_code().
 	 */
 	private static function inner_header( $brand, $subtitle, $section_label ) {
-		// Column widths: brand=30mm, section=28mm, subtitle fills the rest
-		$brand_w   = 30;
-		$section_w = 28;
-		$sub_w     = self::CW - $brand_w - $section_w;
-
 		ob_start(); ?>
 <div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
-	<table width="<?php echo self::CW; ?>mm" border="0" cellpadding="0" cellspacing="0">
+	<table style="width:100%; table-layout:fixed; border-collapse:collapse;" cellpadding="0" cellspacing="0">
+		<colgroup>
+			<col style="width:17%;"/>
+			<col style="width:67%;"/>
+			<col style="width:16%;"/>
+		</colgroup>
 		<tr>
-			<td style="width:<?php echo $brand_w; ?>mm; vertical-align:top;">
-				<strong style="font-size:10pt;"><?php echo $brand; ?></strong>
+			<td style="vertical-align:top; padding:0;">
+				<strong style="font-size:10pt; font-family:'Courier New',Courier,monospace;"><?php echo $brand; ?></strong>
 			</td>
-			<td style="width:<?php echo $sub_w; ?>mm; vertical-align:top; font-size:8.5pt; line-height:1.4;">
+			<td style="vertical-align:top; padding:0; font-size:8.5pt; line-height:1.4; font-family:'Courier New',Courier,monospace;">
 				<?php echo $subtitle; ?>
 			</td>
-			<td style="width:<?php echo $section_w; ?>mm; vertical-align:top; text-align:right; font-size:9pt;">
+			<td style="vertical-align:top; padding:0; text-align:right; font-size:9pt; font-family:'Courier New',Courier,monospace;">
 				<?php echo $section_label; ?>
 			</td>
 		</tr>
