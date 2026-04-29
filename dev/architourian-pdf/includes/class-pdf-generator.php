@@ -385,11 +385,10 @@ class AIPDF_PDF_Generator {
 	// ─────────────────────────────────────────────────────────────────────────
 
 	private static function cover_page( $d ) {
-		// Center SVG: A4 = 210mm, use 148mm wide SVG → left = (210-148)/2 = 31mm
-		$cover_svg = self::svg_tag( $d['cover_svg_id'], '148mm', '' );
-		$logo_svg  = self::svg_tag( $d['logo_mark_id'], '13mm', '13mm' );
-		$brand     = esc_html( $d['brand_name'] );
-		$subtitle  = nl2br( esc_html( $d['tour_subtitle'] ) );
+		$cover_svg    = self::svg_tag( $d['cover_svg_id'], '148mm', '' );
+		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
+		$wordmark_svg = self::wordmark_html( $d );
+		$subtitle     = nl2br( esc_html( $d['tour_subtitle'] ) );
 
 		// Footer top = PH - MB - footer_height ≈ 297 - 18 - 16 = 263mm
 		ob_start(); ?>
@@ -399,14 +398,18 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<div style="position:absolute; top:263mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
+<!-- Footer: left:8mm to bleed close to corner, width:194mm -->
+<div style="position:absolute; top:263mm; left:8mm; width:194mm;">
 	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+		<colgroup>
+			<col style="width:24mm;"/>
+			<col style="width:110mm;"/>
+			<col style="width:60mm;"/>
+		</colgroup>
 		<tr>
-			<td style="width:16mm; vertical-align:bottom;"><?php echo $logo_svg; ?></td>
-			<td style="width:48mm; vertical-align:bottom; padding-left:3mm;">
-				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
-			</td>
-			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.4;">
+			<td style="vertical-align:bottom;"><?php echo $logo_svg; ?></td>
+			<td style="vertical-align:bottom; padding-left:6mm;"><?php echo $wordmark_svg; ?></td>
+			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; font-family:'Courier New',Courier,monospace;">
 				<?php echo $subtitle; ?>
 			</td>
 		</tr>
