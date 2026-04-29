@@ -92,7 +92,7 @@ class AIPDF_PDF_Generator {
 			'file_mtime'     => date( 'Y-m-d H:i:s', filemtime( __FILE__ ) ),
 			'class_methods'  => get_class_methods( __CLASS__ ),
 		];
-		$post_id = isset( $_GET['post_id'] ) ? intval( $_GET['post_id'] ) : 0;
+		$post_id = isset( $_REQUEST['post_id'] ) ? intval( $_REQUEST['post_id'] ) : 0;
 		if ( $post_id ) {
 			$raw = get_post_meta( $post_id );
 			$response['post_meta'] = array_map( function( $v ) {
