@@ -3,7 +3,7 @@
  * Plugin Name: WebP Image Optimizer
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Automatically converts uploaded images to WebP, scales them to a max dimension, and serves them transparently via .htaccess rules. Includes a bulk converter for existing media.
- * Version:     1.0.0
+ * Version:     1.1.0
  * Author:      OctoberComms
  * License:     GPL-2.0-or-later
  * Text Domain: webp-image-optimizer
@@ -11,7 +11,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WIO_VERSION', '1.0.0' );
+define( 'WIO_VERSION', '1.1.0' );
 define( 'WIO_PLUGIN_FILE', __FILE__ );
 define( 'WIO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 
@@ -232,6 +232,98 @@ function wio_on_upload( array $metadata, int $attachment_id ): array {
 	}
 
 	return $metadata;
+}
+
+// ─── Rewrite image URLs in HTML output ────────────────────────────────────
+//
+// Rewrites src/srcset attributes to point to .webp files directly in the page
+// HTML. Browsers request the .webp by name — no server-side magic required.
+// Only rewrites URLs where the corresponding .webp file actually exists on disk.
+
+add_filter( 'wp_get_attachment_image_src',   'wio_rewrite_image_src',    10, 1 );
+add_filter( 'wp_calculate_image_srcset',     'wio_rewrite_srcset',       10, 1 );
+add_filter( 'the_content',                   'wio_rewrite_content_urls', 20    );
+add_filter( 'wp_get_attachment_url',         'wio_rewrite_single_url',   10, 1 );
+
+/**
+ * Map a single URL to its .webp equivalent if the file exists on disk.
+ */
+function wio_maybe_webp_url( string $url ): string {
+	if ( ! preg_match( '/\.(jpe?g|png|gif)(\?.*)?$/i', $url ) ) {
+		return $url;
+	}
+
+	$uploads  = wp_upload_dir();
+	$base_url = $uploads['baseurl'];
+	$base_dir = $uploads['basedir'];
+
+	// Only rewrite URLs that live inside the uploads directory.
+	if ( strpos( $url, $base_url ) === false ) {
+		return $url;
+	}
+
+	// Strip query string before checking disk.
+	$url_clean = strtok( $url, '?' );
+	$rel       = str_replace( $base_url, '', $url_clean );
+	$webp_path = $base_dir . $rel . '.webp';
+
+	return file_exists( $webp_path ) ? $url_clean . '.webp' : $url;
+}
+
+function wio_rewrite_image_src( $image ) {
+	if ( is_array( $image ) && isset( $image[0] ) ) {
+		$image[0] = wio_maybe_webp_url( $image[0] );
+	}
+	return $image;
+}
+
+function wio_rewrite_srcset( $sources ) {
+	if ( ! is_array( $sources ) ) {
+		return $sources;
+	}
+	foreach ( $sources as &$source ) {
+		if ( isset( $source['url'] ) ) {
+			$source['url'] = wio_maybe_webp_url( $source['url'] );
+		}
+	}
+	return $sources;
+}
+
+function wio_rewrite_single_url( string $url ): string {
+	return wio_maybe_webp_url( $url );
+}
+
+function wio_rewrite_content_urls( string $content ): string {
+	// Match src and srcset attributes containing image URLs in the uploads dir.
+	$uploads  = wp_upload_dir();
+	$base_url = preg_quote( $uploads['baseurl'], '/' );
+
+	// Rewrite src="..." for jpg/png/gif.
+	$content = preg_replace_callback(
+		'/\b(src=["\'])(' . $base_url . '[^"\']+\.(jpe?g|png|gif))(["\'])/i',
+		function ( $m ) {
+			return $m[1] . wio_maybe_webp_url( $m[2] ) . $m[4];
+		},
+		$content
+	);
+
+	// Rewrite individual URLs inside srcset="..." attributes.
+	$content = preg_replace_callback(
+		'/\bsrcset=["\']([^"\']+)["\']/i',
+		function ( $m ) {
+			$parts = array_map( 'trim', explode( ',', $m[1] ) );
+			$parts = array_map( function ( $part ) {
+				// Each part is "URL [descriptor]" e.g. "image.jpg 800w"
+				$pieces    = preg_split( '/\s+/', $part, 2 );
+				$pieces[0] = wio_maybe_webp_url( $pieces[0] );
+				return implode( ' ', $pieces );
+			}, $parts );
+			return 'srcset="' . implode( ', ', $parts ) . '"';
+		},
+		$content
+	);
+
+	return $content;
 }
 
 // ─── Admin menu & settings page ────────────────────────────────────────────
