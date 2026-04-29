@@ -90,8 +90,13 @@ class AIPDF_PDF_Generator {
 			'php_version_id'  => PHP_VERSION_ID,
 			'vendor_exists'   => file_exists( AIPDF_VENDOR ),
 			'plugin_path'     => AIPDF_PATH,
+			'plugin_version'  => AIPDF_VERSION,
 			'memory_limit'    => ini_get( 'memory_limit' ),
 			'max_exec_time'   => ini_get( 'max_execution_time' ),
+			'class_methods'   => get_class_methods( __CLASS__ ),
+			'file_path'       => __FILE__,
+			'file_size'       => filesize( __FILE__ ),
+			'file_mtime'      => date( 'Y-m-d H:i:s', filemtime( __FILE__ ) ),
 		] );
 	}
 
