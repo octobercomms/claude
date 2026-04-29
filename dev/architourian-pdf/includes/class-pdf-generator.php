@@ -400,16 +400,11 @@ class AIPDF_PDF_Generator {
 
 <!-- Footer: left:8mm to bleed close to corner, width:194mm -->
 <div style="position:absolute; top:263mm; left:8mm; width:194mm;">
-	<table width="100%" border="0" cellpadding="0" cellspacing="0">
-		<colgroup>
-			<col style="width:24mm;"/>
-			<col style="width:110mm;"/>
-			<col style="width:60mm;"/>
-		</colgroup>
+	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td style="vertical-align:bottom;"><?php echo $logo_svg; ?></td>
-			<td style="vertical-align:bottom; padding-left:6mm;"><?php echo $wordmark_svg; ?></td>
-			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; font-family:'Courier New',Courier,monospace;">
+			<td width="13%" style="vertical-align:bottom;"><?php echo $logo_svg; ?></td>
+			<td width="57%" style="vertical-align:bottom; padding-left:6mm;"><?php echo $wordmark_svg; ?></td>
+			<td width="30%" style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; font-family:'Courier New',Courier,monospace;">
 				<?php echo $subtitle; ?>
 			</td>
 		</tr>
