@@ -285,11 +285,11 @@ class AIPDF_PDF_Generator {
 		foreach ( $lines as $line ) {
 			$line = rtrim( $line );
 			if ( preg_match( '/^[\-–—]\s*(.+)/', $line, $m ) ) {
-				if ( ! $in_list ) { $output .= '<ul>'; $in_list = true; }
-				$output .= '<li>' . esc_html( $m[1] ) . '</li>';
+				if ( ! $in_list ) { $output .= '<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2.5mm 0;">'; $in_list = true; }
+				$output .= '<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;padding-left:5mm;text-indent:-5mm;">&ndash;&nbsp;' . esc_html( $m[1] ) . '</li>';
 			} else {
 				if ( $in_list ) { $output .= '</ul>'; $in_list = false; }
-				$output .= $line === '' ? '' : '<p>' . esc_html( $line ) . '</p>';
+				$output .= $line === '' ? '' : '<p style="margin:0 0 2.5mm 0;font-size:9pt;line-height:1.5;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		if ( $in_list ) $output .= '</ul>';
@@ -308,9 +308,9 @@ class AIPDF_PDF_Generator {
 			$line = rtrim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3>' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:8.5pt;font-weight:bold;margin:3.5mm 0 1mm 0;padding:0;">' . esc_html( $line ) . '</h3>';
 			} else {
-				$output .= '<p>' . esc_html( $line ) . '</p>';
+				$output .= '<p style="margin:0 0 2mm 0;font-size:8.5pt;line-height:1.5;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -424,21 +424,22 @@ class AIPDF_PDF_Generator {
 		$subtitle = nl2br( esc_html( $d['tour_subtitle'] ) );
 
 		// Centre column
+		$p = 'style="margin:0 0 1mm 0;font-size:9pt;line-height:1.4;"';
 		$centre = '';
 		if ( $d['starting_point'] ) {
-			$centre .= '<p>Starting point<br>' . esc_html( $d['starting_point'] ) . '</p>';
+			$centre .= '<p ' . $p . '>Starting point</p><p style="margin:0 0 4mm 0;font-size:9pt;">' . esc_html( $d['starting_point'] ) . '</p>';
 		}
 		if ( $d['end_point'] ) {
-			$centre .= '<p>End point<br>' . esc_html( $d['end_point'] ) . '</p>';
+			$centre .= '<p ' . $p . '>End point</p><p style="margin:0 0 4mm 0;font-size:9pt;">' . esc_html( $d['end_point'] ) . '</p>';
 		}
 
 		// Right column
 		$right = '';
 		if ( $d['group_size'] ) {
-			$right .= '<p>Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
+			$right .= '<p style="margin:0 0 2mm 0;font-size:9pt;">Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
 		}
 		if ( $d['guide_price'] ) {
-			$right .= '<p>' . nl2br( esc_html( $d['guide_price'] ) ) . ' per person.</p>';
+			$right .= '<p style="margin:0 0 2mm 0;font-size:9pt;">' . esc_html( $d['guide_price'] ) . ' per person.</p>';
 		}
 
 		// Left column
@@ -465,17 +466,17 @@ class AIPDF_PDF_Generator {
 	<div class="incl" style="margin-top:14mm;">
 		<?php if ( ! empty( $d['included_items'] ) ) : ?>
 			<h2>Included in the trip</h2>
-			<ul>
+			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
-				<li><?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;"><?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
 		<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
 			<h2 style="margin-top:4mm;">Not included</h2>
-			<ul>
+			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
-				<li><?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;"><?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -587,13 +588,13 @@ endif; ?>
 			<td style="width:48mm; vertical-align:bottom;">
 				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
 			</td>
-			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55;">
-				<?php echo esc_html( $d['contact_name'] ); ?><br>
-				<?php echo esc_html( $d['contact_phone'] ); ?>
+			<td style="vertical-align:bottom; font-size:8.5pt;">
+				<p style="margin:0 0 1mm 0;font-size:8.5pt;"><?php echo esc_html( $d['contact_name'] ); ?></p>
+				<p style="margin:0;font-size:8.5pt;"><?php echo esc_html( $d['contact_phone'] ); ?></p>
 			</td>
-			<td style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; text-align:right;">
-				<?php echo esc_html( $d['contact_email'] ); ?><br>
-				<?php echo esc_html( $d['contact_website'] ); ?>
+			<td style="vertical-align:bottom; font-size:8.5pt; text-align:right;">
+				<p style="margin:0 0 1mm 0;font-size:8.5pt;"><?php echo esc_html( $d['contact_email'] ); ?></p>
+				<p style="margin:0;font-size:8.5pt;"><?php echo esc_html( $d['contact_website'] ); ?></p>
 			</td>
 		</tr>
 	</table>
