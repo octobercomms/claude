@@ -132,7 +132,6 @@ class AIPDF_PDF_Generator {
 
 	private static function collect_fields( $post_id ) {
 		$f = function( $key ) use ( $post_id ) {
-			// Support ACF get_field() if available
 			if ( function_exists( 'get_field' ) ) {
 				$val = get_field( $key, $post_id );
 				if ( $val !== null && $val !== false && $val !== '' ) {
@@ -142,58 +141,89 @@ class AIPDF_PDF_Generator {
 			return get_post_meta( $post_id, $key, true );
 		};
 
+		// Build included/not-included lists from existing numbered fields
+		$included_items     = [];
+		$not_included_items = [];
+		for ( $i = 1; $i <= 10; $i++ ) {
+			$v = $f( 'included_' . $i );
+			if ( $v ) $included_items[] = $v;
+			$v = $f( 'not_included_' . $i );
+			if ( $v ) $not_included_items[] = $v;
+		}
+
 		return [
-			'post_id'           => $post_id,
-			'post_title'        => get_the_title( $post_id ),
-			'tour_subtitle'     => $f( 'pdf_tour_subtitle' ),
-			'tour_reference'    => $f( 'pdf_tour_reference' ),
-			'trip_description'  => $f( 'pdf_trip_description' ),
-			'starting_point'    => $f( 'pdf_starting_point' ),
-			'end_point'         => $f( 'pdf_end_point' ),
-			'group_info'        => $f( 'pdf_group_info' ),
-			'cost_info'         => $f( 'pdf_cost_info' ),
-			'included_text'     => $f( 'pdf_included_text' ),
-			'cover_svg_id'      => intval( $f( 'pdf_cover_svg_id' ) ),
-			'days_svg_id'       => intval( $f( 'pdf_days_svg_id' ) ),
-			'back_cover_svg_id' => intval( $f( 'pdf_back_cover_svg_id' ) ),
-			// T&C: per-tour field overrides global plugin setting
-			'terms_text'        => $f( 'pdf_terms_text' ) ?: AIPDF_Settings::get( 'terms_text', '' ),
+			'post_id'            => $post_id,
+			'post_title'         => get_the_title( $post_id ),
+			// New PDF-specific fields
+			'tour_subtitle'      => $f( 'pdf_tour_subtitle' ),
+			'tour_reference'     => $f( 'pdf_tour_reference' ),
+			'trip_description'   => $f( 'pdf_trip_description' ),
+			'starting_point'     => $f( 'pdf_starting_point' ),
+			'end_point'          => $f( 'pdf_end_point' ),
+			'cover_svg_id'       => intval( $f( 'pdf_cover_svg_id' ) ),
+			'days_svg_id'        => intval( $f( 'pdf_days_svg_id' ) ),
+			'back_cover_svg_id'  => intval( $f( 'pdf_back_cover_svg_id' ) ),
+			'terms_text'         => $f( 'pdf_terms_text' ) ?: AIPDF_Settings::get( 'terms_text', '' ),
+			// Existing tour fields
+			'group_size'         => $f( 'group_size' ),
+			'guide_price'        => self::parse_price_field( $f( 'guide_price' ) ),
+			'nights'             => $f( 'nights' ),
+			'included_items'     => $included_items,
+			'not_included_items' => $not_included_items,
 			// Global brand settings
-			'brand_name'        => AIPDF_Settings::get( 'brand_name', 'Architourian' ),
-			'logo_mark_id'      => intval( AIPDF_Settings::get( 'logo_mark_id', 0 ) ),
-			'contact_name'      => AIPDF_Settings::get( 'contact_name' ),
-			'contact_phone'     => AIPDF_Settings::get( 'contact_phone' ),
-			'contact_email'     => AIPDF_Settings::get( 'contact_email' ),
-			'contact_website'   => AIPDF_Settings::get( 'contact_website' ),
+			'brand_name'         => AIPDF_Settings::get( 'brand_name', 'Architourian' ),
+			'logo_mark_id'       => intval( AIPDF_Settings::get( 'logo_mark_id', 0 ) ),
+			'contact_name'       => AIPDF_Settings::get( 'contact_name' ),
+			'contact_phone'      => AIPDF_Settings::get( 'contact_phone' ),
+			'contact_email'      => AIPDF_Settings::get( 'contact_email' ),
+			'contact_website'    => AIPDF_Settings::get( 'contact_website' ),
 		];
+	}
+
+	/**
+	 * Handle guide_price field which may contain [currency price="3300"] shortcodes.
+	 * Tries do_shortcode() first; falls back to extracting numbers.
+	 */
+	private static function parse_price_field( $value ) {
+		if ( empty( $value ) ) {
+			return '';
+		}
+		$processed = do_shortcode( $value );
+		// If shortcode ran successfully, strip any wrapper HTML
+		if ( $processed !== $value ) {
+			return wp_strip_all_tags( $processed );
+		}
+		// Fallback: extract numbers from price="XXXX" attributes
+		preg_match_all( '/price="(\d+)"/', $value, $matches );
+		if ( ! empty( $matches[1] ) ) {
+			return implode( ' – ', array_map( function ( $p ) {
+				return '£' . number_format( (int) $p );
+			}, $matches[1] ) );
+		}
+		return $value;
 	}
 
 	private static function get_days( $post_id ) {
 		$days = [];
-
-		// First: try JetEngine/ACF repeater field 'pdf_days'
-		if ( function_exists( 'get_field' ) ) {
-			$repeater = get_field( 'pdf_days', $post_id );
-			if ( is_array( $repeater ) && ! empty( $repeater ) ) {
-				foreach ( $repeater as $row ) {
-					$days[] = [
-						'title'   => isset( $row['day_title'] )   ? $row['day_title']   : '',
-						'content' => isset( $row['day_content'] ) ? $row['day_content'] : '',
-					];
-				}
-				return $days;
+		$f    = function( $key ) use ( $post_id ) {
+			if ( function_exists( 'get_field' ) ) {
+				$val = get_field( $key, $post_id );
+				if ( $val !== null && $val !== false && $val !== '' ) return $val;
 			}
-		}
+			return get_post_meta( $post_id, $key, true );
+		};
 
-		// Fallback: numbered meta fields pdf_day_1 … pdf_day_12
+		// Use existing day_N_title + day_N_text fields
 		for ( $i = 1; $i <= 12; $i++ ) {
-			$content = get_post_meta( $post_id, 'pdf_day_' . $i, true );
-			if ( ! empty( $content ) ) {
-				$days[] = [
-					'title'   => 'Day ' . $i,
-					'content' => $content,
-				];
+			$title   = $f( 'day_' . $i . '_title' );
+			$content = $f( 'day_' . $i . '_text' );
+			if ( empty( $title ) && empty( $content ) ) {
+				continue;
 			}
+			$days[] = [
+				'title'   => $title ?: ( 'Day ' . $i ),
+				'content' => $content,
+			];
 		}
 
 		return $days;
@@ -495,29 +525,33 @@ class AIPDF_PDF_Generator {
 	}
 
 	private static function overview_page( $d ) {
-		$logo_svg  = self::svg_tag( $d['logo_mark_id'] );
-		$brand     = esc_html( $d['brand_name'] );
-		$subtitle  = esc_html( $d['tour_subtitle'] );
-		$ref       = esc_html( $d['tour_reference'] );
+		$brand    = esc_html( $d['brand_name'] );
+		$subtitle = esc_html( $d['tour_subtitle'] );
+		$ref      = esc_html( $d['tour_reference'] );
 
-		$trip_desc  = self::format_body( $d['trip_description'] );
-		$start_end  = '';
+		// Left column — trip description
+		$trip_desc = self::format_body( $d['trip_description'] );
+
+		// Centre column — starting/end point
+		$centre = '';
 		if ( $d['starting_point'] ) {
-			$start_end .= '<p>Starting point:<br/>' . esc_html( $d['starting_point'] ) . '</p>';
+			$centre .= '<p>Starting point:<br/>' . esc_html( $d['starting_point'] ) . '</p>';
 		}
 		if ( $d['end_point'] ) {
-			$start_end .= '<p>End Point:<br/>' . esc_html( $d['end_point'] ) . '</p>';
+			$centre .= '<p>End Point:<br/>' . esc_html( $d['end_point'] ) . '</p>';
 		}
 
-		$right_col  = '';
-		if ( $d['group_info'] ) {
-			$right_col .= '<p>' . nl2br( esc_html( $d['group_info'] ) ) . '</p>';
+		// Right column — group size & price (from existing fields)
+		$right = '';
+		if ( $d['group_size'] ) {
+			$right .= '<p>Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
 		}
-		if ( $d['cost_info'] ) {
-			$right_col .= '<p>' . nl2br( esc_html( $d['cost_info'] ) ) . '</p>';
+		if ( $d['guide_price'] ) {
+			$right .= '<p>' . esc_html( $d['guide_price'] ) . ' per person.</p>';
 		}
 
-		$included = self::format_body( $d['included_text'] );
+		// Included section — built from included_1…included_N + not_included_1…N
+		$has_included = ! empty( $d['included_items'] ) || ! empty( $d['not_included_items'] );
 
 		ob_start();
 		?>
@@ -527,15 +561,9 @@ class AIPDF_PDF_Generator {
 		<div class="page-header">
 			<table>
 				<tr>
-					<td style="width:28mm;">
-						<span class="brand"><?php echo $brand; ?></span>
-					</td>
-					<td>
-						<span class="subtitle"><?php echo $subtitle; ?></span>
-					</td>
-					<td style="width:30mm;">
-						<span class="section-label">Itinerary</span>
-					</td>
+					<td style="width:28mm;"><span class="brand"><?php echo $brand; ?></span></td>
+					<td><span class="subtitle"><?php echo $subtitle; ?></span></td>
+					<td style="width:30mm;"><span class="section-label">Itinerary</span></td>
 				</tr>
 			</table>
 			<?php if ( $ref ) : ?>
@@ -549,16 +577,31 @@ class AIPDF_PDF_Generator {
 				<table>
 					<tr>
 						<td><?php echo $trip_desc; ?></td>
-						<td><?php echo $start_end; ?></td>
-						<td><?php echo $right_col; ?></td>
+						<td><?php echo $centre; ?></td>
+						<td><?php echo $right; ?></td>
 					</tr>
 				</table>
 			</div>
 
-			<?php if ( $included ) : ?>
+			<?php if ( $has_included ) : ?>
 			<div class="included-section">
+				<?php if ( ! empty( $d['included_items'] ) ) : ?>
 				<h2>Included in the trip</h2>
-				<?php echo $included; ?>
+				<ul>
+					<?php foreach ( $d['included_items'] as $item ) : ?>
+					<li><?php echo esc_html( $item ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+				<?php endif; ?>
+
+				<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
+				<h2>Not included</h2>
+				<ul>
+					<?php foreach ( $d['not_included_items'] as $item ) : ?>
+					<li><?php echo esc_html( $item ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+				<?php endif; ?>
 			</div>
 			<?php endif; ?>
 		</div>

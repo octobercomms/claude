@@ -138,24 +138,35 @@ class AIPDF_Settings {
 			</form>
 
 			<hr>
-			<h2>Custom Field Reference</h2>
-			<p>Add these field names to your JetEngine / ACF / Crocoblock setup on your Tour post type:</p>
+			<h2>Fields used automatically (already on your Tours)</h2>
+			<p>These existing fields are read directly — no changes needed:</p>
+			<table class="widefat striped" style="max-width:700px">
+				<thead><tr><th>Field Name</th><th>Used for</th></tr></thead>
+				<tbody>
+					<tr><td><code>day_1_title</code> … <code>day_12_title</code></td><td>Day headings on day pages</td></tr>
+					<tr><td><code>day_1_text</code> … <code>day_12_text</code></td><td>Day content on day pages</td></tr>
+					<tr><td><code>included_1</code> … <code>included_10</code></td><td>"Included in the trip" list items</td></tr>
+					<tr><td><code>not_included_1</code> … <code>not_included_10</code></td><td>"Not included" list items</td></tr>
+					<tr><td><code>guide_price</code></td><td>Price column on overview page (shortcodes parsed automatically)</td></tr>
+					<tr><td><code>group_size</code></td><td>Group size on overview page</td></tr>
+					<tr><td><code>nights</code></td><td>Nights count on overview page</td></tr>
+				</tbody>
+			</table>
+
+			<h2 style="margin-top:20px;">New fields to create in JetEngine</h2>
+			<p>Add these <strong>8 new fields</strong> to your Tour post type:</p>
 			<table class="widefat striped" style="max-width:700px">
 				<thead><tr><th>Field Name</th><th>Type</th><th>Description</th></tr></thead>
 				<tbody>
-					<tr><td><code>pdf_cover_svg_id</code></td><td>Media / Number</td><td>Cover page illustration (SVG attachment ID)</td></tr>
-					<tr><td><code>pdf_tour_subtitle</code></td><td>Text</td><td>Tour subtitle shown in header &amp; cover (e.g. "100 years of Architecture in India")</td></tr>
-					<tr><td><code>pdf_tour_reference</code></td><td>Text</td><td>Reference code shown vertically on right edge (e.g. INDEMP20250225)</td></tr>
-					<tr><td><code>pdf_trip_description</code></td><td>Textarea</td><td>Trip name / overview text (left column, overview page)</td></tr>
+					<tr><td><code>pdf_cover_svg_id</code></td><td>Media / Number</td><td>Cover page illustration — attachment ID of uploaded SVG</td></tr>
+					<tr><td><code>pdf_tour_subtitle</code></td><td>Text</td><td>Subtitle shown in PDF header &amp; cover footer (e.g. "100 years of Architecture in India")</td></tr>
+					<tr><td><code>pdf_tour_reference</code></td><td>Text</td><td>Reference code on right edge (e.g. INDEMP20250225)</td></tr>
+					<tr><td><code>pdf_trip_description</code></td><td>Textarea</td><td>Left column on overview page — trip name &amp; summary</td></tr>
 					<tr><td><code>pdf_starting_point</code></td><td>Text</td><td>e.g. "New Delhi."</td></tr>
 					<tr><td><code>pdf_end_point</code></td><td>Text</td><td>e.g. "Chandigarh Airport or Railway Station."</td></tr>
-					<tr><td><code>pdf_group_info</code></td><td>Textarea</td><td>e.g. "Maximum group size of 8."</td></tr>
-					<tr><td><code>pdf_cost_info</code></td><td>Textarea</td><td>e.g. "Cost for a double room: £3,300 per person"</td></tr>
-					<tr><td><code>pdf_included_text</code></td><td>Textarea / WYSIWYG</td><td>"Included in the trip" section body text</td></tr>
-					<tr><td><code>pdf_day_1</code> … <code>pdf_day_12</code></td><td>Textarea</td><td>Day-by-day content. Each line starting with – is a bullet point.</td></tr>
-					<tr><td><code>pdf_days_svg_id</code></td><td>Media / Number</td><td>SVG illustration shown bottom-right of day pages</td></tr>
-					<tr><td><code>pdf_back_cover_svg_id</code></td><td>Media / Number</td><td>Back cover page illustration</td></tr>
-					<tr><td><code>pdf_terms_text</code></td><td>Textarea / WYSIWYG</td><td>Per-tour T&amp;C override. If empty, the global T&amp;C from plugin settings is used.</td></tr>
+					<tr><td><code>pdf_days_svg_id</code></td><td>Media / Number</td><td>SVG illustration bottom-right of final day page</td></tr>
+					<tr><td><code>pdf_back_cover_svg_id</code></td><td>Media / Number</td><td>Back cover SVG illustration</td></tr>
+					<tr><td><code>pdf_terms_text</code></td><td>Textarea</td><td><em>Optional.</em> Per-tour T&amp;C override. Blank = uses global T&amp;C from plugin settings.</td></tr>
 				</tbody>
 			</table>
 		</div>
