@@ -129,14 +129,13 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::overview_page( $data ) );
 
-		// Day pages — 2 days per page
+		// Day pages — 4 days per page (2×2 grid)
 		$days = self::get_days( $post_id );
 		if ( ! empty( $days ) ) {
-			$pairs    = array_chunk( $days, 2 );
-			$last_idx = count( $pairs ) - 1;
-			foreach ( $pairs as $i => $pair ) {
+			$chunks = array_chunk( $days, 4 );
+			foreach ( $chunks as $i => $chunk ) {
 				$mpdf->AddPage();
-				$mpdf->WriteHTML( self::days_page( $data, $pair, $i + 2, $i === $last_idx ) );
+				$mpdf->WriteHTML( self::days_page( $data, $chunk, $i + 2 ) );
 			}
 		}
 
@@ -158,16 +157,13 @@ class AIPDF_PDF_Generator {
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
 
-	/** Reference code stacked vertically on the right edge as HTML. */
+	/** Reference code rotated 90° down the right edge using writing-mode. */
 	private static function ref_code_html( $ref ) {
 		if ( ! $ref ) return '';
-		$divs = '';
-		foreach ( mb_str_split( $ref ) as $char ) {
-			$divs .= '<div>' . esc_html( $char ) . '</div>';
-		}
-		return '<div style="position:absolute; top:16mm; left:204mm; width:5mm;
+		return '<div style="position:absolute; top:16mm; left:205mm; width:4mm;
 			font-size:6.5pt; font-family:\'Courier New\',Courier,monospace;
-			line-height:3.5mm;">' . $divs . '</div>';
+			writing-mode:vertical-rl; white-space:nowrap; letter-spacing:0.5mm;">'
+			. esc_html( $ref ) . '</div>';
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -421,7 +417,7 @@ class AIPDF_PDF_Generator {
 
 	private static function overview_page( $d ) {
 		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = nl2br( esc_html( $d['tour_subtitle'] ) );
+		$subtitle = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
 
 		// Centre column
 		$p = 'style="margin:0 0 1mm 0;font-size:9pt;line-height:1.4;"';
@@ -468,7 +464,7 @@ class AIPDF_PDF_Generator {
 			<h2>Included in the trip</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;"><?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -476,7 +472,7 @@ class AIPDF_PDF_Generator {
 			<h2 style="margin-top:4mm;">Not included</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;"><?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -491,9 +487,10 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	private static function days_page( $d, $pair, $page_num, $show_svg = false ) {
+	private static function days_page( $d, $chunk, $page_num ) {
 		$brand    = esc_html( $d['brand_name'] );
-		$subtitle = nl2br( esc_html( $d['tour_subtitle'] ) );
+		$subtitle = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
+		$rows     = array_chunk( $chunk, 2 );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
@@ -502,36 +499,39 @@ class AIPDF_PDF_Generator {
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	<?php foreach ( $rows as $ri => $row ) : ?>
+		<?php if ( $ri > 0 ) : ?>
+		<tr><td colspan="2" style="height:8mm;"></td></tr>
+		<?php endif; ?>
 		<tr>
-		<?php foreach ( $pair as $day ) : ?>
+		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
 				<div class="day-head"><?php echo esc_html( $day['title'] ); ?></div>
 				<div class="day-body"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
-		<?php if ( count( $pair ) === 1 ) : ?>
+		<?php if ( count( $row ) === 1 ) : ?>
 			<td style="width:50%;"></td>
 		<?php endif; ?>
 		</tr>
+	<?php endforeach; ?>
 	</table>
 </div>
 
-<!-- Page number — top: PH - MB - 5 = 274mm -->
+<!-- Page number -->
 <div style="position:absolute; top:274mm; left:<?php echo self::ML; ?>mm; font-size:8.5pt;">
 	page <?php echo esc_html( $page_num ); ?>
 </div>
 
-<?php if ( $show_svg ) :
+<?php
 	$svg = self::svg_tag( $d['days_svg_id'], '55mm', '' );
 	if ( $svg ) : ?>
-<!-- Illustration — bottom-right: top ≈ 230mm, right edge at 192mm → left=137mm -->
+<!-- Illustration — bottom-right -->
 <div style="position:absolute; top:230mm; left:137mm; width:55mm; text-align:right;">
 	<?php echo $svg; ?>
 </div>
-	<?php echo self::ref_code_html( $d['tour_reference'] ); ?>
-
-<?php endif;
-endif; ?>
+<?php echo self::ref_code_html( $d['tour_reference'] ); ?>
+<?php endif; ?>
 
 </body></html>
 		<?php return ob_get_clean();
@@ -622,7 +622,7 @@ endif; ?>
 			<td style="vertical-align:top; padding:0;">
 				<strong style="font-size:10pt; font-family:'Courier New',Courier,monospace;"><?php echo $brand; ?></strong>
 			</td>
-			<td style="vertical-align:top; padding:0; font-size:8.5pt; line-height:1.4; font-family:'Courier New',Courier,monospace;">
+			<td style="vertical-align:top; padding:0; font-size:7.5pt; line-height:1.3; white-space:nowrap; font-family:'Courier New',Courier,monospace;">
 				<?php echo $subtitle; ?>
 			</td>
 			<td style="vertical-align:top; padding:0; text-align:right; font-size:9pt; font-family:'Courier New',Courier,monospace;">
