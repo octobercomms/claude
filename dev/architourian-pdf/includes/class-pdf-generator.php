@@ -20,6 +20,7 @@ class AIPDF_PDF_Generator {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_button_script' ] );
 		add_action( 'wp_ajax_aipdf_generate',        [ __CLASS__, 'handle_ajax' ] );
 		add_action( 'wp_ajax_nopriv_aipdf_generate', [ __CLASS__, 'handle_ajax' ] );
+		add_action( 'wp_ajax_aipdf_diag',            [ __CLASS__, 'handle_diag' ] );
 		add_shortcode( 'aipdf_download_button', [ __CLASS__, 'shortcode' ] );
 	}
 
@@ -49,20 +50,49 @@ class AIPDF_PDF_Generator {
 
 	public static function handle_ajax() {
 		check_ajax_referer( 'aipdf_generate', 'nonce' );
+
 		$post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
 		if ( ! $post_id || ! get_post( $post_id ) ) {
-			wp_send_json_error( 'Invalid post.' );
+			wp_send_json_error( 'Invalid post ID.' );
 		}
+
 		if ( ! file_exists( AIPDF_VENDOR ) ) {
-			wp_send_json_error( 'mPDF not installed. Run composer install in the plugin directory.' );
+			wp_send_json_error( 'mPDF vendor directory missing. Re-upload the plugin zip.' );
 		}
-		require_once AIPDF_VENDOR;
+
+		try {
+			require_once AIPDF_VENDOR;
+		} catch ( \Throwable $e ) {
+			wp_send_json_error( 'Vendor load failed: ' . $e->getMessage() );
+		}
+
 		try {
 			self::generate( $post_id );
-		} catch ( Exception $e ) {
-			wp_send_json_error( $e->getMessage() );
+		} catch ( \Throwable $e ) {
+			$msg = $e->getMessage() . ' — ' . basename( $e->getFile() ) . ':' . $e->getLine();
+			error_log( 'Architourian PDF error: ' . $msg );
+			wp_send_json_error( $msg );
 		}
 		exit;
+	}
+
+	/**
+	 * Diagnostic AJAX handler — returns environment info as JSON.
+	 * Access via: /wp-admin/admin-ajax.php?action=aipdf_diag&nonce=XXX
+	 */
+	public static function handle_diag() {
+		check_ajax_referer( 'aipdf_generate', 'nonce' );
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( 'Unauthorised.' );
+		}
+		wp_send_json_success( [
+			'php_version'     => PHP_VERSION,
+			'php_version_id'  => PHP_VERSION_ID,
+			'vendor_exists'   => file_exists( AIPDF_VENDOR ),
+			'plugin_path'     => AIPDF_PATH,
+			'memory_limit'    => ini_get( 'memory_limit' ),
+			'max_exec_time'   => ini_get( 'max_execution_time' ),
+		] );
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
