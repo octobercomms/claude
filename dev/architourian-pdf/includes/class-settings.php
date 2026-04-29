@@ -39,7 +39,7 @@ class AIPDF_Settings {
 		foreach ( $text_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? sanitize_text_field( $input[ $key ] ) : '';
 		}
-		$id_fields = [ 'logo_mark_id', 'wordmark_id', 'days_svg_2_id' ];
+		$id_fields = [ 'logo_mark_id', 'wordmark_id' ];
 		foreach ( $id_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? absint( $input[ $key ] ) : 0;
 		}
@@ -99,13 +99,7 @@ class AIPDF_Settings {
 						</td>
 					</tr>
 					<tr>
-						<th scope="row">Day Illustration 2 (2nd day page)</th>
-						<td>
-							<?php self::render_svg_upload( 'days_svg_2_id', $opts['days_svg_2_id'] ?? 0 ); ?>
-							<p class="description">SVG illustration shown bottom-right of the second day page. Falls back to Day Illustration 1 if not set.</p>
-						</td>
-					</tr>
-					<tr>
+						<tr>
 						<th scope="row">Contact Name</th>
 						<td><input type="text" name="<?php echo self::OPTION; ?>[contact_name]"
 							value="<?php echo esc_attr( $opts['contact_name'] ?? '' ); ?>" class="regular-text" /></td>
