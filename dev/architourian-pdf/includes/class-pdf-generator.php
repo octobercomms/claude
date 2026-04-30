@@ -389,13 +389,9 @@ class AIPDF_PDF_Generator {
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
 
-		// Convert newlines to <p> tags — <br> is unreliable in mPDF table cells
-		$subtitle = implode( '', array_map( function( $line ) {
-			return '<p style="margin:0;font-size:17pt;line-height:1.4;font-family:\'Courier New\',Courier,monospace;">'
-				. esc_html( $line ) . '</p>';
-		}, preg_split( '/\r\n|\r|\n/', $d['tour_subtitle'] ) ) );
+		// Build subtitle as separate <p> per line — must be outside table cells to render correctly in mPDF
+		$subtitle_lines = array_values( array_filter( preg_split( '/\r\n|\r|\n/', $d['tour_subtitle'] ), 'strlen' ) );
 
-		// Footer: push up to accommodate larger content
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
@@ -403,17 +399,23 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<!-- Footer: left:8mm, top-aligned so logo and wordmark share the same top edge -->
-<div style="position:absolute; top:248mm; left:8mm; width:194mm;">
-	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
-		<tr>
-			<td width="13%" style="vertical-align:top;"><?php echo $logo_svg; ?></td>
-			<td width="57%" style="vertical-align:top; padding-left:10mm;"><?php echo $wordmark_svg; ?></td>
-			<td width="30%" style="vertical-align:top;">
-				<?php echo $subtitle; ?>
-			</td>
-		</tr>
-	</table>
+<!-- Footer logo — positioned absolutely, close to bottom-left corner -->
+<div style="position:absolute; top:260mm; left:8mm;">
+	<?php echo $logo_svg; ?>
+</div>
+
+<!-- Footer wordmark — to the right of logo with gap -->
+<div style="position:absolute; top:260mm; left:38mm;">
+	<?php echo $wordmark_svg; ?>
+</div>
+
+<!-- Footer subtitle — own positioned div so <p> tags render correctly -->
+<div style="position:absolute; top:260mm; left:105mm; width:100mm;">
+	<?php foreach ( $subtitle_lines as $line ) : ?>
+	<p style="margin:0 0 1mm 0; font-size:9pt; line-height:1.5; font-family:'Courier New',Courier,monospace;">
+		<?php echo esc_html( $line ); ?>
+	</p>
+	<?php endforeach; ?>
 </div>
 
 </body></html>
