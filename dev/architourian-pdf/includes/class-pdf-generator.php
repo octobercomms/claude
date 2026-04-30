@@ -169,20 +169,10 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Terms & Conditions — last page.
-		// Header written first (absolute, no flow advance), then mPDF native
-		// SetColumns drives 3-column flow so text wraps naturally.
+		// Terms & Conditions — last page, no page number
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data ) );  // header only
-			$mpdf->lMargin = self::ML;
-			$mpdf->rMargin = self::ML;
-			$mpdf->y       = 50;
-			$mpdf->SetColumns( 3, '', 6 );
-			$mpdf->WriteHTML( self::format_terms( $data['terms_text'] ), 2 );
-			$mpdf->SetColumns( 1 );
-			$mpdf->lMargin = 0;
-			$mpdf->rMargin = 0;
+			$mpdf->WriteHTML( self::terms_page( $data ) );
 		}
 
 		// Filename: "Architourian-Itinerary-[slug]-[date].pdf"
@@ -358,32 +348,28 @@ class AIPDF_PDF_Generator {
 	 */
 	private static function format_terms( $text ) {
 		if ( empty( $text ) ) return '';
-		// Normalise HTML to plain text so line-by-line processing is consistent
-		// regardless of whether content came from TinyMCE or a plain textarea.
 		$text = str_replace( [ '</p>', '</P>', '<br>', '<br/>', '<br />' ], "\n", $text );
 		$text = html_entity_decode( strip_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		$text = str_replace( "\xc2\xa0", ' ', $text ); // non-breaking space → regular space
-		// Inline bullet points stored as "sentence.– next point" — split onto own lines.
-		$text = preg_replace( '/([.:])(\s*)([–—])\s+/', "$1\n$3 ", $text );
+		$text = str_replace( "\xc2\xa0", ' ', $text ); // non-breaking spaces from TinyMCE
+		$text = preg_replace( '/([.:])(\s*)([–—])\s+/', "$1\n$3 ", $text ); // inline bullets → own lines
 		$output = '';
 		foreach ( explode( "\n", trim( $text ) ) as $line ) {
 			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:2.5mm 0 0.8mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p style="font-size:7pt;margin:0 0 1mm 0;line-height:1.4;padding-left:3mm;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:6pt;margin:0 0 0.8mm 0;line-height:1.2;padding-left:2.5mm;">' . esc_html( $line ) . '</p>';
 			} else {
-				$output .= '<p style="font-size:7pt;margin:0 0 1.5mm 0;line-height:1.4;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:6pt;margin:0 0 1mm 0;line-height:1.2;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
 	}
 
 	/**
-	 * Split an HTML string of <h3>/<p> elements into N balanced columns.
-	 * Splits at element level (sections can wrap across columns) but never
-	 * ends a column on an <h3> to avoid orphaned headings.
+	 * Split an HTML string of <h3>/<p> elements into N columns,
+	 * keeping each section (heading + its paragraphs) together.
 	 */
 	private static function split_into_cols( $html, $num_cols = 3 ) {
 		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
@@ -394,9 +380,23 @@ class AIPDF_PDF_Generator {
 			return $result;
 		}
 
-		$weights = array_map( function( $el ) {
-			return strlen( strip_tags( $el ) ) + ( strpos( $el, '<h3' ) !== false ? 40 : 0 );
-		}, $elements );
+		// Group elements into sections: heading + all following <p>s until next heading.
+		$sections = [];
+		$current  = '';
+		foreach ( $elements as $el ) {
+			if ( strpos( $el, '<h3' ) !== false && $current !== '' ) {
+				$sections[] = $current;
+				$current    = $el;
+			} else {
+				$current .= $el;
+			}
+		}
+		if ( $current !== '' ) $sections[] = $current;
+
+		// Weight by character count of plain text + fixed bonus per heading for its margin.
+		$weights = array_map( function( $s ) {
+			return strlen( strip_tags( $s ) ) + ( strpos( $s, '<h3' ) !== false ? 80 : 0 );
+		}, $sections );
 
 		$total  = array_sum( $weights );
 		$target = $total / $num_cols;
@@ -405,11 +405,10 @@ class AIPDF_PDF_Generator {
 		$col        = 0;
 		$col_weight = 0;
 
-		foreach ( $elements as $i => $el ) {
-			$cols[ $col ] .= $el;
+		foreach ( $sections as $i => $section ) {
+			$cols[ $col ] .= $section;
 			$col_weight   += $weights[ $i ];
-			// Break only after a <p> (never after <h3>) so headings are never orphaned.
-			if ( $col < $num_cols - 1 && $col_weight >= $target && strpos( $el, '<h3' ) === false ) {
+			if ( $col < $num_cols - 1 && $col_weight >= $target ) {
 				$col++;
 				$col_weight = 0;
 			}
@@ -422,19 +421,20 @@ class AIPDF_PDF_Generator {
 		return '<style>
 		* {
 			font-family: ballingermono, "Ballinger Mono", "Courier New", monospace;
+			font-size: 10.5pt;
 			color: #000;
 			box-sizing: border-box;
 		}
-		body { margin: 0; padding: 0; font-size: 10.5pt; }
+		body { margin: 0; padding: 0; }
 
 		/* ── Global headings ── */
-		h2 { font-size: 14pt; font-weight: bold;
-		     margin: 0 0 2.5mm 0; padding: 0 0 2.5mm 0;
+		h2 { font-size: 14pt !important; font-weight: bold;
+		     margin: 0 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
 		     font-family: ttnooks, "TT Nooks", Georgia, serif; }
-		h3 { font-size: 14pt; font-weight: bold;
-		     margin: 4mm 0 2.5mm 0; padding: 0 0 2.5mm 0;
+		h3 { font-size: 14pt !important; font-weight: bold;
+		     margin: 4mm 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
 		     font-family: ttnooks, "TT Nooks", Georgia, serif; }
-		h3:first-child { margin-top: 0; }
+		h3:first-child { margin-top: 0 !important; }
 
 		/* ── Overview info columns ── */
 		.ov-col { vertical-align: top; font-size: 10.5pt; line-height: 1.5; padding-right: 6mm; }
@@ -635,13 +635,27 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	/** Renders the T&C page header only — content is written separately via SetColumns. */
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
+		$cols           = self::split_into_cols( self::format_terms( $d['terms_text'] ), 3 );
+
+		// Three absolute positioned divs — avoids mPDF td margin suppression inside columns.
+		// No bottom bar on this page to maximise content area (50mm–285mm = 235mm).
+		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
+		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];  // 4mm gap between cols 1-2 and 2-3
+
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
+
+<?php for ( $i = 0; $i < 3; $i++ ) : ?>
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:6pt; line-height:1.2; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+	<?php echo $cols[ $i ]; ?>
+</div>
+<?php endfor; ?>
+
 </body></html>
 		<?php return ob_get_clean();
 	}
