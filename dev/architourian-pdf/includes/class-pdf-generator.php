@@ -366,8 +366,8 @@ class AIPDF_PDF_Generator {
 	}
 
 	/**
-	 * Split an HTML string of <p> and <h3> elements into N balanced columns.
-	 * Returns array of N HTML strings.
+	 * Split an HTML string of <h3>/<p> elements into N columns,
+	 * keeping each section (heading + its paragraphs) together.
 	 */
 	private static function split_into_cols( $html, $num_cols = 3 ) {
 		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
@@ -377,17 +377,35 @@ class AIPDF_PDF_Generator {
 			$result[0] = $html;
 			return $result;
 		}
-		// Weight h3 headings as 2 to keep sections together
-		$weights      = array_map( function( $el ) { return strpos( $el, '<h3' ) !== false ? 2 : 1; }, $elements );
-		$total_weight = array_sum( $weights );
-		$target       = $total_weight / $num_cols;
+
+		// Group elements into sections: heading + all following <p>s until next heading.
+		$sections = [];
+		$current  = '';
+		foreach ( $elements as $el ) {
+			if ( strpos( $el, '<h3' ) !== false && $current !== '' ) {
+				$sections[] = $current;
+				$current    = $el;
+			} else {
+				$current .= $el;
+			}
+		}
+		if ( $current !== '' ) $sections[] = $current;
+
+		// Weight each section by number of elements (h3 counts as 2).
+		$weights = array_map( function( $s ) {
+			preg_match_all( '/<(p|h3)/', $s, $m );
+			return count( $m[0] ) + ( strpos( $s, '<h3' ) !== false ? 1 : 0 );
+		}, $sections );
+
+		$total  = array_sum( $weights );
+		$target = $total / $num_cols;
 
 		$cols       = array_fill( 0, $num_cols, '' );
 		$col        = 0;
 		$col_weight = 0;
 
-		foreach ( $elements as $i => $el ) {
-			$cols[ $col ] .= $el;
+		foreach ( $sections as $i => $section ) {
+			$cols[ $col ] .= $section;
 			$col_weight   += $weights[ $i ];
 			if ( $col < $num_cols - 1 && $col_weight >= $target ) {
 				$col++;
