@@ -391,10 +391,9 @@ class AIPDF_PDF_Generator {
 		}
 		if ( $current !== '' ) $sections[] = $current;
 
-		// Weight each section by number of elements (h3 counts as 2).
+		// Weight by character count of plain text + fixed bonus per heading for its margin.
 		$weights = array_map( function( $s ) {
-			preg_match_all( '/<(p|h3)/', $s, $m );
-			return count( $m[0] ) + ( strpos( $s, '<h3' ) !== false ? 1 : 0 );
+			return strlen( strip_tags( $s ) ) + ( strpos( $s, '<h3' ) !== false ? 80 : 0 );
 		}, $sections );
 
 		$total  = array_sum( $weights );
