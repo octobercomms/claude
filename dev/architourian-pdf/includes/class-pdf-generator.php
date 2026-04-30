@@ -157,13 +157,14 @@ class AIPDF_PDF_Generator {
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
 
-	/** Reference code rotated 90° down the right edge using writing-mode. */
+	/** Reference code rotated 90° — uses mPDF table-cell rotate:90 (only reliable method). */
 	private static function ref_code_html( $ref ) {
 		if ( ! $ref ) return '';
-		return '<div style="position:absolute; top:16mm; left:205mm; width:4mm;
-			font-size:6.5pt; font-family:\'Courier New\',Courier,monospace;
-			writing-mode:vertical-rl; white-space:nowrap; letter-spacing:0.5mm;">'
-			. esc_html( $ref ) . '</div>';
+		return '<div style="position:absolute; top:15mm; left:200mm;">'
+			. '<table cellpadding="0" cellspacing="0" border="0"><tr>'
+			. '<td style="rotate:90; font-size:6.5pt; font-family:\'Courier New\',Courier,monospace;'
+			. ' white-space:nowrap; padding:0; letter-spacing:0.5mm;">'
+			. esc_html( $ref ) . '</td></tr></table></div>';
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -363,14 +364,16 @@ class AIPDF_PDF_Generator {
 		.ov-col p { margin: 0 0 3mm 0; }
 
 		/* ── Included section ── */
-		.incl h2 { font-size: 11pt; font-weight: bold; margin: 0 0 3mm 0; padding: 0; }
+		.incl h2 { font-size: 11pt; font-weight: bold; margin: 0 0 3mm 0; padding: 0;
+		           font-family: "TT Nooks", Georgia, serif; }
 		.incl ul  { list-style: none; padding: 0; margin: 0 0 2mm 0; }
-		.incl ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 1.5mm; }
+		.incl ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 1.5mm; }
 		.incl ul li::before { content: ""; }
-		.incl p   { font-size: 9pt; line-height: 1.5; margin: 0 0 2mm 0; }
+		.incl p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2mm 0; }
 
 		/* ── Day pages ── */
-		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 4mm 0; }
+		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 4mm 0;
+		            font-family: "TT Nooks", Georgia, serif; }
 		.day-body ul  { list-style: none; padding: 0; margin: 0; }
 		.day-body ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
 		.day-body ul li::before { content: "\2013\00a0"; }
@@ -432,35 +435,42 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	/** Returns SVG wordmark img tag, or bold text fallback if no SVG uploaded. */
-	private static function wordmark_html( $d ) {
-		$svg = self::svg_tag( $d['wordmark_id'], '56mm', '' );
+	/**
+	 * Returns SVG wordmark img tag, or bold text fallback.
+	 * $width = '56mm' for cover footer, '32mm' for inner page headers.
+	 */
+	private static function wordmark_html( $d, $width = '56mm' ) {
+		$svg = self::svg_tag( $d['wordmark_id'], $width, '' );
 		if ( $svg ) return $svg;
-		return '<strong style="font-size:20pt; font-family:\'Courier New\',Courier,monospace;">'
+		$fs = $width === '56mm' ? '20pt' : '13pt';
+		return '<strong style="font-size:' . $fs . '; font-family:\'Courier New\',Courier,monospace;">'
 			. esc_html( $d['brand_name'] ) . '</strong>';
 	}
 
 	private static function overview_page( $d ) {
-		$brand_html = self::wordmark_html( $d );
-		$subtitle   = esc_html( implode( ' ', array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) ) );
+		$brand_html    = self::wordmark_html( $d, '32mm' );
+		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
 
-		// Centre column
-		$p = 'style="margin:0 0 1mm 0;font-size:9pt;line-height:1.4;"';
+		// Centre column — use <div> not <p>; mPDF collapses <p> in table cells
+		$lbl    = 'font-size:9pt;font-weight:bold;margin:0 0 0.5mm 0;line-height:1.3;';
+		$val    = 'font-size:9pt;margin:0 0 4mm 0;line-height:1.4;';
 		$centre = '';
 		if ( $d['starting_point'] ) {
-			$centre .= '<p ' . $p . '>Starting point</p><p style="margin:0 0 4mm 0;font-size:9pt;">' . esc_html( $d['starting_point'] ) . '</p>';
+			$centre .= '<div style="' . $lbl . '">Starting point</div>'
+				. '<div style="' . $val . '">' . esc_html( $d['starting_point'] ) . '</div>';
 		}
 		if ( $d['end_point'] ) {
-			$centre .= '<p ' . $p . '>End point</p><p style="margin:0 0 4mm 0;font-size:9pt;">' . esc_html( $d['end_point'] ) . '</p>';
+			$centre .= '<div style="' . $lbl . '">End point</div>'
+				. '<div style="' . $val . '">' . esc_html( $d['end_point'] ) . '</div>';
 		}
 
 		// Right column
 		$right = '';
 		if ( $d['group_size'] ) {
-			$right .= '<p style="margin:0 0 2mm 0;font-size:9pt;">Group size: ' . esc_html( $d['group_size'] ) . '.</p>';
+			$right .= '<div style="font-size:9pt;margin:0 0 2mm 0;">Group size: ' . esc_html( $d['group_size'] ) . '</div>';
 		}
 		if ( $d['guide_price'] ) {
-			$right .= '<p style="margin:0 0 2mm 0;font-size:9pt;">' . esc_html( $d['guide_price'] ) . ' per person.</p>';
+			$right .= '<div style="font-size:9pt;margin:0 0 2mm 0;">' . esc_html( $d['guide_price'] ) . ' per person.</div>';
 		}
 
 		// Left column
@@ -471,7 +481,7 @@ class AIPDF_PDF_Generator {
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand_html, $subtitle, 'Itinerary' ); ?>
+<?php echo self::inner_header( $brand_html, $subtitle_lines, 'Itinerary' ); ?>
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 
@@ -513,14 +523,14 @@ class AIPDF_PDF_Generator {
 	}
 
 	private static function days_page( $d, $chunk, $page_num, $page_index = 0 ) {
-		$brand_html = self::wordmark_html( $d );
-		$subtitle = esc_html( implode( ' ', array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) ) );
+		$brand_html     = self::wordmark_html( $d, '32mm' );
+		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
 		$rows     = array_chunk( $chunk, 2 );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand_html, $subtitle, 'Itinerary' ); ?>
+<?php echo self::inner_header( $brand_html, $subtitle_lines, 'Itinerary' ); ?>
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table width="100%" border="0" cellpadding="0" cellspacing="0">
@@ -565,9 +575,10 @@ class AIPDF_PDF_Generator {
 	}
 
 	private static function terms_page( $d ) {
-		$brand_html = self::wordmark_html( $d );
-		$content    = self::format_terms( $d['terms_text'] );
-		$cols    = self::split_into_cols( $content, 3 );
+		$brand_html     = self::wordmark_html( $d, '32mm' );
+		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
+		$content        = self::format_terms( $d['terms_text'] );
+		$cols           = self::split_into_cols( $content, 3 );
 
 		$tc_col_style = 'vertical-align:top; font-size:8.5pt; line-height:1.5;
 			font-family:\'Courier New\',Courier,monospace;';
@@ -575,7 +586,7 @@ class AIPDF_PDF_Generator {
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
-<?php echo self::inner_header( $brand_html, '', 'Terms &amp; Conditions' ); ?>
+<?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
 <?php echo self::ref_code_html( $d['tour_reference'] ); ?>
 
@@ -632,27 +643,30 @@ class AIPDF_PDF_Generator {
 	}
 
 	/**
-	 * Shared inner-page header (Architourian | subtitle | section label).
-	 * Uses table-layout:fixed with percentages — most reliable in mPDF.
-	 * Reference code is added separately via write_ref_code().
+	 * Shared inner-page header: wordmark (30%) | subtitle lines (40%) | section label (30%).
+	 * $subtitle_lines is an array of up to 3 strings.
+	 * Subtitle uses a nested single-column table so each line renders on its own row —
+	 * the only reliable way to get multi-line content in an mPDF table cell.
 	 */
-	private static function inner_header( $brand_html, $subtitle, $section_label ) {
+	private static function inner_header( $brand_html, $subtitle_lines, $section_label ) {
+		$sub_cell_style = 'padding:0; font-size:7.5pt; line-height:1.35; font-family:\'Courier New\',Courier,monospace;';
 		ob_start(); ?>
 <div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table style="width:100%; table-layout:fixed; border-collapse:collapse;" cellpadding="0" cellspacing="0">
-		<colgroup>
-			<col style="width:17%;"/>
-			<col style="width:67%;"/>
-			<col style="width:16%;"/>
-		</colgroup>
 		<tr>
-			<td style="vertical-align:top; padding:0;">
+			<td width="30%" style="vertical-align:top; padding:0;">
 				<?php echo $brand_html; ?>
 			</td>
-			<td style="vertical-align:top; padding:0; font-size:7.5pt; line-height:1.3; white-space:nowrap; font-family:'Courier New',Courier,monospace;">
-				<?php echo $subtitle; ?>
+			<td width="40%" style="vertical-align:top; padding:0;">
+				<table cellpadding="0" cellspacing="0" border="0" width="100%">
+					<?php foreach ( (array) $subtitle_lines as $line ) : ?>
+					<?php if ( $line !== '' ) : ?>
+					<tr><td style="<?php echo $sub_cell_style; ?>"><?php echo esc_html( $line ); ?></td></tr>
+					<?php endif; ?>
+					<?php endforeach; ?>
+				</table>
 			</td>
-			<td style="vertical-align:top; padding:0; text-align:right; font-size:9pt; font-family:'Courier New',Courier,monospace;">
+			<td width="30%" style="vertical-align:top; padding:0; text-align:right; font-size:9pt; font-family:'Courier New',Courier,monospace;">
 				<?php echo $section_label; ?>
 			</td>
 		</tr>
