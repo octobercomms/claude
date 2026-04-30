@@ -389,8 +389,10 @@ class AIPDF_PDF_Generator {
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
 
-		// Build subtitle as separate <p> per line — must be outside table cells to render correctly in mPDF
-		$subtitle_lines = array_values( array_filter( preg_split( '/\r\n|\r|\n/', $d['tour_subtitle'] ), 'strlen' ) );
+		// Normalise subtitle: ACF may convert newlines to <br>, so convert back before splitting
+		$subtitle_raw   = preg_replace( '/<br\s*\/?>/i', "\n", $d['tour_subtitle'] );
+		$subtitle_raw   = strip_tags( $subtitle_raw );
+		$subtitle_lines = array_values( array_filter( preg_split( '/\r\n|\r|\n/', $subtitle_raw ), 'strlen' ) );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
