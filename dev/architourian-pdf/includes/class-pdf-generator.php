@@ -199,7 +199,7 @@ class AIPDF_PDF_Generator {
 		if ( empty( $parts ) ) return '';
 		return '<div style="position:absolute; top:274mm; left:' . self::ML . 'mm;'
 			. ' font-size:10.5pt; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
-			. implode( ' &nbsp;&#9679;&nbsp; ', $parts )
+			. implode( ' &nbsp;&mdash;&nbsp; ', $parts )
 			. '</div>';
 	}
 
@@ -591,8 +591,8 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
-				<div class="day-body"><?php echo self::format_body( $day['content'] ); ?></div>
+				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:'TT Nooks','ttnooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
+				<div class="day-body" style="font-family:'Ballinger Mono','ballingermono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
 		<?php if ( count( $row ) === 1 ) : ?>
