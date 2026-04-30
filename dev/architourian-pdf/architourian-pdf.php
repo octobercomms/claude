@@ -31,6 +31,16 @@ function aipdf_init() {
 add_action( 'plugins_loaded', 'aipdf_init' );
 
 /**
+ * Allow TTF/OTF font uploads via the WordPress media library.
+ */
+add_filter( 'upload_mimes', function( $mimes ) {
+	$mimes['ttf']  = 'font/ttf';
+	$mimes['otf']  = 'font/otf';
+	$mimes['woff'] = 'font/woff';
+	return $mimes;
+} );
+
+/**
  * Check mPDF is installed on activation.
  */
 function aipdf_activate() {

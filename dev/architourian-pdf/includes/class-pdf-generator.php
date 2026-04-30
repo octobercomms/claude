@@ -116,14 +116,33 @@ class AIPDF_PDF_Generator {
 	public static function generate( $post_id ) {
 		$data = self::collect_fields( $post_id );
 
-		$mpdf = new \Mpdf\Mpdf( [
+		// Build font config from uploaded TTF attachment IDs
+		$mpdf_config = [
 			'format'        => 'A4',
 			'margin_top'    => 0,
 			'margin_right'  => 0,
 			'margin_bottom' => 0,
 			'margin_left'   => 0,
-			'default_font'  => 'dejavusansmono', // fallback until Ballinger Mono is embedded
-		] );
+			'default_font'  => 'dejavusansmono',
+		];
+		$font_dirs  = [];
+		$font_data  = [];
+		$b_path = self::font_path( 'ballinger_mono_id' );
+		$n_path = self::font_path( 'tt_nooks_id' );
+		if ( $b_path ) {
+			$font_dirs[]             = dirname( $b_path );
+			$font_data['ballingermono'] = [ 'R' => basename( $b_path ) ];
+			$mpdf_config['default_font'] = 'ballingermono';
+		}
+		if ( $n_path ) {
+			$dir = dirname( $n_path );
+			if ( ! in_array( $dir, $font_dirs, true ) ) $font_dirs[] = $dir;
+			$font_data['ttnooks'] = [ 'R' => basename( $n_path ) ];
+		}
+		if ( $font_dirs )  $mpdf_config['fontDir']  = $font_dirs;
+		if ( $font_data )  $mpdf_config['fontdata']  = $font_data;
+
+		$mpdf = new \Mpdf\Mpdf( $mpdf_config );
 		$mpdf->showImageErrors    = true;
 		$mpdf->autoScriptToLang   = false;
 		$mpdf->useSubstitutions   = false;
@@ -146,10 +165,11 @@ class AIPDF_PDF_Generator {
 			}
 		}
 
-		// Terms & Conditions
+		// Terms & Conditions — page number follows last day page (overview=1, days=2,3…)
 		if ( ! empty( $data['terms_text'] ) ) {
+			$tc_page_num = 2 + count( isset( $chunks ) ? $chunks : [] );
 			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data ) );
+			$mpdf->WriteHTML( self::terms_page( $data, $tc_page_num ) );
 		}
 
 		// Back cover
@@ -181,6 +201,14 @@ class AIPDF_PDF_Generator {
 			. ' font-size:10.5pt; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
 			. implode( ' &nbsp;&#9679;&nbsp; ', $parts )
 			. '</div>';
+	}
+
+	/** Returns the filesystem path of an uploaded font file, or '' if not set / not found. */
+	private static function font_path( $setting_key ) {
+		$id = intval( AIPDF_Settings::get( $setting_key, 0 ) );
+		if ( ! $id ) return '';
+		$path = get_attached_file( $id );
+		return ( $path && file_exists( $path ) ) ? $path : '';
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -504,12 +532,12 @@ class AIPDF_PDF_Generator {
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 
-	<!-- Content: 33 / 33 / 34 equal grid -->
+	<!-- Content: 33/33/34 — inline padding avoids mPDF :last-child bug -->
 	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td class="ov-col" width="33%"><?php echo $left; ?></td>
-			<td class="ov-col" width="33%"><?php echo $centre; ?></td>
-			<td class="ov-col" width="34%"><?php echo $right; ?></td>
+			<td class="ov-col" width="33%" style="padding-right:6mm;"><?php echo $left; ?></td>
+			<td class="ov-col" width="33%" style="padding-right:6mm;"><?php echo $centre; ?></td>
+			<td class="ov-col" width="34%" style="padding-right:0;"><?php echo $right; ?></td>
 		</tr>
 	</table>
 
@@ -562,7 +590,7 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<div class="day-head"><?php echo esc_html( $day['title'] ); ?></div>
+				<div class="day-head" style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></div>
 				<div class="day-body"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
@@ -577,12 +605,14 @@ class AIPDF_PDF_Generator {
 <?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
 <?php
+	// Height-constrained SVG: fixes bottom alignment regardless of SVG aspect ratio.
+	// top = 274mm (page bar) − 55mm (forced height) = 219mm
 	$svg_id = ( $page_index > 0 && $d['days_svg_2_id'] )
 		? $d['days_svg_2_id'] : $d['days_svg_id'];
-	$svg = self::svg_tag( $svg_id, '55mm', '' );
+	$svg = self::svg_tag( $svg_id, '', '55mm' );
 	if ( $svg ) : ?>
-<!-- Illustration — col3, bottom edge aligned with page bar (top:274mm, illus 55mm tall → 219mm) -->
-<div style="position:absolute; top:219mm; left:<?php echo self::CL3; ?>mm; width:<?php echo self::C3; ?>mm; text-align:right;">
+<!-- Illustration — col3 right, bottom-edge aligned with page bar -->
+<div style="position:absolute; top:219mm; left:<?php echo self::CL3; ?>mm; width:<?php echo self::C3; ?>mm; text-align:right; overflow:hidden;">
 	<?php echo $svg; ?>
 </div>
 <?php endif; ?>
@@ -591,7 +621,7 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	private static function terms_page( $d ) {
+	private static function terms_page( $d, $page_num = null ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
 		$content        = self::format_terms( $d['terms_text'] );
@@ -601,7 +631,7 @@ class AIPDF_PDF_Generator {
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
-<?php echo self::bottom_bar_html( null, $d['tour_reference'] ); ?>
+<?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
 <!-- T&C: smaller font so content fits; CSS columns auto-flow the text -->
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:215mm;">

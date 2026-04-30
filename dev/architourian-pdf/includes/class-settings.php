@@ -39,7 +39,7 @@ class AIPDF_Settings {
 		foreach ( $text_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? sanitize_text_field( $input[ $key ] ) : '';
 		}
-		$id_fields = [ 'logo_mark_id', 'wordmark_id' ];
+		$id_fields = [ 'logo_mark_id', 'wordmark_id', 'ballinger_mono_id', 'tt_nooks_id' ];
 		foreach ( $id_fields as $key ) {
 			$clean[ $key ] = isset( $input[ $key ] ) ? absint( $input[ $key ] ) : 0;
 		}
@@ -99,7 +99,20 @@ class AIPDF_Settings {
 						</td>
 					</tr>
 					<tr>
-						<tr>
+						<th scope="row">Body Font — Ballinger Mono TTF</th>
+						<td>
+							<?php self::render_file_upload( 'ballinger_mono_id', $opts['ballinger_mono_id'] ?? 0 ); ?>
+							<p class="description">Upload <strong>BallingerMono-Regular.ttf</strong> (or similar). Used for all body text in generated PDFs.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row">Heading Font — TT Nooks TTF</th>
+						<td>
+							<?php self::render_file_upload( 'tt_nooks_id', $opts['tt_nooks_id'] ?? 0 ); ?>
+							<p class="description">Upload <strong>TTNooks-Regular.ttf</strong> (or similar). Used for day headings and section titles.</p>
+						</td>
+					</tr>
+					<tr>
 						<th scope="row">Contact Name</th>
 						<td><input type="text" name="<?php echo self::OPTION; ?>[contact_name]"
 							value="<?php echo esc_attr( $opts['contact_name'] ?? '' ); ?>" class="regular-text" /></td>
@@ -177,6 +190,26 @@ class AIPDF_Settings {
 					<tr><td><code>pdf_terms_text</code></td><td>Textarea</td><td><em>Optional.</em> Per-tour T&amp;C override. Blank = uses global T&amp;C from plugin settings.</td></tr>
 				</tbody>
 			</table>
+		</div>
+		<?php
+	}
+
+	/** Font upload — identical to SVG upload but labels say "Upload Font" / "Change Font". */
+	private static function render_file_upload( $field_key, $attachment_id ) {
+		$url    = $attachment_id ? wp_get_attachment_url( $attachment_id ) : '';
+		$option = self::OPTION . '[' . $field_key . ']';
+		?>
+		<div class="aipdf-media-upload" data-field="<?php echo esc_attr( $field_key ); ?>">
+			<input type="hidden" name="<?php echo esc_attr( $option ); ?>"
+				id="aipdf_<?php echo esc_attr( $field_key ); ?>"
+				value="<?php echo esc_attr( $attachment_id ); ?>" />
+			<button type="button" class="button aipdf-upload-btn">
+				<?php echo $attachment_id ? 'Change Font' : 'Upload Font (.ttf)'; ?>
+			</button>
+			<?php if ( $url ) : ?>
+				<span class="aipdf-filename"><?php echo esc_html( basename( $url ) ); ?></span>
+				<a href="#" class="aipdf-remove-btn" style="color:red;margin-left:8px;">Remove</a>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
