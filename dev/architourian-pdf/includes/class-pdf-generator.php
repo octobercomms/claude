@@ -198,7 +198,7 @@ class AIPDF_PDF_Generator {
 		}
 		if ( empty( $parts ) ) return '';
 		return '<div style="position:absolute; top:274mm; left:' . self::ML . 'mm;'
-			. ' font-size:10.5pt; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
+			. ' font-size:10.5pt; font-family:ballingermono,\'Ballinger Mono\',\'Courier New\',monospace;">'
 			. implode( ' &nbsp;&mdash;&nbsp; ', $parts )
 			. '</div>';
 	}
@@ -354,7 +354,7 @@ class AIPDF_PDF_Generator {
 			$line = rtrim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1.5mm 0;padding:0 0 1.5mm 0;font-family:\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1.5mm 0;padding:0 0 1.5mm 0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} else {
 				$output .= '<p style="margin:0 0 2mm 0;line-height:1.5;">' . esc_html( $line ) . '</p>';
 			}
@@ -394,10 +394,9 @@ class AIPDF_PDF_Generator {
 
 	/** Shared CSS loaded on every page. */
 	private static function css() {
-		$font = '"Ballinger Mono", "Courier New", monospace';
 		return '<style>
 		* {
-			font-family: ' . $font . ';
+			font-family: ballingermono, "Ballinger Mono", "Courier New", monospace;
 			font-size: 10.5pt;
 			color: #000;
 			box-sizing: border-box;
@@ -407,10 +406,10 @@ class AIPDF_PDF_Generator {
 		/* ── Global headings ── */
 		h2 { font-size: 14pt !important; font-weight: bold;
 		     margin: 0 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
-		     font-family: "TT Nooks", Georgia, serif; }
+		     font-family: ttnooks, "TT Nooks", Georgia, serif; }
 		h3 { font-size: 14pt !important; font-weight: bold;
 		     margin: 4mm 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
-		     font-family: "TT Nooks", Georgia, serif; }
+		     font-family: ttnooks, "TT Nooks", Georgia, serif; }
 		h3:first-child { margin-top: 0 !important; }
 
 		/* ── Overview info columns ── */
@@ -425,7 +424,7 @@ class AIPDF_PDF_Generator {
 		/* ── Day pages ── */
 		.day-head { font-size: 14pt !important; font-weight: bold;
 		            margin: 0 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
-		            font-family: "TT Nooks", Georgia, serif; }
+		            font-family: ttnooks, "TT Nooks", Georgia, serif; }
 		.day-body ul  { list-style: none; padding: 0; margin: 0; }
 		.day-body ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
 		.day-body ul li::before { content: "\2013\00a0"; }
@@ -444,7 +443,7 @@ class AIPDF_PDF_Generator {
 
 		// Each subtitle line gets its own absolutely-positioned div — mPDF reliably
 		// renders single-line divs; <p> tags inside shared positioned divs get collapsed.
-		$sub_style = 'font-size:10.5pt; line-height:1.3; font-family:\'Ballinger Mono\',\'Courier New\',monospace;';
+		$sub_style = 'font-size:10.5pt; line-height:1.3; font-family:ballingermono,\'Ballinger Mono\',\'Courier New\',monospace;';
 		$sub_lines = [
 			$d['subtitle_line_1'],
 			$d['subtitle_line_2'],
@@ -491,7 +490,7 @@ class AIPDF_PDF_Generator {
 		$svg = self::svg_tag( $d['wordmark_id'], $width, '' );
 		if ( $svg ) return $svg;
 		$fs = $width === '56mm' ? '20pt' : '13pt';
-		return '<strong style="font-size:' . $fs . '; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
+		return '<strong style="font-size:' . $fs . '; font-family:ballingermono,\'Ballinger Mono\',\'Courier New\',monospace;">'
 			. esc_html( $d['brand_name'] ) . '</strong>';
 	}
 
@@ -546,7 +545,7 @@ class AIPDF_PDF_Generator {
 	<!-- Included spans col1+col2 (60% = 30+30) — col3 stays clear -->
 	<div class="incl" style="margin-top:14mm; width:60%;">
 		<?php if ( ! empty( $d['included_items'] ) ) : ?>
-			<h2 style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Included in the trip</h2>
+			<h2 style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:ttnooks,'TT Nooks',Georgia,serif;">Included in the trip</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
 				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&mdash;&nbsp;<?php echo esc_html( $item ); ?></li>
@@ -554,7 +553,7 @@ class AIPDF_PDF_Generator {
 			</ul>
 		<?php endif; ?>
 		<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
-			<h2 style="font-size:14pt;font-weight:bold;margin:4mm 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Not included</h2>
+			<h2 style="font-size:14pt;font-weight:bold;margin:4mm 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:ttnooks,'TT Nooks',Georgia,serif;">Not included</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
 				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&mdash;&nbsp;<?php echo esc_html( $item ); ?></li>
@@ -591,8 +590,8 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:'TT Nooks','ttnooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
-				<div class="day-body" style="font-family:'Ballinger Mono','ballingermono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
+				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
+				<div class="day-body" style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
 		<?php if ( count( $row ) === 1 ) : ?>
@@ -636,7 +635,7 @@ class AIPDF_PDF_Generator {
 
 <!-- T&C: smaller font so content fits; CSS columns auto-flow the text -->
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:215mm;">
-	<div style="column-count:3; column-gap:6mm; height:100%; font-size:7.5pt; line-height:1.45; font-family:'Ballinger Mono','Courier New',monospace;">
+	<div style="column-count:3; column-gap:6mm; height:100%; font-size:7.5pt; line-height:1.45; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
 		<?php echo $content; ?>
 	</div>
 </div>
@@ -692,7 +691,7 @@ class AIPDF_PDF_Generator {
 	 * the only reliable way to get multi-line content in an mPDF table cell.
 	 */
 	private static function inner_header( $brand_html, $subtitle_lines, $section_label ) {
-		$sub_cell_style = 'padding:0; font-size:10.5pt; line-height:1.35; font-family:\'Ballinger Mono\',\'Courier New\',monospace;';
+		$sub_cell_style = 'padding:0; font-size:10.5pt; line-height:1.35; font-family:ballingermono,\'Ballinger Mono\',\'Courier New\',monospace;';
 		ob_start(); ?>
 <div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table style="width:100%; table-layout:fixed; border-collapse:collapse;" cellpadding="0" cellspacing="0">
