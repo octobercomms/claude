@@ -170,13 +170,15 @@ class AIPDF_PDF_Generator {
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
 		// Terms & Conditions — last page.
+		// Header written first (absolute, no flow advance), then mPDF native
+		// SetColumns drives 3-column flow so text wraps naturally.
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data ) );
+			$mpdf->WriteHTML( self::terms_page( $data ) );  // header only
 			$mpdf->lMargin = self::ML;
 			$mpdf->rMargin = self::ML;
-			$mpdf->y       = 38;
-			$mpdf->SetColumns( 3, '', 5 );
+			$mpdf->y       = 50;
+			$mpdf->SetColumns( 3, '', 6 );
 			$mpdf->WriteHTML( self::format_terms( $data['terms_text'] ), 2 );
 			$mpdf->SetColumns( 1 );
 			$mpdf->lMargin = 0;
@@ -370,9 +372,9 @@ class AIPDF_PDF_Generator {
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
 				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p style="font-size:5.5pt;margin:0 0 0.5mm 0;line-height:1.2;padding-left:2.5mm;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:7pt;margin:0 0 1mm 0;line-height:1.4;padding-left:3mm;">' . esc_html( $line ) . '</p>';
 			} else {
-				$output .= '<p style="font-size:5.5pt;margin:0 0 0.6mm 0;line-height:1.2;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:7pt;margin:0 0 1.5mm 0;line-height:1.4;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -424,7 +426,6 @@ class AIPDF_PDF_Generator {
 			box-sizing: border-box;
 		}
 		body { margin: 0; padding: 0; font-size: 10.5pt; }
-		p, li, td, div, span { font-size: 10.5pt; }
 
 		/* ── Global headings ── */
 		h2 { font-size: 14pt; font-weight: bold;
@@ -452,15 +453,6 @@ class AIPDF_PDF_Generator {
 		.day-body ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
 		.day-body ul li::before { content: "\2013\00a0"; }
 		.day-body p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
-
-		/* ── Terms & Conditions ── */
-		.tc-h3 { font-size: 8pt !important; font-weight: bold !important;
-		         margin: 3mm 0 1mm 0 !important; padding: 0 !important;
-		         font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
-		.tc-p  { font-size: 5.5pt !important; line-height: 1.2 !important;
-		         margin: 0 0 0.6mm 0 !important; }
-		.tc-p-bullet { font-size: 5.5pt !important; line-height: 1.2 !important;
-		               margin: 0 0 0.5mm 0 !important; padding-left: 2.5mm !important; }
 		</style>';
 	}
 
@@ -643,7 +635,7 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	/** T&C page header only — content written separately via SetColumns. */
+	/** Renders the T&C page header only — content is written separately via SetColumns. */
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
