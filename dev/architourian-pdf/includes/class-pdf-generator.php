@@ -408,21 +408,21 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<!-- Footer: 30% logo | 30% wordmark | 40% subtitle (197mm usable = 59+59+79mm) -->
-<!-- Col 1: logo (30%) -->
-<div style="position:absolute; top:260mm; left:8mm; width:59mm;">
+<!-- Footer: logo | wordmark | subtitle -->
+<!-- Logo col: 8–60mm -->
+<div style="position:absolute; top:260mm; left:8mm; width:52mm;">
 	<?php echo $logo_svg; ?>
 </div>
 
-<!-- Col 2: wordmark (30%) -->
-<div style="position:absolute; top:260mm; left:67mm; width:59mm;">
+<!-- Wordmark col: 60–130mm (70mm — SVG is 56mm so comfortable) -->
+<div style="position:absolute; top:260mm; left:60mm; width:70mm;">
 	<?php echo $wordmark_svg; ?>
 </div>
 
-<!-- Col 3: subtitle (40%), one div per line -->
+<!-- Subtitle col: 135–205mm (70mm, 12mm gap after wordmark) -->
 <?php foreach ( $sub_lines as $i => $line ) : ?>
 <?php if ( $line !== '' ) : ?>
-<div style="position:absolute; top:<?php echo $sub_tops[ $i ]; ?>; left:126mm; width:79mm; <?php echo $sub_style; ?>">
+<div style="position:absolute; top:<?php echo $sub_tops[ $i ]; ?>; left:135mm; width:70mm; <?php echo $sub_style; ?>">
 	<?php echo esc_html( $line ); ?>
 </div>
 <?php endif; ?>
