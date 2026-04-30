@@ -149,15 +149,10 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Filename: "Architourian-Itinerary-{subtitle}-YYYYMMDD.pdf"
-		$subtitle_parts = array_filter( [
-			$data['subtitle_line_1'],
-			$data['subtitle_line_2'],
-			$data['subtitle_line_3'],
-		] );
-		$subtitle_plain = $subtitle_parts ? implode( ' ', $subtitle_parts ) : get_the_title( $post_id );
+		// Filename: "Architourian-Itinerary-[slug]-[date].pdf"
+		$slug     = get_post_field( 'post_name', $post_id ) ?: get_the_title( $post_id );
 		$filename = sanitize_file_name(
-			'Architourian Itinerary ' . $subtitle_plain . ' ' . date( 'Ymd' ) . '.pdf'
+			'Architourian Itinerary ' . $slug . ' ' . date( 'Ymd' ) . '.pdf'
 		);
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
@@ -413,20 +408,21 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<!-- Footer logo -->
-<div style="position:absolute; top:260mm; left:8mm;">
+<!-- Footer: 30% logo | 30% wordmark | 40% subtitle (197mm usable = 59+59+79mm) -->
+<!-- Col 1: logo (30%) -->
+<div style="position:absolute; top:260mm; left:8mm; width:59mm;">
 	<?php echo $logo_svg; ?>
 </div>
 
-<!-- Footer wordmark -->
-<div style="position:absolute; top:260mm; left:38mm;">
+<!-- Col 2: wordmark (30%) -->
+<div style="position:absolute; top:260mm; left:67mm; width:59mm;">
 	<?php echo $wordmark_svg; ?>
 </div>
 
-<!-- Footer subtitle: one positioned div per line so mPDF cannot collapse them -->
+<!-- Col 3: subtitle (40%), one div per line -->
 <?php foreach ( $sub_lines as $i => $line ) : ?>
 <?php if ( $line !== '' ) : ?>
-<div style="position:absolute; top:<?php echo $sub_tops[ $i ]; ?>; left:105mm; width:95mm; <?php echo $sub_style; ?>">
+<div style="position:absolute; top:<?php echo $sub_tops[ $i ]; ?>; left:126mm; width:79mm; <?php echo $sub_style; ?>">
 	<?php echo esc_html( $line ); ?>
 </div>
 <?php endif; ?>
