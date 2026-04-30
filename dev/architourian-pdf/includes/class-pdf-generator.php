@@ -388,9 +388,14 @@ class AIPDF_PDF_Generator {
 		$cover_svg    = self::svg_tag( $d['cover_svg_id'], '148mm', '' );
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
-		$subtitle     = nl2br( esc_html( $d['tour_subtitle'] ) );
 
-		// Footer top = PH - MB - footer_height ≈ 297 - 18 - 16 = 263mm
+		// Convert newlines to <p> tags — <br> is unreliable in mPDF table cells
+		$subtitle = implode( '', array_map( function( $line ) {
+			return '<p style="margin:0;font-size:17pt;line-height:1.4;font-family:\'Courier New\',Courier,monospace;">'
+				. esc_html( $line ) . '</p>';
+		}, preg_split( '/\r\n|\r|\n/', $d['tour_subtitle'] ) ) );
+
+		// Footer: push up to accommodate larger content
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
@@ -398,13 +403,13 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<!-- Footer: left:8mm to bleed close to corner, width:194mm -->
-<div style="position:absolute; top:263mm; left:8mm; width:194mm;">
+<!-- Footer: left:8mm, top-aligned so logo and wordmark share the same top edge -->
+<div style="position:absolute; top:248mm; left:8mm; width:194mm;">
 	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td width="13%" style="vertical-align:bottom;"><?php echo $logo_svg; ?></td>
-			<td width="57%" style="vertical-align:bottom; padding-left:6mm;"><?php echo $wordmark_svg; ?></td>
-			<td width="30%" style="vertical-align:bottom; font-size:8.5pt; line-height:1.55; font-family:'Courier New',Courier,monospace;">
+			<td width="13%" style="vertical-align:top;"><?php echo $logo_svg; ?></td>
+			<td width="57%" style="vertical-align:top; padding-left:10mm;"><?php echo $wordmark_svg; ?></td>
+			<td width="30%" style="vertical-align:top;">
 				<?php echo $subtitle; ?>
 			</td>
 		</tr>
@@ -417,9 +422,9 @@ class AIPDF_PDF_Generator {
 
 	/** Returns SVG wordmark img tag, or bold text fallback if no SVG uploaded. */
 	private static function wordmark_html( $d ) {
-		$svg = self::svg_tag( $d['wordmark_id'], '28mm', '' );
+		$svg = self::svg_tag( $d['wordmark_id'], '56mm', '' );
 		if ( $svg ) return $svg;
-		return '<strong style="font-size:10pt; font-family:\'Courier New\',Courier,monospace;">'
+		return '<strong style="font-size:20pt; font-family:\'Courier New\',Courier,monospace;">'
 			. esc_html( $d['brand_name'] ) . '</strong>';
 	}
 
