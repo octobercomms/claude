@@ -315,7 +315,6 @@ class AIPDF_PDF_Generator {
 
 		return '<img src="' . esc_attr( $path ) . '"' . $attrs . '>';
 	}
-	}
 
 	/**
 	 * Format plain textarea text into HTML paragraphs / bullet lists.
