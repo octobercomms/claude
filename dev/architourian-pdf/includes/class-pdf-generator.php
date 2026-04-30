@@ -149,10 +149,15 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Filename: "Architourian Itinerary {subtitle} YYYYMMDD.pdf"
-		$subtitle = $data['tour_subtitle'] ?: get_the_title( $post_id );
+		// Filename: "Architourian-Itinerary-{subtitle}-YYYYMMDD.pdf"
+		$subtitle_parts = array_filter( [
+			$data['subtitle_line_1'],
+			$data['subtitle_line_2'],
+			$data['subtitle_line_3'],
+		] );
+		$subtitle_plain = $subtitle_parts ? implode( ' ', $subtitle_parts ) : get_the_title( $post_id );
 		$filename = sanitize_file_name(
-			'Architourian Itinerary ' . $subtitle . ' ' . date( 'Ymd' ) . '.pdf'
+			'Architourian Itinerary ' . $subtitle_plain . ' ' . date( 'Ymd' ) . '.pdf'
 		);
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
@@ -188,7 +193,9 @@ class AIPDF_PDF_Generator {
 		return [
 			'post_id'            => $post_id,
 			'post_title'         => get_the_title( $post_id ),
-			'tour_subtitle'      => $f( 'pdf_tour_subtitle' ),
+			'subtitle_line_1'    => sanitize_text_field( $f( 'pdf_subtitle_line_1' ) ),
+			'subtitle_line_2'    => sanitize_text_field( $f( 'pdf_subtitle_line_2' ) ),
+			'subtitle_line_3'    => sanitize_text_field( $f( 'pdf_subtitle_line_3' ) ),
 			'tour_reference'     => $f( 'pdf_tour_reference' ),
 			'trip_description'   => $f( 'pdf_trip_description' ),
 			'starting_point'     => $f( 'pdf_starting_point' ),
@@ -389,8 +396,13 @@ class AIPDF_PDF_Generator {
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
 
-		// Subtitle comes from WYSIWYG — use HTML directly, p tags render fine outside table cells
-		$subtitle_html = wp_kses_post( $d['tour_subtitle'] );
+		$subtitle_style = 'margin:0 0 1.5mm 0; font-size:9pt; line-height:1.5; font-family:\'Courier New\',Courier,monospace;';
+		$subtitle_html  = '';
+		foreach ( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] as $line ) {
+			if ( $line !== '' ) {
+				$subtitle_html .= '<p style="' . $subtitle_style . '">' . esc_html( $line ) . '</p>';
+			}
+		}
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
@@ -409,9 +421,8 @@ class AIPDF_PDF_Generator {
 	<?php echo $wordmark_svg; ?>
 </div>
 
-<!-- Footer subtitle: WYSIWYG p tags render correctly in a positioned div -->
-<div style="position:absolute; top:260mm; left:105mm; width:100mm;
-	font-size:9pt; line-height:1.5; font-family:'Courier New',Courier,monospace;">
+<!-- Footer subtitle: three separate p tags, one per line -->
+<div style="position:absolute; top:260mm; left:105mm; width:100mm;">
 	<?php echo $subtitle_html; ?>
 </div>
 
@@ -429,7 +440,7 @@ class AIPDF_PDF_Generator {
 
 	private static function overview_page( $d ) {
 		$brand_html = self::wordmark_html( $d );
-		$subtitle   = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
+		$subtitle   = esc_html( implode( ' ', array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) ) );
 
 		// Centre column
 		$p = 'style="margin:0 0 1mm 0;font-size:9pt;line-height:1.4;"';
@@ -501,7 +512,7 @@ class AIPDF_PDF_Generator {
 
 	private static function days_page( $d, $chunk, $page_num, $page_index = 0 ) {
 		$brand_html = self::wordmark_html( $d );
-		$subtitle   = esc_html( str_replace( [ "\r\n", "\r", "\n" ], ' ', $d['tour_subtitle'] ) );
+		$subtitle = esc_html( implode( ' ', array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) ) );
 		$rows     = array_chunk( $chunk, 2 );
 
 		ob_start(); ?>
