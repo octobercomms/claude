@@ -574,39 +574,30 @@ class AIPDF_PDF_Generator {
 	private static function days_page( $d, $chunk, $page_num, $page_index = 0 ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$rows     = array_chunk( $chunk, 2 );
+		$rows = array_chunk( $chunk, 2 );
+
+		// Two-column absolute layout — avoids mPDF td margin suppression.
+		// Available vertical space: 50mm–219mm (169mm). Two rows of 80mm with 9mm gap.
+		$col_w    = 82;   // mm each column
+		$col_gap  = 10;   // mm gap between columns
+		$col2_l   = self::ML + $col_w + $col_gap;  // 110mm
+		$row_tops = [ 50, 139 ];                    // top mm for row 1 and row 2
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Itinerary' ); ?>
 
-<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
-	<table width="100%" border="0" cellpadding="0" cellspacing="0">
-	<?php foreach ( $rows as $ri => $row ) : ?>
-		<?php if ( $ri > 0 ) : ?>
-		<tr><td colspan="2" style="height:8mm;"></td></tr>
-		<?php endif; ?>
-		<tr>
-		<?php foreach ( $row as $day ) : ?>
-			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<table width="100%" border="0" cellpadding="0" cellspacing="0">
-					<tr><td style="padding-bottom:5mm;">
-						<h2 style="font-size:14pt;font-weight:bold;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></h2>
-					</td></tr>
-					<tr><td style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
-						<?php echo self::format_body( $day['content'] ); ?>
-					</td></tr>
-				</table>
-			</td>
-		<?php endforeach; ?>
-		<?php if ( count( $row ) === 1 ) : ?>
-			<td style="width:50%;"></td>
-		<?php endif; ?>
-		</tr>
-	<?php endforeach; ?>
-	</table>
+<?php foreach ( $rows as $ri => $row ) :
+	$top = $row_tops[ $ri ] ?? ( 139 + $ri * 89 );
+	foreach ( $row as $ci => $day ) :
+		$left = $ci === 0 ? self::ML : $col2_l;
+		?>
+<div style="position:absolute; top:<?php echo $top; ?>mm; left:<?php echo $left; ?>mm; width:<?php echo $col_w; ?>mm; overflow:hidden;">
+	<h2 style="font-size:14pt;font-weight:bold;margin:0 0 3mm 0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></h2>
+	<div style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
 </div>
+<?php endforeach; endforeach; ?>
 
 <?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
