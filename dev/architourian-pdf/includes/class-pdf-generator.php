@@ -370,11 +370,11 @@ class AIPDF_PDF_Generator {
 			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:6.5pt;font-weight:bold;margin:2mm 0 0.5mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p style="font-size:7pt;margin:0 0 1mm 0;line-height:1.4;padding-left:3mm;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:6pt;margin:0 0 0.8mm 0;line-height:1.3;padding-left:3mm;">' . esc_html( $line ) . '</p>';
 			} else {
-				$output .= '<p style="font-size:7pt;margin:0 0 1.5mm 0;line-height:1.4;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:6pt;margin:0 0 1mm 0;line-height:1.3;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
