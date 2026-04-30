@@ -185,7 +185,10 @@ class AIPDF_Settings {
 					<tr><td><code>pdf_trip_description</code></td><td>Textarea</td><td>Left column on overview page — trip name &amp; summary</td></tr>
 					<tr><td><code>pdf_starting_point</code></td><td>Text</td><td>e.g. "New Delhi."</td></tr>
 					<tr><td><code>pdf_end_point</code></td><td>Text</td><td>e.g. "Chandigarh Airport or Railway Station."</td></tr>
-					<tr><td><code>pdf_days_svg_id</code></td><td>Media / Number</td><td>SVG illustration bottom-right of final day page</td></tr>
+					<tr><td><code>pdf_days_svg_id</code></td><td>Media / Number</td><td>SVG illustration bottom-right of day page 1</td></tr>
+					<tr><td><code>pdf_days_svg_id_2</code></td><td>Media / Number</td><td>SVG illustration bottom-right of day page 2</td></tr>
+					<tr><td><code>pdf_days_svg_id_3</code></td><td>Media / Number</td><td>SVG illustration bottom-right of day page 3</td></tr>
+					<tr><td><code>pdf_days_svg_id_4</code></td><td>Media / Number</td><td>SVG illustration bottom-right of day page 4</td></tr>
 					<tr><td><code>pdf_back_cover_svg_id</code></td><td>Media / Number</td><td>Back cover SVG illustration</td></tr>
 					<tr><td><code>pdf_terms_text</code></td><td>Textarea</td><td><em>Optional.</em> Per-tour T&amp;C override. Blank = uses global T&amp;C from plugin settings.</td></tr>
 				</tbody>

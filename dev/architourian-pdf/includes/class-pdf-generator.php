@@ -243,6 +243,8 @@ class AIPDF_PDF_Generator {
 			'cover_svg_id'       => intval( $f( 'pdf_cover_svg_id' ) ),
 			'days_svg_id'        => intval( $f( 'pdf_days_svg_id' ) ),
 			'days_svg_2_id'      => intval( $f( 'pdf_days_svg_id_2' ) ),
+			'days_svg_3_id'      => intval( $f( 'pdf_days_svg_id_3' ) ),
+			'days_svg_4_id'      => intval( $f( 'pdf_days_svg_id_4' ) ),
 			'back_cover_svg_id'  => intval( $f( 'pdf_back_cover_svg_id' ) ),
 			'terms_text'         => $f( 'pdf_terms_text' ) ?: AIPDF_Settings::get( 'terms_text', '' ),
 			'group_size'         => $f( 'group_size' ),
@@ -597,8 +599,8 @@ class AIPDF_PDF_Generator {
 <?php
 	// Height-constrained SVG: fixes bottom alignment regardless of SVG aspect ratio.
 	// top = 274mm (page bar) − 55mm (forced height) = 219mm
-	$svg_id = ( $page_index > 0 && $d['days_svg_2_id'] )
-		? $d['days_svg_2_id'] : $d['days_svg_id'];
+	$svg_map = [ $d['days_svg_id'], $d['days_svg_2_id'], $d['days_svg_3_id'], $d['days_svg_4_id'] ];
+	$svg_id  = $svg_map[ $page_index ] ?? $d['days_svg_id'];
 	$svg = self::svg_tag( $svg_id, '', '55mm' );
 	if ( $svg ) : ?>
 <!-- Illustration — col3 right, bottom-edge aligned with page bar -->
