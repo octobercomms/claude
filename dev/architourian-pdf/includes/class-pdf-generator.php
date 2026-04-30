@@ -165,16 +165,15 @@ class AIPDF_PDF_Generator {
 			}
 		}
 
-		// Terms & Conditions — page number follows last day page (overview=1, days=2,3…)
-		if ( ! empty( $data['terms_text'] ) ) {
-			$tc_page_num = 2 + count( isset( $chunks ) ? $chunks : [] );
-			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data, $tc_page_num ) );
-		}
-
 		// Back cover
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
+
+		// Terms & Conditions — last page, no page number
+		if ( ! empty( $data['terms_text'] ) ) {
+			$mpdf->AddPage();
+			$mpdf->WriteHTML( self::terms_page( $data ) );
+		}
 
 		// Filename: "Architourian-Itinerary-[slug]-[date].pdf"
 		$slug     = get_post_field( 'post_name', $post_id ) ?: get_the_title( $post_id );
@@ -349,16 +348,18 @@ class AIPDF_PDF_Generator {
 	 */
 	private static function format_terms( $text ) {
 		if ( empty( $text ) ) return '';
-		if ( strip_tags( $text ) !== $text ) return wp_kses_post( $text );
-
+		// Normalise HTML to plain text so line-by-line processing is consistent
+		// regardless of whether content came from TinyMCE or a plain textarea.
+		$text = str_replace( [ '</p>', '</P>', '<br>', '<br/>', '<br />' ], "\n", $text );
+		$text = html_entity_decode( strip_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		$output = '';
 		foreach ( explode( "\n", trim( $text ) ) as $line ) {
-			$line = rtrim( $line );
+			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1.5mm 0;padding:0 0 1.5mm 0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} else {
-				$output .= '<p style="margin:0 0 2mm 0;line-height:1.5;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:7pt;margin:0 0 1.5mm 0;line-height:1.4;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -372,7 +373,9 @@ class AIPDF_PDF_Generator {
 		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
 		$elements = $matches[0];
 		if ( empty( $elements ) ) {
-			return array_fill( 0, $num_cols, $html );
+			$result    = array_fill( 0, $num_cols, '' );
+			$result[0] = $html;
+			return $result;
 		}
 		// Weight h3 headings as 2 to keep sections together
 		$weights      = array_map( function( $el ) { return strpos( $el, '<h3' ) !== false ? 2 : 1; }, $elements );
@@ -613,27 +616,26 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	private static function terms_page( $d, $page_num = null ) {
+	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$content        = self::format_terms( $d['terms_text'] );
+		$cols           = self::split_into_cols( self::format_terms( $d['terms_text'] ), 3 );
+
+		// Three absolute positioned divs — avoids mPDF td margin suppression inside columns.
+		// No bottom bar on this page to maximise content area (50mm–285mm = 235mm).
+		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
+		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];  // 4mm gap between cols 1-2 and 2-3
 
 		ob_start(); ?>
-<!DOCTYPE html><html><head><?php echo self::css(); ?><style>
-.tc p  { margin: 0 0 2mm 0 !important; line-height: 1.5 !important; }
-.tc h3 { font-size: 8pt !important; font-weight: bold !important; margin: 3mm 0 1mm 0 !important; font-family: ttnooks, 'TT Nooks', Georgia, serif !important; }
-</style></head><body>
+<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
-<?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
-
-<!-- T&C: smaller font so content fits; CSS columns auto-flow the text -->
-<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:220mm; overflow:hidden;">
-	<div class="tc" style="column-count:3; column-gap:6mm; height:100%; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
-		<?php echo $content; ?>
-	</div>
+<?php for ( $i = 0; $i < 3; $i++ ) : ?>
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+	<?php echo $cols[ $i ]; ?>
 </div>
+<?php endfor; ?>
 
 </body></html>
 		<?php return ob_get_clean();
