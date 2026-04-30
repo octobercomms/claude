@@ -169,31 +169,10 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Terms & Conditions — last page.
-		// Header written first (absolute, no flow advance), then mPDF native
-		// SetColumns drives 3-column flow so text wraps naturally.
+		// Terms & Conditions — last page, single WriteHTML call with own CSS.
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data ) );  // header only
-			$mpdf->lMargin = self::ML;
-			$mpdf->rMargin = self::ML;
-			$mpdf->y       = 38;
-			$mpdf->SetColumns( 3, '', 5 );
-			// Inject T&C-specific CSS via mode 1 (head/CSS only) so rules are
-			// registered in the current CSS context before the fragment is written.
-			$mpdf->WriteHTML( '<style>
-				h3.tc-h3 { font-size: 8pt !important; font-weight: bold !important;
-				           margin: 3mm 0 1mm 0 !important; padding: 0 !important;
-				           font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
-				p.tc-p        { font-size: 5.5pt !important; line-height: 1.2 !important;
-				                margin: 0 0 0.6mm 0 !important; }
-				p.tc-p-bullet { font-size: 5.5pt !important; line-height: 1.2 !important;
-				                margin: 0 0 0.5mm 0 !important; padding-left: 2.5mm !important; }
-			</style>', 1 );
-			$mpdf->WriteHTML( self::format_terms( $data['terms_text'] ), 2 );
-			$mpdf->SetColumns( 1 );
-			$mpdf->lMargin = 0;
-			$mpdf->rMargin = 0;
+			$mpdf->WriteHTML( self::terms_page( $data ) );
 		}
 
 		// Filename: "Architourian-Itinerary-[slug]-[date].pdf"
@@ -381,11 +360,11 @@ class AIPDF_PDF_Generator {
 			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 class="tc-h3">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3>' . esc_html( $line ) . '</h3>';
 			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p class="tc-p-bullet">' . esc_html( $line ) . '</p>';
+				$output .= '<p class="bullet">' . esc_html( $line ) . '</p>';
 			} else {
-				$output .= '<p class="tc-p">' . esc_html( $line ) . '</p>';
+				$output .= '<p>' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -656,13 +635,44 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
-	/** Renders the T&C page header only — content is written separately via SetColumns. */
+	/** Full T&C page — single WriteHTML call with its own CSS to avoid global cascade conflicts. */
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
+		$sub_cell_style = 'padding:0; font-size:10.5pt; line-height:1.35; font-family:ballingermono,"Ballinger Mono","Courier New",monospace;';
+		$content        = self::format_terms( $d['terms_text'] );
 		ob_start(); ?>
-<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
-<?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
+<!DOCTYPE html><html><head><style>
+* { font-family: ballingermono, "Ballinger Mono", "Courier New", monospace; font-size: 5.5pt; color: #000; box-sizing: border-box; }
+body { margin: <?php echo self::MT; ?>mm <?php echo self::ML; ?>mm 0; padding: 0; }
+table { width: 100%; table-layout: fixed; border-collapse: collapse; }
+td { padding: 0; vertical-align: top; }
+.hdr-brand  { font-size: 10.5pt; }
+.hdr-sub td { font-size: 10.5pt; line-height: 1.35; }
+.hdr-label  { font-size: 10.5pt; }
+h3 { font-size: 8pt; font-weight: bold; margin: 3mm 0 1mm 0; padding: 0;
+     font-family: ttnooks, "TT Nooks", Georgia, serif; }
+h3:first-child { margin-top: 0; }
+p  { font-size: 5.5pt; line-height: 1.2; margin: 0 0 0.6mm 0; padding: 0; }
+.bullet { padding-left: 2.5mm; }
+.cols { column-count: 3; column-gap: 5mm; margin-top: 6mm; }
+</style></head><body>
+<!-- Header row -->
+<table cellpadding="0" cellspacing="0" style="margin-bottom:0;">
+	<tr>
+		<td width="33%" class="hdr-brand"><?php echo $brand_html; ?></td>
+		<td width="33%">
+			<table class="hdr-sub" cellpadding="0" cellspacing="0" width="100%">
+				<?php foreach ( $subtitle_lines as $line ) : ?>
+				<tr><td style="<?php echo $sub_cell_style; ?>"><?php echo esc_html( $line ); ?></td></tr>
+				<?php endforeach; ?>
+			</table>
+		</td>
+		<td width="34%" class="hdr-label" style="font-size:10.5pt;">Terms &amp; Conditions</td>
+	</tr>
+</table>
+<!-- 3-column content -->
+<div class="cols"><?php echo $content; ?></div>
 </body></html>
 		<?php return ob_get_clean();
 	}
