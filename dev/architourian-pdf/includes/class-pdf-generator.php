@@ -371,8 +371,9 @@ class AIPDF_PDF_Generator {
 	}
 
 	/**
-	 * Split an HTML string of <h3>/<p> elements into N columns,
-	 * keeping each section (heading + its paragraphs) together.
+	 * Split an HTML string of <h3>/<p> elements into N balanced columns.
+	 * Splits at element level (sections can wrap across columns) but never
+	 * ends a column on an <h3> to avoid orphaned headings.
 	 */
 	private static function split_into_cols( $html, $num_cols = 3 ) {
 		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
@@ -383,29 +384,24 @@ class AIPDF_PDF_Generator {
 			return $result;
 		}
 
-		// Group elements into sections: heading + all following <p>s until next heading.
-		$sections = [];
-		$current  = '';
-		foreach ( $elements as $el ) {
-			if ( strpos( $el, '<h3' ) !== false && $current !== '' ) {
-				$sections[] = $current;
-				$current    = $el;
-			} else {
-				$current .= $el;
-			}
-		}
-		if ( $current !== '' ) $sections[] = $current;
+		$weights = array_map( function( $el ) {
+			return strlen( strip_tags( $el ) ) + ( strpos( $el, '<h3' ) !== false ? 40 : 0 );
+		}, $elements );
 
-		// Distribute whole sections evenly: floor(total/cols) per column, remainder in last.
-		// Simple count-based split avoids mispredicting rendered heights.
-		$total   = count( $sections );
-		$per_col = max( 1, (int) floor( $total / $num_cols ) );
-		$cols    = array_fill( 0, $num_cols, '' );
-		$si      = 0;
-		for ( $c = 0; $c < $num_cols && $si < $total; $c++ ) {
-			$limit = ( $c < $num_cols - 1 ) ? $per_col : $total;
-			for ( $j = 0; $j < $limit && $si < $total; $j++, $si++ ) {
-				$cols[ $c ] .= $sections[ $si ];
+		$total  = array_sum( $weights );
+		$target = $total / $num_cols;
+
+		$cols       = array_fill( 0, $num_cols, '' );
+		$col        = 0;
+		$col_weight = 0;
+
+		foreach ( $elements as $i => $el ) {
+			$cols[ $col ] .= $el;
+			$col_weight   += $weights[ $i ];
+			// Break only after a <p> (never after <h3>) so headings are never orphaned.
+			if ( $col < $num_cols - 1 && $col_weight >= $target && strpos( $el, '<h3' ) === false ) {
+				$col++;
+				$col_weight = 0;
 			}
 		}
 		return $cols;
@@ -633,18 +629,21 @@ class AIPDF_PDF_Generator {
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$content        = self::format_terms( $d['terms_text'] );
+		$cols           = self::split_into_cols( self::format_terms( $d['terms_text'] ), 3 );
 
-		// column-count only works on non-positioned block elements in mPDF.
-		// margin-top:50mm clears the absolute-positioned header.
+		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
+		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];
+
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
-<div style="margin:50mm <?php echo self::ML; ?>mm 0 <?php echo self::ML; ?>mm; column-count:3; column-gap:6mm; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
-	<?php echo $content; ?>
+<?php for ( $i = 0; $i < 3; $i++ ) : ?>
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+	<?php echo $cols[ $i ]; ?>
 </div>
+<?php endfor; ?>
 
 </body></html>
 		<?php return ob_get_clean();
