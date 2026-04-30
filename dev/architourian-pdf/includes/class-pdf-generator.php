@@ -155,10 +155,10 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::overview_page( $data ) );
 
-		// Day pages — 4 days per page (2×2 grid)
+		// Day pages — 2 days per page, side by side
 		$days = self::get_days( $post_id );
 		if ( ! empty( $days ) ) {
-			$chunks = array_chunk( $days, 4 );
+			$chunks = array_chunk( $days, 2 );
 			foreach ( $chunks as $i => $chunk ) {
 				$mpdf->AddPage();
 				$mpdf->WriteHTML( self::days_page( $data, $chunk, $i + 2, $i ) );
@@ -574,30 +574,23 @@ class AIPDF_PDF_Generator {
 	private static function days_page( $d, $chunk, $page_num, $page_index = 0 ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$rows = array_chunk( $chunk, 2 );
 
-		// Two-column absolute layout — avoids mPDF td margin suppression.
-		// Available vertical space: 50mm–219mm (169mm). Two rows of 80mm with 9mm gap.
-		$col_w    = 82;   // mm each column
-		$col_gap  = 10;   // mm gap between columns
-		$col2_l   = self::ML + $col_w + $col_gap;  // 110mm
-		$row_tops = [ 50, 139 ];                    // top mm for row 1 and row 2
+		// Two absolute columns, one row per page — no overflow risk.
+		$col_w  = 82;   // mm each column
+		$col2_l = self::ML + $col_w + 10;  // 110mm
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Itinerary' ); ?>
 
-<?php foreach ( $rows as $ri => $row ) :
-	$top = $row_tops[ $ri ] ?? ( 139 + $ri * 89 );
-	foreach ( $row as $ci => $day ) :
-		$left = $ci === 0 ? self::ML : $col2_l;
-		?>
-<div style="position:absolute; top:<?php echo $top; ?>mm; left:<?php echo $left; ?>mm; width:<?php echo $col_w; ?>mm; overflow:hidden;">
+<?php foreach ( $chunk as $ci => $day ) :
+	$left = $ci === 0 ? self::ML : $col2_l; ?>
+<div style="position:absolute; top:50mm; left:<?php echo $left; ?>mm; width:<?php echo $col_w; ?>mm; overflow:hidden;">
 	<h2 style="font-size:14pt;font-weight:bold;margin:0 0 3mm 0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></h2>
 	<div style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
 </div>
-<?php endforeach; endforeach; ?>
+<?php endforeach; ?>
 
 <?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
