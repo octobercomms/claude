@@ -590,7 +590,7 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
+				<div style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></div>
 				<div class="day-body" style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
