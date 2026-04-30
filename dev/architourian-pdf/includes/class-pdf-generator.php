@@ -590,8 +590,14 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<h2 style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></h2>
-				<div class="day-body" style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;"><?php echo self::format_body( $day['content'] ); ?></div>
+				<table width="100%" border="0" cellpadding="0" cellspacing="0">
+					<tr><td style="padding-bottom:5mm;">
+						<h2 style="font-size:14pt;font-weight:bold;font-family:ttnooks,'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></h2>
+					</td></tr>
+					<tr><td style="font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+						<?php echo self::format_body( $day['content'] ); ?>
+					</td></tr>
+				</table>
 			</td>
 		<?php endforeach; ?>
 		<?php if ( count( $row ) === 1 ) : ?>
