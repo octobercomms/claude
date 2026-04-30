@@ -396,24 +396,16 @@ class AIPDF_PDF_Generator {
 		}
 		if ( $current !== '' ) $sections[] = $current;
 
-		// Weight by character count of plain text + fixed bonus per heading for its margin.
-		$weights = array_map( function( $s ) {
-			return strlen( strip_tags( $s ) ) + ( strpos( $s, '<h3' ) !== false ? 80 : 0 );
-		}, $sections );
-
-		$total  = array_sum( $weights );
-		$target = $total / $num_cols;
-
-		$cols       = array_fill( 0, $num_cols, '' );
-		$col        = 0;
-		$col_weight = 0;
-
-		foreach ( $sections as $i => $section ) {
-			$cols[ $col ] .= $section;
-			$col_weight   += $weights[ $i ];
-			if ( $col < $num_cols - 1 && $col_weight >= $target ) {
-				$col++;
-				$col_weight = 0;
+		// Distribute whole sections evenly: floor(total/cols) per column, remainder in last.
+		// Simple count-based split avoids mispredicting rendered heights.
+		$total   = count( $sections );
+		$per_col = max( 1, (int) floor( $total / $num_cols ) );
+		$cols    = array_fill( 0, $num_cols, '' );
+		$si      = 0;
+		for ( $c = 0; $c < $num_cols && $si < $total; $c++ ) {
+			$limit = ( $c < $num_cols - 1 ) ? $per_col : $total;
+			for ( $j = 0; $j < $limit && $si < $total; $j++, $si++ ) {
+				$cols[ $c ] .= $sections[ $si ];
 			}
 		}
 		return $cols;
