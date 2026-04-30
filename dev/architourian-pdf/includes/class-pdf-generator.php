@@ -396,13 +396,15 @@ class AIPDF_PDF_Generator {
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
 
-		$subtitle_style = 'margin:0 0 1.5mm 0; font-size:9pt; line-height:1.5; font-family:\'Courier New\',Courier,monospace;';
-		$subtitle_html  = '';
-		foreach ( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] as $line ) {
-			if ( $line !== '' ) {
-				$subtitle_html .= '<p style="' . $subtitle_style . '">' . esc_html( $line ) . '</p>';
-			}
-		}
+		// Each subtitle line gets its own absolutely-positioned div — mPDF reliably
+		// renders single-line divs; <p> tags inside shared positioned divs get collapsed.
+		$sub_style = 'font-size:9pt; line-height:1; font-family:\'Courier New\',Courier,monospace;';
+		$sub_lines = [
+			$d['subtitle_line_1'],
+			$d['subtitle_line_2'],
+			$d['subtitle_line_3'],
+		];
+		$sub_tops  = [ '260mm', '265mm', '270mm' ];
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
@@ -421,10 +423,14 @@ class AIPDF_PDF_Generator {
 	<?php echo $wordmark_svg; ?>
 </div>
 
-<!-- Footer subtitle: three separate p tags, one per line -->
-<div style="position:absolute; top:260mm; left:105mm; width:100mm;">
-	<?php echo $subtitle_html; ?>
+<!-- Footer subtitle: one positioned div per line so mPDF cannot collapse them -->
+<?php foreach ( $sub_lines as $i => $line ) : ?>
+<?php if ( $line !== '' ) : ?>
+<div style="position:absolute; top:<?php echo $sub_tops[ $i ]; ?>; left:105mm; width:95mm; <?php echo $sub_style; ?>">
+	<?php echo esc_html( $line ); ?>
 </div>
+<?php endif; ?>
+<?php endforeach; ?>
 
 </body></html>
 		<?php return ob_get_clean();
