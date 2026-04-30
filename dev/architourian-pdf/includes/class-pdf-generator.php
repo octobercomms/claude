@@ -13,8 +13,15 @@ class AIPDF_PDF_Generator {
 	const PH   = 297;  // page height
 	const ML   = 18;   // margin left
 	const MT   = 15;   // margin top
-	const MB   = 18;   // margin bottom (used for top calculations)
+	const MB   = 18;   // margin bottom
 	const CW   = 174;  // content width (PW - ML - ML)
+
+	// 30 / 30 / 40 grid (applied to CW=174mm, all inner pages and cover footer)
+	const C1   = 52;   // col 1 width  (30%)
+	const C2   = 52;   // col 2 width  (30%)
+	const C3   = 70;   // col 3 width  (40%)
+	const CL2  = 70;   // col 2 left   (ML + C1)
+	const CL3  = 122;  // col 3 left   (ML + C1 + C2)
 
 	public static function init() {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_button_script' ] );
@@ -157,14 +164,13 @@ class AIPDF_PDF_Generator {
 		$mpdf->Output( $filename, \Mpdf\Output\Destination::DOWNLOAD );
 	}
 
-	/** Reference code rotated 90° — uses mPDF table-cell rotate:90 (only reliable method). */
+	/** Reference code — bottom-right corner, col 3 (40%), right-aligned. */
 	private static function ref_code_html( $ref ) {
 		if ( ! $ref ) return '';
-		return '<div style="position:absolute; top:15mm; left:200mm;">'
-			. '<table cellpadding="0" cellspacing="0" border="0"><tr>'
-			. '<td style="rotate:90; font-size:6.5pt; font-family:\'Courier New\',Courier,monospace;'
-			. ' white-space:nowrap; padding:0; letter-spacing:0.5mm;">'
-			. esc_html( $ref ) . '</td></tr></table></div>';
+		return '<div style="position:absolute; top:272mm; left:' . self::CL3 . 'mm; width:' . self::C3 . 'mm;'
+			. ' text-align:right; font-size:6pt; font-family:\'Courier New\',Courier,monospace;'
+			. ' letter-spacing:0.3mm; color:#555;">'
+			. esc_html( $ref ) . '</div>';
 	}
 
 	// ─────────────────────────────────────────────────────────────────────────
@@ -364,7 +370,7 @@ class AIPDF_PDF_Generator {
 		.ov-col p { margin: 0 0 3mm 0; }
 
 		/* ── Included section ── */
-		.incl h2 { font-size: 11pt; font-weight: bold; margin: 0 0 3mm 0; padding: 0;
+		.incl h2 { font-size: 11pt; font-weight: bold; margin: 0 0 5mm 0; padding: 0;
 		           font-family: "TT Nooks", Georgia, serif; }
 		.incl ul  { list-style: none; padding: 0; margin: 0 0 2mm 0; }
 		.incl ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 1.5mm; }
@@ -372,7 +378,7 @@ class AIPDF_PDF_Generator {
 		.incl p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2mm 0; }
 
 		/* ── Day pages ── */
-		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 4mm 0;
+		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 5mm 0;
 		            font-family: "TT Nooks", Georgia, serif; }
 		.day-body ul  { list-style: none; padding: 0; margin: 0; }
 		.day-body ul li { font-size: 9pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
@@ -485,21 +491,23 @@ class AIPDF_PDF_Generator {
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 
-	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	<!-- Content: 30 / 30 / 40 grid matching page constants -->
+	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td class="ov-col" style="width:33%;"><?php echo $left; ?></td>
-			<td class="ov-col" style="width:33%;"><?php echo $centre; ?></td>
-			<td class="ov-col" style="width:34%;"><?php echo $right; ?></td>
+			<td class="ov-col" width="30%"><?php echo $left; ?></td>
+			<td class="ov-col" width="30%"><?php echo $centre; ?></td>
+			<td class="ov-col" width="40%"><?php echo $right; ?></td>
 		</tr>
 	</table>
 
 	<?php if ( $has_incl ) : ?>
-	<div class="incl" style="margin-top:14mm;">
+	<!-- Included spans col1+col2 (60% = 30+30) — col3 stays clear -->
+	<div class="incl" style="margin-top:14mm; width:60%;">
 		<?php if ( ! empty( $d['included_items'] ) ) : ?>
 			<h2>Included in the trip</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -507,7 +515,7 @@ class AIPDF_PDF_Generator {
 			<h2 style="margin-top:4mm;">Not included</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:9pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -657,7 +665,7 @@ class AIPDF_PDF_Generator {
 			<td width="30%" style="vertical-align:top; padding:0;">
 				<?php echo $brand_html; ?>
 			</td>
-			<td width="40%" style="vertical-align:top; padding:0;">
+			<td width="30%" style="vertical-align:top; padding:0;">
 				<table cellpadding="0" cellspacing="0" border="0" width="100%">
 					<?php foreach ( (array) $subtitle_lines as $line ) : ?>
 					<?php if ( $line !== '' ) : ?>
@@ -666,7 +674,7 @@ class AIPDF_PDF_Generator {
 					<?php endforeach; ?>
 				</table>
 			</td>
-			<td width="30%" style="vertical-align:top; padding:0; text-align:right; font-size:9pt; font-family:'Courier New',Courier,monospace;">
+			<td width="40%" style="vertical-align:top; padding:0; font-size:9pt; font-family:'Courier New',Courier,monospace;">
 				<?php echo $section_label; ?>
 			</td>
 		</tr>
