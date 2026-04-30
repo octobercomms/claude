@@ -633,23 +633,18 @@ class AIPDF_PDF_Generator {
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$cols           = self::split_into_cols( self::format_terms( $d['terms_text'] ), 3 );
+		$content        = self::format_terms( $d['terms_text'] );
 
-		// Three absolute positioned divs — avoids mPDF td margin suppression inside columns.
-		// No bottom bar on this page to maximise content area (50mm–285mm = 235mm).
-		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
-		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];  // 4mm gap between cols 1-2 and 2-3
-
+		// column-count only works on non-positioned block elements in mPDF.
+		// margin-top:50mm clears the absolute-positioned header.
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
-<?php for ( $i = 0; $i < 3; $i++ ) : ?>
-<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
-	<?php echo $cols[ $i ]; ?>
+<div style="margin:50mm <?php echo self::ML; ?>mm 0 <?php echo self::ML; ?>mm; column-count:3; column-gap:6mm; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+	<?php echo $content; ?>
 </div>
-<?php endfor; ?>
 
 </body></html>
 		<?php return ob_get_clean();
