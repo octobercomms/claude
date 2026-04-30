@@ -16,12 +16,12 @@ class AIPDF_PDF_Generator {
 	const MB   = 18;   // margin bottom
 	const CW   = 174;  // content width (PW - ML - ML)
 
-	// 30 / 30 / 40 grid (applied to CW=174mm, all inner pages and cover footer)
-	const C1   = 52;   // col 1 width  (30%)
-	const C2   = 52;   // col 2 width  (30%)
-	const C3   = 70;   // col 3 width  (40%)
-	const CL2  = 70;   // col 2 left   (ML + C1)
-	const CL3  = 122;  // col 3 left   (ML + C1 + C2)
+	// 33 / 33 / 34 equal-column grid
+	const C1   = 58;   // col 1 width  (33%)
+	const C2   = 58;   // col 2 width  (33%)
+	const C3   = 58;   // col 3 width  (34%)
+	const CL2  = 76;   // col 2 left   (ML + C1)
+	const CL3  = 134;  // col 3 left   (ML + C1 + C2)
 
 	public static function init() {
 		add_action( 'wp_enqueue_scripts', [ __CLASS__, 'enqueue_button_script' ] );
@@ -122,7 +122,7 @@ class AIPDF_PDF_Generator {
 			'margin_right'  => 0,
 			'margin_bottom' => 0,
 			'margin_left'   => 0,
-			'default_font'  => 'courier',
+			'default_font'  => 'dejavusansmono', // fallback until Ballinger Mono is embedded
 		] );
 		$mpdf->showImageErrors    = true;
 		$mpdf->autoScriptToLang   = false;
@@ -178,7 +178,7 @@ class AIPDF_PDF_Generator {
 		}
 		if ( empty( $parts ) ) return '';
 		return '<div style="position:absolute; top:274mm; left:' . self::ML . 'mm;'
-			. ' font-size:10.5pt; font-family:\'Courier New\',Courier,monospace;">'
+			. ' font-size:10.5pt; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
 			. implode( ' &nbsp;&#9679;&nbsp; ', $parts )
 			. '</div>';
 	}
@@ -325,7 +325,7 @@ class AIPDF_PDF_Generator {
 			$line = rtrim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3>' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1.5mm 0;padding:0 0 1.5mm 0;font-family:\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} else {
 				$output .= '<p style="margin:0 0 2mm 0;line-height:1.5;">' . esc_html( $line ) . '</p>';
 			}
@@ -365,9 +365,10 @@ class AIPDF_PDF_Generator {
 
 	/** Shared CSS loaded on every page. */
 	private static function css() {
+		$font = '"Ballinger Mono", "Courier New", monospace';
 		return '<style>
 		* {
-			font-family: "Courier New", Courier, monospace;
+			font-family: ' . $font . ';
 			font-size: 10.5pt;
 			color: #000;
 			box-sizing: border-box;
@@ -375,14 +376,16 @@ class AIPDF_PDF_Generator {
 		body { margin: 0; padding: 0; }
 
 		/* ── Global headings ── */
-		h2 { font-size: 14pt; font-weight: bold; margin: 0 0 2.5mm 0; padding: 0;
+		h2 { font-size: 14pt !important; font-weight: bold;
+		     margin: 0 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
 		     font-family: "TT Nooks", Georgia, serif; }
-		h3 { font-size: 14pt; font-weight: bold; margin: 4mm 0 2.5mm 0; padding: 0;
+		h3 { font-size: 14pt !important; font-weight: bold;
+		     margin: 4mm 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
 		     font-family: "TT Nooks", Georgia, serif; }
-		h3:first-child { margin-top: 0; }
+		h3:first-child { margin-top: 0 !important; }
 
 		/* ── Overview info columns ── */
-		.ov-col { vertical-align: top; font-size: 10.5pt; line-height: 1.5; padding-right: 8mm; }
+		.ov-col { vertical-align: top; font-size: 10.5pt; line-height: 1.5; padding-right: 6mm; }
 		.ov-col:last-child { padding-right: 0; }
 
 		/* ── Included section ── */
@@ -391,15 +394,13 @@ class AIPDF_PDF_Generator {
 		.incl ul li::before { content: ""; }
 
 		/* ── Day pages ── */
-		.day-head { font-size: 14pt; font-weight: bold; margin: 0 0 2.5mm 0;
+		.day-head { font-size: 14pt !important; font-weight: bold;
+		            margin: 0 0 2.5mm 0 !important; padding: 0 0 2.5mm 0 !important;
 		            font-family: "TT Nooks", Georgia, serif; }
 		.day-body ul  { list-style: none; padding: 0; margin: 0; }
 		.day-body ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
 		.day-body ul li::before { content: "\2013\00a0"; }
 		.day-body p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
-
-		/* ── T&C ── */
-		.tc-body p  { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2mm 0; }
 		</style>';
 	}
 
@@ -414,7 +415,7 @@ class AIPDF_PDF_Generator {
 
 		// Each subtitle line gets its own absolutely-positioned div — mPDF reliably
 		// renders single-line divs; <p> tags inside shared positioned divs get collapsed.
-		$sub_style = 'font-size:10.5pt; line-height:1.3; font-family:\'Courier New\',Courier,monospace;';
+		$sub_style = 'font-size:10.5pt; line-height:1.3; font-family:\'Ballinger Mono\',\'Courier New\',monospace;';
 		$sub_lines = [
 			$d['subtitle_line_1'],
 			$d['subtitle_line_2'],
@@ -461,7 +462,7 @@ class AIPDF_PDF_Generator {
 		$svg = self::svg_tag( $d['wordmark_id'], $width, '' );
 		if ( $svg ) return $svg;
 		$fs = $width === '56mm' ? '20pt' : '13pt';
-		return '<strong style="font-size:' . $fs . '; font-family:\'Courier New\',Courier,monospace;">'
+		return '<strong style="font-size:' . $fs . '; font-family:\'Ballinger Mono\',\'Courier New\',monospace;">'
 			. esc_html( $d['brand_name'] ) . '</strong>';
 	}
 
@@ -503,12 +504,12 @@ class AIPDF_PDF_Generator {
 
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 
-	<!-- Content: 30 / 30 / 40 grid matching page constants -->
+	<!-- Content: 33 / 33 / 34 equal grid -->
 	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td class="ov-col" width="30%"><?php echo $left; ?></td>
-			<td class="ov-col" width="30%"><?php echo $centre; ?></td>
-			<td class="ov-col" width="40%"><?php echo $right; ?></td>
+			<td class="ov-col" width="33%"><?php echo $left; ?></td>
+			<td class="ov-col" width="33%"><?php echo $centre; ?></td>
+			<td class="ov-col" width="34%"><?php echo $right; ?></td>
 		</tr>
 	</table>
 
@@ -516,7 +517,7 @@ class AIPDF_PDF_Generator {
 	<!-- Included spans col1+col2 (60% = 30+30) — col3 stays clear -->
 	<div class="incl" style="margin-top:14mm; width:60%;">
 		<?php if ( ! empty( $d['included_items'] ) ) : ?>
-			<h2>Included in the trip</h2>
+			<h2 style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Included in the trip</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
 				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
@@ -524,7 +525,7 @@ class AIPDF_PDF_Generator {
 			</ul>
 		<?php endif; ?>
 		<?php if ( ! empty( $d['not_included_items'] ) ) : ?>
-			<h2 style="margin-top:4mm;">Not included</h2>
+			<h2 style="font-size:14pt;font-weight:bold;margin:4mm 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Not included</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
 				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
@@ -536,7 +537,7 @@ class AIPDF_PDF_Generator {
 
 </div>
 
-<?php echo self::bottom_bar_html( null, $d['tour_reference'] ); ?>
+<?php echo self::bottom_bar_html( 1, $d['tour_reference'] ); ?>
 
 </body></html>
 		<?php return ob_get_clean();
@@ -602,9 +603,9 @@ class AIPDF_PDF_Generator {
 
 <?php echo self::bottom_bar_html( null, $d['tour_reference'] ); ?>
 
-<!-- T&C: CSS column-count lets mPDF flow content across 3 cols automatically (no manual split) -->
+<!-- T&C: smaller font so content fits; CSS columns auto-flow the text -->
 <div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:215mm;">
-	<div class="tc-body" style="column-count:3; column-gap:6mm; height:100%; font-size:10.5pt; line-height:1.5;">
+	<div style="column-count:3; column-gap:6mm; height:100%; font-size:7.5pt; line-height:1.45; font-family:'Ballinger Mono','Courier New',monospace;">
 		<?php echo $content; ?>
 	</div>
 </div>
@@ -614,34 +615,36 @@ class AIPDF_PDF_Generator {
 	}
 
 	private static function back_cover_page( $d ) {
-		$back_svg = self::svg_tag( $d['back_cover_svg_id'], '130mm', '' );
-		$logo_svg = self::svg_tag( $d['logo_mark_id'], '13mm', '13mm' );
-		$brand    = esc_html( $d['brand_name'] );
+		$back_svg     = self::svg_tag( $d['back_cover_svg_id'], '130mm', '' );
+		$wordmark_svg = self::wordmark_html( $d, '48mm' );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
 
 <?php if ( $back_svg ) : ?>
-<!-- Centre illustration: left = (210-130)/2 = 40mm -->
+<!-- Centre illustration -->
 <div style="position:absolute; top:60mm; left:40mm; width:130mm; text-align:center;">
 	<?php echo $back_svg; ?>
 </div>
 <?php endif; ?>
 
-<!-- Footer: top = 297 - 18 - 16 = 263mm -->
+<!-- Footer: 33/33/34 grid, all top-aligned -->
 <div style="position:absolute; top:263mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
-	<table width="100%" border="0" cellpadding="0" cellspacing="0">
+	<table width="100%" border="0" cellpadding="0" cellspacing="0" style="table-layout:fixed;">
 		<tr>
-			<td style="width:48mm; vertical-align:bottom;">
-				<strong style="font-size:11pt;"><?php echo $brand; ?></strong>
+			<!-- Col 1: SVG wordmark -->
+			<td width="33%" style="vertical-align:top; padding:0;">
+				<?php echo $wordmark_svg; ?>
 			</td>
-			<td style="vertical-align:bottom; font-size:10.5pt;">
-				<p style="margin:0 0 1mm 0;font-size:10.5pt;"><?php echo esc_html( $d['contact_name'] ); ?></p>
-				<p style="margin:0;font-size:10.5pt;"><?php echo esc_html( $d['contact_phone'] ); ?></p>
+			<!-- Col 2: Contact name on own line, phone on own line, no wrapping -->
+			<td width="33%" style="vertical-align:top; padding:0; font-size:10.5pt;">
+				<div style="font-size:10.5pt; margin:0 0 1mm 0; white-space:nowrap;"><?php echo esc_html( $d['contact_name'] ); ?></div>
+				<div style="font-size:10.5pt; margin:0; white-space:nowrap;"><?php echo esc_html( $d['contact_phone'] ); ?></div>
 			</td>
-			<td style="vertical-align:bottom; font-size:10.5pt; text-align:right;">
-				<p style="margin:0 0 1mm 0;font-size:10.5pt;"><?php echo esc_html( $d['contact_email'] ); ?></p>
-				<p style="margin:0;font-size:10.5pt;"><?php echo esc_html( $d['contact_website'] ); ?></p>
+			<!-- Col 3: Email + website, left-aligned -->
+			<td width="34%" style="vertical-align:top; padding:0; font-size:10.5pt;">
+				<div style="font-size:10.5pt; margin:0 0 1mm 0;"><?php echo esc_html( $d['contact_email'] ); ?></div>
+				<div style="font-size:10.5pt; margin:0;"><?php echo esc_html( $d['contact_website'] ); ?></div>
 			</td>
 		</tr>
 	</table>
@@ -658,15 +661,15 @@ class AIPDF_PDF_Generator {
 	 * the only reliable way to get multi-line content in an mPDF table cell.
 	 */
 	private static function inner_header( $brand_html, $subtitle_lines, $section_label ) {
-		$sub_cell_style = 'padding:0; font-size:10.5pt; line-height:1.35; font-family:\'Courier New\',Courier,monospace;';
+		$sub_cell_style = 'padding:0; font-size:10.5pt; line-height:1.35; font-family:\'Ballinger Mono\',\'Courier New\',monospace;';
 		ob_start(); ?>
 <div style="position:absolute; top:<?php echo self::MT; ?>mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm;">
 	<table style="width:100%; table-layout:fixed; border-collapse:collapse;" cellpadding="0" cellspacing="0">
 		<tr>
-			<td width="30%" style="vertical-align:top; padding:0;">
+			<td width="33%" style="vertical-align:top; padding:0;">
 				<?php echo $brand_html; ?>
 			</td>
-			<td width="30%" style="vertical-align:top; padding:0;">
+			<td width="33%" style="vertical-align:top; padding:0;">
 				<table cellpadding="0" cellspacing="0" border="0" width="100%">
 					<?php foreach ( (array) $subtitle_lines as $line ) : ?>
 					<?php if ( $line !== '' ) : ?>
@@ -675,7 +678,7 @@ class AIPDF_PDF_Generator {
 					<?php endforeach; ?>
 				</table>
 			</td>
-			<td width="40%" style="vertical-align:top; padding:0; font-size:10.5pt; font-family:'Courier New',Courier,monospace;">
+			<td width="34%" style="vertical-align:top; padding:0; font-size:10.5pt;">
 				<?php echo $section_label; ?>
 			</td>
 		</tr>
