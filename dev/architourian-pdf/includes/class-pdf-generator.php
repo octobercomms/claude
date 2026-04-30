@@ -619,15 +619,18 @@ class AIPDF_PDF_Generator {
 		$content        = self::format_terms( $d['terms_text'] );
 
 		ob_start(); ?>
-<!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
+<!DOCTYPE html><html><head><?php echo self::css(); ?><style>
+.tc p  { margin: 0 0 2mm 0 !important; line-height: 1.5 !important; }
+.tc h3 { font-size: 8pt !important; font-weight: bold !important; margin: 3mm 0 1mm 0 !important; font-family: ttnooks, 'TT Nooks', Georgia, serif !important; }
+</style></head><body>
 
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
 <?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
 <!-- T&C: smaller font so content fits; CSS columns auto-flow the text -->
-<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:215mm;">
-	<div style="column-count:3; column-gap:6mm; height:100%; font-size:7.5pt; line-height:1.45; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+<div style="position:absolute; top:50mm; left:<?php echo self::ML; ?>mm; width:<?php echo self::CW; ?>mm; height:220mm; overflow:hidden;">
+	<div class="tc" style="column-count:3; column-gap:6mm; height:100%; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
 		<?php echo $content; ?>
 	</div>
 </div>
