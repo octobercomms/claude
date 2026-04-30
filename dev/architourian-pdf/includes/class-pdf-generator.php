@@ -348,20 +348,18 @@ class AIPDF_PDF_Generator {
 	 */
 	private static function format_terms( $text ) {
 		if ( empty( $text ) ) return '';
+		// Normalise HTML to plain text so line-by-line processing is consistent
+		// regardless of whether content came from TinyMCE or a plain textarea.
 		$text = str_replace( [ '</p>', '</P>', '<br>', '<br/>', '<br />' ], "\n", $text );
 		$text = html_entity_decode( strip_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		$text = str_replace( "\xc2\xa0", ' ', $text ); // non-breaking spaces from TinyMCE
-		$text = preg_replace( '/([.:])(\s*)([–—])\s+/', "$1\n$3 ", $text ); // inline bullets → own lines
 		$output = '';
 		foreach ( explode( "\n", trim( $text ) ) as $line ) {
 			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:2.5mm 0 0.8mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
-			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p style="font-size:6pt;margin:0 0 0.8mm 0;line-height:1.2;padding-left:2.5mm;">' . esc_html( $line ) . '</p>';
+				$output .= '<h3 style="font-size:8pt;font-weight:bold;margin:3mm 0 1mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
 			} else {
-				$output .= '<p style="font-size:6pt;margin:0 0 1mm 0;line-height:1.2;">' . esc_html( $line ) . '</p>';
+				$output .= '<p style="font-size:7pt;margin:0 0 1.5mm 0;line-height:1.4;">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -651,7 +649,7 @@ class AIPDF_PDF_Generator {
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
 <?php for ( $i = 0; $i < 3; $i++ ) : ?>
-<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:6pt; line-height:1.2; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
 	<?php echo $cols[ $i ]; ?>
 </div>
 <?php endfor; ?>
