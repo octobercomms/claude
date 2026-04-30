@@ -597,14 +597,14 @@ class AIPDF_PDF_Generator {
 <?php echo self::bottom_bar_html( $page_num, $d['tour_reference'] ); ?>
 
 <?php
-	// Height-constrained SVG: fixes bottom alignment regardless of SVG aspect ratio.
-	// top = 274mm (page bar) − 55mm (forced height) = 219mm
+	// Anchor bottom edge to page bar (274mm from top = 23mm from page bottom).
+	// This works regardless of SVG's actual rendered height.
 	$svg_map = [ $d['days_svg_id'], $d['days_svg_2_id'], $d['days_svg_3_id'], $d['days_svg_4_id'] ];
 	$svg_id  = $svg_map[ $page_index ] ?? $d['days_svg_id'];
 	$svg = self::svg_tag( $svg_id, '', '55mm' );
 	if ( $svg ) : ?>
-<!-- Illustration — col3 right, bottom-edge aligned with page bar -->
-<div style="position:absolute; top:219mm; left:<?php echo self::CL3; ?>mm; width:<?php echo self::C3; ?>mm; text-align:right; overflow:hidden;">
+<!-- Illustration — col3 right, bottom edge pinned to page bar -->
+<div style="position:absolute; bottom:23mm; right:<?php echo self::ML; ?>mm; width:<?php echo self::C3; ?>mm; text-align:right;">
 	<?php echo $svg; ?>
 </div>
 <?php endif; ?>
