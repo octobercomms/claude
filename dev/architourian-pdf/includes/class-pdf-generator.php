@@ -169,10 +169,20 @@ class AIPDF_PDF_Generator {
 		$mpdf->AddPage();
 		$mpdf->WriteHTML( self::back_cover_page( $data ) );
 
-		// Terms & Conditions — last page, no page number
+		// Terms & Conditions — last page.
+		// Header written first (absolute, no flow advance), then mPDF native
+		// SetColumns drives 3-column flow so text wraps naturally.
 		if ( ! empty( $data['terms_text'] ) ) {
 			$mpdf->AddPage();
-			$mpdf->WriteHTML( self::terms_page( $data ) );
+			$mpdf->WriteHTML( self::terms_page( $data ) );  // header only
+			$mpdf->lMargin = self::ML;
+			$mpdf->rMargin = self::ML;
+			$mpdf->y       = 50;
+			$mpdf->SetColumns( 3, '', 6 );
+			$mpdf->WriteHTML( self::format_terms( $data['terms_text'] ), 2 );
+			$mpdf->SetColumns( 1 );
+			$mpdf->lMargin = 0;
+			$mpdf->rMargin = 0;
 		}
 
 		// Filename: "Architourian-Itinerary-[slug]-[date].pdf"
@@ -626,25 +636,13 @@ class AIPDF_PDF_Generator {
 		<?php return ob_get_clean();
 	}
 
+	/** Renders the T&C page header only — content is written separately via SetColumns. */
 	private static function terms_page( $d ) {
 		$brand_html     = self::wordmark_html( $d, '32mm' );
 		$subtitle_lines = array_values( array_filter( [ $d['subtitle_line_1'], $d['subtitle_line_2'], $d['subtitle_line_3'] ] ) );
-		$cols           = self::split_into_cols( self::format_terms( $d['terms_text'] ), 3 );
-
-		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
-		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];
-
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
-
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
-
-<?php for ( $i = 0; $i < 3; $i++ ) : ?>
-<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:7pt; line-height:1.4; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
-	<?php echo $cols[ $i ]; ?>
-</div>
-<?php endfor; ?>
-
 </body></html>
 		<?php return ob_get_clean();
 	}
