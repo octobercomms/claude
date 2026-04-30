@@ -308,11 +308,13 @@ class AIPDF_PDF_Generator {
 		$path = get_attached_file( $attachment_id );
 		if ( ! $path || ! file_exists( $path ) ) return '';
 
-		$style = '';
-		if ( $width )  $style .= 'width:'  . $width  . ';';
-		if ( $height ) $style .= 'height:' . $height . ';';
+		// Use HTML attributes (not CSS style) — mPDF only reliably respects width=/height= on <img>
+		$attrs = '';
+		if ( $width )  $attrs .= ' width="'  . esc_attr( $width )  . '"';
+		if ( $height ) $attrs .= ' height="' . esc_attr( $height ) . '"';
 
-		return '<img src="' . esc_attr( $path ) . '"' . ( $style ? ' style="' . $style . '"' : '' ) . '>';
+		return '<img src="' . esc_attr( $path ) . '"' . $attrs . '>';
+	}
 	}
 
 	/**
@@ -548,7 +550,7 @@ class AIPDF_PDF_Generator {
 			<h2 style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Included in the trip</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&mdash;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -556,7 +558,7 @@ class AIPDF_PDF_Generator {
 			<h2 style="font-size:14pt;font-weight:bold;margin:4mm 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;">Not included</h2>
 			<ul style="list-style:none;list-style-type:none;padding:0;margin:0 0 2mm 0;">
 				<?php foreach ( $d['not_included_items'] as $item ) : ?>
-				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&#9679;&nbsp;<?php echo esc_html( $item ); ?></li>
+				<li style="list-style:none;font-size:10.5pt;line-height:1.5;margin-bottom:1.5mm;">&mdash;&nbsp;<?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
 		<?php endif; ?>
@@ -590,7 +592,7 @@ class AIPDF_PDF_Generator {
 		<tr>
 		<?php foreach ( $row as $day ) : ?>
 			<td style="width:50%; vertical-align:top; padding-right:10mm;">
-				<div class="day-head" style="font-size:14pt;font-weight:bold;margin:0 0 2.5mm 0;padding:0 0 2.5mm 0;font-family:'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></div>
+				<p style="font-size:14pt;font-weight:bold;margin:0 0 5mm 0;padding:0;font-family:'TT Nooks',Georgia,serif;"><?php echo esc_html( $day['title'] ); ?></p>
 				<div class="day-body"><?php echo self::format_body( $day['content'] ); ?></div>
 			</td>
 		<?php endforeach; ?>
