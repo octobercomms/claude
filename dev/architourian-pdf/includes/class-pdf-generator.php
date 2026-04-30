@@ -389,10 +389,8 @@ class AIPDF_PDF_Generator {
 		$logo_svg     = self::svg_tag( $d['logo_mark_id'], '22mm', '22mm' );
 		$wordmark_svg = self::wordmark_html( $d );
 
-		// Normalise subtitle: ACF may convert newlines to <br>, so convert back before splitting
-		$subtitle_raw   = preg_replace( '/<br\s*\/?>/i', "\n", $d['tour_subtitle'] );
-		$subtitle_raw   = strip_tags( $subtitle_raw );
-		$subtitle_lines = array_values( array_filter( preg_split( '/\r\n|\r|\n/', $subtitle_raw ), 'strlen' ) );
+		// Subtitle comes from WYSIWYG — use HTML directly, p tags render fine outside table cells
+		$subtitle_html = wp_kses_post( $d['tour_subtitle'] );
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
@@ -401,23 +399,20 @@ class AIPDF_PDF_Generator {
 	<?php echo $cover_svg; ?>
 </div>
 
-<!-- Footer logo — positioned absolutely, close to bottom-left corner -->
+<!-- Footer logo -->
 <div style="position:absolute; top:260mm; left:8mm;">
 	<?php echo $logo_svg; ?>
 </div>
 
-<!-- Footer wordmark — to the right of logo with gap -->
+<!-- Footer wordmark -->
 <div style="position:absolute; top:260mm; left:38mm;">
 	<?php echo $wordmark_svg; ?>
 </div>
 
-<!-- Footer subtitle — own positioned div so <p> tags render correctly -->
-<div style="position:absolute; top:260mm; left:105mm; width:100mm;">
-	<?php foreach ( $subtitle_lines as $line ) : ?>
-	<p style="margin:0 0 1mm 0; font-size:9pt; line-height:1.5; font-family:'Courier New',Courier,monospace;">
-		<?php echo esc_html( $line ); ?>
-	</p>
-	<?php endforeach; ?>
+<!-- Footer subtitle: WYSIWYG p tags render correctly in a positioned div -->
+<div style="position:absolute; top:260mm; left:105mm; width:100mm;
+	font-size:9pt; line-height:1.5; font-family:'Courier New',Courier,monospace;">
+	<?php echo $subtitle_html; ?>
 </div>
 
 </body></html>
