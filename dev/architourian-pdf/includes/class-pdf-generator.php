@@ -179,6 +179,17 @@ class AIPDF_PDF_Generator {
 			$mpdf->rMargin = self::ML;
 			$mpdf->y       = 38;
 			$mpdf->SetColumns( 3, '', 5 );
+			// Inject T&C-specific CSS via mode 1 (head/CSS only) so rules are
+			// registered in the current CSS context before the fragment is written.
+			$mpdf->WriteHTML( '<style>
+				h3.tc-h3 { font-size: 8pt !important; font-weight: bold !important;
+				           margin: 3mm 0 1mm 0 !important; padding: 0 !important;
+				           font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
+				p.tc-p        { font-size: 5.5pt !important; line-height: 1.2 !important;
+				                margin: 0 0 0.6mm 0 !important; }
+				p.tc-p-bullet { font-size: 5.5pt !important; line-height: 1.2 !important;
+				                margin: 0 0 0.5mm 0 !important; padding-left: 2.5mm !important; }
+			</style>', 1 );
 			$mpdf->WriteHTML( self::format_terms( $data['terms_text'] ), 2 );
 			$mpdf->SetColumns( 1 );
 			$mpdf->lMargin = 0;
