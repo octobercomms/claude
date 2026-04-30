@@ -3,7 +3,7 @@
  * Plugin Name: Architourian PDF Generator
  * Plugin URI:  https://architourian.com
  * Description: Generates branded itinerary PDFs from tour custom fields. Works with JetEngine, ACF, or standard WordPress post meta.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Architourian
  * License:     GPL-2.0-or-later
  * Text Domain: architourian-pdf
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'AIPDF_VERSION', '1.2.0' );
+define( 'AIPDF_VERSION', '1.3.0' );
 define( 'AIPDF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AIPDF_URL', plugin_dir_url( __FILE__ ) );
 define( 'AIPDF_VENDOR', AIPDF_PATH . 'vendor/autoload.php' );
