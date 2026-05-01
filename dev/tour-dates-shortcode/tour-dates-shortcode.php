@@ -16,20 +16,26 @@ add_shortcode('tour_dates', function($atts) {
     $product = wc_get_product($atts['id']);
     if (!$product || !$product->is_type('variable')) return '';
 
-    $variations = $product->get_available_variations();
     $dates    = [];
     $occ_keys = [];
 
-    foreach ($variations as $v) {
-        $date = $v['attributes']['attribute_dates']              ?? '';
-        $occ  = $v['attributes']['attribute_pa_room-occupancy'] ?? '';
-        $pay  = $v['attributes']['attribute_pa_payment']        ?? '';
-        $id    = $v['variation_id'];
-        $price = $v['display_price'];
+    foreach ($product->get_children() as $variation_id) {
+        $variation = wc_get_product($variation_id);
+        if (!$variation || !$variation->variation_is_active()) continue;
 
-        if ($date && $occ && $pay) {
-            $dates[$date][$occ][$pay] = ['id' => $id, 'price' => $price];
-            if (!in_array($occ, $occ_keys)) $occ_keys[] = $occ;
+        $attrs = $variation->get_variation_attributes();
+        $date  = $attrs['attribute_dates']              ?? '';
+        $occ   = $attrs['attribute_pa_room-occupancy']  ?? '';
+        $pay   = $attrs['attribute_pa_payment']         ?? '';
+
+        if (!$date || !$occ) continue;
+        if (!in_array($occ, $occ_keys)) $occ_keys[] = $occ;
+
+        // Always register the date/occ slot so sold-out rows still appear.
+        if (!isset($dates[$date][$occ])) $dates[$date][$occ] = [];
+
+        if ($pay && $variation->is_in_stock()) {
+            $dates[$date][$occ][$pay] = ['id' => $variation_id, 'price' => $variation->get_price()];
         }
     }
 
