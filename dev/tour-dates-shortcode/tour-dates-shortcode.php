@@ -4,52 +4,44 @@
  *
  * Usage: [tour_dates id="123"]
  *
- * Requires a variable WooCommerce product with three global attributes:
- *   - Dates          (slug: pa_dates)
- *   - Room Occupancy (slug: pa_room-occupancy) — terms: "Double occupancy", "Single occupancy"
- *   - Payment        (slug: pa_payment)        — terms: "Pay deposit", "Pay in full"
+ * Requires a variable WooCommerce product with:
+ *   - Dates          — local attribute (attribute_dates), value is display text
+ *   - Room Occupancy — global attribute (attribute_pa_room-occupancy), slugs: double-occupancy, single-occupancy
+ *   - Payment        — global attribute (attribute_pa_payment), slugs: pay-deposit, pay-in-full
  */
 
 // TOUR DATES
 add_shortcode('tour_dates', function($atts) {
-    $atts = shortcode_atts(['id' => 0, 'debug' => 0], $atts);
+    $atts = shortcode_atts(['id' => 0], $atts);
     $product = wc_get_product($atts['id']);
     if (!$product || !$product->is_type('variable')) return '';
-
-    $variations = $product->get_available_variations();
-
-    // Debug mode: [tour_dates id="X" debug="1"] — shows raw attribute keys/values for all variations.
-    if ($atts['debug'] && !empty($variations)) {
-        $out = '';
-        foreach ($variations as $v) {
-            $out .= 'Variation ' . $v['variation_id'] . ":\n";
-            foreach ($v['attributes'] as $k => $val) {
-                $out .= "  $k => $val\n";
-            }
-        }
-        return '<pre>' . esc_html($out) . '</pre>';
-    }
 
     $dates    = [];
     $occ_keys = [];
 
-    foreach ($variations as $v) {
-        // Support both global (pa_ prefix, slug values) and local (no prefix, text values) attributes.
-        $date = $v['attributes']['attribute_pa_dates']          ?? ($v['attributes']['attribute_dates']          ?? '');
-        $occ  = $v['attributes']['attribute_pa_room-occupancy'] ?? ($v['attributes']['attribute_room-occupancy'] ?? '');
-        $pay  = $v['attributes']['attribute_pa_payment']        ?? ($v['attributes']['attribute_payment']        ?? '');
-        $id    = $v['variation_id'];
-        $price = $v['display_price'];
+    foreach ($product->get_children() as $variation_id) {
+        $variation = wc_get_product($variation_id);
+        if (!$variation || !$variation->variation_is_active()) continue;
 
-        if ($date && $occ && $pay) {
-            $dates[$date][$occ][$pay] = ['id' => $id, 'price' => $price];
-            if (!in_array($occ, $occ_keys)) $occ_keys[] = $occ;
+        $attrs = $variation->get_variation_attributes();
+        $date  = $attrs['attribute_dates']              ?? '';
+        $occ   = $attrs['attribute_pa_room-occupancy']  ?? '';
+        $pay   = $attrs['attribute_pa_payment']         ?? '';
+
+        if (!$date || !$occ) continue;
+        if (!in_array($occ, $occ_keys)) $occ_keys[] = $occ;
+
+        // Always register the date/occ slot so sold-out rows still appear.
+        if (!isset($dates[$date][$occ])) $dates[$date][$occ] = [];
+
+        if ($pay && $variation->is_in_stock()) {
+            $dates[$date][$occ][$pay] = ['id' => $variation_id, 'price' => $variation->get_price()];
         }
     }
 
     // Double occupancy first.
     usort($occ_keys, function($a, $b) {
-        return (strpos($a, 'double') !== false || strpos($a, '2') === 0) ? -1 : 1;
+        return strpos($a, 'double') !== false ? -1 : 1;
     });
 
     $checkout = wc_get_checkout_url();
@@ -60,8 +52,7 @@ add_shortcode('tour_dates', function($atts) {
             <tr>
                 <th>Date</th>
                 <?php foreach ($occ_keys as $occ):
-                    $is_double = strpos($occ, 'double') !== false || strpos($occ, '2') === 0;
-                    $label     = $is_double ? 'Double occupancy' : 'Single occupancy';
+                    $label = strpos($occ, 'double') !== false ? 'Double occupancy' : 'Single occupancy';
                 ?>
                 <th><?php echo esc_html($label); ?></th>
                 <?php endforeach; ?>
@@ -72,11 +63,10 @@ add_shortcode('tour_dates', function($atts) {
             <tr>
                 <td class="date-col"><?php echo esc_html($date); ?></td>
                 <?php foreach ($occ_keys as $occ):
-                    $is_double = strpos($occ, 'double') !== false || strpos($occ, '2') === 0;
+                    $is_double = strpos($occ, 'double') !== false;
                     $note      = $is_double ? 'Per couple' : 'Per person';
-                    // Handles both global attribute slugs and local text values.
-                    $dep  = $occs[$occ]['pay-deposit']  ?? ($occs[$occ]['Pay deposit']  ?? null);
-                    $full = $occs[$occ]['pay-in-full']  ?? ($occs[$occ]['Pay in full']  ?? null);
+                    $dep       = $occs[$occ]['pay-deposit'] ?? null;
+                    $full      = $occs[$occ]['pay-in-full'] ?? null;
                 ?>
                 <td class="occ-col">
                     <?php if ($full || $dep): ?>
