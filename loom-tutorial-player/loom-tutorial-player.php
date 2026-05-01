@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Video Tutorials
- * Description: Add Loom tutorial videos to client pages. Manage videos from the page editor and they display automatically on the frontend.
- * Version: 1.0.0
+ * Description: Add Loom tutorial videos to client pages and a welcome video to the WordPress dashboard.
+ * Version: 1.1.0
  * License: GPL2
  */
 
@@ -11,15 +11,23 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Loom_Tutorial_Player {
 
 	public function __construct() {
+		// Per-post video meta box
 		add_action( 'add_meta_boxes', [ $this, 'add_meta_box' ] );
 		add_action( 'save_post',      [ $this, 'save_meta' ] );
-		add_action( 'admin_footer',   [ $this, 'admin_scripts' ] );
 		add_filter( 'the_content',    [ $this, 'append_videos' ] );
+
+		// Global dashboard welcome video
+		add_action( 'admin_menu',    [ $this, 'add_settings_page' ] );
+		add_action( 'admin_init',    [ $this, 'register_settings' ] );
+		add_action( 'admin_notices', [ $this, 'render_dashboard_video' ] );
+
+		// Admin JS/CSS
+		add_action( 'admin_footer',  [ $this, 'admin_scripts' ] );
 	}
 
-	// -------------------------------------------------------------------------
-	// Admin meta box
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Per-post meta box
+	// =========================================================================
 
 	public function add_meta_box() {
 		$post_types = get_post_types( [ 'show_ui' => true ], 'names' );
@@ -96,9 +104,149 @@ class Loom_Tutorial_Player {
 		update_post_meta( $post_id, '_loom_tutorial_videos', $videos );
 	}
 
-	// -------------------------------------------------------------------------
-	// Admin styles + JS (only loads on page/post edit screens)
-	// -------------------------------------------------------------------------
+	// =========================================================================
+	// Dashboard welcome video — Settings page
+	// =========================================================================
+
+	public function add_settings_page() {
+		add_options_page(
+			'Video Tutorials',
+			'Video Tutorials',
+			'manage_options',
+			'video-tutorials',
+			[ $this, 'render_settings_page' ]
+		);
+	}
+
+	public function register_settings() {
+		register_setting( 'loom_dashboard_group', 'loom_dashboard_video', [
+			'sanitize_callback' => [ $this, 'sanitize_dashboard_option' ],
+		] );
+	}
+
+	public function sanitize_dashboard_option( $input ) {
+		return [
+			'title' => sanitize_text_field( $input['title'] ?? '' ),
+			'url'   => esc_url_raw( sanitize_text_field( $input['url'] ?? '' ) ),
+		];
+	}
+
+	public function render_settings_page() {
+		if ( ! current_user_can( 'manage_options' ) ) return;
+		$saved = get_option( 'loom_dashboard_video', [ 'title' => '', 'url' => '' ] );
+		$id    = $this->extract_loom_id( $saved['url'] );
+		?>
+		<div class="wrap">
+			<h1>Video Tutorials — Dashboard Welcome Video</h1>
+			<p>This video appears at the top of the WordPress dashboard for every user — useful as a welcome / site orientation video for new clients.</p>
+			<p>Leave the URL blank to hide it.</p>
+
+			<form method="post" action="options.php">
+				<?php settings_fields( 'loom_dashboard_group' ); ?>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="loom_dash_title">Video title</label></th>
+						<td>
+							<input
+								type="text"
+								id="loom_dash_title"
+								name="loom_dashboard_video[title]"
+								value="<?php echo esc_attr( $saved['title'] ); ?>"
+								class="regular-text"
+								placeholder="Welcome to your new website!"
+							>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="loom_dash_url">Loom video URL</label></th>
+						<td>
+							<input
+								type="text"
+								id="loom_dash_url"
+								name="loom_dashboard_video[url]"
+								value="<?php echo esc_attr( $saved['url'] ); ?>"
+								class="regular-text"
+								placeholder="https://www.loom.com/share/..."
+							>
+						</td>
+					</tr>
+				</table>
+
+				<div id="loom-dash-preview" style="max-width:640px;margin:0 0 20px 0;">
+					<?php if ( $id ) : ?>
+					<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">
+						<iframe
+							src="https://www.loom.com/embed/<?php echo esc_attr( $id ); ?>"
+							frameborder="0"
+							allowfullscreen
+							style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"
+						></iframe>
+					</div>
+					<?php endif; ?>
+				</div>
+
+				<?php submit_button( 'Save Dashboard Video' ); ?>
+			</form>
+		</div>
+
+		<script>
+		(function ($) {
+			function getLoomId(url) {
+				var m = url.match(/loom\.com\/share\/([a-zA-Z0-9]+)/);
+				return m ? m[1] : null;
+			}
+			$('#loom_dash_url').on('input', function () {
+				var id = getLoomId($(this).val().trim());
+				var $p = $('#loom-dash-preview');
+				if (id) {
+					$p.html(
+						'<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">' +
+							'<iframe src="https://www.loom.com/embed/' + id + '" frameborder="0" allowfullscreen ' +
+							'style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"></iframe>' +
+						'</div>'
+					);
+				} else {
+					$p.html('');
+				}
+			});
+		}(jQuery));
+		</script>
+		<?php
+	}
+
+	// =========================================================================
+	// Dashboard welcome video — display
+	// =========================================================================
+
+	public function render_dashboard_video() {
+		$screen = get_current_screen();
+		if ( ! $screen || $screen->id !== 'dashboard' ) return;
+
+		$saved = get_option( 'loom_dashboard_video', [] );
+		if ( empty( $saved['url'] ) ) return;
+
+		$id = $this->extract_loom_id( $saved['url'] );
+		if ( ! $id ) return;
+		?>
+		<div style="background:#fff;border:1px solid #c3c4c7;border-radius:4px;padding:24px;margin-bottom:20px;">
+			<?php if ( ! empty( $saved['title'] ) ) : ?>
+			<h2 style="margin-top:0;margin-bottom:16px;"><?php echo esc_html( $saved['title'] ); ?></h2>
+			<?php endif; ?>
+			<div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;">
+				<iframe
+					src="https://www.loom.com/embed/<?php echo esc_attr( $id ); ?>"
+					frameborder="0"
+					allowfullscreen
+					style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:8px;"
+				></iframe>
+			</div>
+		</div>
+		<?php
+	}
+
+	// =========================================================================
+	// Admin JS + CSS (meta box editor screens only)
+	// =========================================================================
 
 	public function admin_scripts() {
 		$screen = get_current_screen();
@@ -108,33 +256,13 @@ class Loom_Tutorial_Player {
 		?>
 		<style>
 			.loom-video-row { margin-bottom: 8px; }
-			.loom-row-header {
-				display: flex;
-				gap: 8px;
-				align-items: center;
-				margin-bottom: 6px;
-			}
+			.loom-row-header { display:flex; gap:8px; align-items:center; margin-bottom:6px; }
 			.loom-title-input { flex: 1; }
 			.loom-remove-btn { flex-shrink: 0; }
 			.loom-preview { margin: 10px 0 0; }
-			.loom-embed-wrap {
-				position: relative;
-				padding-bottom: 56.25%;
-				height: 0;
-				overflow: hidden;
-				border-radius: 8px;
-			}
-			.loom-embed-wrap iframe {
-				position: absolute;
-				top: 0; left: 0;
-				width: 100%; height: 100%;
-				border-radius: 8px;
-			}
-			.loom-divider {
-				border: none;
-				border-top: 1px solid #eee;
-				margin: 16px 0;
-			}
+			.loom-embed-wrap { position:relative; padding-bottom:56.25%; height:0; overflow:hidden; border-radius:8px; }
+			.loom-embed-wrap iframe { position:absolute; top:0; left:0; width:100%; height:100%; border-radius:8px; }
+			.loom-divider { border:none; border-top:1px solid #eee; margin:16px 0; }
 			#loom-add-btn { margin-top: 4px; }
 		</style>
 		<script>
@@ -159,32 +287,24 @@ class Loom_Tutorial_Player {
 				var id = getLoomId($row.find('.loom-url-input').val().trim());
 				var $preview = $row.find('.loom-preview');
 				if (id) {
-					$preview.html(
-						'<div class="loom-embed-wrap">' +
-							'<iframe src="https://www.loom.com/embed/' + id + '" frameborder="0" allowfullscreen></iframe>' +
-						'</div>'
-					);
+					$preview.html('<div class="loom-embed-wrap"><iframe src="https://www.loom.com/embed/' + id + '" frameborder="0" allowfullscreen></iframe></div>');
 				} else {
 					$preview.html('');
 				}
 			}
 
-			// Render previews for any pre-filled rows on load
 			$('.loom-video-row').each(function () { renderPreview($(this)); });
 
-			// Live preview as user types/pastes
 			$(document).on('input', '.loom-url-input', function () {
 				renderPreview($(this).closest('.loom-video-row'));
 			});
 
-			// Add a new row
 			$('#loom-add-btn').on('click', function () {
 				var $row = $(rowTemplate);
 				$('#loom-videos-container').append($row);
 				$row.find('.loom-url-input').focus();
 			});
 
-			// Remove a row (keeps at least one)
 			$(document).on('click', '.loom-remove-btn', function () {
 				var $container = $('#loom-videos-container');
 				var $row = $(this).closest('.loom-video-row');
@@ -200,9 +320,9 @@ class Loom_Tutorial_Player {
 		<?php
 	}
 
-	// -------------------------------------------------------------------------
+	// =========================================================================
 	// Frontend rendering
-	// -------------------------------------------------------------------------
+	// =========================================================================
 
 	private function extract_loom_id( $url ) {
 		preg_match( '/loom\.com\/share\/([a-zA-Z0-9]+)/', $url, $m );
