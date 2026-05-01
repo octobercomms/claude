@@ -66,12 +66,19 @@ add_shortcode( 'architourian_ticker', function ( $atts ) {
 
 	if ( empty( $items ) ) return '';
 
+	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+
 	$inner = '';
 	foreach ( $items as $item ) {
-		$text    = esc_html( $item['text'] );
-		$content = ! empty( $item['link'] )
-			? '<a href="' . esc_url( $item['link'] ) . '">' . $text . '</a>'
-			: $text;
+		$text = esc_html( $item['text'] );
+		if ( ! empty( $item['link'] ) ) {
+			$link_host = wp_parse_url( $item['link'], PHP_URL_HOST );
+			$external  = $link_host && $link_host !== $site_host;
+			$target    = $external ? ' target="_blank" rel="noopener noreferrer"' : '';
+			$content   = '<a href="' . esc_url( $item['link'] ) . '"' . $target . '>' . $text . '</a>';
+		} else {
+			$content = $text;
+		}
 		$inner .= '<span class="at-ticker__item">' . $content . '</span>';
 	}
 
