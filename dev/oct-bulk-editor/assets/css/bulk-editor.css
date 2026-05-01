@@ -1,0 +1,329 @@
+/* ============================================================
+   WooCommerce Bulk Editor – Admin Styles
+   ============================================================ */
+
+/* Layout */
+.wbe-wrap {
+	margin-top: 20px;
+}
+
+.wbe-header {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	margin-bottom: 16px;
+	font-size: 1.5rem;
+}
+
+.wbe-badge {
+	font-size: 11px;
+	font-weight: 600;
+	background: #7f54b3;
+	color: #fff;
+	padding: 2px 8px;
+	border-radius: 20px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	vertical-align: middle;
+}
+
+/* Toolbar */
+.wbe-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 12px 16px;
+	margin-bottom: 10px;
+}
+
+.wbe-filters {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.wbe-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.wbe-input {
+	height: 34px;
+	border-radius: 4px;
+	border: 1px solid #8c8f94;
+	padding: 0 10px;
+	font-size: 13px;
+	min-width: 200px;
+}
+
+.wbe-input:focus {
+	border-color: #7f54b3;
+	box-shadow: 0 0 0 2px rgba(127, 84, 179, 0.25);
+	outline: none;
+}
+
+.wbe-change-badge {
+	background: #e67e22;
+	color: #fff;
+	font-size: 12px;
+	font-weight: 700;
+	padding: 3px 9px;
+	border-radius: 12px;
+}
+
+/* Status bar */
+.wbe-status {
+	padding: 10px 14px;
+	border-radius: 4px;
+	font-size: 13px;
+	margin-bottom: 10px;
+}
+.wbe-status.is-success {
+	background: #edfaee;
+	border: 1px solid #5cb85c;
+	color: #2d6a2d;
+}
+.wbe-status.is-error {
+	background: #fdecea;
+	border: 1px solid #d9534f;
+	color: #8a1a1a;
+}
+.wbe-status.is-info {
+	background: #edf4fd;
+	border: 1px solid #5b9bd5;
+	color: #1a4a7a;
+}
+
+/* Column toggles */
+.wbe-col-toggle {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	flex-wrap: wrap;
+	font-size: 12px;
+	margin-bottom: 10px;
+	color: #555;
+}
+.wbe-col-label {
+	cursor: pointer;
+	user-select: none;
+}
+.wbe-col-label input {
+	margin-right: 3px;
+}
+
+/* Table wrapper – horizontal scroll */
+.wbe-table-wrapper {
+	overflow-x: auto;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+}
+
+/* Spreadsheet table */
+.wbe-table {
+	border-collapse: collapse;
+	width: 100%;
+	font-size: 13px;
+	table-layout: fixed;
+}
+
+.wbe-table thead th {
+	background: #f6f6f6;
+	border-bottom: 2px solid #ddd;
+	padding: 10px 12px;
+	text-align: left;
+	font-weight: 600;
+	white-space: nowrap;
+	position: sticky;
+	top: 0;
+	z-index: 2;
+}
+
+.wbe-table tbody tr {
+	transition: background 0.1s;
+}
+
+.wbe-table tbody tr:nth-child(even) {
+	background: #fafafa;
+}
+
+.wbe-table tbody tr:hover {
+	background: #f0f0ff;
+}
+
+/* Row types */
+.wbe-table tr.wbe-row-parent {
+	background: #f3effe !important;
+	font-weight: 600;
+}
+
+.wbe-table tr.wbe-row-variation td.wbe-col-name {
+	padding-left: 32px;
+	color: #555;
+}
+
+.wbe-table tr.wbe-row-variation td.wbe-col-name::before {
+	content: "↳ ";
+	color: #aaa;
+}
+
+.wbe-table tr.wbe-row-simple {
+	font-weight: 500;
+}
+
+/* Cells */
+.wbe-table td {
+	padding: 0;
+	border-bottom: 1px solid #eee;
+	vertical-align: middle;
+	position: relative;
+}
+
+.wbe-table td.wbe-col-name {
+	padding: 8px 12px;
+	min-width: 200px;
+}
+
+.wbe-table td.wbe-col-actions {
+	padding: 6px 10px;
+	width: 60px;
+	text-align: center;
+	white-space: nowrap;
+}
+
+/* Editable cell */
+.wbe-cell {
+	display: block;
+	width: 100%;
+	padding: 8px 12px;
+	box-sizing: border-box;
+	cursor: cell;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	min-height: 36px;
+	line-height: 20px;
+	transition: background 0.1s;
+}
+
+.wbe-cell:hover {
+	background: rgba(127, 84, 179, 0.06);
+}
+
+.wbe-cell:focus {
+	outline: none;
+	background: #fff;
+	box-shadow: inset 0 0 0 2px #7f54b3;
+	z-index: 1;
+}
+
+/* Modified cell highlight */
+.wbe-cell.is-dirty {
+	background: #fffbea;
+	box-shadow: inset 2px 0 0 #f0ad00;
+}
+
+/* Select cells */
+.wbe-cell-select {
+	width: 100%;
+	height: 36px;
+	border: none;
+	background: transparent;
+	padding: 0 12px;
+	font-size: 13px;
+	cursor: pointer;
+	box-sizing: border-box;
+	appearance: auto;
+}
+
+.wbe-cell-select:focus {
+	outline: 2px solid #7f54b3;
+	background: #fff;
+}
+
+.wbe-cell-select.is-dirty {
+	background: #fffbea;
+	box-shadow: inset 2px 0 0 #f0ad00;
+}
+
+/* Stock status colours */
+.wbe-cell-select[data-field="stock_status"] option[value="instock"]     { color: #2d6a2d; }
+.wbe-cell-select[data-field="stock_status"] option[value="outofstock"]  { color: #8a1a1a; }
+.wbe-cell-select[data-field="stock_status"] option[value="onbackorder"] { color: #7a5a00; }
+
+/* Placeholder row */
+.wbe-placeholder td {
+	text-align: center;
+	color: #888;
+	padding: 30px;
+	font-size: 14px;
+}
+
+/* Price currency prefix */
+.wbe-col-price {
+	min-width: 120px;
+}
+
+.wbe-col-sku {
+	min-width: 130px;
+}
+
+.wbe-col-stock {
+	min-width: 100px;
+}
+
+.wbe-col-status {
+	min-width: 130px;
+}
+
+/* Pagination */
+.wbe-pagination {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	justify-content: center;
+	margin-top: 16px;
+	font-size: 13px;
+}
+
+/* Loading spinner overlay */
+.wbe-loading-overlay {
+	position: relative;
+}
+
+.wbe-loading-overlay::after {
+	content: '';
+	position: absolute;
+	inset: 0;
+	background: rgba(255,255,255,0.6);
+	z-index: 10;
+}
+
+/* Row save indicator */
+.wbe-row-saving td {
+	opacity: 0.5;
+}
+
+.wbe-row-saved td {
+	animation: wbe-flash 0.5s ease;
+}
+
+@keyframes wbe-flash {
+	0%   { background-color: #d4edda; }
+	100% { background-color: transparent; }
+}
+
+/* Responsive adjustments */
+@media (max-width: 960px) {
+	.wbe-toolbar {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+}
