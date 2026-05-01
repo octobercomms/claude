@@ -12,11 +12,17 @@
 
 // TOUR DATES
 add_shortcode('tour_dates', function($atts) {
-    $atts = shortcode_atts(['id' => 0], $atts);
+    $atts = shortcode_atts(['id' => 0, 'debug' => 0], $atts);
     $product = wc_get_product($atts['id']);
     if (!$product || !$product->is_type('variable')) return '';
 
     $variations = $product->get_available_variations();
+
+    // Debug mode: [tour_dates id="X" debug="1"] — shows raw attribute keys/values for first variation.
+    if ($atts['debug'] && current_user_can('manage_options') && !empty($variations)) {
+        return '<pre>' . esc_html(print_r($variations[0]['attributes'], true)) . '</pre>';
+    }
+
     $dates    = [];
     $occ_keys = [];
 
