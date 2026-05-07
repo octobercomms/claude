@@ -16,7 +16,7 @@
     eventId:          0,
     ticketTypes:      [],
     selectedType:     null,
-    qty:              1,
+    qty:              0,
     promoCode:        '',
     discountAmount:   0,
     promoValid:       false,
@@ -36,44 +36,100 @@
 
     state.eventId = parseInt($checkout.data('event-id'), 10) || 0;
 
-    // Load ticket type data from embedded JSON
     var $json = $('#oct-ticket-data-' + state.eventId);
     if ($json.length) {
       try { state.ticketTypes = JSON.parse($json.text()); } catch (e) {}
     }
 
-    bindTicketCards();
-    bindQtyControls();
+    bindTicketRows();
     bindPromo();
     bindPaymentTabs();
     initStripe();
     initPayPal();
+    bindFreeRegistration();
 
-    // Select first available ticket type and initialise summary
-    var $firstRow = $('.oct-ticket-row:not(.oct-ticket-row--unavailable)').first();
-    if ($firstRow.length) {
-      selectTicketCard($firstRow);
-    } else {
+    updateSummary();
+  }
+
+  // ---- Ticket rows with inline qty ----
+  function bindTicketRows() {
+    // Plus button
+    $(document).on('click', '.oct-ticket-row__qty [data-action="plus"]', function (e) {
+      e.stopPropagation();
+      var $row = $(this).closest('.oct-ticket-row');
+      if ($row.hasClass('oct-ticket-row--unavailable')) return;
+      var $val = $row.find('.oct-qty-val');
+      var current = parseInt($val.text(), 10) || 0;
+      if (current >= 10) return;
+
+      // Deselect all other rows
+      resetOtherRows($row);
+
+      $val.text(current + 1);
+      state.qty = current + 1;
+      selectRow($row);
+    });
+
+    // Minus button
+    $(document).on('click', '.oct-ticket-row__qty [data-action="minus"]', function (e) {
+      e.stopPropagation();
+      var $row = $(this).closest('.oct-ticket-row');
+      if ($row.hasClass('oct-ticket-row--unavailable')) return;
+      var $val = $row.find('.oct-qty-val');
+      var current = parseInt($val.text(), 10) || 0;
+      if (current <= 0) return;
+
+      $val.text(current - 1);
+      state.qty = current - 1;
+
+      if (state.qty === 0) {
+        $row.removeClass('oct-ticket-row--selected');
+        state.selectedType = null;
+      } else {
+        selectRow($row);
+      }
       updateSummary();
-    }
-  }
-
-  // ---- Ticket rows ----
-  function bindTicketCards() {
-    $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function () {
-      selectTicketCard($(this));
     });
+
+    // Click on row (not qty buttons) — select and set qty to 1 if 0
+    $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
+      if ($(e.target).closest('.oct-ticket-row__qty').length) return;
+      var $row = $(this);
+      resetOtherRows($row);
+      var $val = $row.find('.oct-qty-val');
+      var current = parseInt($val.text(), 10) || 0;
+      if (current === 0) {
+        $val.text(1);
+        state.qty = 1;
+      } else {
+        state.qty = current;
+      }
+      selectRow($row);
+    });
+
+    // Keyboard
     $(document).on('keypress', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
-      if (e.which === 13 || e.which === 32) { e.preventDefault(); selectTicketCard($(this)); }
+      if (e.which === 13 || e.which === 32) {
+        e.preventDefault();
+        $(this).trigger('click');
+      }
     });
   }
 
-  function selectTicketCard($card) {
-    $('.oct-ticket-row').removeClass('oct-ticket-row--selected');
-    $card.addClass('oct-ticket-row--selected');
-    $card.find('input[type="radio"]').prop('checked', true);
+  function resetOtherRows($currentRow) {
+    $('.oct-ticket-row').not($currentRow).each(function () {
+      $(this).removeClass('oct-ticket-row--selected');
+      $(this).find('.oct-qty-val').text(0);
+      $(this).find('input[type="radio"]').prop('checked', false);
+    });
+  }
 
-    var key = $card.data('key');
+  function selectRow($row) {
+    $('.oct-ticket-row').removeClass('oct-ticket-row--selected');
+    $row.addClass('oct-ticket-row--selected');
+    $row.find('input[type="radio"]').prop('checked', true);
+
+    var key = $row.data('key');
     state.selectedType = null;
     for (var i = 0; i < state.ticketTypes.length; i++) {
       if (state.ticketTypes[i].key === key) {
@@ -90,34 +146,6 @@
     $('#oct-promo-message').hide();
 
     updateSummary();
-  }
-
-  // ---- Quantity ----
-  function bindQtyControls() {
-    $('#oct-qty-plus').on('click', function () {
-      var val = parseInt($('#oct-qty').val(), 10) || 1;
-      if (val < 10) {
-        $('#oct-qty').val(val + 1);
-        state.qty = val + 1;
-        updateSummary();
-      }
-    });
-
-    $('#oct-qty-minus').on('click', function () {
-      var val = parseInt($('#oct-qty').val(), 10) || 1;
-      if (val > 1) {
-        $('#oct-qty').val(val - 1);
-        state.qty = val - 1;
-        updateSummary();
-      }
-    });
-
-    $('#oct-qty').on('change', function () {
-      var val = Math.max(1, Math.min(10, parseInt($(this).val(), 10) || 1));
-      $(this).val(val);
-      state.qty = val;
-      updateSummary();
-    });
   }
 
   // ---- Promo code ----
@@ -169,7 +197,7 @@
 
   // ---- Summary ----
   function getSubtotal() {
-    if (!state.selectedType) return 0;
+    if (!state.selectedType || state.qty <= 0) return 0;
     var price = state.selectedType.sale_price !== null && state.selectedType.sale_price !== undefined
       ? parseFloat(state.selectedType.sale_price)
       : parseFloat(state.selectedType.price);
@@ -177,8 +205,6 @@
   }
 
   function updateSummary() {
-    if (!state.selectedType) return;
-
     var subtotal = getSubtotal();
     var discount = state.promoValid ? state.discountAmount : 0;
     var total    = Math.max(0, subtotal - discount);
@@ -186,9 +212,15 @@
     state.subtotal = subtotal;
     state.total    = total;
 
-    $('#oct-summary-type').text(state.selectedType.label);
-    $('#oct-summary-count').text('×' + state.qty);
-    $('#oct-summary-subtotal').text(currencySymbol + subtotal.toFixed(2));
+    if (state.selectedType && state.qty > 0) {
+      $('#oct-summary-type').text(state.selectedType.label);
+      $('#oct-summary-count').text('×' + state.qty);
+      $('#oct-summary-subtotal').text(currencySymbol + subtotal.toFixed(2));
+    } else {
+      $('#oct-summary-type').text('—');
+      $('#oct-summary-count').text('');
+      $('#oct-summary-subtotal').text(currencySymbol + '0.00');
+    }
 
     if (discount > 0) {
       $('#oct-discount-row').show();
@@ -199,6 +231,11 @@
 
     $('#oct-summary-total').text(currencySymbol + total.toFixed(2));
     $('#oct-card-btn-amount').text(currencySymbol + total.toFixed(2));
+
+    // Toggle payment vs free registration
+    var isFree = state.selectedType && state.qty > 0 && total === 0;
+    $('#oct-payment-section').toggle(!isFree);
+    $('#oct-free-section').toggle(isFree);
   }
 
   // ---- Payment tabs ----
@@ -213,10 +250,56 @@
       $('.oct-payment-panel').hide().attr('aria-hidden', 'true');
       $('#' + target).show().attr('aria-hidden', 'false');
 
-      // Init PayPal lazily when its tab is first shown
       if (target === 'panel-paypal' && !state.paypalRendered) {
         renderPayPalButtons();
       }
+    });
+  }
+
+  // ---- Free ticket registration ----
+  function bindFreeRegistration() {
+    $('#oct-register-free').on('click', handleFreeRegistration);
+  }
+
+  function handleFreeRegistration() {
+    if (state.processing) return;
+
+    var email = $('#oct-email').val().trim();
+    var name  = $('#oct-name').val().trim();
+
+    if (!email || !isValidEmail(email)) {
+      $('#oct-email').addClass('error').focus();
+      $('#oct-free-errors').text('Please enter a valid email address.').show();
+      return;
+    }
+
+    if (!state.selectedType || state.qty <= 0) {
+      $('#oct-free-errors').text('Please select a ticket type.').show();
+      return;
+    }
+
+    $('#oct-free-errors').hide();
+    setProcessing(true, '#oct-register-free');
+
+    $.post(ajaxUrl, {
+      action:          'oct_register_free',
+      nonce:           nonce,
+      event_id:        state.eventId,
+      ticket_type_key: state.selectedType.key,
+      qty:             state.qty,
+      promo_code:      state.promoCode,
+      name:            name,
+      email:           email,
+    }, function (res) {
+      setProcessing(false, '#oct-register-free');
+      if (res.success) {
+        showSuccess(res.data.ticket_urls || []);
+      } else {
+        $('#oct-free-errors').text((res.data && res.data.message) ? res.data.message : 'Registration failed. Please try again.').show();
+      }
+    }).fail(function () {
+      setProcessing(false, '#oct-register-free');
+      $('#oct-free-errors').text('Network error. Please try again.').show();
     });
   }
 
@@ -277,7 +360,7 @@
       return;
     }
 
-    if (!state.selectedType) {
+    if (!state.selectedType || state.qty <= 0) {
       showCardError('Please select a ticket type.');
       return;
     }
@@ -285,7 +368,6 @@
     hideCardError();
     setProcessing(true, '#oct-pay-card');
 
-    // Step 1: Create PaymentIntent
     $.post(ajaxUrl, {
       action:          'oct_create_payment_intent',
       nonce:           nonce,
@@ -304,7 +386,6 @@
       var clientSecret = res.data.client_secret;
       var piId         = res.data.payment_intent_id;
 
-      // Step 2: Confirm card payment via Stripe.js
       state.stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: state.cardElement,
@@ -317,7 +398,6 @@
           return;
         }
 
-        // Step 3: Confirm server-side and create order
         $.post(ajaxUrl, {
           action:            'oct_confirm_stripe_payment',
           nonce:             nonce,
@@ -356,8 +436,6 @@
 
   // ---- PayPal ----
   function initPayPal() {
-    // Buttons are rendered lazily when the PayPal tab is first shown
-    // If Stripe not available, render immediately
     if (!stripeKey && typeof paypal !== 'undefined') {
       renderPayPalButtons();
     }
@@ -389,7 +467,7 @@
             $('#oct-paypal-errors').text('Please enter a valid email address.').show();
             return Promise.reject('email_required');
           }
-          if (!state.selectedType) {
+          if (!state.selectedType || state.qty <= 0) {
             $('#oct-paypal-errors').text('Please select a ticket type.').show();
             return Promise.reject('no_ticket');
           }

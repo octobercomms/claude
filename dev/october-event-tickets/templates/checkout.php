@@ -84,22 +84,19 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
                 <?php endif; ?>
               <?php endif; ?>
             </div>
+            <?php if (!$unavailable) : ?>
+            <div class="oct-ticket-row__qty" role="group">
+              <button type="button" class="oct-qty-btn" data-action="minus" aria-label="<?php esc_attr_e('Decrease quantity', 'october-event-tickets'); ?>">−</button>
+              <span class="oct-qty-val" aria-live="polite">0</span>
+              <button type="button" class="oct-qty-btn" data-action="plus" aria-label="<?php esc_attr_e('Increase quantity', 'october-event-tickets'); ?>">+</button>
+            </div>
+            <?php endif; ?>
           </div>
         <?php endforeach; ?>
       </div>
     </div>
 
-    <!-- Step 2: Quantity -->
-    <div class="oct-section">
-      <label for="oct-qty" class="oct-label"><?php esc_html_e('Quantity', 'october-event-tickets'); ?></label>
-      <div class="oct-qty-control">
-        <button type="button" class="oct-qty-btn" id="oct-qty-minus" aria-label="<?php esc_attr_e('Decrease quantity', 'october-event-tickets'); ?>">−</button>
-        <input type="number" id="oct-qty" name="oct_qty" value="1" min="1" max="10" class="oct-qty-input" readonly>
-        <button type="button" class="oct-qty-btn" id="oct-qty-plus" aria-label="<?php esc_attr_e('Increase quantity', 'october-event-tickets'); ?>">+</button>
-      </div>
-    </div>
-
-    <!-- Step 3: Promo Code -->
+    <!-- Step 2: Promo Code -->
     <div class="oct-section">
       <label for="oct-promo" class="oct-label"><?php esc_html_e('Promo Code', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
       <div class="oct-promo-row">
@@ -145,6 +142,7 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
     </div>
 
     <!-- Step 5: Payment -->
+    <div id="oct-payment-section">
     <div class="oct-section">
       <h3 class="oct-section__title"><?php esc_html_e('Payment', 'october-event-tickets'); ?></h3>
 
@@ -194,6 +192,15 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
       <?php endif; ?>
 
     </div><!-- .oct-section -->
+    </div><!-- #oct-payment-section -->
+
+    <!-- Free ticket registration (shown via JS when total = $0) -->
+    <div id="oct-free-section" style="display:none">
+      <button type="button" id="oct-register-free" class="oct-btn oct-btn--primary oct-btn--full">
+        <?php esc_html_e('Complete Registration', 'october-event-tickets'); ?>
+      </button>
+      <div id="oct-free-errors" class="oct-payment-error" role="alert" style="display:none"></div>
+    </div>
 
     <!-- Global error zone -->
     <div id="oct-global-error" class="oct-payment-error" role="alert" style="display:none"></div>

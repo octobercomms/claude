@@ -113,6 +113,52 @@
   font-style: italic;
 }
 
+/* ---------- Inline qty per ticket row ---------- */
+.oct-ticket-row__qty {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.oct-ticket-row__qty .oct-qty-btn {
+  background: #f8f8f8;
+  border: none;
+  width: 36px;
+  height: 36px;
+  font-size: 18px;
+  font-weight: 400;
+  cursor: pointer;
+  color: #1a1a1a;
+  transition: background 0.1s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.oct-ticket-row__qty .oct-qty-btn:hover {
+  background: #eee;
+}
+
+.oct-ticket-row__qty .oct-qty-val {
+  min-width: 36px;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  padding: 0 4px;
+  line-height: 36px;
+  display: inline-block;
+}
+
+.oct-ticket-row--selected .oct-ticket-row__qty {
+  border-color: #C8A96E;
+}
+
 /* ---------- Quantity ---------- */
 .oct-qty-control {
   display: inline-flex;
