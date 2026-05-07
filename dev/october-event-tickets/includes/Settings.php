@@ -223,6 +223,60 @@ class Settings {
             'oct-tickets-settings',
             'oct_checkin_app'
         );
+
+        // Terms & Conditions section
+        add_settings_section(
+            'oct_terms',
+            __('Terms &amp; Conditions', 'october-event-tickets'),
+            function() {
+                echo '<p>' . esc_html__('When set, buyers must tick a T&Cs checkbox at checkout before purchasing.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'terms_url',
+            __('T&Cs Page URL', 'october-event-tickets'),
+            [$this, 'render_text_field'],
+            'oct-tickets-settings',
+            'oct_terms',
+            ['key' => 'terms_url', 'type' => 'url']
+        );
+
+        // Tax / VAT section
+        add_settings_section(
+            'oct_tax',
+            __('Tax / VAT', 'october-event-tickets'),
+            function() {
+                echo '<p>' . esc_html__('Leave rate at 0 to disable tax display entirely.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'tax_rate',
+            __('Tax Rate (%)', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('tax_rate', '0'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[tax_rate]');
+                echo '<input type="number" name="' . $name . '" value="' . $value . '" min="0" max="100" step="0.01" style="width:80px;" /> %';
+                echo '<p class="description">' . esc_html__('e.g. 20 for 20% VAT. Applied to subtotal after any discount.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings',
+            'oct_tax'
+        );
+
+        add_settings_field(
+            'tax_label',
+            __('Tax Label', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('tax_label', 'VAT'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[tax_label]');
+                echo '<input type="text" name="' . $name . '" value="' . $value . '" class="regular-text" placeholder="VAT" />';
+            },
+            'oct-tickets-settings',
+            'oct_tax'
+        );
     }
 
     public function sanitize_settings(array $input): array {
@@ -255,6 +309,10 @@ class Settings {
             ? $input['currency']
             : 'USD';
         $clean['checkin_logo_url'] = esc_url_raw($input['checkin_logo_url'] ?? '');
+        $clean['terms_url']        = esc_url_raw($input['terms_url'] ?? '');
+        $tax_rate = floatval($input['tax_rate'] ?? 0);
+        $clean['tax_rate']         = (string) max(0, min(100, $tax_rate));
+        $clean['tax_label']        = sanitize_text_field($input['tax_label'] ?? 'VAT');
 
         return $clean;
     }

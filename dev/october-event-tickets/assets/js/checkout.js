@@ -4,12 +4,15 @@
   'use strict';
 
   // ---- Config ----
-  var cfg           = window.octCheckout || {};
-  var ajaxUrl       = cfg.ajaxUrl || '';
-  var nonce         = cfg.nonce || '';
-  var stripeKey     = cfg.stripePublishable || '';
-  var currency      = (cfg.currency || 'USD').toUpperCase();
+  var cfg            = window.octCheckout || {};
+  var ajaxUrl        = cfg.ajaxUrl || '';
+  var nonce          = cfg.nonce || '';
+  var stripeKey      = cfg.stripePublishable || '';
+  var currency       = (cfg.currency || 'USD').toUpperCase();
   var currencySymbol = cfg.currencySymbol || '$';
+  var taxRate        = parseFloat(cfg.taxRate) || 0;
+  var taxLabel       = cfg.taxLabel || 'Tax';
+  var termsUrl       = cfg.termsUrl || '';
 
   // ---- State ----
   var state = {
@@ -21,12 +24,14 @@
     discountAmount:   0,
     promoValid:       false,
     subtotal:         0,
+    taxAmount:        0,
     total:            0,
     stripeReady:      false,
     stripe:           null,
     cardElement:      null,
     paypalRendered:   false,
     processing:       false,
+    hasTerms:         false,
   };
 
   // ---- Init ----
@@ -34,7 +39,8 @@
     var $checkout = $('.oct-checkout');
     if (!$checkout.length) return;
 
-    state.eventId = parseInt($checkout.data('event-id'), 10) || 0;
+    state.eventId  = parseInt($checkout.data('event-id'), 10) || 0;
+    state.hasTerms = $checkout.data('has-terms') === '1' || $checkout.data('has-terms') === 1;
 
     var $json = $('#oct-ticket-data-' + state.eventId);
     if ($json.length) {
@@ -54,7 +60,6 @@
 
   // ---- Ticket rows with inline qty ----
   function bindTicketRows() {
-    // Plus button
     $(document).on('click', '.oct-ticket-row__qty [data-action="plus"]', function (e) {
       e.stopPropagation();
       var $row = $(this).closest('.oct-ticket-row');
@@ -63,15 +68,12 @@
       var current = parseInt($val.text(), 10) || 0;
       if (current >= 10) return;
 
-      // Deselect all other rows
       resetOtherRows($row);
-
       $val.text(current + 1);
       state.qty = current + 1;
       selectRow($row);
     });
 
-    // Minus button
     $(document).on('click', '.oct-ticket-row__qty [data-action="minus"]', function (e) {
       e.stopPropagation();
       var $row = $(this).closest('.oct-ticket-row');
@@ -92,7 +94,6 @@
       updateSummary();
     });
 
-    // Click on row (not qty buttons) — select and set qty to 1 if 0
     $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
       if ($(e.target).closest('.oct-ticket-row__qty').length) return;
       var $row = $(this);
@@ -108,7 +109,6 @@
       selectRow($row);
     });
 
-    // Keyboard
     $(document).on('keypress', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
       if (e.which === 13 || e.which === 32) {
         e.preventDefault();
@@ -139,7 +139,6 @@
       }
     }
 
-    // Reset promo when ticket changes
     state.promoCode      = '';
     state.discountAmount = 0;
     state.promoValid     = false;
@@ -147,6 +146,58 @@
     $('#oct-promo-message').hide();
 
     updateSummary();
+  }
+
+  // ---- Attendee names ----
+  function updateAttendeeNames() {
+    var $section = $('#oct-attendee-names-section');
+    var $fields  = $('#oct-attendee-names-fields');
+    var qty      = state.qty;
+
+    if (!state.selectedType || qty < 1) {
+      $section.hide();
+      return;
+    }
+
+    // Build the right number of name fields
+    var existing = $fields.find('.oct-attendee-name').length;
+    if (existing === qty) {
+      $section.show();
+      return;
+    }
+
+    $fields.empty();
+    for (var i = 1; i <= qty; i++) {
+      var $group = $('<div class="oct-field-group"></div>');
+      var label  = qty === 1 ? 'Attendee Name' : 'Attendee ' + i + ' Name';
+      $group.append('<label class="oct-label">' + label + '</label>');
+      $group.append(
+        '<input type="text" class="oct-input oct-attendee-name" data-index="' + i + '" placeholder="Full name (optional)" autocomplete="off">'
+      );
+      $fields.append($group);
+    }
+
+    $section.show();
+  }
+
+  function getAttendeeNames() {
+    var names = [];
+    $('#oct-attendee-names-fields .oct-attendee-name').each(function () {
+      names.push($(this).val().trim());
+    });
+    return names;
+  }
+
+  // ---- T&Cs validation ----
+  function checkTerms() {
+    if (!state.hasTerms) return true;
+    var checked = $('#oct-terms-checkbox').is(':checked');
+    if (!checked) {
+      $('#oct-terms-error').show();
+    } else {
+      $('#oct-terms-error').hide();
+    }
+    return checked;
   }
 
   // ---- Promo code ----
@@ -208,10 +259,13 @@
   function updateSummary() {
     var subtotal = getSubtotal();
     var discount = state.promoValid ? state.discountAmount : 0;
-    var total    = Math.max(0, subtotal - discount);
+    var taxBase  = Math.max(0, subtotal - discount);
+    var tax      = taxRate > 0 ? Math.round(taxBase * taxRate) / 100 : 0;
+    var total    = Math.round((taxBase + tax) * 100) / 100;
 
-    state.subtotal = subtotal;
-    state.total    = total;
+    state.subtotal   = subtotal;
+    state.taxAmount  = tax;
+    state.total      = total;
 
     if (state.selectedType && state.qty > 0) {
       $('#oct-summary-type').text(state.selectedType.label);
@@ -230,10 +284,19 @@
       $('#oct-discount-row').hide();
     }
 
+    if (tax > 0) {
+      $('#oct-tax-row').show();
+      $('#oct-tax-label').text(taxLabel + ' (' + taxRate + '%)');
+      $('#oct-summary-tax').text(currencySymbol + tax.toFixed(2));
+    } else {
+      $('#oct-tax-row').hide();
+    }
+
     $('#oct-summary-total').text(currencySymbol + total.toFixed(2));
     $('#oct-card-btn-amount').text(currencySymbol + total.toFixed(2));
 
-    // Toggle payment vs free registration
+    updateAttendeeNames();
+
     var isFree = state.selectedType && state.qty > 0 && total === 0;
     $('#oct-payment-section').toggle(!isFree);
     $('#oct-free-section').toggle(isFree);
@@ -242,7 +305,7 @@
   // ---- Payment tabs ----
   function bindPaymentTabs() {
     $(document).on('click', '.oct-tab', function () {
-      var $this = $(this);
+      var $this  = $(this);
       var target = $this.attr('aria-controls');
 
       $('.oct-tab').removeClass('oct-tab--active').attr('aria-selected', 'false');
@@ -273,24 +336,25 @@
       $('#oct-free-errors').text('Please enter a valid email address.').show();
       return;
     }
-
     if (!state.selectedType || state.qty <= 0) {
       $('#oct-free-errors').text('Please select a ticket type.').show();
       return;
     }
+    if (!checkTerms()) return;
 
     $('#oct-free-errors').hide();
     setProcessing(true, '#oct-register-free');
 
     $.post(ajaxUrl, {
-      action:          'oct_register_free',
-      nonce:           nonce,
-      event_id:        state.eventId,
-      ticket_type_key: state.selectedType.key,
-      qty:             state.qty,
-      promo_code:      state.promoCode,
-      name:            name,
-      email:           email,
+      action:           'oct_register_free',
+      nonce:            nonce,
+      event_id:         state.eventId,
+      ticket_type_key:  state.selectedType.key,
+      qty:              state.qty,
+      promo_code:       state.promoCode,
+      name:             name,
+      email:            email,
+      attendee_names:   getAttendeeNames(),
     }, function (res) {
       setProcessing(false, '#oct-register-free');
       if (res.success) {
@@ -321,10 +385,7 @@
           color:      '#1a1a1a',
           '::placeholder': { color: '#aab7c4' },
         },
-        invalid: {
-          color: '#e53935',
-          iconColor: '#e53935',
-        },
+        invalid: { color: '#e53935', iconColor: '#e53935' },
       },
       hidePostalCode: false,
     });
@@ -332,18 +393,10 @@
     state.cardElement.mount('#oct-stripe-elements');
     state.stripeReady = true;
 
-    state.cardElement.on('focus', function () {
-      $('#oct-stripe-elements').addClass('focused');
-    });
-    state.cardElement.on('blur', function () {
-      $('#oct-stripe-elements').removeClass('focused');
-    });
+    state.cardElement.on('focus', function () { $('#oct-stripe-elements').addClass('focused'); });
+    state.cardElement.on('blur',  function () { $('#oct-stripe-elements').removeClass('focused'); });
     state.cardElement.on('change', function (event) {
-      if (event.error) {
-        showCardError(event.error.message);
-      } else {
-        hideCardError();
-      }
+      if (event.error) { showCardError(event.error.message); } else { hideCardError(); }
     });
 
     $('#oct-pay-card').on('click', handleCardPayment);
@@ -360,9 +413,12 @@
       showCardError('Please enter a valid email address.');
       return;
     }
-
     if (!state.selectedType || state.qty <= 0) {
       showCardError('Please select a ticket type.');
+      return;
+    }
+    if (!checkTerms()) {
+      showCardError('Please agree to the Terms & Conditions.');
       return;
     }
 
@@ -389,7 +445,7 @@
 
       state.stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: state.cardElement,
+          card:            state.cardElement,
           billing_details: { name: name, email: email },
         },
       }).then(function (result) {
@@ -409,6 +465,7 @@
           name:              name,
           email:             email,
           promo_code:        state.promoCode,
+          attendee_names:    getAttendeeNames(),
         }, function (res2) {
           setProcessing(false, '#oct-pay-card');
           if (res2.success) {
@@ -427,13 +484,8 @@
     });
   }
 
-  function showCardError(msg) {
-    $('#oct-card-errors').text(msg).show();
-  }
-
-  function hideCardError() {
-    $('#oct-card-errors').hide().text('');
-  }
+  function showCardError(msg) { $('#oct-card-errors').text(msg).show(); }
+  function hideCardError()    { $('#oct-card-errors').hide().text(''); }
 
   // ---- PayPal ----
   function initPayPal() {
@@ -447,15 +499,9 @@
     state.paypalRendered = true;
 
     var fundingSources = [];
-    if (paypal.FUNDING && paypal.FUNDING.PAYLATER) {
-      fundingSources.push(paypal.FUNDING.PAYLATER);
-    }
-    if (paypal.FUNDING && paypal.FUNDING.PAYPAL) {
-      fundingSources.push(paypal.FUNDING.PAYPAL);
-    }
-    if (!fundingSources.length) {
-      fundingSources = ['paylater', 'paypal'];
-    }
+    if (paypal.FUNDING && paypal.FUNDING.PAYLATER) { fundingSources.push(paypal.FUNDING.PAYLATER); }
+    if (paypal.FUNDING && paypal.FUNDING.PAYPAL)   { fundingSources.push(paypal.FUNDING.PAYPAL); }
+    if (!fundingSources.length) { fundingSources = ['paylater', 'paypal']; }
 
     fundingSources.forEach(function (fundingSource) {
       paypal.Buttons({
@@ -471,6 +517,9 @@
           if (!state.selectedType || state.qty <= 0) {
             $('#oct-paypal-errors').text('Please select a ticket type.').show();
             return Promise.reject('no_ticket');
+          }
+          if (!checkTerms()) {
+            return Promise.reject('terms_required');
           }
           $('#oct-paypal-errors').hide();
 
@@ -514,6 +563,7 @@
               name:            name,
               email:           email,
               promo_code:      state.promoCode,
+              attendee_names:  getAttendeeNames(),
             }, function (res) {
               if (res.success) {
                 showSuccess(res.data.ticket_urls || []);
@@ -535,9 +585,7 @@
           $('#oct-paypal-errors').text('PayPal encountered an error. Please try again.').show();
         },
 
-        onCancel: function () {
-          $('#oct-paypal-errors').hide();
-        },
+        onCancel: function () { $('#oct-paypal-errors').hide(); },
       }).render('#oct-paypal-buttons');
     });
   }

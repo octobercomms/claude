@@ -208,6 +208,40 @@
   -webkit-appearance: none;
 }
 
+/* ---------- Terms & Conditions ---------- */
+.oct-terms-section {
+  padding: 16px 0 4px;
+}
+
+.oct-terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.oct-terms-checkbox {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-top: 2px;
+  accent-color: #C8A96E;
+  cursor: pointer;
+}
+
+.oct-terms-label a {
+  color: #C8A96E;
+  text-decoration: underline;
+}
+
+/* ---------- Attendee names ---------- */
+#oct-attendee-names-section .oct-section__title {
+  font-size: 14px;
+}
+
 /* ---------- Labels & inputs ---------- */
 .oct-label {
   display: block;
@@ -289,6 +323,12 @@
   background: #fef2f2;
   color: #991b1b;
   border: 1px solid #fca5a5;
+}
+
+/* ---------- Section dividers ---------- */
+.oct-section + .oct-section {
+  border-top: 1px solid #f0f0f0;
+  padding-top: 24px;
 }
 
 /* ---------- Order summary ---------- */
@@ -597,6 +637,16 @@
 
 @keyframes oct-spin {
   to { transform: rotate(360deg); }
+}
+
+/* ---------- Tax row ---------- */
+.oct-summary-row.oct-summary-tax {
+  color: #555;
+}
+
+/* ---------- Free registration button ---------- */
+#oct-free-section {
+  padding-top: 4px;
 }
 
 /* ---------- Responsive ---------- */

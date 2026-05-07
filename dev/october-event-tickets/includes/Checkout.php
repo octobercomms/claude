@@ -245,6 +245,12 @@ class Checkout {
             }
         }
 
+        $effective_price_confirm = isset($ticket_type['sale_price']) && $ticket_type['sale_price'] !== null
+            ? (float) $ticket_type['sale_price']
+            : (float) $ticket_type['price'];
+        $subtotal_confirm = round($effective_price_confirm * $qty, 2);
+        $tax_amount       = $this->calculate_tax(max(0, $subtotal_confirm - $discount_amount));
+
         $result = TicketGenerator::get_instance()->create_order_and_tickets(
             [
                 'event_id'        => $event_id,
@@ -253,6 +259,8 @@ class Checkout {
                 'qty'             => $qty,
                 'promo_code'      => $promo_code,
                 'discount_amount' => $discount_amount,
+                'tax_amount'      => $tax_amount,
+                'attendee_names'  => $this->sanitize_attendee_names(),
             ],
             $ticket_type,
             $payment_intent_id,
@@ -406,6 +414,12 @@ class Checkout {
 
         $capture_id = PayPalGateway::get_instance()->get_capture_id($capture);
 
+        $effective_price_pp = isset($ticket_type['sale_price']) && $ticket_type['sale_price'] !== null
+            ? (float) $ticket_type['sale_price']
+            : (float) $ticket_type['price'];
+        $subtotal_pp = round($effective_price_pp * $qty, 2);
+        $tax_pp      = $this->calculate_tax(max(0, $subtotal_pp - $discount_amount));
+
         $result = TicketGenerator::get_instance()->create_order_and_tickets(
             [
                 'event_id'        => $event_id,
@@ -414,6 +428,8 @@ class Checkout {
                 'qty'             => $qty,
                 'promo_code'      => $promo_code,
                 'discount_amount' => $discount_amount,
+                'tax_amount'      => $tax_pp,
+                'attendee_names'  => $this->sanitize_attendee_names(),
             ],
             $ticket_type,
             $capture_id ?: $paypal_order_id,
@@ -437,6 +453,18 @@ class Checkout {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    private function calculate_tax(float $taxable_amount): float {
+        $rate = floatval(Settings::get_instance()->get('tax_rate', '0'));
+        if ($rate <= 0) return 0.0;
+        return round($taxable_amount * $rate / 100, 2);
+    }
+
+    private function sanitize_attendee_names(): array {
+        $raw = $_POST['attendee_names'] ?? [];
+        if (!is_array($raw)) return [];
+        return array_map('sanitize_text_field', $raw);
+    }
 
     private function send_confirmation_email(int $order_id): void {
         $order      = DB::get_order($order_id);
@@ -497,7 +525,8 @@ class Checkout {
             }
         }
 
-        $total = max(0.0, $subtotal - $discount_amount);
+        $tax_free = $this->calculate_tax(max(0, $subtotal - $discount_amount));
+        $total    = max(0.0, $subtotal - $discount_amount + $tax_free);
         if ($total > 0) {
             wp_send_json_error(['message' => __('This ticket type requires payment.', 'october-event-tickets')]);
         }
@@ -510,6 +539,8 @@ class Checkout {
                 'qty'             => $qty,
                 'promo_code'      => $promo_code,
                 'discount_amount' => $discount_amount,
+                'tax_amount'      => $tax_free,
+                'attendee_names'  => $this->sanitize_attendee_names(),
             ],
             $ticket_type,
             'free_' . uniqid(),

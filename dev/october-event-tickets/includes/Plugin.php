@@ -36,11 +36,16 @@ final class Plugin {
         DailyReport::get_instance()->init();
 
         Waitlist::get_instance()->init();
+        EventReminder::get_instance()->init();
 
         // Auto-upgrade DB on version change
         if (DB::needs_upgrade()) {
             DB::upgrade();
         }
+
+        // Ensure cron jobs are scheduled for existing installs
+        DailyReport::schedule();
+        EventReminder::schedule();
 
         // Rewrite rules & query vars
         add_action('init', [$this, 'register_rewrite_rules']);
@@ -189,6 +194,9 @@ final class Plugin {
                 'stripePublishable' => $settings->get('stripe_publishable_key'),
                 'currency'          => $currency,
                 'currencySymbol'    => $settings->get_currency_symbol(),
+                'taxRate'           => floatval($settings->get('tax_rate', '0')),
+                'taxLabel'          => $settings->get('tax_label', 'VAT'),
+                'termsUrl'          => $settings->get('terms_url'),
             ]);
         }
     }

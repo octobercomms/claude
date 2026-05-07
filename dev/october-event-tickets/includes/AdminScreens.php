@@ -24,6 +24,8 @@ class AdminScreens {
     public function init(): void {
         add_action('admin_menu', [$this, 'register_menus']);
         add_action('admin_post_oct_cancel_order',      [$this, 'handle_cancel_order']);
+        add_action('admin_post_oct_refund_order',      [$this, 'handle_refund_order']);
+        add_action('admin_post_oct_resend_email',      [$this, 'handle_resend_email']);
         add_action('admin_post_oct_export_orders',     [$this, 'handle_export_orders']);
         add_action('admin_post_oct_save_promo',        [$this, 'handle_save_promo']);
         add_action('admin_post_oct_delete_promo',      [$this, 'handle_delete_promo']);
@@ -328,6 +330,16 @@ class AdminScreens {
             echo '<div class="notice notice-success"><p>' . esc_html__('Selected orders cancelled.', 'october-event-tickets') . '</p></div>';
         }
 
+        if (!empty($_GET['resent'])) {
+            echo '<div class="notice notice-success"><p>' . esc_html__('Confirmation email resent successfully.', 'october-event-tickets') . '</p></div>';
+        }
+        if (!empty($_GET['refunded'])) {
+            echo '<div class="notice notice-success"><p>' . esc_html__('Order refunded and customer notified.', 'october-event-tickets') . '</p></div>';
+        }
+        if (!empty($_GET['cancelled'])) {
+            echo '<div class="notice notice-success"><p>' . esc_html__('Order cancelled.', 'october-event-tickets') . '</p></div>';
+        }
+
         $search   = sanitize_text_field($_GET['search'] ?? '');
         $status   = sanitize_text_field($_GET['status'] ?? '');
         $event_id = (int) ($_GET['event_id'] ?? 0);
@@ -413,7 +425,18 @@ class AdminScreens {
                                     <td><?php echo esc_html(date_i18n(get_option('date_format'), strtotime($order->created_at))); ?></td>
                                     <td>
                                         <a href="<?php echo esc_url(home_url('/oct-ticket/order/' . $order->id . '/?_nonce=' . wp_create_nonce('oct_order_' . $order->id))); ?>" target="_blank"><?php esc_html_e('Tickets', 'october-event-tickets'); ?></a>
-                                        <?php if ($order->status !== 'cancelled') : ?>
+                                        | <a href="<?php echo esc_url(admin_url('admin-post.php?action=oct_resend_email&order_id=' . $order->id . '&_nonce=' . wp_create_nonce('oct_resend_' . $order->id))); ?>"
+                                             onclick="return confirm('<?php esc_attr_e('Resend confirmation email to customer?', 'october-event-tickets'); ?>')"><?php esc_html_e('Resend Email', 'october-event-tickets'); ?></a>
+                                        <?php if ($order->status === 'paid' && $order->payment_method === 'stripe') : ?>
+                                            | <a href="<?php echo esc_url(admin_url('admin-post.php?action=oct_refund_order&order_id=' . $order->id . '&_nonce=' . wp_create_nonce('oct_refund_' . $order->id))); ?>"
+                                                onclick="return confirm('<?php esc_attr_e('Issue a full Stripe refund and cancel this order?', 'october-event-tickets'); ?>')"
+                                                class="oct-link-danger"><?php esc_html_e('Refund', 'october-event-tickets'); ?></a>
+                                        <?php endif; ?>
+                                        <?php if ($order->status === 'paid' && $order->payment_method !== 'stripe') : ?>
+                                            | <a href="<?php echo esc_url(admin_url('admin-post.php?action=oct_cancel_order&order_id=' . $order->id . '&_nonce=' . wp_create_nonce('oct_cancel_' . $order->id))); ?>"
+                                                onclick="return confirm('<?php esc_attr_e('Cancel this order?', 'october-event-tickets'); ?>')"
+                                                class="oct-link-danger"><?php esc_html_e('Cancel', 'october-event-tickets'); ?></a>
+                                        <?php elseif ($order->status === 'pending') : ?>
                                             | <a href="<?php echo esc_url(admin_url('admin-post.php?action=oct_cancel_order&order_id=' . $order->id . '&_nonce=' . wp_create_nonce('oct_cancel_' . $order->id))); ?>"
                                                 onclick="return confirm('<?php esc_attr_e('Cancel this order?', 'october-event-tickets'); ?>')"
                                                 class="oct-link-danger"><?php esc_html_e('Cancel', 'october-event-tickets'); ?></a>
@@ -672,6 +695,104 @@ class AdminScreens {
         }
 
         wp_safe_redirect(admin_url('admin.php?page=oct-registrations&cancelled=' . $order_id));
+        exit;
+    }
+
+    public function handle_resend_email(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Permission denied.', 'october-event-tickets'));
+        }
+
+        $order_id = (int) ($_GET['order_id'] ?? 0);
+        if (!$order_id || !wp_verify_nonce(sanitize_text_field($_GET['_nonce'] ?? ''), 'oct_resend_' . $order_id)) {
+            wp_die(esc_html__('Invalid request.', 'october-event-tickets'));
+        }
+
+        $order      = DB::get_order($order_id);
+        $tickets_db = DB::get_tickets_by_order($order_id);
+        $event      = $order ? get_post((int) $order->event_id) : null;
+        $event_meta = $order ? TicketGenerator::get_instance()->get_event_meta((int) $order->event_id) : [];
+
+        if ($order && $tickets_db && $event) {
+            Brevo::get_instance()->send_order_confirmation($order, $tickets_db, $event, $event_meta);
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=oct-registrations&resent=' . $order_id));
+        exit;
+    }
+
+    public function handle_refund_order(): void {
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('Permission denied.', 'october-event-tickets'));
+        }
+
+        $order_id = (int) ($_GET['order_id'] ?? 0);
+        if (!$order_id || !wp_verify_nonce(sanitize_text_field($_GET['_nonce'] ?? ''), 'oct_refund_' . $order_id)) {
+            wp_die(esc_html__('Invalid request.', 'october-event-tickets'));
+        }
+
+        $order = DB::get_order($order_id);
+        if (!$order || $order->status !== 'paid' || $order->payment_method !== 'stripe') {
+            wp_die(esc_html__('Order cannot be refunded.', 'october-event-tickets'));
+        }
+
+        // Call Stripe Refunds API
+        $secret_key = Settings::get_instance()->get('stripe_secret_key');
+        if (!$secret_key) {
+            wp_die(esc_html__('Stripe secret key is not configured.', 'october-event-tickets'));
+        }
+
+        $response = wp_remote_post('https://api.stripe.com/v1/refunds', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $secret_key,
+                'Content-Type'  => 'application/x-www-form-urlencoded',
+            ],
+            'body'    => ['payment_intent' => $order->payment_id],
+            'timeout' => 30,
+        ]);
+
+        if (is_wp_error($response)) {
+            wp_die(esc_html(sprintf(__('Stripe error: %s', 'october-event-tickets'), $response->get_error_message())));
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        $body = json_decode(wp_remote_retrieve_body($response), true) ?? [];
+
+        if ($code < 200 || $code >= 300) {
+            $msg = $body['error']['message'] ?? __('Stripe refund failed.', 'october-event-tickets');
+            wp_die(esc_html($msg));
+        }
+
+        // Mark order refunded and cancel tickets
+        DB::update_order_status($order_id, 'refunded');
+        DB::cancel_tickets_by_order($order_id);
+
+        // Send refund confirmation email to customer
+        $event = get_post((int) $order->event_id);
+        if ($event) {
+            $subject = sprintf(__('Your refund for %s', 'october-event-tickets'), $event->post_title);
+            $amount  = Settings::get_instance()->get_currency_symbol() . number_format((float) $order->total, 2);
+            $html    = '<p>' . sprintf(
+                esc_html__('Hi %s,', 'october-event-tickets'),
+                esc_html($order->name ?: $order->email)
+            ) . '</p>';
+            $html   .= '<p>' . sprintf(
+                esc_html__('Your order #%d for %s has been refunded. The amount of %s will be returned to your original payment method within 5–10 business days.', 'october-event-tickets'),
+                $order_id,
+                esc_html($event->post_title),
+                esc_html($amount)
+            ) . '</p>';
+            $html   .= '<p>' . esc_html__('If you have any questions, please contact us.', 'october-event-tickets') . '</p>';
+
+            Brevo::get_instance()->send(
+                sanitize_email($order->email),
+                sanitize_text_field($order->name ?: $order->email),
+                $subject,
+                $html
+            );
+        }
+
+        wp_safe_redirect(admin_url('admin.php?page=oct-registrations&refunded=' . $order_id));
         exit;
     }
 

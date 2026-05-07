@@ -16,7 +16,7 @@ $has_paypal = (bool) \OctoberTickets\Settings::get_instance()->get('paypal_clien
 $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publishable_key');
 ?>
 
-<div class="oct-checkout" id="oct-checkout-<?php echo esc_attr((string) $event_id); ?>" data-event-id="<?php echo esc_attr((string) $event_id); ?>">
+<div class="oct-checkout" id="oct-checkout-<?php echo esc_attr((string) $event_id); ?>" data-event-id="<?php echo esc_attr((string) $event_id); ?>" data-has-terms="<?php echo esc_attr($terms_url ? '1' : '0'); ?>">
 
   <!-- Success State (hidden until payment completes) -->
   <div class="oct-success" id="oct-success" style="display:none">
@@ -148,6 +148,10 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
         <span class="oct-summary-label oct-discount-label"><?php esc_html_e('Discount', 'october-event-tickets'); ?></span>
         <span class="oct-summary-price oct-discount-value" id="oct-summary-discount"></span>
       </div>
+      <div class="oct-summary-row" id="oct-tax-row" style="display:none">
+        <span class="oct-summary-label" id="oct-tax-label"></span>
+        <span class="oct-summary-price" id="oct-summary-tax"></span>
+      </div>
       <div class="oct-summary-row oct-summary-total">
         <span class="oct-summary-label"><?php esc_html_e('Total', 'october-event-tickets'); ?></span>
         <span class="oct-summary-price" id="oct-summary-total"><?php echo esc_html($currency_symbol . '0.00'); ?></span>
@@ -169,6 +173,31 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
         <span class="oct-field-hint"><?php esc_html_e('Tickets will be sent here.', 'october-event-tickets'); ?></span>
       </div>
     </div>
+
+    <!-- Attendee Names (shown by JS when qty > 1) -->
+    <div class="oct-section" id="oct-attendee-names-section" style="display:none">
+      <h3 class="oct-section__title"><?php esc_html_e('Attendee Names', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></h3>
+      <p class="oct-field-hint" style="margin-bottom:12px;"><?php esc_html_e('Add names for each ticket — useful for group bookings.', 'october-event-tickets'); ?></p>
+      <div id="oct-attendee-names-fields"></div>
+    </div>
+
+    <!-- Terms & Conditions (shown by JS when terms_url is set) -->
+    <?php
+    $terms_url = \OctoberTickets\Settings::get_instance()->get('terms_url');
+    if ($terms_url) :
+    ?>
+    <div class="oct-section oct-terms-section">
+      <label class="oct-terms-label">
+        <input type="checkbox" id="oct-terms-checkbox" class="oct-terms-checkbox">
+        <span>
+          <?php esc_html_e('I agree to the', 'october-event-tickets'); ?>
+          <a href="<?php echo esc_url($terms_url); ?>" target="_blank" rel="noopener"><?php esc_html_e('Terms &amp; Conditions', 'october-event-tickets'); ?></a>
+          <span class="oct-required" aria-hidden="true">*</span>
+        </span>
+      </label>
+      <div id="oct-terms-error" class="oct-field-hint" style="color:#e53935;display:none;"><?php esc_html_e('Please agree to the Terms & Conditions to continue.', 'october-event-tickets'); ?></div>
+    </div>
+    <?php endif; ?>
 
     <!-- Step 5: Payment -->
     <div id="oct-payment-section">

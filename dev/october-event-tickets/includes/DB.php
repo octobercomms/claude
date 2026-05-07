@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 class DB {
 
     const VERSION_OPTION = 'oct_tickets_db_version';
-    const DB_VERSION     = '1.1.0';
+    const DB_VERSION     = '1.2.0';
 
     public static function create_tables(): void {
         global $wpdb;
@@ -31,6 +31,7 @@ class DB {
             unit_price decimal(10,2) NOT NULL,
             promo_code varchar(50) DEFAULT NULL,
             discount_amount decimal(10,2) DEFAULT 0.00,
+            tax_amount decimal(10,2) DEFAULT 0.00,
             total decimal(10,2) NOT NULL,
             currency varchar(3) DEFAULT 'USD',
             payment_method enum('stripe','paypal') NOT NULL,
@@ -126,8 +127,12 @@ class DB {
         $stored = get_option(self::VERSION_OPTION, '0');
 
         if (version_compare($stored, '1.1.0', '<')) {
-            // Expand payment_method to include 'free'
             $wpdb->query("ALTER TABLE {$wpdb->prefix}oct_orders MODIFY COLUMN payment_method ENUM('stripe','paypal','free') NOT NULL");
+            self::create_tables();
+        }
+
+        if (version_compare($stored, '1.2.0', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}oct_orders ADD COLUMN IF NOT EXISTS tax_amount decimal(10,2) DEFAULT 0.00 AFTER discount_amount");
             self::create_tables();
         }
 
