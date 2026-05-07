@@ -60,41 +60,43 @@
 
   // ---- Ticket rows with inline qty ----
   function bindTicketRows() {
-    // Direct binding to each qty button — more reliable than document delegation
-    // in environments where themes/page-builders call stopImmediatePropagation.
-    $('.oct-ticket-row__qty .oct-qty-btn').each(function () {
-      $(this).on('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
+    // Native capture-phase listener on document — fires before any bubble-phase
+    // handler that themes or page-builders might attach with stopImmediatePropagation.
+    document.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.oct-qty-btn') : null;
+      if (!btn) return;
+      if (!btn.closest('.oct-ticket-row__qty')) return;
 
-        var action = $(this).data('action');
-        var $row   = $(this).closest('.oct-ticket-row');
-        if ($row.hasClass('oct-ticket-row--unavailable')) return;
+      e.preventDefault();
+      e.stopPropagation();
 
-        var $val    = $row.find('.oct-qty-val');
-        var current = parseInt($val.text(), 10) || 0;
+      var action  = btn.getAttribute('data-action');
+      var $btn    = $(btn);
+      var $row    = $btn.closest('.oct-ticket-row');
+      if ($row.hasClass('oct-ticket-row--unavailable')) return;
 
-        if (action === 'plus') {
-          if (current >= 10) return;
-          resetOtherRows($row);
-          $val.text(current + 1);
-          state.qty = current + 1;
-          selectRow($row);
+      var $val    = $row.find('.oct-qty-val');
+      var current = parseInt($val.text(), 10) || 0;
+
+      if (action === 'plus') {
+        if (current >= 10) return;
+        resetOtherRows($row);
+        $val.text(current + 1);
+        state.qty = current + 1;
+        selectRow($row);
+      } else {
+        if (current <= 0) return;
+        $val.text(current - 1);
+        state.qty = current - 1;
+        if (state.qty === 0) {
+          $row.removeClass('oct-ticket-row--selected');
+          state.selectedType = null;
+          updateSummary();
         } else {
-          if (current <= 0) return;
-          $val.text(current - 1);
-          state.qty = current - 1;
-          if (state.qty === 0) {
-            $row.removeClass('oct-ticket-row--selected');
-            state.selectedType = null;
-            updateSummary();
-          } else {
-            selectRow($row);
-          }
+          selectRow($row);
         }
-      });
-    });
+      }
+    }, true); // true = capture phase
 
     // Row click (anywhere except the qty control) — selects the row and sets qty to 1
     $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
