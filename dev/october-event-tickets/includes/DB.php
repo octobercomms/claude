@@ -409,6 +409,102 @@ class DB {
     }
 
     // -------------------------------------------------------------------------
+    // Stats / Reporting
+    // -------------------------------------------------------------------------
+
+    /**
+     * Count individual tickets sold for a specific ticket type on an event.
+     * Used for capacity checks.
+     */
+    public static function get_tickets_sold_count(int $event_id, string $ticket_type_key): int {
+        global $wpdb;
+        return (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(t.id)
+                 FROM {$wpdb->prefix}oct_tickets t
+                 JOIN {$wpdb->prefix}oct_orders o ON o.id = t.order_id
+                 WHERE t.event_id = %d
+                   AND o.ticket_type_key = %s
+                   AND o.status = 'paid'
+                   AND t.status = 'active'",
+                $event_id,
+                $ticket_type_key
+            )
+        );
+    }
+
+    /**
+     * Daily ticket sales (tickets + revenue) for the last N days.
+     * Returns rows: sale_date (Y-m-d), tickets_count, revenue.
+     */
+    public static function get_daily_sales(int $days = 30): array {
+        global $wpdb;
+        return (array) $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT
+                    DATE(o.created_at)  AS sale_date,
+                    COUNT(t.id)         AS tickets_count,
+                    SUM(o.total)        AS revenue
+                 FROM {$wpdb->prefix}oct_orders o
+                 JOIN {$wpdb->prefix}oct_tickets t ON t.order_id = o.id
+                 WHERE o.status = 'paid'
+                   AND o.created_at >= DATE_SUB(NOW(), INTERVAL %d DAY)
+                 GROUP BY DATE(o.created_at)
+                 ORDER BY sale_date ASC",
+                $days
+            )
+        );
+    }
+
+    /**
+     * Per-event sales summary. Optionally limit to today only.
+     * Returns rows: event_id, event_title, total_tickets, total_revenue, last_sale.
+     */
+    public static function get_event_sales_summary(bool $today_only = false): array {
+        global $wpdb;
+
+        $where = $today_only ? "AND DATE(o.created_at) = CURDATE()" : "";
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        return (array) $wpdb->get_results(
+            "SELECT
+                o.event_id,
+                p.post_title                AS event_title,
+                COUNT(t.id)                 AS total_tickets,
+                SUM(o.total)                AS total_revenue,
+                MAX(o.created_at)           AS last_sale
+             FROM {$wpdb->prefix}oct_orders o
+             JOIN {$wpdb->prefix}oct_tickets t ON t.order_id = o.id
+             JOIN {$wpdb->prefix}posts p ON p.ID = o.event_id
+             WHERE o.status = 'paid'
+             AND t.status = 'active'
+             $where
+             GROUP BY o.event_id
+             ORDER BY last_sale DESC"
+        );
+    }
+
+    /**
+     * Overall totals: total tickets sold, total revenue, tickets sold today.
+     */
+    public static function get_overall_stats(): object {
+        global $wpdb;
+        $row = $wpdb->get_row(
+            "SELECT
+                COUNT(t.id)                                             AS total_tickets,
+                COALESCE(SUM(o.total), 0)                               AS total_revenue,
+                SUM(DATE(o.created_at) = CURDATE())                     AS tickets_today,
+                COALESCE(SUM(CASE WHEN DATE(o.created_at) = CURDATE() THEN o.total ELSE 0 END), 0)
+                                                                        AS revenue_today
+             FROM {$wpdb->prefix}oct_orders o
+             JOIN {$wpdb->prefix}oct_tickets t ON t.order_id = o.id
+             WHERE o.status = 'paid'
+             AND t.status = 'active'"
+        );
+        return $row ?: (object)['total_tickets' => 0, 'total_revenue' => 0, 'tickets_today' => 0, 'revenue_today' => 0];
+    }
+
+    // -------------------------------------------------------------------------
     // Drop tables (uninstall)
     // -------------------------------------------------------------------------
 

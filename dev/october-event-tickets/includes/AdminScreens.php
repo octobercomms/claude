@@ -35,6 +35,16 @@ class AdminScreens {
             return;
         }
         wp_enqueue_style('oct-admin', OCT_TICKETS_URL . 'assets/css/admin.css', [], OCT_TICKETS_VERSION);
+
+        if (strpos($hook, 'oct-dashboard') !== false) {
+            wp_enqueue_script(
+                'chart-js',
+                'https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js',
+                [],
+                '4',
+                true
+            );
+        }
     }
 
     public function register_menus(): void {
@@ -46,6 +56,15 @@ class AdminScreens {
             [$this, 'render_registrations'],
             'dashicons-tickets-alt',
             30
+        );
+
+        add_submenu_page(
+            'oct-registrations',
+            __('Dashboard', 'october-event-tickets'),
+            __('Dashboard', 'october-event-tickets'),
+            'manage_options',
+            'oct-dashboard',
+            [$this, 'render_dashboard']
         );
 
         add_submenu_page(
@@ -74,6 +93,166 @@ class AdminScreens {
             'oct-promo-codes',
             [$this, 'render_promo_codes']
         );
+    }
+
+    // =========================================================================
+    // Dashboard Screen
+    // =========================================================================
+
+    public function render_dashboard(): void {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        $settings        = Settings::get_instance();
+        $currency_symbol = $settings->get_currency_symbol();
+        $stats           = DB::get_overall_stats();
+        $per_event       = DB::get_event_sales_summary();
+        $daily           = DB::get_daily_sales(30);
+
+        // Build chart data — fill in missing days with zeroes
+        $labels         = [];
+        $ticket_data    = [];
+        $revenue_data   = [];
+        $daily_indexed  = [];
+        foreach ($daily as $row) {
+            $daily_indexed[$row->sale_date] = $row;
+        }
+        for ($i = 29; $i >= 0; $i--) {
+            $date            = date('Y-m-d', strtotime("-{$i} days"));
+            $labels[]        = date('M j', strtotime($date));
+            $ticket_data[]   = isset($daily_indexed[$date]) ? (int) $daily_indexed[$date]->tickets_count : 0;
+            $revenue_data[]  = isset($daily_indexed[$date]) ? round((float) $daily_indexed[$date]->revenue, 2) : 0;
+        }
+        ?>
+        <div class="wrap oct-dashboard">
+            <h1><?php esc_html_e('Ticket Sales Dashboard', 'october-event-tickets'); ?></h1>
+
+            <!-- Summary Cards -->
+            <div class="oct-stat-cards">
+                <div class="oct-stat-card">
+                    <span class="oct-stat-value"><?php echo esc_html((string)(int)$stats->total_tickets); ?></span>
+                    <span class="oct-stat-label"><?php esc_html_e('Total Tickets Sold', 'october-event-tickets'); ?></span>
+                </div>
+                <div class="oct-stat-card oct-stat-card--green">
+                    <span class="oct-stat-value"><?php echo esc_html($currency_symbol . number_format((float)$stats->total_revenue, 2)); ?></span>
+                    <span class="oct-stat-label"><?php esc_html_e('Total Revenue', 'october-event-tickets'); ?></span>
+                </div>
+                <div class="oct-stat-card oct-stat-card--blue">
+                    <span class="oct-stat-value"><?php echo esc_html((string)(int)$stats->tickets_today); ?></span>
+                    <span class="oct-stat-label"><?php esc_html_e('Tickets Sold Today', 'october-event-tickets'); ?></span>
+                </div>
+                <div class="oct-stat-card oct-stat-card--amber">
+                    <span class="oct-stat-value"><?php echo esc_html($currency_symbol . number_format((float)$stats->revenue_today, 2)); ?></span>
+                    <span class="oct-stat-label"><?php esc_html_e('Revenue Today', 'october-event-tickets'); ?></span>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="oct-charts-row">
+                <div class="oct-chart-wrap">
+                    <h2><?php esc_html_e('Tickets Sold — Last 30 Days', 'october-event-tickets'); ?></h2>
+                    <canvas id="oct-tickets-chart" height="80"></canvas>
+                </div>
+                <div class="oct-chart-wrap">
+                    <h2><?php esc_html_e('Revenue — Last 30 Days', 'october-event-tickets'); ?></h2>
+                    <canvas id="oct-revenue-chart" height="80"></canvas>
+                </div>
+            </div>
+
+            <!-- Per-Event Table -->
+            <h2 style="margin-top:30px;"><?php esc_html_e('Sales by Event', 'october-event-tickets'); ?></h2>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Event', 'october-event-tickets'); ?></th>
+                        <th style="width:120px;"><?php esc_html_e('Tickets Sold', 'october-event-tickets'); ?></th>
+                        <th style="width:140px;"><?php esc_html_e('Revenue', 'october-event-tickets'); ?></th>
+                        <th style="width:160px;"><?php esc_html_e('Last Sale', 'october-event-tickets'); ?></th>
+                        <th style="width:100px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if (empty($per_event)) : ?>
+                    <tr><td colspan="5"><?php esc_html_e('No sales yet.', 'october-event-tickets'); ?></td></tr>
+                <?php else : ?>
+                    <?php foreach ($per_event as $row) : ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($row->event_title); ?></strong></td>
+                        <td><?php echo esc_html((string)(int)$row->total_tickets); ?></td>
+                        <td><?php echo esc_html($currency_symbol . number_format((float)$row->total_revenue, 2)); ?></td>
+                        <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($row->last_sale))); ?></td>
+                        <td>
+                            <a href="<?php echo esc_url(admin_url('admin.php?page=oct-registrations&event_id=' . intval($row->event_id))); ?>">
+                                <?php esc_html_e('View Orders', 'october-event-tickets'); ?>
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
+        <script>
+        (function() {
+            const labels  = <?php echo wp_json_encode($labels); ?>;
+            const tickets = <?php echo wp_json_encode($ticket_data); ?>;
+            const revenue = <?php echo wp_json_encode($revenue_data); ?>;
+            const accent  = '#C8A96E';
+            const blue    = '#4A90D9';
+            const opts    = {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true } }
+            };
+
+            new Chart(document.getElementById('oct-tickets-chart'), {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{ data: tickets, backgroundColor: accent, borderRadius: 3 }]
+                },
+                options: opts
+            });
+
+            new Chart(document.getElementById('oct-revenue-chart'), {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [{
+                        data: revenue,
+                        borderColor: blue,
+                        backgroundColor: blue + '22',
+                        fill: true,
+                        tension: 0.3,
+                        pointRadius: 3
+                    }]
+                },
+                options: opts
+            });
+        })();
+        </script>
+
+        <style>
+        .oct-dashboard .oct-stat-cards {
+            display: flex; gap: 16px; flex-wrap: wrap; margin: 20px 0;
+        }
+        .oct-stat-card {
+            background: #fff; border: 1px solid #ddd; border-radius: 6px;
+            padding: 20px 24px; min-width: 160px; text-align: center;
+            border-top: 4px solid #C8A96E;
+        }
+        .oct-stat-card--green  { border-top-color: #46b450; }
+        .oct-stat-card--blue   { border-top-color: #4A90D9; }
+        .oct-stat-card--amber  { border-top-color: #f0a500; }
+        .oct-stat-value { display: block; font-size: 2rem; font-weight: 700; color: #1a1a1a; }
+        .oct-stat-label { display: block; font-size: 0.8rem; color: #666; margin-top: 4px; }
+        .oct-charts-row { display: flex; gap: 24px; flex-wrap: wrap; margin: 24px 0; }
+        .oct-chart-wrap { flex: 1; min-width: 300px; background: #fff; border: 1px solid #ddd; border-radius: 6px; padding: 16px; }
+        .oct-chart-wrap h2 { margin-top: 0; font-size: 1rem; }
+        </style>
+        <?php
     }
 
     // =========================================================================

@@ -49,12 +49,14 @@ register_activation_hook(__FILE__, function (): void {
     require_once OCT_TICKETS_DIR . 'includes/DB.php';
     \OctoberTickets\DB::create_tables();
     \OctoberTickets\DB::set_version();
+    \OctoberTickets\DailyReport::schedule();
     // Register rewrite rules so we can flush them
     \OctoberTickets\Plugin::get_instance()->register_rewrite_rules();
     flush_rewrite_rules();
 });
 
 register_deactivation_hook(__FILE__, function (): void {
+    \OctoberTickets\DailyReport::unschedule();
     flush_rewrite_rules();
 });
 

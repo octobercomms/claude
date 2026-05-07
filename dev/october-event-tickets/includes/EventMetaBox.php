@@ -66,22 +66,44 @@ class EventMetaBox {
     public function render_meta_box(\WP_Post $post): void {
         wp_nonce_field('oct_ticket_config_save', 'oct_ticket_config_nonce');
 
-        $ticket_types   = $this->get_ticket_types($post->ID);
-        $venues         = $this->get_venues($post->ID);
-        $checkin_pin    = get_post_meta($post->ID, '_oct_checkin_pin', true);
+        $ticket_types    = $this->get_ticket_types($post->ID);
+        $venues          = $this->get_venues($post->ID);
+        $checkin_pin     = get_post_meta($post->ID, '_oct_checkin_pin', true);
+        $event_sale_until = get_post_meta($post->ID, '_oct_tickets_sale_until', true);
+
+        // Format datetime-local value (Y-m-d\TH:i)
+        $event_sale_until_fmt = $event_sale_until
+            ? date('Y-m-d\TH:i', strtotime($event_sale_until))
+            : '';
         ?>
         <div id="oct-metabox-wrap">
 
             <!-- Ticket Types -->
             <div class="oct-section">
                 <h3><?php esc_html_e('Ticket Types', 'october-event-tickets'); ?></h3>
-                <p class="description"><?php esc_html_e('Define the ticket types available for this event. Qty Per Purchase is useful for group tickets (e.g., set 2 for "Couples Ticket").', 'october-event-tickets'); ?></p>
+                <p class="description"><?php esc_html_e('Define the ticket types available for this event. Qty Per Purchase is useful for group tickets (e.g., set 2 for "Couples Ticket"). Sale Opens/Closes control when each ticket type is purchasable — if Opens is in the future the buyer sees "Opens [date]" instead of the buy button.', 'october-event-tickets'); ?></p>
                 <div id="oct-ticket-types">
                     <?php foreach ($ticket_types as $i => $tt) : ?>
                         <?php $this->render_ticket_type_row($i, $tt); ?>
                     <?php endforeach; ?>
                 </div>
                 <button type="button" class="button oct-add-ticket-type"><?php esc_html_e('+ Add Ticket Type', 'october-event-tickets'); ?></button>
+            </div>
+
+            <hr>
+
+            <!-- Event-wide ticket sale period -->
+            <div class="oct-section">
+                <h3><?php esc_html_e('Event Sale Close', 'october-event-tickets'); ?></h3>
+                <p class="description"><?php esc_html_e('After this date and time the entire checkout form closes, regardless of individual ticket type settings. Leave blank to keep sales open indefinitely.', 'october-event-tickets'); ?></p>
+                <label>
+                    <?php esc_html_e('Stop selling tickets on:', 'october-event-tickets'); ?>
+                    <input type="datetime-local"
+                           name="oct_tickets_sale_until"
+                           id="oct_tickets_sale_until"
+                           value="<?php echo esc_attr($event_sale_until_fmt); ?>"
+                           style="margin-left:8px;" />
+                </label>
             </div>
 
             <hr>
@@ -137,6 +159,14 @@ class EventMetaBox {
         $capacity    = esc_attr($tt['capacity'] ?? '');
         $active      = isset($tt['active']) ? (bool) $tt['active'] : true;
         $idx         = $index;
+
+        // Format datetime-local values (Y-m-d\TH:i)
+        $sale_from_fmt  = !empty($tt['sale_from'])
+            ? esc_attr(date('Y-m-d\TH:i', strtotime($tt['sale_from'])))
+            : '';
+        $sale_until_fmt = !empty($tt['sale_until'])
+            ? esc_attr(date('Y-m-d\TH:i', strtotime($tt['sale_until'])))
+            : '';
         ?>
         <div class="oct-repeater-row oct-ticket-type-row" data-index="<?php echo esc_attr((string)$idx); ?>">
             <div class="oct-row-handle">&#9776;</div>
@@ -167,6 +197,16 @@ class EventMetaBox {
                     <label><?php esc_html_e('Capacity', 'october-event-tickets'); ?>
                         <input type="number" name="oct_ticket_types[<?php echo $idx; ?>][capacity]"
                                value="<?php echo $capacity; ?>" min="0" placeholder="Unlimited" />
+                    </label>
+                    <label><?php esc_html_e('Sale Opens', 'october-event-tickets'); ?>
+                        <input type="datetime-local" name="oct_ticket_types[<?php echo $idx; ?>][sale_from]"
+                               value="<?php echo $sale_from_fmt; ?>" />
+                        <span class="description"><?php esc_html_e('Leave blank = on sale immediately', 'october-event-tickets'); ?></span>
+                    </label>
+                    <label><?php esc_html_e('Sale Closes', 'october-event-tickets'); ?>
+                        <input type="datetime-local" name="oct_ticket_types[<?php echo $idx; ?>][sale_until]"
+                               value="<?php echo $sale_until_fmt; ?>" />
+                        <span class="description"><?php esc_html_e('Leave blank = no end date', 'october-event-tickets'); ?></span>
                     </label>
                 </div>
                 <label><?php esc_html_e('Description', 'october-event-tickets'); ?>
@@ -202,18 +242,15 @@ class EventMetaBox {
     }
 
     public function save_meta_box(int $post_id, \WP_Post $post): void {
-        // Nonce check
         if (!isset($_POST['oct_ticket_config_nonce']) ||
             !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['oct_ticket_config_nonce'])), 'oct_ticket_config_save')) {
             return;
         }
 
-        // Capability check
         if (!current_user_can('edit_post', $post_id)) {
             return;
         }
 
-        // Skip autosave / revisions
         if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
             return;
         }
@@ -230,6 +267,11 @@ class EventMetaBox {
             }
             $label = sanitize_text_field($tt['label']);
             $key   = !empty($tt['key']) ? sanitize_title($tt['key']) : sanitize_title($label);
+
+            // Parse and validate datetime-local values → store as Y-m-d H:i:s
+            $sale_from  = $this->parse_datetime_local($tt['sale_from'] ?? '');
+            $sale_until = $this->parse_datetime_local($tt['sale_until'] ?? '');
+
             $ticket_types[] = [
                 'key'              => $key,
                 'label'            => $label,
@@ -239,9 +281,15 @@ class EventMetaBox {
                 'qty_per_purchase' => max(1, intval($tt['qty_per_purchase'] ?? 1)),
                 'capacity'         => strlen($tt['capacity'] ?? '') ? max(0, intval($tt['capacity'])) : null,
                 'active'           => !empty($tt['active']),
+                'sale_from'        => $sale_from,
+                'sale_until'       => $sale_until,
             ];
         }
         update_post_meta($post_id, '_oct_ticket_types', wp_json_encode($ticket_types));
+
+        // Save event-wide sale close date
+        $event_sale_until = $this->parse_datetime_local(sanitize_text_field($_POST['oct_tickets_sale_until'] ?? ''));
+        update_post_meta($post_id, '_oct_tickets_sale_until', $event_sale_until);
 
         // Save venues
         $raw_venues = isset($_POST['oct_venues']) ? (array) $_POST['oct_venues'] : [];
@@ -264,6 +312,19 @@ class EventMetaBox {
     // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Convert a datetime-local string (Y-m-d\TH:i) to MySQL datetime (Y-m-d H:i:s).
+     * Returns empty string if invalid or blank.
+     */
+    private function parse_datetime_local(string $value): string {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+        $ts = strtotime($value);
+        return $ts ? date('Y-m-d H:i:s', $ts) : '';
+    }
 
     public function get_ticket_types(int $post_id): array {
         $raw = get_post_meta($post_id, '_oct_ticket_types', true);
@@ -290,5 +351,56 @@ class EventMetaBox {
             }
         }
         return null;
+    }
+
+    /**
+     * Get event-wide sale close datetime string (MySQL format), or '' if not set.
+     */
+    public function get_event_sale_until(int $post_id): string {
+        return (string) get_post_meta($post_id, '_oct_tickets_sale_until', true);
+    }
+
+    /**
+     * Compute the availability status of a ticket type.
+     *
+     * Returns array with:
+     *   status: 'available' | 'coming_soon' | 'sale_ended' | 'sold_out' | 'unavailable'
+     *   opens_formatted: (only when coming_soon) human-readable opening date
+     */
+    public function get_ticket_availability(array $tt, int $event_id): array {
+        if (empty($tt['active'])) {
+            return ['status' => 'unavailable'];
+        }
+
+        $now = current_time('timestamp');
+
+        if (!empty($tt['sale_from'])) {
+            $sale_from = strtotime($tt['sale_from']);
+            if ($sale_from && $now < $sale_from) {
+                return [
+                    'status'          => 'coming_soon',
+                    'opens_formatted' => date_i18n(
+                        get_option('date_format') . ' ' . get_option('time_format'),
+                        $sale_from
+                    ),
+                ];
+            }
+        }
+
+        if (!empty($tt['sale_until'])) {
+            $sale_until = strtotime($tt['sale_until']);
+            if ($sale_until && $now > $sale_until) {
+                return ['status' => 'sale_ended'];
+            }
+        }
+
+        if (!empty($tt['capacity'])) {
+            $sold = DB::get_tickets_sold_count($event_id, $tt['key']);
+            if ($sold >= (int) $tt['capacity']) {
+                return ['status' => 'sold_out'];
+            }
+        }
+
+        return ['status' => 'available'];
     }
 }

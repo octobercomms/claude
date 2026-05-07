@@ -33,6 +33,7 @@ final class Plugin {
         PromoCodes::get_instance()->init();
         AdminScreens::get_instance()->init();
         TicketGenerator::get_instance()->init();
+        DailyReport::get_instance()->init();
 
         // Rewrite rules & query vars
         add_action('init', [$this, 'register_rewrite_rules']);

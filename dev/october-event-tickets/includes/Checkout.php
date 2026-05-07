@@ -54,18 +54,39 @@ class Checkout {
             return '<p class="oct-error">' . esc_html__('Event not found.', 'october-event-tickets') . '</p>';
         }
 
-        $ticket_types = EventMetaBox::get_instance()->get_ticket_types($event_id);
+        // Check event-wide sale close date
+        $meta     = EventMetaBox::get_instance();
+        $sale_until = $meta->get_event_sale_until($event_id);
+        if ($sale_until && current_time('timestamp') > strtotime($sale_until)) {
+            return '<p class="oct-notice">' . esc_html__('Ticket sales for this event have now closed.', 'october-event-tickets') . '</p>';
+        }
+
+        $ticket_types = $meta->get_ticket_types($event_id);
         $active_types = array_filter($ticket_types, fn($tt) => !empty($tt['active']));
 
         if (empty($active_types)) {
             return '<p class="oct-notice">' . esc_html__('Ticket sales are not currently available for this event.', 'october-event-tickets') . '</p>';
         }
 
-        $settings       = Settings::get_instance();
+        // Enrich each ticket type with its availability status
+        $typed_tickets = [];
+        $any_available = false;
+        foreach ($active_types as $tt) {
+            $availability = $meta->get_ticket_availability($tt, $event_id);
+            $tt['_availability'] = $availability;
+            $typed_tickets[] = $tt;
+            if ($availability['status'] === 'available') {
+                $any_available = true;
+            }
+        }
+
+        $settings        = Settings::get_instance();
         $currency_symbol = $settings->get_currency_symbol();
         $currency        = strtoupper($settings->get('currency', 'USD'));
 
         ob_start();
+        // $typed_tickets replaces $active_types in the template
+        $active_types = $typed_tickets;
         include OCT_TICKETS_DIR . 'templates/checkout.php';
         return ob_get_clean() ?: '';
     }
@@ -87,9 +108,23 @@ class Checkout {
             wp_send_json_error(['message' => __('Missing required fields.', 'october-event-tickets')]);
         }
 
-        $ticket_type = EventMetaBox::get_instance()->get_ticket_type_by_key($event_id, $ticket_type_key);
+        $meta_box = EventMetaBox::get_instance();
+
+        // Check event sale close
+        $event_sale_until = $meta_box->get_event_sale_until($event_id);
+        if ($event_sale_until && current_time('timestamp') > strtotime($event_sale_until)) {
+            wp_send_json_error(['message' => __('Ticket sales for this event have closed.', 'october-event-tickets')]);
+        }
+
+        $ticket_type = $meta_box->get_ticket_type_by_key($event_id, $ticket_type_key);
         if (!$ticket_type || empty($ticket_type['active'])) {
             wp_send_json_error(['message' => __('Invalid ticket type.', 'october-event-tickets')]);
+        }
+
+        // Check ticket-type availability
+        $availability = $meta_box->get_ticket_availability($ticket_type, $event_id);
+        if ($availability['status'] !== 'available') {
+            wp_send_json_error(['message' => __('This ticket type is not currently available.', 'october-event-tickets')]);
         }
 
         $effective_price = isset($ticket_type['sale_price']) && $ticket_type['sale_price'] !== null

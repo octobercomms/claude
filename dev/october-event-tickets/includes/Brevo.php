@@ -134,4 +134,53 @@ class Brevo {
 
         return true;
     }
+
+    /**
+     * Send with explicit from name/email — used by daily report so it can
+     * use the configured from details rather than the defaults.
+     */
+    public function send_raw(
+        string $to_email,
+        string $to_name,
+        string $subject,
+        string $html_content,
+        string $from_name,
+        string $from_email
+    ) {
+        if (!$this->api_key()) {
+            $headers = ['Content-Type: text/html; charset=UTF-8', "From: {$from_name} <{$from_email}>"];
+            $sent    = wp_mail($to_email, $subject, $html_content, $headers);
+            return $sent ? true : new \WP_Error('mail_error', __('wp_mail failed', 'october-event-tickets'));
+        }
+
+        $payload = [
+            'sender'      => ['name' => $from_name, 'email' => $from_email],
+            'to'          => [['email' => $to_email, 'name' => $to_name]],
+            'subject'     => $subject,
+            'htmlContent' => $html_content,
+        ];
+
+        $response = wp_remote_post(self::API_ENDPOINT, [
+            'headers' => [
+                'api-key'      => $this->api_key(),
+                'Content-Type' => 'application/json',
+                'Accept'       => 'application/json',
+            ],
+            'body'    => wp_json_encode($payload),
+            'timeout' => 20,
+        ]);
+
+        if (is_wp_error($response)) {
+            return $response;
+        }
+
+        $code = wp_remote_retrieve_response_code($response);
+        if ($code < 200 || $code >= 300) {
+            $body    = json_decode(wp_remote_retrieve_body($response), true) ?? [];
+            $message = $body['message'] ?? __('Brevo API error', 'october-event-tickets');
+            return new \WP_Error('brevo_error_' . $code, $message);
+        }
+
+        return true;
+    }
 }

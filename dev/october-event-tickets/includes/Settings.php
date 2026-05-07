@@ -158,6 +158,25 @@ class Settings {
             );
         }
 
+        // Daily Report section
+        add_settings_section(
+            'oct_report',
+            __('Daily Sales Report', 'october-event-tickets'),
+            function() {
+                echo '<p>' . esc_html__('Sent once per day only if a ticket sale occurred that day. Leave blank to disable.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'report_email',
+            __('Report Email Address', 'october-event-tickets'),
+            [$this, 'render_text_field'],
+            'oct-tickets-settings',
+            'oct_report',
+            ['key' => 'report_email', 'type' => 'email']
+        );
+
         // Currency section
         add_settings_section(
             'oct_currency',
@@ -202,11 +221,12 @@ class Settings {
             $clean[$key] = sanitize_text_field($input[$key] ?? '');
         }
 
-        $clean['from_email']   = sanitize_email($input['from_email'] ?? '');
-        $clean['paypal_mode']  = in_array($input['paypal_mode'] ?? '', ['sandbox', 'live'], true)
+        $clean['from_email']    = sanitize_email($input['from_email'] ?? '');
+        $clean['report_email']  = sanitize_email($input['report_email'] ?? '');
+        $clean['paypal_mode']   = in_array($input['paypal_mode'] ?? '', ['sandbox', 'live'], true)
             ? $input['paypal_mode']
             : 'sandbox';
-        $clean['currency']     = in_array($input['currency'] ?? '', ['USD', 'GBP', 'EUR', 'AUD', 'CAD'], true)
+        $clean['currency']      = in_array($input['currency'] ?? '', ['USD', 'GBP', 'EUR', 'AUD', 'CAD'], true)
             ? $input['currency']
             : 'USD';
 
