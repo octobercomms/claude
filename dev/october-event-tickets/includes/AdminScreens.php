@@ -93,6 +93,15 @@ class AdminScreens {
             'oct-promo-codes',
             [$this, 'render_promo_codes']
         );
+
+        add_submenu_page(
+            'oct-registrations',
+            __('Waitlist', 'october-event-tickets'),
+            __('Waitlist', 'october-event-tickets'),
+            'manage_options',
+            'oct-waitlist',
+            [$this, 'render_waitlist']
+        );
     }
 
     // =========================================================================
@@ -653,6 +662,15 @@ class AdminScreens {
         DB::update_order_status($order_id, 'cancelled');
         DB::cancel_tickets_by_order($order_id);
 
+        // Notify waitlist that a ticket may be available
+        $cancelled_order = DB::get_order($order_id);
+        if ($cancelled_order) {
+            Waitlist::get_instance()->notify_availability(
+                (int) $cancelled_order->event_id,
+                $cancelled_order->ticket_type_key
+            );
+        }
+
         wp_safe_redirect(admin_url('admin.php?page=oct-registrations&cancelled=' . $order_id));
         exit;
     }
@@ -748,6 +766,78 @@ class AdminScreens {
         DB::delete_promo($promo_id);
         wp_safe_redirect(admin_url('admin.php?page=oct-promo-codes&deleted=1'));
         exit;
+    }
+
+    // =========================================================================
+    // Waitlist Screen
+    // =========================================================================
+
+    public function render_waitlist(): void {
+        if (!current_user_can('manage_options')) {
+            return;
+        }
+
+        $event_id = (int) ($_GET['event_id'] ?? 0);
+
+        // Get all published events for the filter
+        $all_events = get_posts([
+            'post_type'      => 'events',
+            'post_status'    => 'publish',
+            'posts_per_page' => -1,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]);
+
+        $waitlist = $event_id ? DB::get_waitlist($event_id) : [];
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('Waitlist', 'october-event-tickets'); ?></h1>
+
+            <form method="get" style="margin-bottom:16px;">
+                <input type="hidden" name="page" value="oct-waitlist">
+                <select name="event_id" onchange="this.form.submit()">
+                    <option value=""><?php esc_html_e('— Select Event —', 'october-event-tickets'); ?></option>
+                    <?php foreach ($all_events as $ev) : ?>
+                        <option value="<?php echo esc_attr($ev->ID); ?>" <?php selected($event_id, $ev->ID); ?>>
+                            <?php echo esc_html($ev->post_title); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </form>
+
+            <?php if ($event_id) : ?>
+                <p><?php echo esc_html(sprintf(__('%d people on the waitlist for this event.', 'october-event-tickets'), count($waitlist))); ?></p>
+                <table class="wp-list-table widefat fixed striped">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Name', 'october-event-tickets'); ?></th>
+                            <th><?php esc_html_e('Email', 'october-event-tickets'); ?></th>
+                            <th><?php esc_html_e('Ticket Type', 'october-event-tickets'); ?></th>
+                            <th><?php esc_html_e('Joined', 'october-event-tickets'); ?></th>
+                            <th><?php esc_html_e('Last Notified', 'october-event-tickets'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    <?php if (empty($waitlist)) : ?>
+                        <tr><td colspan="5"><?php esc_html_e('No waitlist entries for this event.', 'october-event-tickets'); ?></td></tr>
+                    <?php else : ?>
+                        <?php foreach ($waitlist as $entry) : ?>
+                            <tr>
+                                <td><?php echo esc_html($entry->name ?: '—'); ?></td>
+                                <td><?php echo esc_html($entry->email); ?></td>
+                                <td><?php echo esc_html($entry->ticket_type_key); ?></td>
+                                <td><?php echo esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), strtotime($entry->created_at))); ?></td>
+                                <td><?php echo $entry->notified_at ? esc_html(date_i18n(get_option('date_format'), strtotime($entry->notified_at))) : '—'; ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                    </tbody>
+                </table>
+            <?php else : ?>
+                <p><?php esc_html_e('Select an event above to view its waitlist.', 'october-event-tickets'); ?></p>
+            <?php endif; ?>
+        </div>
+        <?php
     }
 
     // =========================================================================

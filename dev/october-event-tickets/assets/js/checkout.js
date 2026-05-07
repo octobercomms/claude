@@ -47,6 +47,7 @@
     initStripe();
     initPayPal();
     bindFreeRegistration();
+    bindWaitlist();
 
     updateSummary();
   }
@@ -581,6 +582,62 @@
 
   function isValidEmail(email) {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  // ---- Waitlist ----
+  function bindWaitlist() {
+    var $modal = $('#oct-waitlist-modal');
+    var currentWaitlistKey   = '';
+    var currentWaitlistLabel = '';
+
+    $(document).on('click', '.oct-btn-waitlist', function (e) {
+      e.stopPropagation();
+      currentWaitlistKey   = $(this).data('key');
+      currentWaitlistLabel = $(this).data('label');
+      $('#oct-waitlist-ticket-label').text(currentWaitlistLabel);
+      $('#oct-waitlist-email').val($('#oct-email').val());
+      $('#oct-waitlist-name').val($('#oct-name').val());
+      $('#oct-waitlist-message').hide().removeClass('success error');
+      $modal.show();
+    });
+
+    $('#oct-waitlist-cancel, .oct-waitlist-modal__backdrop').on('click', function () {
+      $modal.hide();
+    });
+
+    $('#oct-waitlist-submit').on('click', function () {
+      var email = $('#oct-waitlist-email').val().trim();
+      var name  = $('#oct-waitlist-name').val().trim();
+      var $msg  = $('#oct-waitlist-message');
+
+      if (!email || !isValidEmail(email)) {
+        $msg.removeClass('success').addClass('error').text('Please enter a valid email address.').show();
+        return;
+      }
+
+      var $btn = $(this);
+      $btn.prop('disabled', true).text('Joining…');
+
+      $.post(ajaxUrl, {
+        action:          'oct_join_waitlist',
+        nonce:           nonce,
+        event_id:        state.eventId,
+        ticket_type_key: currentWaitlistKey,
+        email:           email,
+        name:            name,
+      }, function (res) {
+        $btn.prop('disabled', false).text('Join Waitlist');
+        if (res.success) {
+          $msg.removeClass('error').addClass('success').text(res.data.message).show();
+          setTimeout(function () { $modal.hide(); }, 3000);
+        } else {
+          $msg.removeClass('success').addClass('error').text((res.data && res.data.message) ? res.data.message : 'Could not join waitlist.').show();
+        }
+      }).fail(function () {
+        $btn.prop('disabled', false).text('Join Waitlist');
+        $msg.removeClass('success').addClass('error').text('Network error. Please try again.').show();
+      });
+    });
   }
 
   // ---- Boot ----

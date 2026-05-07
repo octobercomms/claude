@@ -524,6 +524,60 @@
   font-size: 14px;
 }
 
+/* ---------- Waitlist ---------- */
+.oct-btn-waitlist {
+  background: none;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #1a1a1a;
+  margin-top: 6px;
+  display: block;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.oct-btn-waitlist:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+.oct-ticket-row__status--soldout {
+  color: #e53935;
+  font-weight: 600;
+  font-style: normal;
+}
+.oct-waitlist-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.oct-waitlist-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.oct-waitlist-modal__box {
+  position: relative;
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.oct-waitlist-modal__sub {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
 /* ---------- PayPal container ---------- */
 #oct-paypal-buttons {
   margin-bottom: 10px;

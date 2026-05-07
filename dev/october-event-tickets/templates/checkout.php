@@ -54,8 +54,12 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
                    <?php echo ($i === 0 && !$unavailable) ? 'checked' : ''; ?> style="display:none">
             <div class="oct-ticket-row__info">
               <div class="oct-ticket-row__name"><?php echo esc_html($tt['label']); ?></div>
-              <?php if (!empty($tt['description'])) : ?>
-                <div class="oct-ticket-row__desc"><?php echo esc_html(html_entity_decode($tt['description'], ENT_QUOTES, 'UTF-8')); ?></div>
+              <?php if (!empty($tt['description'])) :
+                $_desc = html_entity_decode($tt['description'], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $_desc = preg_replace_callback('/\\\\u([0-9a-fA-F]{4})/', fn($m) => mb_chr(hexdec($m[1]), 'UTF-8'), $_desc);
+                $_desc = preg_replace_callback('/(?<![0-9a-zA-Z\\\\])u([2-9a-fA-F][0-9a-fA-F]{3})(?![0-9a-fA-F])/', fn($m) => mb_chr(hexdec($m[1]), 'UTF-8'), $_desc);
+              ?>
+                <div class="oct-ticket-row__desc"><?php echo esc_html($_desc); ?></div>
               <?php endif; ?>
               <?php if (!empty($tt['qty_per_purchase']) && (int) $tt['qty_per_purchase'] > 1) : ?>
                 <div class="oct-ticket-row__admissions">
@@ -68,15 +72,18 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
             </div>
             <div class="oct-ticket-row__price">
               <?php if ($unavailable) : ?>
-                <span class="oct-ticket-row__status">
-                  <?php if ($status === 'coming_soon') : ?>
-                    <?php echo esc_html(sprintf(__('Opens %s', 'october-event-tickets'), $avail['opens_formatted'])); ?>
-                  <?php elseif ($status === 'sold_out') : ?>
-                    <?php esc_html_e('Sold out', 'october-event-tickets'); ?>
-                  <?php else : ?>
-                    <?php esc_html_e('Sale ended', 'october-event-tickets'); ?>
-                  <?php endif; ?>
-                </span>
+                <?php if ($status === 'sold_out') : ?>
+                  <span class="oct-ticket-row__status oct-ticket-row__status--soldout"><?php esc_html_e('Sold out', 'october-event-tickets'); ?></span>
+                  <button type="button" class="oct-btn-waitlist"
+                          data-key="<?php echo esc_attr($tt['key']); ?>"
+                          data-label="<?php echo esc_attr($tt['label']); ?>">
+                    <?php esc_html_e('Join Waitlist', 'october-event-tickets'); ?>
+                  </button>
+                <?php elseif ($status === 'coming_soon') : ?>
+                  <span class="oct-ticket-row__status"><?php echo esc_html(sprintf(__('Opens %s', 'october-event-tickets'), $avail['opens_formatted'])); ?></span>
+                <?php else : ?>
+                  <span class="oct-ticket-row__status"><?php esc_html_e('Sale ended', 'october-event-tickets'); ?></span>
+                <?php endif; ?>
               <?php else : ?>
                 <span class="oct-price-current"><?php echo esc_html($currency_symbol . number_format($effective_price, 2)); ?></span>
                 <?php if ($has_sale) : ?>
@@ -93,6 +100,28 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
             <?php endif; ?>
           </div>
         <?php endforeach; ?>
+      </div>
+    </div>
+
+    <!-- Waitlist modal (shown via JS for sold-out tickets) -->
+    <div id="oct-waitlist-modal" style="display:none" class="oct-waitlist-modal" role="dialog" aria-modal="true" aria-labelledby="oct-waitlist-title">
+      <div class="oct-waitlist-modal__backdrop"></div>
+      <div class="oct-waitlist-modal__box">
+        <h3 id="oct-waitlist-title" class="oct-section__title"><?php esc_html_e('Join the Waitlist', 'october-event-tickets'); ?></h3>
+        <p class="oct-waitlist-modal__sub" id="oct-waitlist-ticket-label"></p>
+        <div class="oct-field-group">
+          <label for="oct-waitlist-name" class="oct-label"><?php esc_html_e('Name', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
+          <input type="text" id="oct-waitlist-name" class="oct-input" placeholder="<?php esc_attr_e('Your name', 'october-event-tickets'); ?>">
+        </div>
+        <div class="oct-field-group">
+          <label for="oct-waitlist-email" class="oct-label"><?php esc_html_e('Email', 'october-event-tickets'); ?> <span class="oct-required">*</span></label>
+          <input type="email" id="oct-waitlist-email" class="oct-input" placeholder="<?php esc_attr_e('you@example.com', 'october-event-tickets'); ?>">
+        </div>
+        <div id="oct-waitlist-message" class="oct-promo-message" style="display:none"></div>
+        <div style="display:flex;gap:10px;margin-top:12px;">
+          <button type="button" id="oct-waitlist-submit" class="oct-btn oct-btn--primary" style="flex:1"><?php esc_html_e('Join Waitlist', 'october-event-tickets'); ?></button>
+          <button type="button" id="oct-waitlist-cancel" class="oct-btn oct-btn--secondary"><?php esc_html_e('Cancel', 'october-event-tickets'); ?></button>
+        </div>
       </div>
     </div>
 

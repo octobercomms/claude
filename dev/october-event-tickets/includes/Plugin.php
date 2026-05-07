@@ -35,6 +35,13 @@ final class Plugin {
         TicketGenerator::get_instance()->init();
         DailyReport::get_instance()->init();
 
+        Waitlist::get_instance()->init();
+
+        // Auto-upgrade DB on version change
+        if (DB::needs_upgrade()) {
+            DB::upgrade();
+        }
+
         // Rewrite rules & query vars
         add_action('init', [$this, 'register_rewrite_rules']);
         add_action('init', function() {
@@ -110,6 +117,23 @@ final class Plugin {
         }
     }
 
+    private function page_has_checkout_shortcode(\WP_Post $post): bool {
+        // Standard post content
+        if (has_shortcode($post->post_content, 'event_checkout') ||
+            has_shortcode($post->post_content, 'oct_checkout')) {
+            return true;
+        }
+        // Elementor stores shortcodes in _elementor_data meta
+        $elementor_data = get_post_meta($post->ID, '_elementor_data', true);
+        if ($elementor_data && (
+            strpos($elementor_data, 'event_checkout') !== false ||
+            strpos($elementor_data, 'oct_checkout') !== false
+        )) {
+            return true;
+        }
+        return false;
+    }
+
     public function enqueue_frontend_assets(): void {
         // Only enqueue checkout assets when the shortcode might be on the page
         // We use a global flag set by the shortcode
@@ -118,7 +142,7 @@ final class Plugin {
         }
 
         global $post;
-        if ($post && (has_shortcode($post->post_content, 'event_checkout') || has_shortcode($post->post_content, 'oct_checkout'))) {
+        if ($post && $this->page_has_checkout_shortcode($post)) {
             $settings = Settings::get_instance();
 
             wp_enqueue_style(
