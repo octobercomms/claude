@@ -61,7 +61,7 @@ final class Plugin {
 
         // Check-in PWA
         add_rewrite_rule(
-            '^oct-checkin/?$',
+            '^checkin/?$',
             'index.php?oct_checkin_app=1',
             'top'
         );

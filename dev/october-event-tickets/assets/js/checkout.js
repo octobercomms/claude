@@ -49,23 +49,28 @@
     initStripe();
     initPayPal();
 
-    // Select first ticket type
-    var $firstCard = $('.oct-ticket-card').first();
-    if ($firstCard.length) {
-      selectTicketCard($firstCard);
+    // Select first available ticket type and initialise summary
+    var $firstRow = $('.oct-ticket-row:not(.oct-ticket-row--unavailable)').first();
+    if ($firstRow.length) {
+      selectTicketCard($firstRow);
+    } else {
+      updateSummary();
     }
   }
 
-  // ---- Ticket cards ----
+  // ---- Ticket rows ----
   function bindTicketCards() {
-    $(document).on('click', '.oct-ticket-card', function () {
+    $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function () {
       selectTicketCard($(this));
+    });
+    $(document).on('keypress', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
+      if (e.which === 13 || e.which === 32) { e.preventDefault(); selectTicketCard($(this)); }
     });
   }
 
   function selectTicketCard($card) {
-    $('.oct-ticket-card').removeClass('oct-ticket-card--selected');
-    $card.addClass('oct-ticket-card--selected');
+    $('.oct-ticket-row').removeClass('oct-ticket-row--selected');
+    $card.addClass('oct-ticket-row--selected');
     $card.find('input[type="radio"]').prop('checked', true);
 
     var key = $card.data('key');

@@ -22,7 +22,8 @@ class Checkout {
     }
 
     public function init(): void {
-        add_shortcode('oct_checkout', [$this, 'render_shortcode']);
+        add_shortcode('oct_checkout',    [$this, 'render_shortcode']);
+        add_shortcode('event_checkout', [$this, 'render_shortcode']);
 
         // Stripe
         add_action('wp_ajax_oct_create_payment_intent',        [$this, 'ajax_create_payment_intent']);

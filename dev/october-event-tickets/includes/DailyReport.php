@@ -64,10 +64,16 @@ class DailyReport {
     // -------------------------------------------------------------------------
 
     public function send_report(): void {
-        $settings     = Settings::get_instance();
-        $report_email = $settings->get('report_email');
+        $settings    = Settings::get_instance();
+        $email_field = $settings->get('report_email');
 
-        if (!$report_email) {
+        if (!$email_field) {
+            return;
+        }
+
+        // Support comma-separated recipients
+        $recipients = array_filter(array_map('trim', explode(',', $email_field)));
+        if (empty($recipients)) {
             return;
         }
 
@@ -108,28 +114,33 @@ class DailyReport {
 
         $from_name  = $settings->get('from_name', $site_name);
         $from_email = $settings->get('from_email', get_option('admin_email'));
+        $brevo_key  = $settings->get('brevo_api_key');
 
-        $brevo_key = $settings->get('brevo_api_key');
+        foreach ($recipients as $to_email) {
+            if (!is_email($to_email)) {
+                continue;
+            }
 
-        if ($brevo_key) {
-            Brevo::get_instance()->send_raw(
-                $report_email,
-                $report_email,
-                $subject,
-                $html,
-                $from_name,
-                $from_email
-            );
-        } else {
-            // Fallback: wp_mail
-            add_filter('wp_mail_content_type', fn() => 'text/html');
-            wp_mail(
-                $report_email,
-                $subject,
-                $html,
-                ["From: {$from_name} <{$from_email}>"]
-            );
-            remove_filter('wp_mail_content_type', fn() => 'text/html');
+            if ($brevo_key) {
+                Brevo::get_instance()->send_raw(
+                    $to_email,
+                    $to_email,
+                    $subject,
+                    $html,
+                    $from_name,
+                    $from_email
+                );
+            } else {
+                // Fallback: wp_mail
+                add_filter('wp_mail_content_type', fn() => 'text/html');
+                wp_mail(
+                    $to_email,
+                    $subject,
+                    $html,
+                    ["From: {$from_name} <{$from_email}>"]
+                );
+                remove_filter('wp_mail_content_type', fn() => 'text/html');
+            }
         }
     }
 

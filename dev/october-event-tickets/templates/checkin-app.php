@@ -1,6 +1,6 @@
 <?php
 /**
- * Check-in PWA — served at /oct-checkin/
+ * Check-in PWA — served at /checkin/
  * Full-screen single-page app, dark theme.
  */
 defined('ABSPATH') || exit;

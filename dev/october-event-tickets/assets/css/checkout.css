@@ -3,8 +3,7 @@
    ========================================================================== */
 
 .oct-checkout {
-  max-width: 600px;
-  margin: 0 auto;
+  width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   color: #1a1a1a;
   line-height: 1.5;
@@ -23,100 +22,95 @@
   letter-spacing: 0.2px;
 }
 
-/* ---------- Ticket type cards ---------- */
-.oct-ticket-types {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+/* ---------- Ticket type rows (table style) ---------- */
+.oct-ticket-list {
+  width: 100%;
 }
 
-.oct-ticket-card {
-  display: block;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 16px 18px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  position: relative;
-  background: #fff;
-}
-
-.oct-ticket-card:hover {
-  border-color: #C8A96E;
-  background: #fefcf7;
-}
-
-.oct-ticket-card--selected {
-  border-color: #C8A96E;
-  background: #fefcf7;
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
-}
-
-.oct-ticket-card--selected::after {
-  content: '✓';
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 22px;
-  height: 22px;
-  background: #C8A96E;
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
+.oct-ticket-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  line-height: 1;
-  text-align: center;
-  padding-top: 1px;
-}
-
-.oct-ticket-card__top {
-  display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 3px solid #000;
+  cursor: pointer;
+  transition: background 0.1s;
 }
 
-.oct-ticket-card__name {
-  font-size: 15px;
-  font-weight: 700;
+.oct-ticket-row:first-child {
+  border-top: 3px solid #000;
+}
+
+.oct-ticket-row:hover:not(.oct-ticket-row--unavailable) {
+  background: #fefcf7;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.oct-ticket-row--selected {
+  background: #fefcf7;
+  padding-left: 6px;
+  padding-right: 6px;
+}
+
+.oct-ticket-row--selected .oct-ticket-row__name {
+  font-weight: 800;
+}
+
+.oct-ticket-row--unavailable {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.oct-ticket-row__info {
   flex: 1;
+  min-width: 0;
 }
 
-.oct-ticket-card__price {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+.oct-ticket-row__name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
 }
 
-.oct-price-old {
+.oct-ticket-row__desc {
   font-size: 13px;
-  color: #999;
-  text-decoration: line-through;
+  color: #555;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__admissions {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__price {
+  text-align: right;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .oct-price-current {
-  font-size: 18px;
+  display: block;
+  font-size: 22px;
   font-weight: 800;
-  color: #C8A96E;
+  color: #1a1a1a;
 }
 
-.oct-ticket-card__desc {
+.oct-price-old {
+  display: block;
+  font-size: 14px;
+  color: #999;
+  text-decoration: line-through;
+  margin-top: 2px;
+}
+
+.oct-ticket-row__status {
   font-size: 13px;
-  color: #666;
-  margin-top: 6px;
-}
-
-.oct-ticket-card__note {
-  font-size: 12px;
-  color: #C8A96E;
-  font-weight: 600;
-  margin-top: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: #888;
+  font-style: italic;
 }
 
 /* ---------- Quantity ---------- */
@@ -507,10 +501,14 @@
 
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {
-  .oct-ticket-card__top {
+  .oct-ticket-row {
     flex-direction: column;
     align-items: flex-start;
-    gap: 6px;
+    gap: 8px;
+  }
+
+  .oct-ticket-row__price {
+    text-align: left;
   }
 
   .oct-payment-tabs {

@@ -170,11 +170,15 @@ class Settings {
 
         add_settings_field(
             'report_email',
-            __('Report Email Address', 'october-event-tickets'),
-            [$this, 'render_text_field'],
+            __('Report Recipients', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('report_email'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[report_email]');
+                echo '<input type="text" name="' . $name . '" value="' . $value . '" class="regular-text" />';
+                echo '<p class="description">' . esc_html__('Comma-separated email addresses. Leave blank to disable.', 'october-event-tickets') . '</p>';
+            },
             'oct-tickets-settings',
-            'oct_report',
-            ['key' => 'report_email', 'type' => 'email']
+            'oct_report'
         );
 
         // Currency section
@@ -221,8 +225,12 @@ class Settings {
             $clean[$key] = sanitize_text_field($input[$key] ?? '');
         }
 
-        $clean['from_email']    = sanitize_email($input['from_email'] ?? '');
-        $clean['report_email']  = sanitize_email($input['report_email'] ?? '');
+        $clean['from_email']   = sanitize_email($input['from_email'] ?? '');
+
+        // Comma-separated list of email addresses
+        $raw_emails = $input['report_email'] ?? '';
+        $emails     = array_filter(array_map('trim', explode(',', $raw_emails)));
+        $clean['report_email'] = implode(',', array_map('sanitize_email', $emails));
         $clean['paypal_mode']   = in_array($input['paypal_mode'] ?? '', ['sandbox', 'live'], true)
             ? $input['paypal_mode']
             : 'sandbox';
@@ -288,7 +296,7 @@ class Settings {
             <hr>
             <h2><?php esc_html_e('Check-in App', 'october-event-tickets'); ?></h2>
             <p><?php esc_html_e('Access the mobile check-in app at:', 'october-event-tickets'); ?></p>
-            <code><?php echo esc_url(home_url('/oct-checkin/')); ?></code>
+            <code><?php echo esc_url(home_url('/checkin/')); ?></code>
         </div>
         <?php
     }

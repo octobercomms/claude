@@ -192,6 +192,50 @@ class AdminScreens {
                 <?php endif; ?>
                 </tbody>
             </table>
+
+            <!-- Events & Check-in PINs -->
+            <?php
+            $all_events = get_posts([
+                'post_type'      => 'events',
+                'post_status'    => 'publish',
+                'posts_per_page' => -1,
+                'orderby'        => 'title',
+                'order'          => 'ASC',
+            ]);
+            $checkin_base = home_url('/checkin/');
+            ?>
+            <h2 style="margin-top:30px;"><?php esc_html_e('Events &amp; Check-in PINs', 'october-event-tickets'); ?></h2>
+            <table class="wp-list-table widefat fixed striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Event', 'october-event-tickets'); ?></th>
+                        <th style="width:120px;"><?php esc_html_e('Check-in PIN', 'october-event-tickets'); ?></th>
+                        <th><?php esc_html_e('Check-in App URL', 'october-event-tickets'); ?></th>
+                        <th style="width:100px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                <?php if (empty($all_events)) : ?>
+                    <tr><td colspan="4"><?php esc_html_e('No published events found.', 'october-event-tickets'); ?></td></tr>
+                <?php else : ?>
+                    <?php foreach ($all_events as $ev) :
+                        $pin = get_post_meta($ev->ID, '_oct_checkin_pin', true);
+                        if ($pin === '' || $pin === false) $pin = (string) $ev->ID;
+                    ?>
+                    <tr>
+                        <td><strong><?php echo esc_html($ev->post_title); ?></strong></td>
+                        <td><code style="font-size:1.1em;"><?php echo esc_html($pin); ?></code></td>
+                        <td><a href="<?php echo esc_url($checkin_base); ?>" target="_blank"><?php echo esc_html($checkin_base); ?></a></td>
+                        <td>
+                            <a href="<?php echo esc_url(get_edit_post_link($ev->ID)); ?>">
+                                <?php esc_html_e('Edit Event', 'october-event-tickets'); ?>
+                            </a>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+                </tbody>
+            </table>
         </div>
 
         <script>

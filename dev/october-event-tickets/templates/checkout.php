@@ -33,40 +33,58 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
     <div class="oct-section">
       <h3 class="oct-section__title"><?php esc_html_e('Choose Your Ticket', 'october-event-tickets'); ?></h3>
 
-      <div class="oct-ticket-types" role="group" aria-label="<?php esc_attr_e('Ticket Types', 'october-event-tickets'); ?>">
+      <div class="oct-ticket-list" role="group" aria-label="<?php esc_attr_e('Ticket Types', 'october-event-tickets'); ?>">
         <?php foreach ($active_types as $i => $tt) :
+            $avail        = $tt['_availability'] ?? ['status' => 'available'];
+            $status       = $avail['status'];
+            $unavailable  = in_array($status, ['coming_soon', 'sale_ended', 'sold_out'], true);
             $effective_price = isset($tt['sale_price']) && $tt['sale_price'] !== null ? (float) $tt['sale_price'] : (float) $tt['price'];
             $has_sale        = isset($tt['sale_price']) && $tt['sale_price'] !== null && (float) $tt['sale_price'] < (float) $tt['price'];
+            $row_class       = 'oct-ticket-row';
+            if ($i === 0 && !$unavailable) $row_class .= ' oct-ticket-row--selected';
+            if ($unavailable) $row_class .= ' oct-ticket-row--unavailable';
         ?>
-          <label class="oct-ticket-card <?php echo $i === 0 ? 'oct-ticket-card--selected' : ''; ?>"
-                 data-key="<?php echo esc_attr($tt['key']); ?>"
-                 data-price="<?php echo esc_attr((string) $effective_price); ?>"
-                 data-label="<?php echo esc_attr($tt['label']); ?>"
-                 data-qty-per-purchase="<?php echo esc_attr((string) ($tt['qty_per_purchase'] ?? 1)); ?>">
+          <div class="<?php echo esc_attr($row_class); ?>"
+               data-key="<?php echo esc_attr($tt['key']); ?>"
+               data-price="<?php echo esc_attr($unavailable ? '0' : (string) $effective_price); ?>"
+               data-label="<?php echo esc_attr($tt['label']); ?>"
+               data-qty-per-purchase="<?php echo esc_attr((string) ($tt['qty_per_purchase'] ?? 1)); ?>"
+               <?php echo $unavailable ? '' : 'role="button" tabindex="0"'; ?>>
             <input type="radio" name="oct_ticket_type" value="<?php echo esc_attr($tt['key']); ?>"
-                   <?php echo $i === 0 ? 'checked' : ''; ?> style="position:absolute;opacity:0">
-            <div class="oct-ticket-card__top">
-              <div class="oct-ticket-card__name"><?php echo esc_html($tt['label']); ?></div>
-              <div class="oct-ticket-card__price">
+                   <?php echo ($i === 0 && !$unavailable) ? 'checked' : ''; ?> style="display:none">
+            <div class="oct-ticket-row__info">
+              <div class="oct-ticket-row__name"><?php echo esc_html($tt['label']); ?></div>
+              <?php if (!empty($tt['description'])) : ?>
+                <div class="oct-ticket-row__desc"><?php echo esc_html(html_entity_decode($tt['description'], ENT_QUOTES, 'UTF-8')); ?></div>
+              <?php endif; ?>
+              <?php if (!empty($tt['qty_per_purchase']) && (int) $tt['qty_per_purchase'] > 1) : ?>
+                <div class="oct-ticket-row__admissions">
+                  <?php echo esc_html(sprintf(
+                    _n('Includes %d admission', 'Includes %d admissions', (int) $tt['qty_per_purchase'], 'october-event-tickets'),
+                    (int) $tt['qty_per_purchase']
+                  )); ?>
+                </div>
+              <?php endif; ?>
+            </div>
+            <div class="oct-ticket-row__price">
+              <?php if ($unavailable) : ?>
+                <span class="oct-ticket-row__status">
+                  <?php if ($status === 'coming_soon') : ?>
+                    <?php echo esc_html(sprintf(__('Opens %s', 'october-event-tickets'), $avail['opens_formatted'])); ?>
+                  <?php elseif ($status === 'sold_out') : ?>
+                    <?php esc_html_e('Sold out', 'october-event-tickets'); ?>
+                  <?php else : ?>
+                    <?php esc_html_e('Sale ended', 'october-event-tickets'); ?>
+                  <?php endif; ?>
+                </span>
+              <?php else : ?>
+                <span class="oct-price-current"><?php echo esc_html($currency_symbol . number_format($effective_price, 2)); ?></span>
                 <?php if ($has_sale) : ?>
                   <span class="oct-price-old"><?php echo esc_html($currency_symbol . number_format((float) $tt['price'], 2)); ?></span>
                 <?php endif; ?>
-                <span class="oct-price-current"><?php echo esc_html($currency_symbol . number_format($effective_price, 2)); ?></span>
-              </div>
+              <?php endif; ?>
             </div>
-            <?php if (!empty($tt['description'])) : ?>
-              <div class="oct-ticket-card__desc"><?php echo esc_html($tt['description']); ?></div>
-            <?php endif; ?>
-            <?php if (!empty($tt['qty_per_purchase']) && (int) $tt['qty_per_purchase'] > 1) : ?>
-              <div class="oct-ticket-card__note">
-                <?php echo esc_html(sprintf(
-                  /* translators: %d: number of admission tickets */
-                  _n('Includes %d admission', 'Includes %d admissions', (int) $tt['qty_per_purchase'], 'october-event-tickets'),
-                  (int) $tt['qty_per_purchase']
-                )); ?>
-              </div>
-            <?php endif; ?>
-          </label>
+          </div>
         <?php endforeach; ?>
       </div>
     </div>
