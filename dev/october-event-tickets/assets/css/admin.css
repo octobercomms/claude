@@ -1,0 +1,83 @@
+/* ==========================================================================
+   October Event Tickets — Admin Styles
+   ========================================================================== */
+
+/* Filters bar */
+.oct-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 12px 0;
+}
+
+.oct-filters input[type="text"],
+.oct-filters select {
+  height: 32px;
+  border: 1px solid #dcdcde;
+  border-radius: 3px;
+  padding: 0 8px;
+  font-size: 13px;
+  color: #1d2327;
+  background: #fff;
+}
+
+/* Status badges */
+.oct-status {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.oct-status--paid      { background: #dcfce7; color: #166534; }
+.oct-status--pending   { background: #fef9c3; color: #854d0e; }
+.oct-status--cancelled { background: #fee2e2; color: #991b1b; }
+.oct-status--refunded  { background: #f3e8ff; color: #6b21a8; }
+
+/* Danger link */
+.oct-link-danger {
+  color: #d63638 !important;
+}
+
+/* Bulk action bar */
+.oct-bulk-bar {
+  padding: 12px 0 0;
+}
+
+/* Stats summary box */
+.oct-stats-summary {
+  background: #fff;
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.oct-stats-summary h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1d2327;
+}
+
+/* Card / box */
+.oct-card {
+  background: #fff;
+  border: 1px solid #dcdcde;
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  max-width: 640px;
+}
+
+.oct-card h2 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* Admin meta box styles are kept minimal — handled in admin-metabox.css */

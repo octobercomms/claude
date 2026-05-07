@@ -1,0 +1,528 @@
+/* ==========================================================================
+   October Event Tickets — Checkout Styles
+   ========================================================================== */
+
+.oct-checkout {
+  max-width: 600px;
+  margin: 0 auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  color: #1a1a1a;
+  line-height: 1.5;
+}
+
+/* ---------- Sections ---------- */
+.oct-section {
+  margin-bottom: 28px;
+}
+
+.oct-section__title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 14px;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- Ticket type cards ---------- */
+.oct-ticket-types {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.oct-ticket-card {
+  display: block;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  position: relative;
+  background: #fff;
+}
+
+.oct-ticket-card:hover {
+  border-color: #C8A96E;
+  background: #fefcf7;
+}
+
+.oct-ticket-card--selected {
+  border-color: #C8A96E;
+  background: #fefcf7;
+  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+}
+
+.oct-ticket-card--selected::after {
+  content: '✓';
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 22px;
+  height: 22px;
+  background: #C8A96E;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  text-align: center;
+  padding-top: 1px;
+}
+
+.oct-ticket-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.oct-ticket-card__name {
+  font-size: 15px;
+  font-weight: 700;
+  flex: 1;
+}
+
+.oct-ticket-card__price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.oct-price-old {
+  font-size: 13px;
+  color: #999;
+  text-decoration: line-through;
+}
+
+.oct-price-current {
+  font-size: 18px;
+  font-weight: 800;
+  color: #C8A96E;
+}
+
+.oct-ticket-card__desc {
+  font-size: 13px;
+  color: #666;
+  margin-top: 6px;
+}
+
+.oct-ticket-card__note {
+  font-size: 12px;
+  color: #C8A96E;
+  font-weight: 600;
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- Quantity ---------- */
+.oct-qty-control {
+  display: inline-flex;
+  align-items: center;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.oct-qty-btn {
+  background: #f8f8f8;
+  border: none;
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+  font-weight: 400;
+  cursor: pointer;
+  color: #1a1a1a;
+  transition: background 0.1s;
+  line-height: 1;
+}
+
+.oct-qty-btn:hover {
+  background: #eee;
+}
+
+.oct-qty-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.oct-qty-input {
+  width: 56px;
+  border: none;
+  border-left: 1px solid #e0e0e0;
+  border-right: 1px solid #e0e0e0;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  height: 44px;
+  outline: none;
+  -moz-appearance: textfield;
+}
+
+.oct-qty-input::-webkit-inner-spin-button,
+.oct-qty-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* ---------- Labels & inputs ---------- */
+.oct-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+  margin-bottom: 7px;
+  letter-spacing: 0.1px;
+}
+
+.oct-optional {
+  font-weight: 400;
+  color: #999;
+  font-size: 12px;
+}
+
+.oct-required {
+  color: #e53935;
+}
+
+.oct-input {
+  width: 100%;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-size: 15px;
+  color: #1a1a1a;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+  font-family: inherit;
+}
+
+.oct-input:focus {
+  border-color: #C8A96E;
+  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+}
+
+.oct-input.error {
+  border-color: #e53935;
+}
+
+.oct-field-group {
+  margin-bottom: 16px;
+}
+
+.oct-field-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  display: block;
+}
+
+/* ---------- Promo code ---------- */
+.oct-promo-row {
+  display: flex;
+  gap: 10px;
+}
+
+.oct-promo-row .oct-input {
+  flex: 1;
+}
+
+.oct-promo-message {
+  margin-top: 8px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.oct-promo-message.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.oct-promo-message.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* ---------- Order summary ---------- */
+.oct-summary {
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 10px;
+  padding: 16px 20px;
+}
+
+.oct-summary .oct-section__title {
+  margin-bottom: 12px;
+}
+
+.oct-summary-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 5px 0;
+  font-size: 14px;
+  color: #444;
+}
+
+.oct-summary-row.oct-summary-total {
+  border-top: 1px solid #e0e0e0;
+  margin-top: 8px;
+  padding-top: 10px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.oct-summary-price {
+  font-weight: 600;
+}
+
+.oct-discount-value {
+  color: #2d9e44;
+}
+
+/* ---------- Payment tabs ---------- */
+.oct-payment-tabs {
+  display: flex;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.oct-tab {
+  flex: 1;
+  padding: 11px 16px;
+  border: none;
+  background: #f8f8f8;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+  border-right: 1px solid #e0e0e0;
+}
+
+.oct-tab:last-child {
+  border-right: none;
+}
+
+.oct-tab--active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: inset 0 -2px 0 #C8A96E;
+}
+
+/* ---------- Stripe Elements ---------- */
+.oct-stripe-elements {
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 14px;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+
+.oct-stripe-elements.focused {
+  border-color: #C8A96E;
+  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+}
+
+.oct-stripe-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #999;
+  margin-top: 10px;
+  margin-bottom: 16px;
+}
+
+/* ---------- Buttons ---------- */
+.oct-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.oct-btn--primary {
+  background: #1a1a1a;
+  color: #fff;
+  border-color: #1a1a1a;
+}
+
+.oct-btn--primary:hover:not(:disabled) {
+  background: #333;
+  border-color: #333;
+}
+
+.oct-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.oct-btn--secondary {
+  background: #fff;
+  color: #1a1a1a;
+  border-color: #e0e0e0;
+}
+
+.oct-btn--secondary:hover {
+  border-color: #C8A96E;
+  color: #C8A96E;
+}
+
+.oct-btn--full {
+  width: 100%;
+}
+
+/* ---------- Payment error ---------- */
+.oct-payment-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* ---------- Success state ---------- */
+.oct-success {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.oct-success__icon {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #C8A96E;
+  color: #fff;
+  font-size: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 20px;
+  font-weight: 700;
+}
+
+.oct-success h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+
+.oct-success p {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.oct-ticket-links {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+.oct-ticket-link {
+  display: block;
+  background: #1a1a1a;
+  color: #fff;
+  text-decoration: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.oct-ticket-link:hover {
+  background: #333;
+  color: #fff;
+}
+
+/* ---------- Error / notice ---------- */
+.oct-error {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.oct-notice {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+/* ---------- PayPal container ---------- */
+#oct-paypal-buttons {
+  margin-bottom: 10px;
+}
+
+/* ---------- Spinner ---------- */
+.oct-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: oct-spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes oct-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 480px) {
+  .oct-ticket-card__top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .oct-payment-tabs {
+    flex-direction: column;
+  }
+
+  .oct-tab {
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .oct-tab:last-child {
+    border-bottom: none;
+  }
+}
