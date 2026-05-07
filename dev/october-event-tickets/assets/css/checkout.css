@@ -115,31 +115,43 @@
 
 /* ---------- Inline qty per ticket row ---------- */
 .oct-ticket-row__qty {
-  display: flex;
-  align-items: center;
-  gap: 0;
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
   border: 2px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
+  background: #f8f8f8;
 }
 
 .oct-ticket-row__qty .oct-qty-btn {
-  background: #f8f8f8;
-  border: none;
-  width: 36px;
-  height: 36px;
-  font-size: 18px;
-  font-weight: 400;
-  cursor: pointer;
-  color: #1a1a1a;
+  background: #f8f8f8 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  font-size: 18px !important;
+  font-weight: 400 !important;
+  cursor: pointer !important;
+  color: #1a1a1a !important;
   transition: background 0.1s;
-  line-height: 1;
-  flex-shrink: 0;
+  line-height: 36px !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  box-shadow: none !important;
+  outline: none;
+  user-select: none;
 }
 
 .oct-ticket-row__qty .oct-qty-btn:hover {
-  background: #eee;
+  background: #eee !important;
 }
 
 .oct-ticket-row__qty .oct-qty-val {

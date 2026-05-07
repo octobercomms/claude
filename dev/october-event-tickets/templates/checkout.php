@@ -14,6 +14,7 @@ defined('ABSPATH') || exit;
 
 $has_paypal = (bool) \OctoberTickets\Settings::get_instance()->get('paypal_client_id');
 $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publishable_key');
+$terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 ?>
 
 <div class="oct-checkout" id="oct-checkout-<?php echo esc_attr((string) $event_id); ?>" data-event-id="<?php echo esc_attr((string) $event_id); ?>" data-has-terms="<?php echo esc_attr($terms_url ? '1' : '0'); ?>">
@@ -181,11 +182,8 @@ $has_stripe = (bool) \OctoberTickets\Settings::get_instance()->get('stripe_publi
       <div id="oct-attendee-names-fields"></div>
     </div>
 
-    <!-- Terms & Conditions (shown by JS when terms_url is set) -->
-    <?php
-    $terms_url = \OctoberTickets\Settings::get_instance()->get('terms_url');
-    if ($terms_url) :
-    ?>
+    <!-- Terms & Conditions (shown when terms_url is set) -->
+    <?php if ($terms_url) : ?>
     <div class="oct-section oct-terms-section">
       <label class="oct-terms-label">
         <input type="checkbox" id="oct-terms-checkbox" class="oct-terms-checkbox">
