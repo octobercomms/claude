@@ -29,6 +29,7 @@ class Settings {
     public function init(): void {
         add_action('admin_menu', [$this, 'add_menu_page']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_settings_assets']);
     }
 
     public function get(string $key, string $default = ''): string {
@@ -206,6 +207,22 @@ class Settings {
                 ],
             ]
         );
+
+        // Check-in App section
+        add_settings_section(
+            'oct_checkin_app',
+            __('Check-in App', 'october-event-tickets'),
+            null,
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'checkin_logo_url',
+            __('Logo Image', 'october-event-tickets'),
+            [$this, 'render_logo_field'],
+            'oct-tickets-settings',
+            'oct_checkin_app'
+        );
     }
 
     public function sanitize_settings(array $input): array {
@@ -237,6 +254,7 @@ class Settings {
         $clean['currency']      = in_array($input['currency'] ?? '', ['USD', 'GBP', 'EUR', 'AUD', 'CAD'], true)
             ? $input['currency']
             : 'USD';
+        $clean['checkin_logo_url'] = esc_url_raw($input['checkin_logo_url'] ?? '');
 
         return $clean;
     }
@@ -264,6 +282,39 @@ class Settings {
         echo '</select>';
     }
 
+    public function render_logo_field(): void {
+        $url  = esc_attr($this->get('checkin_logo_url'));
+        $name = esc_attr(self::OPTION_KEY . '[checkin_logo_url]');
+        echo '<div style="display:flex;align-items:center;gap:12px;">';
+        echo '<input type="url" id="oct_checkin_logo_url" name="' . $name . '" value="' . $url . '" class="regular-text" placeholder="https://" />';
+        echo '<button type="button" class="button" id="oct_logo_upload_btn">' . esc_html__('Choose Image', 'october-event-tickets') . '</button>';
+        echo '</div>';
+        if ($url) {
+            echo '<div style="margin-top:8px;"><img src="' . esc_url($url) . '" style="max-height:60px;border-radius:4px;border:1px solid #ddd;" /></div>';
+        }
+        echo '<p class="description">' . esc_html__('Logo shown in the check-in app header. Recommended height: 40px.', 'october-event-tickets') . '</p>';
+    }
+
+    public function enqueue_settings_assets(string $hook): void {
+        if ($hook !== 'settings_page_oct-tickets-settings') {
+            return;
+        }
+        wp_enqueue_media();
+        wp_add_inline_script('jquery-core', "
+            jQuery(function($) {
+                $('#oct_logo_upload_btn').on('click', function(e) {
+                    e.preventDefault();
+                    var frame = wp.media({ title: 'Choose Logo', button: { text: 'Use this image' }, multiple: false });
+                    frame.on('select', function() {
+                        var att = frame.state().get('selection').first().toJSON();
+                        $('#oct_checkin_logo_url').val(att.url);
+                    });
+                    frame.open();
+                });
+            });
+        ");
+    }
+
     public function render_settings_page(): void {
         if (!current_user_can('manage_options')) {
             return;
@@ -289,9 +340,9 @@ class Settings {
             <hr>
             <h2><?php esc_html_e('Shortcode', 'october-event-tickets'); ?></h2>
             <p><?php esc_html_e('Add the checkout form to any page:', 'october-event-tickets'); ?></p>
-            <code>[oct_checkout]</code>
+            <code>[event_checkout]</code>
             <p><?php esc_html_e('Or specify an event ID:', 'october-event-tickets'); ?></p>
-            <code>[oct_checkout event_id="123"]</code>
+            <code>[event_checkout event_id="123"]</code>
 
             <hr>
             <h2><?php esc_html_e('Check-in App', 'october-event-tickets'); ?></h2>

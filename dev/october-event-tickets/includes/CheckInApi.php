@@ -207,8 +207,7 @@ class CheckInApi {
             'post_type'      => 'events',
             'post_status'    => 'publish',
             'posts_per_page' => 100,
-            'orderby'        => 'meta_value',
-            'meta_key'       => 'event_date',
+            'orderby'        => 'title',
             'order'          => 'ASC',
         ]);
 
@@ -321,8 +320,9 @@ class CheckInApi {
 
     private function validate_pin(int $event_id, string $pin): bool {
         $stored_pin = get_post_meta($event_id, '_oct_checkin_pin', true);
-        if (!$stored_pin) {
-            return false;
+        // Fall back to post ID as PIN if none has been set
+        if ($stored_pin === '' || $stored_pin === false) {
+            $stored_pin = (string) $event_id;
         }
         return hash_equals((string) $stored_pin, $pin);
     }

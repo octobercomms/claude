@@ -22,7 +22,6 @@ class Checkout {
     }
 
     public function init(): void {
-        add_shortcode('oct_checkout',    [$this, 'render_shortcode']);
         add_shortcode('event_checkout', [$this, 'render_shortcode']);
 
         // Stripe
@@ -36,6 +35,10 @@ class Checkout {
         add_action('wp_ajax_nopriv_oct_create_paypal_order', [$this, 'ajax_create_paypal_order']);
         add_action('wp_ajax_oct_capture_paypal_order',        [$this, 'ajax_capture_paypal_order']);
         add_action('wp_ajax_nopriv_oct_capture_paypal_order', [$this, 'ajax_capture_paypal_order']);
+
+        // Free ticket registration
+        add_action('wp_ajax_oct_register_free',        [$this, 'ajax_register_free']);
+        add_action('wp_ajax_nopriv_oct_register_free', [$this, 'ajax_register_free']);
     }
 
     // -------------------------------------------------------------------------
@@ -444,5 +447,85 @@ class Checkout {
         if ($order && $tickets_db && $event) {
             Brevo::get_instance()->send_order_confirmation($order, $tickets_db, $event, $event_meta);
         }
+    }
+
+    // -------------------------------------------------------------------------
+    // AJAX: Free Ticket Registration (total = $0.00)
+    // -------------------------------------------------------------------------
+
+    public function ajax_register_free(): void {
+        check_ajax_referer('oct_checkout_nonce', 'nonce');
+
+        $event_id        = (int) ($_POST['event_id'] ?? 0);
+        $ticket_type_key = sanitize_text_field($_POST['ticket_type_key'] ?? '');
+        $qty             = max(1, (int) ($_POST['qty'] ?? 1));
+        $name            = sanitize_text_field($_POST['name'] ?? '');
+        $email           = sanitize_email($_POST['email'] ?? '');
+        $promo_code      = strtoupper(sanitize_text_field($_POST['promo_code'] ?? ''));
+
+        if (!$event_id || !$ticket_type_key || !$email) {
+            wp_send_json_error(['message' => __('Please enter your email address.', 'october-event-tickets')]);
+        }
+
+        if (!is_email($email)) {
+            wp_send_json_error(['message' => __('Please enter a valid email address.', 'october-event-tickets')]);
+        }
+
+        $meta_box = EventMetaBox::get_instance();
+
+        $event_sale_until = $meta_box->get_event_sale_until($event_id);
+        if ($event_sale_until && current_time('timestamp') > strtotime($event_sale_until)) {
+            wp_send_json_error(['message' => __('Ticket sales for this event have closed.', 'october-event-tickets')]);
+        }
+
+        $ticket_type = $meta_box->get_ticket_type_by_key($event_id, $ticket_type_key);
+        if (!$ticket_type || empty($ticket_type['active'])) {
+            wp_send_json_error(['message' => __('Invalid ticket type.', 'october-event-tickets')]);
+        }
+
+        // Verify it's actually free (after any promo)
+        $effective_price = isset($ticket_type['sale_price']) && $ticket_type['sale_price'] !== null
+            ? (float) $ticket_type['sale_price']
+            : (float) $ticket_type['price'];
+        $subtotal        = round($effective_price * $qty, 2);
+        $discount_amount = 0.0;
+
+        if ($promo_code) {
+            $promo_result = PromoCodes::get_instance()->validate($promo_code, $event_id, $subtotal);
+            if (!is_wp_error($promo_result)) {
+                $discount_amount = $promo_result['discount_amount'];
+            }
+        }
+
+        $total = max(0.0, $subtotal - $discount_amount);
+        if ($total > 0) {
+            wp_send_json_error(['message' => __('This ticket type requires payment.', 'october-event-tickets')]);
+        }
+
+        $result = TicketGenerator::get_instance()->create_order_and_tickets(
+            [
+                'event_id'        => $event_id,
+                'email'           => $email,
+                'name'            => $name,
+                'qty'             => $qty,
+                'promo_code'      => $promo_code,
+                'discount_amount' => $discount_amount,
+            ],
+            $ticket_type,
+            'free_' . uniqid(),
+            'free'
+        );
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(['message' => $result->get_error_message()]);
+        }
+
+        $this->send_confirmation_email($result['order_id']);
+
+        $ticket_urls = array_map(fn($t) => $t['print_url'], $result['tickets']);
+        wp_send_json_success([
+            'order_id'    => $result['order_id'],
+            'ticket_urls' => $ticket_urls,
+        ]);
     }
 }

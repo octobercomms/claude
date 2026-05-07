@@ -37,6 +37,13 @@ final class Plugin {
 
         // Rewrite rules & query vars
         add_action('init', [$this, 'register_rewrite_rules']);
+        add_action('init', function() {
+            if (get_option('oct_tickets_flushed_version', '') !== OCT_TICKETS_VERSION) {
+                $this->register_rewrite_rules();
+                flush_rewrite_rules(false);
+                update_option('oct_tickets_flushed_version', OCT_TICKETS_VERSION);
+            }
+        }, 20);
         add_filter('query_vars', [$this, 'add_query_vars']);
         add_action('template_redirect', [$this, 'handle_template_redirect']);
 
@@ -111,7 +118,7 @@ final class Plugin {
         }
 
         global $post;
-        if ($post && has_shortcode($post->post_content, 'oct_checkout')) {
+        if ($post && (has_shortcode($post->post_content, 'event_checkout') || has_shortcode($post->post_content, 'oct_checkout'))) {
             $settings = Settings::get_instance();
 
             wp_enqueue_style(
