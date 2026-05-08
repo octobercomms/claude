@@ -39,7 +39,7 @@
 
 .oct-ticket-row {
   display: flex !important;
-  align-items: center !important;
+  align-items: flex-start !important;
   justify-content: space-between !important;
   gap: 20px !important;
   padding: 20px !important;
