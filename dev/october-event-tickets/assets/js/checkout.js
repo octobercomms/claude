@@ -694,6 +694,49 @@
     });
   }
 
+  // ---- Global qty handler (called by inline onclick on qty buttons) ----
+  // Exposed globally so it cannot be blocked by any event system.
+  window.octHandleQty = function (btn, action) {
+    // Lazy-init state if document.ready hasn't fired yet
+    if (!state.eventId) {
+      var $c = $('.oct-checkout');
+      if ($c.length) {
+        state.eventId  = parseInt($c.data('event-id'), 10) || 0;
+        state.hasTerms = $c.data('has-terms') === '1' || $c.data('has-terms') === 1;
+        var $json = $('#oct-ticket-data-' + state.eventId);
+        if ($json.length) {
+          try { state.ticketTypes = JSON.parse($json.text()); } catch (ex) {}
+        }
+      }
+    }
+
+    var $btn    = $(btn);
+    var $row    = $btn.closest('.oct-ticket-row');
+    if (!$row.length || $row.hasClass('oct-ticket-row--unavailable')) return;
+
+    var $val    = $row.find('.oct-qty-val');
+    var current = parseInt($val.text(), 10) || 0;
+
+    if (action === 'plus') {
+      if (current >= 10) return;
+      resetOtherRows($row);
+      $val.text(current + 1);
+      state.qty = current + 1;
+      selectRow($row);
+    } else {
+      if (current <= 0) return;
+      $val.text(current - 1);
+      state.qty = current - 1;
+      if (state.qty === 0) {
+        $row.removeClass('oct-ticket-row--selected');
+        state.selectedType = null;
+        updateSummary();
+      } else {
+        selectRow($row);
+      }
+    }
+  };
+
   // ---- Boot ----
   $(document).ready(init);
 

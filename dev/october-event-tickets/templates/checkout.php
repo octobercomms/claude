@@ -94,9 +94,13 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
             </div>
             <?php if (!$unavailable) : ?>
             <div class="oct-ticket-row__qty" role="group">
-              <button type="button" class="oct-qty-btn" data-action="minus" aria-label="<?php esc_attr_e('Decrease quantity', 'october-event-tickets'); ?>">−</button>
+              <button type="button" class="oct-qty-btn" data-action="minus"
+                      onclick="event.stopPropagation();if(window.octHandleQty)window.octHandleQty(this,'minus')"
+                      aria-label="<?php esc_attr_e('Decrease quantity', 'october-event-tickets'); ?>">−</button>
               <span class="oct-qty-val" aria-live="polite">0</span>
-              <button type="button" class="oct-qty-btn" data-action="plus" aria-label="<?php esc_attr_e('Increase quantity', 'october-event-tickets'); ?>">+</button>
+              <button type="button" class="oct-qty-btn" data-action="plus"
+                      onclick="event.stopPropagation();if(window.octHandleQty)window.octHandleQty(this,'plus')"
+                      aria-label="<?php esc_attr_e('Increase quantity', 'october-event-tickets'); ?>">+</button>
             </div>
             <?php endif; ?>
           </div>
