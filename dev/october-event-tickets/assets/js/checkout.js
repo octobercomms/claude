@@ -165,17 +165,20 @@
       return;
     }
 
+    var qtyPerPurchase = parseInt(state.selectedType.qty_per_purchase, 10) || 1;
+    var totalAttendees = qty * qtyPerPurchase;
+
     // Build the right number of name fields
     var existing = $fields.find('.oct-attendee-name').length;
-    if (existing === qty) {
+    if (existing === totalAttendees) {
       $section.show();
       return;
     }
 
     $fields.empty();
-    for (var i = 1; i <= qty; i++) {
+    for (var i = 1; i <= totalAttendees; i++) {
       var $group = $('<div class="oct-field-group"></div>');
-      var label  = qty === 1 ? 'Attendee Name' : 'Attendee ' + i + ' Name';
+      var label  = totalAttendees === 1 ? 'Attendee Name' : 'Attendee ' + i + ' Name';
       $group.append('<label class="oct-label">' + label + '</label>');
       $group.append(
         '<input type="text" class="oct-input oct-attendee-name" data-index="' + i + '" placeholder="Full name (optional)" autocomplete="off">'
