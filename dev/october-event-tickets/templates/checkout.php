@@ -32,7 +32,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Step 1: Ticket Selection -->
     <div class="oct-section oct-section--tickets">
-      <h3 class="oct-section__title"><?php esc_html_e('Choose Your Ticket', 'october-event-tickets'); ?></h3>
+      <h6 class="oct-section__title"><?php esc_html_e('Choose Your Ticket', 'october-event-tickets'); ?></h6>
 
       <div class="oct-ticket-list" role="group" aria-label="<?php esc_attr_e('Ticket Types', 'october-event-tickets'); ?>">
         <?php foreach ($active_types as $i => $tt) :
@@ -112,7 +112,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
     <div id="oct-waitlist-modal" style="display:none" class="oct-waitlist-modal" role="dialog" aria-modal="true" aria-labelledby="oct-waitlist-title">
       <div class="oct-waitlist-modal__backdrop"></div>
       <div class="oct-waitlist-modal__box">
-        <h3 id="oct-waitlist-title" class="oct-section__title"><?php esc_html_e('Join the Waitlist', 'october-event-tickets'); ?></h3>
+        <h6 id="oct-waitlist-title" class="oct-section__title"><?php esc_html_e('Join the Waitlist', 'october-event-tickets'); ?></h6>
         <p class="oct-waitlist-modal__sub" id="oct-waitlist-ticket-label"></p>
         <div class="oct-field-group">
           <label for="oct-waitlist-name" class="oct-label"><?php esc_html_e('Name', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
@@ -143,7 +143,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Order Summary -->
     <div class="oct-section oct-section--summary oct-summary" id="oct-summary">
-      <h3 class="oct-section__title"><?php esc_html_e('Order Summary', 'october-event-tickets'); ?></h3>
+      <h6 class="oct-section__title"><?php esc_html_e('Order Summary', 'october-event-tickets'); ?></h6>
       <div class="oct-summary-row">
         <span class="oct-summary-label" id="oct-summary-type"><?php echo esc_html($active_types[0]['label'] ?? ''); ?></span>
         <span class="oct-summary-label" id="oct-summary-count"></span>
@@ -165,7 +165,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Step 4: Attendee Details — 50/50 label + field layout -->
     <div class="oct-section oct-section--details">
-      <h3 class="oct-section__title"><?php esc_html_e('Your Details', 'october-event-tickets'); ?></h3>
+      <h6 class="oct-section__title"><?php esc_html_e('Your Details', 'october-event-tickets'); ?></h6>
       <div class="oct-field-group">
         <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
         <div class="oct-field-input">
@@ -185,7 +185,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Attendee Names (shown by JS when qty > 1) -->
     <div class="oct-section oct-section--attendees" id="oct-attendee-names-section" style="display:none">
-      <h3 class="oct-section__title"><?php esc_html_e('Attendee Names', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></h3>
+      <h6 class="oct-section__title"><?php esc_html_e('Attendee Names', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></h6>
       <p class="oct-field-hint" style="margin-bottom:12px;"><?php esc_html_e('Add names for each ticket — useful for group bookings.', 'october-event-tickets'); ?></p>
       <div id="oct-attendee-names-fields"></div>
     </div>
@@ -208,7 +208,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
     <!-- Step 5: Payment -->
     <div id="oct-payment-section">
     <div class="oct-section oct-section--payment">
-      <h3 class="oct-section__title"><?php esc_html_e('Payment', 'october-event-tickets'); ?></h3>
+      <h6 class="oct-section__title"><?php esc_html_e('Payment', 'october-event-tickets'); ?></h6>
 
       <?php if ($has_stripe && $has_paypal) : ?>
         <!-- Two-tab payment section -->
