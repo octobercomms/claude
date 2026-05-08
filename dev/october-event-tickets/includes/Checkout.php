@@ -88,6 +88,11 @@ class Checkout {
         $currency_symbol = $settings->get_currency_symbol();
         $currency        = strtoupper($settings->get('currency', 'USD'));
 
+        // Ensure assets load even when the shortcode lives inside a Jet/Elementor
+        // template (a separate post that Plugin::page_has_checkout_shortcode() won't see).
+        // Scripts with $in_footer=true are output safely in wp_footer from here.
+        Plugin::get_instance()->enqueue_checkout_assets();
+
         ob_start();
         // $typed_tickets replaces $active_types in the template
         $active_types = $typed_tickets;

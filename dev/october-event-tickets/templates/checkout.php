@@ -31,7 +31,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
   <div id="oct-checkout-form">
 
     <!-- Step 1: Ticket Selection -->
-    <div class="oct-section">
+    <div class="oct-section oct-section--tickets">
       <h3 class="oct-section__title"><?php esc_html_e('Choose Your Ticket', 'october-event-tickets'); ?></h3>
 
       <div class="oct-ticket-list" role="group" aria-label="<?php esc_attr_e('Ticket Types', 'october-event-tickets'); ?>">
@@ -130,10 +130,10 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
       </div>
     </div>
 
-    <!-- Step 2: Promo Code -->
-    <div class="oct-section">
-      <label for="oct-promo" class="oct-label"><?php esc_html_e('Promo Code', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
+    <!-- Step 2: Promo Code — label + input on one line -->
+    <div class="oct-section oct-section--promo">
       <div class="oct-promo-row">
+        <label for="oct-promo" class="oct-label"><?php esc_html_e('Promo Code', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
         <input type="text" id="oct-promo" name="oct_promo" placeholder="<?php esc_attr_e('Enter code', 'october-event-tickets'); ?>"
                class="oct-input" autocomplete="off" style="text-transform:uppercase">
         <button type="button" id="oct-apply-promo" class="oct-btn oct-btn--secondary"><?php esc_html_e('Apply', 'october-event-tickets'); ?></button>
@@ -142,7 +142,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
     </div>
 
     <!-- Order Summary -->
-    <div class="oct-section oct-summary" id="oct-summary">
+    <div class="oct-section oct-section--summary oct-summary" id="oct-summary">
       <h3 class="oct-section__title"><?php esc_html_e('Order Summary', 'october-event-tickets'); ?></h3>
       <div class="oct-summary-row">
         <span class="oct-summary-label" id="oct-summary-type"><?php echo esc_html($active_types[0]['label'] ?? ''); ?></span>
@@ -163,24 +163,28 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
       </div>
     </div>
 
-    <!-- Step 4: Attendee Details -->
-    <div class="oct-section">
+    <!-- Step 4: Attendee Details — 50/50 label + field layout -->
+    <div class="oct-section oct-section--details">
       <h3 class="oct-section__title"><?php esc_html_e('Your Details', 'october-event-tickets'); ?></h3>
       <div class="oct-field-group">
         <label for="oct-name" class="oct-label"><?php esc_html_e('Name', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></label>
-        <input type="text" id="oct-name" name="oct_name" class="oct-input"
-               placeholder="<?php esc_attr_e('Your full name', 'october-event-tickets'); ?>" autocomplete="name">
+        <div class="oct-field-input">
+          <input type="text" id="oct-name" name="oct_name" class="oct-input"
+                 placeholder="<?php esc_attr_e('Your full name', 'october-event-tickets'); ?>" autocomplete="name">
+        </div>
       </div>
       <div class="oct-field-group">
         <label for="oct-email" class="oct-label"><?php esc_html_e('Email', 'october-event-tickets'); ?> <span class="oct-required" aria-hidden="true">*</span></label>
-        <input type="email" id="oct-email" name="oct_email" class="oct-input" required
-               placeholder="<?php esc_attr_e('you@example.com', 'october-event-tickets'); ?>" autocomplete="email">
-        <span class="oct-field-hint"><?php esc_html_e('Tickets will be sent here.', 'october-event-tickets'); ?></span>
+        <div class="oct-field-input">
+          <input type="email" id="oct-email" name="oct_email" class="oct-input" required
+                 placeholder="<?php esc_attr_e('you@example.com', 'october-event-tickets'); ?>" autocomplete="email">
+          <span class="oct-field-hint"><?php esc_html_e('Tickets will be sent here.', 'october-event-tickets'); ?></span>
+        </div>
       </div>
     </div>
 
     <!-- Attendee Names (shown by JS when qty > 1) -->
-    <div class="oct-section" id="oct-attendee-names-section" style="display:none">
+    <div class="oct-section oct-section--attendees" id="oct-attendee-names-section" style="display:none">
       <h3 class="oct-section__title"><?php esc_html_e('Attendee Names', 'october-event-tickets'); ?> <span class="oct-optional"><?php esc_html_e('(optional)', 'october-event-tickets'); ?></span></h3>
       <p class="oct-field-hint" style="margin-bottom:12px;"><?php esc_html_e('Add names for each ticket — useful for group bookings.', 'october-event-tickets'); ?></p>
       <div id="oct-attendee-names-fields"></div>
@@ -188,7 +192,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Terms & Conditions (shown when terms_url is set) -->
     <?php if ($terms_url) : ?>
-    <div class="oct-section oct-terms-section">
+    <div class="oct-section oct-section--terms oct-terms-section">
       <label class="oct-terms-label">
         <input type="checkbox" id="oct-terms-checkbox" class="oct-terms-checkbox">
         <span>
@@ -203,7 +207,7 @@ $terms_url  = \OctoberTickets\Settings::get_instance()->get('terms_url');
 
     <!-- Step 5: Payment -->
     <div id="oct-payment-section">
-    <div class="oct-section">
+    <div class="oct-section oct-section--payment">
       <h3 class="oct-section__title"><?php esc_html_e('Payment', 'october-event-tickets'); ?></h3>
 
       <?php if ($has_stripe && $has_paypal) : ?>

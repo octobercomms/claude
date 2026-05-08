@@ -140,54 +140,69 @@ final class Plugin {
     }
 
     public function enqueue_frontend_assets(): void {
-        // Only enqueue checkout assets when the shortcode might be on the page
-        // We use a global flag set by the shortcode
+        // Fast path: enqueue in <head> when we can detect the shortcode on this page.
+        // Falls back to enqueue_checkout_assets() called from the shortcode handler
+        // itself for cases where the shortcode lives inside a Jet/Elementor template
+        // (a separate post that this check won't see).
         if (!is_singular()) {
             return;
         }
 
         global $post;
         if ($post && $this->page_has_checkout_shortcode($post)) {
-            $settings = Settings::get_instance();
+            $this->enqueue_checkout_assets();
+        }
+    }
 
-            wp_enqueue_style(
-                'oct-checkout',
-                OCT_TICKETS_URL . 'assets/css/checkout.css',
-                [],
-                OCT_TICKETS_VERSION
-            );
+    /**
+     * Registers and enqueues all checkout assets + localized data.
+     * Safe to call multiple times — WordPress deduplicates enqueues.
+     * wp_localize_script is only called once (guarded by script-enqueued check).
+     */
+    public function enqueue_checkout_assets(): void {
+        $settings = Settings::get_instance();
+        $currency = strtoupper($settings->get('currency', 'USD'));
 
-            // Stripe.js
+        wp_enqueue_style(
+            'oct-checkout',
+            OCT_TICKETS_URL . 'assets/css/checkout.css',
+            [],
+            OCT_TICKETS_VERSION
+        );
+
+        wp_enqueue_script(
+            'stripe-js',
+            'https://js.stripe.com/v3/',
+            [],
+            null,
+            true
+        );
+
+        $paypal_client_id = $settings->get('paypal_client_id');
+        if ($paypal_client_id) {
             wp_enqueue_script(
-                'stripe-js',
-                'https://js.stripe.com/v3/',
+                'paypal-sdk',
+                'https://www.paypal.com/sdk/js?client-id=' . esc_attr($paypal_client_id)
+                    . '&components=buttons&enable-funding=paylater&currency=' . esc_attr($currency),
                 [],
                 null,
                 true
             );
+        }
 
-            // PayPal SDK — built dynamically in checkout.js init
-            $paypal_client_id = $settings->get('paypal_client_id');
-            $currency         = strtoupper($settings->get('currency', 'USD'));
-            if ($paypal_client_id) {
-                wp_enqueue_script(
-                    'paypal-sdk',
-                    'https://www.paypal.com/sdk/js?client-id=' . esc_attr($paypal_client_id)
-                        . '&components=buttons&enable-funding=paylater&currency=' . esc_attr($currency),
-                    [],
-                    null,
-                    true
-                );
-            }
+        $already_enqueued = wp_script_is('oct-checkout', 'enqueued') || wp_script_is('oct-checkout', 'done');
 
-            wp_enqueue_script(
-                'oct-checkout',
-                OCT_TICKETS_URL . 'assets/js/checkout.js',
-                ['jquery', 'stripe-js'],
-                OCT_TICKETS_VERSION,
-                true
-            );
+        wp_enqueue_script(
+            'oct-checkout',
+            OCT_TICKETS_URL . 'assets/js/checkout.js',
+            ['jquery', 'stripe-js'],
+            OCT_TICKETS_VERSION,
+            true
+        );
 
+        // Localize only once — calling wp_localize_script a second time appends
+        // a duplicate inline script block which would clobber the data object.
+        if (!$already_enqueued) {
             wp_localize_script('oct-checkout', 'octCheckout', [
                 'ajaxUrl'           => admin_url('admin-ajax.php'),
                 'nonce'             => wp_create_nonce('oct_checkout_nonce'),

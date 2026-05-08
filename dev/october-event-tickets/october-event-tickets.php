@@ -3,7 +3,7 @@
  * Plugin Name: Event Tickets by October Communications
  * Plugin URI:  https://octobercommunications.com
  * Description: Complete event ticketing solution with Stripe, PayPal Pay Later, Brevo email, QR code tickets, and mobile check-in PWA.
- * Version:     1.2.1
+ * Version:     1.2.2
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('OCT_TICKETS_VERSION', '1.2.1');
+define('OCT_TICKETS_VERSION', '1.2.2');
 define('OCT_TICKETS_FILE', __FILE__);
 define('OCT_TICKETS_DIR', plugin_dir_path(__FILE__));
 define('OCT_TICKETS_URL', plugin_dir_url(__FILE__));

@@ -29,7 +29,7 @@
 
 .oct-ticket-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
   padding: 20px 0;
@@ -311,10 +311,19 @@
 .oct-promo-row {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .oct-promo-row .oct-input {
   flex: 1;
+}
+
+/* Promo section: title + field on one line */
+.oct-section--promo .oct-promo-row .oct-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .oct-promo-message {
@@ -661,6 +670,26 @@
   padding-top: 4px;
 }
 
+/* ---------- Your Details: 50/50 label + field ---------- */
+.oct-section--details .oct-field-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.oct-section--details .oct-label {
+  width: 50%;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding-top: 11px;
+}
+
+.oct-field-input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {
   .oct-ticket-row {
@@ -684,5 +713,23 @@
 
   .oct-tab:last-child {
     border-bottom: none;
+  }
+
+  .oct-section--promo .oct-promo-row {
+    flex-wrap: wrap;
+  }
+
+  .oct-section--promo .oct-promo-row .oct-label {
+    width: 100%;
+  }
+
+  .oct-section--details .oct-field-group {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .oct-section--details .oct-label {
+    width: 100%;
+    padding-top: 0;
   }
 }
