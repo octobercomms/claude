@@ -140,6 +140,24 @@ class OO_Ajax {
         $hunter = new OO_Hunter();
         $result = $hunter->save_contacts( $contacts, $contact_type );
 
+        // Bulk-insert into oo_campaign_contacts junction table if we have a campaign
+        if ( $campaign_id > 0 && ! empty( $result['contact_ids'] ) ) {
+            global $wpdb;
+            $cc_table = $wpdb->prefix . 'oo_campaign_contacts';
+
+            foreach ( $result['contact_ids'] as $contact_id ) {
+                $contact_id = intval( $contact_id );
+                if ( ! $contact_id ) continue;
+
+                // Use INSERT IGNORE to skip already-existing rows
+                $wpdb->query( $wpdb->prepare(
+                    "INSERT IGNORE INTO {$cc_table} (campaign_id, contact_id) VALUES (%d, %d)",
+                    $campaign_id,
+                    $contact_id
+                ) );
+            }
+        }
+
         wp_send_json_success( $result );
     }
 
@@ -248,11 +266,60 @@ class OO_Ajax {
             array( 'id' => $campaign_id )
         );
 
+        // Seed oo_sends for all campaign contacts using the first sequence step
+        $queued = 0;
+
+        $first_step = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_sequences
+             WHERE campaign_id = %d AND step_number = 1 AND status = 'active'
+             LIMIT 1",
+            $campaign_id
+        ) );
+
+        if ( $first_step ) {
+            $contact_ids = $wpdb->get_col( $wpdb->prepare(
+                "SELECT contact_id FROM {$wpdb->prefix}oo_campaign_contacts WHERE campaign_id = %d",
+                $campaign_id
+            ) );
+
+            $sends_table = $wpdb->prefix . 'oo_sends';
+
+            foreach ( $contact_ids as $contact_id ) {
+                $contact_id = intval( $contact_id );
+                if ( ! $contact_id ) continue;
+
+                // Skip if a send already exists for this campaign+contact+sequence
+                $exists = $wpdb->get_var( $wpdb->prepare(
+                    "SELECT id FROM {$sends_table}
+                     WHERE campaign_id = %d AND contact_id = %d AND sequence_id = %d
+                     LIMIT 1",
+                    $campaign_id,
+                    $contact_id,
+                    $first_step->id
+                ) );
+
+                if ( $exists ) continue;
+
+                $wpdb->insert( $sends_table, array(
+                    'campaign_id'  => $campaign_id,
+                    'contact_id'   => $contact_id,
+                    'sequence_id'  => $first_step->id,
+                    'status'       => 'pending',
+                    'scheduled_at' => current_time( 'mysql' ),
+                ) );
+
+                if ( $wpdb->insert_id ) {
+                    $queued++;
+                }
+            }
+        }
+
         oo_schedule_sequence_processing( $campaign_id );
 
         wp_send_json_success( array(
-            'campaign_id'    => $campaign_id,
-            'scheduler'      => OO_HAS_ACTION_SCHEDULER ? 'action-scheduler' : 'wp-cron',
+            'campaign_id' => $campaign_id,
+            'scheduler'   => OO_HAS_ACTION_SCHEDULER ? 'action-scheduler' : 'wp-cron',
+            'queued'      => $queued,
         ) );
     }
 

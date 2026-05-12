@@ -25,7 +25,7 @@ $colours = array( 'draft' => 'grey', 'active' => 'green', 'paused' => 'orange', 
 <div class="oo-table-wrap">
     <table class="oo-table">
         <thead><tr>
-            <th>Campaign</th><th>Brand</th><th>Type</th><th>From</th><th>Status</th><th>Created</th><th>Actions</th>
+            <th>Campaign</th><th>Brand</th><th>Type</th><th>From</th><th>Status</th><th>Sent / Total</th><th>Created</th><th>Actions</th>
         </tr></thead>
         <tbody>
         <?php foreach ( $campaigns as $c ) : ?>
@@ -40,6 +40,11 @@ $colours = array( 'draft' => 'grey', 'active' => 'green', 'paused' => 'orange', 
             <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ); ?></td>
             <td class="oo-muted"><?php echo esc_html( $c->from_email ?: '—' ); ?></td>
             <td><span class="oo-badge oo-badge-<?php echo esc_attr( $colours[ $c->status ] ?? 'grey' ); ?>"><?php echo esc_html( ucfirst( $c->status ) ); ?></span></td>
+            <td class="oo-muted"><?php
+                $sent  = intval( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_sends WHERE campaign_id = %d AND status = 'sent'", $c->id ) ) );
+                $total = intval( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_campaign_contacts WHERE campaign_id = %d", $c->id ) ) );
+                echo $total > 0 ? esc_html( $sent . ' / ' . $total ) : '—';
+            ?></td>
             <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
             <td>
                 <div class="oo-row-actions">

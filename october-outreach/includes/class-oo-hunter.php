@@ -146,15 +146,18 @@ class OO_Hunter {
 
     /**
      * Save Hunter.io contacts to the WP database.
-     * Returns counts of inserted, skipped (duplicate), and failed.
+     * Returns counts of inserted, skipped (duplicate), and failed,
+     * plus contact_ids — an array of IDs for every contact processed
+     * (either the newly inserted ID or the existing row's ID).
      */
     public function save_contacts( $contacts, $contact_type = '' ) {
         global $wpdb;
         $table = $wpdb->prefix . 'oo_contacts';
 
-        $inserted = 0;
-        $skipped  = 0;
-        $failed   = 0;
+        $inserted    = 0;
+        $skipped     = 0;
+        $failed      = 0;
+        $contact_ids = array();
 
         foreach ( $contacts as $c ) {
             if ( empty( $c['email'] ) ) {
@@ -168,13 +171,14 @@ class OO_Hunter {
                 continue;
             }
 
-            $existing = $wpdb->get_var( $wpdb->prepare(
+            $existing_id = $wpdb->get_var( $wpdb->prepare(
                 "SELECT id FROM $table WHERE email = %s",
                 $c['email']
             ) );
 
-            if ( $existing ) {
+            if ( $existing_id ) {
                 $skipped++;
+                $contact_ids[] = intval( $existing_id );
                 continue;
             }
 
@@ -192,15 +196,17 @@ class OO_Hunter {
 
             if ( $result ) {
                 $inserted++;
+                $contact_ids[] = intval( $wpdb->insert_id );
             } else {
                 $failed++;
             }
         }
 
         return array(
-            'inserted' => $inserted,
-            'skipped'  => $skipped,
-            'failed'   => $failed,
+            'inserted'    => $inserted,
+            'skipped'     => $skipped,
+            'failed'      => $failed,
+            'contact_ids' => $contact_ids,
         );
     }
 
