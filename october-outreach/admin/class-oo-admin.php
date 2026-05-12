@@ -39,6 +39,7 @@ class OO_Admin {
         add_submenu_page( 'october-outreach', 'Campaigns',      'Campaigns',      'manage_options', 'oo-campaigns',     array( $this, 'page_campaigns' ) );
         add_submenu_page( 'october-outreach', 'Press Releases', 'Press Releases', 'manage_options', 'oo-press',         array( $this, 'page_press' ) );
         add_submenu_page( 'october-outreach', 'Settings',       'Settings',       'manage_options', 'oo-settings',      array( $this, 'page_settings' ) );
+        add_submenu_page( 'october-outreach', 'Help & Support', 'Help & Support', 'manage_options', 'oo-help',          array( $this, 'page_help' ) );
     }
 
     public function enqueue_assets( $hook ) {
@@ -69,6 +70,7 @@ class OO_Admin {
     public function page_contacts()  { $this->render( 'contacts',  'contacts' ); }
     public function page_press()     { $this->render( 'press',     'press' ); }
     public function page_settings()  { $this->render( 'settings',  'settings' ); }
+    public function page_help()      { $this->render( 'help',      'help' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';
@@ -86,7 +88,15 @@ class OO_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
 
         $settings = get_option( 'oo_settings', array() );
-        $fields = array( 'license_key', 'claude_api_key', 'hunter_api_key', 'airtable_api_key', 'airtable_base_id', 'ses_key', 'ses_secret', 'ses_region', 'default_reply_to' );
+        $fields = array(
+            'license_key', 'claude_api_key', 'hunter_api_key',
+            'airtable_api_key', 'airtable_base_id',
+            'email_provider', 'default_reply_to',
+            'ses_key', 'ses_secret', 'ses_region',
+            'mailgun_api_key', 'mailgun_domain', 'mailgun_region',
+            'sendgrid_api_key',
+            'smtp_host', 'smtp_port', 'smtp_username', 'smtp_password', 'smtp_encryption',
+        );
         foreach ( $fields as $field ) {
             if ( isset( $_POST[ $field ] ) ) {
                 $settings[ $field ] = sanitize_text_field( $_POST[ $field ] );
