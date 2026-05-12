@@ -21,11 +21,9 @@ $nav_items    = array(
                 ? OO_PLUGIN_URL . 'admin/img/october-logo.gif'
                 : 'https://octobercomms.com/wp-content/uploads/2025/12/October-Logo-Animated-BlackBG.gif';
             ?>
-            <img src="<?php echo esc_url( $logo_src ); ?>" alt="October Comms" width="36" height="36" style="border-radius:6px;flex-shrink:0">
-            <div>
-                <div style="font-weight:700;font-size:14px;line-height:1.2;color:#fff">October Outreach</div>
-                <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;letter-spacing:0.02em">by October Comms</div>
-            </div>
+            <img src="<?php echo esc_url( $logo_src ); ?>" alt="October Comms" style="width:100%;height:auto;display:block;border-radius:4px;margin-bottom:10px">
+            <div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2">October Outreach</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;letter-spacing:0.02em">Powered by Claude AI</div>
         </div>
 
         <nav class="oo-sidebar-nav">

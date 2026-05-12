@@ -66,13 +66,8 @@
 
 .oo-sidebar-brand {
     display: flex;
-    align-items: center;
-    gap: 10px;
+    flex-direction: column;
     padding: 20px 18px 16px;
-    color: #fff;
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: -0.01em;
     border-bottom: 1px solid rgba(255,255,255,.06);
     margin-bottom: 8px;
 }
@@ -568,7 +563,7 @@
 
 @media (max-width: 782px) {
     .oo-sidebar { width: 60px; min-width: 60px; }
-    .oo-sidebar-brand span,
+    .oo-sidebar-brand,
     .oo-nav-item span,
     .oo-sidebar-footer { display: none; }
     .oo-main { margin-left: 60px; }
