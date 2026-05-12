@@ -15,7 +15,14 @@ $nav_items    = array(
 
     <aside class="oo-sidebar">
         <div class="oo-sidebar-brand">
-            <img src="https://octobercomms.com/wp-content/uploads/2025/12/October-Logo-Animated-BlackBG.gif" alt="October Comms" width="36" height="36" style="border-radius:6px;flex-shrink:0">
+            <?php
+            $logo_path = OO_PLUGIN_DIR . 'admin/img/october-logo.gif';
+            $logo_url  = OO_PLUGIN_URL . 'admin/img/october-logo.gif';
+            if ( file_exists( $logo_path ) ) : ?>
+            <img src="<?php echo esc_url( $logo_url ); ?>" alt="October Comms" width="36" height="36" style="border-radius:6px;flex-shrink:0">
+            <?php else : ?>
+            <div style="width:36px;height:36px;border-radius:6px;background:#6366f1;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0">O</div>
+            <?php endif; ?>
             <div>
                 <div style="font-weight:700;font-size:14px;line-height:1.2">October Outreach</div>
                 <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;letter-spacing:0.02em">Powered by Claude AI</div>
