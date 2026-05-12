@@ -148,7 +148,6 @@ $settings      = get_option( 'oo_settings', array() );
             </div>
             <div class="oo-wizard-actions">
                 <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-refine-audience">
-                    <img src="<?php echo esc_url( OO_PLUGIN_URL . 'admin/img/ai-icon.svg' ); ?>" alt="" class="oo-ai-icon">
                     <span class="oo-btn-text">Let Claude Refine This →</span>
                     <span class="oo-btn-loading" style="display:none">Claude is thinking...</span>
                 </button>
@@ -223,7 +222,6 @@ $settings      = get_option( 'oo_settings', array() );
             <p class="oo-muted" style="margin-bottom:14px">Claude will write a 3-email sequence tailored to your campaign and audience. You can edit each email before saving.</p>
             <div class="oo-wizard-actions">
                 <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-generate-emails">
-                    <img src="<?php echo esc_url( OO_PLUGIN_URL . 'admin/img/ai-icon.svg' ); ?>" alt="" class="oo-ai-icon">
                     <span class="oo-btn-text">Write Emails with Claude →</span>
                     <span class="oo-btn-loading" style="display:none">Claude is writing your emails...</span>
                 </button>

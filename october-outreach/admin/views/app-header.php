@@ -39,8 +39,7 @@ $nav_items    = array(
         </nav>
 
         <div class="oo-sidebar-footer">
-            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)">
-                <img src="<?php echo esc_url( OO_PLUGIN_URL . 'admin/img/ai-icon.svg' ); ?>" alt="" class="oo-ai-icon">
+            <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)">
                 <span style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.02em">Powered by Claude AI</span>
             </div>
             <div class="oo-sidebar-status">
