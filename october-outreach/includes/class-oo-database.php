@@ -56,6 +56,7 @@ class OO_Database {
             claude_prompt text NOT NULL DEFAULT '',
             coupon_url varchar(1000) NOT NULL DEFAULT '',
             coupon_field varchar(100) NOT NULL DEFAULT '',
+            press_release_url varchar(1000) NOT NULL DEFAULT '',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),

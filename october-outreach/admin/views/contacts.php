@@ -102,37 +102,60 @@ $total    = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $wh
 </div>
 
 <?php if ( $contacts ) : ?>
-<div class="oo-table-wrap">
-    <table class="oo-table">
-        <thead><tr>
-            <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Location</th><th>Status</th><th>Added</th><th>Actions</th>
-        </tr></thead>
-        <tbody>
-        <?php foreach ( $contacts as $c ) : ?>
-        <tr>
-            <td><strong><?php echo esc_html( trim( $c->first_name . ' ' . $c->last_name ) ?: '—' ); ?></strong></td>
-            <td><?php echo esc_html( $c->email ); ?></td>
-            <td><?php echo esc_html( $c->company ?: '—' ); ?></td>
-            <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ); ?></td>
-            <td class="oo-muted"><?php echo esc_html( $c->location ?: '—' ); ?></td>
-            <td><span class="oo-badge oo-badge-<?php echo $c->status === 'active' ? 'green' : 'grey'; ?>"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $c->status ) ) ); ?></span></td>
-            <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
-            <td>
-                <div class="oo-row-actions">
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=edit&id=' . $c->id ) ); ?>">Edit</a>
-                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this contact?')">
-                        <?php wp_nonce_field( 'oo_delete_contact' ); ?>
-                        <input type="hidden" name="action" value="oo_delete_contact">
-                        <input type="hidden" name="contact_id" value="<?php echo esc_attr( $c->id ); ?>">
-                        <button type="submit" class="oo-delete-btn">Delete</button>
-                    </form>
-                </div>
-            </td>
-        </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-</div>
+<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="oo-bulk-form">
+    <?php wp_nonce_field( 'oo_bulk_delete_contacts' ); ?>
+    <input type="hidden" name="action" value="oo_bulk_delete_contacts">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <button type="submit" class="oo-btn oo-btn-secondary" onclick="return confirm('Delete all selected contacts? This cannot be undone.')">Delete Selected</button>
+        <span class="oo-muted" id="oo-selected-count" style="font-size:13px"></span>
+    </div>
+    <div class="oo-table-wrap">
+        <table class="oo-table">
+            <thead><tr>
+                <th style="width:36px"><input type="checkbox" id="oo-select-all" title="Select all"></th>
+                <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Location</th><th>Status</th><th>Added</th><th>Actions</th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ( $contacts as $c ) : ?>
+            <tr>
+                <td><input type="checkbox" name="contact_ids[]" value="<?php echo esc_attr( $c->id ); ?>" class="oo-row-cb"></td>
+                <td><strong><?php echo esc_html( trim( $c->first_name . ' ' . $c->last_name ) ?: '—' ); ?></strong></td>
+                <td><?php echo esc_html( $c->email ); ?></td>
+                <td><?php echo esc_html( $c->company ?: '—' ); ?></td>
+                <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ); ?></td>
+                <td class="oo-muted"><?php echo esc_html( $c->location ?: '—' ); ?></td>
+                <td><span class="oo-badge oo-badge-<?php echo $c->status === 'active' ? 'green' : 'grey'; ?>"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $c->status ) ) ); ?></span></td>
+                <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
+                <td>
+                    <div class="oo-row-actions">
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=edit&id=' . $c->id ) ); ?>">Edit</a>
+                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this contact?')">
+                            <?php wp_nonce_field( 'oo_delete_contact' ); ?>
+                            <input type="hidden" name="action" value="oo_delete_contact">
+                            <input type="hidden" name="contact_id" value="<?php echo esc_attr( $c->id ); ?>">
+                            <button type="submit" class="oo-delete-btn">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</form>
+<script>
+(function(){
+    var all = document.getElementById('oo-select-all');
+    var cbs = document.querySelectorAll('.oo-row-cb');
+    var count = document.getElementById('oo-selected-count');
+    function updateCount(){
+        var n = document.querySelectorAll('.oo-row-cb:checked').length;
+        count.textContent = n ? n + ' selected' : '';
+    }
+    all.addEventListener('change', function(){ cbs.forEach(function(cb){ cb.checked = all.checked; }); updateCount(); });
+    cbs.forEach(function(cb){ cb.addEventListener('change', function(){ all.checked = Array.from(cbs).every(function(c){ return c.checked; }); updateCount(); }); });
+})();
+</script>
 <?php else : ?>
 <div class="oo-card">
     <div class="oo-empty-state">

@@ -20,7 +20,17 @@
             this.bindEvents();
         },
 
+        updateTypeCards: function () {
+            var type = $('#w_type').val();
+            $('#oo-press-card').toggle( type === 'press_release' );
+            $('#oo-coupon-card').toggle( type !== 'press_release' );
+        },
+
         bindEvents: function () {
+            // Step 1 — type-specific cards
+            $('#w_type').on('change', this.updateTypeCards.bind(this));
+            this.updateTypeCards();
+
             // Step 1
             $('#oo-step1-next').on('click', this.step1Next.bind(this));
 
@@ -103,6 +113,7 @@
                 reply_to: $('#w_reply_to').val(),
                 coupon_url: $('#w_coupon_url').val(),
                 coupon_field: $('#w_coupon_field').val(),
+                press_release_url: $('#w_press_release_url').val(),
             }, function (res) {
                 if (res.success) {
                     wizard.campaignId = res.data.campaign_id;

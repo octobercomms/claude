@@ -46,9 +46,10 @@ class OO_Ajax {
             'from_name'    => sanitize_text_field( $_POST['from_name'] ?? '' ),
             'from_email'   => sanitize_email( $_POST['from_email'] ?? '' ),
             'reply_to'     => sanitize_email( $_POST['reply_to'] ?? '' ),
-            'coupon_url'   => esc_url_raw( $_POST['coupon_url'] ?? '' ),
-            'coupon_field' => sanitize_text_field( $_POST['coupon_field'] ?? '' ),
-            'status'       => 'draft',
+            'coupon_url'        => esc_url_raw( $_POST['coupon_url'] ?? '' ),
+            'coupon_field'      => sanitize_text_field( $_POST['coupon_field'] ?? '' ),
+            'press_release_url' => esc_url_raw( $_POST['press_release_url'] ?? '' ),
+            'status'            => 'draft',
         );
 
         $id = intval( $_POST['campaign_id'] ?? 0 );

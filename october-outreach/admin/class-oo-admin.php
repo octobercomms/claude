@@ -13,6 +13,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_save_settings', array( $this, 'save_settings' ) );
         add_action( 'admin_post_oo_save_contact', array( $this, 'save_contact' ) );
         add_action( 'admin_post_oo_delete_contact', array( $this, 'delete_contact' ) );
+        add_action( 'admin_post_oo_bulk_delete_contacts', array( $this, 'bulk_delete_contacts' ) );
         add_action( 'admin_post_oo_save_campaign', array( $this, 'save_campaign' ) );
         add_action( 'admin_post_oo_delete_campaign', array( $this, 'delete_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
@@ -37,7 +38,6 @@ class OO_Admin {
         add_submenu_page( 'october-outreach', 'Dashboard',      'Dashboard',      'manage_options', 'october-outreach', array( $this, 'page_dashboard' ) );
         add_submenu_page( 'october-outreach', 'Contacts',       'Contacts',       'manage_options', 'oo-contacts',      array( $this, 'page_contacts' ) );
         add_submenu_page( 'october-outreach', 'Campaigns',      'Campaigns',      'manage_options', 'oo-campaigns',     array( $this, 'page_campaigns' ) );
-        add_submenu_page( 'october-outreach', 'Press Releases', 'Press Releases', 'manage_options', 'oo-press',         array( $this, 'page_press' ) );
         add_submenu_page( 'october-outreach', 'Settings',       'Settings',       'manage_options', 'oo-settings',      array( $this, 'page_settings' ) );
         add_submenu_page( 'october-outreach', 'Help & Support', 'Help & Support', 'manage_options', 'oo-help',          array( $this, 'page_help' ) );
     }
@@ -144,6 +144,20 @@ class OO_Admin {
         exit;
     }
 
+    public function bulk_delete_contacts() {
+        check_admin_referer( 'oo_bulk_delete_contacts' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $ids = array_map( 'intval', (array) ( $_POST['contact_ids'] ?? array() ) );
+        $ids = array_filter( $ids );
+        if ( $ids ) {
+            $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+            $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}oo_contacts WHERE id IN ($placeholders)", $ids ) );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-contacts&deleted=1' ) );
+        exit;
+    }
+
     public function save_campaign() {
         check_admin_referer( 'oo_save_campaign' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
@@ -176,8 +190,15 @@ class OO_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
         global $wpdb;
         $id = intval( $_POST['campaign_id'] ?? 0 );
-        if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_campaigns', array( 'id' => $id ) );
-        wp_redirect( admin_url( 'admin.php?page=oo-campaigns&deleted=1' ) );
+        if ( $id ) {
+            $wpdb->delete( $wpdb->prefix . 'oo_campaigns', array( 'id' => $id ) );
+            $wpdb->delete( $wpdb->prefix . 'oo_sequences', array( 'campaign_id' => $id ) );
+        }
+        $redirect = sanitize_text_field( $_POST['redirect_to'] ?? '' );
+        $back = ( $redirect === 'dashboard' )
+            ? admin_url( 'admin.php?page=october-outreach&deleted=1' )
+            : admin_url( 'admin.php?page=oo-campaigns&deleted=1' );
+        wp_redirect( $back );
         exit;
     }
 

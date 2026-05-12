@@ -102,9 +102,19 @@ $settings      = get_option( 'oo_settings', array() );
                 </div>
             </div>
 
-            <div class="oo-card">
+            <div class="oo-card" id="oo-press-card" style="display:none">
+                <h2 class="oo-card-title">Press Release</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Link to the press release page or PDF. Claude will reference it when writing outreach emails.</p>
+                <div class="oo-field">
+                    <label class="oo-label">Press Release URL</label>
+                    <input type="url" id="w_press_release_url" class="oo-input" value="<?php echo esc_attr( $campaign->press_release_url ?? '' ); ?>" placeholder="https://yourdomain.com/press/your-announcement">
+                    <p class="oo-hint">A public URL to the press release. Journalists will be directed here.</p>
+                </div>
+            </div>
+
+            <div class="oo-card" id="oo-coupon-card" style="display:none">
                 <h2 class="oo-card-title">Coupon / Offer Integration</h2>
-                <p class="oo-muted" style="margin-bottom:14px">Optional. If this campaign includes a discount or offer code, link to your existing coupon plugin's data source here. Leave blank if not applicable.</p>
+                <p class="oo-muted" style="margin-bottom:14px">Optional. If this campaign includes a discount or offer code, link to your existing coupon plugin's data source here.</p>
                 <div class="oo-field">
                     <label class="oo-label">Coupon Source URL</label>
                     <input type="url" id="w_coupon_url" class="oo-input" value="<?php echo esc_attr( $campaign->coupon_url ?? '' ); ?>" placeholder="https://yourdomain.com/wp-json/your-plugin/v1/coupons">

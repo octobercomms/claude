@@ -7,6 +7,8 @@ $total_replied   = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_sends
 $settings        = get_option( 'oo_settings', array() );
 ?>
 
+<?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success">Campaign deleted.</div><?php endif; ?>
+
 <div class="oo-page-header">
     <h1 class="oo-page-title">Dashboard</h1>
     <div class="oo-page-actions">
@@ -95,7 +97,18 @@ $settings        = get_option( 'oo_settings', array() );
                     <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ); ?></td>
                     <td><span class="oo-badge oo-badge-<?php echo esc_attr( $colours[ $c->status ] ?? 'grey' ); ?>"><?php echo esc_html( ucfirst( $c->status ) ); ?></span></td>
                     <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
-                    <td><a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $c->id ) ); ?>" class="oo-btn oo-btn-sm oo-btn-secondary">Open</a></td>
+                    <td>
+                        <div class="oo-row-actions">
+                            <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $c->id ) ); ?>" class="oo-btn oo-btn-sm oo-btn-secondary">Open</a>
+                            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this campaign and all its sequences?')">
+                                <?php wp_nonce_field( 'oo_delete_campaign' ); ?>
+                                <input type="hidden" name="action" value="oo_delete_campaign">
+                                <input type="hidden" name="campaign_id" value="<?php echo esc_attr( $c->id ); ?>">
+                                <input type="hidden" name="redirect_to" value="dashboard">
+                                <button type="submit" class="oo-delete-btn">Delete</button>
+                            </form>
+                        </div>
+                    </td>
                 </tr>
                 <?php endforeach; ?>
                 </tbody>
