@@ -19,14 +19,9 @@ define( 'OO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OO_MASTER_LICENSE', 'OO-MASTER-OCTOBER-UNLIMITED' );
 
-// Action Scheduler — load if installed via Composer
-$as_path = OO_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
-if ( file_exists( $as_path ) ) {
-    require_once $as_path;
-    define( 'OO_HAS_ACTION_SCHEDULER', true );
-} else {
-    define( 'OO_HAS_ACTION_SCHEDULER', false );
-}
+// Action Scheduler — bundled in vendor/action-scheduler/
+require_once OO_PLUGIN_DIR . 'vendor/action-scheduler/action-scheduler.php';
+define( 'OO_HAS_ACTION_SCHEDULER', true );
 
 // Core
 require_once OO_PLUGIN_DIR . 'includes/class-oo-database.php';
