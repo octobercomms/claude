@@ -32,6 +32,8 @@ class OO_Admin {
         add_submenu_page( 'october-outreach', 'Dashboard', 'Dashboard', 'manage_options', 'october-outreach', array( $this, 'page_dashboard' ) );
         add_submenu_page( 'october-outreach', 'Contacts', 'Contacts', 'manage_options', 'oo-contacts', array( $this, 'page_contacts' ) );
         add_submenu_page( 'october-outreach', 'Campaigns', 'Campaigns', 'manage_options', 'oo-campaigns', array( $this, 'page_campaigns' ) );
+        // Hidden wizard page (accessed via ?page=oo-campaigns&action=wizard)
+
         add_submenu_page( 'october-outreach', 'Press Releases', 'Press Releases', 'manage_options', 'oo-press', array( $this, 'page_press' ) );
         add_submenu_page( 'october-outreach', 'Settings', 'Settings', 'manage_options', 'oo-settings', array( $this, 'page_settings' ) );
     }
@@ -42,9 +44,17 @@ class OO_Admin {
         }
         wp_enqueue_style( 'oo-admin', OO_PLUGIN_URL . 'admin/css/admin.css', array(), OO_VERSION );
         wp_enqueue_script( 'oo-admin', OO_PLUGIN_URL . 'admin/js/admin.js', array( 'jquery' ), OO_VERSION, true );
+
+        // Wizard assets
+        $screen = get_current_screen();
+        if ( $screen && strpos( $screen->id, 'oo-campaigns' ) !== false && isset( $_GET['action'] ) && $_GET['action'] === 'wizard' ) {
+            wp_enqueue_script( 'oo-wizard', OO_PLUGIN_URL . 'admin/js/wizard.js', array( 'jquery' ), OO_VERSION, true );
+        }
+
         wp_localize_script( 'oo-admin', 'ooData', array(
-            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-            'nonce'   => wp_create_nonce( 'oo_nonce' ),
+            'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+            'nonce'        => wp_create_nonce( 'oo_nonce' ),
+            'campaignsUrl' => admin_url( 'admin.php?page=oo-campaigns' ),
         ) );
     }
 
@@ -67,7 +77,12 @@ class OO_Admin {
     }
 
     public function page_campaigns() {
-        require_once OO_PLUGIN_DIR . 'admin/views/campaigns.php';
+        $action = $_GET['action'] ?? 'list';
+        if ( $action === 'wizard' ) {
+            require_once OO_PLUGIN_DIR . 'admin/views/wizard.php';
+        } else {
+            require_once OO_PLUGIN_DIR . 'admin/views/campaigns.php';
+        }
     }
 
     public function page_press() {

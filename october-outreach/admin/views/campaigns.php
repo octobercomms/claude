@@ -136,7 +136,8 @@ $types  = OO_Database::get_campaign_types();
 <?php else : ?>
 
     <h1 class="oo-page-title">Campaigns
-        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=new' ) ); ?>" class="page-title-action">New Campaign</a>
+        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard' ) ); ?>" class="page-title-action">+ New Campaign Wizard</a>
+        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=new' ) ); ?>" class="page-title-action">Quick Add</a>
     </h1>
 
     <?php if ( isset( $_GET['saved'] ) ) : ?>
@@ -181,6 +182,7 @@ $types  = OO_Database::get_campaign_types();
                 </td>
                 <td><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
                 <td class="oo-actions">
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $c->id ) ); ?>" class="button button-small">Wizard</a>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=edit&id=' . $c->id ) ); ?>">Edit</a>
                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline" onsubmit="return confirm('Delete this campaign?')">
                         <?php wp_nonce_field( 'oo_delete_campaign' ); ?>
