@@ -4,11 +4,12 @@
 
 :root {
     --oo-sidebar-w:     220px;
-    --oo-sidebar-bg:    #0f172a;
-    --oo-sidebar-text:  #94a3b8;
-    --oo-sidebar-hover: #1e293b;
-    --oo-accent:        #6366f1;
-    --oo-accent-hover:  #4f46e5;
+    --oo-sidebar-bg:    #000000;
+    --oo-sidebar-text:  rgba(255,255,255,0.5);
+    --oo-sidebar-hover: rgba(255,255,255,0.08);
+    --oo-accent:        #E7CD41;
+    --oo-accent-hover:  #d4b832;
+    --oo-accent-text:   #000000;
     --oo-bg:            #f1f5f9;
     --oo-surface:       #ffffff;
     --oo-border:        #e2e8f0;
@@ -288,10 +289,11 @@
 
 .oo-btn-primary {
     background: var(--oo-accent);
-    color: #fff;
+    color: var(--oo-accent-text);
     border-color: var(--oo-accent);
+    font-weight: 600;
 }
-.oo-btn-primary:hover { background: var(--oo-accent-hover); border-color: var(--oo-accent-hover); color: #fff; text-decoration: none; }
+.oo-btn-primary:hover { background: var(--oo-accent-hover); border-color: var(--oo-accent-hover); color: var(--oo-accent-text); text-decoration: none; }
 
 .oo-btn-secondary {
     background: var(--oo-surface);
@@ -338,7 +340,7 @@
 .oo-textarea:focus {
     outline: none;
     border-color: var(--oo-accent);
-    box-shadow: 0 0 0 3px rgba(99,102,241,.1);
+    box-shadow: 0 0 0 3px rgba(231,205,65,.2);
 }
 
 .oo-textarea { resize: vertical; min-height: 100px; }
@@ -504,20 +506,24 @@
 /* ── Loading state ── */
 .oo-btn-loading { font-style: italic; opacity: 0.8; }
 
+/* ── AI icon (used on Claude-powered buttons and sidebar) ── */
+.oo-ai-icon { width:18px; height:18px; display:inline-block; vertical-align:middle; flex-shrink:0; }
+
 /* ── Tags ── */
 .oo-tag-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; min-height: 32px; }
 .oo-tag {
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    background: #ede9fe;
-    color: #5b21b6;
+    background: #fefce8;
+    color: #713f12;
     padding: 3px 10px;
     border-radius: 20px;
     font-size: 12px;
     font-weight: 500;
+    border: 1px solid #fde68a;
 }
-.oo-tag-remove { background: none; border: none; cursor: pointer; color: #7c3aed; font-size: 14px; line-height: 1; padding: 0; }
+.oo-tag-remove { background: none; border: none; cursor: pointer; color: #92400e; font-size: 14px; line-height: 1; padding: 0; }
 .oo-tag-add { display: flex; gap: 8px; margin-bottom: 16px; }
 .oo-tag-add .oo-input { max-width: 280px; }
 

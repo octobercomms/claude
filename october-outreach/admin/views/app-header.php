@@ -16,16 +16,15 @@ $nav_items    = array(
     <aside class="oo-sidebar">
         <div class="oo-sidebar-brand">
             <?php
-            $logo_path = OO_PLUGIN_DIR . 'admin/img/october-logo.gif';
-            $logo_url  = OO_PLUGIN_URL . 'admin/img/october-logo.gif';
-            if ( file_exists( $logo_path ) ) : ?>
-            <img src="<?php echo esc_url( $logo_url ); ?>" alt="October Comms" width="36" height="36" style="border-radius:6px;flex-shrink:0">
-            <?php else : ?>
-            <div style="width:36px;height:36px;border-radius:6px;background:#6366f1;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:16px;color:#fff;flex-shrink:0">O</div>
-            <?php endif; ?>
+            $logo_local = OO_PLUGIN_DIR . 'admin/img/october-logo.gif';
+            $logo_src   = file_exists( $logo_local )
+                ? OO_PLUGIN_URL . 'admin/img/october-logo.gif'
+                : 'https://octobercomms.com/wp-content/uploads/2025/12/October-Logo-Animated-BlackBG.gif';
+            ?>
+            <img src="<?php echo esc_url( $logo_src ); ?>" alt="October Comms" width="36" height="36" style="border-radius:6px;flex-shrink:0">
             <div>
-                <div style="font-weight:700;font-size:14px;line-height:1.2">October Outreach</div>
-                <div style="font-size:10px;color:rgba(255,255,255,0.4);margin-top:2px;letter-spacing:0.02em">Powered by Claude AI</div>
+                <div style="font-weight:700;font-size:14px;line-height:1.2;color:#fff">October Outreach</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:2px;letter-spacing:0.02em">by October Comms</div>
             </div>
         </div>
 
@@ -42,12 +41,16 @@ $nav_items    = array(
         </nav>
 
         <div class="oo-sidebar-footer">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)">
+                <img src="<?php echo esc_url( OO_PLUGIN_URL . 'admin/img/ai-icon.svg' ); ?>" alt="" class="oo-ai-icon">
+                <span style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.02em">Powered by Claude AI</span>
+            </div>
             <div class="oo-sidebar-status">
                 <span class="oo-status-dot oo-status-dot--<?php echo $license['color']; ?>"></span>
                 <span class="oo-status-label"><?php echo $license['status'] === 'active' ? 'Licensed' : 'No License'; ?></span>
             </div>
             <a href="<?php echo esc_url( admin_url() ); ?>" class="oo-wp-link">← WP Admin</a>
-            <div class="oo-version">v<?php echo OO_VERSION; ?> · October Comms</div>
+            <div class="oo-version">v<?php echo OO_VERSION; ?></div>
         </div>
     </aside>
 
