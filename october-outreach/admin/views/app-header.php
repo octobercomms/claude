@@ -21,9 +21,9 @@ $nav_items    = array(
                 ? OO_PLUGIN_URL . 'admin/img/october-logo.gif'
                 : 'https://octobercomms.com/wp-content/uploads/2025/12/October-Logo-Animated-BlackBG.gif';
             ?>
-            <img src="<?php echo esc_url( $logo_src ); ?>" alt="October Comms" style="width:100%;height:auto;display:block;border-radius:4px;margin-bottom:10px">
-            <div style="font-size:13px;font-weight:700;color:#fff;line-height:1.2">October Outreach</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.35);margin-top:3px;letter-spacing:0.02em">Powered by Claude AI</div>
+            <img src="<?php echo esc_url( $logo_src ); ?>" alt="October Comms" style="width:50%;height:auto;display:block;border-radius:4px;margin-bottom:10px">
+            <div style="font-size:17px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:4px">October Outreach</div>
+            <div style="font-size:11px;color:#ffffff;opacity:0.6;letter-spacing:0.02em">Powered by Claude AI</div>
         </div>
 
         <nav class="oo-sidebar-nav">
@@ -39,9 +39,6 @@ $nav_items    = array(
         </nav>
 
         <div class="oo-sidebar-footer">
-            <div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,.06)">
-                <span style="font-size:11px;color:rgba(255,255,255,0.35);letter-spacing:0.02em">Powered by Claude AI</span>
-            </div>
             <div class="oo-sidebar-status">
                 <span class="oo-status-dot oo-status-dot--<?php echo $license['color']; ?>"></span>
                 <span class="oo-status-label"><?php echo $license['status'] === 'active' ? 'Licensed' : 'No License'; ?></span>
