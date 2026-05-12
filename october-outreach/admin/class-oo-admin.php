@@ -91,7 +91,7 @@ class OO_Admin {
         $fields = array(
             'license_key', 'claude_api_key', 'hunter_api_key',
             'airtable_api_key', 'airtable_base_id',
-            'email_provider', 'default_reply_to',
+            'email_provider', 'default_reply_to', 'sending_domain',
             'ses_key', 'ses_secret', 'ses_region',
             'mailgun_api_key', 'mailgun_domain', 'mailgun_region',
             'sendgrid_api_key',

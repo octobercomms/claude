@@ -246,6 +246,12 @@ Thanks!</div>
                 <input type="email" name="default_reply_to" class="oo-input" value="<?php echo esc_attr( $settings['default_reply_to'] ?? '' ); ?>" placeholder="you@yourdomain.com" style="max-width:320px">
                 <p class="oo-hint">All outreach replies will be delivered to this address, regardless of which address emails are sent from.</p>
             </div>
+
+            <div class="oo-field" style="margin-top:16px">
+                <label class="oo-label">Outreach Sending Domain</label>
+                <input type="text" name="sending_domain" class="oo-input" value="<?php echo esc_attr( $settings['sending_domain'] ?? '' ); ?>" placeholder="outreach.yourdomain.com" style="max-width:320px">
+                <p class="oo-hint">The domain your outreach emails are sent from. Used to check your SPF and DMARC records are correctly set up. <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-help#email-auth' ) ); ?>">What are these? →</a></p>
+            </div>
         </div>
 
     </div>

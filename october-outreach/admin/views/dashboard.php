@@ -71,6 +71,54 @@ $settings        = get_option( 'oo_settings', array() );
                 </td>
             </tr>
             <?php endforeach; ?>
+
+            <?php
+            $sending_domain = trim( $settings['sending_domain'] ?? '' );
+            if ( $sending_domain ) :
+                // SPF: TXT record on the domain containing "v=spf1"
+                $spf   = false;
+                $txts  = @dns_get_record( $sending_domain, DNS_TXT );
+                if ( is_array( $txts ) ) {
+                    foreach ( $txts as $r ) {
+                        if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=spf1' ) !== false ) { $spf = true; break; }
+                    }
+                }
+                // DMARC: TXT record at _dmarc.domain
+                $dmarc     = false;
+                $dmarc_rec = @dns_get_record( '_dmarc.' . $sending_domain, DNS_TXT );
+                if ( is_array( $dmarc_rec ) ) {
+                    foreach ( $dmarc_rec as $r ) {
+                        if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=DMARC1' ) !== false ) { $dmarc = true; break; }
+                    }
+                }
+                $help_url = esc_url( admin_url( 'admin.php?page=oo-help#email-auth' ) );
+            ?>
+            <tr>
+                <td>SPF Record <span class="oo-muted" style="font-size:11px">(<?php echo esc_html( $sending_domain ); ?>)</span></td>
+                <td>
+                    <?php if ( $spf ) : ?>
+                    <span class="oo-badge oo-badge-green">Found</span>
+                    <?php else : ?>
+                    <span class="oo-badge oo-badge-orange">Missing</span> <a href="<?php echo $help_url; ?>" style="font-size:12px;margin-left:4px">Fix this →</a>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <tr>
+                <td>DMARC Record <span class="oo-muted" style="font-size:11px">(_dmarc.<?php echo esc_html( $sending_domain ); ?>)</span></td>
+                <td>
+                    <?php if ( $dmarc ) : ?>
+                    <span class="oo-badge oo-badge-green">Found</span>
+                    <?php else : ?>
+                    <span class="oo-badge oo-badge-orange">Missing</span> <a href="<?php echo $help_url; ?>" style="font-size:12px;margin-left:4px">Fix this →</a>
+                    <?php endif; ?>
+                </td>
+            </tr>
+            <?php else : ?>
+            <tr>
+                <td>SPF / DMARC</td>
+                <td><span class="oo-badge oo-badge-grey">Set domain in Settings</span></td>
+            </tr>
+            <?php endif; ?>
         </table>
     </div>
 
