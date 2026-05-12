@@ -67,12 +67,13 @@ $settings      = get_option( 'oo_settings', array() );
                 </div>
                 <div class="oo-field">
                     <label class="oo-label">Brand</label>
-                    <select id="w_brand" class="oo-select">
-                        <option value="">— Select brand —</option>
+                    <input type="text" id="w_brand" class="oo-input" list="oo-brands-list" value="<?php echo esc_attr( $campaign->brand ?? '' ); ?>" placeholder="e.g. October Comms">
+                    <datalist id="oo-brands-list">
                         <?php foreach ( $brands as $val => $label ) : ?>
-                        <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $campaign->brand ?? '', $val ); ?>><?php echo esc_html( $label ); ?></option>
+                        <option value="<?php echo esc_attr( $label ); ?>">
                         <?php endforeach; ?>
-                    </select>
+                    </datalist>
+                    <p class="oo-hint">Type freely or pick from your existing brands.</p>
                 </div>
                 <div class="oo-field">
                     <label class="oo-label">Campaign Type</label>
@@ -137,12 +138,12 @@ $settings      = get_option( 'oo_settings', array() );
             </div>
             <div class="oo-field">
                 <label class="oo-label">Contact Type</label>
-                <select id="w_contact_type" class="oo-select">
-                    <option value="">— Select type —</option>
+                <input type="text" id="w_contact_type" class="oo-input" list="oo-contact-types-list" placeholder="e.g. Architect">
+                <datalist id="oo-contact-types-list">
                     <?php foreach ( $contact_types as $val => $label ) : ?>
-                    <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
+                    <option value="<?php echo esc_attr( $label ); ?>">
                     <?php endforeach; ?>
-                </select>
+                </datalist>
                 <p class="oo-hint">How these contacts will be categorised in your database.</p>
             </div>
             <div class="oo-wizard-actions">
