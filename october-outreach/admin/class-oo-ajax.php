@@ -247,12 +247,12 @@ class OO_Ajax {
             array( 'id' => $campaign_id )
         );
 
-        // Schedule the first send via WP Cron
-        if ( ! wp_next_scheduled( 'oo_process_sequences' ) ) {
-            wp_schedule_event( time(), 'hourly', 'oo_process_sequences' );
-        }
+        oo_schedule_sequence_processing( $campaign_id );
 
-        wp_send_json_success( array( 'campaign_id' => $campaign_id ) );
+        wp_send_json_success( array(
+            'campaign_id'    => $campaign_id,
+            'scheduler'      => OO_HAS_ACTION_SCHEDULER ? 'action-scheduler' : 'wp-cron',
+        ) );
     }
 
     public function airtable_push_all() {

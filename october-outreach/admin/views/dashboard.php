@@ -49,17 +49,20 @@ $settings        = get_option( 'oo_settings', array() );
         <table class="oo-status-table">
             <?php
             $checks = array(
-                'Claude API'  => ! empty( $settings['claude_api_key'] ),
-                'Hunter.io'   => ! empty( $settings['hunter_api_key'] ),
-                'Amazon SES'  => ! empty( $settings['ses_key'] ) && ! empty( $settings['ses_secret'] ),
-                'Airtable'    => ! empty( $settings['airtable_api_key'] ),
+                'Claude API'      => ! empty( $settings['claude_api_key'] ),
+                'Hunter.io'       => ! empty( $settings['hunter_api_key'] ),
+                'Email Sending'   => ! empty( $settings['ses_key'] ) || ! empty( $settings['sendgrid_api_key'] ) || ! empty( $settings['mailgun_api_key'] ) || ! empty( $settings['smtp_host'] ),
+                'Airtable'        => ! empty( $settings['airtable_api_key'] ),
+                'Email Scheduler' => OO_HAS_ACTION_SCHEDULER,
             );
             foreach ( $checks as $label => $ok ) : ?>
             <tr>
                 <td><?php echo esc_html( $label ); ?></td>
                 <td>
                     <?php if ( $ok ) : ?>
-                    <span class="oo-badge oo-badge-green">Connected</span>
+                    <span class="oo-badge oo-badge-green"><?php echo $label === 'Email Scheduler' ? 'Action Scheduler' : 'Connected'; ?></span>
+                    <?php elseif ( $label === 'Email Scheduler' ) : ?>
+                    <span class="oo-badge oo-badge-orange">WP Cron fallback</span>
                     <?php else : ?>
                     <span class="oo-badge oo-badge-grey">Not configured</span>
                     <?php endif; ?>

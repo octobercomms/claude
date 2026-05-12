@@ -1,0 +1,16 @@
+{
+    "name": "octobercomms/october-outreach",
+    "description": "AI-powered email outreach plugin for WordPress",
+    "type": "wordpress-plugin",
+    "require": {
+        "woocommerce/action-scheduler": "^3.8"
+    },
+    "config": {
+        "vendor-dir": "vendor"
+    },
+    "autoload": {
+        "psr-4": {
+            "OctoberOutreach\\": "includes/"
+        }
+    }
+}
