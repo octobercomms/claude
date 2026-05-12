@@ -23,6 +23,7 @@
     --oo-shadow-md:     0 4px 6px -1px rgba(0,0,0,.08), 0 2px 4px -1px rgba(0,0,0,.04);
     --oo-radius:        8px;
     --oo-radius-sm:     5px;
+    --oo-radius-btn:    50px;
 }
 
 /* ── Hide WordPress chrome on plugin pages ── */
@@ -272,7 +273,7 @@
     align-items: center;
     gap: 6px;
     padding: 8px 16px;
-    border-radius: var(--oo-radius-sm);
+    border-radius: var(--oo-radius-btn);
     font-size: 13.5px;
     font-weight: 500;
     cursor: pointer;
