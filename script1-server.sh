@@ -15,7 +15,6 @@ WP_EMAIL="hello@octobercomms.com"
 DOMAIN="outreach.octobercomms.com"
 WEB_DIR="/var/www/outreach"
 
-# Save creds early
 mkdir -p /root/.oo
 echo "DB_PASS=$DB_PASS" > /root/.oo/creds
 echo "WP_ADMIN_PASS=$WP_ADMIN_PASS" >> /root/.oo/creds
