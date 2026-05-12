@@ -101,6 +101,8 @@
                 from_name: $('#w_from_name').val(),
                 from_email: $('#w_from_email').val(),
                 reply_to: $('#w_reply_to').val(),
+                coupon_url: $('#w_coupon_url').val(),
+                coupon_field: $('#w_coupon_field').val(),
             }, function (res) {
                 if (res.success) {
                     wizard.campaignId = res.data.campaign_id;
@@ -231,7 +233,7 @@
         renderContactsTable: function (data) {
             $('#oo-contacts-count').text(data.contacts.length);
 
-            var html = '<table class="wp-list-table widefat fixed striped oo-table"><thead><tr>';
+            var html = '<div class="oo-table-wrap"><table class="oo-table"><thead><tr>';
             html += '<th style="width:30px"><input type="checkbox" id="oo-check-all"></th>';
             html += '<th>Name</th><th>Email</th><th>Company</th><th>Position</th><th>Confidence</th></tr></thead><tbody>';
 
@@ -249,7 +251,7 @@
                 html += '</tr>';
             });
 
-            html += '</tbody></table>';
+            html += '</tbody></table></div>';
 
             if (data.errors && Object.keys(data.errors).length) {
                 html += '<p class="oo-muted">Domains with no results: ' + Object.keys(data.errors).join(', ') + '</p>';
@@ -329,15 +331,14 @@
             sequence.forEach(function (email) {
                 var step = email.step;
                 html += '<div class="oo-card oo-email-card" data-step="' + step + '">';
-                html += '<h2>' + (labels[step] || 'Email ' + step) + '</h2>';
-                html += '<table class="form-table">';
-                html += '<tr><th><label>Subject</label></th>';
-                html += '<td><input type="text" class="large-text oo-email-subject" value="' + wizard.esc(email.subject) + '"></td></tr>';
-                html += '<tr><th><label>Body</label></th>';
-                html += '<td><textarea class="large-text oo-email-body" rows="8">' + wizard.esc(email.body) + '</textarea></td></tr>';
-                html += '<tr><th><label>Send delay</label></th>';
-                html += '<td><input type="number" class="small-text oo-email-delay" value="' + email.delay_days + '"> days after previous email</td></tr>';
-                html += '</table></div>';
+                html += '<h2 class="oo-card-title">' + (labels[step] || 'Email ' + step) + '</h2>';
+                html += '<div class="oo-field"><label class="oo-label">Subject</label>';
+                html += '<input type="text" class="oo-input oo-email-subject" value="' + wizard.esc(email.subject) + '"></div>';
+                html += '<div class="oo-field"><label class="oo-label">Body</label>';
+                html += '<textarea class="oo-textarea oo-email-body" rows="8">' + wizard.esc(email.body) + '</textarea></div>';
+                html += '<div class="oo-field"><label class="oo-label">Send delay</label>';
+                html += '<div style="display:flex;align-items:center;gap:8px"><input type="number" class="oo-input oo-email-delay" style="width:80px" value="' + email.delay_days + '"><span class="oo-muted">days after previous email</span></div></div>';
+                html += '</div>';
             });
 
             $('#oo-email-sequence').html(html);

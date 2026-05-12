@@ -12,258 +12,263 @@ if ( $campaign_id ) {
     ) );
 }
 
-$brands = OO_Database::get_brands();
-$types  = OO_Database::get_campaign_types();
+$brands        = OO_Database::get_brands();
+$types         = OO_Database::get_campaign_types();
 $contact_types = OO_Database::get_contact_types();
+$settings      = get_option( 'oo_settings', array() );
 ?>
 
-<div class="wrap oo-wrap">
+<div class="oo-page-header">
     <h1 class="oo-page-title">
-        <?php echo $campaign ? 'Campaign Wizard — ' . esc_html( $campaign->name ) : 'New Campaign Wizard'; ?>
-        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns' ) ); ?>" class="page-title-action">Back to Campaigns</a>
+        <?php echo $campaign ? esc_html( $campaign->name ) : 'New Campaign'; ?>
     </h1>
+    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns' ) ); ?>" class="oo-btn oo-btn-secondary">← Campaigns</a>
+</div>
 
-    <!-- Wizard Steps Nav -->
-    <div class="oo-wizard-nav">
-        <div class="oo-wizard-step active" data-step="1">
-            <span class="oo-step-num">1</span>
-            <span class="oo-step-label">Campaign</span>
+<!-- Wizard Steps Nav -->
+<div class="oo-wizard-nav">
+    <div class="oo-wizard-step active" data-step="1">
+        <span class="oo-step-num">1</span>
+        <span class="oo-step-label">Campaign</span>
+    </div>
+    <div class="oo-wizard-divider"></div>
+    <div class="oo-wizard-step" data-step="2">
+        <span class="oo-step-num">2</span>
+        <span class="oo-step-label">Audience</span>
+    </div>
+    <div class="oo-wizard-divider"></div>
+    <div class="oo-wizard-step" data-step="3">
+        <span class="oo-step-num">3</span>
+        <span class="oo-step-label">Contacts</span>
+    </div>
+    <div class="oo-wizard-divider"></div>
+    <div class="oo-wizard-step" data-step="4">
+        <span class="oo-step-num">4</span>
+        <span class="oo-step-label">Emails</span>
+    </div>
+    <div class="oo-wizard-divider"></div>
+    <div class="oo-wizard-step" data-step="5">
+        <span class="oo-step-num">5</span>
+        <span class="oo-step-label">Launch</span>
+    </div>
+</div>
+
+<div id="oo-wizard" data-campaign-id="<?php echo esc_attr( $campaign_id ); ?>">
+
+    <!-- Step 1: Campaign Setup -->
+    <div class="oo-wizard-panel active" id="oo-step-1">
+        <div class="oo-form-grid">
+
+            <div class="oo-card">
+                <h2 class="oo-card-title">Campaign Details</h2>
+                <div class="oo-field">
+                    <label class="oo-label">Campaign Name</label>
+                    <input type="text" id="w_name" class="oo-input" value="<?php echo esc_attr( $campaign->name ?? '' ); ?>" placeholder="e.g. ADF 2025 — Project Submissions" required>
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Brand</label>
+                    <select id="w_brand" class="oo-select">
+                        <option value="">— Select brand —</option>
+                        <?php foreach ( $brands as $val => $label ) : ?>
+                        <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $campaign->brand ?? '', $val ); ?>><?php echo esc_html( $label ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Campaign Type</label>
+                    <select id="w_type" class="oo-select">
+                        <?php foreach ( $types as $val => $label ) : ?>
+                        <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $campaign->type ?? 'outreach', $val ); ?>><?php echo esc_html( $label ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+
+            <div class="oo-card">
+                <h2 class="oo-card-title">Sending Identity</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Use a sister domain address for From — not your main domain. Replies come to you via Reply-To.</p>
+                <div class="oo-field">
+                    <label class="oo-label">From Name</label>
+                    <input type="text" id="w_from_name" class="oo-input" value="<?php echo esc_attr( $campaign->from_name ?? '' ); ?>" placeholder="e.g. James at October Comms">
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">From Email</label>
+                    <input type="email" id="w_from_email" class="oo-input" value="<?php echo esc_attr( $campaign->from_email ?? '' ); ?>" placeholder="outreach@sister-domain.com">
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Reply-To</label>
+                    <input type="email" id="w_reply_to" class="oo-input" value="<?php echo esc_attr( $campaign->reply_to ?? $settings['default_reply_to'] ?? '' ); ?>">
+                </div>
+            </div>
+
+            <div class="oo-card">
+                <h2 class="oo-card-title">Coupon / Offer Integration</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Optional. If this campaign includes a discount or offer code, link to your existing coupon plugin's data source here. Leave blank if not applicable.</p>
+                <div class="oo-field">
+                    <label class="oo-label">Coupon Source URL</label>
+                    <input type="url" id="w_coupon_url" class="oo-input" value="<?php echo esc_attr( $campaign->coupon_url ?? '' ); ?>" placeholder="https://yourdomain.com/wp-json/your-plugin/v1/coupons">
+                    <p class="oo-hint">REST endpoint that returns available coupons from your existing coupon plugin.</p>
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Coupon Code Field</label>
+                    <input type="text" id="w_coupon_field" class="oo-input" value="<?php echo esc_attr( $campaign->coupon_field ?? '' ); ?>" placeholder="e.g. code">
+                    <p class="oo-hint">The JSON key to extract the coupon code from the endpoint response (e.g. <code>code</code>, <code>coupon_code</code>).</p>
+                </div>
+            </div>
+
         </div>
-        <div class="oo-wizard-divider"></div>
-        <div class="oo-wizard-step" data-step="2">
-            <span class="oo-step-num">2</span>
-            <span class="oo-step-label">Audience</span>
-        </div>
-        <div class="oo-wizard-divider"></div>
-        <div class="oo-wizard-step" data-step="3">
-            <span class="oo-step-num">3</span>
-            <span class="oo-step-label">Contacts</span>
-        </div>
-        <div class="oo-wizard-divider"></div>
-        <div class="oo-wizard-step" data-step="4">
-            <span class="oo-step-num">4</span>
-            <span class="oo-step-label">Emails</span>
-        </div>
-        <div class="oo-wizard-divider"></div>
-        <div class="oo-wizard-step" data-step="5">
-            <span class="oo-step-num">5</span>
-            <span class="oo-step-label">Launch</span>
+        <div class="oo-wizard-actions">
+            <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step1-next">Next: Define Audience →</button>
         </div>
     </div>
 
-    <div id="oo-wizard" data-campaign-id="<?php echo esc_attr( $campaign_id ); ?>">
-
-        <!-- Step 1: Campaign Setup -->
-        <div class="oo-wizard-panel active" id="oo-step-1">
-            <div class="oo-card">
-                <h2>Campaign Details</h2>
-                <table class="form-table">
-                    <tr>
-                        <th><label for="w_name">Campaign Name</label></th>
-                        <td><input type="text" id="w_name" class="regular-text" value="<?php echo esc_attr( $campaign->name ?? '' ); ?>" placeholder="e.g. ADF 2025 — Project Submissions" required></td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_brand">Brand</label></th>
-                        <td>
-                            <select id="w_brand">
-                                <option value="">— Select brand —</option>
-                                <?php foreach ( $brands as $val => $label ) : ?>
-                                <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $campaign->brand ?? '', $val ); ?>><?php echo esc_html( $label ); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_type">Campaign Type</label></th>
-                        <td>
-                            <select id="w_type">
-                                <?php foreach ( $types as $val => $label ) : ?>
-                                <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $campaign->type ?? 'outreach', $val ); ?>><?php echo esc_html( $label ); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                    </tr>
-                </table>
+    <!-- Step 2: Audience -->
+    <div class="oo-wizard-panel" id="oo-step-2">
+        <div class="oo-card">
+            <h2 class="oo-card-title">Describe Your Audience</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Write in plain English who you want to reach. Claude will refine this into specific search targets.</p>
+            <div class="oo-field">
+                <label class="oo-label">Audience Description</label>
+                <textarea id="w_audience" class="oo-textarea" rows="5" placeholder="e.g. Architects and interior designers based in Atlanta, Georgia and surrounding states. Principals or directors at firms with 5–50 staff. Interested in design competitions and awards."><?php echo esc_textarea( $campaign->audience_description ?? '' ); ?></textarea>
             </div>
-            <div class="oo-card">
-                <h2>Sending Identity</h2>
-                <p class="description">Use a sister domain address for From — not your main domain. Replies come to you via Reply-To.</p>
-                <table class="form-table">
-                    <tr>
-                        <th><label for="w_from_name">From Name</label></th>
-                        <td><input type="text" id="w_from_name" class="regular-text" value="<?php echo esc_attr( $campaign->from_name ?? '' ); ?>" placeholder="e.g. James at October Comms"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_from_email">From Email</label></th>
-                        <td><input type="email" id="w_from_email" class="regular-text" value="<?php echo esc_attr( $campaign->from_email ?? '' ); ?>" placeholder="outreach@sister-domain.com"></td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_reply_to">Reply-To</label></th>
-                        <td><input type="email" id="w_reply_to" class="regular-text" value="<?php echo esc_attr( $campaign->reply_to ?? get_option( 'oo_settings', [] )['default_reply_to'] ?? '' ); ?>"></td>
-                    </tr>
-                </table>
+            <div class="oo-field">
+                <label class="oo-label">Extra instructions for Claude</label>
+                <textarea id="w_claude_prompt" class="oo-textarea" rows="3" placeholder="e.g. Tone should be warm and collegial. Mention ADF's reputation. Keep emails under 120 words."><?php echo esc_textarea( $campaign->claude_prompt ?? '' ); ?></textarea>
+            </div>
+            <div class="oo-field">
+                <label class="oo-label">Contact Type</label>
+                <select id="w_contact_type" class="oo-select">
+                    <option value="">— Select type —</option>
+                    <?php foreach ( $contact_types as $val => $label ) : ?>
+                    <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <p class="oo-hint">How these contacts will be categorised in your database.</p>
             </div>
             <div class="oo-wizard-actions">
-                <button class="button button-primary button-large" id="oo-step1-next">Next: Define Audience →</button>
-            </div>
-        </div>
-
-        <!-- Step 2: Audience -->
-        <div class="oo-wizard-panel" id="oo-step-2">
-            <div class="oo-card">
-                <h2>Describe Your Audience</h2>
-                <p class="description">Write in plain English who you want to reach. Claude will refine this into specific search targets.</p>
-                <table class="form-table">
-                    <tr>
-                        <th><label for="w_audience">Audience Description</label></th>
-                        <td>
-                            <textarea id="w_audience" rows="5" class="large-text" placeholder="e.g. Architects and interior designers based in Atlanta, Georgia and surrounding states. Principals or directors at firms with 5–50 staff. Interested in design competitions and awards."><?php echo esc_textarea( $campaign->audience_description ?? '' ); ?></textarea>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_claude_prompt">Extra instructions for Claude</label></th>
-                        <td>
-                            <textarea id="w_claude_prompt" rows="3" class="large-text" placeholder="e.g. Tone should be warm and collegial. Mention ADF's reputation. Keep emails under 120 words."><?php echo esc_textarea( $campaign->claude_prompt ?? '' ); ?></textarea>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th><label for="w_contact_type">Contact Type</label></th>
-                        <td>
-                            <select id="w_contact_type">
-                                <option value="">— Select type —</option>
-                                <?php foreach ( $contact_types as $val => $label ) : ?>
-                                <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <p class="description">How these contacts will be categorised in your database.</p>
-                        </td>
-                    </tr>
-                </table>
-                <div class="oo-wizard-actions">
-                    <button class="button button-primary button-large" id="oo-refine-audience">
-                        <span class="oo-btn-text">Let Claude Refine This →</span>
-                        <span class="oo-btn-loading" style="display:none">Claude is thinking...</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="oo-card" id="oo-audience-result" style="display:none">
-                <h2>Claude's Suggested Targeting</h2>
-                <div id="oo-refined-description" class="oo-result-block"></div>
-                <div id="oo-rationale" class="oo-muted oo-result-note"></div>
-
-                <h3>Target Domains to Search</h3>
-                <p class="description">Edit, add or remove domains. Hunter.io will search each one for contacts.</p>
-                <div id="oo-domains-list" class="oo-tag-list"></div>
-                <div class="oo-tag-add">
-                    <input type="text" id="oo-add-domain" placeholder="Add domain e.g. smitharchitects.com">
-                    <button class="button" id="oo-add-domain-btn">Add</button>
-                </div>
-
-                <h3>Target Job Titles</h3>
-                <div id="oo-titles-list" class="oo-tag-list"></div>
-
-                <div class="oo-wizard-actions">
-                    <button class="button" id="oo-step2-back">← Back</button>
-                    <button class="button button-primary button-large" id="oo-step2-next">Next: Find Contacts →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3: Find Contacts -->
-        <div class="oo-wizard-panel" id="oo-step-3">
-            <div class="oo-card">
-                <h2>Find Contacts</h2>
-                <p class="description">Hunter.io will search each domain for contacts. Review and select who to add to your database.</p>
-                <div class="oo-wizard-actions">
-                    <button class="button button-primary button-large" id="oo-search-contacts">
-                        <span class="oo-btn-text">Search Hunter.io →</span>
-                        <span class="oo-btn-loading" style="display:none">Searching... this may take a moment</span>
-                    </button>
-                    <button class="button" id="oo-step3-back">← Back</button>
-                </div>
-            </div>
-
-            <div id="oo-contacts-results" style="display:none">
-                <div class="oo-card">
-                    <div class="oo-contacts-header">
-                        <h2>Contacts Found <span id="oo-contacts-count" class="oo-badge oo-badge-blue">0</span></h2>
-                        <div>
-                            <button class="button" id="oo-select-all">Select All</button>
-                            <button class="button" id="oo-deselect-all">Deselect All</button>
-                        </div>
-                    </div>
-                    <div id="oo-contacts-table-wrap"></div>
-                    <div class="oo-wizard-actions">
-                        <button class="button button-primary button-large" id="oo-save-contacts">
-                            <span class="oo-btn-text">Add Selected to Database →</span>
-                            <span class="oo-btn-loading" style="display:none">Saving...</span>
-                        </button>
-                        <div id="oo-save-result" class="oo-inline-notice" style="display:none"></div>
-                    </div>
-                </div>
-                <div class="oo-wizard-actions">
-                    <button class="button button-large" id="oo-step3-next">Next: Write Emails →</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 4: Write Emails -->
-        <div class="oo-wizard-panel" id="oo-step-4">
-            <div class="oo-card">
-                <h2>Generate Email Sequence</h2>
-                <p class="description">Claude will write a 3-email sequence tailored to your campaign and audience. You can edit each email before saving.</p>
-                <div class="oo-wizard-actions">
-                    <button class="button button-primary button-large" id="oo-generate-emails">
-                        <span class="oo-btn-text">Write Emails with Claude →</span>
-                        <span class="oo-btn-loading" style="display:none">Claude is writing your emails...</span>
-                    </button>
-                    <button class="button" id="oo-step4-back">← Back</button>
-                </div>
-            </div>
-
-            <div id="oo-emails-result" style="display:none">
-                <div id="oo-email-sequence"></div>
-                <div class="oo-card">
-                    <div class="oo-wizard-actions">
-                        <button class="button button-primary button-large" id="oo-save-sequence">
-                            <span class="oo-btn-text">Save Email Sequence →</span>
-                            <span class="oo-btn-loading" style="display:none">Saving...</span>
-                        </button>
-                        <div id="oo-sequence-result" class="oo-inline-notice" style="display:none"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 5: Launch -->
-        <div class="oo-wizard-panel" id="oo-step-5">
-            <div class="oo-card oo-card-success" id="oo-launch-summary">
-                <h2>Ready to Launch</h2>
-                <div id="oo-launch-details"></div>
-            </div>
-            <div class="oo-card">
-                <h2>Airtable Sync</h2>
-                <p class="description">Push your new contacts to Airtable so you can view and edit them outside WordPress.</p>
-                <button class="button" id="oo-sync-airtable">
-                    <span class="oo-btn-text">Sync Contacts to Airtable</span>
-                    <span class="oo-btn-loading" style="display:none">Syncing...</span>
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-refine-audience">
+                    <span class="oo-btn-text">Let Claude Refine This →</span>
+                    <span class="oo-btn-loading" style="display:none">Claude is thinking...</span>
                 </button>
-                <span id="oo-airtable-result" class="oo-inline-notice" style="display:none"></span>
-            </div>
-            <div class="oo-card">
-                <h2>Launch Campaign</h2>
-                <p class="description">Setting the campaign to Active will enable the email scheduler to start sending. Make sure your sending domain is verified in Amazon SES before launching.</p>
-                <div class="oo-wizard-actions">
-                    <button class="button button-primary button-large" id="oo-launch-campaign">
-                        <span class="oo-btn-text">Launch Campaign</span>
-                        <span class="oo-btn-loading" style="display:none">Launching...</span>
-                    </button>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns' ) ); ?>" class="button button-large">Save as Draft</a>
-                </div>
-                <div id="oo-launch-result" class="oo-inline-notice" style="display:none"></div>
             </div>
         </div>
 
-    </div><!-- #oo-wizard -->
-</div>
+        <div class="oo-card" id="oo-audience-result" style="display:none">
+            <h2 class="oo-card-title">Claude's Suggested Targeting</h2>
+            <div id="oo-refined-description" class="oo-result-block"></div>
+            <div id="oo-rationale" class="oo-muted" style="margin-top:8px;margin-bottom:20px;font-size:13px;line-height:1.6"></div>
+
+            <h3 style="font-size:14px;font-weight:600;margin:0 0 8px">Target Domains to Search</h3>
+            <p class="oo-hint" style="margin-bottom:10px">Edit, add or remove domains. Hunter.io will search each one for contacts.</p>
+            <div id="oo-domains-list" class="oo-tag-list"></div>
+            <div class="oo-tag-add" style="display:flex;gap:8px;margin-top:10px">
+                <input type="text" id="oo-add-domain" class="oo-input" style="flex:1" placeholder="Add domain e.g. smitharchitects.com">
+                <button class="oo-btn oo-btn-secondary" id="oo-add-domain-btn">Add</button>
+            </div>
+
+            <h3 style="font-size:14px;font-weight:600;margin:20px 0 8px">Target Job Titles</h3>
+            <div id="oo-titles-list" class="oo-tag-list"></div>
+
+            <div class="oo-wizard-actions">
+                <button class="oo-btn oo-btn-secondary" id="oo-step2-back">← Back</button>
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step2-next">Next: Find Contacts →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Find Contacts -->
+    <div class="oo-wizard-panel" id="oo-step-3">
+        <div class="oo-card">
+            <h2 class="oo-card-title">Find Contacts</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Hunter.io will search each domain for contacts. Review and select who to add to your database.</p>
+            <div class="oo-wizard-actions">
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-search-contacts">
+                    <span class="oo-btn-text">Search Hunter.io →</span>
+                    <span class="oo-btn-loading" style="display:none">Searching... this may take a moment</span>
+                </button>
+                <button class="oo-btn oo-btn-secondary" id="oo-step3-back">← Back</button>
+            </div>
+        </div>
+
+        <div id="oo-contacts-results" style="display:none">
+            <div class="oo-card">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+                    <h2 class="oo-card-title" style="margin:0">Contacts Found <span id="oo-contacts-count" class="oo-badge oo-badge-blue">0</span></h2>
+                    <div style="display:flex;gap:8px">
+                        <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-select-all">Select All</button>
+                        <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-deselect-all">Deselect All</button>
+                    </div>
+                </div>
+                <div id="oo-contacts-table-wrap"></div>
+                <div class="oo-wizard-actions">
+                    <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-save-contacts">
+                        <span class="oo-btn-text">Add Selected to Database →</span>
+                        <span class="oo-btn-loading" style="display:none">Saving...</span>
+                    </button>
+                    <div id="oo-save-result" class="oo-inline-notice" style="display:none"></div>
+                </div>
+            </div>
+            <div class="oo-wizard-actions">
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step3-next">Next: Write Emails →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Write Emails -->
+    <div class="oo-wizard-panel" id="oo-step-4">
+        <div class="oo-card">
+            <h2 class="oo-card-title">Generate Email Sequence</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Claude will write a 3-email sequence tailored to your campaign and audience. You can edit each email before saving.</p>
+            <div class="oo-wizard-actions">
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-generate-emails">
+                    <span class="oo-btn-text">Write Emails with Claude →</span>
+                    <span class="oo-btn-loading" style="display:none">Claude is writing your emails...</span>
+                </button>
+                <button class="oo-btn oo-btn-secondary" id="oo-step4-back">← Back</button>
+            </div>
+        </div>
+
+        <div id="oo-emails-result" style="display:none">
+            <div id="oo-email-sequence"></div>
+            <div class="oo-card">
+                <div class="oo-wizard-actions">
+                    <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-save-sequence">
+                        <span class="oo-btn-text">Save Email Sequence →</span>
+                        <span class="oo-btn-loading" style="display:none">Saving...</span>
+                    </button>
+                    <div id="oo-sequence-result" class="oo-inline-notice" style="display:none"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 5: Launch -->
+    <div class="oo-wizard-panel" id="oo-step-5">
+        <div class="oo-card" id="oo-launch-summary" style="border-left:4px solid var(--oo-accent)">
+            <h2 class="oo-card-title">Ready to Launch</h2>
+            <div id="oo-launch-details"></div>
+        </div>
+        <div class="oo-card">
+            <h2 class="oo-card-title">Airtable Sync</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Push your new contacts to Airtable so you can view and edit them outside WordPress.</p>
+            <button class="oo-btn oo-btn-secondary" id="oo-sync-airtable">
+                <span class="oo-btn-text">Sync Contacts to Airtable</span>
+                <span class="oo-btn-loading" style="display:none">Syncing...</span>
+            </button>
+            <span id="oo-airtable-result" class="oo-inline-notice" style="display:none"></span>
+        </div>
+        <div class="oo-card">
+            <h2 class="oo-card-title">Launch Campaign</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Setting the campaign to Active will enable the email scheduler to start sending. Make sure your sending domain is verified in Amazon SES before launching.</p>
+            <div class="oo-wizard-actions">
+                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-launch-campaign">
+                    <span class="oo-btn-text">Launch Campaign</span>
+                    <span class="oo-btn-loading" style="display:none">Launching...</span>
+                </button>
+                <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns' ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-lg">Save as Draft</a>
+            </div>
+            <div id="oo-launch-result" class="oo-inline-notice" style="display:none"></div>
+        </div>
+    </div>
+
+</div><!-- #oo-wizard -->

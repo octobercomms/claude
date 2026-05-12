@@ -54,6 +54,8 @@ class OO_Database {
             audience_description text NOT NULL DEFAULT '',
             audience_filters longtext NOT NULL DEFAULT '',
             claude_prompt text NOT NULL DEFAULT '',
+            coupon_url varchar(1000) NOT NULL DEFAULT '',
+            coupon_field varchar(100) NOT NULL DEFAULT '',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),

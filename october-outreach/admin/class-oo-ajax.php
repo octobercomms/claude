@@ -40,13 +40,15 @@ class OO_Ajax {
         global $wpdb;
 
         $data = array(
-            'name'       => sanitize_text_field( $_POST['name'] ?? '' ),
-            'brand'      => sanitize_text_field( $_POST['brand'] ?? '' ),
-            'type'       => sanitize_text_field( $_POST['type'] ?? 'outreach' ),
-            'from_name'  => sanitize_text_field( $_POST['from_name'] ?? '' ),
-            'from_email' => sanitize_email( $_POST['from_email'] ?? '' ),
-            'reply_to'   => sanitize_email( $_POST['reply_to'] ?? '' ),
-            'status'     => 'draft',
+            'name'         => sanitize_text_field( $_POST['name'] ?? '' ),
+            'brand'        => sanitize_text_field( $_POST['brand'] ?? '' ),
+            'type'         => sanitize_text_field( $_POST['type'] ?? 'outreach' ),
+            'from_name'    => sanitize_text_field( $_POST['from_name'] ?? '' ),
+            'from_email'   => sanitize_email( $_POST['from_email'] ?? '' ),
+            'reply_to'     => sanitize_email( $_POST['reply_to'] ?? '' ),
+            'coupon_url'   => esc_url_raw( $_POST['coupon_url'] ?? '' ),
+            'coupon_field' => sanitize_text_field( $_POST['coupon_field'] ?? '' ),
+            'status'       => 'draft',
         );
 
         $id = intval( $_POST['campaign_id'] ?? 0 );
