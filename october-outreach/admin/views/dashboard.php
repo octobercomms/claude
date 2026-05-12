@@ -42,7 +42,6 @@ $settings        = get_option( 'oo_settings', array() );
         <div class="oo-quick-actions">
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard' ) ); ?>" class="oo-btn oo-btn-primary">+ New Campaign</a>
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Add Contact</a>
-            <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-press&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Press Release</a>
         </div>
     </div>
 
