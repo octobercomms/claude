@@ -36,7 +36,9 @@ class OO_Icypeas {
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
 
         if ( $code === 401 ) {
-            return new WP_Error( 'icypeas_auth', 'Icypeas API key is invalid.' );
+            $raw = wp_remote_retrieve_body( $response );
+            $msg = $data['message'] ?? $data['error'] ?? $data['detail'] ?? '';
+            return new WP_Error( 'icypeas_auth', 'Icypeas 401' . ( $msg ? ': ' . $msg : ' — raw: ' . substr( $raw, 0, 200 ) ) );
         }
         if ( $code === 429 ) {
             return new WP_Error( 'icypeas_rate_limit', 'Icypeas rate limit exceeded. Try again shortly.' );
