@@ -117,13 +117,42 @@ class OO_Ajax {
             wp_send_json_error( 'No domains provided.' );
         }
 
-        $limit = intval( $_POST['contacts_per_domain'] ?? 10 );
-        $limit = max( 5, min( 50, $limit ) ); // clamp 5–50
-        $result = $hunter->search_domains( $domains, $limit );
+        // Exclude domains already present in the contacts database
+        global $wpdb;
+        $existing_emails = $wpdb->get_col( "SELECT email FROM {$wpdb->prefix}oo_contacts" );
+        $existing_domains = array_unique( array_map( function( $email ) {
+            return strtolower( substr( $email, strpos( $email, '@' ) + 1 ) );
+        }, $existing_emails ) );
+
+        $domains = array_values( array_filter( $domains, function( $d ) use ( $existing_domains ) {
+            return ! in_array( strtolower( trim( $d ) ), $existing_domains, true );
+        } ) );
+
+        // Batch: take up to 8 domains per run to avoid timeouts
+        $batch_size = 8;
+        $batch      = array_slice( $domains, 0, $batch_size );
+        $remaining  = array_slice( $domains, $batch_size );
+
+        if ( empty( $batch ) ) {
+            wp_send_json_success( array(
+                'contacts'  => array(),
+                'total'     => 0,
+                'errors'    => array(),
+                'remaining' => array(),
+                'message'   => 'All domains have already been searched — no new domains to check.',
+            ) );
+        }
+
+        $limit = intval( $_POST['contacts_per_domain'] ?? 25 );
+        $limit = max( 5, min( 50, $limit ) );
+        $result = $hunter->search_domains( $batch, $limit );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
         }
+
+        $result['searched']  = $batch;
+        $result['remaining'] = $remaining;
 
         wp_send_json_success( $result );
     }

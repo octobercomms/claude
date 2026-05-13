@@ -13,6 +13,8 @@
             sequence: [],
             contactType: '',
             savedContacts: 0,
+            remainingDomains: [],
+            searchedDomains: [],
         },
 
         init: function () {
@@ -59,7 +61,14 @@
 
             // Step 3 — Hunter
             $('#oo-search-contacts').on('click', this.searchContacts.bind(this));
-            $('#oo-step3-back').on('click', function () { wizard.goToStep(2); });
+            $('#oo-step3-back').on('click', function () {
+                // Reset batch state when going back to redefine audience
+                wizard.data.remainingDomains = [];
+                wizard.data.searchedDomains  = [];
+                wizard.data.contacts         = [];
+                $('#oo-search-contacts').find('.oo-btn-text').text('Search Hunter.io →');
+                wizard.goToStep(2);
+            });
             $('#oo-select-all').on('click', function () { $('.oo-contact-check').prop('checked', true); });
             $('#oo-deselect-all').on('click', function () { $('.oo-contact-check').prop('checked', false); });
             $('#oo-save-contacts').on('click', this.saveContacts.bind(this));
@@ -233,25 +242,57 @@
         // ── Step 3 ────────────────────────────────────────────
 
         searchContacts: function () {
-            if (this.data.domains.length === 0) {
+            // Use remaining domains if we're mid-run, otherwise start fresh from all domains
+            var toSearch = this.data.remainingDomains.length > 0
+                ? this.data.remainingDomains
+                : this.data.domains;
+
+            if (toSearch.length === 0) {
                 alert('No domains to search. Go back and define your audience first.');
                 return;
             }
 
             this.setLoading('#oo-search-contacts', true);
+            $('#oo-search-progress').hide();
 
             $.post(ooData.ajaxUrl, {
                 action: 'oo_wizard_search_contacts',
                 nonce: ooData.nonce,
-                domains: this.data.domains,
+                domains: toSearch,
                 contact_type: this.data.contactType,
                 contacts_per_domain: $('#w_contacts_per_domain').val() || 25,
             }, function (res) {
                 wizard.setLoading('#oo-search-contacts', false);
                 if (res.success) {
-                    wizard.data.contacts = res.data.contacts || [];
-                    wizard.renderContactsTable(res.data);
+                    var d = res.data;
+
+                    // Track which domains have been searched
+                    if (d.searched) {
+                        wizard.data.searchedDomains = wizard.data.searchedDomains.concat(d.searched);
+                    }
+                    wizard.data.remainingDomains = d.remaining || [];
+
+                    // Accumulate contacts across batches
+                    wizard.data.contacts = wizard.data.contacts.concat(d.contacts || []);
+
+                    wizard.renderContactsTable({ contacts: wizard.data.contacts, errors: d.errors });
                     $('#oo-contacts-results').show();
+
+                    // Show batch progress
+                    var searched = wizard.data.searchedDomains.length;
+                    var remaining = wizard.data.remainingDomains.length;
+                    var total = searched + remaining;
+                    var msg = 'Searched ' + searched + ' of ' + total + ' domains. ';
+                    if (d.message) {
+                        msg = d.message;
+                    } else if (remaining > 0) {
+                        msg += remaining + ' remaining — save these contacts then click Search again to get more.';
+                        $('#oo-search-contacts').find('.oo-btn-text').text('Search Next ' + Math.min(8, remaining) + ' Domains →');
+                    } else {
+                        msg += 'All domains searched.';
+                        $('#oo-search-contacts').find('.oo-btn-text').text('Search Hunter.io →');
+                    }
+                    $('#oo-search-progress').text(msg).show();
                 } else {
                     alert('Hunter.io error: ' + (res.data || 'Unknown error'));
                 }

@@ -214,14 +214,15 @@ $settings      = get_option( 'oo_settings', array() );
             <div class="oo-card">
                 <h2 class="oo-card-title">Find Contacts via Hunter.io</h2>
                 <p class="oo-muted" style="margin-bottom:14px">Hunter.io will search each domain suggested by Claude and return real email addresses. Results shown below — deselect any you don't want before saving.</p>
-                <div class="oo-wizard-actions" style="padding:0 0 16px">
+                <div class="oo-wizard-actions" style="padding:0 0 10px">
                     <button class="oo-btn oo-btn-primary" id="oo-search-contacts">
                         <span class="oo-btn-text">Search Hunter.io →</span>
                         <span class="oo-btn-loading" style="display:none">Searching…</span>
                     </button>
                 </div>
+                <p id="oo-search-progress" class="oo-muted" style="display:none;font-size:13px;margin-bottom:12px"></p>
                 <div id="oo-contacts-results" style="display:none">
-                    <p class="oo-muted" style="margin-bottom:10px">Found <strong id="oo-contacts-count">0</strong> contacts. Deselect any you don't want.</p>
+                    <p class="oo-muted" style="margin-bottom:10px">Found <strong id="oo-contacts-count">0</strong> contacts total. Deselect any you don't want.</p>
                     <div style="display:flex;gap:8px;margin-bottom:12px">
                         <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-select-all">Select All</button>
                         <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-deselect-all">Deselect All</button>
