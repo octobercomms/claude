@@ -164,12 +164,6 @@ class OO_Hunter {
                 continue;
             }
 
-            // Skip low-confidence results
-            if ( isset( $c['confidence'] ) && $c['confidence'] < 50 ) {
-                $skipped++;
-                continue;
-            }
-
             $existing_id = $wpdb->get_var( $wpdb->prepare(
                 "SELECT id FROM $table WHERE email = %s",
                 $c['email']
@@ -181,6 +175,10 @@ class OO_Hunter {
                 continue;
             }
 
+            $notes = '';
+            if ( ! empty( $c['title'] ) )    $notes = 'Title: ' . $c['title'];
+            elseif ( ! empty( $c['position'] ) ) $notes = 'Position: ' . $c['position'];
+
             $result = $wpdb->insert( $table, array(
                 'email'        => $c['email'],
                 'first_name'   => $c['first_name'] ?? '',
@@ -188,9 +186,9 @@ class OO_Hunter {
                 'company'      => $c['company'] ?? '',
                 'type'         => $contact_type ?: 'other',
                 'linkedin_url' => $c['linkedin_url'] ?? '',
-                'source'       => 'hunter.io',
+                'source'       => $c['source'] ?? 'hunter.io',
                 'status'       => 'active',
-                'notes'        => isset( $c['position'] ) ? 'Position: ' . $c['position'] : '',
+                'notes'        => $notes,
             ) );
 
             if ( $result ) {
