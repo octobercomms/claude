@@ -188,7 +188,6 @@ class OO_Claude {
         return $this->request_json( $messages, 1024, $system );
     }
 
-     */
     public function write_sequence( $campaign, $audience_description, $sample_contacts = array(), $extra_instructions = '' ) {
         $brands = OO_Database::get_brands();
         $brand_label = $brands[ $campaign->brand ] ?? $campaign->brand;
