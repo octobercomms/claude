@@ -17,6 +17,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_save_campaign', array( $this, 'save_campaign' ) );
         add_action( 'admin_post_oo_delete_campaign', array( $this, 'delete_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
+        add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
     }
 
     public function app_body_class( $classes ) {
@@ -199,6 +200,30 @@ class OO_Admin {
             ? admin_url( 'admin.php?page=october-outreach&deleted=1' )
             : admin_url( 'admin.php?page=oo-campaigns&deleted=1' );
         wp_redirect( $back );
+        exit;
+    }
+
+    public function export_contacts_csv() {
+        check_admin_referer( 'oo_export_contacts' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $contacts = $wpdb->get_results(
+            "SELECT first_name, last_name, email, company, type, location, status, source, notes, created_at
+             FROM {$wpdb->prefix}oo_contacts ORDER BY created_at DESC",
+            ARRAY_A
+        );
+
+        header( 'Content-Type: text/csv; charset=utf-8' );
+        header( 'Content-Disposition: attachment; filename="contacts-' . date( 'Y-m-d' ) . '.csv"' );
+        header( 'Pragma: no-cache' );
+
+        $out = fopen( 'php://output', 'w' );
+        fputcsv( $out, array( 'First Name', 'Last Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Source', 'Notes', 'Added' ) );
+        foreach ( $contacts as $row ) {
+            fputcsv( $out, $row );
+        }
+        fclose( $out );
         exit;
     }
 

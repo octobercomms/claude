@@ -95,7 +95,7 @@ class OO_Claude {
         }
         $prompt .= "\nPlease provide:\n";
         $prompt .= "1. A refined audience description (2-3 sentences, specific and actionable)\n";
-        $prompt .= "2. 8-12 specific company domains to search for contacts (real companies, architecture firms, design studios, publications, etc.)\n";
+        $prompt .= "2. 20-30 specific company domains to search for contacts (the more the better — aim for 25+) (real companies, architecture firms, design studios, publications, etc.)\n";
         $prompt .= "3. Target job titles (5-8, comma separated)\n";
         $prompt .= "4. A brief note on why this audience is right for this campaign\n\n";
         $prompt .= "Respond as valid JSON only, no markdown:\n";

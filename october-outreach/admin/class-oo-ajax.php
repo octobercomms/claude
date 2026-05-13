@@ -19,6 +19,8 @@ class OO_Ajax {
             'oo_wizard_launch',
             'oo_airtable_push_all',
             'oo_airtable_pull',
+            'oo_wizard_filter_contacts',
+            'oo_wizard_link_contacts',
         );
 
         foreach ( $actions as $action ) {
@@ -115,7 +117,9 @@ class OO_Ajax {
             wp_send_json_error( 'No domains provided.' );
         }
 
-        $result = $hunter->search_domains( $domains, 10 );
+        $limit = intval( $_POST['contacts_per_domain'] ?? 10 );
+        $limit = max( 5, min( 50, $limit ) ); // clamp 5–50
+        $result = $hunter->search_domains( $domains, $limit );
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
@@ -338,5 +342,67 @@ class OO_Ajax {
         if ( ! $airtable->is_configured() ) wp_send_json_error( 'Airtable not configured.' );
         $result = $airtable->pull_contacts();
         is_wp_error( $result ) ? wp_send_json_error( $result->get_error_message() ) : wp_send_json_success( $result );
+    }
+
+    public function wizard_filter_contacts() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $type     = sanitize_text_field( $_POST['type'] ?? '' );
+        $location = sanitize_text_field( $_POST['location'] ?? '' );
+        $campaign_id = intval( $_POST['campaign_id'] ?? 0 );
+
+        $where = "WHERE status = 'active'";
+        $args  = array();
+
+        if ( $type ) {
+            $where .= " AND type = %s";
+            $args[] = $type;
+        }
+        if ( $location ) {
+            $where .= " AND location LIKE %s";
+            $args[] = '%' . $wpdb->esc_like( $location ) . '%';
+        }
+
+        // Exclude contacts already linked to this campaign
+        if ( $campaign_id ) {
+            $where .= " AND id NOT IN (SELECT contact_id FROM {$wpdb->prefix}oo_campaign_contacts WHERE campaign_id = %d)";
+            $args[] = $campaign_id;
+        }
+
+        $sql = "SELECT id, first_name, last_name, email, company, type, location FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 300";
+
+        $contacts = $args
+            ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A )
+            : $wpdb->get_results( $sql, ARRAY_A );
+
+        wp_send_json_success( array( 'contacts' => $contacts, 'total' => count( $contacts ) ) );
+    }
+
+    public function wizard_link_contacts() {
+        $this->check_nonce();
+
+        $campaign_id = intval( $_POST['campaign_id'] ?? 0 );
+        if ( ! $campaign_id ) wp_send_json_error( 'No campaign ID.' );
+
+        $raw = $_POST['contact_ids'] ?? '[]';
+        $ids = json_decode( stripslashes( $raw ), true );
+        if ( ! is_array( $ids ) || empty( $ids ) ) {
+            wp_send_json_error( 'No contacts selected.' );
+        }
+
+        global $wpdb;
+        $linked = 0;
+        foreach ( $ids as $contact_id ) {
+            $contact_id = intval( $contact_id );
+            if ( ! $contact_id ) continue;
+            $rows = $wpdb->query( $wpdb->prepare(
+                "INSERT IGNORE INTO {$wpdb->prefix}oo_campaign_contacts (campaign_id, contact_id) VALUES (%d, %d)",
+                $campaign_id, $contact_id
+            ) );
+            $linked += $rows;
+        }
+
+        wp_send_json_success( array( 'linked' => $linked ) );
     }
 }

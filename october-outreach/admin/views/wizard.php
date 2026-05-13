@@ -180,6 +180,16 @@ $settings      = get_option( 'oo_settings', array() );
             <h3 style="font-size:14px;font-weight:600;margin:20px 0 8px">Target Job Titles</h3>
             <div id="oo-titles-list" class="oo-tag-list"></div>
 
+            <div class="oo-field" style="margin-top:16px">
+                <label class="oo-label">Contacts per domain</label>
+                <select id="w_contacts_per_domain" class="oo-select" style="max-width:180px">
+                    <option value="10">10 per domain</option>
+                    <option value="25" selected>25 per domain</option>
+                    <option value="50">50 per domain</option>
+                </select>
+                <p class="oo-hint">Higher = more contacts found, more Hunter.io credits used.</p>
+            </div>
+
             <div class="oo-wizard-actions">
                 <button class="oo-btn oo-btn-secondary" id="oo-step2-back">← Back</button>
                 <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step2-next">Next: Find Contacts →</button>
@@ -187,41 +197,89 @@ $settings      = get_option( 'oo_settings', array() );
         </div>
     </div>
 
-    <!-- Step 3: Find Contacts -->
+    <!-- Step 3: Contacts -->
     <div class="oo-wizard-panel" id="oo-step-3">
-        <div class="oo-card">
-            <h2 class="oo-card-title">Find Contacts</h2>
-            <p class="oo-muted" style="margin-bottom:14px">Hunter.io will search each domain for contacts. Review and select who to add to your database.</p>
-            <div class="oo-wizard-actions">
-                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-search-contacts">
-                    <span class="oo-btn-text">Search Hunter.io →</span>
-                    <span class="oo-btn-loading" style="display:none">Searching... this may take a moment</span>
-                </button>
-                <button class="oo-btn oo-btn-secondary" id="oo-step3-back">← Back</button>
+
+        <!-- Mode toggle -->
+        <div class="oo-card" style="margin-bottom:16px">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+                <span style="font-size:14px;font-weight:600">Find contacts via:</span>
+                <button class="oo-btn oo-btn-primary oo-btn-sm" id="oo-mode-hunter">🔍 Hunter.io (find new)</button>
+                <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-mode-existing">📋 Existing contacts</button>
             </div>
         </div>
 
-        <div id="oo-contacts-results" style="display:none">
+        <!-- Hunter.io panel -->
+        <div id="oo-panel-hunter">
             <div class="oo-card">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-                    <h2 class="oo-card-title" style="margin:0">Contacts Found <span id="oo-contacts-count" class="oo-badge oo-badge-blue">0</span></h2>
-                    <div style="display:flex;gap:8px">
+                <h2 class="oo-card-title">Find Contacts via Hunter.io</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Hunter.io will search each domain suggested by Claude and return real email addresses. Results shown below — deselect any you don't want before saving.</p>
+                <div class="oo-wizard-actions" style="padding:0 0 16px">
+                    <button class="oo-btn oo-btn-primary" id="oo-search-contacts">
+                        <span class="oo-btn-text">Search Hunter.io →</span>
+                        <span class="oo-btn-loading" style="display:none">Searching…</span>
+                    </button>
+                </div>
+                <div id="oo-contacts-results" style="display:none">
+                    <p class="oo-muted" style="margin-bottom:10px">Found <strong id="oo-contacts-count">0</strong> contacts. Deselect any you don't want.</p>
+                    <div style="display:flex;gap:8px;margin-bottom:12px">
                         <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-select-all">Select All</button>
                         <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-deselect-all">Deselect All</button>
                     </div>
-                </div>
-                <div id="oo-contacts-table-wrap"></div>
-                <div class="oo-wizard-actions">
-                    <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-save-contacts">
-                        <span class="oo-btn-text">Add Selected to Database →</span>
-                        <span class="oo-btn-loading" style="display:none">Saving...</span>
-                    </button>
-                    <div id="oo-save-result" class="oo-inline-notice" style="display:none"></div>
+                    <div id="oo-contacts-table-wrap"></div>
+                    <div class="oo-wizard-actions" style="padding-top:16px">
+                        <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-save-contacts">
+                            <span class="oo-btn-text">Save Selected Contacts →</span>
+                            <span class="oo-btn-loading" style="display:none">Saving…</span>
+                        </button>
+                        <div id="oo-save-result" class="oo-notice" style="display:none;margin-top:10px"></div>
+                    </div>
                 </div>
             </div>
-            <div class="oo-wizard-actions">
-                <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step3-next">Next: Write Emails →</button>
+        </div>
+
+        <!-- Existing contacts panel -->
+        <div id="oo-panel-existing" style="display:none">
+            <div class="oo-card">
+                <h2 class="oo-card-title">Select from Existing Contacts</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Filter your contact database and add matching contacts to this campaign.</p>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:flex-end">
+                    <div class="oo-field" style="margin:0">
+                        <label class="oo-label">Contact Type</label>
+                        <select id="oo-filter-type" class="oo-select" style="width:180px">
+                            <option value="">All Types</option>
+                            <?php foreach ( OO_Database::get_contact_types() as $val => $label ) : ?>
+                            <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="oo-field" style="margin:0">
+                        <label class="oo-label">Location</label>
+                        <input type="text" id="oo-filter-location" class="oo-input" style="width:180px" placeholder="e.g. Atlanta">
+                    </div>
+                    <button class="oo-btn oo-btn-secondary" id="oo-filter-contacts-btn">Filter</button>
+                </div>
+                <div id="oo-existing-results" style="display:none">
+                    <p class="oo-muted" style="margin-bottom:10px">Showing <strong id="oo-existing-count">0</strong> contacts (already linked to this campaign are excluded).</p>
+                    <div style="display:flex;gap:8px;margin-bottom:10px">
+                        <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-existing-select-all">Select All</button>
+                        <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-existing-deselect-all">Deselect All</button>
+                    </div>
+                    <div id="oo-existing-table-wrap"></div>
+                    <div class="oo-wizard-actions" style="padding-top:16px">
+                        <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-link-contacts">
+                            <span class="oo-btn-text">Add Selected to Campaign →</span>
+                            <span class="oo-btn-loading" style="display:none">Saving…</span>
+                        </button>
+                        <div id="oo-link-result" class="oo-notice" style="display:none;margin-top:10px"></div>
+                    </div>
+                </div>
             </div>
+        </div>
+
+        <div class="oo-wizard-actions" style="padding-top:16px">
+            <button class="oo-btn oo-btn-secondary" id="oo-step3-back">← Back</button>
+            <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-step3-next">Next: Write Emails →</button>
         </div>
     </div>
 
@@ -258,15 +316,6 @@ $settings      = get_option( 'oo_settings', array() );
         <div class="oo-card" id="oo-launch-summary" style="border-left:4px solid var(--oo-accent)">
             <h2 class="oo-card-title">Ready to Launch</h2>
             <div id="oo-launch-details"></div>
-        </div>
-        <div class="oo-card">
-            <h2 class="oo-card-title">Airtable Sync</h2>
-            <p class="oo-muted" style="margin-bottom:14px">Push your new contacts to Airtable so you can view and edit them outside WordPress.</p>
-            <button class="oo-btn oo-btn-secondary" id="oo-sync-airtable">
-                <span class="oo-btn-text">Sync Contacts to Airtable</span>
-                <span class="oo-btn-loading" style="display:none">Syncing...</span>
-            </button>
-            <span id="oo-airtable-result" class="oo-inline-notice" style="display:none"></span>
         </div>
         <div class="oo-card">
             <h2 class="oo-card-title">Launch Campaign</h2>

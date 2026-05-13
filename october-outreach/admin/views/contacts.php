@@ -67,11 +67,17 @@ if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
 
 <div class="oo-page-header">
     <h1 class="oo-page-title">Contacts</h1>
-    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Add Manually</a>
+    <div class="oo-page-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Add Manually</a>
+        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_export_contacts' ), 'oo_export_contacts' ) ); ?>" class="oo-btn oo-btn-secondary">Export CSV</a>
+        <?php if ( ! empty( get_option( 'oo_settings', [] )['airtable_api_key'] ) ) : ?>
+        <button class="oo-btn oo-btn-secondary" id="oo-airtable-push-btn">Sync Airtable</button>
+        <?php endif; ?>
+    </div>
 </div>
-
 <?php if ( isset( $_GET['saved'] ) ) : ?><div class="oo-notice oo-notice-success">Contact saved.</div><?php endif; ?>
-<?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success">Contact deleted.</div><?php endif; ?>
+<?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval($_GET['deleted']); ?> contact(s) deleted.</div><?php endif; ?>
+<div id="oo-airtable-push-result" class="oo-notice" style="display:none"></div>
 
 <?php
 $type_filter = sanitize_text_field( $_GET['type_filter'] ?? '' );

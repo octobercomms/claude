@@ -43,7 +43,21 @@
             $('#oo-step2-back').on('click', function () { wizard.goToStep(1); });
             $('#oo-step2-next').on('click', this.step2Next.bind(this));
 
-            // Step 3
+            // Step 3 — mode toggle
+            $('#oo-mode-hunter').on('click', function() {
+                $('#oo-panel-hunter').show();
+                $('#oo-panel-existing').hide();
+                $('#oo-mode-hunter').removeClass('oo-btn-secondary').addClass('oo-btn-primary');
+                $('#oo-mode-existing').removeClass('oo-btn-primary').addClass('oo-btn-secondary');
+            });
+            $('#oo-mode-existing').on('click', function() {
+                $('#oo-panel-existing').show();
+                $('#oo-panel-hunter').hide();
+                $('#oo-mode-existing').removeClass('oo-btn-secondary').addClass('oo-btn-primary');
+                $('#oo-mode-hunter').removeClass('oo-btn-primary').addClass('oo-btn-secondary');
+            });
+
+            // Step 3 — Hunter
             $('#oo-search-contacts').on('click', this.searchContacts.bind(this));
             $('#oo-step3-back').on('click', function () { wizard.goToStep(2); });
             $('#oo-select-all').on('click', function () { $('.oo-contact-check').prop('checked', true); });
@@ -51,13 +65,18 @@
             $('#oo-save-contacts').on('click', this.saveContacts.bind(this));
             $('#oo-step3-next').on('click', function () { wizard.goToStep(4); });
 
+            // Step 3 — existing contacts
+            $('#oo-filter-contacts-btn').on('click', this.filterExistingContacts.bind(this));
+            $('#oo-existing-select-all').on('click', function() { $('.oo-existing-check').prop('checked', true); });
+            $('#oo-existing-deselect-all').on('click', function() { $('.oo-existing-check').prop('checked', false); });
+            $('#oo-link-contacts').on('click', this.linkExistingContacts.bind(this));
+
             // Step 4
             $('#oo-generate-emails').on('click', this.generateEmails.bind(this));
             $('#oo-step4-back').on('click', function () { wizard.goToStep(3); });
             $('#oo-save-sequence').on('click', this.saveSequence.bind(this));
 
             // Step 5
-            $('#oo-sync-airtable').on('click', this.syncAirtable.bind(this));
             $('#oo-launch-campaign').on('click', this.launchCampaign.bind(this));
         },
 
@@ -226,6 +245,7 @@
                 nonce: ooData.nonce,
                 domains: this.data.domains,
                 contact_type: this.data.contactType,
+                contacts_per_domain: $('#w_contacts_per_domain').val() || 25,
             }, function (res) {
                 wizard.setLoading('#oo-search-contacts', false);
                 if (res.success) {
@@ -305,6 +325,72 @@
                     );
                 } else {
                     wizard.showNotice('#oo-save-result', res.data || 'Error saving contacts', 'error');
+                }
+            });
+        },
+
+        filterExistingContacts: function () {
+            var $btn = $('#oo-filter-contacts-btn');
+            $btn.prop('disabled', true).text('Filtering…');
+
+            $.post(ooData.ajaxUrl, {
+                action: 'oo_wizard_filter_contacts',
+                nonce: ooData.nonce,
+                campaign_id: this.campaignId,
+                type: $('#oo-filter-type').val(),
+                location: $('#oo-filter-location').val(),
+            }, function (res) {
+                $btn.prop('disabled', false).text('Filter');
+                if (!res.success) { alert(res.data || 'Error filtering contacts'); return; }
+
+                var contacts = res.data.contacts || [];
+                $('#oo-existing-count').text(contacts.length);
+
+                var html = '<div class="oo-table-wrap"><table class="oo-table"><thead><tr>';
+                html += '<th style="width:30px"></th><th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Location</th></tr></thead><tbody>';
+                contacts.forEach(function(c) {
+                    var name = (c.first_name + ' ' + c.last_name).trim() || '—';
+                    html += '<tr>';
+                    html += '<td><input type="checkbox" class="oo-existing-check" data-id="' + c.id + '" checked></td>';
+                    html += '<td>' + wizard.esc(name) + '</td>';
+                    html += '<td>' + wizard.esc(c.email) + '</td>';
+                    html += '<td>' + wizard.esc(c.company || '—') + '</td>';
+                    html += '<td>' + wizard.esc(c.type || '—') + '</td>';
+                    html += '<td>' + wizard.esc(c.location || '—') + '</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table></div>';
+
+                $('#oo-existing-table-wrap').html(html);
+                $('#oo-existing-results').show();
+            }).fail(function() {
+                $btn.prop('disabled', false).text('Filter');
+                alert('Request failed.');
+            });
+        },
+
+        linkExistingContacts: function () {
+            var ids = [];
+            $('.oo-existing-check:checked').each(function() {
+                ids.push($(this).data('id'));
+            });
+            if (!ids.length) { alert('No contacts selected.'); return; }
+            if (!this.campaignId) { alert('Save the campaign first (complete Step 1).'); return; }
+
+            this.setLoading('#oo-link-contacts', true);
+
+            $.post(ooData.ajaxUrl, {
+                action: 'oo_wizard_link_contacts',
+                nonce: ooData.nonce,
+                campaign_id: this.campaignId,
+                contact_ids: JSON.stringify(ids),
+            }, function (res) {
+                wizard.setLoading('#oo-link-contacts', false);
+                if (res.success) {
+                    wizard.data.savedContacts = (wizard.data.savedContacts || 0) + (res.data.linked || 0);
+                    wizard.showNotice('#oo-link-result', res.data.linked + ' contacts added to campaign.', 'success');
+                } else {
+                    wizard.showNotice('#oo-link-result', res.data || 'Error', 'error');
                 }
             });
         },
@@ -401,21 +487,6 @@
             html += '<tr><td>Emails in sequence</td><td><span class="oo-badge oo-badge-blue">' + wizard.data.sequence.length + '</span></td></tr>';
             html += '</table>';
             $('#oo-launch-details').html(html);
-        },
-
-        syncAirtable: function () {
-            this.setLoading('#oo-sync-airtable', true);
-            $.post(ooData.ajaxUrl, {
-                action: 'oo_wizard_sync_airtable',
-                nonce: ooData.nonce,
-            }, function (res) {
-                wizard.setLoading('#oo-sync-airtable', false);
-                if (res.success) {
-                    wizard.showNotice('#oo-airtable-result', res.data.pushed + ' contacts synced to Airtable.', 'success');
-                } else {
-                    wizard.showNotice('#oo-airtable-result', res.data || 'Airtable sync error', 'error');
-                }
-            });
         },
 
         launchCampaign: function () {
