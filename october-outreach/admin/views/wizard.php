@@ -245,6 +245,18 @@ $settings      = get_option( 'oo_settings', array() );
                 <button class="oo-btn oo-btn-secondary" id="oo-add-domain-btn">Add</button>
             </div>
 
+            <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;align-items:center">
+                <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-more-domains-btn">
+                    <span class="oo-btn-text">+ Generate More with Claude</span>
+                    <span class="oo-btn-loading" style="display:none">Claude is thinking…</span>
+                </button>
+                <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-discover-domains-btn">
+                    <span class="oo-btn-text">🔍 Discover via Web Search</span>
+                    <span class="oo-btn-loading" style="display:none">Searching web &amp; directories…</span>
+                </button>
+                <span id="oo-discover-note" class="oo-muted" style="font-size:12px;display:none"></span>
+            </div>
+
             <h3 style="font-size:14px;font-weight:600;margin:20px 0 8px">Target Job Titles</h3>
             <div id="oo-titles-list" class="oo-tag-list"></div>
 

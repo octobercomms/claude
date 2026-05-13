@@ -42,6 +42,8 @@
             $('#oo-add-domain').on('keypress', function (e) {
                 if (e.which === 13) { e.preventDefault(); wizard.addDomain(); }
             });
+            $('#oo-more-domains-btn').on('click', this.moreDomains.bind(this));
+            $('#oo-discover-domains-btn').on('click', this.discoverDomains.bind(this));
             $('#oo-step2-back').on('click', function () { wizard.goToStep(1); });
             $('#oo-step2-next').on('click', this.step2Next.bind(this));
 
@@ -229,6 +231,79 @@
                 this.renderTags('#oo-domains-list', this.data.domains, 'domain');
             }
             $('#oo-add-domain').val('');
+        },
+
+        moreDomains: function () {
+            this.setLoading('#oo-more-domains-btn', true);
+            $('#oo-discover-note').hide();
+
+            $.post(ooData.ajaxUrl, {
+                action: 'oo_wizard_more_domains',
+                nonce: ooData.nonce,
+                campaign_name:      $('#w_name').val(),
+                brand:              $('#w_brand').val(),
+                audience:           $('#w_audience').val(),
+                aud_location:       $('#aud_location').val(),
+                aud_industry_type:  $('#aud_industry_type').val(),
+                aud_specialisation: $('#aud_specialisation').val(),
+                aud_business_size:  $('#aud_business_size').val(),
+                existing_domains:   wizard.data.domains,
+            }, function (res) {
+                wizard.setLoading('#oo-more-domains-btn', false);
+                if (res.success) {
+                    var added = 0;
+                    (res.data.domains || []).forEach(function (d) {
+                        if (wizard.data.domains.indexOf(d) === -1) {
+                            wizard.data.domains.push(d);
+                            added++;
+                        }
+                    });
+                    wizard.renderTags('#oo-domains-list', wizard.data.domains, 'domain');
+                    var note = added + ' new domains added';
+                    if (res.data.angle) note += ' (' + res.data.angle + ')';
+                    $('#oo-discover-note').text(note).show();
+                } else {
+                    alert('Error: ' + (res.data || 'Unknown error'));
+                }
+            }).fail(function () {
+                wizard.setLoading('#oo-more-domains-btn', false);
+                alert('Request failed. Please try again.');
+            });
+        },
+
+        discoverDomains: function () {
+            this.setLoading('#oo-discover-domains-btn', true);
+            $('#oo-discover-note').hide();
+
+            $.post(ooData.ajaxUrl, {
+                action: 'oo_wizard_discover_domains',
+                nonce: ooData.nonce,
+                aud_location:       $('#aud_location').val(),
+                aud_industry_type:  $('#aud_industry_type').val(),
+                aud_specialisation: $('#aud_specialisation').val(),
+                existing_domains:   wizard.data.domains,
+            }, function (res) {
+                wizard.setLoading('#oo-discover-domains-btn', false);
+                if (res.success) {
+                    var added = 0;
+                    (res.data.domains || []).forEach(function (d) {
+                        if (wizard.data.domains.indexOf(d) === -1) {
+                            wizard.data.domains.push(d);
+                            added++;
+                        }
+                    });
+                    wizard.renderTags('#oo-domains-list', wizard.data.domains, 'domain');
+                    var notes = res.data.notes || [];
+                    var note  = added + ' new domains added';
+                    if (notes.length) note += ' — ' + notes.join('; ');
+                    $('#oo-discover-note').text(note).show();
+                } else {
+                    alert('Error: ' + (res.data || 'Unknown error'));
+                }
+            }).fail(function () {
+                wizard.setLoading('#oo-discover-domains-btn', false);
+                alert('Request failed. Please try again.');
+            });
         },
 
         step2Next: function () {

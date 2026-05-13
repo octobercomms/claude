@@ -21,6 +21,8 @@ class OO_Ajax {
             'oo_airtable_pull',
             'oo_wizard_filter_contacts',
             'oo_wizard_link_contacts',
+            'oo_wizard_more_domains',
+            'oo_wizard_discover_domains',
         );
 
         foreach ( $actions as $action ) {
@@ -550,6 +552,131 @@ class OO_Ajax {
             : $wpdb->get_results( $sql, ARRAY_A );
 
         wp_send_json_success( array( 'contacts' => $contacts, 'total' => count( $contacts ) ) );
+    }
+
+    /**
+     * Ask Claude to generate a fresh batch of domains from a different angle.
+     */
+    public function wizard_more_domains() {
+        $this->check_nonce();
+
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) {
+            wp_send_json_error( 'Claude API key not configured.' );
+        }
+
+        $existing = array_map( 'sanitize_text_field', (array) ( $_POST['existing_domains'] ?? array() ) );
+        $structured = array(
+            'location'       => sanitize_text_field( $_POST['aud_location']       ?? '' ),
+            'industry_type'  => sanitize_text_field( $_POST['aud_industry_type']  ?? '' ),
+            'specialisation' => sanitize_text_field( $_POST['aud_specialisation'] ?? '' ),
+            'business_size'  => sanitize_text_field( $_POST['aud_business_size']  ?? '' ),
+        );
+
+        $result = $claude->more_domains(
+            sanitize_text_field( $_POST['campaign_name'] ?? '' ),
+            sanitize_text_field( $_POST['brand']         ?? '' ),
+            sanitize_textarea_field( $_POST['audience']  ?? '' ),
+            $structured,
+            $existing
+        );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+
+        $new_domains = array_values( array_diff(
+            array_filter( array_map( 'sanitize_text_field', $result['domains'] ?? array() ) ),
+            $existing
+        ) );
+
+        wp_send_json_success( array(
+            'domains' => $new_domains,
+            'count'   => count( $new_domains ),
+            'angle'   => sanitize_text_field( $result['angle'] ?? '' ),
+        ) );
+    }
+
+    /**
+     * Discover domains via Serper web search + Claude-suggested directories.
+     */
+    public function wizard_discover_domains() {
+        $this->check_nonce();
+
+        $serper  = new OO_Serper();
+        $claude  = new OO_Claude();
+        $scraper = new OO_Scraper();
+
+        $industry  = sanitize_text_field( $_POST['aud_industry_type']  ?? '' );
+        $location  = sanitize_text_field( $_POST['aud_location']       ?? '' );
+        $spec      = sanitize_text_field( $_POST['aud_specialisation'] ?? '' );
+        $existing  = array_map( 'sanitize_text_field', (array) ( $_POST['existing_domains'] ?? array() ) );
+
+        $all_domains = array();
+        $notes       = array();
+
+        // 1. Serper web search for real businesses
+        if ( $serper->is_configured() ) {
+            $web_domains = $serper->find_business_domains( $industry, $location, $spec, $existing );
+            if ( ! empty( $web_domains ) ) {
+                $all_domains = array_merge( $all_domains, $web_domains );
+                $notes[]     = count( $web_domains ) . ' domains from web search';
+            }
+        } else {
+            $notes[] = 'Serper not configured — add a Serper API key in Settings for web search';
+        }
+
+        // 2. Claude suggests directories for this industry
+        if ( $claude->is_configured() && ( $industry || $spec ) ) {
+            $dirs = $claude->suggest_directories( $industry, $location, $spec );
+            if ( ! is_wp_error( $dirs ) && is_array( $dirs ) ) {
+                $dir_count = 0;
+                foreach ( $dirs as $dir ) {
+                    $dir_domain = sanitize_text_field( $dir['domain'] ?? '' );
+                    $search_path = sanitize_text_field( $dir['search_path'] ?? '' );
+                    if ( ! $dir_domain ) continue;
+
+                    // If Serper available, search within the directory for listing pages
+                    if ( $serper->is_configured() ) {
+                        $pages = $serper->search_within_directory( $dir_domain, $location, $industry );
+                        foreach ( $pages as $page_url ) {
+                            $page_domains = $scraper->scrape_directory_page( $page_url, $dir_domain );
+                            $all_domains  = array_merge( $all_domains, $page_domains );
+                            $dir_count   += count( $page_domains );
+                        }
+                    } elseif ( $search_path ) {
+                        // Scrape the directory's search/listing page directly
+                        $dir_url      = 'https://' . $dir_domain . $search_path;
+                        $page_domains = $scraper->scrape_directory_page( $dir_url, $dir_domain );
+                        $all_domains  = array_merge( $all_domains, $page_domains );
+                        $dir_count   += count( $page_domains );
+                    }
+                }
+                if ( $dir_count > 0 ) {
+                    $notes[] = $dir_count . ' domains from ' . count( $dirs ) . ' industry directories';
+                } else {
+                    $names   = array();
+                    foreach ( $dirs as $d ) { if ( ! empty( $d['name'] ) ) $names[] = $d['name']; }
+                    $notes[] = 'Directories identified (' . implode( ', ', array_slice( $names, 0, 3 ) ) . ') — scraping found no external links (JavaScript-rendered sites)';
+                }
+            }
+        }
+
+        // Deduplicate and remove existing
+        $new_domains = array();
+        $seen        = array_flip( $existing );
+        foreach ( $all_domains as $d ) {
+            $d = strtolower( trim( $d ) );
+            if ( ! $d || isset( $seen[ $d ] ) ) continue;
+            $seen[ $d ]    = true;
+            $new_domains[] = $d;
+        }
+
+        wp_send_json_success( array(
+            'domains' => $new_domains,
+            'count'   => count( $new_domains ),
+            'notes'   => $notes,
+        ) );
     }
 
     public function wizard_link_contacts() {

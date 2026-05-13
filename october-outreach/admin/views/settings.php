@@ -123,6 +123,20 @@ Thanks!</div>
             <?php if ( ! empty( $settings['icypeas_api_key'] ) && ! empty( $settings['icypeas_api_secret'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
         </div>
 
+        <!-- Serper Web Search -->
+        <div class="oo-card">
+            <h2 class="oo-card-title">Serper (Web Search)</h2>
+            <p class="oo-muted" style="margin-bottom:14px">Powers the "Discover via Web Search" feature — finds real businesses by searching Google, then scrapes industry directories for firm domains. ~2,500 free searches/month. <a href="https://serper.dev" target="_blank">Get your key →</a></p>
+            <div class="oo-field">
+                <label class="oo-label">API Key</label>
+                <div class="oo-secret-wrap">
+                    <input type="password" name="serper_api_key" class="oo-input" value="<?php echo esc_attr( $settings['serper_api_key'] ?? '' ); ?>" placeholder="...">
+                    <?php if ( ! empty( $settings['serper_api_key'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+                </div>
+                <?php if ( ! empty( $settings['serper_api_key'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
+            </div>
+        </div>
+
         <!-- Airtable -->
         <div class="oo-card">
             <h2 class="oo-card-title">Airtable</h2>
