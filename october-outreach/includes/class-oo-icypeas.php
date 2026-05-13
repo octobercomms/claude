@@ -79,12 +79,13 @@ class OO_Icypeas {
             ) );
 
             if ( is_wp_error( $result ) ) {
-                // find-people failed; try domain_scan as a fallback before giving up.
-                $fallback = $this->domain_scan( $domain );
+                $fp_error   = 'find-people: ' . $result->get_error_message();
+                $scan_error = '';
+                $fallback   = $this->domain_scan( $domain, $scan_error );
                 if ( ! empty( $fallback ) ) {
                     $all_contacts = array_merge( $all_contacts, $fallback );
                 } else {
-                    $errors[ $domain ] = $result->get_error_message();
+                    $errors[ $domain ] = $fp_error . ( $scan_error ? '; ' . $scan_error : '' );
                 }
                 continue;
             }
@@ -127,7 +128,11 @@ class OO_Icypeas {
 
             // If no named contacts found, fall back to role-based domain scan
             if ( empty( $domain_contacts ) ) {
-                $domain_contacts = $this->domain_scan( $domain );
+                $scan_error      = '';
+                $domain_contacts = $this->domain_scan( $domain, $scan_error );
+                if ( empty( $domain_contacts ) && $scan_error ) {
+                    $errors[ $domain ] = $scan_error;
+                }
             }
 
             $all_contacts = array_merge( $all_contacts, $domain_contacts );
@@ -143,17 +148,19 @@ class OO_Icypeas {
     /**
      * Scan a domain for role-based addresses (contact@, info@, etc.).
      * Used as fallback when find-people returns nothing for a domain.
+     * Passes back the error message via $last_error on failure.
      */
-    public function domain_scan( $domain ) {
+    private function domain_scan( $domain, &$last_error = '' ) {
         $result = $this->request( '/domain-search', array(
             'domainOrCompany' => $domain,
         ) );
 
         if ( is_wp_error( $result ) ) {
+            $last_error = 'domain-search: ' . $result->get_error_message();
             return array();
         }
 
-        $leads    = $result['leads'] ?? $result['emails'] ?? array();
+        $leads    = $result['leads'] ?? $result['emails'] ?? $result['data'] ?? array();
         $contacts = array();
 
         foreach ( $leads as $lead ) {
@@ -182,7 +189,7 @@ class OO_Icypeas {
      * Returns the email string or WP_Error.
      */
     public function find_email( $first_name, $last_name, $domain ) {
-        $result = $this->request( '/email-discovery', array(
+        $result = $this->request( '/email-finder', array(
             'firstname'       => $first_name,
             'lastname'        => $last_name,
             'domainOrCompany' => $domain,

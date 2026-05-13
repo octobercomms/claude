@@ -190,7 +190,15 @@ class OO_Ajax {
                 $all_contacts     = array_merge( $all_contacts, $ir['contacts'] ?? array() );
                 $all_errors       = array_merge( $all_errors, $ir['errors'] ?? array() );
                 if ( empty( $ir['contacts'] ) ) {
-                    $provider_notes[] = 'Icypeas: no contacts found for these domains';
+                    $note = 'Icypeas: no contacts found';
+                    if ( ! empty( $ir['errors'] ) ) {
+                        $note .= ' — ' . implode( '; ', array_map(
+                            fn( $d, $e ) => $d . ': ' . $e,
+                            array_keys( $ir['errors'] ),
+                            array_values( $ir['errors'] )
+                        ) );
+                    }
+                    $provider_notes[] = $note;
                 }
             }
         }
