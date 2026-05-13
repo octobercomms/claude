@@ -297,6 +297,10 @@
                         msg += 'All domains searched.';
                         $('#oo-search-contacts').find('.oo-btn-text').text('Search for Contacts →');
                     }
+                    // Show provider diagnostic notes if 0 results
+                    if (d.provider_notes && d.provider_notes.length && wizard.data.contacts.length === 0) {
+                        msg += ' Note: ' + d.provider_notes.join('; ');
+                    }
                     $('#oo-search-progress').text(msg).show();
                 } else {
                     alert('Contact search error: ' + (res.data || 'Unknown error'));

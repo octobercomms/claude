@@ -78,32 +78,35 @@ class OO_Icypeas {
                 continue;
             }
 
-            $leads = $result['leads'] ?? array();
+            $leads = $result['leads'] ?? $result['data'] ?? array();
             foreach ( $leads as $lead ) {
-                $email = $lead['email'] ?? '';
+                // Handle varying field name conventions across API versions
+                $first = $lead['firstName']  ?? $lead['first_name']  ?? $lead['firstname'] ?? '';
+                $last  = $lead['lastName']   ?? $lead['last_name']   ?? $lead['lastname']  ?? '';
+                $email = $lead['email']      ?? $lead['emailAddress'] ?? $lead['email_address'] ?? '';
+                $title = $lead['currentJobTitle'] ?? $lead['jobTitle'] ?? $lead['job_title'] ?? $lead['title'] ?? '';
+                $co    = $lead['currentCompanyName'] ?? $lead['company'] ?? $lead['companyName'] ?? '';
+                $li    = $lead['linkedinUrl'] ?? $lead['linkedin_url'] ?? $lead['linkedInUrl'] ?? '';
+                $loc   = $lead['location']   ?? $lead['city'] ?? '';
 
                 // If no email in the lead record, attempt single email discovery
-                if ( ! $email ) {
-                    $first = $lead['firstName'] ?? '';
-                    $last  = $lead['lastName']  ?? '';
-                    if ( $first && $last ) {
-                        $found = $this->find_email( $first, $last, $domain );
-                        if ( ! is_wp_error( $found ) ) {
-                            $email = $found;
-                        }
+                if ( ! $email && $first && $last ) {
+                    $found = $this->find_email( $first, $last, $domain );
+                    if ( ! is_wp_error( $found ) ) {
+                        $email = $found;
                     }
                 }
 
                 if ( ! $email || ! is_email( $email ) ) continue;
 
                 $all_contacts[] = array(
-                    'first_name'   => $lead['firstName']       ?? '',
-                    'last_name'    => $lead['lastName']        ?? '',
+                    'first_name'   => $first,
+                    'last_name'    => $last,
                     'email'        => $email,
-                    'company'      => $lead['currentCompanyName']    ?? '',
-                    'title'        => $lead['currentJobTitle']       ?? '',
-                    'linkedin_url' => $lead['linkedinUrl']           ?? '',
-                    'location'     => $lead['location']              ?? '',
+                    'company'      => $co,
+                    'title'        => $title,
+                    'linkedin_url' => $li,
+                    'location'     => $loc,
                     'domain'       => $domain,
                     'confidence'   => 90,
                     'source'       => 'icypeas',

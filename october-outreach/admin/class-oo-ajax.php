@@ -162,30 +162,41 @@ class OO_Ajax {
         $job_titles = array_map( 'sanitize_text_field', (array) ( $_POST['job_titles'] ?? array() ) );
 
         // Run both providers and merge results — Hunter uses its free credits, Icypeas fills the gaps
-        $all_contacts = array();
-        $all_errors   = array();
+        $all_contacts   = array();
+        $all_errors     = array();
         $providers_used = array();
+        $provider_notes = array();
 
         if ( $hunter->is_configured() ) {
             $hr = $hunter->search_domains( $batch, $limit );
-            if ( ! is_wp_error( $hr ) && ! empty( $hr['contacts'] ) ) {
-                $all_contacts   = array_merge( $all_contacts, $hr['contacts'] );
-                $all_errors     = array_merge( $all_errors, $hr['errors'] ?? array() );
+            if ( is_wp_error( $hr ) ) {
+                $provider_notes[] = 'Hunter.io: ' . $hr->get_error_message();
+            } else {
                 $providers_used[] = 'Hunter.io';
+                $all_contacts     = array_merge( $all_contacts, $hr['contacts'] ?? array() );
+                $all_errors       = array_merge( $all_errors, $hr['errors'] ?? array() );
+                if ( empty( $hr['contacts'] ) ) {
+                    $provider_notes[] = 'Hunter.io: no contacts found for these domains';
+                }
             }
         }
 
         if ( $icypeas->is_configured() ) {
             $ir = $icypeas->search_domains( $batch, $job_titles, $limit );
-            if ( ! is_wp_error( $ir ) && ! empty( $ir['contacts'] ) ) {
-                $all_contacts   = array_merge( $all_contacts, $ir['contacts'] );
-                $all_errors     = array_merge( $all_errors, $ir['errors'] ?? array() );
+            if ( is_wp_error( $ir ) ) {
+                $provider_notes[] = 'Icypeas: ' . $ir->get_error_message();
+            } else {
                 $providers_used[] = 'Icypeas';
+                $all_contacts     = array_merge( $all_contacts, $ir['contacts'] ?? array() );
+                $all_errors       = array_merge( $all_errors, $ir['errors'] ?? array() );
+                if ( empty( $ir['contacts'] ) ) {
+                    $provider_notes[] = 'Icypeas: no contacts found for these domains';
+                }
             }
         }
 
-        if ( empty( $providers_used ) && ! $hunter->is_configured() && ! $icypeas->is_configured() ) {
-            wp_send_json_error( 'No contact finder configured.' );
+        if ( ! $hunter->is_configured() && ! $icypeas->is_configured() ) {
+            wp_send_json_error( 'No contact finder configured. Add a Hunter.io or Icypeas API key in Settings.' );
         }
 
         // Deduplicate by email address
@@ -200,12 +211,13 @@ class OO_Ajax {
         }
 
         $result = array(
-            'contacts'  => $contacts,
-            'total'     => count( $contacts ),
-            'errors'    => $all_errors,
-            'searched'  => $batch,
-            'remaining' => $remaining,
-            'provider'  => implode( ' + ', $providers_used ) ?: 'none',
+            'contacts'       => $contacts,
+            'total'          => count( $contacts ),
+            'errors'         => $all_errors,
+            'provider_notes' => $provider_notes,
+            'searched'       => $batch,
+            'remaining'      => $remaining,
+            'provider'       => implode( ' + ', $providers_used ) ?: 'none',
         );
 
         wp_send_json_success( $result );
