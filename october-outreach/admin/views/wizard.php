@@ -156,6 +156,12 @@ $settings      = get_option( 'oo_settings', array() );
                 </datalist>
                 <p class="oo-hint">How these contacts will be categorised in your database.</p>
             </div>
+            <div class="oo-field" style="margin-top:4px">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
+                    <input type="checkbox" id="w_exclude_searched" checked style="width:auto;margin:0">
+                    Exclude domains I've already searched (uncheck to find new contacts at existing companies)
+                </label>
+            </div>
             <div class="oo-wizard-actions">
                 <button class="oo-btn oo-btn-primary oo-btn-lg" id="oo-refine-audience">
                     <span class="oo-btn-text">Let Claude Refine This →</span>
