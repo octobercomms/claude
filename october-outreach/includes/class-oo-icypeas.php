@@ -41,8 +41,13 @@ class OO_Icypeas {
         if ( $code === 429 ) {
             return new WP_Error( 'icypeas_rate_limit', 'Icypeas rate limit exceeded. Try again shortly.' );
         }
-        if ( $code !== 200 || empty( $data['success'] ) ) {
+        if ( $code !== 200 ) {
             $msg = $data['message'] ?? ( 'Icypeas error (HTTP ' . $code . ')' );
+            return new WP_Error( 'icypeas_error', $msg );
+        }
+        // Treat explicit success:false as an error, but don't require the field to be present.
+        if ( isset( $data['success'] ) && $data['success'] === false ) {
+            $msg = $data['message'] ?? 'Icypeas returned an error response.';
             return new WP_Error( 'icypeas_error', $msg );
         }
 
@@ -74,7 +79,13 @@ class OO_Icypeas {
             ) );
 
             if ( is_wp_error( $result ) ) {
-                $errors[ $domain ] = $result->get_error_message();
+                // find-people failed; try domain_scan as a fallback before giving up.
+                $fallback = $this->domain_scan( $domain );
+                if ( ! empty( $fallback ) ) {
+                    $all_contacts = array_merge( $all_contacts, $fallback );
+                } else {
+                    $errors[ $domain ] = $result->get_error_message();
+                }
                 continue;
             }
 

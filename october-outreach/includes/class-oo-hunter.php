@@ -51,7 +51,6 @@ class OO_Hunter {
         $result = $this->get( '/domain-search', array(
             'domain' => $domain,
             'limit'  => $limit,
-            'type'   => 'personal',
         ) );
 
         if ( is_wp_error( $result ) ) {
