@@ -176,7 +176,7 @@ $settings      = get_option( 'oo_settings', array() );
             <div id="oo-rationale" class="oo-muted" style="margin-top:8px;margin-bottom:20px;font-size:13px;line-height:1.6"></div>
 
             <h3 style="font-size:14px;font-weight:600;margin:0 0 8px">Target Domains to Search</h3>
-            <p class="oo-hint" style="margin-bottom:10px">Edit, add or remove domains. Hunter.io will search each one for contacts.</p>
+            <p class="oo-hint" style="margin-bottom:10px">Edit, add or remove domains. Hunter.io and/or Icypeas will search each one for contacts.</p>
             <div id="oo-domains-list" class="oo-tag-list"></div>
             <div class="oo-tag-add" style="display:flex;gap:8px;margin-top:10px">
                 <input type="text" id="oo-add-domain" class="oo-input" style="flex:1" placeholder="Add domain e.g. smitharchitects.com">
@@ -193,7 +193,7 @@ $settings      = get_option( 'oo_settings', array() );
                     <option value="25" selected>25 per domain</option>
                     <option value="50">50 per domain</option>
                 </select>
-                <p class="oo-hint">Higher = more contacts found, more Hunter.io credits used.</p>
+                <p class="oo-hint">Higher = more contacts found per domain.</p>
             </div>
 
             <div class="oo-wizard-actions">
@@ -210,7 +210,7 @@ $settings      = get_option( 'oo_settings', array() );
         <div class="oo-card" style="margin-bottom:16px">
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
                 <span style="font-size:14px;font-weight:600">Find contacts via:</span>
-                <button class="oo-btn oo-btn-primary oo-btn-sm" id="oo-mode-hunter">🔍 Hunter.io (find new)</button>
+                <button class="oo-btn oo-btn-primary oo-btn-sm" id="oo-mode-hunter">🔍 Find new contacts</button>
                 <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-mode-existing">📋 Existing contacts</button>
             </div>
         </div>
@@ -218,11 +218,11 @@ $settings      = get_option( 'oo_settings', array() );
         <!-- Hunter.io panel -->
         <div id="oo-panel-hunter">
             <div class="oo-card">
-                <h2 class="oo-card-title">Find Contacts via Hunter.io</h2>
-                <p class="oo-muted" style="margin-bottom:14px">Hunter.io will search each domain suggested by Claude and return real email addresses. Results shown below — deselect any you don't want before saving.</p>
+                <h2 class="oo-card-title">Find New Contacts</h2>
+                <p class="oo-muted" style="margin-bottom:14px">Searches each domain suggested by Claude for real email addresses using Hunter.io and/or Icypeas (whichever you have configured). Results shown below — deselect any you don't want before saving.</p>
                 <div class="oo-wizard-actions" style="padding:0 0 10px">
                     <button class="oo-btn oo-btn-primary" id="oo-search-contacts">
-                        <span class="oo-btn-text">Search Hunter.io →</span>
+                        <span class="oo-btn-text">Search for Contacts →</span>
                         <span class="oo-btn-loading" style="display:none">Searching…</span>
                     </button>
                 </div>

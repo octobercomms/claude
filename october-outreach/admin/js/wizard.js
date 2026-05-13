@@ -269,7 +269,7 @@
                 wizard.setLoading('#oo-search-contacts', false);
                 if (res.success) {
                     var d = res.data;
-                    var providerLabel = d.provider === 'icypeas' ? 'Icypeas' : 'Hunter.io';
+                    var providerLabel = d.provider || 'contacts';
 
                     // Track which domains have been searched
                     if (d.searched) {
@@ -295,7 +295,7 @@
                         $('#oo-search-contacts').find('.oo-btn-text').text('Search Next ' + Math.min(8, remaining) + ' Domains →');
                     } else {
                         msg += 'All domains searched.';
-                        $('#oo-search-contacts').find('.oo-btn-text').text('Search ' + providerLabel + ' →');
+                        $('#oo-search-contacts').find('.oo-btn-text').text('Search for Contacts →');
                     }
                     $('#oo-search-progress').text(msg).show();
                 } else {

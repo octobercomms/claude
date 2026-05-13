@@ -161,30 +161,52 @@ class OO_Ajax {
         $limit      = max( 5, min( 50, $limit ) );
         $job_titles = array_map( 'sanitize_text_field', (array) ( $_POST['job_titles'] ?? array() ) );
 
-        // Try Hunter.io first (free 50 credits/month); fall back to Icypeas on any error
-        $provider = 'hunter';
-        $result   = null;
+        // Run both providers and merge results — Hunter uses its free credits, Icypeas fills the gaps
+        $all_contacts = array();
+        $all_errors   = array();
+        $providers_used = array();
 
         if ( $hunter->is_configured() ) {
-            $result = $hunter->search_domains( $batch, $limit );
-            if ( is_wp_error( $result ) ) {
-                $result = null; // fall through to Icypeas
+            $hr = $hunter->search_domains( $batch, $limit );
+            if ( ! is_wp_error( $hr ) && ! empty( $hr['contacts'] ) ) {
+                $all_contacts   = array_merge( $all_contacts, $hr['contacts'] );
+                $all_errors     = array_merge( $all_errors, $hr['errors'] ?? array() );
+                $providers_used[] = 'Hunter.io';
             }
         }
 
-        if ( ! $result && $icypeas->is_configured() ) {
-            $provider = 'icypeas';
-            $result   = $icypeas->search_domains( $batch, $job_titles, $limit );
+        if ( $icypeas->is_configured() ) {
+            $ir = $icypeas->search_domains( $batch, $job_titles, $limit );
+            if ( ! is_wp_error( $ir ) && ! empty( $ir['contacts'] ) ) {
+                $all_contacts   = array_merge( $all_contacts, $ir['contacts'] );
+                $all_errors     = array_merge( $all_errors, $ir['errors'] ?? array() );
+                $providers_used[] = 'Icypeas';
+            }
         }
 
-        if ( ! $result || is_wp_error( $result ) ) {
-            $msg = is_wp_error( $result ) ? $result->get_error_message() : 'Search failed.';
-            wp_send_json_error( $msg );
+        if ( empty( $providers_used ) && ! $hunter->is_configured() && ! $icypeas->is_configured() ) {
+            wp_send_json_error( 'No contact finder configured.' );
         }
 
-        $result['searched']  = $batch;
-        $result['remaining'] = $remaining;
-        $result['provider']  = $provider;
+        // Deduplicate by email address
+        $seen     = array();
+        $contacts = array();
+        foreach ( $all_contacts as $c ) {
+            $email = strtolower( trim( $c['email'] ?? '' ) );
+            if ( $email && ! isset( $seen[ $email ] ) ) {
+                $seen[ $email ] = true;
+                $contacts[]     = $c;
+            }
+        }
+
+        $result = array(
+            'contacts'  => $contacts,
+            'total'     => count( $contacts ),
+            'errors'    => $all_errors,
+            'searched'  => $batch,
+            'remaining' => $remaining,
+            'provider'  => implode( ' + ', $providers_used ) ?: 'none',
+        );
 
         wp_send_json_success( $result );
     }
