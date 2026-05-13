@@ -192,11 +192,11 @@ class OO_Ajax {
                 if ( empty( $ir['contacts'] ) ) {
                     $note = 'Icypeas: no contacts found';
                     if ( ! empty( $ir['errors'] ) ) {
-                        $note .= ' — ' . implode( '; ', array_map(
-                            fn( $d, $e ) => $d . ': ' . $e,
-                            array_keys( $ir['errors'] ),
-                            array_values( $ir['errors'] )
-                        ) );
+                        $parts = array();
+                        foreach ( $ir['errors'] as $domain => $err ) {
+                            $parts[] = $domain . ': ' . $err;
+                        }
+                        $note .= ' — ' . implode( '; ', $parts );
                     }
                     $provider_notes[] = $note;
                 }
