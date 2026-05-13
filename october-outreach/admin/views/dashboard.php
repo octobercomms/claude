@@ -52,6 +52,7 @@ $settings        = get_option( 'oo_settings', array() );
             $checks = array(
                 'Claude API'      => ! empty( $settings['claude_api_key'] ),
                 'Hunter.io'       => ! empty( $settings['hunter_api_key'] ),
+                'Icypeas'         => ! empty( $settings['icypeas_api_key'] ),
                 'Email Sending'   => ! empty( $settings['ses_key'] ) || ! empty( $settings['sendgrid_api_key'] ) || ! empty( $settings['mailgun_api_key'] ) || ! empty( $settings['smtp_host'] ),
                 'Airtable'        => ! empty( $settings['airtable_api_key'] ),
                 'Email Scheduler' => OO_HAS_ACTION_SCHEDULER,

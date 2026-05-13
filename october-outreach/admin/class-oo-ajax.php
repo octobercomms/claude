@@ -119,20 +119,11 @@ class OO_Ajax {
     public function wizard_search_contacts() {
         $this->check_nonce();
 
-        $settings       = get_option( 'oo_settings', array() );
-        $finder_choice  = $settings['contact_finder'] ?? 'hunter';
+        $hunter  = new OO_Hunter();
+        $icypeas = new OO_Icypeas();
 
-        // Instantiate the chosen provider and validate it is configured
-        if ( $finder_choice === 'icypeas' ) {
-            $finder = new OO_Icypeas();
-            if ( ! $finder->is_configured() ) {
-                wp_send_json_error( 'Icypeas API key not configured. Go to Outreach → Settings.' );
-            }
-        } else {
-            $finder = new OO_Hunter();
-            if ( ! $finder->is_configured() ) {
-                wp_send_json_error( 'Hunter.io API key not configured. Go to Outreach → Settings.' );
-            }
+        if ( ! $hunter->is_configured() && ! $icypeas->is_configured() ) {
+            wp_send_json_error( 'No contact finder configured. Add a Hunter.io or Icypeas API key in Settings.' );
         }
 
         $domains = array_map( 'sanitize_text_field', (array) ( $_POST['domains'] ?? array() ) );
@@ -166,24 +157,34 @@ class OO_Ajax {
             ) );
         }
 
-        $limit = intval( $_POST['contacts_per_domain'] ?? 25 );
-        $limit = max( 5, min( 50, $limit ) );
+        $limit      = intval( $_POST['contacts_per_domain'] ?? 25 );
+        $limit      = max( 5, min( 50, $limit ) );
+        $job_titles = array_map( 'sanitize_text_field', (array) ( $_POST['job_titles'] ?? array() ) );
 
-        // Icypeas benefits from job titles to narrow the people search
-        if ( $finder_choice === 'icypeas' ) {
-            $job_titles = array_map( 'sanitize_text_field', (array) ( $_POST['job_titles'] ?? array() ) );
-            $result = $finder->search_domains( $batch, $job_titles, $limit );
-        } else {
-            $result = $finder->search_domains( $batch, $limit );
+        // Try Hunter.io first (free 50 credits/month); fall back to Icypeas on any error
+        $provider = 'hunter';
+        $result   = null;
+
+        if ( $hunter->is_configured() ) {
+            $result = $hunter->search_domains( $batch, $limit );
+            if ( is_wp_error( $result ) ) {
+                $result = null; // fall through to Icypeas
+            }
         }
 
-        if ( is_wp_error( $result ) ) {
-            wp_send_json_error( $result->get_error_message() );
+        if ( ! $result && $icypeas->is_configured() ) {
+            $provider = 'icypeas';
+            $result   = $icypeas->search_domains( $batch, $job_titles, $limit );
+        }
+
+        if ( ! $result || is_wp_error( $result ) ) {
+            $msg = is_wp_error( $result ) ? $result->get_error_message() : 'Search failed.';
+            wp_send_json_error( $msg );
         }
 
         $result['searched']  = $batch;
         $result['remaining'] = $remaining;
-        $result['provider']  = $finder_choice;
+        $result['provider']  = $provider;
 
         wp_send_json_success( $result );
     }

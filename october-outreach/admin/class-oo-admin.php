@@ -90,7 +90,7 @@ class OO_Admin {
 
         $settings = get_option( 'oo_settings', array() );
         $fields = array(
-            'license_key', 'claude_api_key', 'contact_finder', 'hunter_api_key', 'icypeas_api_key',
+            'license_key', 'claude_api_key', 'hunter_api_key', 'icypeas_api_key',
             'airtable_api_key', 'airtable_base_id',
             'email_provider', 'default_reply_to', 'sending_domain',
             'ses_key', 'ses_secret', 'ses_region',
