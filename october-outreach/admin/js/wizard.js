@@ -66,7 +66,7 @@
                 wizard.data.remainingDomains = [];
                 wizard.data.searchedDomains  = [];
                 wizard.data.contacts         = [];
-                $('#oo-search-contacts').find('.oo-btn-text').text('Search Hunter.io →');
+                $('#oo-search-contacts').find('.oo-btn-text').text('Search for Contacts →');
                 wizard.goToStep(2);
             });
             $('#oo-select-all').on('click', function () { $('.oo-contact-check').prop('checked', true); });
@@ -174,6 +174,11 @@
                 campaign_name: $('#w_name').val(),
                 brand: $('#w_brand').val(),
                 campaign_type: $('#w_type').val(),
+                aud_location:       $('#aud_location').val(),
+                aud_industry_type:  $('#aud_industry_type').val(),
+                aud_specialisation: $('#aud_specialisation').val(),
+                aud_business_size:  $('#aud_business_size').val(),
+                aud_exclude_types:  $('#aud_exclude_types').val(),
                 existing_domains: $('#w_exclude_searched').is(':checked')
                     ? this.data.domains.concat(this.data.searchedDomains)
                     : [],
@@ -265,6 +270,8 @@
                 job_titles: this.data.jobTitles,
                 contact_type: this.data.contactType,
                 contacts_per_domain: $('#w_contacts_per_domain').val() || 25,
+                include_personal: $('#oo-include-personal').is(':checked') ? '1' : '0',
+                include_generic:  $('#oo-include-generic').is(':checked')  ? '1' : '0',
             }, function (res) {
                 wizard.setLoading('#oo-search-contacts', false);
                 if (res.success) {
@@ -316,19 +323,22 @@
 
             var html = '<div class="oo-table-wrap"><table class="oo-table"><thead><tr>';
             html += '<th style="width:30px"><input type="checkbox" id="oo-check-all"></th>';
-            html += '<th>Name</th><th>Email</th><th>Company</th><th>Position</th><th>Confidence</th></tr></thead><tbody>';
+            html += '<th>Name</th><th>Email</th><th>Company</th><th>Title</th><th>Conf.</th><th>Source</th></tr></thead><tbody>';
 
             data.contacts.forEach(function (c, i) {
-                var name = (c.first_name + ' ' + c.last_name).trim() || '—';
-                var conf = c.confidence || 0;
+                var name     = (c.first_name + ' ' + c.last_name).trim() || '—';
+                var conf     = c.confidence || 0;
                 var confClass = conf >= 80 ? 'green' : conf >= 50 ? 'orange' : 'grey';
+                var srcMap   = {'icypeas':'Icypeas','hunter':'Hunter','web-scrape':'Scrape','pattern':'Pattern','icypeas-domain-scan':'Icypeas'};
+                var srcLabel = srcMap[c.source] || (c.source || '?');
                 html += '<tr>';
                 html += '<td><input type="checkbox" class="oo-contact-check" data-index="' + i + '" checked></td>';
                 html += '<td>' + wizard.esc(name) + '</td>';
                 html += '<td>' + wizard.esc(c.email) + '</td>';
                 html += '<td>' + wizard.esc(c.company || '—') + '</td>';
-                html += '<td>' + wizard.esc(c.position || '—') + '</td>';
+                html += '<td>' + wizard.esc(c.title || c.position || '—') + '</td>';
                 html += '<td><span class="oo-badge oo-badge-' + confClass + '">' + conf + '%</span></td>';
+                html += '<td><span class="oo-muted" style="font-size:11px">' + wizard.esc(srcLabel) + '</span></td>';
                 html += '</tr>';
             });
 
