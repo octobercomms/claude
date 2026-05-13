@@ -19,7 +19,7 @@ class OO_Icypeas {
     }
 
     public function is_configured() {
-        return ! empty( $this->api_key ) && ! empty( $this->api_secret );
+        return ! empty( $this->api_key );
     }
 
     private function request( $endpoint, $body ) {
@@ -27,7 +27,7 @@ class OO_Icypeas {
             'timeout' => 30,
             'headers' => array(
                 'Content-Type'  => 'application/json',
-                'Authorization' => 'Basic ' . base64_encode( $this->api_key . ':' . $this->api_secret ),
+                'Authorization' => $this->api_key,
             ),
             'body' => wp_json_encode( $body ),
         ) );
