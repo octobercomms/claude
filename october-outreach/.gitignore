@@ -1,0 +1,14 @@
+# Commit vendor so Action Scheduler is bundled in the plugin zip for clients
+# (vendor is intentionally NOT ignored here)
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Build artefacts
+*.log
+node_modules/

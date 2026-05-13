@@ -13,6 +13,8 @@ class OO_Database {
 
     public static function deactivate() {
         wp_clear_scheduled_hook( 'oo_process_sequences' );
+        global $wpdb;
+        $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}oo_campaign_contacts" );
     }
 
     private static function create_tables() {
@@ -54,6 +56,9 @@ class OO_Database {
             audience_description text NOT NULL DEFAULT '',
             audience_filters longtext NOT NULL DEFAULT '',
             claude_prompt text NOT NULL DEFAULT '',
+            coupon_url varchar(1000) NOT NULL DEFAULT '',
+            coupon_field varchar(100) NOT NULL DEFAULT '',
+            press_release_url varchar(1000) NOT NULL DEFAULT '',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
@@ -122,6 +127,12 @@ class OO_Database {
             PRIMARY KEY (id)
         ) $charset;";
 
+        $campaign_contacts = "CREATE TABLE {$wpdb->prefix}oo_campaign_contacts (
+            campaign_id bigint(20) NOT NULL,
+            contact_id bigint(20) NOT NULL,
+            PRIMARY KEY (campaign_id, contact_id)
+        ) $charset;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $contacts );
         dbDelta( $campaigns );
@@ -129,6 +140,7 @@ class OO_Database {
         dbDelta( $sends );
         dbDelta( $coupons );
         dbDelta( $press_releases );
+        dbDelta( $campaign_contacts );
 
         update_option( 'oo_db_version', OO_VERSION );
     }
