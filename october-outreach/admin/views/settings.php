@@ -85,17 +85,53 @@ Thanks!</div>
             </div>
         </div>
 
-        <!-- Hunter.io -->
-        <div class="oo-card">
-            <h2 class="oo-card-title">Hunter.io</h2>
-            <p class="oo-muted" style="margin-bottom:14px">Finds and verifies contact email addresses. <a href="https://hunter.io/api-keys" target="_blank">Get your key →</a></p>
-            <div class="oo-field">
-                <label class="oo-label">API Key</label>
-                <div class="oo-secret-wrap">
-                    <input type="password" name="hunter_api_key" class="oo-input" value="<?php echo esc_attr( $settings['hunter_api_key'] ?? '' ); ?>">
-                    <?php if ( ! empty( $settings['hunter_api_key'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+        <!-- Contact Finder -->
+        <?php
+        $contact_finder = $settings['contact_finder'] ?? 'hunter';
+        ?>
+        <div class="oo-card" style="grid-column:1/-1">
+            <h2 class="oo-card-title">Contact Finder</h2>
+            <p class="oo-muted" style="margin-bottom:16px">Finds email addresses for contacts during the campaign wizard. Choose one provider.</p>
+
+            <div class="oo-provider-radios">
+                <div>
+                    <input type="radio" name="contact_finder" id="finder_hunter" value="hunter" class="oo-provider-radio" <?php checked( $contact_finder, 'hunter' ); ?>>
+                    <label for="finder_hunter" class="oo-provider-label">
+                        Hunter.io
+                        <span class="oo-badge oo-badge-blue" style="font-size:10px">Monthly subscription</span>
+                    </label>
                 </div>
-                <?php if ( ! empty( $settings['hunter_api_key'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
+                <div>
+                    <input type="radio" name="contact_finder" id="finder_icypeas" value="icypeas" class="oo-provider-radio" <?php checked( $contact_finder, 'icypeas' ); ?>>
+                    <label for="finder_icypeas" class="oo-provider-label">
+                        Icypeas
+                        <span class="oo-badge oo-badge-green" style="font-size:10px">Credits roll over</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="oo-provider-panel <?php echo $contact_finder === 'hunter' ? 'active' : ''; ?>" id="finder_panel_hunter">
+                <p class="oo-muted" style="margin-bottom:12px">From $49/month. Finds named contacts by company domain. <a href="https://hunter.io/api-keys" target="_blank">Get your key →</a></p>
+                <div class="oo-field">
+                    <label class="oo-label">API Key</label>
+                    <div class="oo-secret-wrap">
+                        <input type="password" name="hunter_api_key" class="oo-input" value="<?php echo esc_attr( $settings['hunter_api_key'] ?? '' ); ?>">
+                        <?php if ( ! empty( $settings['hunter_api_key'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+                    </div>
+                    <?php if ( ! empty( $settings['hunter_api_key'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
+                </div>
+            </div>
+
+            <div class="oo-provider-panel <?php echo $contact_finder === 'icypeas' ? 'active' : ''; ?>" id="finder_panel_icypeas">
+                <p class="oo-muted" style="margin-bottom:12px">From $19/month — credits roll over and never expire. <a href="https://icypeas.com" target="_blank">Get your key →</a></p>
+                <div class="oo-field">
+                    <label class="oo-label">API Key</label>
+                    <div class="oo-secret-wrap">
+                        <input type="password" name="icypeas_api_key" class="oo-input" value="<?php echo esc_attr( $settings['icypeas_api_key'] ?? '' ); ?>">
+                        <?php if ( ! empty( $settings['icypeas_api_key'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+                    </div>
+                    <?php if ( ! empty( $settings['icypeas_api_key'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
+                </div>
             </div>
         </div>
 
@@ -270,11 +306,20 @@ document.querySelectorAll('.oo-eye-btn').forEach(function(btn) {
     });
 });
 
-// Provider panel switching
-document.querySelectorAll('.oo-provider-radio').forEach(function(radio) {
+// Email provider panel switching
+document.querySelectorAll('[name="email_provider"]').forEach(function(radio) {
     radio.addEventListener('change', function() {
-        document.querySelectorAll('.oo-provider-panel').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('#panel_ses,#panel_mailgun,#panel_sendgrid,#panel_smtp').forEach(function(p) { p.classList.remove('active'); });
         var panel = document.getElementById('panel_' + radio.value);
+        if (panel) panel.classList.add('active');
+    });
+});
+
+// Contact finder panel switching
+document.querySelectorAll('[name="contact_finder"]').forEach(function(radio) {
+    radio.addEventListener('change', function() {
+        document.querySelectorAll('#finder_panel_hunter,#finder_panel_icypeas').forEach(function(p) { p.classList.remove('active'); });
+        var panel = document.getElementById('finder_panel_' + radio.value);
         if (panel) panel.classList.add('active');
     });
 });

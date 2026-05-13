@@ -119,9 +119,20 @@ class OO_Ajax {
     public function wizard_search_contacts() {
         $this->check_nonce();
 
-        $hunter = new OO_Hunter();
-        if ( ! $hunter->is_configured() ) {
-            wp_send_json_error( 'Hunter.io API key not configured. Go to Outreach → Settings.' );
+        $settings       = get_option( 'oo_settings', array() );
+        $finder_choice  = $settings['contact_finder'] ?? 'hunter';
+
+        // Instantiate the chosen provider and validate it is configured
+        if ( $finder_choice === 'icypeas' ) {
+            $finder = new OO_Icypeas();
+            if ( ! $finder->is_configured() ) {
+                wp_send_json_error( 'Icypeas API key not configured. Go to Outreach → Settings.' );
+            }
+        } else {
+            $finder = new OO_Hunter();
+            if ( ! $finder->is_configured() ) {
+                wp_send_json_error( 'Hunter.io API key not configured. Go to Outreach → Settings.' );
+            }
         }
 
         $domains = array_map( 'sanitize_text_field', (array) ( $_POST['domains'] ?? array() ) );
@@ -157,7 +168,14 @@ class OO_Ajax {
 
         $limit = intval( $_POST['contacts_per_domain'] ?? 25 );
         $limit = max( 5, min( 50, $limit ) );
-        $result = $hunter->search_domains( $batch, $limit );
+
+        // Icypeas benefits from job titles to narrow the people search
+        if ( $finder_choice === 'icypeas' ) {
+            $job_titles = array_map( 'sanitize_text_field', (array) ( $_POST['job_titles'] ?? array() ) );
+            $result = $finder->search_domains( $batch, $job_titles, $limit );
+        } else {
+            $result = $finder->search_domains( $batch, $limit );
+        }
 
         if ( is_wp_error( $result ) ) {
             wp_send_json_error( $result->get_error_message() );
@@ -165,6 +183,7 @@ class OO_Ajax {
 
         $result['searched']  = $batch;
         $result['remaining'] = $remaining;
+        $result['provider']  = $finder_choice;
 
         wp_send_json_success( $result );
     }

@@ -262,12 +262,14 @@
                 action: 'oo_wizard_search_contacts',
                 nonce: ooData.nonce,
                 domains: toSearch,
+                job_titles: this.data.jobTitles,
                 contact_type: this.data.contactType,
                 contacts_per_domain: $('#w_contacts_per_domain').val() || 25,
             }, function (res) {
                 wizard.setLoading('#oo-search-contacts', false);
                 if (res.success) {
                     var d = res.data;
+                    var providerLabel = d.provider === 'icypeas' ? 'Icypeas' : 'Hunter.io';
 
                     // Track which domains have been searched
                     if (d.searched) {
@@ -293,11 +295,11 @@
                         $('#oo-search-contacts').find('.oo-btn-text').text('Search Next ' + Math.min(8, remaining) + ' Domains →');
                     } else {
                         msg += 'All domains searched.';
-                        $('#oo-search-contacts').find('.oo-btn-text').text('Search Hunter.io →');
+                        $('#oo-search-contacts').find('.oo-btn-text').text('Search ' + providerLabel + ' →');
                     }
                     $('#oo-search-progress').text(msg).show();
                 } else {
-                    alert('Hunter.io error: ' + (res.data || 'Unknown error'));
+                    alert('Contact search error: ' + (res.data || 'Unknown error'));
                 }
             }).fail(function () {
                 wizard.setLoading('#oo-search-contacts', false);
