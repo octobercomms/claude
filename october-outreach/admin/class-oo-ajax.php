@@ -23,6 +23,8 @@ class OO_Ajax {
             'oo_wizard_link_contacts',
             'oo_wizard_more_domains',
             'oo_wizard_discover_domains',
+            'oo_verify_emails',
+            'oo_bulk_delete_dead',
         );
 
         foreach ( $actions as $action ) {
@@ -523,8 +525,9 @@ class OO_Ajax {
         $this->check_nonce();
         global $wpdb;
 
-        $type     = sanitize_text_field( $_POST['type'] ?? '' );
-        $location = sanitize_text_field( $_POST['location'] ?? '' );
+        $type        = sanitize_text_field( $_POST['type']     ?? '' );
+        $location    = sanitize_text_field( $_POST['location'] ?? '' );
+        $verified    = sanitize_text_field( $_POST['verified'] ?? '' );
         $campaign_id = intval( $_POST['campaign_id'] ?? 0 );
 
         $where = "WHERE status = 'active'";
@@ -538,6 +541,10 @@ class OO_Ajax {
             $where .= " AND location LIKE %s";
             $args[] = '%' . $wpdb->esc_like( $location ) . '%';
         }
+        if ( $verified ) {
+            $where .= " AND verified_status = %s";
+            $args[] = $verified;
+        }
 
         // Exclude contacts already linked to this campaign
         if ( $campaign_id ) {
@@ -545,7 +552,7 @@ class OO_Ajax {
             $args[] = $campaign_id;
         }
 
-        $sql = "SELECT id, first_name, last_name, email, company, type, location FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 300";
+        $sql = "SELECT id, first_name, last_name, email, company, type, location, verified_status FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 300";
 
         $contacts = $args
             ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A )
@@ -704,5 +711,93 @@ class OO_Ajax {
         }
 
         wp_send_json_success( array( 'linked' => $linked ) );
+    }
+
+    /**
+     * Verify a list of email addresses.
+     * Uses MX record check (free) and Hunter.io verifier if configured.
+     */
+    public function verify_emails() {
+        $this->check_nonce();
+
+        $emails = array_map( 'sanitize_email', (array) ( $_POST['emails'] ?? array() ) );
+        $emails = array_filter( $emails );
+
+        if ( empty( $emails ) ) {
+            wp_send_json_error( 'No emails to verify.' );
+        }
+
+        $hunter  = new OO_Hunter();
+        $results = array();
+
+        foreach ( $emails as $email ) {
+            $domain = strtolower( substr( $email, strpos( $email, '@' ) + 1 ) );
+
+            // Free MX record check
+            $has_mx = checkdnsrr( $domain, 'MX' );
+
+            if ( ! $has_mx ) {
+                // No MX = dead domain, skip Hunter call
+                $results[] = array(
+                    'email'  => $email,
+                    'status' => 'dead',
+                    'mx'     => false,
+                    'source' => 'mx-check',
+                );
+                continue;
+            }
+
+            // Hunter verify if configured
+            if ( $hunter->is_configured() ) {
+                $v = $hunter->verify_email( $email );
+                if ( ! is_wp_error( $v ) ) {
+                    $results[] = array(
+                        'email'  => $email,
+                        'status' => $v['status'] ?? 'unknown',
+                        'mx'     => true,
+                        'source' => 'hunter',
+                    );
+                    continue;
+                }
+            }
+
+            // MX passed but no further verification
+            $results[] = array(
+                'email'  => $email,
+                'status' => 'risky',
+                'mx'     => true,
+                'source' => 'mx-check',
+            );
+        }
+
+        // Persist verified_status to existing contacts in the database
+        global $wpdb;
+        $now = current_time( 'mysql' );
+        foreach ( $results as $r ) {
+            $wpdb->update(
+                $wpdb->prefix . 'oo_contacts',
+                array( 'verified_status' => $r['status'], 'verified_at' => $now ),
+                array( 'email' => $r['email'] )
+            );
+        }
+
+        wp_send_json_success( array(
+            'results' => $results,
+            'total'   => count( $results ),
+        ) );
+    }
+
+    /**
+     * Delete all contacts whose verified_status is 'invalid' or 'dead'.
+     */
+    public function bulk_delete_dead() {
+        $this->check_nonce();
+
+        global $wpdb;
+        $deleted = $wpdb->query(
+            "DELETE FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')"
+        );
+
+        wp_send_json_success( array( 'deleted' => intval( $deleted ) ) );
     }
 }
