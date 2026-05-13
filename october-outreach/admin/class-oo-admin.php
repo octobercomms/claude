@@ -18,6 +18,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_delete_campaign', array( $this, 'delete_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
         add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
+        add_action( 'admin_post_oo_import_contacts', array( $this, 'import_contacts_csv' ) );
     }
 
     public function app_body_class( $classes ) {
@@ -207,6 +208,18 @@ class OO_Admin {
         check_admin_referer( 'oo_export_contacts' );
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
 
+        // Template download — empty CSV with just headers
+        if ( ! empty( $_GET['template'] ) ) {
+            header( 'Content-Type: text/csv; charset=utf-8' );
+            header( 'Content-Disposition: attachment; filename="contacts-import-template.csv"' );
+            header( 'Pragma: no-cache' );
+            $out = fopen( 'php://output', 'w' );
+            fputcsv( $out, array( 'first_name', 'last_name', 'email', 'company', 'type', 'title', 'location', 'linkedin_url', 'notes' ) );
+            fputcsv( $out, array( 'Jane', 'Smith', 'jane@example.com', 'Example Studio', 'architect', 'Principal Architect', 'London, UK', 'https://linkedin.com/in/janesmith', '' ) );
+            fclose( $out );
+            exit;
+        }
+
         global $wpdb;
         $contacts = $wpdb->get_results(
             "SELECT first_name, last_name, email, company, type, location, status, source, notes, created_at
@@ -224,6 +237,107 @@ class OO_Admin {
             fputcsv( $out, $row );
         }
         fclose( $out );
+        exit;
+    }
+
+    public function import_contacts_csv() {
+        check_admin_referer( 'oo_import_contacts' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        if ( empty( $_FILES['csv_file']['tmp_name'] ) ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-contacts&import_error=no_file' ) );
+            exit;
+        }
+
+        $file = $_FILES['csv_file']['tmp_name'];
+        $handle = fopen( $file, 'r' );
+        if ( ! $handle ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-contacts&import_error=unreadable' ) );
+            exit;
+        }
+
+        // Read header row and normalise to lowercase keys
+        $raw_headers = fgetcsv( $handle );
+        if ( ! $raw_headers ) {
+            fclose( $handle );
+            wp_redirect( admin_url( 'admin.php?page=oo-contacts&import_error=empty' ) );
+            exit;
+        }
+        $headers = array_map( function( $h ) {
+            return strtolower( trim( str_replace( array( ' ', '-' ), '_', $h ) ) );
+        }, $raw_headers );
+
+        // Map common header name variants to our field names
+        $field_map = array(
+            'first_name'   => array( 'first_name', 'firstname', 'first' ),
+            'last_name'    => array( 'last_name', 'lastname', 'last', 'surname' ),
+            'email'        => array( 'email', 'email_address', 'emailaddress' ),
+            'company'      => array( 'company', 'company_name', 'organisation', 'organization', 'practice', 'firm' ),
+            'type'         => array( 'type', 'contact_type' ),
+            'title'        => array( 'title', 'job_title', 'jobtitle', 'position', 'role' ),
+            'location'     => array( 'location', 'city', 'region' ),
+            'linkedin_url' => array( 'linkedin_url', 'linkedin', 'linkedin_profile' ),
+            'notes'        => array( 'notes', 'note', 'comments' ),
+        );
+
+        // Build column index map
+        $col = array();
+        foreach ( $field_map as $field => $variants ) {
+            foreach ( $variants as $variant ) {
+                $idx = array_search( $variant, $headers );
+                if ( $idx !== false ) {
+                    $col[ $field ] = $idx;
+                    break;
+                }
+            }
+        }
+
+        if ( ! isset( $col['email'] ) ) {
+            fclose( $handle );
+            wp_redirect( admin_url( 'admin.php?page=oo-contacts&import_error=no_email_column' ) );
+            exit;
+        }
+
+        global $wpdb;
+        $table    = $wpdb->prefix . 'oo_contacts';
+        $inserted = 0;
+        $skipped  = 0;
+        $valid_types = array_keys( OO_Database::get_contact_types() );
+
+        while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+            $get = function( $field ) use ( $row, $col ) {
+                return isset( $col[ $field ] ) ? sanitize_text_field( trim( $row[ $col[ $field ] ] ?? '' ) ) : '';
+            };
+
+            $email = sanitize_email( $get( 'email' ) );
+            if ( ! is_email( $email ) ) { $skipped++; continue; }
+
+            // Skip duplicates
+            $exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE email = %s", $email ) );
+            if ( $exists ) { $skipped++; continue; }
+
+            $type = $get( 'type' );
+            if ( ! in_array( $type, $valid_types, true ) ) $type = '';
+
+            $wpdb->insert( $table, array(
+                'first_name'   => $get( 'first_name' ),
+                'last_name'    => $get( 'last_name' ),
+                'email'        => $email,
+                'company'      => $get( 'company' ),
+                'type'         => $type,
+                'title'        => $get( 'title' ),
+                'location'     => $get( 'location' ),
+                'linkedin_url' => esc_url_raw( $get( 'linkedin_url' ) ),
+                'notes'        => $get( 'notes' ),
+                'source'       => 'CSV Import',
+                'status'       => 'active',
+                'created_at'   => current_time( 'mysql' ),
+            ) );
+            $inserted++;
+        }
+
+        fclose( $handle );
+        wp_redirect( admin_url( 'admin.php?page=oo-contacts&imported=' . $inserted . '&skipped=' . $skipped ) );
         exit;
     }
 

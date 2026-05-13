@@ -69,12 +69,37 @@ if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
     <h1 class="oo-page-title">Contacts</h1>
     <div class="oo-page-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Add Manually</a>
-        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_export_contacts' ), 'oo_export_contacts' ) ); ?>" class="oo-btn oo-btn-secondary">Export CSV</a>
+        <button class="oo-btn oo-btn-secondary" id="oo-import-toggle-btn">↑ Import CSV</button>
+        <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_export_contacts' ), 'oo_export_contacts' ) ); ?>" class="oo-btn oo-btn-secondary">↓ Export CSV</a>
         <?php if ( ! empty( get_option( 'oo_settings', [] )['airtable_api_key'] ) ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-airtable-push-btn">Sync Airtable</button>
         <?php endif; ?>
     </div>
 </div>
+
+<?php if ( isset( $_GET['imported'] ) ) : ?>
+<div class="oo-notice oo-notice-success"><?php echo intval( $_GET['imported'] ); ?> contacts imported<?php if ( isset( $_GET['skipped'] ) ) echo ', ' . intval( $_GET['skipped'] ) . ' skipped (duplicates or invalid email)'; ?>.</div>
+<?php endif; ?>
+<?php if ( isset( $_GET['import_error'] ) ) : ?>
+<?php $import_errors = array( 'no_file' => 'No file uploaded.', 'unreadable' => 'Could not read file.', 'empty' => 'File appears empty.', 'no_email_column' => 'CSV must have an "email" column.' ); ?>
+<div class="oo-notice oo-notice-error"><?php echo esc_html( $import_errors[ $_GET['import_error'] ] ?? 'Import failed.' ); ?></div>
+<?php endif; ?>
+
+<!-- CSV Import panel (hidden by default) -->
+<div id="oo-import-panel" class="oo-card" style="display:none;margin-bottom:16px">
+    <h2 class="oo-card-title">Import Contacts from CSV</h2>
+    <p class="oo-muted" style="margin-bottom:12px">Upload a CSV file with your contacts. Duplicate emails are automatically skipped. <a href="<?php echo esc_url( admin_url( 'admin-post.php?action=oo_export_contacts&template=1&_wpnonce=' . wp_create_nonce( 'oo_export_contacts' ) ) ); ?>" id="oo-csv-template-link">Download template →</a></p>
+    <p class="oo-muted" style="margin-bottom:14px;font-size:12px">Accepted columns: <code>first_name, last_name, email, company, type, title, location, linkedin_url, notes</code></p>
+    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data">
+        <?php wp_nonce_field( 'oo_import_contacts' ); ?>
+        <input type="hidden" name="action" value="oo_import_contacts">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+            <input type="file" name="csv_file" accept=".csv,text/csv" class="oo-input" style="max-width:320px" required>
+            <button type="submit" class="oo-btn oo-btn-primary">Import</button>
+        </div>
+    </form>
+</div>
+
 <?php if ( isset( $_GET['saved'] ) ) : ?><div class="oo-notice oo-notice-success">Contact saved.</div><?php endif; ?>
 <?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval($_GET['deleted']); ?> contact(s) deleted.</div><?php endif; ?>
 <div id="oo-airtable-push-result" class="oo-notice" style="display:none"></div>
@@ -173,6 +198,21 @@ $total    = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $wh
 <?php endif; ?>
 
 <script>
+(function(){
+    var importBtn = document.getElementById('oo-import-toggle-btn');
+    var importPanel = document.getElementById('oo-import-panel');
+    if (importBtn && importPanel) {
+        importBtn.addEventListener('click', function() {
+            var visible = importPanel.style.display !== 'none';
+            importPanel.style.display = visible ? 'none' : 'block';
+            importBtn.textContent = visible ? '↑ Import CSV' : '✕ Close Import';
+        });
+        <?php if ( isset( $_GET['import_error'] ) ) : ?>
+        importPanel.style.display = 'block';
+        importBtn.textContent = '✕ Close Import';
+        <?php endif; ?>
+    }
+})();
 (function(){
     var btn = document.getElementById('oo-airtable-push-btn');
     if (!btn) return;

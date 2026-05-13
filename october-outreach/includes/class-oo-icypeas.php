@@ -79,6 +79,7 @@ class OO_Icypeas {
             }
 
             $leads = $result['leads'] ?? $result['data'] ?? array();
+            $domain_contacts = array();
             foreach ( $leads as $lead ) {
                 // Handle varying field name conventions across API versions
                 $first = $lead['firstName']  ?? $lead['first_name']  ?? $lead['firstname'] ?? '';
@@ -99,7 +100,7 @@ class OO_Icypeas {
 
                 if ( ! $email || ! is_email( $email ) ) continue;
 
-                $all_contacts[] = array(
+                $domain_contacts[] = array(
                     'first_name'   => $first,
                     'last_name'    => $last,
                     'email'        => $email,
@@ -112,6 +113,13 @@ class OO_Icypeas {
                     'source'       => 'icypeas',
                 );
             }
+
+            // If no named contacts found, fall back to role-based domain scan
+            if ( empty( $domain_contacts ) ) {
+                $domain_contacts = $this->domain_scan( $domain );
+            }
+
+            $all_contacts = array_merge( $all_contacts, $domain_contacts );
         }
 
         return array(
@@ -119,6 +127,43 @@ class OO_Icypeas {
             'total'    => count( $all_contacts ),
             'errors'   => $errors,
         );
+    }
+
+    /**
+     * Scan a domain for role-based addresses (contact@, info@, etc.).
+     * Used as fallback when find-people returns nothing for a domain.
+     */
+    public function domain_scan( $domain ) {
+        $result = $this->request( '/domain-search', array(
+            'domainOrCompany' => $domain,
+        ) );
+
+        if ( is_wp_error( $result ) ) {
+            return array();
+        }
+
+        $leads    = $result['leads'] ?? $result['emails'] ?? array();
+        $contacts = array();
+
+        foreach ( $leads as $lead ) {
+            $email = is_string( $lead ) ? $lead : ( $lead['email'] ?? '' );
+            if ( ! $email || ! is_email( $email ) ) continue;
+
+            $contacts[] = array(
+                'first_name'   => '',
+                'last_name'    => '',
+                'email'        => $email,
+                'company'      => $domain,
+                'title'        => 'Contact',
+                'linkedin_url' => '',
+                'location'     => '',
+                'domain'       => $domain,
+                'confidence'   => 70,
+                'source'       => 'icypeas-domain-scan',
+            );
+        }
+
+        return $contacts;
     }
 
     /**
