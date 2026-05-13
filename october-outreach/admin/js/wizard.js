@@ -174,6 +174,7 @@
                 campaign_name: $('#w_name').val(),
                 brand: $('#w_brand').val(),
                 campaign_type: $('#w_type').val(),
+                existing_domains: this.data.domains.concat(this.data.searchedDomains),
             }, function (res) {
                 wizard.setLoading('#oo-refine-audience', false);
                 if (res.success) {

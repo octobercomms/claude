@@ -74,12 +74,24 @@ class OO_Ajax {
             wp_send_json_error( 'Claude API key not configured. Go to Outreach → Settings.' );
         }
 
+        // Collect domains already in the contacts database
+        global $wpdb;
+        $existing_emails  = $wpdb->get_col( "SELECT email FROM {$wpdb->prefix}oo_contacts" );
+        $existing_domains = array_unique( array_map( function( $email ) {
+            return strtolower( substr( $email, strpos( $email, '@' ) + 1 ) );
+        }, $existing_emails ) );
+
+        // Also include any domains already suggested this session (passed from JS)
+        $session_domains = array_map( 'sanitize_text_field', (array) ( $_POST['existing_domains'] ?? array() ) );
+        $exclude_domains = array_unique( array_merge( $existing_domains, $session_domains ) );
+
         $result = $claude->refine_audience(
             sanitize_text_field( $_POST['campaign_name'] ?? '' ),
             sanitize_text_field( $_POST['brand'] ?? '' ),
             sanitize_text_field( $_POST['campaign_type'] ?? '' ),
             sanitize_textarea_field( $_POST['audience'] ?? '' ),
-            sanitize_textarea_field( $_POST['claude_prompt'] ?? '' )
+            sanitize_textarea_field( $_POST['claude_prompt'] ?? '' ),
+            $exclude_domains
         );
 
         if ( is_wp_error( $result ) ) {

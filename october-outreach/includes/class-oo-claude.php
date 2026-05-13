@@ -81,7 +81,7 @@ class OO_Claude {
     /**
      * Refine an audience description and suggest search targets.
      */
-    public function refine_audience( $campaign_name, $brand, $campaign_type, $audience_description, $extra_instructions = '' ) {
+    public function refine_audience( $campaign_name, $brand, $campaign_type, $audience_description, $extra_instructions = '', $exclude_domains = array() ) {
         $brands = OO_Database::get_brands();
         $brand_label = $brands[ $brand ] ?? $brand;
 
@@ -93,9 +93,14 @@ class OO_Claude {
         if ( $extra_instructions ) {
             $prompt .= "Additional instructions: {$extra_instructions}\n";
         }
+        if ( ! empty( $exclude_domains ) ) {
+            $exclude_list = implode( ', ', array_slice( $exclude_domains, 0, 100 ) );
+            $prompt .= "\nIMPORTANT — do NOT suggest any of these domains, they have already been searched:\n{$exclude_list}\n";
+            $prompt .= "Suggest entirely new companies and organisations not in that list.\n";
+        }
         $prompt .= "\nPlease provide:\n";
         $prompt .= "1. A refined audience description (2-3 sentences, specific and actionable)\n";
-        $prompt .= "2. 20-30 specific company domains to search for contacts (the more the better — aim for 25+) (real companies, architecture firms, design studios, publications, etc.)\n";
+        $prompt .= "2. 20-30 specific company domains to search for contacts (the more the better — aim for 25+). Real companies, firms, studios, publications. Do not repeat any excluded domains.\n";
         $prompt .= "3. Target job titles (5-8, comma separated)\n";
         $prompt .= "4. A brief note on why this audience is right for this campaign\n\n";
         $prompt .= "Respond as valid JSON only, no markdown:\n";
