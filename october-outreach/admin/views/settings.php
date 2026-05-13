@@ -101,15 +101,26 @@ Thanks!</div>
 
         <div class="oo-card">
             <h2 class="oo-card-title">Icypeas</h2>
-            <p class="oo-muted" style="margin-bottom:14px">PAYG contact finder — credits roll over and never expire. Used automatically when Hunter.io credits run out or Hunter isn't configured. <a href="https://app.icypeas.com/bo/api" target="_blank">Get your key →</a></p>
+            <p class="oo-muted" style="margin-bottom:14px">PAYG contact finder — credits roll over and never expire. Used automatically when Hunter.io credits run out or Hunter isn't configured. <a href="https://app.icypeas.com/bo/api" target="_blank">Get your keys →</a></p>
             <div class="oo-field">
                 <label class="oo-label">API Key</label>
                 <div class="oo-secret-wrap">
                     <input type="password" name="icypeas_api_key" class="oo-input" value="<?php echo esc_attr( $settings['icypeas_api_key'] ?? '' ); ?>">
                     <?php if ( ! empty( $settings['icypeas_api_key'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
                 </div>
-                <?php if ( ! empty( $settings['icypeas_api_key'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
             </div>
+            <div class="oo-field">
+                <label class="oo-label">API Secret</label>
+                <div class="oo-secret-wrap">
+                    <input type="password" name="icypeas_api_secret" class="oo-input" value="<?php echo esc_attr( $settings['icypeas_api_secret'] ?? '' ); ?>">
+                    <?php if ( ! empty( $settings['icypeas_api_secret'] ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+                </div>
+            </div>
+            <div class="oo-field">
+                <label class="oo-label">User ID</label>
+                <input type="text" name="icypeas_user_id" class="oo-input" value="<?php echo esc_attr( $settings['icypeas_user_id'] ?? '' ); ?>">
+            </div>
+            <?php if ( ! empty( $settings['icypeas_api_key'] ) && ! empty( $settings['icypeas_api_secret'] ) ) : ?><span class="oo-badge oo-badge-green" style="margin-top:6px;display:inline-block">Configured</span><?php endif; ?>
         </div>
 
         <!-- Airtable -->

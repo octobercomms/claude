@@ -7,15 +7,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 class OO_Icypeas {
 
     private $api_key;
+    private $api_secret;
+    private $user_id;
     private $base_url = 'https://app.icypeas.com/api';
 
     public function __construct() {
-        $settings      = get_option( 'oo_settings', array() );
-        $this->api_key = $settings['icypeas_api_key'] ?? '';
+        $settings         = get_option( 'oo_settings', array() );
+        $this->api_key    = trim( $settings['icypeas_api_key']    ?? '' );
+        $this->api_secret = trim( $settings['icypeas_api_secret'] ?? '' );
+        $this->user_id    = trim( $settings['icypeas_user_id']    ?? '' );
     }
 
     public function is_configured() {
-        return ! empty( $this->api_key );
+        return ! empty( $this->api_key ) && ! empty( $this->api_secret );
     }
 
     private function request( $endpoint, $body ) {
@@ -23,7 +27,7 @@ class OO_Icypeas {
             'timeout' => 30,
             'headers' => array(
                 'Content-Type'  => 'application/json',
-                'Authorization' => 'Bearer ' . $this->api_key,
+                'Authorization' => 'Basic ' . base64_encode( $this->api_key . ':' . $this->api_secret ),
             ),
             'body' => wp_json_encode( $body ),
         ) );
