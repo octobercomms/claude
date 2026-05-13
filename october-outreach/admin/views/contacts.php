@@ -172,4 +172,32 @@ $total    = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $wh
 </div>
 <?php endif; ?>
 
+<script>
+(function(){
+    var btn = document.getElementById('oo-airtable-push-btn');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        btn.disabled = true;
+        btn.textContent = 'Syncing…';
+        var result = document.getElementById('oo-airtable-push-result');
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded'},
+            body: 'action=oo_airtable_push_all&nonce=' + encodeURIComponent(ooData.nonce)
+        }).then(r=>r.json()).then(function(res){
+            btn.disabled = false;
+            btn.textContent = 'Sync Airtable';
+            result.className = 'oo-notice ' + (res.success ? 'oo-notice-success' : 'oo-notice-error');
+            result.textContent = res.success ? (res.data.pushed + ' contacts synced to Airtable.') : (res.data || 'Sync failed');
+            result.style.display = 'block';
+        }).catch(function(){
+            btn.disabled = false; btn.textContent = 'Sync Airtable';
+            result.className = 'oo-notice oo-notice-error';
+            result.textContent = 'Request failed.';
+            result.style.display = 'block';
+        });
+    });
+})();
+</script>
+
 <?php endif; ?>
