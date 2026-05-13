@@ -81,28 +81,45 @@ class OO_Claude {
     /**
      * Refine an audience description and suggest search targets.
      */
-    public function refine_audience( $campaign_name, $brand, $campaign_type, $audience_description, $extra_instructions = '', $exclude_domains = array() ) {
+    public function refine_audience( $campaign_name, $brand, $campaign_type, $audience_description, $extra_instructions = '', $exclude_domains = array(), $structured = array() ) {
         $brands = OO_Database::get_brands();
         $brand_label = $brands[ $brand ] ?? $brand;
 
-        $prompt = "I'm creating an email outreach campaign and need help defining my target audience precisely.\n\n";
+        $system = "You are a B2B research specialist who knows how to find real, active companies in niche professional sectors. You only suggest domains that genuinely exist and match the audience criteria. You never fabricate company names. When given a location, you suggest companies actually based in or serving that region. Quality over quantity — a list of 20 real, perfectly-matched domains is far better than 40 guesses.";
+
+        $prompt = "I'm creating an email outreach campaign and need help defining my target audience and finding real companies to contact.\n\n";
         $prompt .= "Campaign: {$campaign_name}\n";
         $prompt .= "Brand: {$brand_label}\n";
         $prompt .= "Campaign type: {$campaign_type}\n";
         $prompt .= "Audience description: {$audience_description}\n";
+
+        // Structured fields
+        $loc   = $structured['location']       ?? '';
+        $itype = $structured['industry_type']  ?? '';
+        $spec  = $structured['specialisation'] ?? '';
+        $size  = $structured['business_size']  ?? '';
+        $excl  = $structured['exclude_types']  ?? '';
+
+        if ( $loc )   $prompt .= "Location / geography: {$loc}\n";
+        if ( $itype ) $prompt .= "Industry sub-type: {$itype}\n";
+        if ( $spec )  $prompt .= "Specialisation / focus: {$spec}\n";
+        if ( $size )  $prompt .= "Business size: {$size}\n";
+        if ( $excl )  $prompt .= "Exclude these types: {$excl}\n";
+
         if ( $extra_instructions ) {
-            $prompt .= "Additional instructions: {$extra_instructions}\n";
+            $prompt .= "Extra instructions: {$extra_instructions}\n";
         }
+
         if ( ! empty( $exclude_domains ) ) {
             $exclude_list = implode( ', ', array_slice( $exclude_domains, 0, 100 ) );
-            $prompt .= "\nIMPORTANT — do NOT suggest any of these domains, they have already been searched:\n{$exclude_list}\n";
-            $prompt .= "Suggest entirely new companies and organisations not in that list.\n";
+            $prompt .= "\nIMPORTANT — do NOT suggest any of these already-searched domains:\n{$exclude_list}\n";
         }
-        $prompt .= "\nPlease provide:\n";
-        $prompt .= "1. A refined audience description (2-3 sentences, specific and actionable)\n";
-        $prompt .= "2. 20-30 specific company domains to search for contacts (the more the better — aim for 25+). Real companies, firms, studios, publications. Do not repeat any excluded domains.\n";
-        $prompt .= "3. Target job titles (5-8, comma separated)\n";
-        $prompt .= "4. A brief note on why this audience is right for this campaign\n\n";
+
+        $prompt .= "\nYour task:\n";
+        $prompt .= "1. Write a refined audience description (2-3 sentences, specific and actionable)\n";
+        $prompt .= "2. Suggest 20-30 REAL company domains to search — firms, studios, practices, offices that genuinely match ALL criteria above (location, type, size). Only include domains you are confident actually exist and are active businesses.\n";
+        $prompt .= "3. Suggest 5-8 target job titles appropriate for this audience\n";
+        $prompt .= "4. Write a brief rationale (1-2 sentences)\n\n";
         $prompt .= "Respond as valid JSON only, no markdown:\n";
         $prompt .= '{"refined_description":"...","domains":["domain1.com","domain2.com"],"job_titles":["Title 1","Title 2"],"rationale":"..."}';
 
@@ -110,7 +127,7 @@ class OO_Claude {
             array( 'role' => 'user', 'content' => $prompt ),
         );
 
-        return $this->request_json( $messages, 1024 );
+        return $this->request_json( $messages, 1500, $system );
     }
 
     /**

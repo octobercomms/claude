@@ -137,16 +137,74 @@ $settings      = get_option( 'oo_settings', array() );
     <div class="oo-wizard-panel" id="oo-step-2">
         <div class="oo-card">
             <h2 class="oo-card-title">Describe Your Audience</h2>
-            <p class="oo-muted" style="margin-bottom:14px">Write in plain English who you want to reach. Claude will refine this into specific search targets.</p>
+            <p class="oo-muted" style="margin-bottom:14px">Tell Claude who you want to reach. The more specific you are, the better the domain suggestions will be.</p>
             <div class="oo-field">
                 <label class="oo-label">Audience Description</label>
-                <textarea id="w_audience" class="oo-textarea" rows="5" placeholder="e.g. Architects and interior designers based in Atlanta, Georgia and surrounding states. Principals or directors at firms with 5–50 staff. Interested in design competitions and awards."><?php echo esc_textarea( $campaign->audience_description ?? '' ); ?></textarea>
+                <textarea id="w_audience" class="oo-textarea" rows="4" placeholder="e.g. Independent architecture practices and interior design studios. Principals, directors or founders who make decisions about industry awards and publications."><?php echo esc_textarea( $campaign->audience_description ?? '' ); ?></textarea>
             </div>
-            <div class="oo-field">
-                <label class="oo-label">Extra instructions for Claude</label>
-                <textarea id="w_claude_prompt" class="oo-textarea" rows="3" placeholder="e.g. Tone should be warm and collegial. Mention ADF's reputation. Keep emails under 120 words."><?php echo esc_textarea( $campaign->claude_prompt ?? '' ); ?></textarea>
+
+            <div class="oo-form-grid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+                <div class="oo-field" style="margin:0">
+                    <label class="oo-label">Location / Geography</label>
+                    <input type="text" id="aud_location" class="oo-input" placeholder="e.g. Melbourne, Victoria, Australia">
+                    <p class="oo-hint">City, state, country — as specific as possible.</p>
+                </div>
+                <div class="oo-field" style="margin:0">
+                    <label class="oo-label">Industry Sub-type</label>
+                    <select id="aud_industry_type" class="oo-select">
+                        <option value="">— Select if relevant —</option>
+                        <optgroup label="Architecture &amp; Design">
+                            <option>Architecture practice</option>
+                            <option>Interior design studio</option>
+                            <option>Landscape architecture</option>
+                            <option>Urban planning / urbanism</option>
+                            <option>Industrial design studio</option>
+                            <option>Graphic design studio</option>
+                        </optgroup>
+                        <optgroup label="Construction &amp; Built Environment">
+                            <option>Construction company</option>
+                            <option>Property developer</option>
+                            <option>Engineering consultancy</option>
+                            <option>Quantity surveying</option>
+                        </optgroup>
+                        <optgroup label="Media &amp; Publishing">
+                            <option>Architecture / design publication</option>
+                            <option>Trade magazine</option>
+                            <option>Online media outlet</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option>Law firm</option>
+                            <option>Accounting firm</option>
+                            <option>Marketing agency</option>
+                            <option>Technology company</option>
+                            <option>Non-profit / association</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div class="oo-field" style="margin:0">
+                    <label class="oo-label">Specialisation / Focus</label>
+                    <input type="text" id="aud_specialisation" class="oo-input" placeholder="e.g. Residential, hospitality, adaptive reuse">
+                    <p class="oo-hint">What kind of projects or work they do.</p>
+                </div>
+                <div class="oo-field" style="margin:0">
+                    <label class="oo-label">Business Size</label>
+                    <select id="aud_business_size" class="oo-select">
+                        <option value="">— Any size —</option>
+                        <option value="sole trader / freelancer">Solo / freelancer</option>
+                        <option value="2–10 staff (micro)">2–10 staff (micro)</option>
+                        <option value="10–50 staff (small)">10–50 staff (small)</option>
+                        <option value="50–200 staff (medium)">50–200 staff (medium)</option>
+                        <option value="200+ staff (large)">200+ staff (large)</option>
+                    </select>
+                </div>
+                <div class="oo-field" style="margin:0;grid-column:1/-1">
+                    <label class="oo-label">Exclude These Types</label>
+                    <input type="text" id="aud_exclude_types" class="oo-input" placeholder="e.g. Government agencies, national chains, franchise groups">
+                    <p class="oo-hint">Anything you explicitly don't want Claude to suggest.</p>
+                </div>
             </div>
-            <div class="oo-field">
+
+            <div class="oo-field" style="margin-top:16px">
                 <label class="oo-label">Contact Type</label>
                 <input type="text" id="w_contact_type" class="oo-input" list="oo-contact-types-list" placeholder="e.g. Architect">
                 <datalist id="oo-contact-types-list">
@@ -155,6 +213,10 @@ $settings      = get_option( 'oo_settings', array() );
                     <?php endforeach; ?>
                 </datalist>
                 <p class="oo-hint">How these contacts will be categorised in your database.</p>
+            </div>
+            <div class="oo-field">
+                <label class="oo-label">Extra instructions for Claude</label>
+                <textarea id="w_claude_prompt" class="oo-textarea" rows="2" placeholder="e.g. Tone should be warm and collegial. Mention ADF's reputation. Keep emails under 120 words."><?php echo esc_textarea( $campaign->claude_prompt ?? '' ); ?></textarea>
             </div>
             <div class="oo-field" style="margin-top:4px">
                 <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px">
@@ -219,7 +281,19 @@ $settings      = get_option( 'oo_settings', array() );
         <div id="oo-panel-hunter">
             <div class="oo-card">
                 <h2 class="oo-card-title">Find New Contacts</h2>
-                <p class="oo-muted" style="margin-bottom:14px">Searches each domain suggested by Claude for real email addresses using Hunter.io and/or Icypeas (whichever you have configured). Results shown below — deselect any you don't want before saving.</p>
+                <p class="oo-muted" style="margin-bottom:14px">Searches each domain using Hunter.io and/or Icypeas, then falls back to web scraping and email patterns. Results are shown below — deselect any you don't want before saving.</p>
+
+                <div style="display:flex;gap:24px;margin-bottom:14px;flex-wrap:wrap">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+                        <input type="checkbox" id="oo-include-personal" checked style="width:auto;margin:0">
+                        Personal contacts (named individuals)
+                    </label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;font-weight:600">
+                        <input type="checkbox" id="oo-include-generic" checked style="width:auto;margin:0">
+                        Generic contacts (info@, contact@, studio@…)
+                    </label>
+                </div>
+
                 <div class="oo-wizard-actions" style="padding:0 0 10px">
                     <button class="oo-btn oo-btn-primary" id="oo-search-contacts">
                         <span class="oo-btn-text">Search for Contacts →</span>
