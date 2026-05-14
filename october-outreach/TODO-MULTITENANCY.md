@@ -43,6 +43,12 @@ because both `campaign_id` and `contact_id` are already scoped to a user.
 **Migration note:** Existing rows should get `user_id = 1` (the main admin) so
 no data is lost. Add this to `maybe_update()`:
 
+> **Where to find it:** `includes/class-oo-database.php` → `public static function maybe_update()`.
+> This method already exists and is called on every `plugins_loaded` — it runs
+> `create_tables()` (dbDelta) when the stored `oo_db_version` doesn't match
+> `OO_VERSION`. Put the backfill queries immediately after the `create_tables()`
+> call inside that method, so they run once on the first load after upgrading.
+
 ```php
 // After dbDelta — backfill existing rows to user 1
 $wpdb->query( "UPDATE {$wpdb->prefix}oo_contacts   SET user_id = 1 WHERE user_id = 0" );
