@@ -185,6 +185,7 @@ class OO_Hunter {
                 'last_name'    => $c['last_name'] ?? '',
                 'company'      => $c['company'] ?? '',
                 'type'         => $contact_type ?: 'other',
+                'location'     => $c['location'] ?? '',
                 'linkedin_url' => $c['linkedin_url'] ?? '',
                 'source'       => $c['source'] ?? 'hunter.io',
                 'status'       => 'active',

@@ -25,6 +25,7 @@ class OO_Ajax {
             'oo_wizard_discover_domains',
             'oo_verify_emails',
             'oo_bulk_delete_dead',
+            'oo_enrich_locations',
         );
 
         foreach ( $actions as $action ) {
@@ -799,5 +800,108 @@ class OO_Ajax {
         );
 
         wp_send_json_success( array( 'deleted' => intval( $deleted ) ) );
+    }
+
+    /**
+     * Enrich location for contacts with empty location field.
+     * Resolves domain from email → IP → ipapi.co geolocation.
+     * Processes a batch of up to 30 contacts per call.
+     */
+    public function enrich_locations() {
+        $this->check_nonce();
+
+        global $wpdb;
+
+        // If specific IDs passed, use those (manual overwrite mode); otherwise pick empty-location batch
+        $ids = array_filter( array_map( 'intval', (array) ( $_POST['contact_ids'] ?? array() ) ) );
+
+        if ( $ids ) {
+            $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+            $contacts     = $wpdb->get_results(
+                $wpdb->prepare( "SELECT id, email, location FROM {$wpdb->prefix}oo_contacts WHERE id IN ($placeholders)", $ids ),
+                ARRAY_A
+            );
+        } else {
+            $contacts = $wpdb->get_results(
+                "SELECT id, email, location FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL) LIMIT 30",
+                ARRAY_A
+            );
+        }
+
+        if ( empty( $contacts ) ) {
+            wp_send_json_success( array( 'updated' => 0, 'remaining' => 0, 'message' => 'All contacts already have a location.' ) );
+        }
+
+        // Cache per-domain to avoid duplicate API calls in this batch
+        $domain_cache = array();
+        $updated      = 0;
+        $failed       = 0;
+
+        foreach ( $contacts as $contact ) {
+            $email  = $contact['email'];
+            $at_pos = strpos( $email, '@' );
+            if ( $at_pos === false ) { $failed++; continue; }
+
+            $domain = strtolower( substr( $email, $at_pos + 1 ) );
+
+            if ( isset( $domain_cache[ $domain ] ) ) {
+                $location = $domain_cache[ $domain ];
+            } else {
+                $ip = gethostbyname( $domain );
+                if ( $ip === $domain || filter_var( $ip, FILTER_VALIDATE_IP ) === false ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                // ipapi.co — free, no key required, 1000 requests/day
+                $response = wp_remote_get( 'https://ipapi.co/' . $ip . '/json/', array(
+                    'timeout' => 5,
+                    'headers' => array( 'User-Agent' => 'OctoberOutreach/3.2' ),
+                ) );
+
+                if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                $geo = json_decode( wp_remote_retrieve_body( $response ), true );
+
+                // Build "City, Country" — skip CDN/privacy IPs where city is absent
+                $city    = $geo['city']         ?? '';
+                $country = $geo['country_name'] ?? '';
+
+                if ( ! $city && ! $country ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                $location = trim( implode( ', ', array_filter( array( $city, $country ) ) ) );
+                $domain_cache[ $domain ] = $location;
+            }
+
+            if ( $location ) {
+                $wpdb->update(
+                    $wpdb->prefix . 'oo_contacts',
+                    array( 'location' => $location ),
+                    array( 'id' => $contact['id'] )
+                );
+                $updated++;
+            } else {
+                $failed++;
+            }
+        }
+
+        $remaining = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)"
+        );
+
+        wp_send_json_success( array(
+            'updated'   => $updated,
+            'failed'    => $failed,
+            'remaining' => $remaining,
+        ) );
     }
 }

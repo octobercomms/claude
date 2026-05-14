@@ -144,14 +144,23 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
         <button type="submit" class="oo-btn oo-btn-secondary">Filter</button>
         <span class="oo-count"><?php echo intval( $total ); ?> contacts</span>
     </form>
-    <?php if ( $dead_count > 0 ) : ?>
-    <div style="margin-top:8px">
+    <?php
+    $no_location_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)" );
+    ?>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <?php if ( $no_location_count > 0 ) : ?>
+        <button class="oo-btn oo-btn-secondary" id="oo-enrich-locations-btn">
+            <span id="oo-enrich-btn-text">Enrich Locations (<?php echo $no_location_count; ?> missing)</span>
+        </button>
+        <?php endif; ?>
+        <?php if ( $dead_count > 0 ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-delete-dead-btn" style="color:#c0392b;border-color:#c0392b">
             Delete <?php echo $dead_count; ?> Dead / Invalid Emails
         </button>
+        <?php endif; ?>
     </div>
-    <?php endif; ?>
 </div>
+<div id="oo-enrich-result" class="oo-notice" style="display:none;margin-bottom:8px"></div>
 
 <?php if ( $contacts ) : ?>
 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="oo-bulk-form">
@@ -303,6 +312,49 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
             btn.textContent = 'Delete Dead / Invalid Emails';
         });
     });
+})();
+(function(){
+    var btn = document.getElementById('oo-enrich-locations-btn');
+    if (!btn) return;
+    var result   = document.getElementById('oo-enrich-result');
+    var btnLabel = document.getElementById('oo-enrich-btn-text');
+
+    function runBatch() {
+        btn.disabled = true;
+        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
+            method: 'POST',
+            headers: {'Content-Type':'application/x-www-form-urlencoded'},
+            body: 'action=oo_enrich_locations&nonce=' + encodeURIComponent(ooData.nonce)
+        }).then(function(r){ return r.json(); }).then(function(res){
+            if (!res.success) {
+                btn.disabled = false;
+                result.className = 'oo-notice oo-notice-error';
+                result.textContent = res.data || 'Enrichment failed.';
+                result.style.display = 'block';
+                return;
+            }
+            var d = res.data;
+            result.className = 'oo-notice oo-notice-success';
+            result.textContent = d.updated + ' locations updated, ' + d.failed + ' could not be resolved. ' +
+                (d.remaining > 0 ? d.remaining + ' still missing — click again to continue.' : 'All done!');
+            result.style.display = 'block';
+
+            if (d.remaining > 0) {
+                btnLabel.textContent = 'Enrich Locations (' + d.remaining + ' remaining)';
+                btn.disabled = false;
+            } else {
+                btn.parentNode.style.display = 'none';
+                setTimeout(function(){ location.reload(); }, 1800);
+            }
+        }).catch(function(){
+            btn.disabled = false;
+            result.className = 'oo-notice oo-notice-error';
+            result.textContent = 'Request failed.';
+            result.style.display = 'block';
+        });
+    }
+
+    btn.addEventListener('click', runBatch);
 })();
 </script>
 
