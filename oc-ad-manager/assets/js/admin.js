@@ -63,6 +63,18 @@
 	$( 'input[name="ocad_site_mode"]' ).on( 'change', updateModeUI );
 	updateModeUI();
 
+	// ── Copy shortcode ────────────────────────────────────────────────────────
+	$( document ).on( 'click', '.ocad-copy-shortcode', function () {
+		var sc  = $( this ).data( 'shortcode' );
+		var $msg = $( this ).siblings( '.ocad-copied-msg' );
+		if ( navigator.clipboard ) {
+			navigator.clipboard.writeText( sc ).then( function () {
+				$msg.show();
+				setTimeout( function () { $msg.hide(); }, 2000 );
+			});
+		}
+	});
+
 	// ── Copy API key ──────────────────────────────────────────────────────────
 	$( document ).on( 'click', '.ocad-copy-key', function () {
 		var key = $( '.ocad-api-key-display' ).text().trim();

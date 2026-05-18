@@ -248,11 +248,24 @@ class OCAD_Admin {
 
 			<div class="ocad-shortcode-ref">
 				<h3><?php esc_html_e( 'Shortcode Reference', 'oc-ad-manager' ); ?></h3>
-				<p><?php esc_html_e( 'Use these shortcodes anywhere on your site:', 'oc-ad-manager' ); ?></p>
+				<p><?php esc_html_e( 'Click a shortcode to copy it, then paste directly into Elementor or any text editor:', 'oc-ad-manager' ); ?></p>
 				<ul>
-					<li><code>[oc_ad format="mpu"]</code> — <?php esc_html_e( 'MPU 300×250', 'oc-ad-manager' ); ?></li>
-					<li><code>[oc_ad format="leaderboard"]</code> — <?php esc_html_e( 'Leaderboard 728×90', 'oc-ad-manager' ); ?></li>
-					<li><code>[oc_ad format="skyscraper"]</code> — <?php esc_html_e( 'Skyscraper 160×600', 'oc-ad-manager' ); ?></li>
+					<?php
+					$shortcodes = array(
+						'[oc_ad format="mpu"]'         => 'MPU 300&times;250',
+						'[oc_ad format="leaderboard"]' => 'Leaderboard 728&times;90',
+						'[oc_ad format="skyscraper"]'  => 'Skyscraper 160&times;600',
+					);
+					foreach ( $shortcodes as $sc => $label ) :
+					?>
+					<li>
+						<code class="ocad-copy-shortcode" data-shortcode="<?php echo esc_attr( $sc ); ?>" title="<?php esc_attr_e( 'Click to copy', 'oc-ad-manager' ); ?>">
+							<?php echo esc_html( $sc ); ?>
+						</code>
+						— <?php echo wp_kses_post( $label ); ?>
+						<span class="ocad-copied-msg" style="display:none;color:#16a34a;margin-left:6px;">&#10003; <?php esc_html_e( 'Copied!', 'oc-ad-manager' ); ?></span>
+					</li>
+					<?php endforeach; ?>
 				</ul>
 			</div>
 		</div>
