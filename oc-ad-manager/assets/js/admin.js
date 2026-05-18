@@ -5,12 +5,12 @@
 	// ── Media uploader ────────────────────────────────────────────────────────
 	var mediaFrame;
 
-	$( document ).on( 'click', '.adf-media-upload', function ( e ) {
+	$( document ).on( 'click', '.ocad-media-upload', function ( e ) {
 		e.preventDefault();
 		var $btn    = $( this );
 		var format  = $btn.data( 'format' );
-		var $input  = $( '#adf-image-url-' + format );
-		var $preview = $( '#adf-preview-' + format );
+		var $input  = $( '#ocad-image-url-' + format );
+		var $preview = $( '#ocad-preview-' + format );
 
 		if ( mediaFrame ) {
 			mediaFrame.off( 'select' );
@@ -45,49 +45,49 @@
 		});
 	}
 
-	bindRestrictionToggle( 'adf_restrict_imp', 'adf-imp-cap-wrap' );
-	bindRestrictionToggle( 'adf_restrict_clk', 'adf-clk-cap-wrap' );
+	bindRestrictionToggle( 'ocad_restrict_imp', 'ocad-imp-cap-wrap' );
+	bindRestrictionToggle( 'ocad_restrict_clk', 'ocad-clk-cap-wrap' );
 
 	// ── Partner sites: add / remove rows ─────────────────────────────────────
-	$( document ).on( 'click', '.adf-add-partner', function ( e ) {
+	$( document ).on( 'click', '.ocad-add-partner', function ( e ) {
 		e.preventDefault();
-		var $list = $( '.adf-partner-sites-list' );
+		var $list = $( '.ocad-partner-sites-list' );
 		var idx   = $list.find( 'li' ).length;
 		$list.append(
 			'<li>' +
-			'<input type="url" name="adf_partner_sites[' + idx + ']" class="regular-text" placeholder="https://partner-site.com">' +
-			'<button type="button" class="button adf-remove-partner">Remove</button>' +
+			'<input type="url" name="ocad_partner_sites[' + idx + ']" class="regular-text" placeholder="https://partner-site.com">' +
+			'<button type="button" class="button ocad-remove-partner">Remove</button>' +
 			'</li>'
 		);
 	});
 
-	$( document ).on( 'click', '.adf-remove-partner', function () {
+	$( document ).on( 'click', '.ocad-remove-partner', function () {
 		$( this ).closest( 'li' ).remove();
 	});
 
 	// ── Mode selector toggle ──────────────────────────────────────────────────
 	function updateModeUI() {
-		var mode = $( 'input[name="adf_site_mode"]:checked' ).val();
+		var mode = $( 'input[name="ocad_site_mode"]:checked' ).val();
 		if ( mode === 'hub' ) {
-			$( '.adf-hub-settings' ).show();
-			$( '.adf-partner-settings' ).hide();
+			$( '.ocad-hub-settings' ).show();
+			$( '.ocad-partner-settings' ).hide();
 		} else {
-			$( '.adf-hub-settings' ).hide();
-			$( '.adf-partner-settings' ).show();
+			$( '.ocad-hub-settings' ).hide();
+			$( '.ocad-partner-settings' ).show();
 		}
 	}
 
-	$( 'input[name="adf_site_mode"]' ).on( 'change', updateModeUI );
+	$( 'input[name="ocad_site_mode"]' ).on( 'change', updateModeUI );
 	updateModeUI();
 
 	// ── Copy API key ──────────────────────────────────────────────────────────
-	$( document ).on( 'click', '.adf-copy-key', function () {
-		var key = $( '.adf-api-key-display' ).text().trim();
+	$( document ).on( 'click', '.ocad-copy-key', function () {
+		var key = $( '.ocad-api-key-display' ).text().trim();
 		if ( navigator.clipboard ) {
 			navigator.clipboard.writeText( key ).then( function () {
-				$( '.adf-copy-key' ).text( 'Copied!' );
+				$( '.ocad-copy-key' ).text( 'Copied!' );
 				setTimeout( function () {
-					$( '.adf-copy-key' ).text( 'Copy' );
+					$( '.ocad-copy-key' ).text( 'Copy' );
 				}, 2000 );
 			});
 		}

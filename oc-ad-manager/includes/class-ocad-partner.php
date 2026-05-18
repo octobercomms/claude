@@ -7,18 +7,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class ADF_Partner {
+class OCAD_Partner {
 
 	private static function get_hub_url() {
-		return trailingslashit( get_option( 'adf_hub_url', '' ) );
+		return trailingslashit( get_option( 'ocad_hub_url', '' ) );
 	}
 
 	private static function get_api_key() {
-		return get_option( 'adf_hub_api_key', '' );
+		return get_option( 'ocad_hub_api_key', '' );
 	}
 
 	public static function render_ad( $format ) {
-		if ( ! array_key_exists( $format, ADF_FORMATS ) ) {
+		if ( ! array_key_exists( $format, OCAD_FORMATS ) ) {
 			return '';
 		}
 
@@ -30,12 +30,12 @@ class ADF_Partner {
 		}
 
 		// Cache per-format for 5 minutes to avoid hammering the hub.
-		$cache_key = 'adf_partner_ad_' . $format;
+		$cache_key = 'ocad_partner_ad_' . $format;
 		$ad        = get_transient( $cache_key );
 
 		if ( false === $ad ) {
-			$response = wp_remote_get( $hub_url . 'wp-json/adf/v1/ad?format=' . rawurlencode( $format ), array(
-				'headers' => array( 'X-ADF-API-Key' => $api_key ),
+			$response = wp_remote_get( $hub_url . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format ), array(
+				'headers' => array( 'X-OCAD-API-Key' => $api_key ),
 				'timeout' => 5,
 			) );
 
@@ -66,7 +66,7 @@ class ADF_Partner {
 				'blocking' => false,
 				'timeout'  => 3,
 				'headers'  => array(
-					'X-ADF-API-Key'  => $api_key,
+					'X-OCAD-API-Key'  => $api_key,
 					'X-Forwarded-IP' => $visitor_ip,
 					'Content-Type'   => 'application/json',
 				),
@@ -77,10 +77,10 @@ class ADF_Partner {
 			) );
 		}
 
-		$fmt = ADF_FORMATS[ $format ];
+		$fmt = OCAD_FORMATS[ $format ];
 
 		return sprintf(
-			'<div class="adf-ad adf-ad--%1$s" style="display:inline-block;max-width:%2$dpx;">'
+			'<div class="ocad-ad ocad-ad--%1$s" style="display:inline-block;max-width:%2$dpx;">'
 			. '<a href="%3$s" target="_blank" rel="noopener noreferrer nofollow">'
 			. '<img src="%4$s" alt="%5$s" width="%2$d" height="%6$d" loading="lazy" style="display:block;max-width:100%;height:auto;" />'
 			. '</a></div>',

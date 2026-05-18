@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class ADF_Campaign {
+class OCAD_Campaign {
 
 	// -------------------------------------------------------------------------
 	// Campaign CRUD
@@ -11,7 +11,7 @@ class ADF_Campaign {
 
 	public static function get_all( $args = array() ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_campaigns';
+		$table = $wpdb->prefix . 'ocad_campaigns';
 
 		$defaults = array(
 			'status'  => '',
@@ -41,13 +41,13 @@ class ADF_Campaign {
 
 	public static function get( $id ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_campaigns';
+		$table = $wpdb->prefix . 'ocad_campaigns';
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
 	}
 
 	public static function create( $data ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_campaigns';
+		$table = $wpdb->prefix . 'ocad_campaigns';
 
 		$insert = self::sanitize_campaign_data( $data );
 		$wpdb->insert( $table, $insert );
@@ -56,7 +56,7 @@ class ADF_Campaign {
 
 	public static function update( $id, $data ) {
 		global $wpdb;
-		$table  = $wpdb->prefix . 'adf_campaigns';
+		$table  = $wpdb->prefix . 'ocad_campaigns';
 		$update = self::sanitize_campaign_data( $data );
 		return $wpdb->update( $table, $update, array( 'id' => $id ) );
 	}
@@ -67,11 +67,11 @@ class ADF_Campaign {
 		// Remove tracking records and ads first.
 		$ads = self::get_ads_for_campaign( $id );
 		foreach ( $ads as $ad ) {
-			$wpdb->delete( $wpdb->prefix . 'adf_tracking', array( 'ad_id' => $ad->id ) );
+			$wpdb->delete( $wpdb->prefix . 'ocad_tracking', array( 'ad_id' => $ad->id ) );
 		}
-		$wpdb->delete( $wpdb->prefix . 'adf_ads', array( 'campaign_id' => $id ) );
-		$wpdb->delete( $wpdb->prefix . 'adf_tracking', array( 'campaign_id' => $id ) );
-		$wpdb->delete( $wpdb->prefix . 'adf_campaigns', array( 'id' => $id ) );
+		$wpdb->delete( $wpdb->prefix . 'ocad_ads', array( 'campaign_id' => $id ) );
+		$wpdb->delete( $wpdb->prefix . 'ocad_tracking', array( 'campaign_id' => $id ) );
+		$wpdb->delete( $wpdb->prefix . 'ocad_campaigns', array( 'id' => $id ) );
 	}
 
 	private static function sanitize_campaign_data( $data ) {
@@ -95,19 +95,19 @@ class ADF_Campaign {
 
 	public static function get_ads_for_campaign( $campaign_id ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_ads';
+		$table = $wpdb->prefix . 'ocad_ads';
 		return $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} WHERE campaign_id = %d", $campaign_id ) );
 	}
 
 	public static function get_ad( $ad_id ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_ads';
+		$table = $wpdb->prefix . 'ocad_ads';
 		return $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $ad_id ) );
 	}
 
 	public static function get_ad_for_format( $campaign_id, $format ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_ads';
+		$table = $wpdb->prefix . 'ocad_ads';
 		return $wpdb->get_row( $wpdb->prepare(
 			"SELECT * FROM {$table} WHERE campaign_id = %d AND format = %s",
 			$campaign_id, $format
@@ -116,7 +116,7 @@ class ADF_Campaign {
 
 	public static function save_ad( $campaign_id, $format, $image_url, $alt_text = '' ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_ads';
+		$table = $wpdb->prefix . 'ocad_ads';
 
 		$existing = self::get_ad_for_format( $campaign_id, $format );
 		if ( $existing ) {
@@ -139,7 +139,7 @@ class ADF_Campaign {
 
 	public static function delete_ad_for_format( $campaign_id, $format ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_ads';
+		$table = $wpdb->prefix . 'ocad_ads';
 		$wpdb->delete( $table, array( 'campaign_id' => $campaign_id, 'format' => $format ) );
 	}
 
@@ -151,9 +151,9 @@ class ADF_Campaign {
 		global $wpdb;
 
 		$today = current_time( 'Y-m-d' );
-		$campaigns_table = $wpdb->prefix . 'adf_campaigns';
-		$ads_table       = $wpdb->prefix . 'adf_ads';
-		$tracking_table  = $wpdb->prefix . 'adf_tracking';
+		$campaigns_table = $wpdb->prefix . 'ocad_campaigns';
+		$ads_table       = $wpdb->prefix . 'ocad_ads';
+		$tracking_table  = $wpdb->prefix . 'ocad_tracking';
 
 		// Fetch all active campaigns that have an ad for this format and are in date range.
 		$campaigns = $wpdb->get_results( $wpdb->prepare(
@@ -174,14 +174,14 @@ class ADF_Campaign {
 		// Filter campaigns that have exhausted their restrictions.
 		foreach ( $campaigns as $campaign ) {
 			if ( $campaign->restrict_impressions && $campaign->max_impressions ) {
-				$impressions = ADF_Tracker::get_count( $campaign->id, 'impression' );
+				$impressions = OCAD_Tracker::get_count( $campaign->id, 'impression' );
 				if ( $impressions >= $campaign->max_impressions ) {
 					continue;
 				}
 			}
 
 			if ( $campaign->restrict_clicks && $campaign->max_clicks ) {
-				$clicks = ADF_Tracker::get_count( $campaign->id, 'click' );
+				$clicks = OCAD_Tracker::get_count( $campaign->id, 'click' );
 				if ( $clicks >= $campaign->max_clicks ) {
 					continue;
 				}
@@ -199,7 +199,7 @@ class ADF_Campaign {
 
 	public static function get_stats_for_all() {
 		global $wpdb;
-		$tracking_table = $wpdb->prefix . 'adf_tracking';
+		$tracking_table = $wpdb->prefix . 'ocad_tracking';
 
 		$rows = $wpdb->get_results(
 			"SELECT campaign_id, type, COUNT(*) AS total FROM {$tracking_table} GROUP BY campaign_id, type"

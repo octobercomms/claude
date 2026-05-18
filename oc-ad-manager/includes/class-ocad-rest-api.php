@@ -3,23 +3,23 @@
  * REST API endpoints — used by partner sites to fetch ads and report impressions.
  *
  * Hub endpoints:
- *   GET  /wp-json/adf/v1/ad?format=mpu         → returns active ad JSON
- *   POST /wp-json/adf/v1/impression             → log an impression from a partner
+ *   GET  /wp-json/ocad/v1/ad?format=mpu         → returns active ad JSON
+ *   POST /wp-json/ocad/v1/impression             → log an impression from a partner
  *
- * Authentication: X-ADF-API-Key header or ?api_key= query param.
+ * Authentication: X-OCAD-API-Key header or ?api_key= query param.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class ADF_REST_API {
+class OCAD_REST_API {
 
 	public function __construct() {
 		add_action( 'rest_api_init', array( $this, 'register_routes' ) );
 	}
 
 	public function register_routes() {
-		register_rest_route( 'adf/v1', '/ad', array(
+		register_rest_route( 'ocad/v1', '/ad', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'get_ad' ),
 			'permission_callback' => array( $this, 'check_api_key' ),
@@ -28,13 +28,13 @@ class ADF_REST_API {
 					'required'          => true,
 					'sanitize_callback' => 'sanitize_key',
 					'validate_callback' => function ( $value ) {
-						return array_key_exists( $value, ADF_FORMATS );
+						return array_key_exists( $value, OCAD_FORMATS );
 					},
 				),
 			),
 		) );
 
-		register_rest_route( 'adf/v1', '/impression', array(
+		register_rest_route( 'ocad/v1', '/impression', array(
 			'methods'             => 'POST',
 			'callback'            => array( $this, 'log_impression' ),
 			'permission_callback' => array( $this, 'check_api_key' ),
@@ -47,20 +47,20 @@ class ADF_REST_API {
 
 	public function check_api_key( WP_REST_Request $request ) {
 		// Only hub sites expose this API.
-		if ( get_option( 'adf_site_mode', 'hub' ) !== 'hub' ) {
-			return new WP_Error( 'adf_not_hub', 'This site is not an ADF hub.', array( 'status' => 403 ) );
+		if ( get_option( 'ocad_site_mode', 'hub' ) !== 'hub' ) {
+			return new WP_Error( 'ocad_not_hub', 'This site is not configured as an Ad Manager hub.', array( 'status' => 403 ) );
 		}
 
-		$stored_key = get_option( 'adf_api_key', '' );
+		$stored_key = get_option( 'ocad_api_key', '' );
 		if ( ! $stored_key ) {
-			return new WP_Error( 'adf_no_key', 'API key not configured.', array( 'status' => 403 ) );
+			return new WP_Error( 'ocad_no_key', 'API key not configured.', array( 'status' => 403 ) );
 		}
 
-		$provided = $request->get_header( 'X-ADF-API-Key' )
+		$provided = $request->get_header( 'X-OCAD-API-Key' )
 			?: sanitize_text_field( $request->get_param( 'api_key' ) );
 
 		if ( ! hash_equals( $stored_key, (string) $provided ) ) {
-			return new WP_Error( 'adf_invalid_key', 'Invalid API key.', array( 'status' => 401 ) );
+			return new WP_Error( 'ocad_invalid_key', 'Invalid API key.', array( 'status' => 401 ) );
 		}
 
 		return true;
@@ -68,19 +68,19 @@ class ADF_REST_API {
 
 	public function get_ad( WP_REST_Request $request ) {
 		$format = $request->get_param( 'format' );
-		$ad     = ADF_Campaign::get_active_ad_for_format( $format );
+		$ad     = OCAD_Campaign::get_active_ad_for_format( $format );
 
 		if ( ! $ad ) {
-			return new WP_Error( 'adf_no_ad', 'No active ad for this format.', array( 'status' => 404 ) );
+			return new WP_Error( 'ocad_no_ad', 'No active ad for this format.', array( 'status' => 404 ) );
 		}
 
-		$fmt = ADF_FORMATS[ $format ];
+		$fmt = OCAD_FORMATS[ $format ];
 
 		// Click URL points back to this hub so clicks are tracked here.
-		$click_url = add_query_arg( 'adf_click', $ad->ad_id, home_url( '/' ) );
+		$click_url = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
 
 		// Impression endpoint on this hub so partners can report back.
-		$impression_url = rest_url( 'adf/v1/impression' );
+		$impression_url = rest_url( 'ocad/v1/impression' );
 
 		return rest_ensure_response( array(
 			'ad_id'          => (int) $ad->ad_id,
@@ -100,14 +100,14 @@ class ADF_REST_API {
 		$campaign_id = $request->get_param( 'campaign_id' );
 
 		// Verify the ad actually belongs to the campaign.
-		$ad = ADF_Campaign::get_ad( $ad_id );
+		$ad = OCAD_Campaign::get_ad( $ad_id );
 		if ( ! $ad || (int) $ad->campaign_id !== $campaign_id ) {
-			return new WP_Error( 'adf_invalid', 'Invalid ad or campaign.', array( 'status' => 400 ) );
+			return new WP_Error( 'ocad_invalid', 'Invalid ad or campaign.', array( 'status' => 400 ) );
 		}
 
 		// Log with the remote IP from the partner site request (passed in header if available).
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_tracking';
+		$table = $wpdb->prefix . 'ocad_tracking';
 
 		$remote_ip = sanitize_text_field( $request->get_header( 'X-Forwarded-IP' ) ?: '' );
 

@@ -3,7 +3,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class ADF_Tracker {
+class OCAD_Tracker {
 
 	public static function log_impression( $campaign_id, $ad_id ) {
 		self::insert_record( $campaign_id, $ad_id, 'impression' );
@@ -15,7 +15,7 @@ class ADF_Tracker {
 
 	public static function get_count( $campaign_id, $type ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_tracking';
+		$table = $wpdb->prefix . 'ocad_tracking';
 		return (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM {$table} WHERE campaign_id = %d AND type = %s",
 			$campaign_id, $type
@@ -24,7 +24,7 @@ class ADF_Tracker {
 
 	public static function get_count_for_ad( $ad_id, $type ) {
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_tracking';
+		$table = $wpdb->prefix . 'ocad_tracking';
 		return (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM {$table} WHERE ad_id = %d AND type = %s",
 			$ad_id, $type
@@ -38,7 +38,7 @@ class ADF_Tracker {
 		}
 
 		global $wpdb;
-		$table = $wpdb->prefix . 'adf_tracking';
+		$table = $wpdb->prefix . 'ocad_tracking';
 
 		$ip = self::get_client_ip();
 

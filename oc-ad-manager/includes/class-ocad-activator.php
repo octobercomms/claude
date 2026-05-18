@@ -3,15 +3,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-class ADF_Activator {
+class OCAD_Activator {
 
 	public static function activate() {
 		global $wpdb;
 		$charset = $wpdb->get_charset_collate();
 
-		$campaigns_table = $wpdb->prefix . 'adf_campaigns';
-		$ads_table       = $wpdb->prefix . 'adf_ads';
-		$tracking_table  = $wpdb->prefix . 'adf_tracking';
+		$campaigns_table = $wpdb->prefix . 'ocad_campaigns';
+		$ads_table       = $wpdb->prefix . 'ocad_ads';
+		$tracking_table  = $wpdb->prefix . 'ocad_tracking';
 
 		$sql = "
 			CREATE TABLE {$campaigns_table} (
@@ -62,7 +62,7 @@ class ADF_Activator {
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
 
-		update_option( 'adf_version', ADF_VERSION );
+		update_option( 'ocad_version', OCAD_VERSION );
 	}
 
 	public static function deactivate() {
