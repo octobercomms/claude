@@ -44,7 +44,6 @@ class OCAD_Shortcodes {
 			return '';
 		}
 
-		// Log the impression server-side.
 		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
 
 		$fmt        = OCAD_FORMATS[ $format ];
