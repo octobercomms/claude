@@ -99,7 +99,17 @@ class OCAD_Settings {
 							</td>
 						</tr>
 						<?php endif; ?>
-					</table>
+							<tr>
+								<th><label for="ocad_partner_sites_notes"><?php esc_html_e( 'Partner Sites', 'oc-ad-manager' ); ?></label></th>
+								<td>
+									<textarea id="ocad_partner_sites_notes" name="ocad_partner_sites_notes"
+									          rows="4" class="large-text"
+									          placeholder="https://architecturetours.us&#10;https://ma-designishuman.com&#10;https://staging.atlantadesignfestival.net"
+									><?php echo esc_textarea( get_option( 'ocad_partner_sites_notes', '' ) ); ?></textarea>
+									<p class="description"><?php esc_html_e( 'Your own record of which sites use this key — one URL per line. No functional effect; useful when you regenerate the key and need to know which sites to update.', 'oc-ad-manager' ); ?></p>
+								</td>
+							</tr>
+						</table>
 
 					<div style="background:#f0f6ff;border:1px solid #c3d8f7;padding:14px 18px;border-radius:4px;margin-top:16px;">
 						<strong><?php esc_html_e( 'Setting up a partner site:', 'oc-ad-manager' ); ?></strong>
@@ -161,6 +171,9 @@ class OCAD_Settings {
 		if ( $mode === 'hub' && ! get_option( 'ocad_api_key' ) ) {
 			update_option( 'ocad_api_key', self::generate_api_key() );
 		}
+
+		// Partner sites notes (free-text, hub mode).
+		update_option( 'ocad_partner_sites_notes', sanitize_textarea_field( wp_unslash( $_POST['ocad_partner_sites_notes'] ?? '' ) ) );
 
 		// Partner mode settings.
 		update_option( 'ocad_hub_url', esc_url_raw( wp_unslash( $_POST['ocad_hub_url'] ?? '' ) ) );
