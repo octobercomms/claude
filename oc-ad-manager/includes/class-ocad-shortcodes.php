@@ -57,7 +57,7 @@ class OCAD_Shortcodes {
 		return sprintf(
 			'<div class="ocad-ad ocad-ad--%1$s%5$s" style="display:inline-block;max-width:%2$dpx;">'
 			. '<a href="%3$s" target="_blank" rel="noopener noreferrer nofollow">'
-			. '<img src="%4$s" alt="%6$s" width="%2$d" height="%7$d" loading="lazy" style="display:block;max-width:100%;height:auto;" />'
+			. '<img src="%4$s" alt="%6$s" width="%2$d" height="%7$d" style="display:block;max-width:100%;height:auto;" />'
 			. '</a></div>',
 			esc_attr( $format ),         // 1
 			(int) $fmt['width'],         // 2
