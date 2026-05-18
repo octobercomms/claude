@@ -52,13 +52,10 @@ class OCAD_Admin {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets( $hook ) {
-		$ocad_hooks = array(
-			'toplevel_page_oc-ad-manager',
-			'oc-ad-manager_page_ocad-add-campaign',
-			'oc-ad-manager_page_ocad-settings',
-		);
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings' );
 
-		if ( ! in_array( $hook, $ocad_hooks, true ) ) {
+		if ( ! in_array( $page, $ocad_pages, true ) ) {
 			return;
 		}
 
