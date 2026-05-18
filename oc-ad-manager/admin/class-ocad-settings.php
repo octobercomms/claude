@@ -106,21 +106,14 @@ class OCAD_Settings {
 									<?php esc_html_e( 'Record your partner sites here for reference. Install Ad Manager by October Communications on each site, set it to Partner mode, and paste this hub\'s URL and API key there.', 'oc-ad-manager' ); ?>
 								</p>
 								<ul class="ocad-partner-sites-list">
-									<?php if ( $partner_sites ) :
-										foreach ( $partner_sites as $idx => $site_url ) : ?>
-										<li>
-											<input type="url" name="ocad_partner_sites[<?php echo esc_attr( $idx ); ?>]"
-											       class="regular-text" value="<?php echo esc_attr( $site_url ); ?>"
-											       placeholder="https://partner-site.com">
-											<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
-										</li>
-										<?php endforeach;
-									else : ?>
-										<li>
-											<input type="url" name="ocad_partner_sites[0]" class="regular-text" placeholder="https://partner-site.com">
-											<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
-										</li>
-									<?php endif; ?>
+									<?php foreach ( $partner_sites as $idx => $site_url ) : ?>
+									<li>
+										<input type="url" name="ocad_partner_sites[<?php echo esc_attr( $idx ); ?>]"
+										       class="regular-text" value="<?php echo esc_attr( $site_url ); ?>"
+										       placeholder="https://partner-site.com">
+										<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
+									</li>
+									<?php endforeach; ?>
 								</ul>
 								<button type="button" class="button ocad-add-partner" style="margin-top:8px;">
 									+ <?php esc_html_e( 'Add Partner Site', 'oc-ad-manager' ); ?>
