@@ -23,11 +23,10 @@ class OCAD_Settings {
 	}
 
 	public function page_settings() {
-		$mode          = get_option( 'ocad_site_mode', 'hub' );
-		$api_key       = get_option( 'ocad_api_key', '' );
-		$hub_url       = get_option( 'ocad_hub_url', '' );
-		$hub_api_key   = get_option( 'ocad_hub_api_key', '' );
-		$partner_sites = get_option( 'ocad_partner_sites', array() );
+		$mode        = get_option( 'ocad_site_mode', 'hub' );
+		$api_key     = get_option( 'ocad_api_key', '' );
+		$hub_url     = get_option( 'ocad_hub_url', '' );
+		$hub_api_key = get_option( 'ocad_hub_api_key', '' );
 
 		$message = '';
 		if ( isset( $_GET['ocad_settings'] ) ) {
@@ -66,6 +65,7 @@ class OCAD_Settings {
 				<!-- ── Hub settings ── -->
 				<div class="ocad-settings-section ocad-hub-settings" <?php echo $mode !== 'hub' ? 'style="display:none;"' : ''; ?>>
 					<h3><?php esc_html_e( 'Hub Settings', 'oc-ad-manager' ); ?></h3>
+					<p><?php esc_html_e( 'This site manages all campaigns. Partner sites use the API key below to pull ads — no configuration needed here per partner site.', 'oc-ad-manager' ); ?></p>
 
 					<table class="form-table">
 						<tr>
@@ -76,12 +76,12 @@ class OCAD_Settings {
 									<button type="button" class="button button-small ocad-copy-key" style="margin-left:8px;">
 										<?php esc_html_e( 'Copy', 'oc-ad-manager' ); ?>
 									</button>
+									<p class="description">
+										<?php esc_html_e( 'Paste this key into the Hub API Key field on each partner site. One key works for all partner sites.', 'oc-ad-manager' ); ?>
+									</p>
 								<?php else : ?>
 									<em><?php esc_html_e( 'No key generated yet. Save settings to generate one.', 'oc-ad-manager' ); ?></em>
 								<?php endif; ?>
-								<p class="description">
-									<?php esc_html_e( 'Give this key to partner sites so they can pull ads. Keep it secret.', 'oc-ad-manager' ); ?>
-								</p>
 							</td>
 						</tr>
 						<?php if ( $api_key ) : ?>
@@ -89,7 +89,7 @@ class OCAD_Settings {
 							<th></th>
 							<td>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;"
-								      onsubmit="return confirm('<?php esc_attr_e( 'Regenerate key? Partner sites will need to update their key.', 'oc-ad-manager' ); ?>');">
+								      onsubmit="return confirm('<?php esc_attr_e( 'Regenerate key? All partner sites will stop working until you update their key.', 'oc-ad-manager' ); ?>');">
 									<input type="hidden" name="action" value="ocad_regenerate_key">
 									<?php wp_nonce_field( 'ocad_regenerate_key' ); ?>
 									<button type="submit" class="button">
@@ -99,40 +99,19 @@ class OCAD_Settings {
 							</td>
 						</tr>
 						<?php endif; ?>
-						<tr>
-							<th><?php esc_html_e( 'Partner Websites', 'oc-ad-manager' ); ?></th>
-							<td>
-								<p class="description">
-									<?php esc_html_e( 'Record your partner sites here for reference. Install Ad Manager by October Communications on each site, set it to Partner mode, and paste this hub\'s URL and API key there.', 'oc-ad-manager' ); ?>
-								</p>
-								<ul class="ocad-partner-sites-list">
-									<?php foreach ( $partner_sites as $idx => $site_url ) : ?>
-									<li>
-										<input type="url" name="ocad_partner_sites[<?php echo esc_attr( $idx ); ?>]"
-										       class="regular-text" value="<?php echo esc_attr( $site_url ); ?>"
-										       placeholder="https://partner-site.com">
-										<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
-									</li>
-									<?php endforeach; ?>
-								</ul>
-								<button type="button" class="button ocad-add-partner" style="margin-top:8px;">
-									+ <?php esc_html_e( 'Add Partner Site', 'oc-ad-manager' ); ?>
-								</button>
-							</td>
-						</tr>
 					</table>
 
-					<div style="background:#f0f6ff;border:1px solid #c3d8f7;padding:14px 18px;border-radius:4px;margin-top:10px;">
-						<strong><?php esc_html_e( 'Setup instructions for partner sites:', 'oc-ad-manager' ); ?></strong>
+					<div style="background:#f0f6ff;border:1px solid #c3d8f7;padding:14px 18px;border-radius:4px;margin-top:16px;">
+						<strong><?php esc_html_e( 'Setting up a partner site:', 'oc-ad-manager' ); ?></strong>
 						<ol style="margin:8px 0 0 20px;">
 							<li><?php esc_html_e( 'Install Ad Manager by October Communications on the partner site.', 'oc-ad-manager' ); ?></li>
-							<li><?php esc_html_e( 'Go to OC Ad Manager → Settings and set mode to "Partner".', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Go to Ad Manager → Settings on that site and choose "Partner" mode.', 'oc-ad-manager' ); ?></li>
 							<li>
 								<?php esc_html_e( 'Enter this site\'s URL:', 'oc-ad-manager' ); ?>
 								<code><?php echo esc_html( home_url( '/' ) ); ?></code>
 							</li>
-							<li><?php esc_html_e( 'Paste the API key above into the Hub API Key field.', 'oc-ad-manager' ); ?></li>
-							<li><?php esc_html_e( 'Use the same shortcodes on the partner site — ads and stats all flow back here.', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Paste the API key above into the Hub API Key field and save.', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Place the same shortcodes on the partner site. Impressions and clicks report back here automatically.', 'oc-ad-manager' ); ?></li>
 						</ol>
 					</div>
 				</div>
@@ -140,16 +119,15 @@ class OCAD_Settings {
 				<!-- ── Partner settings ── -->
 				<div class="ocad-settings-section ocad-partner-settings" <?php echo $mode !== 'partner' ? 'style="display:none;"' : ''; ?>>
 					<h3><?php esc_html_e( 'Partner Settings', 'oc-ad-manager' ); ?></h3>
-					<p><?php esc_html_e( 'This site will fetch and display ads from your Hub. All impressions and clicks are tracked on the Hub.', 'oc-ad-manager' ); ?></p>
+					<p><?php esc_html_e( 'This site pulls ads from the Hub. All impressions and clicks are tracked on the Hub site — nothing to manage here.', 'oc-ad-manager' ); ?></p>
 
 					<table class="form-table">
 						<tr>
 							<th><label for="ocad_hub_url"><?php esc_html_e( 'Hub Site URL', 'oc-ad-manager' ); ?></label></th>
 							<td>
 								<input type="url" id="ocad_hub_url" name="ocad_hub_url" class="regular-text"
-								       placeholder="https://atlantadesignfestival.com"
+								       placeholder="https://atlantadesignfestival.net"
 								       value="<?php echo esc_attr( $hub_url ); ?>">
-								<p class="description"><?php esc_html_e( 'The URL of the Atlanta Design Festival (hub) WordPress site.', 'oc-ad-manager' ); ?></p>
 							</td>
 						</tr>
 						<tr>
@@ -157,13 +135,7 @@ class OCAD_Settings {
 							<td>
 								<input type="text" id="ocad_hub_api_key" name="ocad_hub_api_key" class="regular-text"
 								       value="<?php echo esc_attr( $hub_api_key ); ?>">
-								<p class="description"><?php esc_html_e( 'Copy this from OC Ad Manager → Settings on the Hub site.', 'oc-ad-manager' ); ?></p>
-							</td>
-						</tr>
-						<tr>
-							<th><?php esc_html_e( 'Cache Duration', 'oc-ad-manager' ); ?></th>
-							<td>
-								<p class="description"><?php esc_html_e( 'Ads are cached for 5 minutes to avoid excessive requests to the Hub. This is automatic and cannot be changed here.', 'oc-ad-manager' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Copy this from Ad Manager → Settings on the Hub site.', 'oc-ad-manager' ); ?></p>
 							</td>
 						</tr>
 					</table>
@@ -189,13 +161,6 @@ class OCAD_Settings {
 		if ( $mode === 'hub' && ! get_option( 'ocad_api_key' ) ) {
 			update_option( 'ocad_api_key', self::generate_api_key() );
 		}
-
-		// Partner sites list (hub mode).
-		$raw_sites = isset( $_POST['ocad_partner_sites'] ) && is_array( $_POST['ocad_partner_sites'] )
-			? $_POST['ocad_partner_sites']
-			: array();
-		$sites = array_values( array_filter( array_map( 'esc_url_raw', $raw_sites ) ) );
-		update_option( 'ocad_partner_sites', $sites );
 
 		// Partner mode settings.
 		update_option( 'ocad_hub_url', esc_url_raw( wp_unslash( $_POST['ocad_hub_url'] ?? '' ) ) );
