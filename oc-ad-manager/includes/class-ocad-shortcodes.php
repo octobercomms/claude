@@ -41,7 +41,7 @@ class OCAD_Shortcodes {
 
 		$mode = get_option( 'ocad_site_mode', 'hub' );
 
-		// Partner mode: delegate entirely to hub via REST API.
+		// Partner mode: server-side render (partner sites use transient caching, not page caching).
 		if ( $mode === 'partner' ) {
 			$out = OCAD_Partner::render_ad( $format );
 			if ( $is_admin && empty( $out ) ) {
@@ -50,29 +50,19 @@ class OCAD_Shortcodes {
 			return $out;
 		}
 
-		$ad = OCAD_Campaign::get_active_ad_for_format( $format );
-		if ( ! $ad ) {
-			return $is_admin ? "<!-- OCAD[$format]: hub mode — no active ad found for this format -->" : '';
-		}
-
-		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
-
-		$fmt        = OCAD_FORMATS[ $format ];
-		$click_url  = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
+		// Hub mode: output a placeholder div. The frontend JS fetches the real ad via
+		// the /ocad/v1/render REST endpoint at runtime, bypassing any page-level cache
+		// (PageSpeed, WP caching plugins, Elementor, CDN, etc.).
+		$fmt         = OCAD_FORMATS[ $format ];
 		$extra_class = $atts['class'] ? ' ' . esc_attr( $atts['class'] ) : '';
 
 		return sprintf(
-			'<div class="ocad-ad ocad-ad--%1$s%5$s" style="display:inline-block;max-width:%2$dpx;">'
-			. '<a href="%3$s" target="_blank" rel="noopener noreferrer nofollow">'
-			. '<img src="%4$s" alt="%6$s" width="%2$d" height="%7$d" style="display:block;max-width:100%;height:auto;" />'
-			. '</a></div>',
-			esc_attr( $format ),         // 1
-			(int) $fmt['width'],         // 2
-			esc_url( $click_url ),        // 3
-			esc_url( $ad->image_url ),    // 4
-			$extra_class,                // 5
-			esc_attr( $ad->alt_text ?: $fmt['label'] . ' advertisement' ), // 6
-			(int) $fmt['height']         // 7
+			'<div class="ocad-ad ocad-ad--%1$s ocad-ad-slot%3$s" data-format="%1$s" '
+			. 'style="display:inline-block;max-width:%2$dpx;min-height:%4$dpx;"></div>',
+			esc_attr( $format ),   // 1
+			(int) $fmt['width'],   // 2
+			$extra_class,          // 3
+			(int) $fmt['height']   // 4
 		);
 	}
 

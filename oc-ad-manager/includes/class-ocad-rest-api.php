@@ -34,6 +34,23 @@ class OCAD_REST_API {
 			),
 		) );
 
+		// Public endpoint: hub's own frontend JS calls this to load ads after page load,
+		// bypassing any page-level cache (PageSpeed, WP caching plugins, Elementor, etc.).
+		register_rest_route( 'ocad/v1', '/render', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'render_ad_html' ),
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'format' => array(
+					'required'          => true,
+					'sanitize_callback' => 'sanitize_key',
+					'validate_callback' => function ( $value ) {
+						return array_key_exists( $value, OCAD_FORMATS );
+					},
+				),
+			),
+		) );
+
 		register_rest_route( 'ocad/v1', '/impression', array(
 			'methods'             => 'POST',
 			'callback'            => array( $this, 'log_impression' ),
@@ -93,6 +110,45 @@ class OCAD_REST_API {
 			'width'          => $fmt['width'],
 			'height'         => $fmt['height'],
 		) );
+	}
+
+	public function render_ad_html( WP_REST_Request $request ) {
+		$format = $request->get_param( 'format' );
+		$mode   = get_option( 'ocad_site_mode', 'hub' );
+
+		if ( $mode === 'partner' ) {
+			$html = OCAD_Partner::render_ad( $format );
+			$response = rest_ensure_response( array( 'html' => (string) $html ) );
+		} else {
+			$ad = OCAD_Campaign::get_active_ad_for_format( $format );
+
+			if ( ! $ad ) {
+				$response = rest_ensure_response( array( 'html' => '' ) );
+			} else {
+				OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
+
+				$fmt       = OCAD_FORMATS[ $format ];
+				$click_url = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
+
+				$html = sprintf(
+					'<a href="%1$s" target="_blank" rel="noopener noreferrer nofollow">'
+					. '<img src="%2$s" alt="%3$s" width="%4$d" height="%5$d" style="display:block;max-width:100%%;" />'
+					. '</a>',
+					esc_url( $click_url ),
+					esc_url( $ad->image_url ),
+					esc_attr( $ad->alt_text ?: $fmt['label'] . ' advertisement' ),
+					(int) $fmt['width'],
+					(int) $fmt['height']
+				);
+
+				$response = rest_ensure_response( array( 'html' => $html ) );
+			}
+		}
+
+		// Prevent reverse proxies and CDNs from caching this response.
+		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
+		$response->header( 'Pragma', 'no-cache' );
+		return $response;
 	}
 
 	public function log_impression( WP_REST_Request $request ) {
