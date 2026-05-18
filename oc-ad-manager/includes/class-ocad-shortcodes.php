@@ -32,20 +32,27 @@ class OCAD_Shortcodes {
 			'class'  => '',
 		), $atts, 'oc_ad' );
 
-		$format = sanitize_key( $atts['format'] );
+		$format   = sanitize_key( $atts['format'] );
+		$is_admin = current_user_can( 'manage_options' );
 
 		if ( ! array_key_exists( $format, OCAD_FORMATS ) ) {
-			return '';
+			return $is_admin ? "<!-- OCAD[$format]: unknown format -->" : '';
 		}
 
+		$mode = get_option( 'ocad_site_mode', 'hub' );
+
 		// Partner mode: delegate entirely to hub via REST API.
-		if ( get_option( 'ocad_site_mode', 'hub' ) === 'partner' ) {
-			return OCAD_Partner::render_ad( $format );
+		if ( $mode === 'partner' ) {
+			$out = OCAD_Partner::render_ad( $format );
+			if ( $is_admin && empty( $out ) ) {
+				return "<!-- OCAD[$format]: partner mode — hub returned empty -->";
+			}
+			return $out;
 		}
 
 		$ad = OCAD_Campaign::get_active_ad_for_format( $format );
 		if ( ! $ad ) {
-			return '';
+			return $is_admin ? "<!-- OCAD[$format]: hub mode — no active ad found for this format -->" : '';
 		}
 
 		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
