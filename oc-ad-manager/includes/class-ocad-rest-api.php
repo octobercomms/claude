@@ -3,10 +3,12 @@
  * REST API endpoints — used by partner sites to fetch ads and report impressions.
  *
  * Hub endpoints:
- *   GET  /wp-json/ocad/v1/ad?format=mpu         → returns active ad JSON
+ *   GET  /wp-json/ocad/v1/ad?format=mpu         → returns active ad JSON (partner use, API key required)
+ *   GET  /wp-json/ocad/v1/render?format=mpu      → returns ad HTML for hub's own frontend JS
+ *   GET  /wp-json/ocad/v1/track-click?id=N       → logs a click (called via JS beacon)
  *   POST /wp-json/ocad/v1/impression             → log an impression from a partner
  *
- * Authentication: X-OCAD-API-Key header or ?api_key= query param.
+ * Authentication: X-OCAD-API-Key header or ?api_key= query param (partner endpoints only).
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -47,6 +49,19 @@ class OCAD_REST_API {
 					'validate_callback' => function ( $value ) {
 						return array_key_exists( $value, OCAD_FORMATS );
 					},
+				),
+			),
+		) );
+
+		// Public endpoint: JS beacon calls this to log a click without a server-side redirect.
+		register_rest_route( 'ocad/v1', '/track-click', array(
+			'methods'             => 'GET',
+			'callback'            => array( $this, 'track_click' ),
+			'permission_callback' => '__return_true',
+			'args'                => array(
+				'id' => array(
+					'required'          => true,
+					'sanitize_callback' => 'absint',
 				),
 			),
 		) );
@@ -127,18 +142,20 @@ class OCAD_REST_API {
 			} else {
 				OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
 
-				$fmt       = OCAD_FORMATS[ $format ];
-				$click_url = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
+				$fmt = OCAD_FORMATS[ $format ];
 
+				// Use the direct campaign URL as the href so the browser status bar shows
+				// the real destination. Clicks are tracked via a JS beacon (data-ocad-click).
 				$html = sprintf(
-					'<a href="%1$s" target="_blank" rel="noopener noreferrer nofollow">'
+					'<a href="%1$s" data-ocad-click="%6$d" target="_blank" rel="noopener noreferrer nofollow">'
 					. '<img src="%2$s" alt="%3$s" width="%4$d" height="%5$d" style="display:block;max-width:100%%;" />'
 					. '</a>',
-					esc_url( $click_url ),
+					esc_url( $ad->url ),
 					esc_url( $ad->image_url ),
 					esc_attr( $ad->alt_text ?: $fmt['label'] . ' advertisement' ),
 					(int) $fmt['width'],
-					(int) $fmt['height']
+					(int) $fmt['height'],
+					(int) $ad->ad_id
 				);
 
 				$response = rest_ensure_response( array( 'html' => $html ) );
@@ -148,6 +165,19 @@ class OCAD_REST_API {
 		// Prevent reverse proxies and CDNs from caching this response.
 		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
 		$response->header( 'Pragma', 'no-cache' );
+		return $response;
+	}
+
+	public function track_click( WP_REST_Request $request ) {
+		$ad_id = $request->get_param( 'id' );
+		$ad    = OCAD_Campaign::get_ad( $ad_id );
+
+		if ( $ad ) {
+			OCAD_Tracker::log_click( $ad->campaign_id, $ad_id );
+		}
+
+		$response = rest_ensure_response( array( 'logged' => (bool) $ad ) );
+		$response->header( 'Cache-Control', 'no-store' );
 		return $response;
 	}
 

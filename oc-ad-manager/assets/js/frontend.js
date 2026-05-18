@@ -1,14 +1,12 @@
 ( function () {
 	'use strict';
 
+	var restBase = ( typeof ocadFront !== 'undefined' && ocadFront.rest ) ? ocadFront.rest : '';
+
+	// Load ad HTML into each placeholder slot via REST (bypasses page cache).
 	function loadAds() {
 		var slots = document.querySelectorAll( '.ocad-ad-slot[data-format]' );
-		if ( ! slots.length ) {
-			return;
-		}
-
-		var restBase = ( typeof ocadFront !== 'undefined' && ocadFront.rest ) ? ocadFront.rest : '';
-		if ( ! restBase ) {
+		if ( ! slots.length || ! restBase ) {
 			return;
 		}
 
@@ -34,6 +32,34 @@
 				.catch( function () {} );
 		} );
 	}
+
+	// Track ad clicks via a keepalive fetch beacon so the request survives page navigation.
+	document.addEventListener( 'click', function ( e ) {
+		if ( ! restBase ) {
+			return;
+		}
+		var target = e.target;
+		var a = null;
+		while ( target && target !== document ) {
+			if ( target.tagName === 'A' && target.hasAttribute( 'data-ocad-click' ) ) {
+				a = target;
+				break;
+			}
+			target = target.parentNode;
+		}
+		if ( ! a ) {
+			return;
+		}
+		var adId = a.getAttribute( 'data-ocad-click' );
+		if ( adId ) {
+			fetch( restBase + 'ocad/v1/track-click?id=' + encodeURIComponent( adId ), {
+				method: 'GET',
+				keepalive: true,
+				credentials: 'omit',
+				cache: 'no-store'
+			} ).catch( function () {} );
+		}
+	} );
 
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', loadAds );
