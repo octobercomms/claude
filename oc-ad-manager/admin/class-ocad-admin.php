@@ -20,7 +20,7 @@ class OCAD_Admin {
 	public function register_menus() {
 		add_menu_page(
 			__( 'Ad Manager by October Communications', 'oc-ad-manager' ),
-			__( 'OC Ad Manager', 'oc-ad-manager' ),
+			__( 'Ad Manager', 'oc-ad-manager' ),
 			'manage_options',
 			'oc-ad-manager',
 			array( $this, 'page_dashboard' ),
