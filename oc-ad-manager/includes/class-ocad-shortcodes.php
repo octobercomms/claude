@@ -15,6 +15,14 @@ class OCAD_Shortcodes {
 	 *        [oc_ad format="skyscraper"]
 	 */
 	public function render_ad( $atts ) {
+		try {
+			return $this->do_render_ad( $atts );
+		} catch ( \Throwable $e ) {
+			return '';
+		}
+	}
+
+	private function do_render_ad( $atts ) {
 		$atts = shortcode_atts( array(
 			'format' => 'mpu',
 			'class'  => '',

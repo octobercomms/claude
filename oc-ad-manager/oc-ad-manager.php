@@ -35,6 +35,13 @@ require_once OCAD_PATH . 'includes/class-ocad-rest-api.php';
 register_activation_hook( __FILE__, array( 'OCAD_Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'OCAD_Activator', 'deactivate' ) );
 
+// Ensure tables exist even when the plugin is updated without reactivation.
+add_action( 'plugins_loaded', function() {
+	if ( get_option( 'ocad_version' ) !== OCAD_VERSION ) {
+		OCAD_Activator::activate();
+	}
+} );
+
 if ( is_admin() ) {
 	require_once OCAD_PATH . 'admin/class-ocad-admin.php';
 	require_once OCAD_PATH . 'admin/class-ocad-settings.php';
