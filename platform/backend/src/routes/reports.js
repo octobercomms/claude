@@ -4,6 +4,22 @@ const { authenticate } = require('../middleware/auth');
 const reportService = require('../services/reportService');
 
 const router = express.Router();
+
+// HTML preview — no auth required (opens directly in browser tab)
+router.get('/:id/html', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT html_content FROM reports WHERE id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).send('Report not found');
+    if (!rows[0].html_content) return res.status(404).send('HTML not available');
+    res.type('html').send(rows[0].html_content);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 router.use(authenticate);
 
 // List reports
@@ -43,20 +59,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Get HTML content for preview
-router.get('/:id/html', async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      'SELECT html_content FROM reports WHERE id = $1',
-      [req.params.id]
-    );
-    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
-    if (!rows[0].html_content) return res.status(404).json({ error: 'HTML not available' });
-    res.type('html').send(rows[0].html_content);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // Trigger report generation
 router.post('/trigger', async (req, res) => {
