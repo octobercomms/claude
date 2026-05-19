@@ -3,7 +3,7 @@
  * Plugin Name: Ad Manager by October Communications
  * Plugin URI: https://octobercomms.com
  * Description: Advertising rotation manager for Atlanta Design Festival. Supports MPU, Leaderboard, and Skyscraper formats with click and impression tracking, campaign scheduling, and flexible restriction controls.
- * Version: 1.0.4
+ * Version: 1.0.5
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCAD_VERSION', '1.0.4' );
+define( 'OCAD_VERSION', '1.0.5' );
 define( 'OCAD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCAD_URL', plugin_dir_url( __FILE__ ) );
 
@@ -64,9 +64,19 @@ function ocad_enqueue_frontend_assets() {
 		OCAD_VERSION,
 		true
 	);
-	wp_localize_script( 'ocad-frontend', 'ocadFront', array(
-		'rest' => esc_url_raw( rest_url() ),
-	) );
+
+	$data = array( 'rest' => esc_url_raw( rest_url() ) );
+
+	// Partner mode: JS calls the hub directly (cross-origin) so no local REST proxy is needed.
+	// This avoids any server-side issue on the partner site and cuts out one HTTP round-trip.
+	if ( get_option( 'ocad_site_mode', 'hub' ) === 'partner' ) {
+		$hub_url = get_option( 'ocad_hub_url', '' );
+		if ( $hub_url ) {
+			$data['hubRest'] = esc_url_raw( trailingslashit( $hub_url ) . 'wp-json/' );
+		}
+	}
+
+	wp_localize_script( 'ocad-frontend', 'ocadFront', $data );
 }
 
 // Handle click-tracking redirect before any output.

@@ -1,12 +1,14 @@
 ( function () {
 	'use strict';
 
-	var restBase = ( typeof ocadFront !== 'undefined' && ocadFront.rest ) ? ocadFront.rest : '';
+	var restBase   = ( typeof ocadFront !== 'undefined' && ocadFront.rest )    ? ocadFront.rest    : '';
+	// Partner sites: call the hub directly (cross-origin). Hub mode: call local REST.
+	var renderBase = ( typeof ocadFront !== 'undefined' && ocadFront.hubRest ) ? ocadFront.hubRest : restBase;
 
 	// Load ad HTML into each placeholder slot via REST (bypasses page cache).
 	function loadAds() {
 		var slots = document.querySelectorAll( '.ocad-ad-slot[data-format]' );
-		if ( ! slots.length || ! restBase ) {
+		if ( ! slots.length || ! renderBase ) {
 			return;
 		}
 
@@ -16,7 +18,7 @@
 				return;
 			}
 
-			fetch( restBase + 'ocad/v1/render?format=' + encodeURIComponent( format ), {
+			fetch( renderBase + 'ocad/v1/render?format=' + encodeURIComponent( format ), {
 				credentials: 'omit',
 				cache: 'no-store'
 			} )
@@ -34,8 +36,9 @@
 	}
 
 	// Track ad clicks via a keepalive fetch beacon so the request survives page navigation.
+	// Uses renderBase so partner sites report clicks directly to the hub.
 	document.addEventListener( 'click', function ( e ) {
-		if ( ! restBase ) {
+		if ( ! renderBase ) {
 			return;
 		}
 		var target = e.target;
@@ -52,7 +55,7 @@
 		}
 		var adId = a.getAttribute( 'data-ocad-click' );
 		if ( adId ) {
-			fetch( restBase + 'ocad/v1/track-click?id=' + encodeURIComponent( adId ), {
+			fetch( renderBase + 'ocad/v1/track-click?id=' + encodeURIComponent( adId ), {
 				method: 'GET',
 				keepalive: true,
 				credentials: 'omit',

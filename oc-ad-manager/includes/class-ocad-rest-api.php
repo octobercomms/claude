@@ -162,9 +162,11 @@ class OCAD_REST_API {
 			}
 		}
 
-		// Prevent reverse proxies and CDNs from caching this response.
+		// Prevent caching; allow partner sites to call this endpoint cross-origin.
 		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
 		$response->header( 'Pragma', 'no-cache' );
+		$response->header( 'Access-Control-Allow-Origin', '*' );
+		$response->header( 'Access-Control-Allow-Methods', 'GET' );
 		return $response;
 	}
 
@@ -178,6 +180,8 @@ class OCAD_REST_API {
 
 		$response = rest_ensure_response( array( 'logged' => (bool) $ad ) );
 		$response->header( 'Cache-Control', 'no-store' );
+		$response->header( 'Access-Control-Allow-Origin', '*' );
+		$response->header( 'Access-Control-Allow-Methods', 'GET' );
 		return $response;
 	}
 
