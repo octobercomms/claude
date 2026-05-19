@@ -3,7 +3,7 @@
  * Plugin Name: Ad Manager by October Communications
  * Plugin URI: https://octobercomms.com
  * Description: Advertising rotation manager for Atlanta Design Festival. Supports MPU, Leaderboard, and Skyscraper formats with click and impression tracking, campaign scheduling, and flexible restriction controls.
- * Version: 1.1.1
+ * Version: 1.2.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCAD_VERSION', '1.1.1' );
+define( 'OCAD_VERSION', '1.2.0' );
 define( 'OCAD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCAD_URL', plugin_dir_url( __FILE__ ) );
 
@@ -31,6 +31,8 @@ require_once OCAD_PATH . 'includes/class-ocad-tracker.php';
 require_once OCAD_PATH . 'includes/class-ocad-partner.php';
 require_once OCAD_PATH . 'includes/class-ocad-shortcodes.php';
 require_once OCAD_PATH . 'includes/class-ocad-rest-api.php';
+require_once OCAD_PATH . 'includes/class-ocad-stripe.php';
+require_once OCAD_PATH . 'includes/class-ocad-booking-form.php';
 
 register_activation_hook( __FILE__, array( 'OCAD_Activator', 'activate' ) );
 register_deactivation_hook( __FILE__, array( 'OCAD_Activator', 'deactivate' ) );
@@ -46,15 +48,18 @@ if ( is_admin() ) {
 	require_once OCAD_PATH . 'admin/class-ocad-admin.php';
 	require_once OCAD_PATH . 'admin/class-ocad-settings.php';
 	require_once OCAD_PATH . 'admin/class-ocad-report.php';
+	require_once OCAD_PATH . 'admin/class-ocad-bookings.php';
 	new OCAD_Admin();
 	new OCAD_Settings();
 	new OCAD_Report();
+	new OCAD_Bookings();
 }
 
 $ocad_shortcodes = new OCAD_Shortcodes();
 $ocad_shortcodes->register();
 
 new OCAD_REST_API();
+new OCAD_Booking_Form();
 
 // Enqueue lightweight frontend script that loads ads via REST, bypassing page cache.
 // No JS data localisation needed — all URLs are baked into data-render / data-ocad-track

@@ -54,6 +54,15 @@ class OCAD_Admin {
 			'ocad-report',
 			array( 'OCAD_Report', 'page_report' )
 		);
+
+		add_submenu_page(
+			'oc-ad-manager',
+			__( 'Bookings', 'oc-ad-manager' ),
+			__( 'Bookings', 'oc-ad-manager' ),
+			'manage_options',
+			'ocad-bookings',
+			array( 'OCAD_Bookings', 'page_bookings' )
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -62,7 +71,7 @@ class OCAD_Admin {
 
 	public function enqueue_assets( $hook ) {
 		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
-		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings', 'ocad-report' );
+		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings', 'ocad-report', 'ocad-bookings' );
 
 		if ( ! in_array( $page, $ocad_pages, true ) ) {
 			return;

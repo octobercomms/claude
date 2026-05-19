@@ -159,8 +159,110 @@ class OCAD_Settings {
 					</table>
 				</div>
 
+				<!-- ── Booking & Payments ── -->
+				<div class="ocad-settings-section">
+					<h3><?php esc_html_e( 'Booking & Payments', 'oc-ad-manager' ); ?></h3>
+					<p><?php esc_html_e( 'Configure Stripe and pricing for the [ocad_book] booking shortcode. Add your Stripe API keys from the Stripe Dashboard → Developers → API Keys.', 'oc-ad-manager' ); ?></p>
+
+					<table class="form-table">
+						<tr>
+							<th><label for="ocad_stripe_pub_key"><?php esc_html_e( 'Stripe Publishable Key', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="text" id="ocad_stripe_pub_key" name="ocad_stripe_pub_key" class="regular-text"
+								       placeholder="pk_live_…"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_pub_key', '' ) ); ?>">
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_secret_key"><?php esc_html_e( 'Stripe Secret Key', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="password" id="ocad_stripe_secret_key" name="ocad_stripe_secret_key" class="regular-text"
+								       placeholder="sk_live_…"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_secret_key', '' ) ); ?>">
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_webhook_secret"><?php esc_html_e( 'Stripe Webhook Secret', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="password" id="ocad_stripe_webhook_secret" name="ocad_stripe_webhook_secret" class="regular-text"
+								       placeholder="whsec_…"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_webhook_secret', '' ) ); ?>">
+								<p class="description">
+									<?php esc_html_e( 'In Stripe Dashboard → Webhooks, add endpoint:', 'oc-ad-manager' ); ?>
+									<code><?php echo esc_html( rest_url( 'ocad/v1/stripe-webhook' ) ); ?></code>
+									<?php esc_html_e( 'and listen for the', 'oc-ad-manager' ); ?>
+									<code>checkout.session.completed</code> <?php esc_html_e( 'event.', 'oc-ad-manager' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_currency"><?php esc_html_e( 'Currency', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="text" id="ocad_stripe_currency" name="ocad_stripe_currency" class="small-text"
+								       placeholder="usd" maxlength="3"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_currency', 'usd' ) ); ?>">
+								<p class="description"><?php esc_html_e( 'ISO 4217 currency code, e.g. usd, gbp, eur.', 'oc-ad-manager' ); ?></p>
+							</td>
+						</tr>
+					</table>
+
+					<h4><?php esc_html_e( 'Prices per Week', 'oc-ad-manager' ); ?></h4>
+					<p class="description"><?php esc_html_e( 'Set the price per week for each ad format. Prices are in whole currency units (e.g. 150 = $150).', 'oc-ad-manager' ); ?></p>
+					<table class="form-table">
+						<?php foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) : ?>
+						<tr>
+							<th><label for="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"><?php echo esc_html( $fmt_info['label'] ); ?></label></th>
+							<td>
+								<input type="number" id="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"
+								       name="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"
+								       class="small-text" min="1" step="1"
+								       value="<?php echo esc_attr( get_option( 'ocad_price_' . $fmt_key, '' ) ); ?>"
+								       placeholder="150">
+								<span class="description"> per week</span>
+							</td>
+						</tr>
+						<?php endforeach; ?>
+					</table>
+
+					<h4><?php esc_html_e( 'Promo Codes', 'oc-ad-manager' ); ?></h4>
+					<p class="description"><?php esc_html_e( 'Add discount codes. Codes are case-insensitive. Discount is a percentage (e.g. 20 = 20% off).', 'oc-ad-manager' ); ?></p>
+					<?php
+					$promos = get_option( 'ocad_promo_codes', array() );
+					?>
+					<div id="ocad-promo-codes-list">
+						<?php foreach ( $promos as $code => $pct ) : ?>
+						<div class="ocad-promo-code-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+							<input type="text" name="ocad_promo_code[]" value="<?php echo esc_attr( $code ); ?>" class="regular-text" placeholder="CODE" style="max-width:160px;">
+							<input type="number" name="ocad_promo_pct[]" value="<?php echo esc_attr( $pct ); ?>" class="small-text" min="1" max="100" placeholder="20">
+							<span class="description">%</span>
+							<button type="button" class="button button-small ocad-remove-promo">Remove</button>
+						</div>
+						<?php endforeach; ?>
+					</div>
+					<button type="button" class="button" id="ocad-add-promo">+ Add Promo Code</button>
+				</div>
+
 				<?php submit_button( __( 'Save Settings', 'oc-ad-manager' ) ); ?>
 			</form>
+
+			<script>
+			document.getElementById('ocad-add-promo') && document.getElementById('ocad-add-promo').addEventListener('click', function() {
+				var list = document.getElementById('ocad-promo-codes-list');
+				var row = document.createElement('div');
+				row.className = 'ocad-promo-code-row';
+				row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+				row.innerHTML = '<input type="text" name="ocad_promo_code[]" class="regular-text" placeholder="CODE" style="max-width:160px;">'
+					+ '<input type="number" name="ocad_promo_pct[]" class="small-text" min="1" max="100" placeholder="20">'
+					+ '<span class="description">%</span>'
+					+ '<button type="button" class="button button-small ocad-remove-promo">Remove</button>';
+				list.appendChild(row);
+			});
+			document.addEventListener('click', function(e) {
+				if (e.target.classList.contains('ocad-remove-promo')) {
+					e.target.closest('.ocad-promo-code-row').remove();
+				}
+			});
+			</script>
 		</div>
 		<?php
 	}
@@ -183,6 +285,33 @@ class OCAD_Settings {
 		// Partner mode settings.
 		update_option( 'ocad_hub_url', esc_url_raw( wp_unslash( $_POST['ocad_hub_url'] ?? '' ) ) );
 		update_option( 'ocad_hub_api_key', sanitize_text_field( wp_unslash( $_POST['ocad_hub_api_key'] ?? '' ) ) );
+
+		// Stripe settings.
+		update_option( 'ocad_stripe_pub_key',        sanitize_text_field( wp_unslash( $_POST['ocad_stripe_pub_key'] ?? '' ) ) );
+		update_option( 'ocad_stripe_secret_key',     sanitize_text_field( wp_unslash( $_POST['ocad_stripe_secret_key'] ?? '' ) ) );
+		update_option( 'ocad_stripe_webhook_secret', sanitize_text_field( wp_unslash( $_POST['ocad_stripe_webhook_secret'] ?? '' ) ) );
+		update_option( 'ocad_stripe_currency',       strtolower( sanitize_text_field( wp_unslash( $_POST['ocad_stripe_currency'] ?? 'usd' ) ) ) );
+
+		// Prices per format.
+		foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) {
+			$price_key = 'ocad_price_' . $fmt_key;
+			if ( isset( $_POST[ $price_key ] ) ) {
+				update_option( $price_key, absint( $_POST[ $price_key ] ) );
+			}
+		}
+
+		// Promo codes.
+		$codes = isset( $_POST['ocad_promo_code'] ) ? (array) $_POST['ocad_promo_code'] : array();
+		$pcts  = isset( $_POST['ocad_promo_pct'] )  ? (array) $_POST['ocad_promo_pct']  : array();
+		$promos = array();
+		foreach ( $codes as $i => $code ) {
+			$code = strtoupper( sanitize_text_field( $code ) );
+			$pct  = isset( $pcts[ $i ] ) ? max( 1, min( 100, (int) $pcts[ $i ] ) ) : 0;
+			if ( $code && $pct ) {
+				$promos[ $code ] = $pct;
+			}
+		}
+		update_option( 'ocad_promo_codes', $promos );
 
 		wp_safe_redirect( add_query_arg(
 			array( 'page' => 'ocad-settings', 'ocad_settings' => 'saved' ),

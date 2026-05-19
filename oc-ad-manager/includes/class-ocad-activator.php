@@ -12,6 +12,7 @@ class OCAD_Activator {
 		$campaigns_table = $wpdb->prefix . 'ocad_campaigns';
 		$ads_table       = $wpdb->prefix . 'ocad_ads';
 		$tracking_table  = $wpdb->prefix . 'ocad_tracking';
+		$bookings_table  = $wpdb->prefix . 'ocad_bookings';
 
 		$sql = "
 			CREATE TABLE {$campaigns_table} (
@@ -57,6 +58,29 @@ class OCAD_Activator {
 				KEY campaign_type (campaign_id, type),
 				KEY ad_type (ad_id, type),
 				KEY created_at (created_at)
+			) {$charset};
+
+			CREATE TABLE {$bookings_table} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(200) NOT NULL,
+				email varchar(200) NOT NULL,
+				company varchar(200) DEFAULT NULL,
+				phone varchar(50) DEFAULT NULL,
+				format varchar(50) NOT NULL,
+				destination_url varchar(500) NOT NULL DEFAULT '',
+				start_date date NOT NULL,
+				weeks int(11) NOT NULL DEFAULT 1,
+				image_attachment_id bigint(20) unsigned DEFAULT NULL,
+				stripe_session_id varchar(500) DEFAULT NULL,
+				promo_code varchar(100) DEFAULT NULL,
+				discount_pct int(11) NOT NULL DEFAULT 0,
+				amount_cents int(11) NOT NULL DEFAULT 0,
+				campaign_id bigint(20) unsigned DEFAULT NULL,
+				status varchar(50) NOT NULL DEFAULT 'pending_payment',
+				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+				PRIMARY KEY (id),
+				KEY status (status),
+				KEY stripe_session_id (stripe_session_id(191))
 			) {$charset};
 		";
 
