@@ -90,6 +90,16 @@ router.post('/trigger', async (req, res) => {
   }
 });
 
+// Delete report
+router.delete('/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Resend report email
 router.post('/:id/resend', async (req, res) => {
   try {
