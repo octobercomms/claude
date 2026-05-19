@@ -1,7 +1,6 @@
 <?php
 /**
  * Partner-mode shortcode: fetches ads from the hub site via REST API.
- * Impressions are also reported back to the hub so all stats stay centralised.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -17,7 +16,7 @@ class OCAD_Partner {
 		return get_option( 'ocad_hub_api_key', '' );
 	}
 
-	public static function render_ad( $format ) {
+	public static function render_ad( $format, $source_url = '' ) {
 		if ( ! array_key_exists( $format, OCAD_FORMATS ) ) {
 			return '';
 		}
@@ -34,13 +33,17 @@ class OCAD_Partner {
 		$ad        = get_transient( $cache_key );
 
 		if ( false === $ad ) {
-			$response = wp_remote_get( $hub_url . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format ), array(
+			$api_url = $hub_url . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format );
+			if ( $source_url ) {
+				$api_url .= '&source=' . rawurlencode( $source_url );
+			}
+
+			$response = wp_remote_get( $api_url, array(
 				'headers' => array( 'X-OCAD-API-Key' => $api_key ),
 				'timeout' => 5,
 			) );
 
 			if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-				// Cache negative result for 60 s to avoid hammering a failing hub.
 				set_transient( $cache_key, 'none', 60 );
 				return '';
 			}
@@ -59,34 +62,24 @@ class OCAD_Partner {
 			return '';
 		}
 
-		// Report impression back to the hub asynchronously (non-blocking).
-		if ( ! empty( $ad['impression_url'] ) ) {
-			$visitor_ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-			wp_remote_post( $ad['impression_url'], array(
-				'blocking' => false,
-				'timeout'  => 3,
-				'headers'  => array(
-					'X-OCAD-API-Key'  => $api_key,
-					'X-Forwarded-IP' => $visitor_ip,
-					'Content-Type'   => 'application/json',
-				),
-				'body' => wp_json_encode( array(
-					'ad_id'      => $ad['ad_id'],
-					'campaign_id'=> $ad['campaign_id'],
-				) ),
-			) );
-		}
-
 		$fmt = OCAD_FORMATS[ $format ];
 
+		// Append the partner page URL so the hub can record it when the click redirect fires.
+		$click_url = $ad['click_url'];
+		if ( $source_url ) {
+			$click_url .= ( strpos( $click_url, '?' ) !== false ? '&' : '?' )
+				. 'page=' . rawurlencode( $source_url );
+		}
+
+		// Note: %% is required to produce a literal % inside sprintf.
 		return sprintf(
 			'<div class="ocad-ad ocad-ad--%1$s" style="display:inline-block;max-width:%2$dpx;">'
 			. '<a href="%3$s" target="_blank" rel="noopener noreferrer nofollow">'
-			. '<img src="%4$s" alt="%5$s" width="%2$d" height="%6$d" loading="lazy" style="display:block;max-width:100%;height:auto;" />'
+			. '<img src="%4$s" alt="%5$s" width="%2$d" height="%6$d" loading="lazy" style="display:block;max-width:100%%;height:auto;" />'
 			. '</a></div>',
 			esc_attr( $format ),
 			(int) $fmt['width'],
-			esc_url( $ad['click_url'] ),
+			esc_url( $click_url ),
 			esc_url( $ad['image_url'] ),
 			esc_attr( $ad['alt_text'] ),
 			(int) $fmt['height']

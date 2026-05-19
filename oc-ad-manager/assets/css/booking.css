@@ -1,0 +1,301 @@
+/* OC Ad Manager — Booking Form (frontend) */
+.ocad-booking {
+	max-width: 720px;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+	color: #1a202c;
+}
+
+.ocad-booking-form {
+	margin: 0;
+}
+
+.ocad-booking-section {
+	border: 1px solid #e2e8f0;
+	border-radius: 8px;
+	padding: 24px;
+	margin-bottom: 20px;
+	background: #fff;
+}
+
+.ocad-booking-section-title {
+	font-size: 1rem;
+	font-weight: 700;
+	margin: 0 0 20px;
+	padding: 0 0 12px;
+	border-bottom: 1px solid #f0f4f8;
+	color: #1a202c;
+}
+
+.ocad-booking-row {
+	display: grid;
+	gap: 16px;
+	margin-bottom: 16px;
+}
+
+.ocad-booking-row--2 {
+	grid-template-columns: 1fr 1fr;
+}
+
+.ocad-booking-row:last-child,
+.ocad-booking-field:last-child {
+	margin-bottom: 0;
+}
+
+.ocad-booking-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.ocad-booking-field label {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #374151;
+}
+
+.ocad-booking-field .ocad-req {
+	color: #e53e3e;
+}
+
+.ocad-booking-field input[type="text"],
+.ocad-booking-field input[type="email"],
+.ocad-booking-field input[type="tel"],
+.ocad-booking-field input[type="url"],
+.ocad-booking-field input[type="date"],
+.ocad-booking-field select {
+	width: 100%;
+	padding: 9px 12px;
+	border: 1px solid #cbd5e0;
+	border-radius: 6px;
+	font-size: 0.9375rem;
+	background: #fff;
+	color: #1a202c;
+	box-sizing: border-box;
+	transition: border-color 0.15s;
+}
+
+.ocad-booking-field input:focus,
+.ocad-booking-field select:focus {
+	outline: none;
+	border-color: #E7CD41;
+	box-shadow: 0 0 0 3px rgba(231,205,65,.2);
+}
+
+.ocad-booking-field input[type="file"] {
+	font-size: 0.875rem;
+	color: #4a5568;
+}
+
+.ocad-booking-field small {
+	font-size: 0.8125rem;
+	color: #718096;
+	line-height: 1.4;
+}
+
+/* Order summary */
+.ocad-booking-summary-table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-bottom: 20px;
+	font-size: 0.9375rem;
+}
+
+.ocad-booking-summary-table td {
+	padding: 8px 0;
+	border-bottom: 1px solid #f1f5f9;
+}
+
+.ocad-booking-summary-table td:last-child {
+	text-align: right;
+	font-weight: 500;
+}
+
+.ocad-booking-summary-table tr:last-child td {
+	border-bottom: none;
+}
+
+.ocad-booking-summary-total td {
+	padding-top: 12px;
+	font-size: 1.125rem;
+	font-weight: 700;
+	border-top: 2px solid #e2e8f0;
+	border-bottom: none;
+}
+
+/* Promo code */
+.ocad-booking-promo label {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: #374151;
+	display: block;
+	margin-bottom: 6px;
+}
+
+.ocad-booking-promo-row {
+	display: flex;
+	gap: 8px;
+}
+
+.ocad-booking-promo-row input {
+	flex: 1;
+	padding: 8px 12px;
+	border: 1px solid #cbd5e0;
+	border-radius: 6px;
+	font-size: 0.9375rem;
+}
+
+.ocad-booking-promo small {
+	display: block;
+	margin-top: 6px;
+	font-size: 0.8125rem;
+	min-height: 1.2em;
+}
+
+/* Buttons */
+.ocad-booking-btn {
+	padding: 11px 28px;
+	border-radius: 50px;
+	font-size: 0.9375rem;
+	font-weight: 600;
+	cursor: pointer;
+	border: 2px solid transparent;
+	transition: all 0.15s;
+	line-height: 1.2;
+}
+
+.ocad-booking-btn--primary {
+	background: #E7CD41;
+	color: #0f172a;
+	border-color: #E7CD41;
+	width: 100%;
+	font-size: 1rem;
+	padding: 14px 28px;
+}
+
+.ocad-booking-btn--primary:hover:not(:disabled) {
+	background: #d4b82f;
+	border-color: #d4b82f;
+}
+
+.ocad-booking-btn--primary:disabled {
+	opacity: 0.55;
+	cursor: not-allowed;
+}
+
+.ocad-booking-btn--outline {
+	background: #fff;
+	color: #374151;
+	border-color: #cbd5e0;
+	padding: 8px 16px;
+	font-size: 0.875rem;
+	white-space: nowrap;
+}
+
+.ocad-booking-btn--outline:hover {
+	border-color: #94a3b8;
+}
+
+/* Actions area */
+.ocad-booking-actions {
+	margin-top: 4px;
+}
+
+.ocad-booking-secure {
+	text-align: center;
+	font-size: 0.8125rem;
+	color: #718096;
+	margin: 10px 0 0;
+}
+
+/* Notices */
+.ocad-booking-notice {
+	padding: 14px 18px;
+	border-radius: 8px;
+	font-size: 0.9375rem;
+	margin-bottom: 20px;
+	line-height: 1.5;
+}
+
+.ocad-booking-notice--success {
+	background: #f0fdf4;
+	border: 1px solid #bbf7d0;
+	color: #15803d;
+}
+
+.ocad-booking-notice--info {
+	background: #eff6ff;
+	border: 1px solid #bfdbfe;
+	color: #1d4ed8;
+}
+
+.ocad-booking-notice--error {
+	background: #fef2f2;
+	border: 1px solid #fecaca;
+	color: #dc2626;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+	.ocad-booking-row--2 {
+		grid-template-columns: 1fr;
+	}
+}
+
+/* Creative upload rows */
+.ocad-booking-creative-note {
+	font-size: 0.875rem;
+	color: #718096;
+	margin: 0 0 16px;
+}
+
+.ocad-booking-creative-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	padding: 12px 0;
+	border-bottom: 1px solid #f1f5f9;
+}
+
+.ocad-booking-creative-row:last-child {
+	border-bottom: none;
+}
+
+.ocad-booking-creative-label {
+	width: 160px;
+	flex-shrink: 0;
+	padding-top: 4px;
+}
+
+.ocad-booking-creative-label strong {
+	display: block;
+	font-size: 0.9375rem;
+	color: #1a202c;
+}
+
+.ocad-booking-creative-spec {
+	font-size: 0.8125rem;
+	color: #94a3b8;
+	font-family: monospace;
+}
+
+/* Stripe card element */
+.ocad-card-element {
+	padding: 11px 12px;
+	border: 1px solid #cbd5e0;
+	border-radius: 6px;
+	background: #fff;
+	transition: border-color 0.15s;
+}
+
+.ocad-card-element--focus,
+.ocad-card-element:focus-within {
+	border-color: #E7CD41;
+	box-shadow: 0 0 0 3px rgba(231,205,65,.2);
+}
+
+.ocad-card-errors {
+	color: #dc2626;
+	font-size: 0.875rem;
+	margin-top: 6px;
+	min-height: 1.2em;
+}

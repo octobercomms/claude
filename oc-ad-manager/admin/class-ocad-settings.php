@@ -23,11 +23,10 @@ class OCAD_Settings {
 	}
 
 	public function page_settings() {
-		$mode          = get_option( 'ocad_site_mode', 'hub' );
-		$api_key       = get_option( 'ocad_api_key', '' );
-		$hub_url       = get_option( 'ocad_hub_url', '' );
-		$hub_api_key   = get_option( 'ocad_hub_api_key', '' );
-		$partner_sites = get_option( 'ocad_partner_sites', array() );
+		$mode        = get_option( 'ocad_site_mode', 'hub' );
+		$api_key     = get_option( 'ocad_api_key', '' );
+		$hub_url     = get_option( 'ocad_hub_url', '' );
+		$hub_api_key = get_option( 'ocad_hub_api_key', '' );
 
 		$message = '';
 		if ( isset( $_GET['ocad_settings'] ) ) {
@@ -66,6 +65,7 @@ class OCAD_Settings {
 				<!-- ── Hub settings ── -->
 				<div class="ocad-settings-section ocad-hub-settings" <?php echo $mode !== 'hub' ? 'style="display:none;"' : ''; ?>>
 					<h3><?php esc_html_e( 'Hub Settings', 'oc-ad-manager' ); ?></h3>
+					<p><?php esc_html_e( 'This site manages all campaigns. Partner sites use the API key below to pull ads — no configuration needed here per partner site.', 'oc-ad-manager' ); ?></p>
 
 					<table class="form-table">
 						<tr>
@@ -76,70 +76,57 @@ class OCAD_Settings {
 									<button type="button" class="button button-small ocad-copy-key" style="margin-left:8px;">
 										<?php esc_html_e( 'Copy', 'oc-ad-manager' ); ?>
 									</button>
+									<p class="description">
+										<?php esc_html_e( 'Paste this key into the Hub API Key field on each partner site. One key works for all partner sites.', 'oc-ad-manager' ); ?>
+									</p>
 								<?php else : ?>
 									<em><?php esc_html_e( 'No key generated yet. Save settings to generate one.', 'oc-ad-manager' ); ?></em>
 								<?php endif; ?>
-								<p class="description">
-									<?php esc_html_e( 'Give this key to partner sites so they can pull ads. Keep it secret.', 'oc-ad-manager' ); ?>
-								</p>
 							</td>
 						</tr>
 						<?php if ( $api_key ) : ?>
 						<tr>
 							<th></th>
 							<td>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;"
-								      onsubmit="return confirm('<?php esc_attr_e( 'Regenerate key? Partner sites will need to update their key.', 'oc-ad-manager' ); ?>');">
-									<input type="hidden" name="action" value="ocad_regenerate_key">
-									<?php wp_nonce_field( 'ocad_regenerate_key' ); ?>
-									<button type="submit" class="button">
-										<?php esc_html_e( 'Regenerate API Key', 'oc-ad-manager' ); ?>
-									</button>
-								</form>
+								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ocad_regenerate_key' ), 'ocad_regenerate_key' ) ); ?>"
+								   class="button"
+								   onclick="return confirm('<?php esc_attr_e( 'Regenerate key? All partner sites will stop working until you update their key.', 'oc-ad-manager' ); ?>');">
+									<?php esc_html_e( 'Regenerate API Key', 'oc-ad-manager' ); ?>
+								</a>
 							</td>
 						</tr>
 						<?php endif; ?>
-						<tr>
-							<th><?php esc_html_e( 'Partner Websites', 'oc-ad-manager' ); ?></th>
-							<td>
-								<p class="description">
-									<?php esc_html_e( 'Record your partner sites here for reference. Install Ad Manager by October Communications on each site, set it to Partner mode, and paste this hub\'s URL and API key there.', 'oc-ad-manager' ); ?>
-								</p>
-								<ul class="ocad-partner-sites-list">
-									<?php if ( $partner_sites ) :
-										foreach ( $partner_sites as $idx => $site_url ) : ?>
-										<li>
-											<input type="url" name="ocad_partner_sites[<?php echo esc_attr( $idx ); ?>]"
-											       class="regular-text" value="<?php echo esc_attr( $site_url ); ?>"
-											       placeholder="https://partner-site.com">
-											<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
-										</li>
-										<?php endforeach;
-									else : ?>
-										<li>
-											<input type="url" name="ocad_partner_sites[0]" class="regular-text" placeholder="https://partner-site.com">
-											<button type="button" class="button ocad-remove-partner"><?php esc_html_e( 'Remove', 'oc-ad-manager' ); ?></button>
-										</li>
-									<?php endif; ?>
-								</ul>
-								<button type="button" class="button ocad-add-partner" style="margin-top:8px;">
-									+ <?php esc_html_e( 'Add Partner Site', 'oc-ad-manager' ); ?>
-								</button>
-							</td>
-						</tr>
-					</table>
+							<tr>
+								<th><?php esc_html_e( 'Active Partner Sites', 'oc-ad-manager' ); ?></th>
+								<td>
+									<?php
+									$known = get_option( 'ocad_known_partners', array() );
+									if ( empty( $known ) ) {
+										echo '<em class="description">' . esc_html__( 'No partner sites detected yet. Partners appear here automatically once they start pulling ads from this hub.', 'oc-ad-manager' ) . '</em>';
+									} else {
+										echo '<ul style="margin:0;">';
+										foreach ( $known as $domain ) {
+											echo '<li><code>' . esc_html( $domain ) . '</code></li>';
+										}
+										echo '</ul>';
+										echo '<p class="description">' . esc_html__( 'These domains have connected to this hub. Detected automatically — no editing needed.', 'oc-ad-manager' ) . '</p>';
+									}
+									?>
+								</td>
+							</tr>
+						</table>
 
-					<div style="background:#f0f6ff;border:1px solid #c3d8f7;padding:14px 18px;border-radius:4px;margin-top:10px;">
-						<strong><?php esc_html_e( 'Setup instructions for partner sites:', 'oc-ad-manager' ); ?></strong>
+					<div style="background:#f0f6ff;border:1px solid #c3d8f7;padding:14px 18px;border-radius:4px;margin-top:16px;">
+						<strong><?php esc_html_e( 'Setting up a partner site:', 'oc-ad-manager' ); ?></strong>
 						<ol style="margin:8px 0 0 20px;">
 							<li><?php esc_html_e( 'Install Ad Manager by October Communications on the partner site.', 'oc-ad-manager' ); ?></li>
-							<li><?php esc_html_e( 'Go to OC Ad Manager → Settings and set mode to "Partner".', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Go to Ad Manager → Settings on that site and choose "Partner" mode.', 'oc-ad-manager' ); ?></li>
 							<li>
 								<?php esc_html_e( 'Enter this site\'s URL:', 'oc-ad-manager' ); ?>
 								<code><?php echo esc_html( home_url( '/' ) ); ?></code>
 							</li>
-							<li><?php esc_html_e( 'Paste the API key above into the Hub API Key field.', 'oc-ad-manager' ); ?></li>
-							<li><?php esc_html_e( 'Use the same shortcodes on the partner site — ads and stats all flow back here.', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Paste the API key above into the Hub API Key field and save.', 'oc-ad-manager' ); ?></li>
+							<li><?php esc_html_e( 'Place the same shortcodes on the partner site. Impressions and clicks report back here automatically.', 'oc-ad-manager' ); ?></li>
 						</ol>
 					</div>
 				</div>
@@ -147,16 +134,15 @@ class OCAD_Settings {
 				<!-- ── Partner settings ── -->
 				<div class="ocad-settings-section ocad-partner-settings" <?php echo $mode !== 'partner' ? 'style="display:none;"' : ''; ?>>
 					<h3><?php esc_html_e( 'Partner Settings', 'oc-ad-manager' ); ?></h3>
-					<p><?php esc_html_e( 'This site will fetch and display ads from your Hub. All impressions and clicks are tracked on the Hub.', 'oc-ad-manager' ); ?></p>
+					<p><?php esc_html_e( 'This site pulls ads from the Hub. All impressions and clicks are tracked on the Hub site — nothing to manage here.', 'oc-ad-manager' ); ?></p>
 
 					<table class="form-table">
 						<tr>
 							<th><label for="ocad_hub_url"><?php esc_html_e( 'Hub Site URL', 'oc-ad-manager' ); ?></label></th>
 							<td>
 								<input type="url" id="ocad_hub_url" name="ocad_hub_url" class="regular-text"
-								       placeholder="https://atlantadesignfestival.com"
+								       placeholder="https://atlantadesignfestival.net"
 								       value="<?php echo esc_attr( $hub_url ); ?>">
-								<p class="description"><?php esc_html_e( 'The URL of the Atlanta Design Festival (hub) WordPress site.', 'oc-ad-manager' ); ?></p>
 							</td>
 						</tr>
 						<tr>
@@ -164,20 +150,152 @@ class OCAD_Settings {
 							<td>
 								<input type="text" id="ocad_hub_api_key" name="ocad_hub_api_key" class="regular-text"
 								       value="<?php echo esc_attr( $hub_api_key ); ?>">
-								<p class="description"><?php esc_html_e( 'Copy this from OC Ad Manager → Settings on the Hub site.', 'oc-ad-manager' ); ?></p>
-							</td>
-						</tr>
-						<tr>
-							<th><?php esc_html_e( 'Cache Duration', 'oc-ad-manager' ); ?></th>
-							<td>
-								<p class="description"><?php esc_html_e( 'Ads are cached for 5 minutes to avoid excessive requests to the Hub. This is automatic and cannot be changed here.', 'oc-ad-manager' ); ?></p>
+								<p class="description"><?php esc_html_e( 'Copy this from Ad Manager → Settings on the Hub site.', 'oc-ad-manager' ); ?></p>
 							</td>
 						</tr>
 					</table>
 				</div>
 
+				<!-- ── Booking & Payments ── -->
+				<div class="ocad-settings-section">
+					<h3><?php esc_html_e( 'Booking & Payments', 'oc-ad-manager' ); ?></h3>
+					<p><?php esc_html_e( 'Configure Stripe and pricing for the [ocad_book] booking shortcode. Add your Stripe API keys from the Stripe Dashboard → Developers → API Keys.', 'oc-ad-manager' ); ?></p>
+
+					<table class="form-table">
+						<tr>
+							<th><label for="ocad_stripe_pub_key"><?php esc_html_e( 'Stripe Publishable Key', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="text" id="ocad_stripe_pub_key" name="ocad_stripe_pub_key" class="regular-text"
+								       placeholder="pk_live_…"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_pub_key', '' ) ); ?>">
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_secret_key"><?php esc_html_e( 'Stripe Secret Key', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="password" id="ocad_stripe_secret_key" name="ocad_stripe_secret_key" class="regular-text"
+								       placeholder="<?php echo get_option( 'ocad_stripe_secret_key' ) ? esc_attr__( '(saved — leave blank to keep)', 'oc-ad-manager' ) : 'sk_live_…'; ?>"
+								       value="">
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_webhook_secret"><?php esc_html_e( 'Stripe Webhook Secret', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="password" id="ocad_stripe_webhook_secret" name="ocad_stripe_webhook_secret" class="regular-text"
+								       placeholder="<?php echo get_option( 'ocad_stripe_webhook_secret' ) ? esc_attr__( '(saved — leave blank to keep)', 'oc-ad-manager' ) : 'whsec_…'; ?>"
+								       value="">
+								<p class="description">
+									<?php esc_html_e( 'In Stripe Dashboard → Webhooks, add endpoint:', 'oc-ad-manager' ); ?>
+									<code><?php echo esc_html( rest_url( 'ocad/v1/stripe-webhook' ) ); ?></code>
+									<?php esc_html_e( 'and listen for the', 'oc-ad-manager' ); ?>
+									<code>checkout.session.completed</code> <?php esc_html_e( 'event.', 'oc-ad-manager' ); ?>
+								</p>
+							</td>
+						</tr>
+						<tr>
+							<th><label for="ocad_stripe_currency"><?php esc_html_e( 'Currency', 'oc-ad-manager' ); ?></label></th>
+							<td>
+								<input type="text" id="ocad_stripe_currency" name="ocad_stripe_currency" class="small-text"
+								       placeholder="usd" maxlength="3"
+								       value="<?php echo esc_attr( get_option( 'ocad_stripe_currency', 'usd' ) ); ?>">
+								<p class="description"><?php esc_html_e( 'ISO 4217 currency code, e.g. usd, gbp, eur.', 'oc-ad-manager' ); ?></p>
+							</td>
+						</tr>
+					</table>
+
+					<h4><?php esc_html_e( 'Booking Packages', 'oc-ad-manager' ); ?></h4>
+					<p class="description"><?php esc_html_e( 'Define the packages advertisers can choose from. Each package has a name, a metric type (impressions or clicks), a quantity cap, and a flat price.', 'oc-ad-manager' ); ?></p>
+					<table class="widefat" style="max-width:700px;margin-bottom:8px;">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Package Name', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Metric', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Quantity', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Price', 'oc-ad-manager' ); ?></th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody id="ocad-packages-list">
+						<?php
+						$packages = get_option( 'ocad_booking_packages', array() );
+						foreach ( $packages as $pkg ) :
+						?>
+						<tr class="ocad-package-row">
+							<td><input type="text" name="ocad_pkg_name[]" value="<?php echo esc_attr( $pkg['name'] ?? '' ); ?>" class="regular-text" placeholder="Bronze"></td>
+							<td>
+								<select name="ocad_pkg_type[]">
+									<option value="impressions" <?php selected( ( $pkg['type'] ?? 'impressions' ), 'impressions' ); ?>>Impressions</option>
+									<option value="clicks" <?php selected( ( $pkg['type'] ?? '' ), 'clicks' ); ?>>Clicks</option>
+								</select>
+							</td>
+							<td><input type="number" name="ocad_pkg_qty[]" value="<?php echo esc_attr( $pkg['quantity'] ?? '' ); ?>" class="small-text" min="0" placeholder="10000"></td>
+							<td>
+								<input type="number" name="ocad_pkg_price[]" value="<?php echo esc_attr( $pkg['price'] ?? '' ); ?>" class="small-text" min="1" placeholder="150">
+							</td>
+							<td><button type="button" class="button button-small ocad-remove-package">Remove</button></td>
+						</tr>
+						<?php endforeach; ?>
+						</tbody>
+					</table>
+					<button type="button" class="button" id="ocad-add-package">+ Add Package</button>
+
+					<h4><?php esc_html_e( 'Promo Codes', 'oc-ad-manager' ); ?></h4>
+					<p class="description"><?php esc_html_e( 'Add discount codes. Codes are case-insensitive. Discount is a percentage (e.g. 20 = 20% off).', 'oc-ad-manager' ); ?></p>
+					<?php
+					$promos = get_option( 'ocad_promo_codes', array() );
+					?>
+					<div id="ocad-promo-codes-list">
+						<?php foreach ( $promos as $code => $pct ) : ?>
+						<div class="ocad-promo-code-row" style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+							<input type="text" name="ocad_promo_code[]" value="<?php echo esc_attr( $code ); ?>" class="regular-text" placeholder="CODE" style="max-width:160px;">
+							<input type="number" name="ocad_promo_pct[]" value="<?php echo esc_attr( $pct ); ?>" class="small-text" min="1" max="100" placeholder="20">
+							<span class="description">%</span>
+							<button type="button" class="button button-small ocad-remove-promo">Remove</button>
+						</div>
+						<?php endforeach; ?>
+					</div>
+					<button type="button" class="button" id="ocad-add-promo">+ Add Promo Code</button>
+				</div>
+
 				<?php submit_button( __( 'Save Settings', 'oc-ad-manager' ) ); ?>
 			</form>
+
+			<script>
+			document.getElementById('ocad-add-promo') && document.getElementById('ocad-add-promo').addEventListener('click', function() {
+				var list = document.getElementById('ocad-promo-codes-list');
+				var row = document.createElement('div');
+				row.className = 'ocad-promo-code-row';
+				row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+				row.innerHTML = '<input type="text" name="ocad_promo_code[]" class="regular-text" placeholder="CODE" style="max-width:160px;">'
+					+ '<input type="number" name="ocad_promo_pct[]" class="small-text" min="1" max="100" placeholder="20">'
+					+ '<span class="description">%</span>'
+					+ '<button type="button" class="button button-small ocad-remove-promo">Remove</button>';
+				list.appendChild(row);
+			});
+			document.addEventListener('click', function(e) {
+				if (e.target.classList.contains('ocad-remove-promo')) {
+					e.target.closest('.ocad-promo-code-row').remove();
+				}
+			});
+
+			// Packages
+			document.getElementById('ocad-add-package') && document.getElementById('ocad-add-package').addEventListener('click', function() {
+				var tbody = document.getElementById('ocad-packages-list');
+				var tr = document.createElement('tr');
+				tr.className = 'ocad-package-row';
+				tr.innerHTML = '<td><input type="text" name="ocad_pkg_name[]" class="regular-text" placeholder="Bronze"></td>'
+					+ '<td><select name="ocad_pkg_type[]"><option value="impressions">Impressions</option><option value="clicks">Clicks</option></select></td>'
+					+ '<td><input type="number" name="ocad_pkg_qty[]" class="small-text" min="0" placeholder="10000"></td>'
+					+ '<td><input type="number" name="ocad_pkg_price[]" class="small-text" min="1" placeholder="150"></td>'
+					+ '<td><button type="button" class="button button-small ocad-remove-package">Remove</button></td>';
+				tbody.appendChild(tr);
+			});
+			document.addEventListener('click', function(e) {
+				if (e.target.classList.contains('ocad-remove-package')) {
+					e.target.closest('.ocad-package-row').remove();
+				}
+			});
+			</script>
 		</div>
 		<?php
 	}
@@ -197,16 +315,58 @@ class OCAD_Settings {
 			update_option( 'ocad_api_key', self::generate_api_key() );
 		}
 
-		// Partner sites list (hub mode).
-		$raw_sites = isset( $_POST['ocad_partner_sites'] ) && is_array( $_POST['ocad_partner_sites'] )
-			? $_POST['ocad_partner_sites']
-			: array();
-		$sites = array_values( array_filter( array_map( 'esc_url_raw', $raw_sites ) ) );
-		update_option( 'ocad_partner_sites', $sites );
-
 		// Partner mode settings.
 		update_option( 'ocad_hub_url', esc_url_raw( wp_unslash( $_POST['ocad_hub_url'] ?? '' ) ) );
 		update_option( 'ocad_hub_api_key', sanitize_text_field( wp_unslash( $_POST['ocad_hub_api_key'] ?? '' ) ) );
+
+		// Stripe settings.
+		// Publishable key is type=text so always save it.
+		update_option( 'ocad_stripe_pub_key',  sanitize_text_field( wp_unslash( $_POST['ocad_stripe_pub_key'] ?? '' ) ) );
+		update_option( 'ocad_stripe_currency', strtolower( sanitize_text_field( wp_unslash( $_POST['ocad_stripe_currency'] ?? 'usd' ) ) ) );
+
+		// Password fields: browsers don't pre-fill them, so only overwrite when the user actually typed a value.
+		$secret_key = sanitize_text_field( wp_unslash( $_POST['ocad_stripe_secret_key'] ?? '' ) );
+		if ( $secret_key ) {
+			update_option( 'ocad_stripe_secret_key', $secret_key );
+		}
+
+		$webhook_secret = sanitize_text_field( wp_unslash( $_POST['ocad_stripe_webhook_secret'] ?? '' ) );
+		if ( $webhook_secret ) {
+			update_option( 'ocad_stripe_webhook_secret', $webhook_secret );
+		}
+
+		// Booking packages.
+		$pkg_names  = isset( $_POST['ocad_pkg_name'] )  ? (array) $_POST['ocad_pkg_name']  : array();
+		$pkg_types  = isset( $_POST['ocad_pkg_type'] )  ? (array) $_POST['ocad_pkg_type']  : array();
+		$pkg_qtys   = isset( $_POST['ocad_pkg_qty'] )   ? (array) $_POST['ocad_pkg_qty']   : array();
+		$pkg_prices = isset( $_POST['ocad_pkg_price'] ) ? (array) $_POST['ocad_pkg_price'] : array();
+		$packages   = array();
+		foreach ( $pkg_names as $i => $name ) {
+			$name  = sanitize_text_field( $name );
+			$price = absint( $pkg_prices[ $i ] ?? 0 );
+			if ( $name && $price ) {
+				$packages[] = array(
+					'name'     => $name,
+					'type'     => in_array( $pkg_types[ $i ] ?? '', array( 'impressions', 'clicks' ), true ) ? $pkg_types[ $i ] : 'impressions',
+					'quantity' => absint( $pkg_qtys[ $i ] ?? 0 ),
+					'price'    => $price,
+				);
+			}
+		}
+		update_option( 'ocad_booking_packages', $packages );
+
+		// Promo codes.
+		$codes = isset( $_POST['ocad_promo_code'] ) ? (array) $_POST['ocad_promo_code'] : array();
+		$pcts  = isset( $_POST['ocad_promo_pct'] )  ? (array) $_POST['ocad_promo_pct']  : array();
+		$promos = array();
+		foreach ( $codes as $i => $code ) {
+			$code = strtoupper( sanitize_text_field( $code ) );
+			$pct  = isset( $pcts[ $i ] ) ? max( 1, min( 100, (int) $pcts[ $i ] ) ) : 0;
+			if ( $code && $pct ) {
+				$promos[ $code ] = $pct;
+			}
+		}
+		update_option( 'ocad_promo_codes', $promos );
 
 		wp_safe_redirect( add_query_arg(
 			array( 'page' => 'ocad-settings', 'ocad_settings' => 'saved' ),

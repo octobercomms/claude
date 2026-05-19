@@ -157,7 +157,7 @@ class OCAD_Campaign {
 
 		// Fetch all active campaigns that have an ad for this format and are in date range.
 		$campaigns = $wpdb->get_results( $wpdb->prepare(
-			"SELECT c.*, a.id AS ad_id, a.image_url, a.alt_text
+			"SELECT c.*, c.id AS campaign_id, a.id AS ad_id, a.image_url, a.alt_text
 			FROM {$campaigns_table} c
 			INNER JOIN {$ads_table} a ON a.campaign_id = c.id AND a.format = %s
 			WHERE c.status = 'active'
