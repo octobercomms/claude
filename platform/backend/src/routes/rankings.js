@@ -1,0 +1,207 @@
+const express = require('express');
+const pool = require('../db');
+const { authenticate } = require('../middleware/auth');
+const dataForSEO = require('../connectors/dataforseo');
+
+const router = express.Router();
+router.use(authenticate);
+
+// List keywords for a client
+router.get('/keywords', async (req, res) => {
+  try {
+    const { client_id, tag } = req.query;
+    let query = `
+      SELECT k.*,
+        (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
+        (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1) as previous_position,
+        (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
+        (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
+        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
+      FROM seo_keywords k WHERE k.active = true
+    `;
+    const params = [];
+    if (client_id) { params.push(client_id); query += ` AND k.client_id = $${params.length}`; }
+    if (tag) { params.push(tag); query += ` AND k.tag = $${params.length}`; }
+    query += ' ORDER BY k.keyword ASC';
+
+    const { rows } = await pool.query(query, params);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Add keyword
+router.post('/keywords', async (req, res) => {
+  const { client_id, keyword, target_url, device, tag, location_code, location_name } = req.body;
+  if (!client_id || !keyword) return res.status(400).json({ error: 'client_id and keyword required' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO seo_keywords (client_id, keyword, target_url, device, tag, location_code, location_name)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [client_id, keyword, target_url || null, device || 'desktop', tag || null,
+       location_code || 2826, location_name || 'United Kingdom']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk import keywords (CSV data as JSON array)
+router.post('/keywords/bulk', async (req, res) => {
+  const { client_id, keywords } = req.body;
+  if (!client_id || !Array.isArray(keywords)) {
+    return res.status(400).json({ error: 'client_id and keywords array required' });
+  }
+  try {
+    const inserted = [];
+    for (const kw of keywords) {
+      if (!kw.keyword) continue;
+      const { rows } = await pool.query(
+        `INSERT INTO seo_keywords (client_id, keyword, target_url, device, tag, location_code, location_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         ON CONFLICT DO NOTHING RETURNING *`,
+        [client_id, kw.keyword, kw.target_url || null, kw.device || 'desktop',
+         kw.tag || null, kw.location_code || 2826, kw.location_name || 'United Kingdom']
+      );
+      if (rows.length) inserted.push(rows[0]);
+    }
+    res.json({ inserted: inserted.length, keywords: inserted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update keyword
+router.put('/keywords/:id', async (req, res) => {
+  const { keyword, target_url, device, tag, active, location_code, location_name } = req.body;
+  try {
+    const { rows } = await pool.query('SELECT * FROM seo_keywords WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Keyword not found' });
+    const k = rows[0];
+
+    const { rows: updated } = await pool.query(
+      `UPDATE seo_keywords SET
+        keyword = $1, target_url = $2, device = $3, tag = $4, active = $5,
+        location_code = $6, location_name = $7
+       WHERE id = $8 RETURNING *`,
+      [
+        keyword ?? k.keyword, target_url ?? k.target_url, device ?? k.device,
+        tag ?? k.tag, active ?? k.active, location_code ?? k.location_code,
+        location_name ?? k.location_name, req.params.id
+      ]
+    );
+    res.json(updated[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete keyword
+router.delete('/keywords/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM seo_keywords WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get rank history for a keyword (30 days)
+router.get('/keywords/:id/history', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT checked_at, position, url FROM seo_rank_history
+       WHERE keyword_id = $1
+       ORDER BY checked_at DESC LIMIT 90`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Trigger rank check for a client
+router.post('/check/:clientId', async (req, res) => {
+  try {
+    const { rows: keywords } = await pool.query(
+      'SELECT * FROM seo_keywords WHERE client_id = $1 AND active = true',
+      [req.params.clientId]
+    );
+
+    if (!keywords.length) {
+      return res.json({ message: 'No active keywords', checked: 0 });
+    }
+
+    // Run async
+    runRankChecks(keywords).catch(err => {
+      console.error('Rank check error:', err.message);
+    });
+
+    res.json({ message: 'Rank check initiated', keywords: keywords.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get tags for a client
+router.get('/tags/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT DISTINCT tag FROM seo_keywords WHERE client_id = $1 AND tag IS NOT NULL ORDER BY tag',
+      [req.params.clientId]
+    );
+    res.json(rows.map(r => r.tag));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export keywords to CSV data
+router.get('/export/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT k.keyword, k.target_url, k.device, k.tag, k.location_name,
+        (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
+        (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id) as best_position,
+        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
+      FROM seo_keywords k
+      WHERE k.client_id = $1 AND k.active = true
+      ORDER BY k.keyword
+    `, [req.params.clientId]);
+
+    const csvLines = ['keyword,target_url,device,tag,location,current_position,best_position,last_checked'];
+    for (const r of rows) {
+      csvLines.push([
+        `"${r.keyword}"`, `"${r.target_url || ''}"`, r.device,
+        `"${r.tag || ''}"`, `"${r.location_name}"`,
+        r.current_position || '', r.best_position || '',
+        r.last_checked ? r.last_checked.toISOString().split('T')[0] : ''
+      ].join(','));
+    }
+
+    res.type('text/csv').send(csvLines.join('\n'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+async function runRankChecks(keywords) {
+  for (const kw of keywords) {
+    try {
+      const result = await dataForSEO.checkRank(kw);
+      await pool.query(
+        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url)
+         VALUES ($1, CURRENT_DATE, $2, $3)
+         ON CONFLICT (keyword_id, checked_at) DO UPDATE SET position = EXCLUDED.position, url = EXCLUDED.url`,
+        [kw.id, result.position, result.url]
+      );
+    } catch (err) {
+      console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);
+    }
+  }
+}
+
+module.exports = router;
