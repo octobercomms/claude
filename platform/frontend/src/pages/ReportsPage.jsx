@@ -47,6 +47,16 @@ export default function ReportsPage() {
     }
   }
 
+  async function handleDelete(reportId) {
+    if (!window.confirm('Delete this report?')) return;
+    try {
+      await api.delete(`/reports/${reportId}`);
+      setReports(prev => prev.filter(r => r.id !== reportId));
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
   function handlePreview(reportId) {
     window.open(`/api/reports/${reportId}/html`, '_blank');
   }
@@ -156,6 +166,7 @@ export default function ReportsPage() {
                     {(r.status === 'generated' || r.status === 'sent') && (
                       <button onClick={() => handleResend(r.id)} style={styles.btnSm}>Resend</button>
                     )}
+                    <button onClick={() => handleDelete(r.id)} style={{ ...styles.btnSm, color: '#c62828' }}>✕</button>
                   </div>
                 </td>
               </tr>
