@@ -38,6 +38,7 @@ export default function ClientDetailPage() {
   const [tab, setTab] = useState('details');
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
+  const [addAnotherModal, setAddAnotherModal] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -95,12 +96,15 @@ export default function ClientDetailPage() {
     }
   }
 
-  async function addConnector(type) {
+  async function addConnector(type, label = null) {
     try {
-      const conn = await api.post(`/connectors/client/${id}`, { connector_type: type });
+      const conn = await api.post(`/connectors/client/${id}`, { connector_type: type, store_label: label });
       setConnectors(prev => [...prev, conn]);
       if (OAUTH_TYPES.includes(type)) {
-        openOAuth(type, id);
+        if (conn.status !== 'active') {
+          openOAuth(type, id);
+        }
+        // status === 'active' means credentials were auto-copied — dropdown will load automatically
       } else {
         setCredModal(conn);
         setCredValues({});
@@ -118,6 +122,10 @@ export default function ClientDetailPage() {
 
   function handleConfigSave(connectorId, config) {
     setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, config } : c));
+  }
+
+  function handleAddAnother(type) {
+    setAddAnotherModal(type);
   }
 
   function openOAuth(type, clientId) {
@@ -242,6 +250,7 @@ export default function ClientDetailPage() {
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
                         onConfigSave={handleConfigSave}
+                        onAddAnother={handleAddAnother}
                       />
                     ))}
                   </div>
@@ -332,6 +341,15 @@ export default function ClientDetailPage() {
           onClose={() => { setCredModal(null); setCredValues({}); }}
         />
       )}
+
+      {addAnotherModal && (
+        <AddAnotherModal
+          type={addAnotherModal}
+          typeName={CONNECTOR_LABELS[addAnotherModal] || addAnotherModal}
+          onConfirm={(label) => { addConnector(addAnotherModal, label); setAddAnotherModal(null); }}
+          onClose={() => setAddAnotherModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -341,7 +359,7 @@ const ACCOUNT_LABEL = {
   google_merchant_center: 'Merchant', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
 };
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
@@ -386,6 +404,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
+          {isOAuth && isActive && (
+            <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
+          )}
           {isOAuth ? (
             <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
               {isActive ? 'Reauth' : 'Connect'}
@@ -441,6 +462,34 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <button onClick={onSave} style={styles.btn}>Save & Verify</button>
+          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
+  const [label, setLabel] = useState('');
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modal}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Add another {typeName}</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
+          Give this account a short label to tell it apart (e.g. "B2C", "B2B", "UK site").
+        </p>
+        <Field label="Label">
+          <input
+            autoFocus
+            style={styles.input}
+            value={label}
+            onChange={e => setLabel(e.target.value)}
+            placeholder="e.g. B2C, B2B, UK site"
+            onKeyDown={e => e.key === 'Enter' && label.trim() && onConfirm(label.trim())}
+          />
+        </Field>
+        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <button onClick={() => onConfirm(label.trim() || null)} style={styles.btn}>Add</button>
           <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
         </div>
       </div>
