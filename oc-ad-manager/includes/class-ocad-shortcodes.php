@@ -39,20 +39,9 @@ class OCAD_Shortcodes {
 			return $is_admin ? "<!-- OCAD[$format]: unknown format -->" : '';
 		}
 
-		$mode = get_option( 'ocad_site_mode', 'hub' );
-
-		// Partner mode: server-side render (partner sites use transient caching, not page caching).
-		if ( $mode === 'partner' ) {
-			$out = OCAD_Partner::render_ad( $format );
-			if ( $is_admin && empty( $out ) ) {
-				return "<!-- OCAD[$format]: partner mode — hub returned empty -->";
-			}
-			return $out;
-		}
-
-		// Hub mode: output a placeholder div. The frontend JS fetches the real ad via
-		// the /ocad/v1/render REST endpoint at runtime, bypassing any page-level cache
-		// (PageSpeed, WP caching plugins, Elementor, CDN, etc.).
+		// Output a placeholder div for both hub and partner modes.
+		// The frontend JS fetches the real ad via /wp-json/ocad/v1/render at runtime,
+		// bypassing any page-level cache on either site.
 		$fmt         = OCAD_FORMATS[ $format ];
 		$extra_class = $atts['class'] ? ' ' . esc_attr( $atts['class'] ) : '';
 
@@ -120,7 +109,36 @@ class OCAD_Shortcodes {
 		}
 
 		// Site mode.
-		$rows[] = array( 'Site mode', esc_html( get_option( 'ocad_site_mode', 'hub' ) ) );
+		$mode = get_option( 'ocad_site_mode', 'hub' );
+		$rows[] = array( 'Site mode', esc_html( $mode ) );
+
+		// Partner-mode connectivity check.
+		if ( $mode === 'partner' ) {
+			$hub_url = get_option( 'ocad_hub_url', '' );
+			$api_key = get_option( 'ocad_hub_api_key', '' );
+			$rows[] = array( 'Hub URL', $hub_url ? esc_html( $hub_url ) : '✗ NOT SET' );
+			$rows[] = array( 'API key', $api_key ? '✓ set (' . strlen( $api_key ) . ' chars)' : '✗ NOT SET' );
+
+			if ( $hub_url && $api_key ) {
+				$test = wp_remote_get(
+					trailingslashit( $hub_url ) . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format ),
+					array( 'headers' => array( 'X-OCAD-API-Key' => $api_key ), 'timeout' => 8 )
+				);
+				if ( is_wp_error( $test ) ) {
+					$rows[] = array( 'Hub connection', '✗ WP_Error: ' . esc_html( $test->get_error_message() ) );
+				} else {
+					$code = wp_remote_retrieve_response_code( $test );
+					$body = json_decode( wp_remote_retrieve_body( $test ), true );
+					if ( $code === 200 && ! empty( $body['ad_id'] ) ) {
+						$rows[] = array( 'Hub connection', '✓ OK — ad_id=' . (int) $body['ad_id'] );
+					} elseif ( $code === 404 ) {
+						$rows[] = array( 'Hub connection', '✓ Reachable — no active ad for this format on hub' );
+					} else {
+						$rows[] = array( 'Hub connection', '✗ HTTP ' . $code . ' — ' . esc_html( wp_remote_retrieve_body( $test ) ) );
+					}
+				}
+			}
+		}
 
 		$out = '<div style="background:#fff3cd;border:2px solid #ffc107;padding:12px 16px;margin:10px 0;font-family:monospace;font-size:12px;line-height:1.7;">';
 		$out .= '<strong style="font-size:13px;">OC Ad Manager — Debug: format="' . esc_html( $format ) . '"</strong><br><br>';
