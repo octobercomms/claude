@@ -16,7 +16,11 @@
 				return;
 			}
 
-			fetch( url, { credentials: 'omit', cache: 'no-store' } )
+			// Append a timestamp so each page-load gets a fresh REST response,
+			// bypassing any server-side cache without relying on request headers
+			// (which some WAF / CDN rules intercept and drop).
+			var fetchUrl = url + ( url.indexOf( '?' ) !== -1 ? '&' : '?' ) + '_=' + Date.now();
+			fetch( fetchUrl, { credentials: 'omit' } )
 				.then( function ( r ) {
 					return r.ok ? r.json() : null;
 				} )
