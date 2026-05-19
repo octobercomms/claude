@@ -355,8 +355,14 @@ export default function ClientDetailPage() {
 }
 
 const ACCOUNT_LABEL = {
-  ga4: 'Property', google_search_console: 'Site', google_ads: 'Account',
-  google_merchant_center: 'Merchant', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
+  ga4: 'Property', google_search_console: 'Site', google_ads: 'Customer ID',
+  google_merchant_center: 'Merchant ID', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
+};
+
+const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center'];
+const MANUAL_PLACEHOLDER = {
+  google_ads: 'e.g. 123-456-7890',
+  google_merchant_center: 'e.g. 12345678',
 };
 
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
@@ -365,6 +371,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
+  const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
   const statusColor = { active: '#2e7d32', error: '#c62828', expired: '#e65100', disconnected: '#999' };
 
   React.useEffect(() => {
@@ -389,6 +396,18 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
       } catch (err) {
         alert(err.message);
       }
+    }
+  }
+
+  async function handleManualSave() {
+    const value = manualValue.trim();
+    if (!value) return;
+    const config = { value, label: value };
+    try {
+      await api.put(`/connectors/${connector.id}/config`, config);
+      onConfigSave(connector.id, config);
+    } catch (err) {
+      alert(err.message);
     }
   }
 
@@ -426,6 +445,17 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
           </span>
           {loadingAccounts ? (
             <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+          ) : accounts && accounts.length === 0 && MANUAL_ENTRY_TYPES.includes(connector.connector_type) ? (
+            <div style={{ display: 'flex', gap: 8, flex: 1 }}>
+              <input
+                style={{ ...styles.input, flex: 1, fontSize: 13, padding: '6px 10px' }}
+                value={manualValue}
+                onChange={e => setManualValue(e.target.value)}
+                placeholder={MANUAL_PLACEHOLDER[connector.connector_type] || 'Enter ID'}
+                onKeyDown={e => e.key === 'Enter' && handleManualSave()}
+              />
+              <button onClick={handleManualSave} style={styles.btnSm}>Save</button>
+            </div>
           ) : accounts && accounts.length === 0 ? (
             <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (

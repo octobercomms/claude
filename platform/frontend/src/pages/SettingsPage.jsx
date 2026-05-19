@@ -43,6 +43,13 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Google Ads',
+    hint: 'Optional. A developer token enables automatic account discovery for Google Ads connectors. Apply at ads.google.com → Tools → API Center. Without it, enter Customer IDs manually in the connector.',
+    keys: [
+      { key: 'GOOGLE_ADS_DEVELOPER_TOKEN', label: 'Developer Token', placeholder: 'ABcDEF…', type: 'password' },
+    ],
+  },
+  {
     title: 'Meta',
     hint: 'Required for Meta Ads and Instagram connectors. Create an app at developers.facebook.com.',
     keys: [

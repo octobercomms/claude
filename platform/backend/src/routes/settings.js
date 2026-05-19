@@ -6,7 +6,7 @@ const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
 
 const SETTINGS_KEYS = [
-  'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET',
+  'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_ADS_DEVELOPER_TOKEN',
   'META_APP_ID', 'META_APP_SECRET',
   'CLAUDE_API_KEY',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
