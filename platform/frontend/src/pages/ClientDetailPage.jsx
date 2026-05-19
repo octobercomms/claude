@@ -5,7 +5,7 @@ import { api } from '../utils/api';
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
   'meta_ads','instagram_insights','shopify','woocommerce',
-  'klaviyo','brevo','shopify_email','amazon_seller','dataforseo',
+  'klaviyo','brevo','shopify_email','amazon_seller',
 ];
 
 const CONNECTOR_LABELS = {
@@ -14,7 +14,7 @@ const CONNECTOR_LABELS = {
   meta_ads: 'Meta Ads', instagram_insights: 'Instagram Insights',
   shopify: 'Shopify', woocommerce: 'WooCommerce', klaviyo: 'Klaviyo',
   brevo: 'Brevo', shopify_email: 'Shopify Email',
-  amazon_seller: 'Amazon Seller', dataforseo: 'DataForSEO',
+  amazon_seller: 'Amazon Seller',
 };
 
 const CONNECTOR_GROUPS = [
@@ -22,7 +22,6 @@ const CONNECTOR_GROUPS = [
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
   { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
   { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
-  { label: 'SEO', types: ['dataforseo'] },
 ];
 
 const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights'];
@@ -419,10 +418,6 @@ function getCredentialFields(type) {
     ],
     klaviyo: [{ key: 'api_key', label: 'API Key', secret: true }],
     brevo: [{ key: 'api_key', label: 'API Key', secret: true }],
-    dataforseo: [
-      { key: 'login', label: 'Login' },
-      { key: 'password', label: 'Password', secret: true },
-    ],
     amazon_seller: [
       { key: 'seller_id', label: 'Seller ID' },
       { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / eu' },
