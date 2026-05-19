@@ -13,6 +13,12 @@ export default function RankingsPage() {
   const [historyModal, setHistoryModal] = useState(null);
   const [history, setHistory] = useState([]);
   const [showAddForm, setShowAddForm] = useState(false);
+  const [showBulkForm, setShowBulkForm] = useState(false);
+  const [bulkText, setBulkText] = useState('');
+  const [bulkDevice, setBulkDevice] = useState('desktop');
+  const [bulkTag, setBulkTag] = useState('');
+  const [bulkMsg, setBulkMsg] = useState('');
+  const [bulking, setBulking] = useState(false);
   const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
   const [checking, setChecking] = useState(false);
 
@@ -72,6 +78,33 @@ export default function RankingsPage() {
     }
   }
 
+  async function handleBulkImport(e) {
+    e.preventDefault();
+    setBulking(true);
+    setBulkMsg('');
+    try {
+      const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
+      const keywords = lines.map(line => {
+        const parts = line.split(',').map(p => p.trim());
+        return {
+          keyword: parts[0],
+          target_url: parts[1] || '',
+          tag: parts[2] || bulkTag,
+          device: bulkDevice,
+        };
+      });
+      const { inserted } = await api.post('/rankings/keywords/bulk', { client_id: selectedClient, keywords });
+      setBulkMsg(`Imported ${inserted} keyword${inserted !== 1 ? 's' : ''}.`);
+      const kws = await api.get(`/rankings/keywords?client_id=${selectedClient}`);
+      setKeywords(kws);
+      setBulkText('');
+    } catch (err) {
+      setBulkMsg(`Error: ${err.message}`);
+    } finally {
+      setBulking(false);
+    }
+  }
+
   async function handleExport() {
     const res = await api.raw(`/rankings/export/${selectedClient}`);
     const blob = await res.blob();
@@ -100,7 +133,8 @@ export default function RankingsPage() {
             <button onClick={handleCheckAll} style={styles.btnGhost} disabled={checking}>
               {checking ? 'Checking…' : 'Check All Ranks'}
             </button>
-            <button onClick={() => setShowAddForm(true)} style={styles.btn}>+ Add Keyword</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={styles.btnGhost}>Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={styles.btn}>+ Add Keyword</button>
           </div>
         )}
       </div>
@@ -154,6 +188,42 @@ export default function RankingsPage() {
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="submit" style={styles.btn}>Add</button>
               <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnGhost}>Cancel</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {showBulkForm && (
+        <div style={styles.card}>
+          <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Bulk Import Keywords</h3>
+          <p style={{ margin: '0 0 16px', fontSize: 12, color: '#888' }}>
+            One keyword per line. Optional columns: <code>keyword, target_url, tag</code>
+          </p>
+          <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <textarea
+              style={{ ...styles.input, minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+              placeholder={'enamel mug\nenamel teapot\nenamel dinner set, https://falconenamelware.com/collections/dinner, tableware'}
+              value={bulkText}
+              onChange={e => setBulkText(e.target.value)}
+              required
+            />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <div style={styles.field}>
+                <label style={styles.label}>Device (all keywords)</label>
+                <select style={styles.input} value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}>
+                  <option value="desktop">Desktop</option>
+                  <option value="mobile">Mobile</option>
+                </select>
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Default Tag (if not in line)</label>
+                <input style={styles.input} value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" />
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button type="submit" style={styles.btn} disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
+              <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} style={styles.btnGhost}>Cancel</button>
+              {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{bulkMsg}</span>}
             </div>
           </form>
         </div>
