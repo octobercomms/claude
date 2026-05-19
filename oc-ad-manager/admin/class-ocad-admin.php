@@ -45,6 +45,15 @@ class OCAD_Admin {
 			'ocad-add-campaign',
 			array( $this, 'page_campaign_form' )
 		);
+
+		add_submenu_page(
+			'oc-ad-manager',
+			__( 'Campaign Report', 'oc-ad-manager' ),
+			__( 'Campaign Report', 'oc-ad-manager' ),
+			'manage_options',
+			'ocad-report',
+			array( 'OCAD_Report', 'page_report' )
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -53,7 +62,7 @@ class OCAD_Admin {
 
 	public function enqueue_assets( $hook ) {
 		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
-		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings' );
+		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings', 'ocad-report' );
 
 		if ( ! in_array( $page, $ocad_pages, true ) ) {
 			return;
@@ -219,6 +228,11 @@ class OCAD_Admin {
 								<a href="<?php echo esc_url( admin_url( 'admin.php?page=ocad-add-campaign&campaign_id=' . $campaign->id ) ); ?>"
 								   class="button button-small">
 									<?php esc_html_e( 'Edit', 'oc-ad-manager' ); ?>
+								</a>
+
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=ocad-report&campaign_id=' . $campaign->id ) ); ?>"
+								   class="button button-small">
+									<?php esc_html_e( 'Report', 'oc-ad-manager' ); ?>
 								</a>
 
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">

@@ -16,7 +16,7 @@ class OCAD_Partner {
 		return get_option( 'ocad_hub_api_key', '' );
 	}
 
-	public static function render_ad( $format ) {
+	public static function render_ad( $format, $source_url = '' ) {
 		if ( ! array_key_exists( $format, OCAD_FORMATS ) ) {
 			return '';
 		}
@@ -33,7 +33,12 @@ class OCAD_Partner {
 		$ad        = get_transient( $cache_key );
 
 		if ( false === $ad ) {
-			$response = wp_remote_get( $hub_url . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format ), array(
+			$api_url = $hub_url . 'wp-json/ocad/v1/ad?format=' . rawurlencode( $format );
+			if ( $source_url ) {
+				$api_url .= '&source=' . rawurlencode( $source_url );
+			}
+
+			$response = wp_remote_get( $api_url, array(
 				'headers' => array( 'X-OCAD-API-Key' => $api_key ),
 				'timeout' => 5,
 			) );

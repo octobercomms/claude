@@ -100,13 +100,21 @@ class OCAD_Settings {
 						</tr>
 						<?php endif; ?>
 							<tr>
-								<th><label for="ocad_partner_sites_notes"><?php esc_html_e( 'Partner Sites', 'oc-ad-manager' ); ?></label></th>
+								<th><?php esc_html_e( 'Active Partner Sites', 'oc-ad-manager' ); ?></th>
 								<td>
-									<textarea id="ocad_partner_sites_notes" name="ocad_partner_sites_notes"
-									          rows="4" class="large-text"
-									          placeholder="https://architecturetours.us&#10;https://ma-designishuman.com&#10;https://staging.atlantadesignfestival.net"
-									><?php echo esc_textarea( get_option( 'ocad_partner_sites_notes', '' ) ); ?></textarea>
-									<p class="description"><?php esc_html_e( 'Your own record of which sites use this key — one URL per line. No functional effect; useful when you regenerate the key and need to know which sites to update.', 'oc-ad-manager' ); ?></p>
+									<?php
+									$known = get_option( 'ocad_known_partners', array() );
+									if ( empty( $known ) ) {
+										echo '<em class="description">' . esc_html__( 'No partner sites detected yet. Partners appear here automatically once they start pulling ads from this hub.', 'oc-ad-manager' ) . '</em>';
+									} else {
+										echo '<ul style="margin:0;">';
+										foreach ( $known as $domain ) {
+											echo '<li><code>' . esc_html( $domain ) . '</code></li>';
+										}
+										echo '</ul>';
+										echo '<p class="description">' . esc_html__( 'These domains have connected to this hub. Detected automatically — no editing needed.', 'oc-ad-manager' ) . '</p>';
+									}
+									?>
 								</td>
 							</tr>
 						</table>
@@ -171,9 +179,6 @@ class OCAD_Settings {
 		if ( $mode === 'hub' && ! get_option( 'ocad_api_key' ) ) {
 			update_option( 'ocad_api_key', self::generate_api_key() );
 		}
-
-		// Partner sites notes (free-text, hub mode).
-		update_option( 'ocad_partner_sites_notes', sanitize_textarea_field( wp_unslash( $_POST['ocad_partner_sites_notes'] ?? '' ) ) );
 
 		// Partner mode settings.
 		update_option( 'ocad_hub_url', esc_url_raw( wp_unslash( $_POST['ocad_hub_url'] ?? '' ) ) );

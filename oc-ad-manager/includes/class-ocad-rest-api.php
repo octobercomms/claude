@@ -1,14 +1,12 @@
 <?php
 /**
- * REST API endpoints — used by partner sites to fetch ads and report impressions.
+ * REST API endpoints.
  *
  * Hub endpoints:
- *   GET  /wp-json/ocad/v1/ad?format=mpu         → returns active ad JSON (partner use, API key required)
- *   GET  /wp-json/ocad/v1/render?format=mpu      → returns ad HTML for hub's own frontend JS
- *   GET  /wp-json/ocad/v1/track-click?id=N       → logs a click (called via JS beacon)
- *   POST /wp-json/ocad/v1/impression             → log an impression from a partner
- *
- * Authentication: X-OCAD-API-Key header or ?api_key= query param (partner endpoints only).
+ *   GET  /wp-json/ocad/v1/ad?format=mpu&source=URL  → returns active ad JSON (API key required)
+ *   GET  /wp-json/ocad/v1/render?format=mpu&source=URL  → returns ad HTML for frontend JS
+ *   GET  /wp-json/ocad/v1/track-click?id=N&page=URL  → logs a click
+ *   POST /wp-json/ocad/v1/impression  → (legacy) log impression from partner
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -33,11 +31,13 @@ class OCAD_REST_API {
 						return array_key_exists( $value, OCAD_FORMATS );
 					},
 				),
+				'source' => array(
+					'required'          => false,
+					'sanitize_callback' => 'sanitize_text_field',
+				),
 			),
 		) );
 
-		// Public endpoint: hub's own frontend JS calls this to load ads after page load,
-		// bypassing any page-level cache (PageSpeed, WP caching plugins, Elementor, etc.).
 		register_rest_route( 'ocad/v1', '/render', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'render_ad_html' ),
@@ -50,10 +50,13 @@ class OCAD_REST_API {
 						return array_key_exists( $value, OCAD_FORMATS );
 					},
 				),
+				'source' => array(
+					'required'          => false,
+					'sanitize_callback' => 'sanitize_text_field',
+				),
 			),
 		) );
 
-		// Public endpoint: JS beacon calls this to log a click without a server-side redirect.
 		register_rest_route( 'ocad/v1', '/track-click', array(
 			'methods'             => 'GET',
 			'callback'            => array( $this, 'track_click' ),
@@ -63,6 +66,10 @@ class OCAD_REST_API {
 					'required'          => true,
 					'sanitize_callback' => 'absint',
 				),
+				'page' => array(
+					'required'          => false,
+					'sanitize_callback' => 'sanitize_text_field',
+				),
 			),
 		) );
 
@@ -71,14 +78,13 @@ class OCAD_REST_API {
 			'callback'            => array( $this, 'log_impression' ),
 			'permission_callback' => array( $this, 'check_api_key' ),
 			'args'                => array(
-				'ad_id'      => array( 'required' => true, 'sanitize_callback' => 'absint' ),
-				'campaign_id'=> array( 'required' => true, 'sanitize_callback' => 'absint' ),
+				'ad_id'       => array( 'required' => true, 'sanitize_callback' => 'absint' ),
+				'campaign_id' => array( 'required' => true, 'sanitize_callback' => 'absint' ),
 			),
 		) );
 	}
 
 	public function check_api_key( WP_REST_Request $request ) {
-		// Only hub sites expose this API.
 		if ( get_option( 'ocad_site_mode', 'hub' ) !== 'hub' ) {
 			return new WP_Error( 'ocad_not_hub', 'This site is not configured as an Ad Manager hub.', array( 'status' => 403 ) );
 		}
@@ -99,8 +105,9 @@ class OCAD_REST_API {
 	}
 
 	public function get_ad( WP_REST_Request $request ) {
-		$format = $request->get_param( 'format' );
-		$ad     = OCAD_Campaign::get_active_ad_for_format( $format );
+		$format     = $request->get_param( 'format' );
+		$source_url = (string) $request->get_param( 'source' );
+		$ad         = OCAD_Campaign::get_active_ad_for_format( $format );
 
 		if ( ! $ad ) {
 			return new WP_Error( 'ocad_no_ad', 'No active ad for this format.', array( 'status' => 404 ) );
@@ -108,11 +115,21 @@ class OCAD_REST_API {
 
 		$fmt = OCAD_FORMATS[ $format ];
 
-		// Log impression here — partner sites fetch this endpoint once per cache window (5 min),
-		// so each call represents a fresh ad display on the partner site.
-		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
+		// Log impression — each call from a partner represents a fresh ad display (5-min cache window).
+		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id, $source_url );
 
-		// Click URL points back to this hub so clicks are tracked here.
+		// Record partner domain so it appears in Settings > Partner Sites.
+		if ( $source_url ) {
+			$domain = wp_parse_url( $source_url, PHP_URL_HOST );
+			if ( $domain ) {
+				$known = get_option( 'ocad_known_partners', array() );
+				if ( ! in_array( $domain, $known, true ) ) {
+					$known[] = sanitize_text_field( $domain );
+					update_option( 'ocad_known_partners', $known );
+				}
+			}
+		}
+
 		$click_url = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
 
 		return rest_ensure_response( array(
@@ -138,11 +155,12 @@ class OCAD_REST_API {
 	}
 
 	private function do_render_ad_html( WP_REST_Request $request ) {
-		$format = $request->get_param( 'format' );
-		$mode   = get_option( 'ocad_site_mode', 'hub' );
+		$format     = $request->get_param( 'format' );
+		$source_url = (string) $request->get_param( 'source' );
+		$mode       = get_option( 'ocad_site_mode', 'hub' );
 
 		if ( $mode === 'partner' ) {
-			$html     = OCAD_Partner::render_ad( $format );
+			$html     = OCAD_Partner::render_ad( $format, $source_url );
 			$response = rest_ensure_response( array( 'html' => (string) $html ) );
 		} else {
 			$ad = OCAD_Campaign::get_active_ad_for_format( $format );
@@ -150,11 +168,11 @@ class OCAD_REST_API {
 			if ( ! $ad ) {
 				$response = rest_ensure_response( array( 'html' => '' ) );
 			} else {
-				OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
+				OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id, $source_url );
 
-				$fmt = OCAD_FORMATS[ $format ];
-
+				$fmt       = OCAD_FORMATS[ $format ];
 				$track_url = rest_url( 'ocad/v1/track-click?id=' . (int) $ad->ad_id );
+
 				$html = sprintf(
 					'<a href="%1$s" data-ocad-track="%6$s" target="_blank" rel="noopener noreferrer nofollow">'
 					. '<img src="%2$s" alt="%3$s" width="%4$d" height="%5$d" style="display:block;max-width:100%%;" />'
@@ -177,11 +195,12 @@ class OCAD_REST_API {
 	}
 
 	public function track_click( WP_REST_Request $request ) {
-		$ad_id = $request->get_param( 'id' );
-		$ad    = OCAD_Campaign::get_ad( $ad_id );
+		$ad_id      = $request->get_param( 'id' );
+		$source_url = (string) $request->get_param( 'page' );
+		$ad         = OCAD_Campaign::get_ad( $ad_id );
 
 		if ( $ad ) {
-			OCAD_Tracker::log_click( $ad->campaign_id, $ad_id );
+			OCAD_Tracker::log_click( $ad->campaign_id, $ad_id, $source_url );
 		}
 
 		$response = rest_ensure_response( array( 'logged' => (bool) $ad ) );
@@ -190,30 +209,15 @@ class OCAD_REST_API {
 	}
 
 	public function log_impression( WP_REST_Request $request ) {
-		$ad_id      = $request->get_param( 'ad_id' );
+		$ad_id       = $request->get_param( 'ad_id' );
 		$campaign_id = $request->get_param( 'campaign_id' );
 
-		// Verify the ad actually belongs to the campaign.
 		$ad = OCAD_Campaign::get_ad( $ad_id );
 		if ( ! $ad || (int) $ad->campaign_id !== $campaign_id ) {
 			return new WP_Error( 'ocad_invalid', 'Invalid ad or campaign.', array( 'status' => 400 ) );
 		}
 
-		// Log with the remote IP from the partner site request (passed in header if available).
-		global $wpdb;
-		$table = $wpdb->prefix . 'ocad_tracking';
-
-		$remote_ip = sanitize_text_field( $request->get_header( 'X-Forwarded-IP' ) ?: '' );
-
-		$wpdb->insert( $table, array(
-			'campaign_id'     => $campaign_id,
-			'ad_id'           => $ad_id,
-			'type'            => 'impression',
-			'ip_hash'         => $remote_ip ? hash( 'sha256', $remote_ip ) : null,
-			'user_agent_hash' => null,
-			'created_at'      => current_time( 'mysql' ),
-		) );
-
+		OCAD_Tracker::log_impression( $campaign_id, $ad_id );
 		return rest_ensure_response( array( 'logged' => true ) );
 	}
 }

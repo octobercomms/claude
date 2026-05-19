@@ -51,6 +51,7 @@ class OCAD_Activator {
 				type varchar(20) NOT NULL,
 				ip_hash varchar(64) DEFAULT NULL,
 				user_agent_hash varchar(64) DEFAULT NULL,
+				source_url varchar(500) DEFAULT NULL,
 				created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 				PRIMARY KEY (id),
 				KEY campaign_type (campaign_id, type),
