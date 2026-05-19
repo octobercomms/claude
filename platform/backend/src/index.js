@@ -55,12 +55,11 @@ app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// Load DB settings then start
-loadSettingsFromDb().then(() => {
-  require('./services/scheduler');
-  const server = app.listen(PORT, () => {
-    console.log(`October Platform backend running on port ${PORT}`);
-  });
-  });
+// Start server, load DB settings in background
+require('./services/scheduler');
+const server = app.listen(PORT, () => {
+  console.log(`October Platform backend running on port ${PORT}`);
+  loadSettingsFromDb();
+});
 
 module.exports = server;
