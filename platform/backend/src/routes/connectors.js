@@ -146,10 +146,25 @@ router.post('/client/:clientId', async (req, res) => {
   if (!connector_type) return res.status(400).json({ error: 'connector_type required' });
   try {
     const { rows } = await pool.query(
-      'INSERT INTO connectors (client_id, connector_type, store_label) VALUES ($1, $2, $3) RETURNING id, client_id, connector_type, store_label, status',
+      'INSERT INTO connectors (client_id, connector_type, store_label) VALUES ($1, $2, $3) RETURNING id, client_id, connector_type, store_label, status, config',
       [req.params.clientId, connector_type, store_label || null]
     );
-    res.status(201).json(rows[0]);
+    const newConn = { ...rows[0] };
+
+    // Auto-copy OAuth credentials from an existing active connector of the same type
+    const { rows: existing } = await pool.query(
+      `SELECT credentials FROM connectors WHERE client_id = $1 AND connector_type = $2 AND status = 'active' AND id != $3 LIMIT 1`,
+      [req.params.clientId, connector_type, newConn.id]
+    );
+    if (existing.length && existing[0].credentials && Object.keys(existing[0].credentials).length > 0) {
+      await pool.query(
+        `UPDATE connectors SET credentials = $1, status = 'active' WHERE id = $2`,
+        [JSON.stringify(existing[0].credentials), newConn.id]
+      );
+      newConn.status = 'active';
+    }
+
+    res.status(201).json(newConn);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
