@@ -144,6 +144,80 @@ async function fetchGoogleAdsData(credentials, params) {
   return data;
 }
 
+async function listGA4Properties(credentials) {
+  const creds = await getValidToken(credentials);
+  const { data } = await axios.get(
+    'https://analyticsadmin.googleapis.com/v1beta/accountSummaries',
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+  const options = [];
+  for (const account of (data.accountSummaries || [])) {
+    for (const property of (account.propertySummaries || [])) {
+      options.push({
+        value: property.property.replace('properties/', ''),
+        label: `${property.displayName} — ${account.displayName}`,
+      });
+    }
+  }
+  return options;
+}
+
+async function listSearchConsoleSites(credentials) {
+  const creds = await getValidToken(credentials);
+  const { data } = await axios.get(
+    'https://www.googleapis.com/webmasters/v3/sites',
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+  return (data.siteEntry || []).map(site => ({
+    value: site.siteUrl,
+    label: site.siteUrl,
+  }));
+}
+
+async function listGoogleAdsAccounts(credentials) {
+  const creds = await getValidToken(credentials);
+  const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+  if (!devToken) return [];
+  try {
+    const { data } = await axios.get(
+      'https://googleads.googleapis.com/v17/customers:listAccessibleCustomers',
+      { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
+    );
+    return (data.resourceNames || []).map(name => ({
+      value: name.replace('customers/', ''),
+      label: name.replace('customers/', ''),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function listMerchantAccounts(credentials) {
+  const creds = await getValidToken(credentials);
+  try {
+    const { data } = await axios.get(
+      'https://shoppingcontent.googleapis.com/content/v2.1/accounts/authinfo',
+      { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    );
+    return (data.accountIdentifiers || []).map(acc => ({
+      value: String(acc.merchantId || acc.aggregatorId),
+      label: `Merchant ${acc.merchantId || acc.aggregatorId}`,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function listAccounts(credentials, connectorType) {
+  switch (connectorType) {
+    case 'ga4': return listGA4Properties(credentials);
+    case 'google_search_console': return listSearchConsoleSites(credentials);
+    case 'google_ads': return listGoogleAdsAccounts(credentials);
+    case 'google_merchant_center': return listMerchantAccounts(credentials);
+    default: return [];
+  }
+}
+
 async function fetchData(credentials, params) {
   const { connectorType, ...rest } = params;
   switch (connectorType) {
@@ -170,4 +244,4 @@ function getPreviousPeriodEnd(start, end) {
   return prevEnd.toISOString().split('T')[0];
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts };

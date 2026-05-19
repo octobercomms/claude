@@ -116,6 +116,10 @@ export default function ClientDetailPage() {
     setConnectors(prev => prev.filter(c => c.id !== connectorId));
   }
 
+  function handleConfigSave(connectorId, config) {
+    setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, config } : c));
+  }
+
   function openOAuth(type, clientId) {
     const provider = type.startsWith('google') || type === 'ga4' ? 'google' : 'meta';
     const url = `/auth/${provider}/start?client_id=${clientId}`;
@@ -237,6 +241,7 @@ export default function ClientDetailPage() {
                         onOpenOAuth={openOAuth}
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
+                        onConfigSave={handleConfigSave}
                       />
                     ))}
                   </div>
@@ -331,34 +336,85 @@ export default function ClientDetailPage() {
   );
 }
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete }) {
+const ACCOUNT_LABEL = {
+  ga4: 'Property', google_search_console: 'Site', google_ads: 'Account',
+  google_merchant_center: 'Merchant', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
+};
+
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
+  const isActive = connector.status === 'active';
+  const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
+  const [loadingAccounts, setLoadingAccounts] = React.useState(false);
+  const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
   const statusColor = { active: '#2e7d32', error: '#c62828', expired: '#e65100', disconnected: '#999' };
 
+  React.useEffect(() => {
+    if (isOAuth && isActive) {
+      setLoadingAccounts(true);
+      api.get(`/connectors/${connector.id}/accounts`)
+        .then(data => setAccounts(data))
+        .catch(() => setAccounts([]))
+        .finally(() => setLoadingAccounts(false));
+    }
+  }, [connector.id, isOAuth, isActive]);
+
+  async function handleAccountSelect(e) {
+    const value = e.target.value;
+    const option = (accounts || []).find(a => a.value === value);
+    setSelectedValue(value);
+    if (value) {
+      const config = { value, label: option?.label || value };
+      try {
+        await api.put(`/connectors/${connector.id}/config`, config);
+        onConfigSave(connector.id, config);
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  }
+
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 16px', background: '#f9f9f9', borderRadius: 4, border: '1px solid #e8e8e8' }}>
-      <div>
-        <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
-        {connector.store_label && <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>({connector.store_label})</span>}
-        <span style={{ marginLeft: 12, fontSize: 11, fontWeight: 600, color: statusColor[connector.status] || '#888' }}>
-          {connector.status}
-        </span>
+    <div style={{ padding: '10px 16px', background: '#f9f9f9', borderRadius: 4, border: '1px solid #e8e8e8' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
+          {connector.store_label && <span style={{ fontSize: 12, color: '#888' }}>({connector.store_label})</span>}
+          <span style={{ fontSize: 11, fontWeight: 600, color: isOAuth && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+            {isOAuth && isActive ? '✓ Authorised' : connector.status}
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
+          {isOAuth ? (
+            <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
+              {isActive ? 'Reauth' : 'Connect'}
+            </button>
+          ) : (
+            <button onClick={() => onEditCredentials(connector)} style={styles.btnSm}>
+              {isActive ? 'Update' : 'Connect'}
+            </button>
+          )}
+          <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
+        </div>
       </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        {connector.status !== 'disconnected' && (
-          <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>
-        )}
-        {isOAuth ? (
-          <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
-            {connector.status === 'active' ? 'Reauth' : 'Connect'}
-          </button>
-        ) : (
-          <button onClick={() => onEditCredentials(connector)} style={styles.btnSm}>
-            {connector.status === 'active' ? 'Update' : 'Connect'}
-          </button>
-        )}
-        <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
-      </div>
+      {isOAuth && isActive && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
+            {ACCOUNT_LABEL[connector.connector_type] || 'Account'}
+          </span>
+          {loadingAccounts ? (
+            <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+          ) : accounts && accounts.length === 0 ? (
+            <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
+          ) : accounts ? (
+            <select style={{ ...styles.input, flex: 1, fontSize: 13, padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
+              <option value="">— Select —</option>
+              {accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }
