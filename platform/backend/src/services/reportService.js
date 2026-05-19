@@ -83,7 +83,6 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   );
 
   // Send email
-  const topMetrics = extractTopMetrics(rawData);
   await sendReport(report.id, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
 }
 
