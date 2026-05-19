@@ -1,19 +1,16 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
 
-let transporter;
-
 function getTransporter() {
-  if (!transporter) {
-    transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
+  const { buildTransporter } = require('../routes/settings');
+  return buildTransporter();
+}
+
+function getSenderAddress() {
+  if (process.env.EMAIL_PROVIDER === 'ses') {
+    return process.env.SES_FROM_EMAIL || process.env.GMAIL_USER;
   }
-  return transporter;
+  return `"October Communications" <${process.env.GMAIL_USER}>`;
 }
 
 async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath, metrics }) {
@@ -21,7 +18,7 @@ async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath,
   const html = buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics });
 
   const mailOptions = {
-    from: `"October Communications" <${process.env.GMAIL_USER}>`,
+    from: getSenderAddress(),
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     html,
@@ -40,7 +37,7 @@ async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metric
   const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
 
   const mailOptions = {
-    from: `"October Communications" <${process.env.GMAIL_USER}>`,
+    from: getSenderAddress(),
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     html,
@@ -79,7 +76,7 @@ async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl })
   `;
 
   return getTransporter().sendMail({
-    from: `"October Communications" <${process.env.GMAIL_USER}>`,
+    from: getSenderAddress(),
     to: process.env.ALERT_EMAIL,
     subject,
     html,

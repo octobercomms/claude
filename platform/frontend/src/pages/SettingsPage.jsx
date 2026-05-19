@@ -3,18 +3,35 @@ import { api } from '../utils/api';
 
 const KEY_GROUPS = [
   {
-    title: 'Email (Gmail SMTP)',
-    hint: 'Outbound email for report delivery. Requires a Gmail App Password — Google Account → Security → 2-Step Verification → App passwords.',
+    title: 'Claude AI',
+    hint: 'Used for generating executive summaries and recommendations in reports.',
+    keys: [
+      { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Email Provider',
+    hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',
+    keys: [
+      { key: 'EMAIL_PROVIDER', label: 'Provider', placeholder: 'gmail or ses', type: 'text' },
+    ],
+  },
+  {
+    title: 'Gmail SMTP',
+    hint: 'Used when EMAIL_PROVIDER is set to "gmail". Requires a Gmail App Password — Google Account → Security → 2-Step Verification → App passwords.',
     keys: [
       { key: 'GMAIL_USER', label: 'Gmail Address', placeholder: 'octobercommsreports@gmail.com', type: 'text' },
       { key: 'GMAIL_APP_PASSWORD', label: 'Gmail App Password', placeholder: 'xxxx xxxx xxxx xxxx', type: 'password' },
     ],
   },
   {
-    title: 'Claude AI',
-    hint: 'Used for generating executive summaries and recommendations in reports.',
+    title: 'Amazon SES',
+    hint: 'Used when EMAIL_PROVIDER is set to "ses". Generate SMTP credentials in the SES console: Verified identities → SMTP settings → Create SMTP credentials.',
     keys: [
-      { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
+      { key: 'SES_FROM_EMAIL', label: 'From Email (verified in SES)', placeholder: 'reports@octobercomms.com', type: 'text' },
+      { key: 'SES_REGION', label: 'AWS Region', placeholder: 'eu-west-1', type: 'text' },
+      { key: 'SES_SMTP_USER', label: 'SMTP Username', placeholder: 'AKIA…', type: 'text' },
+      { key: 'SES_SMTP_PASS', label: 'SMTP Password', placeholder: '…', type: 'password' },
     ],
   },
   {
@@ -60,6 +77,8 @@ const KEY_GROUPS = [
 
 export default function SettingsPage() {
   const [values, setValues] = useState({});
+  const [revealed, setRevealed] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState({});
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [testEmail, setTestEmail] = useState('');
@@ -69,6 +88,16 @@ export default function SettingsPage() {
   useEffect(() => {
     api.get('/settings/platform-keys').then(data => setValues(data));
   }, []);
+
+  async function toggleReveal(key) {
+    if (!revealed) {
+      // First reveal — fetch all decrypted values
+      const data = await api.get('/settings/platform-keys/values');
+      setValues(data);
+      setRevealed(true);
+    }
+    setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }));
+  }
 
   function handleChange(key, val) {
     setValues(prev => ({ ...prev, [key]: val }));
@@ -81,9 +110,10 @@ export default function SettingsPage() {
     try {
       const { updated } = await api.post('/settings/platform-keys', values);
       setSaveMsg(updated.length ? `Saved: ${updated.join(', ')}` : 'No changes to save.');
-      // Reload to show masked values
       const fresh = await api.get('/settings/platform-keys');
       setValues(fresh);
+      setRevealed(false);
+      setVisibleKeys({});
     } catch (err) {
       setSaveMsg(`Error: ${err.message}`);
     } finally {
@@ -134,14 +164,26 @@ export default function SettingsPage() {
                 {group.keys.map(({ key, label, placeholder, type }) => (
                   <div key={key} style={styles.field}>
                     <label style={styles.label}>{label}</label>
-                    <input
-                      type={type}
-                      style={styles.input}
-                      value={values[key] || ''}
-                      placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
-                      onChange={e => handleChange(key, e.target.value)}
-                      autoComplete="off"
-                    />
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input
+                        type={visibleKeys[key] ? 'text' : type}
+                        style={{ ...styles.input, flex: 1 }}
+                        value={values[key] || ''}
+                        placeholder={!revealed && values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                        onChange={e => handleChange(key, e.target.value)}
+                        autoComplete="off"
+                      />
+                      {type === 'password' && (
+                        <button
+                          type="button"
+                          onClick={() => toggleReveal(key)}
+                          style={styles.eyeBtn}
+                          title={visibleKeys[key] ? 'Hide' : 'Show'}
+                        >
+                          {visibleKeys[key] ? '🙈' : '👁️'}
+                        </button>
+                      )}
+                    </div>
                     <span style={styles.envHint}><code>{key}</code></span>
                   </div>
                 ))}
@@ -162,7 +204,7 @@ export default function SettingsPage() {
         </form>
 
         <Section title="Send Test Email">
-          <p style={styles.hint}>Verify Gmail SMTP is working after saving credentials above.</p>
+          <p style={styles.hint}>Verify your email provider is working after saving credentials above.</p>
           <form onSubmit={handleTestEmail} style={{ display: 'flex', gap: 10, marginTop: 12 }}>
             <input
               type="email" placeholder="Send test email to…" required
@@ -207,6 +249,7 @@ const styles = {
   field: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: { fontSize: 11, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
+  eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 10px', cursor: 'pointer', fontSize: 14, lineHeight: 1 },
   envHint: { fontSize: 11, color: '#aaa' },
   btn: { background: '#000000', color: 'white', border: 'none', borderRadius: 4, padding: '9px 20px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
 };
