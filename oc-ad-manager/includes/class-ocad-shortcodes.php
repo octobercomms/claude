@@ -151,15 +151,6 @@ class OCAD_Shortcodes {
 			$own_render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
 			$rows[] = array( 'Render URL (data-render)', esc_html( $own_render_url ) );
 
-			// Direct PHP call to OCAD_Partner::render_ad() — tests the full proxy chain
-			// without the overhead of an extra HTTP round-trip.
-			$partner_html = OCAD_Partner::render_ad( $format );
-			if ( $partner_html !== '' ) {
-				$rows[] = array( 'Partner render (direct)', '✓ OK — ' . strlen( $partner_html ) . ' chars of HTML' );
-			} else {
-				$rows[] = array( 'Partner render (direct)', '✗ Empty — hub proxy failed, check Hub URL / API key / hub ad status' );
-			}
-
 			// Hub's own render endpoint (server-to-server check).
 			if ( $hub_url ) {
 				$hub_render_url = trailingslashit( $hub_url ) . 'wp-json/ocad/v1/render?format=' . rawurlencode( $format );
