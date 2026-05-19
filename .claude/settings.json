@@ -5,5 +5,8 @@
       "source": "https://github.com/AgriciDaniel/claude-blog",
       "installedAt": "~/.claude/skills/blog"
     }
-  ]
+  ],
+  "env": {
+    "COMPOSIO_API_KEY": "uak_tv4rvQTcajAZ4Qz3vqOD"
+  }
 }
