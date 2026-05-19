@@ -66,9 +66,9 @@ class OCAD_Bookings {
 					<tr>
 						<th style="width:140px;">Date</th>
 						<th>Advertiser</th>
-						<th style="width:110px;">Format</th>
-						<th style="width:60px;">Weeks</th>
+						<th style="width:160px;">Campaign / Package</th>
 						<th style="width:90px;">Start</th>
+						<th style="width:90px;">End</th>
 						<th style="width:90px;">Amount</th>
 						<th style="width:110px;">Status</th>
 						<th>Actions</th>
@@ -84,7 +84,6 @@ class OCAD_Bookings {
 						'declined'        => array( 'ocad-badge ocad-badge--red',     'Declined' ),
 					);
 					list( $badge_class, $badge_label ) = $status_map[ $b->status ] ?? array( 'ocad-badge', $b->status );
-					$fmt = OCAD_FORMATS[ $b->format ] ?? null;
 				?>
 				<tr>
 					<td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $b->created_at ) ) ); ?></td>
@@ -94,13 +93,14 @@ class OCAD_Bookings {
 						<br><a href="mailto:<?php echo esc_attr( $b->email ); ?>"><?php echo esc_html( $b->email ); ?></a>
 					</td>
 					<td>
-						<?php echo $fmt ? esc_html( $fmt['label'] ) : esc_html( $b->format ); ?>
+						<strong><?php echo esc_html( $b->campaign_name ?: '—' ); ?></strong>
+						<br><span class="description"><?php echo esc_html( $b->package_name ?: $b->format ); ?></span>
 						<?php if ( $b->promo_code ) : ?>
 							<br><span class="description"><?php echo esc_html( $b->promo_code . ' −' . $b->discount_pct . '%' ); ?></span>
 						<?php endif; ?>
 					</td>
-					<td><?php echo (int) $b->weeks; ?></td>
 					<td><?php echo esc_html( $b->start_date ); ?></td>
+					<td><?php echo esc_html( $b->end_date ?: '—' ); ?></td>
 					<td><?php echo esc_html( $amount_display ); ?></td>
 					<td><span class="<?php echo esc_attr( $badge_class ); ?>"><?php echo esc_html( $badge_label ); ?></span></td>
 					<td class="ocad-actions">
@@ -149,29 +149,39 @@ class OCAD_Bookings {
 			exit;
 		}
 
-		$fmt = OCAD_FORMATS[ $booking->format ] ?? null;
-		if ( ! $fmt ) {
-			wp_safe_redirect( add_query_arg( array( 'page' => 'ocad-bookings', 'ocad_message' => 'error' ), admin_url( 'admin.php' ) ) );
-			exit;
-		}
+		$end_date = $booking->end_date ?: date( 'Y-m-d', strtotime( '+4 weeks' ) );
 
-		// Calculate end date from start_date + weeks.
-		$end_date = date( 'Y-m-d', strtotime( $booking->start_date . ' +' . (int) $booking->weeks . ' weeks' ) );
+		// Determine campaign restrictions from package.
+		$restrict_impressions = $booking->package_type === 'impressions' && $booking->package_quantity > 0 ? 1 : 0;
+		$restrict_clicks      = $booking->package_type === 'clicks'      && $booking->package_quantity > 0 ? 1 : 0;
 
 		// Create campaign.
 		$campaign_id = OCAD_Campaign::create( array(
-			'name'        => ( $booking->company ?: $booking->name ) . ' — ' . $fmt['label'],
-			'client_name' => $booking->company ?: $booking->name,
-			'url'         => $booking->destination_url,
-			'status'      => 'active',
-			'start_date'  => $booking->start_date,
-			'end_date'    => $end_date,
+			'name'                 => $booking->campaign_name ?: ( $booking->company ?: $booking->name ),
+			'client_name'          => $booking->company ?: $booking->name,
+			'url'                  => $booking->destination_url,
+			'status'               => 'active',
+			'start_date'           => $booking->start_date,
+			'end_date'             => $booking->end_date ?: $end_date,
+			'restrict_impressions' => $restrict_impressions,
+			'max_impressions'      => $restrict_impressions ? $booking->package_quantity : null,
+			'restrict_clicks'      => $restrict_clicks,
+			'max_clicks'           => $restrict_clicks ? $booking->package_quantity : null,
 		) );
 
-		// Save ad.
-		if ( $booking->image_attachment_id ) {
-			$image_url = wp_get_attachment_url( $booking->image_attachment_id );
-			OCAD_Campaign::save_ad( $campaign_id, $booking->format, $image_url );
+		// Save ads for each format that was uploaded.
+		$format_map = array(
+			'mpu'        => $booking->image_attachment_id,
+			'leaderboard'=> $booking->image_attachment_id_lb,
+			'skyscraper' => $booking->image_attachment_id_sky,
+		);
+		foreach ( $format_map as $fmt_key => $att_id ) {
+			if ( $att_id ) {
+				$image_url = wp_get_attachment_url( $att_id );
+				if ( $image_url ) {
+					OCAD_Campaign::save_ad( $campaign_id, $fmt_key, $image_url );
+				}
+			}
 		}
 
 		// Update booking.
@@ -187,7 +197,7 @@ class OCAD_Bookings {
 		wp_mail(
 			$booking->email,
 			'Your ad is now live — ' . get_bloginfo( 'name' ),
-			"Hi {$booking->name},\n\nGreat news — your {$fmt['label']} ad is now live and running until {$end_formatted}.\n\nThank you for advertising with us!\n\n" . get_bloginfo( 'name' )
+			"Hi,\n\nGreat news — your campaign \"{$booking->campaign_name}\" is now live and running until {$end_formatted}.\n\nThank you for advertising with us!\n\n" . get_bloginfo( 'name' )
 		);
 
 		wp_safe_redirect( add_query_arg( array( 'page' => 'ocad-bookings', 'ocad_message' => 'activated' ), admin_url( 'admin.php' ) ) );

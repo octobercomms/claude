@@ -9,27 +9,21 @@ class OCAD_Stripe {
 		return get_option( 'ocad_stripe_secret_key', '' );
 	}
 
-	public static function create_session( $booking, $amount_cents, $line_item_name, $success_url, $cancel_url ) {
+	public static function create_payment_intent( $amount_cents, $currency, $metadata = array() ) {
 		$secret = self::secret_key();
 		if ( ! $secret ) {
 			return new WP_Error( 'ocad_no_stripe', 'Stripe not configured.' );
 		}
 
 		$body = array(
-			'mode'                                                        => 'payment',
-			'success_url'                                                 => $success_url,
-			'cancel_url'                                                  => $cancel_url,
-			'customer_email'                                              => $booking['email'],
-			'line_items[0][price_data][currency]'                        => get_option( 'ocad_stripe_currency', 'usd' ),
-			'line_items[0][price_data][unit_amount]'                     => (int) $amount_cents,
-			'line_items[0][price_data][product_data][name]'              => $line_item_name,
-			'line_items[0][price_data][product_data][description]'       => 'Ad campaign on Atlanta Design Festival',
-			'line_items[0][quantity]'                                     => 1,
-			'metadata[booking_id]'                                        => (int) $booking['id'],
-			'payment_intent_data[metadata][booking_id]'                  => (int) $booking['id'],
+			'amount'   => (int) $amount_cents,
+			'currency' => strtolower( $currency ),
 		);
+		foreach ( $metadata as $k => $v ) {
+			$body[ 'metadata[' . $k . ']' ] = $v;
+		}
 
-		$response = wp_remote_post( 'https://api.stripe.com/v1/checkout/sessions', array(
+		$response = wp_remote_post( 'https://api.stripe.com/v1/payment_intents', array(
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $secret,
 				'Content-Type'  => 'application/x-www-form-urlencoded',
@@ -71,9 +65,7 @@ class OCAD_Stripe {
 			return false;
 		}
 
-		$signed = $parts['t'] . '.' . $payload;
-		$expected = hash_hmac( 'sha256', $signed, $secret );
-
+		$expected = hash_hmac( 'sha256', $parts['t'] . '.' . $payload, $secret );
 		return hash_equals( $expected, $parts['v1'] );
 	}
 }

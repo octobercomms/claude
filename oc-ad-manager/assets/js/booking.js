@@ -4,15 +4,15 @@
 	var form = document.getElementById( 'ocad-booking-form' );
 	if ( ! form ) return;
 
-	var formatSel  = document.getElementById( 'ocad-format' );
-	var weeksSel   = document.getElementById( 'ocad-weeks' );
+	var pkgSelect  = document.getElementById( 'ocad-package' );
 	var promoInput = document.getElementById( 'ocad-promo' );
 	var applyBtn   = document.getElementById( 'ocad-apply-promo' );
 	var submitBtn  = document.getElementById( 'ocad-submit-btn' );
 	var summary    = document.getElementById( 'ocad-summary' );
 	var errorDiv   = document.getElementById( 'ocad-booking-error' );
+	var successDiv = document.getElementById( 'ocad-booking-success' );
 
-	var prices      = ocadBooking.prices;
+	var packages    = ocadBooking.packages; // [{name,type,quantity,price}, ...]
 	var currency    = ocadBooking.currency;
 	var discountPct = 0;
 	var validPromo  = '';
@@ -21,24 +21,27 @@
 		return new Intl.NumberFormat( 'en-US', { style: 'currency', currency: currency } ).format( dollars );
 	}
 
-	function updateSummary() {
-		var format = formatSel.value;
-		var weeks  = parseInt( weeksSel.value, 10 );
+	function getSelectedPackage() {
+		var name = pkgSelect.value;
+		for ( var i = 0; i < packages.length; i++ ) {
+			if ( packages[ i ].name === name ) return packages[ i ];
+		}
+		return null;
+	}
 
-		if ( ! format || ! weeks ) {
+	function updateSummary() {
+		var pkg = getSelectedPackage();
+		if ( ! pkg ) {
 			summary.style.display = 'none';
 			submitBtn.disabled = true;
 			return;
 		}
 
-		var ppw      = prices[ format ] || 0;
-		var subtotal = ppw * weeks;
+		var subtotal = pkg.price;
 		var discount = Math.round( subtotal * discountPct / 100 );
 		var total    = subtotal - discount;
 
-		var fmtLabels = { mpu: 'MPU', leaderboard: 'Leaderboard', skyscraper: 'Skyscraper' };
-		document.getElementById( 'ocad-sum-format' ).textContent   = ( fmtLabels[ format ] || format ) + ' — ' + fmt( ppw ) + '/wk';
-		document.getElementById( 'ocad-sum-duration' ).textContent = weeks + ( weeks === 1 ? ' week' : ' weeks' );
+		document.getElementById( 'ocad-sum-package' ).textContent = pkg.name;
 
 		var promoRow = document.getElementById( 'ocad-sum-promo-row' );
 		if ( discountPct > 0 ) {
@@ -49,27 +52,24 @@
 		}
 
 		document.getElementById( 'ocad-sum-total' ).textContent = fmt( total );
-		submitBtn.textContent = 'Continue to Payment — ' + fmt( total );
+		submitBtn.textContent = 'Pay ' + fmt( total );
 		submitBtn.disabled = false;
 		summary.style.display = '';
 	}
 
-	formatSel.addEventListener( 'change', updateSummary );
-	weeksSel.addEventListener( 'change', updateSummary );
+	pkgSelect.addEventListener( 'change', updateSummary );
 
+	// Promo code
 	applyBtn.addEventListener( 'click', function () {
 		var code = promoInput.value.trim();
 		var msg  = document.getElementById( 'ocad-promo-msg' );
-
 		if ( ! code ) {
 			msg.textContent = 'Enter a promo code first.';
 			msg.style.color = '#b91c1c';
 			return;
 		}
-
 		applyBtn.disabled    = true;
 		applyBtn.textContent = 'Checking…';
-
 		fetch( ocadBooking.promoUrl + '?code=' + encodeURIComponent( code ), { credentials: 'omit' } )
 			.then( function ( r ) { return r.json(); } )
 			.then( function ( data ) {
@@ -96,8 +96,42 @@
 			} );
 	} );
 
+	// Stripe Card Element
+	var stripe      = null;
+	var cardElement = null;
+
+	if ( ocadBooking.stripeKey ) {
+		stripe  = Stripe( ocadBooking.stripeKey );
+		var elements = stripe.elements();
+		cardElement  = elements.create( 'card', {
+			style: {
+				base: {
+					fontSize:    '15px',
+					fontFamily:  '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+					color:       '#1a202c',
+					'::placeholder': { color: '#94a3b8' },
+				},
+				invalid: { color: '#dc2626' },
+			},
+			hidePostalCode: true,
+		} );
+		cardElement.mount( '#ocad-card-element' );
+
+		cardElement.on( 'change', function ( event ) {
+			var errDiv = document.getElementById( 'ocad-card-errors' );
+			errDiv.textContent = event.error ? event.error.message : '';
+		} );
+	}
+
+	// Form submit
 	form.addEventListener( 'submit', function ( e ) {
 		e.preventDefault();
+
+		if ( ! stripe || ! cardElement ) {
+			errorDiv.textContent   = 'Stripe not initialised. Please refresh and try again.';
+			errorDiv.style.display = '';
+			return;
+		}
 
 		var originalText = submitBtn.textContent;
 		submitBtn.disabled    = true;
@@ -105,10 +139,9 @@
 		errorDiv.style.display = 'none';
 
 		var fd = new FormData( form );
-		if ( validPromo ) {
-			fd.set( 'promo_code', validPromo );
-		}
+		if ( validPromo ) fd.set( 'promo_code', validPromo );
 
+		// Step 1: create booking + PaymentIntent on server
 		fetch( ocadBooking.restUrl, {
 			method:      'POST',
 			credentials: 'include',
@@ -117,11 +150,29 @@
 		} )
 			.then( function ( r ) { return r.json(); } )
 			.then( function ( data ) {
-				if ( data.session_url ) {
-					window.location.href = data.session_url;
-				} else {
+				if ( ! data.client_secret ) {
 					throw new Error( data.message || 'Booking failed. Please try again.' );
 				}
+
+				// Step 2: confirm card payment
+				return stripe.confirmCardPayment( data.client_secret, {
+					payment_method: {
+						card: cardElement,
+						billing_details: {
+							name:  form.querySelector( '[name="campaign_name"]' ).value,
+							email: form.querySelector( '[name="email"]' ).value,
+						},
+					},
+				} );
+			} )
+			.then( function ( result ) {
+				if ( result.error ) {
+					throw new Error( result.error.message );
+				}
+				// Success
+				form.style.display         = 'none';
+				successDiv.style.display   = '';
+				successDiv.scrollIntoView( { behavior: 'smooth', block: 'start' } );
 			} )
 			.catch( function ( err ) {
 				errorDiv.textContent   = err.message;

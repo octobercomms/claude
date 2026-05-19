@@ -240,3 +240,62 @@
 		grid-template-columns: 1fr;
 	}
 }
+
+/* Creative upload rows */
+.ocad-booking-creative-note {
+	font-size: 0.875rem;
+	color: #718096;
+	margin: 0 0 16px;
+}
+
+.ocad-booking-creative-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 16px;
+	padding: 12px 0;
+	border-bottom: 1px solid #f1f5f9;
+}
+
+.ocad-booking-creative-row:last-child {
+	border-bottom: none;
+}
+
+.ocad-booking-creative-label {
+	width: 160px;
+	flex-shrink: 0;
+	padding-top: 4px;
+}
+
+.ocad-booking-creative-label strong {
+	display: block;
+	font-size: 0.9375rem;
+	color: #1a202c;
+}
+
+.ocad-booking-creative-spec {
+	font-size: 0.8125rem;
+	color: #94a3b8;
+	font-family: monospace;
+}
+
+/* Stripe card element */
+.ocad-card-element {
+	padding: 11px 12px;
+	border: 1px solid #cbd5e0;
+	border-radius: 6px;
+	background: #fff;
+	transition: border-color 0.15s;
+}
+
+.ocad-card-element--focus,
+.ocad-card-element:focus-within {
+	border-color: #E7CD41;
+	box-shadow: 0 0 0 3px rgba(231,205,65,.2);
+}
+
+.ocad-card-errors {
+	color: #dc2626;
+	font-size: 0.875rem;
+	margin-top: 6px;
+	min-height: 1.2em;
+}

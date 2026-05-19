@@ -203,23 +203,41 @@ class OCAD_Settings {
 						</tr>
 					</table>
 
-					<h4><?php esc_html_e( 'Prices per Week', 'oc-ad-manager' ); ?></h4>
-					<p class="description"><?php esc_html_e( 'Set the price per week for each ad format. Prices are in whole currency units (e.g. 150 = $150).', 'oc-ad-manager' ); ?></p>
-					<table class="form-table">
-						<?php foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) : ?>
-						<tr>
-							<th><label for="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"><?php echo esc_html( $fmt_info['label'] ); ?></label></th>
+					<h4><?php esc_html_e( 'Booking Packages', 'oc-ad-manager' ); ?></h4>
+					<p class="description"><?php esc_html_e( 'Define the packages advertisers can choose from. Each package has a name, a metric type (impressions or clicks), a quantity cap, and a flat price.', 'oc-ad-manager' ); ?></p>
+					<table class="widefat" style="max-width:700px;margin-bottom:8px;">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Package Name', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Metric', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Quantity', 'oc-ad-manager' ); ?></th>
+								<th><?php esc_html_e( 'Price', 'oc-ad-manager' ); ?></th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody id="ocad-packages-list">
+						<?php
+						$packages = get_option( 'ocad_booking_packages', array() );
+						foreach ( $packages as $pkg ) :
+						?>
+						<tr class="ocad-package-row">
+							<td><input type="text" name="ocad_pkg_name[]" value="<?php echo esc_attr( $pkg['name'] ?? '' ); ?>" class="regular-text" placeholder="Bronze"></td>
 							<td>
-								<input type="number" id="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"
-								       name="ocad_price_<?php echo esc_attr( $fmt_key ); ?>"
-								       class="small-text" min="1" step="1"
-								       value="<?php echo esc_attr( get_option( 'ocad_price_' . $fmt_key, '' ) ); ?>"
-								       placeholder="150">
-								<span class="description"> per week</span>
+								<select name="ocad_pkg_type[]">
+									<option value="impressions" <?php selected( ( $pkg['type'] ?? 'impressions' ), 'impressions' ); ?>>Impressions</option>
+									<option value="clicks" <?php selected( ( $pkg['type'] ?? '' ), 'clicks' ); ?>>Clicks</option>
+								</select>
 							</td>
+							<td><input type="number" name="ocad_pkg_qty[]" value="<?php echo esc_attr( $pkg['quantity'] ?? '' ); ?>" class="small-text" min="0" placeholder="10000"></td>
+							<td>
+								<input type="number" name="ocad_pkg_price[]" value="<?php echo esc_attr( $pkg['price'] ?? '' ); ?>" class="small-text" min="1" placeholder="150">
+							</td>
+							<td><button type="button" class="button button-small ocad-remove-package">Remove</button></td>
 						</tr>
 						<?php endforeach; ?>
+						</tbody>
 					</table>
+					<button type="button" class="button" id="ocad-add-package">+ Add Package</button>
 
 					<h4><?php esc_html_e( 'Promo Codes', 'oc-ad-manager' ); ?></h4>
 					<p class="description"><?php esc_html_e( 'Add discount codes. Codes are case-insensitive. Discount is a percentage (e.g. 20 = 20% off).', 'oc-ad-manager' ); ?></p>
@@ -257,6 +275,24 @@ class OCAD_Settings {
 			document.addEventListener('click', function(e) {
 				if (e.target.classList.contains('ocad-remove-promo')) {
 					e.target.closest('.ocad-promo-code-row').remove();
+				}
+			});
+
+			// Packages
+			document.getElementById('ocad-add-package') && document.getElementById('ocad-add-package').addEventListener('click', function() {
+				var tbody = document.getElementById('ocad-packages-list');
+				var tr = document.createElement('tr');
+				tr.className = 'ocad-package-row';
+				tr.innerHTML = '<td><input type="text" name="ocad_pkg_name[]" class="regular-text" placeholder="Bronze"></td>'
+					+ '<td><select name="ocad_pkg_type[]"><option value="impressions">Impressions</option><option value="clicks">Clicks</option></select></td>'
+					+ '<td><input type="number" name="ocad_pkg_qty[]" class="small-text" min="0" placeholder="10000"></td>'
+					+ '<td><input type="number" name="ocad_pkg_price[]" class="small-text" min="1" placeholder="150"></td>'
+					+ '<td><button type="button" class="button button-small ocad-remove-package">Remove</button></td>';
+				tbody.appendChild(tr);
+			});
+			document.addEventListener('click', function(e) {
+				if (e.target.classList.contains('ocad-remove-package')) {
+					e.target.closest('.ocad-package-row').remove();
 				}
 			});
 			</script>
@@ -299,13 +335,25 @@ class OCAD_Settings {
 			update_option( 'ocad_stripe_webhook_secret', $webhook_secret );
 		}
 
-		// Prices per format.
-		foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) {
-			$price_key = 'ocad_price_' . $fmt_key;
-			if ( isset( $_POST[ $price_key ] ) ) {
-				update_option( $price_key, absint( $_POST[ $price_key ] ) );
+		// Booking packages.
+		$pkg_names  = isset( $_POST['ocad_pkg_name'] )  ? (array) $_POST['ocad_pkg_name']  : array();
+		$pkg_types  = isset( $_POST['ocad_pkg_type'] )  ? (array) $_POST['ocad_pkg_type']  : array();
+		$pkg_qtys   = isset( $_POST['ocad_pkg_qty'] )   ? (array) $_POST['ocad_pkg_qty']   : array();
+		$pkg_prices = isset( $_POST['ocad_pkg_price'] ) ? (array) $_POST['ocad_pkg_price'] : array();
+		$packages   = array();
+		foreach ( $pkg_names as $i => $name ) {
+			$name  = sanitize_text_field( $name );
+			$price = absint( $pkg_prices[ $i ] ?? 0 );
+			if ( $name && $price ) {
+				$packages[] = array(
+					'name'     => $name,
+					'type'     => in_array( $pkg_types[ $i ] ?? '', array( 'impressions', 'clicks' ), true ) ? $pkg_types[ $i ] : 'impressions',
+					'quantity' => absint( $pkg_qtys[ $i ] ?? 0 ),
+					'price'    => $price,
+				);
 			}
 		}
+		update_option( 'ocad_booking_packages', $packages );
 
 		// Promo codes.
 		$codes = isset( $_POST['ocad_promo_code'] ) ? (array) $_POST['ocad_promo_code'] : array();
