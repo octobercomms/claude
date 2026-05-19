@@ -17,6 +17,14 @@ const CONNECTOR_LABELS = {
   amazon_seller: 'Amazon Seller', dataforseo: 'DataForSEO',
 };
 
+const CONNECTOR_GROUPS = [
+  { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
+  { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
+  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
+  { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
+  { label: 'SEO', types: ['dataforseo'] },
+];
+
 const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights'];
 
 export default function ClientDetailPage() {
@@ -86,6 +94,27 @@ export default function ClientDetailPage() {
     } catch (err) {
       alert(err.message);
     }
+  }
+
+  async function addConnector(type) {
+    try {
+      const conn = await api.post(`/connectors/client/${id}`, { connector_type: type });
+      setConnectors(prev => [...prev, conn]);
+      if (OAUTH_TYPES.includes(type)) {
+        openOAuth(type, id);
+      } else {
+        setCredModal(conn);
+        setCredValues({});
+      }
+    } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  async function deleteConnector(connectorId) {
+    if (!window.confirm('Remove this connector?')) return;
+    await api.delete(`/connectors/${connectorId}`);
+    setConnectors(prev => prev.filter(c => c.id !== connectorId));
   }
 
   function openOAuth(type, clientId) {
@@ -181,24 +210,53 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'connectors' && (
-        <div style={styles.card}>
-          <h3 style={{ margin: '0 0 20px', fontSize: 15 }}>Active Connectors</h3>
-          {connectors.length === 0 ? (
-            <p style={{ color: '#888', fontSize: 13 }}>No connectors configured yet.</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {connectors.map(conn => (
-                <ConnectorRow
-                  key={conn.id}
-                  connector={conn}
-                  clientId={id}
-                  onCheck={handleCheckConnector}
-                  onOpenOAuth={openOAuth}
-                  onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
-                />
-              ))}
-            </div>
-          )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {CONNECTOR_GROUPS.map(group => {
+            const groupConnectors = connectors.filter(c => group.types.includes(c.connector_type));
+            const unconnected = group.types.filter(t => !connectors.find(c => c.connector_type === t));
+            return (
+              <div key={group.label} style={styles.card}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{group.label}</h3>
+                  {group.oauth && unconnected.length > 0 && (
+                    <button onClick={() => {
+                      const firstUnconnected = unconnected[0];
+                      addConnector(firstUnconnected);
+                    }} style={styles.btnSm}>
+                      + Connect {group.label}
+                    </button>
+                  )}
+                </div>
+                {groupConnectors.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: unconnected.length ? 12 : 0 }}>
+                    {groupConnectors.map(conn => (
+                      <ConnectorRow
+                        key={conn.id}
+                        connector={conn}
+                        clientId={id}
+                        onCheck={handleCheckConnector}
+                        onOpenOAuth={openOAuth}
+                        onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
+                        onDelete={deleteConnector}
+                      />
+                    ))}
+                  </div>
+                )}
+                {unconnected.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {unconnected.map(type => (
+                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fafafa', borderRadius: 4, border: '1px dashed #ddd' }}>
+                        <span style={{ fontSize: 13, color: '#aaa' }}>{CONNECTOR_LABELS[type]}</span>
+                        {!group.oauth && (
+                          <button onClick={() => addConnector(type)} style={styles.btnSm}>+ Add</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -274,7 +332,7 @@ export default function ClientDetailPage() {
   );
 }
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const statusColor = { active: '#2e7d32', error: '#c62828', expired: '#e65100', disconnected: '#999' };
 
@@ -300,6 +358,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
             {connector.status === 'active' ? 'Update' : 'Connect'}
           </button>
         )}
+        <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
       </div>
     </div>
   );
