@@ -34,7 +34,7 @@ export default function LoginPage() {
   return (
     <div style={styles.page}>
       <div style={styles.logoArea}>
-        <img src="/logo-yellow.gif" alt="October" style={styles.logo} />
+        <img src="/logo-black.gif" alt="October" style={styles.logo} />
       </div>
       <div style={styles.card}>
         <div style={styles.cardHeader}>
@@ -78,7 +78,7 @@ const styles = {
     alignItems: 'center', justifyContent: 'center', background: '#000000',
     gap: 32,
   },
-  logoArea: { width: 280 },
+  logoArea: { width: 70 },
   logo: { width: '100%', height: 'auto', display: 'block' },
   card: {
     background: 'white', borderRadius: 4, padding: '36px 40px',
