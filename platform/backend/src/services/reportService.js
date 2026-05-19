@@ -78,8 +78,8 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   const summaryHtml = `<p>${executiveSummary.split('\n')[0]}</p>`;
 
   await pool.query(
-    'UPDATE reports SET status = $1, generated_at = NOW(), pdf_path = $2, html_content = $3 WHERE id = $4',
-    ['generated', pdfPath, htmlContent, report.id]
+    'UPDATE reports SET status = $1, generated_at = NOW(), pdf_path = $2, html_content = $3, summary = $4 WHERE id = $5',
+    ['generated', pdfPath, htmlContent, JSON.stringify({ summaryHtml: executiveSummary, metrics: topMetrics }), report.id]
   );
 
   // Send email
@@ -104,8 +104,8 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
   const htmlContent = buildWeeklyHtmlPreview({ client, period, summaryText, metrics });
 
   await pool.query(
-    'UPDATE reports SET status = $1, generated_at = NOW(), html_content = $2 WHERE id = $3',
-    ['generated', htmlContent, report.id]
+    'UPDATE reports SET status = $1, generated_at = NOW(), html_content = $2, summary = $3 WHERE id = $4',
+    ['generated', htmlContent, JSON.stringify({ summaryText, metrics, weekLabel }), report.id]
   );
 
   await sendReport(report.id, { summaryText, metrics, weekLabel });
@@ -118,6 +118,13 @@ async function sendReport(reportId, overrides = {}) {
   );
   if (!rows.length) throw new Error(`Report ${reportId} not found`);
   const report = rows[0];
+
+  // Fall back to stored summary when resending
+  const stored = report.summary || {};
+  if (!overrides.summaryText && stored.summaryText) overrides.summaryText = stored.summaryText;
+  if (!overrides.summaryHtml && stored.summaryHtml) overrides.summaryHtml = `<p>${stored.summaryHtml.replace(/\n/g, '<br>')}</p>`;
+  if (!overrides.metrics && stored.metrics) overrides.metrics = stored.metrics;
+  if (!overrides.weekLabel && stored.weekLabel) overrides.weekLabel = stored.weekLabel;
 
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sending', reportId]);
 
