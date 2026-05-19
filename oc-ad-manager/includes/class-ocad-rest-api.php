@@ -131,7 +131,10 @@ class OCAD_REST_API {
 		try {
 			return $this->do_render_ad_html( $request );
 		} catch ( \Throwable $e ) {
-			$response = rest_ensure_response( array( 'html' => '' ) );
+			$response = rest_ensure_response( array(
+				'html'  => '',
+				'debug' => $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine(),
+			) );
 			$response->header( 'Cache-Control', 'no-store' );
 			return $response;
 		}
@@ -142,8 +145,11 @@ class OCAD_REST_API {
 		$mode   = get_option( 'ocad_site_mode', 'hub' );
 
 		if ( $mode === 'partner' ) {
-			$html = OCAD_Partner::render_ad( $format );
-			$response = rest_ensure_response( array( 'html' => (string) $html ) );
+			$html     = OCAD_Partner::render_ad( $format );
+			$response = rest_ensure_response( array(
+				'html'  => (string) $html,
+				'debug' => 'mode=partner html_len=' . strlen( $html ) . ' partner_debug=' . OCAD_Partner::$last_debug,
+			) );
 		} else {
 			$ad = OCAD_Campaign::get_active_ad_for_format( $format );
 
