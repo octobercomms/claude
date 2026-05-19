@@ -88,14 +88,11 @@ class OCAD_Settings {
 						<tr>
 							<th></th>
 							<td>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;"
-								      onsubmit="return confirm('<?php esc_attr_e( 'Regenerate key? All partner sites will stop working until you update their key.', 'oc-ad-manager' ); ?>');">
-									<input type="hidden" name="action" value="ocad_regenerate_key">
-									<?php wp_nonce_field( 'ocad_regenerate_key' ); ?>
-									<button type="submit" class="button">
-										<?php esc_html_e( 'Regenerate API Key', 'oc-ad-manager' ); ?>
-									</button>
-								</form>
+								<a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ocad_regenerate_key' ), 'ocad_regenerate_key' ) ); ?>"
+								   class="button"
+								   onclick="return confirm('<?php esc_attr_e( 'Regenerate key? All partner sites will stop working until you update their key.', 'oc-ad-manager' ); ?>');">
+									<?php esc_html_e( 'Regenerate API Key', 'oc-ad-manager' ); ?>
+								</a>
 							</td>
 						</tr>
 						<?php endif; ?>
