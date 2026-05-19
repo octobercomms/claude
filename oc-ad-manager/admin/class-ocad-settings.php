@@ -177,16 +177,16 @@ class OCAD_Settings {
 							<th><label for="ocad_stripe_secret_key"><?php esc_html_e( 'Stripe Secret Key', 'oc-ad-manager' ); ?></label></th>
 							<td>
 								<input type="password" id="ocad_stripe_secret_key" name="ocad_stripe_secret_key" class="regular-text"
-								       placeholder="sk_live_…"
-								       value="<?php echo esc_attr( get_option( 'ocad_stripe_secret_key', '' ) ); ?>">
+								       placeholder="<?php echo get_option( 'ocad_stripe_secret_key' ) ? esc_attr__( '(saved — leave blank to keep)', 'oc-ad-manager' ) : 'sk_live_…'; ?>"
+								       value="">
 							</td>
 						</tr>
 						<tr>
 							<th><label for="ocad_stripe_webhook_secret"><?php esc_html_e( 'Stripe Webhook Secret', 'oc-ad-manager' ); ?></label></th>
 							<td>
 								<input type="password" id="ocad_stripe_webhook_secret" name="ocad_stripe_webhook_secret" class="regular-text"
-								       placeholder="whsec_…"
-								       value="<?php echo esc_attr( get_option( 'ocad_stripe_webhook_secret', '' ) ); ?>">
+								       placeholder="<?php echo get_option( 'ocad_stripe_webhook_secret' ) ? esc_attr__( '(saved — leave blank to keep)', 'oc-ad-manager' ) : 'whsec_…'; ?>"
+								       value="">
 								<p class="description">
 									<?php esc_html_e( 'In Stripe Dashboard → Webhooks, add endpoint:', 'oc-ad-manager' ); ?>
 									<code><?php echo esc_html( rest_url( 'ocad/v1/stripe-webhook' ) ); ?></code>
@@ -287,10 +287,20 @@ class OCAD_Settings {
 		update_option( 'ocad_hub_api_key', sanitize_text_field( wp_unslash( $_POST['ocad_hub_api_key'] ?? '' ) ) );
 
 		// Stripe settings.
-		update_option( 'ocad_stripe_pub_key',        sanitize_text_field( wp_unslash( $_POST['ocad_stripe_pub_key'] ?? '' ) ) );
-		update_option( 'ocad_stripe_secret_key',     sanitize_text_field( wp_unslash( $_POST['ocad_stripe_secret_key'] ?? '' ) ) );
-		update_option( 'ocad_stripe_webhook_secret', sanitize_text_field( wp_unslash( $_POST['ocad_stripe_webhook_secret'] ?? '' ) ) );
-		update_option( 'ocad_stripe_currency',       strtolower( sanitize_text_field( wp_unslash( $_POST['ocad_stripe_currency'] ?? 'usd' ) ) ) );
+		// Publishable key is type=text so always save it.
+		update_option( 'ocad_stripe_pub_key',  sanitize_text_field( wp_unslash( $_POST['ocad_stripe_pub_key'] ?? '' ) ) );
+		update_option( 'ocad_stripe_currency', strtolower( sanitize_text_field( wp_unslash( $_POST['ocad_stripe_currency'] ?? 'usd' ) ) ) );
+
+		// Password fields: browsers don't pre-fill them, so only overwrite when the user actually typed a value.
+		$secret_key = sanitize_text_field( wp_unslash( $_POST['ocad_stripe_secret_key'] ?? '' ) );
+		if ( $secret_key ) {
+			update_option( 'ocad_stripe_secret_key', $secret_key );
+		}
+
+		$webhook_secret = sanitize_text_field( wp_unslash( $_POST['ocad_stripe_webhook_secret'] ?? '' ) );
+		if ( $webhook_secret ) {
+			update_option( 'ocad_stripe_webhook_secret', $webhook_secret );
+		}
 
 		// Prices per format.
 		foreach ( OCAD_FORMATS as $fmt_key => $fmt_info ) {
