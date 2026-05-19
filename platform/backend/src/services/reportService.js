@@ -83,7 +83,8 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   );
 
   // Send email
-  await sendReport(report.id);
+  const topMetrics = extractTopMetrics(rawData);
+  await sendReport(report.id, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
 }
 
 async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData) {
@@ -108,10 +109,10 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
     ['generated', htmlContent, report.id]
   );
 
-  await sendReport(report.id);
+  await sendReport(report.id, { summaryText, metrics, weekLabel });
 }
 
-async function sendReport(reportId) {
+async function sendReport(reportId, overrides = {}) {
   const { rows } = await pool.query(
     'SELECT r.*, c.name as client_name, c.report_recipients FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
@@ -144,18 +145,18 @@ async function sendReport(reportId) {
         to,
         clientName: report.client_name,
         period,
-        summaryHtml: '<p>Please see the attached PDF for the full report.</p>',
+        summaryHtml: overrides.summaryHtml || '<p>Please see the attached PDF for the full report.</p>',
         pdfPath: report.pdf_path,
-        metrics: [],
+        metrics: overrides.metrics || [],
       });
     } else {
-      const weekLabel = new Date(report.period_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+      const weekLabel = overrides.weekLabel || new Date(report.period_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
       await emailService.sendWeeklyReport({
         to,
         clientName: report.client_name,
         weekLabel,
-        summaryText: 'Please see the weekly snapshot below.',
-        metrics: [],
+        summaryText: overrides.summaryText || 'Please see the weekly snapshot below.',
+        metrics: overrides.metrics || [],
       });
     }
 
