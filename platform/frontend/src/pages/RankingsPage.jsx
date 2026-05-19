@@ -2,12 +2,23 @@ import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 
+const LOCATIONS = [
+  { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
+  { name: 'United States', code: 2840, flag: '🇺🇸' },
+  { name: 'Ireland', code: 2372, flag: '🇮🇪' },
+  { name: 'Australia', code: 2036, flag: '🇦🇺' },
+  { name: 'Canada', code: 2124, flag: '🇨🇦' },
+];
+
+const DEFAULT_LOC = LOCATIONS[0];
+
 export default function RankingsPage() {
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [keywords, setKeywords] = useState([]);
   const [tags, setTags] = useState([]);
   const [filterTag, setFilterTag] = useState('');
+  const [filterLocation, setFilterLocation] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [historyModal, setHistoryModal] = useState(null);
@@ -17,9 +28,10 @@ export default function RankingsPage() {
   const [bulkText, setBulkText] = useState('');
   const [bulkDevice, setBulkDevice] = useState('desktop');
   const [bulkTag, setBulkTag] = useState('');
+  const [bulkLocation, setBulkLocation] = useState(DEFAULT_LOC.code);
   const [bulkMsg, setBulkMsg] = useState('');
   const [bulking, setBulking] = useState(false);
-  const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
+  const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: DEFAULT_LOC.name, location_code: DEFAULT_LOC.code });
   const [checking, setChecking] = useState(false);
 
   useEffect(() => {
@@ -49,7 +61,7 @@ export default function RankingsPage() {
     try {
       const kw = await api.post('/rankings/keywords', { ...newKw, client_id: selectedClient });
       setKeywords(prev => [...prev, kw]);
-      setNewKw({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
+      setNewKw({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: DEFAULT_LOC.name, location_code: DEFAULT_LOC.code });
       setShowAddForm(false);
     } catch (err) {
       alert(err.message);
@@ -83,6 +95,7 @@ export default function RankingsPage() {
     setBulking(true);
     setBulkMsg('');
     try {
+      const loc = LOCATIONS.find(l => l.code === Number(bulkLocation)) || DEFAULT_LOC;
       const lines = bulkText.split('\n').map(l => l.trim()).filter(Boolean);
       const keywords = lines.map(line => {
         const parts = line.split(',').map(p => p.trim());
@@ -91,6 +104,8 @@ export default function RankingsPage() {
           target_url: parts[1] || '',
           tag: parts[2] || bulkTag,
           device: bulkDevice,
+          location_code: loc.code,
+          location_name: loc.name,
         };
       });
       const { inserted } = await api.post('/rankings/keywords/bulk', { client_id: selectedClient, keywords });
@@ -114,6 +129,7 @@ export default function RankingsPage() {
 
   const filtered = keywords.filter(k => {
     if (filterTag && k.tag !== filterTag) return false;
+    if (filterLocation && String(k.location_code) !== String(filterLocation)) return false;
     if (search && !k.keyword.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -144,6 +160,12 @@ export default function RankingsPage() {
           <option value="">Select client…</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
+        {selectedClient && (
+          <select style={styles.input} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
+            <option value="">All locations</option>
+            {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+          </select>
+        )}
         {tags.length > 0 && (
           <select style={styles.input} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
             <option value="">All tags</option>
@@ -164,7 +186,7 @@ export default function RankingsPage() {
         <div style={styles.card}>
           <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>Add Keyword</h3>
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
               <div style={styles.field}>
                 <label style={styles.label}>Keyword</label>
                 <input style={styles.input} required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} />
@@ -172,6 +194,15 @@ export default function RankingsPage() {
               <div style={styles.field}>
                 <label style={styles.label}>Target URL</label>
                 <input style={styles.input} value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" />
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Location</label>
+                <select style={styles.input} value={newKw.location_code} onChange={e => {
+                  const loc = LOCATIONS.find(l => l.code === Number(e.target.value)) || DEFAULT_LOC;
+                  setNewKw(p => ({ ...p, location_code: loc.code, location_name: loc.name }));
+                }}>
+                  {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                </select>
               </div>
               <div style={styles.field}>
                 <label style={styles.label}>Device</label>
@@ -207,9 +238,15 @@ export default function RankingsPage() {
               onChange={e => setBulkText(e.target.value)}
               required
             />
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <div style={styles.field}>
-                <label style={styles.label}>Device (all keywords)</label>
+                <label style={styles.label}>Location</label>
+                <select style={styles.input} value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>
+                  {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
+                </select>
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Device</label>
                 <select style={styles.input} value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}>
                   <option value="desktop">Desktop</option>
                   <option value="mobile">Mobile</option>
@@ -238,21 +275,25 @@ export default function RankingsPage() {
           <table style={styles.table}>
             <thead>
               <tr>
-                {['Keyword', 'Device', 'Tag', 'Current', 'Previous', 'Best', 'Last Checked', ''].map(h => (
+                {['Keyword', 'Location', 'Device', 'Tag', 'Current', 'Previous', 'Best', 'Last Checked', ''].map(h => (
                   <th key={h} style={styles.th}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No keywords found</td></tr>
+                <tr><td colSpan={9} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No keywords found</td></tr>
               ) : filtered.map(kw => {
                 const change = posChange(kw.current_position, kw.previous_position);
+                const loc = LOCATIONS.find(l => l.code === kw.location_code);
                 return (
                   <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
                     <td style={styles.td}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
                       {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
+                    </td>
+                    <td style={styles.td}>
+                      <span style={styles.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span>
                     </td>
                     <td style={styles.td}><span style={styles.chip}>{kw.device}</span></td>
                     <td style={styles.td}>{kw.tag ? <span style={styles.chip}>{kw.tag}</span> : '—'}</td>
