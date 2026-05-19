@@ -33,13 +33,12 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
+      <div style={styles.logoArea}>
+        <img src="/logo-yellow.gif" alt="October" style={styles.logo} />
+      </div>
       <div style={styles.card}>
-        <div style={styles.logoBlock}>
-          <div style={styles.logoWrap}>
-            <span style={styles.logoText}>OCTOBER</span>
-            <span style={styles.logoDot}>.</span>
-          </div>
-          <div style={styles.logoSub}>Performance Marketing Platform</div>
+        <div style={styles.cardHeader}>
+          <div style={styles.cardTitle}>Performance Marketing Platform</div>
         </div>
         <form onSubmit={handleSubmit} style={styles.form}>
           {error && <div style={styles.error}>{error}</div>}
@@ -75,18 +74,18 @@ export default function LoginPage() {
 
 const styles = {
   page: {
-    minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    background: '#000000',
+    minHeight: '100vh', display: 'flex', flexDirection: 'column',
+    alignItems: 'center', justifyContent: 'center', background: '#000000',
+    gap: 32,
   },
+  logoArea: { width: 280 },
+  logo: { width: '100%', height: 'auto', display: 'block' },
   card: {
-    background: 'white', borderRadius: 4, padding: '48px 40px',
-    width: '100%', maxWidth: 380, boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
+    background: 'white', borderRadius: 4, padding: '36px 40px',
+    width: '100%', maxWidth: 360, boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
   },
-  logoBlock: { textAlign: 'center', marginBottom: 36 },
-  logoWrap: { display: 'inline-flex', alignItems: 'baseline', lineHeight: 1 },
-  logoText: { fontSize: 26, fontWeight: 600, letterSpacing: 3, color: '#000000', fontFamily: 'Brockmann, sans-serif' },
-  logoDot: { fontSize: 26, fontWeight: 600, color: '#000000', fontFamily: 'Brockmann, sans-serif' },
-  logoSub: { fontSize: 10, color: '#999', marginTop: 8, letterSpacing: 2, textTransform: 'uppercase', fontWeight: 400 },
+  cardHeader: { marginBottom: 28 },
+  cardTitle: { fontSize: 11, color: '#999', letterSpacing: 2, textTransform: 'uppercase', fontWeight: 400 },
   form: { display: 'flex', flexDirection: 'column', gap: 20 },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 11, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
@@ -96,7 +95,7 @@ const styles = {
   },
   btn: {
     padding: '12px', background: '#000000', color: 'white', border: 'none',
-    borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginTop: 8,
+    borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginTop: 4,
     fontFamily: 'Brockmann, sans-serif', letterSpacing: 0.5,
   },
   error: { background: '#fff0f0', color: '#c62828', padding: '10px 12px', borderRadius: 4, fontSize: 13, border: '1px solid #ffcdd2' },

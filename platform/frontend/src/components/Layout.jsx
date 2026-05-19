@@ -23,7 +23,7 @@ export default function Layout() {
     <div style={styles.shell}>
       <nav style={styles.nav}>
         <div style={styles.navBrand}>
-          <OctoberLogo />
+          <img src="/logo-black.gif" alt="October" style={styles.logo} />
           <div style={styles.brandSub}>Performance Platform</div>
         </div>
         <ul style={styles.navList}>
@@ -50,15 +50,6 @@ export default function Layout() {
   );
 }
 
-function OctoberLogo() {
-  return (
-    <div style={styles.logoWrap}>
-      <span style={styles.logoText}>OCTOBER</span>
-      <span style={styles.logoDot}>.</span>
-    </div>
-  );
-}
-
 const styles = {
   shell: { display: 'flex', minHeight: '100vh', background: '#f5f5f5' },
   nav: {
@@ -66,11 +57,9 @@ const styles = {
     display: 'flex', flexDirection: 'column', padding: '0 0 20px', flexShrink: 0,
     position: 'sticky', top: 0, height: '100vh',
   },
-  navBrand: { padding: '28px 24px 22px', borderBottom: '1px solid #1a1a1a' },
-  logoWrap: { display: 'flex', alignItems: 'baseline', lineHeight: 1 },
-  logoText: { fontSize: 18, fontWeight: 600, letterSpacing: 2, color: 'white', fontFamily: 'Brockmann, sans-serif' },
-  logoDot: { fontSize: 18, fontWeight: 600, color: 'white', fontFamily: 'Brockmann, sans-serif' },
-  brandSub: { fontSize: 9, color: '#555', marginTop: 6, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 400 },
+  navBrand: { padding: '20px 20px 16px', borderBottom: '1px solid #1a1a1a' },
+  logo: { width: '100%', height: 'auto', display: 'block' },
+  brandSub: { fontSize: 9, color: '#555', marginTop: 8, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 400 },
   navList: { listStyle: 'none', padding: '16px 0', margin: 0, flex: 1 },
   navLink: {
     display: 'block', padding: '10px 24px', color: '#666',
