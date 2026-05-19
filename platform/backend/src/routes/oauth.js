@@ -18,7 +18,7 @@ router.get('/google/start', (req, res) => {
 
 router.get('/google/callback', async (req, res) => {
   const { code, state, error } = req.query;
-  if (error) return res.send(`<script>window.opener.postMessage({type:'oauth_error',error:'${error}'},'*');window.close();</script>`);
+  if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
     const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
@@ -35,10 +35,10 @@ router.get('/google/callback', async (req, res) => {
       );
     }
 
-    res.send(`<script>window.opener.postMessage({type:'oauth_success',provider:'google'},'*');window.close();</script>`);
+    res.send(oauthPopupHtml('success', 'Google connected successfully.'));
   } catch (err) {
     console.error('Google OAuth callback error:', err);
-    res.send(`<script>window.opener.postMessage({type:'oauth_error',error:'${err.message}'},'*');window.close();</script>`);
+    res.send(oauthPopupHtml('error', err.message));
   }
 });
 
@@ -54,7 +54,7 @@ router.get('/meta/start', (req, res) => {
 
 router.get('/meta/callback', async (req, res) => {
   const { code, state, error } = req.query;
-  if (error) return res.send(`<script>window.opener.postMessage({type:'oauth_error',error:'${error}'},'*');window.close();</script>`);
+  if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
     const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
@@ -71,10 +71,10 @@ router.get('/meta/callback', async (req, res) => {
       );
     }
 
-    res.send(`<script>window.opener.postMessage({type:'oauth_success',provider:'meta'},'*');window.close();</script>`);
+    res.send(oauthPopupHtml('success', 'Meta connected successfully.'));
   } catch (err) {
     console.error('Meta OAuth callback error:', err);
-    res.send(`<script>window.opener.postMessage({type:'oauth_error',error:'${err.message}'},'*');window.close();</script>`);
+    res.send(oauthPopupHtml('error', err.message));
   }
 });
 
@@ -86,5 +86,23 @@ router.get('/meta/reauth', (req, res) => {
   const url = metaConnector.getAuthUrl(state);
   res.redirect(url);
 });
+
+function oauthPopupHtml(status, message) {
+  const isSuccess = status === 'success';
+  const safeMessage = String(message).replace(/'/g, "\\'").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:${isSuccess ? '#f0fdf4' : '#fff0f0'}">
+  <div style="text-align:center;padding:40px">
+    <div style="font-size:48px;margin-bottom:16px">${isSuccess ? '✓' : '✗'}</div>
+    <h2 style="margin:0 0 8px;color:${isSuccess ? '#2e7d32' : '#c62828'}">${isSuccess ? 'Connected' : 'Error'}</h2>
+    <p style="color:#666;margin:0 0 24px">${safeMessage}</p>
+    <button onclick="window.close()" style="background:#000;color:#fff;border:none;padding:10px 24px;border-radius:4px;cursor:pointer;font-size:14px">Close Window</button>
+  </div>
+  <script>
+    try { window.opener.postMessage({type:'${isSuccess ? 'oauth_success' : 'oauth_error'}',${isSuccess ? "provider:'unknown'" : `error:'${safeMessage}'`}},'*'); } catch(e){}
+    setTimeout(function(){ window.close(); }, 800);
+  </script>
+</body></html>`;
+}
 
 module.exports = router;

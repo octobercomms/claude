@@ -24,7 +24,7 @@ export default function Layout() {
       <nav style={styles.nav}>
         <div style={styles.navBrand}>
           <img src="/logo-black.gif" alt="October" style={styles.logo} />
-          <div style={styles.brandSub}>Performance Platform</div>
+          <div style={styles.brandSub}>Performance<br/>Marketing<br/>Platform</div>
         </div>
         <ul style={styles.navList}>
           {NAV.map(item => (
@@ -59,7 +59,7 @@ const styles = {
   },
   navBrand: { padding: '20px 20px 16px', borderBottom: '1px solid #1a1a1a' },
   logo: { width: '50%', height: 'auto', display: 'block' },
-  brandSub: { fontSize: 9, color: '#555', marginTop: 8, letterSpacing: 1.5, textTransform: 'uppercase', fontWeight: 400 },
+  brandSub: { fontSize: 18, color: '#ffffff', marginTop: 10, letterSpacing: 0.3, fontWeight: 400 },
   navList: { listStyle: 'none', padding: '16px 0', margin: 0, flex: 1 },
   navLink: {
     display: 'block', padding: '10px 24px', color: '#666',
