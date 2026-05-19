@@ -147,31 +147,39 @@ class OCAD_Shortcodes {
 				}
 			}
 
-			// Test the /render endpoint — this is the actual URL the [oc_ad] shortcode embeds
-			// and what the browser JS fetches to get the ad HTML.
-			if ( $hub_url ) {
-				$render_url = trailingslashit( $hub_url ) . 'wp-json/ocad/v1/render?format=' . rawurlencode( $format );
-				$rows[] = array( 'Render URL (data-render)', esc_html( $render_url ) );
+			// The actual URL the browser JS fetches — partner's own same-origin endpoint.
+			$own_render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
+			$rows[] = array( 'Render URL (data-render)', esc_html( $own_render_url ) );
 
-				$render_test = wp_remote_get( $render_url, array( 'timeout' => 8 ) );
+			// Direct PHP call to OCAD_Partner::render_ad() — tests the full proxy chain
+			// without the overhead of an extra HTTP round-trip.
+			$partner_html = OCAD_Partner::render_ad( $format );
+			if ( $partner_html !== '' ) {
+				$rows[] = array( 'Partner render (direct)', '✓ OK — ' . strlen( $partner_html ) . ' chars of HTML' );
+			} else {
+				$rows[] = array( 'Partner render (direct)', '✗ Empty — hub proxy failed, check Hub URL / API key / hub ad status' );
+			}
+
+			// Hub's own render endpoint (server-to-server check).
+			if ( $hub_url ) {
+				$hub_render_url = trailingslashit( $hub_url ) . 'wp-json/ocad/v1/render?format=' . rawurlencode( $format );
+				$render_test    = wp_remote_get( $hub_render_url, array( 'timeout' => 8 ) );
 				if ( is_wp_error( $render_test ) ) {
-					$rows[] = array( 'Render endpoint', '✗ WP_Error: ' . esc_html( $render_test->get_error_message() ) );
+					$rows[] = array( 'Hub render endpoint', '✗ WP_Error: ' . esc_html( $render_test->get_error_message() ) );
 				} else {
 					$rcode = wp_remote_retrieve_response_code( $render_test );
 					$rbody = json_decode( wp_remote_retrieve_body( $render_test ), true );
 					if ( $rcode === 200 && isset( $rbody['html'] ) ) {
-						if ( $rbody['html'] !== '' ) {
-							$rows[] = array( 'Render endpoint', '✓ OK — returned ' . strlen( $rbody['html'] ) . ' chars of HTML' );
-						} else {
-							$rows[] = array( 'Render endpoint', '✗ Returned empty HTML — no active ad on hub for this format' );
-						}
+						$rows[] = array( 'Hub render endpoint', $rbody['html'] !== ''
+							? '✓ OK — ' . strlen( $rbody['html'] ) . ' chars of HTML'
+							: '✗ Returned empty HTML — no active ad on hub for this format' );
 					} else {
-						$rows[] = array( 'Render endpoint', '✗ HTTP ' . $rcode . ' — ' . esc_html( substr( wp_remote_retrieve_body( $render_test ), 0, 200 ) ) );
+						$rows[] = array( 'Hub render endpoint', '✗ HTTP ' . $rcode . ' — ' . esc_html( substr( wp_remote_retrieve_body( $render_test ), 0, 200 ) ) );
 					}
 				}
-
-				$rows[] = array( 'Plugin version', esc_html( OCAD_VERSION ) );
 			}
+
+			$rows[] = array( 'Plugin version', esc_html( OCAD_VERSION ) );
 		} else {
 			// Hub mode: show what URL the [oc_ad] shortcode would embed.
 			$render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
