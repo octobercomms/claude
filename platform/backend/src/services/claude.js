@@ -1,12 +1,15 @@
 const Anthropic = require('@anthropic-ai/sdk');
 
-const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 const MODEL = 'claude-sonnet-4-20250514';
+
+function getClient() {
+  return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+}
 
 const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.`;
 
 async function generateExecutiveSummary({ clientName, period, monthlyFocus, data }) {
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
@@ -24,7 +27,7 @@ Write an executive summary for this report. 300-400 words. Reference the monthly
 }
 
 async function generateRecommendations({ monthlyFocus, data }) {
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
@@ -40,7 +43,7 @@ Data: ${JSON.stringify(data, null, 2)}`,
 }
 
 async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics }) {
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 512,
     system: SYSTEM_PROMPT,
@@ -64,7 +67,7 @@ async function parseConnectorBriefing(briefingText) {
     'klaviyo', 'brevo', 'shopify_email', 'amazon_seller', 'dataforseo',
   ];
 
-  const message = await client.messages.create({
+  const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: 'You are a marketing technology expert. Respond only with valid JSON.',
