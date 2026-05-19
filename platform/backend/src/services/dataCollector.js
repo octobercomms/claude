@@ -55,11 +55,19 @@ async function collectClientData(clientId, periodStart, periodEnd) {
       }
 
       const connectorModule = connectorFactory.get(connector.connector_type);
+      const config = connector.config || {};
       const data = await connectorModule.fetchData(creds, {
         connectorType: connector.connector_type,
         startDate: periodStart,
         endDate: periodEnd,
         storeLabel: connector.store_label,
+        // Pass saved account/property selections
+        propertyId: config.value,   // GA4
+        siteUrl: config.value,      // Google Search Console
+        customerId: config.value,   // Google Ads
+        merchantId: config.value,   // Google Merchant Center
+        adAccountId: config.value,  // Meta Ads
+        accountId: config.value,    // Instagram
       });
 
       results[key] = data;

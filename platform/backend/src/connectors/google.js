@@ -79,6 +79,7 @@ async function getValidToken(credentials) {
 async function fetchGA4Data(credentials, params) {
   const creds = await getValidToken(credentials);
   const { propertyId, startDate, endDate } = params;
+  if (!propertyId) throw new Error('GA4 property not selected — open the client connectors tab and choose a property.');
 
   const { data } = await axios.post(
     `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
@@ -103,6 +104,7 @@ async function fetchGA4Data(credentials, params) {
 async function fetchSearchConsoleData(credentials, params) {
   const creds = await getValidToken(credentials);
   const { siteUrl, startDate, endDate } = params;
+  if (!siteUrl) throw new Error('Search Console site not selected — open the client connectors tab and choose a site.');
 
   const { data } = await axios.post(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
