@@ -4,6 +4,20 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const db = require('./db');
+const { decrypt } = require('./utils/encryption');
+
+async function loadSettingsFromDb() {
+  try {
+    const result = await db.query('SELECT key, value FROM platform_settings');
+    for (const row of result.rows) {
+      try {
+        const decrypted = decrypt(JSON.parse(row.value));
+        if (decrypted) process.env[row.key] = decrypted;
+      } catch {}
+    }
+  } catch {}
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -32,6 +46,7 @@ app.use('/api/connectors', require('./routes/connectors'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/rankings', require('./routes/rankings'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/settings', require('./routes/settings'));
 app.use('/auth', require('./routes/oauth'));
 
 // Serve PDFs
@@ -40,11 +55,12 @@ app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// Start scheduler
-require('./services/scheduler');
-
-const server = app.listen(PORT, () => {
-  console.log(`October Platform backend running on port ${PORT}`);
-});
+// Load DB settings then start
+loadSettingsFromDb().then(() => {
+  require('./services/scheduler');
+  const server = app.listen(PORT, () => {
+    console.log(`October Platform backend running on port ${PORT}`);
+  });
+  });
 
 module.exports = server;
