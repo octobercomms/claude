@@ -11,7 +11,7 @@ router.use(authenticate);
 router.get('/client/:clientId', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, created_at FROM connectors WHERE client_id = $1 ORDER BY connector_type, store_label',
+      'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, config, created_at FROM connectors WHERE client_id = $1 ORDER BY connector_type, store_label',
       [req.params.clientId]
     );
     res.json(rows);
@@ -70,6 +70,41 @@ router.put('/:id/credentials', async (req, res) => {
       [req.params.id]
     );
     res.json(updated.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// List available accounts for an OAuth connector
+router.get('/:id/accounts', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM connectors WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    const row = rows[0];
+    if (!row.credentials || row.credentials === '{}') return res.json([]);
+    const creds = decrypt(row.credentials);
+    const connector = connectorFactory.get(row.connector_type);
+    if (!connector.listAccounts) return res.json([]);
+    const accounts = await connector.listAccounts(creds, row.connector_type);
+    res.json(accounts);
+  } catch (err) {
+    console.error('listAccounts error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Save config (selected account/property) for a connector
+router.put('/:id/config', async (req, res) => {
+  try {
+    await pool.query(
+      'UPDATE connectors SET config = $1, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify(req.body), req.params.id]
+    );
+    const { rows } = await pool.query(
+      'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, config FROM connectors WHERE id = $1',
+      [req.params.id]
+    );
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

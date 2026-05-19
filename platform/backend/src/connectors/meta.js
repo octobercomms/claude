@@ -114,6 +114,45 @@ async function fetchInstagramData(credentials, params) {
   return insights;
 }
 
+async function listAdAccounts(credentials) {
+  const { data } = await axios.get(`${BASE_URL}/me/adaccounts`, {
+    params: { access_token: credentials.access_token, fields: 'id,name,account_id', limit: 100 },
+  });
+  return (data.data || []).map(acc => ({
+    value: acc.account_id,
+    label: `${acc.name} (${acc.account_id})`,
+  }));
+}
+
+async function listInstagramAccounts(credentials) {
+  const { data: pages } = await axios.get(`${BASE_URL}/me/accounts`, {
+    params: { access_token: credentials.access_token, fields: 'id,name,instagram_business_account', limit: 100 },
+  });
+  const accounts = [];
+  for (const page of (pages.data || [])) {
+    if (page.instagram_business_account) {
+      const igId = page.instagram_business_account.id;
+      try {
+        const { data: ig } = await axios.get(`${BASE_URL}/${igId}`, {
+          params: { access_token: credentials.access_token, fields: 'id,username,name' },
+        });
+        accounts.push({ value: igId, label: `@${ig.username} (${page.name})` });
+      } catch {
+        accounts.push({ value: igId, label: `${page.name} Instagram` });
+      }
+    }
+  }
+  return accounts;
+}
+
+async function listAccounts(credentials, connectorType) {
+  switch (connectorType) {
+    case 'meta_ads': return listAdAccounts(credentials);
+    case 'instagram_insights': return listInstagramAccounts(credentials);
+    default: return [];
+  }
+}
+
 async function fetchData(credentials, params) {
   const { connectorType, ...rest } = params;
   switch (connectorType) {
@@ -123,4 +162,4 @@ async function fetchData(credentials, params) {
   }
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts };
