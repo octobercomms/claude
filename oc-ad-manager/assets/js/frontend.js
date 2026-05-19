@@ -1,27 +1,22 @@
 ( function () {
 	'use strict';
 
-	var restBase   = ( typeof ocadFront !== 'undefined' && ocadFront.rest )    ? ocadFront.rest    : '';
-	// Partner sites: call the hub directly (cross-origin). Hub mode: call local REST.
-	var renderBase = ( typeof ocadFront !== 'undefined' && ocadFront.hubRest ) ? ocadFront.hubRest : restBase;
-
-	// Load ad HTML into each placeholder slot via REST (bypasses page cache).
+	// Load ad HTML into every placeholder slot.
+	// The render URL is baked into data-render at PHP render time, so it works
+	// correctly even when the page itself is served from a cache.
 	function loadAds() {
-		var slots = document.querySelectorAll( '.ocad-ad-slot[data-format]' );
-		if ( ! slots.length || ! renderBase ) {
+		var slots = document.querySelectorAll( '.ocad-ad-slot[data-render]' );
+		if ( ! slots.length ) {
 			return;
 		}
 
 		slots.forEach( function ( slot ) {
-			var format = slot.getAttribute( 'data-format' );
-			if ( ! format ) {
+			var url = slot.getAttribute( 'data-render' );
+			if ( ! url ) {
 				return;
 			}
 
-			fetch( renderBase + 'ocad/v1/render?format=' + encodeURIComponent( format ), {
-				credentials: 'omit',
-				cache: 'no-store'
-			} )
+			fetch( url, { credentials: 'omit', cache: 'no-store' } )
 				.then( function ( r ) {
 					return r.ok ? r.json() : null;
 				} )
@@ -35,32 +30,25 @@
 		} );
 	}
 
-	// Track ad clicks via a keepalive fetch beacon so the request survives page navigation.
-	// Uses renderBase so partner sites report clicks directly to the hub.
+	// Track ad clicks via a keepalive beacon.
+	// The absolute track URL is embedded in data-ocad-track on each ad's <a> tag
+	// by the hub's render endpoint, so partner pages send beacons to the hub directly.
 	document.addEventListener( 'click', function ( e ) {
-		if ( ! renderBase ) {
-			return;
-		}
 		var target = e.target;
-		var a = null;
 		while ( target && target !== document ) {
-			if ( target.tagName === 'A' && target.hasAttribute( 'data-ocad-click' ) ) {
-				a = target;
+			if ( target.tagName === 'A' && target.hasAttribute( 'data-ocad-track' ) ) {
+				var trackUrl = target.getAttribute( 'data-ocad-track' );
+				if ( trackUrl ) {
+					fetch( trackUrl, {
+						method: 'GET',
+						keepalive: true,
+						credentials: 'omit',
+						cache: 'no-store'
+					} ).catch( function () {} );
+				}
 				break;
 			}
 			target = target.parentNode;
-		}
-		if ( ! a ) {
-			return;
-		}
-		var adId = a.getAttribute( 'data-ocad-click' );
-		if ( adId ) {
-			fetch( renderBase + 'ocad/v1/track-click?id=' + encodeURIComponent( adId ), {
-				method: 'GET',
-				keepalive: true,
-				credentials: 'omit',
-				cache: 'no-store'
-			} ).catch( function () {} );
 		}
 	} );
 

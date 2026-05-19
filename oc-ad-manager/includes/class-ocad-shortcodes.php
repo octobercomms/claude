@@ -39,19 +39,31 @@ class OCAD_Shortcodes {
 			return $is_admin ? "<!-- OCAD[$format]: unknown format -->" : '';
 		}
 
-		// Output a placeholder div for both hub and partner modes.
-		// The frontend JS fetches the real ad via /wp-json/ocad/v1/render at runtime,
-		// bypassing any page-level cache on either site.
-		$fmt         = OCAD_FORMATS[ $format ];
+		$fmt  = OCAD_FORMATS[ $format ];
+		$mode = get_option( 'ocad_site_mode', 'hub' );
+
+		// Build the full render URL and bake it into the placeholder's data-render attribute.
+		// This means the correct URL survives any page cache — no inline JS data dependency.
+		if ( $mode === 'partner' ) {
+			$hub_url = get_option( 'ocad_hub_url', '' );
+			if ( ! $hub_url ) {
+				return $is_admin ? "<!-- OCAD[$format]: partner mode — hub URL not configured -->" : '';
+			}
+			$render_url = trailingslashit( $hub_url ) . 'wp-json/ocad/v1/render?format=' . rawurlencode( $format );
+		} else {
+			$render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
+		}
+
 		$extra_class = $atts['class'] ? ' ' . esc_attr( $atts['class'] ) : '';
 
 		return sprintf(
-			'<div class="ocad-ad ocad-ad--%1$s ocad-ad-slot%3$s" data-format="%1$s" '
+			'<div class="ocad-ad ocad-ad--%1$s ocad-ad-slot%3$s" data-render="%5$s" '
 			. 'style="display:inline-block;max-width:%2$dpx;min-height:%4$dpx;"></div>',
-			esc_attr( $format ),   // 1
-			(int) $fmt['width'],   // 2
-			$extra_class,          // 3
-			(int) $fmt['height']   // 4
+			esc_attr( $format ),        // 1
+			(int) $fmt['width'],        // 2
+			$extra_class,               // 3
+			(int) $fmt['height'],       // 4
+			esc_url( $render_url )      // 5
 		);
 	}
 

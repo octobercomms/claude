@@ -144,10 +144,11 @@ class OCAD_REST_API {
 
 				$fmt = OCAD_FORMATS[ $format ];
 
-				// Use the direct campaign URL as the href so the browser status bar shows
-				// the real destination. Clicks are tracked via a JS beacon (data-ocad-click).
+				// Embed the absolute track URL so partner pages (cross-origin) know
+				// exactly where to send the click beacon without constructing URLs in JS.
+				$track_url = rest_url( 'ocad/v1/track-click?id=' . (int) $ad->ad_id );
 				$html = sprintf(
-					'<a href="%1$s" data-ocad-click="%6$d" target="_blank" rel="noopener noreferrer nofollow">'
+					'<a href="%1$s" data-ocad-track="%6$s" target="_blank" rel="noopener noreferrer nofollow">'
 					. '<img src="%2$s" alt="%3$s" width="%4$d" height="%5$d" style="display:block;max-width:100%%;" />'
 					. '</a>',
 					esc_url( $ad->url ),
@@ -155,7 +156,7 @@ class OCAD_REST_API {
 					esc_attr( $ad->alt_text ?: $fmt['label'] . ' advertisement' ),
 					(int) $fmt['width'],
 					(int) $fmt['height'],
-					(int) $ad->ad_id
+					esc_url( $track_url )
 				);
 
 				$response = rest_ensure_response( array( 'html' => $html ) );
