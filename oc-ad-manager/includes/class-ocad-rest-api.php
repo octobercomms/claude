@@ -108,22 +108,22 @@ class OCAD_REST_API {
 
 		$fmt = OCAD_FORMATS[ $format ];
 
+		// Log impression here — partner sites fetch this endpoint once per cache window (5 min),
+		// so each call represents a fresh ad display on the partner site.
+		OCAD_Tracker::log_impression( $ad->campaign_id, $ad->ad_id );
+
 		// Click URL points back to this hub so clicks are tracked here.
 		$click_url = add_query_arg( 'ocad_click', $ad->ad_id, home_url( '/' ) );
 
-		// Impression endpoint on this hub so partners can report back.
-		$impression_url = rest_url( 'ocad/v1/impression' );
-
 		return rest_ensure_response( array(
-			'ad_id'          => (int) $ad->ad_id,
-			'campaign_id'    => (int) $ad->campaign_id,
-			'format'         => $format,
-			'image_url'      => $ad->image_url,
-			'alt_text'       => $ad->alt_text ?: $fmt['label'] . ' advertisement',
-			'click_url'      => $click_url,
-			'impression_url' => $impression_url,
-			'width'          => $fmt['width'],
-			'height'         => $fmt['height'],
+			'ad_id'       => (int) $ad->ad_id,
+			'campaign_id' => (int) $ad->campaign_id,
+			'format'      => $format,
+			'image_url'   => $ad->image_url,
+			'alt_text'    => $ad->alt_text ?: $fmt['label'] . ' advertisement',
+			'click_url'   => $click_url,
+			'width'       => $fmt['width'],
+			'height'      => $fmt['height'],
 		) );
 	}
 

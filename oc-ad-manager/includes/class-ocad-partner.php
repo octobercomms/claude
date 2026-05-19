@@ -59,24 +59,6 @@ class OCAD_Partner {
 			return '';
 		}
 
-		// Report impression back to the hub asynchronously (non-blocking).
-		if ( ! empty( $ad['impression_url'] ) ) {
-			$visitor_ip = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
-			wp_remote_post( $ad['impression_url'], array(
-				'blocking' => false,
-				'timeout'  => 3,
-				'headers'  => array(
-					'X-OCAD-API-Key'  => $api_key,
-					'X-Forwarded-IP' => $visitor_ip,
-					'Content-Type'   => 'application/json',
-				),
-				'body' => wp_json_encode( array(
-					'ad_id'      => $ad['ad_id'],
-					'campaign_id'=> $ad['campaign_id'],
-				) ),
-			) );
-		}
-
 		$fmt = OCAD_FORMATS[ $format ];
 
 		return sprintf(
