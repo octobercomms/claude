@@ -64,6 +64,13 @@ class OCAD_Partner {
 
 		$fmt = OCAD_FORMATS[ $format ];
 
+		// Append the partner page URL so the hub can record it when the click redirect fires.
+		$click_url = $ad['click_url'];
+		if ( $source_url ) {
+			$click_url .= ( strpos( $click_url, '?' ) !== false ? '&' : '?' )
+				. 'page=' . rawurlencode( $source_url );
+		}
+
 		// Note: %% is required to produce a literal % inside sprintf.
 		return sprintf(
 			'<div class="ocad-ad ocad-ad--%1$s" style="display:inline-block;max-width:%2$dpx;">'
@@ -72,7 +79,7 @@ class OCAD_Partner {
 			. '</a></div>',
 			esc_attr( $format ),
 			(int) $fmt['width'],
-			esc_url( $ad['click_url'] ),
+			esc_url( $click_url ),
 			esc_url( $ad['image_url'] ),
 			esc_attr( $ad['alt_text'] ),
 			(int) $fmt['height']

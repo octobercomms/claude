@@ -3,7 +3,7 @@
  * Plugin Name: Ad Manager by October Communications
  * Plugin URI: https://octobercomms.com
  * Description: Advertising rotation manager for Atlanta Design Festival. Supports MPU, Leaderboard, and Skyscraper formats with click and impression tracking, campaign scheduling, and flexible restriction controls.
- * Version: 1.1.0
+ * Version: 1.1.1
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCAD_VERSION', '1.1.0' );
+define( 'OCAD_VERSION', '1.1.1' );
 define( 'OCAD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCAD_URL', plugin_dir_url( __FILE__ ) );
 
@@ -89,7 +89,8 @@ function ocad_handle_click_redirect() {
 		exit;
 	}
 
-	OCAD_Tracker::log_click( $ad->campaign_id, $ad_id );
+	$source_url = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : '';
+	OCAD_Tracker::log_click( $ad->campaign_id, $ad_id, $source_url );
 
 	$campaign = OCAD_Campaign::get( $ad->campaign_id );
 	$redirect  = $campaign ? $campaign->url : home_url( '/' );
