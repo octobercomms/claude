@@ -24,7 +24,7 @@ export default function Layout() {
       <nav style={styles.nav}>
         <div style={styles.navBrand}>
           <img src="/logo-black.gif" alt="October" style={styles.logo} />
-          <div style={styles.brandSub}>Performance Platform</div>
+          <div style={styles.brandSub}>Performance Marketing Platform</div>
         </div>
         <ul style={styles.navList}>
           {NAV.map(item => (
