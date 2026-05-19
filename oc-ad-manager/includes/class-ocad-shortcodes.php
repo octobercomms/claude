@@ -42,17 +42,13 @@ class OCAD_Shortcodes {
 		$fmt  = OCAD_FORMATS[ $format ];
 		$mode = get_option( 'ocad_site_mode', 'hub' );
 
-		// Build the full render URL and bake it into the placeholder's data-render attribute.
-		// This means the correct URL survives any page cache — no inline JS data dependency.
-		if ( $mode === 'partner' ) {
-			$hub_url = get_option( 'ocad_hub_url', '' );
-			if ( ! $hub_url ) {
-				return $is_admin ? "<!-- OCAD[$format]: partner mode — hub URL not configured -->" : '';
-			}
-			$render_url = trailingslashit( $hub_url ) . 'wp-json/ocad/v1/render?format=' . rawurlencode( $format );
-		} else {
-			$render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
+		// Always use this site's own render endpoint (same-origin — no CORS).
+		// In hub mode: serves ads directly from local DB.
+		// In partner mode: the REST endpoint proxies to the hub server-side.
+		if ( $mode === 'partner' && ! get_option( 'ocad_hub_url', '' ) ) {
+			return $is_admin ? "<!-- OCAD[$format]: partner mode — hub URL not configured -->" : '';
 		}
+		$render_url = rest_url( 'ocad/v1/render?format=' . rawurlencode( $format ) );
 
 		$extra_class = $atts['class'] ? ' ' . esc_attr( $atts['class'] ) : '';
 

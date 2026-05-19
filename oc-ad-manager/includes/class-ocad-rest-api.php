@@ -128,6 +128,16 @@ class OCAD_REST_API {
 	}
 
 	public function render_ad_html( WP_REST_Request $request ) {
+		try {
+			return $this->do_render_ad_html( $request );
+		} catch ( \Throwable $e ) {
+			$response = rest_ensure_response( array( 'html' => '' ) );
+			$response->header( 'Cache-Control', 'no-store' );
+			return $response;
+		}
+	}
+
+	private function do_render_ad_html( WP_REST_Request $request ) {
 		$format = $request->get_param( 'format' );
 		$mode   = get_option( 'ocad_site_mode', 'hub' );
 
@@ -144,8 +154,6 @@ class OCAD_REST_API {
 
 				$fmt = OCAD_FORMATS[ $format ];
 
-				// Embed the absolute track URL so partner pages (cross-origin) know
-				// exactly where to send the click beacon without constructing URLs in JS.
 				$track_url = rest_url( 'ocad/v1/track-click?id=' . (int) $ad->ad_id );
 				$html = sprintf(
 					'<a href="%1$s" data-ocad-track="%6$s" target="_blank" rel="noopener noreferrer nofollow">'
@@ -163,8 +171,6 @@ class OCAD_REST_API {
 			}
 		}
 
-		// Prevent caching. WordPress REST API already sends Access-Control-Allow-Origin
-		// via send_origin_headers(); adding our own creates a duplicate that browsers reject.
 		$response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
 		$response->header( 'Pragma', 'no-cache' );
 		return $response;
