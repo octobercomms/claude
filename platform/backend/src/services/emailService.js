@@ -204,4 +204,44 @@ function buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics = []
 </html>`;
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert };
+async function sendConnectorHealthAlert(issues) {
+  if (!process.env.ALERT_EMAIL) return;
+
+  const rows = issues.map(i => `
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${i.clientName}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${i.connectorType}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #c62828; font-weight: 600;">${i.status}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #666; font-size: 12px;">${i.errorMessage || '—'}</td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1a1a1a;">Connector Health Alert</h2>
+      <p style="color: #666;">${issues.length} connector${issues.length !== 1 ? 's' : ''} need attention.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <thead>
+          <tr style="background: #f5f5f5;">
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Client</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Connector</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Status</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Error</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top: 24px; color: #666; font-size: 13px;">
+        Log in to the platform to reauthorise any expired connectors.
+      </p>
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Performance Marketing Platform — daily health check</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `Platform alert: ${issues.length} connector${issues.length !== 1 ? 's' : ''} need attention`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert };
