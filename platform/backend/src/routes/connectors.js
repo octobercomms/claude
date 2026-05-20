@@ -194,12 +194,27 @@ router.get('/:id/diagnose', async (req, res) => {
       };
     } catch (tokenErr) {
       result.token_info = { error: tokenErr.response?.data || tokenErr.message };
-      // Try to refresh
+      // Attempt token refresh and retry
       try {
-        const google = require('../connectors/google');
-        const refreshed = await google.refreshToken ? null : null; // placeholder
-        result.token_info.note = 'Token may be expired — try re-authorising';
-      } catch {}
+        const googleConnector = require('../connectors/google');
+        const refreshed = await googleConnector.refreshToken(creds);
+        const retryRes = await axios.get(
+          `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${refreshed.access_token}`
+        );
+        result.token_info = {
+          email: retryRes.data.email,
+          scopes: retryRes.data.scope,
+          expires_in: retryRes.data.exp ? `${Math.round((retryRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
+          note: 'Token was expired and has been refreshed',
+        };
+        // Persist the refreshed credentials
+        const { encrypt } = require('../utils/encryption');
+        await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [
+          JSON.stringify(encrypt(refreshed)), row.id,
+        ]);
+      } catch {
+        result.token_info.note = 'Token is expired — re-authorise this connector';
+      }
     }
 
     // For GA4 connectors, test the Data API directly
