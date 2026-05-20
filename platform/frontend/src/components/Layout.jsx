@@ -15,14 +15,14 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: '10px 24px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.65)',
+    display: 'block', padding: '10px 24px', color: isActive ? '#E7CD41' : '#ffffff',
     textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
 
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: '7px 24px 7px 36px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.45)',
+    display: 'block', padding: '7px 24px 7px 36px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.75)',
     textDecoration: 'none', fontSize: 12, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
     letterSpacing: 0.2,
@@ -97,7 +97,7 @@ const styles = {
   },
   navBrand: { padding: '20px 20px 16px', borderBottom: '1px solid #1a1a1a' },
   logo: { width: '50%', height: 'auto', display: 'block' },
-  brandSub: { fontSize: 18, color: '#ffffff', marginTop: 10, letterSpacing: 0.3, fontWeight: 400 },
+  brandSub: { fontSize: 18, color: '#ffffff', marginTop: 20, letterSpacing: 0.3, fontWeight: 400 },
   navList: { listStyle: 'none', padding: '12px 0', margin: 0, flex: 1 },
   logoutBtn: {
     margin: '0 16px 20px', padding: '8px 12px', background: 'transparent',
