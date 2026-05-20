@@ -188,6 +188,39 @@ router.get('/export/:clientId', async (req, res) => {
   }
 });
 
+// Fetch Google reviews for a client's domain
+router.get('/reviews/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = rows[0];
+    const domain = req.query.domain || client.slug;
+    const data = await dataForSEO.fetchReviews(domain);
+    res.json(data || { error: 'No review data returned' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check LLM / AI Overview visibility for a client
+router.get('/llm-visibility/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = rows[0];
+    const domain = req.query.domain || client.slug;
+    const { rows: kwRows } = await pool.query(
+      'SELECT DISTINCT keyword FROM seo_keywords WHERE client_id = $1 AND active = true LIMIT 10',
+      [req.params.clientId]
+    );
+    const keywords = kwRows.map(r => r.keyword);
+    const data = await dataForSEO.fetchLLMVisibility(domain, keywords);
+    res.json(data || { error: 'No LLM visibility data returned' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 async function runRankChecks(keywords) {
   for (const kw of keywords) {
     try {
