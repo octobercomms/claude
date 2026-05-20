@@ -8,7 +8,8 @@ function getClient() {
 
 const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.`;
 
-async function generateExecutiveSummary({ clientName, period, monthlyFocus, data }) {
+async function generateExecutiveSummary({ clientName, period, monthlyFocus, data, seoData = {} }) {
+  const seoContext = buildSEOContext(seoData);
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
@@ -18,15 +19,17 @@ async function generateExecutiveSummary({ clientName, period, monthlyFocus, data
       content: `Client: ${clientName}
 Period: ${period}
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
-Data: ${JSON.stringify(data, null, 2)}
+Marketing data: ${JSON.stringify(data, null, 2)}
+${seoContext ? `SEO & visibility data:\n${seoContext}` : ''}
 
-Write an executive summary for this report. 300-400 words. Reference the monthly focus. Highlight the most significant movements in the data. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
+Write an executive summary for this report. 300-400 words. Reference the monthly focus. Highlight the most significant movements in the data. If SEO ranking shifts are notable, mention them. If there is AI brand visibility data, include one sentence on it. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
     }],
   });
   return message.content[0].text;
 }
 
-async function generateRecommendations({ monthlyFocus, data }) {
+async function generateRecommendations({ monthlyFocus, data, seoData = {} }) {
+  const seoContext = buildSEOContext(seoData);
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
@@ -36,13 +39,17 @@ async function generateRecommendations({ monthlyFocus, data }) {
       content: `Based on this data and the monthly focus below, write a prioritised list of up to 8 recommendations. Each recommendation should be specific and actionable. No generic advice.
 
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
-Data: ${JSON.stringify(data, null, 2)}`,
+Marketing data: ${JSON.stringify(data, null, 2)}
+${seoContext ? `SEO & visibility data:\n${seoContext}` : ''}`,
     }],
   });
   return message.content[0].text;
 }
 
-async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics }) {
+async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics, rankMovers = [] }) {
+  const rankContext = rankMovers.length
+    ? `\nRanking movements: ${rankMovers.filter(r => r.change).map(r => `${r.keyword} ${r.change > 0 ? `↑${r.change}` : `↓${Math.abs(r.change)}`} (now ${r.current})`).join(', ')}`
+    : '';
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 512,
@@ -52,12 +59,34 @@ async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics }
       content: `Client: ${clientName}
 Week: ${week}
 Monthly focus context: ${monthlyFocus || 'No specific focus set.'}
-Key metrics this week: ${JSON.stringify(metrics, null, 2)}
+Key metrics this week: ${JSON.stringify(metrics, null, 2)}${rankContext}
 
-Write 2-3 sentences summarising this week's performance. Reference any notable movements. Be direct. British English.`,
+Write 2-3 sentences summarising this week's performance. Reference any notable movements including rankings if present. Be direct. British English.`,
     }],
   });
   return message.content[0].text;
+}
+
+function buildSEOContext(seoData) {
+  const parts = [];
+  const rankings = (seoData.rankings || []).filter(k => k.current_position);
+  if (rankings.length) {
+    const top5 = [...rankings].sort((a, b) => a.current_position - b.current_position).slice(0, 5);
+    parts.push(`Top keywords: ${top5.map(k => `${k.keyword} (pos ${k.current_position})`).join(', ')}`);
+    const movers = rankings.filter(k => {
+      const change = Math.abs((parseInt(k.position_30d_ago) || 0) - (parseInt(k.current_position) || 0));
+      return change >= 3;
+    });
+    if (movers.length) parts.push(`Notable movers: ${movers.map(k => `${k.keyword} ${k.position_30d_ago > k.current_position ? '↑' : '↓'}`).join(', ')}`);
+  }
+  if (seoData.backlinks) {
+    parts.push(`Domain Rank: ${seoData.backlinks.domain_rank}, Referring domains: ${seoData.backlinks.referring_domains}`);
+  }
+  if (seoData.llm_visibility) {
+    const llm = seoData.llm_visibility;
+    parts.push(`AI Overview: brand visible in ${llm.brand_visible}/${llm.ai_overview_present} AI Overviews triggered (${llm.keywords_checked} keywords checked)`);
+  }
+  return parts.join('\n');
 }
 
 async function parseConnectorBriefing(briefingText) {
