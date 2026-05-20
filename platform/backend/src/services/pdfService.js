@@ -261,52 +261,6 @@ function buildSEOSectionsHtml(seoData) {
     </div>`);
   }
 
-  // Backlinks + Domain Rank section
-  const bl = seoData.backlinks;
-  if (bl) {
-    parts.push(`
-    <div class="page content-page">
-      <div class="page-header">
-        <span class="section-title">Domain Authority &amp; Backlinks</span>
-        <span class="client-label">DataForSEO Domain Rank</span>
-      </div>
-      <div class="metrics-grid">
-        <div class="metric-card"><div class="value">${bl.domain_rank ?? '—'}</div><div class="label">Domain Rank (0–100)</div></div>
-        <div class="metric-card"><div class="value">${(bl.backlinks_total || 0).toLocaleString()}</div><div class="label">Total Backlinks</div></div>
-        <div class="metric-card"><div class="value">${(bl.referring_domains || 0).toLocaleString()}</div><div class="label">Referring Domains</div></div>
-        ${bl.new_backlinks != null ? `<div class="metric-card"><div class="value" style="color:#2e7d32;">+${bl.new_backlinks}</div><div class="label">New This Month</div></div>` : ''}
-        ${bl.lost_backlinks != null ? `<div class="metric-card"><div class="value" style="color:#c62828;">-${bl.lost_backlinks}</div><div class="label">Lost This Month</div></div>` : ''}
-      </div>
-    </div>`);
-  }
-
-  // LLM Visibility section
-  const llm = seoData.llm_visibility;
-  if (llm) {
-    parts.push(`
-    <div class="page content-page">
-      <div class="page-header">
-        <span class="section-title">AI Brand Visibility</span>
-        <span class="client-label">Google AI Overview presence</span>
-      </div>
-      <div class="metrics-grid">
-        <div class="metric-card"><div class="value">${llm.keywords_checked}</div><div class="label">Keywords Checked</div></div>
-        <div class="metric-card"><div class="value">${llm.ai_overview_present}</div><div class="label">Triggered AI Overview</div></div>
-        <div class="metric-card"><div class="value">${llm.brand_visible}</div><div class="label">Brand Mentioned</div></div>
-      </div>
-      ${llm.details?.length ? buildTableHtml({
-        heading: 'Keyword-Level Breakdown',
-        headers: ['Keyword', 'AI Overview', 'Brand Visible', 'Snippet'],
-        rows: llm.details.map(d => [
-          d.keyword,
-          d.has_ai_overview ? 'Yes' : 'No',
-          d.brand_mentioned ? '✓ Yes' : '✗ No',
-          d.snippet ? d.snippet.slice(0, 80) + '…' : '—',
-        ]),
-      }) : ''}
-    </div>`);
-  }
-
   return parts.join('');
 }
 

@@ -20,9 +20,9 @@ async function generateExecutiveSummary({ clientName, period, monthlyFocus, data
 Period: ${period}
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
 Marketing data: ${JSON.stringify(data, null, 2)}
-${seoContext ? `SEO & visibility data:\n${seoContext}` : ''}
+${seoContext ? `SEO ranking data:\n${seoContext}` : ''}
 
-Write an executive summary for this report. 300-400 words. Reference the monthly focus. Highlight the most significant movements in the data. If SEO ranking shifts are notable, mention them. If there is AI brand visibility data, include one sentence on it. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
+Write an executive summary for this report. 300-400 words. Reference the monthly focus. Highlight the most significant movements in the data. If SEO ranking shifts are notable, mention them. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
     }],
   });
   return message.content[0].text;
@@ -40,7 +40,7 @@ async function generateRecommendations({ monthlyFocus, data, seoData = {} }) {
 
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
 Marketing data: ${JSON.stringify(data, null, 2)}
-${seoContext ? `SEO & visibility data:\n${seoContext}` : ''}`,
+${seoContext ? `SEO ranking data:\n${seoContext}` : ''}`,
     }],
   });
   return message.content[0].text;
@@ -78,13 +78,6 @@ function buildSEOContext(seoData) {
       return change >= 3;
     });
     if (movers.length) parts.push(`Notable movers: ${movers.map(k => `${k.keyword} ${k.position_30d_ago > k.current_position ? '↑' : '↓'}`).join(', ')}`);
-  }
-  if (seoData.backlinks) {
-    parts.push(`Domain Rank: ${seoData.backlinks.domain_rank}, Referring domains: ${seoData.backlinks.referring_domains}`);
-  }
-  if (seoData.llm_visibility) {
-    const llm = seoData.llm_visibility;
-    parts.push(`AI Overview: brand visible in ${llm.brand_visible}/${llm.ai_overview_present} AI Overviews triggered (${llm.keywords_checked} keywords checked)`);
   }
   return parts.join('\n');
 }

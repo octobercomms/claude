@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 
@@ -16,8 +16,6 @@ export default function ClientSEOPage() {
   const [client, setClient] = useState(null);
   const [keywords, setKeywords] = useState([]);
   const [tags, setTags] = useState([]);
-  const [seoSummary, setSeoSummary] = useState(null);
-  const [loadingSummary, setLoadingSummary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [filterTag, setFilterTag] = useState('');
@@ -46,23 +44,6 @@ export default function ClientSEOPage() {
       setTags(t);
     }).finally(() => setLoading(false));
   }, [id]);
-
-  async function loadSeoSummary() {
-    if (!client?.domain) return;
-    setLoadingSummary(true);
-    try {
-      const [bl, llm] = await Promise.allSettled([
-        api.get(`/rankings/seo-summary/${id}`),
-        api.get(`/rankings/llm-visibility/${id}`),
-      ]);
-      setSeoSummary({
-        backlinks: bl.status === 'fulfilled' ? bl.value : null,
-        llm: llm.status === 'fulfilled' ? llm.value : null,
-      });
-    } finally {
-      setLoadingSummary(false);
-    }
-  }
 
   async function openHistory(kw) {
     setHistoryModal(kw);
@@ -132,13 +113,10 @@ export default function ClientSEOPage() {
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
-  const bl = seoSummary?.backlinks;
-  const llm = seoSummary?.llm;
-
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>SEO &amp; Rankings — {client?.name}</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>SEO — {client?.name}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
           <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
@@ -147,81 +125,19 @@ export default function ClientSEOPage() {
         </div>
       </div>
 
-      {/* DA / Backlinks / LLM cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
-        {/* Domain Authority */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>Domain Authority &amp; Backlinks</div>
-          {!client?.domain ? (
-            <p style={{ fontSize: 12, color: '#888' }}>
-              Add a domain in <Link to={`/clients/${id}?tab=details`} style={{ color: '#1a1a1a' }}>client details</Link> to enable this.
-            </p>
-          ) : seoSummary === null ? (
-            <button onClick={loadSeoSummary} disabled={loadingSummary} style={s.btnSm}>
-              {loadingSummary ? 'Loading…' : 'Fetch data'}
-            </button>
-          ) : bl ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-              <div style={s.metricRow}><span style={s.metricVal}>{bl.domain_rank ?? '—'}</span><span style={s.metricLabel}>Domain Rank</span></div>
-              <div style={s.metricRow}><span style={s.metricVal}>{(bl.referring_domains || 0).toLocaleString()}</span><span style={s.metricLabel}>Referring Domains</span></div>
-              <div style={s.metricRow}><span style={s.metricVal}>{(bl.backlinks_total || 0).toLocaleString()}</span><span style={s.metricLabel}>Total Backlinks</span></div>
-              {bl.new_backlinks != null && <div style={s.metricRow}><span style={{ ...s.metricVal, color: '#2e7d32' }}>+{bl.new_backlinks}</span><span style={s.metricLabel}>New this month</span></div>}
-              {bl.lost_backlinks != null && <div style={s.metricRow}><span style={{ ...s.metricVal, color: '#c62828' }}>-{bl.lost_backlinks}</span><span style={s.metricLabel}>Lost this month</span></div>}
-              <button onClick={loadSeoSummary} style={{ ...s.btnSm, marginTop: 4 }}>Refresh</button>
-            </div>
-          ) : (
-            <p style={{ fontSize: 12, color: '#c62828' }}>No data returned — check DataForSEO credentials.</p>
-          )}
-        </div>
-
-        {/* AI Visibility */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>AI Brand Visibility</div>
-          {!client?.domain ? (
-            <p style={{ fontSize: 12, color: '#888' }}>
-              Add a domain in <Link to={`/clients/${id}?tab=details`} style={{ color: '#1a1a1a' }}>client details</Link> to enable this.
-            </p>
-          ) : seoSummary === null ? (
-            <button onClick={loadSeoSummary} disabled={loadingSummary} style={s.btnSm}>
-              {loadingSummary ? 'Loading…' : 'Fetch data'}
-            </button>
-          ) : llm ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-              <div style={s.metricRow}><span style={s.metricVal}>{llm.keywords_checked}</span><span style={s.metricLabel}>Keywords checked</span></div>
-              <div style={s.metricRow}><span style={s.metricVal}>{llm.ai_overview_present}</span><span style={s.metricLabel}>Triggered AI Overview</span></div>
-              <div style={s.metricRow}>
-                <span style={{ ...s.metricVal, color: llm.brand_visible > 0 ? '#2e7d32' : '#c62828' }}>{llm.brand_visible}</span>
-                <span style={s.metricLabel}>Brand mentioned</span>
-              </div>
-              {llm.details?.length > 0 && (
-                <div style={{ marginTop: 8, fontSize: 12 }}>
-                  {llm.details.map((d, i) => (
-                    <div key={i} style={{ marginBottom: 6, padding: '6px 8px', background: '#f9f9f9', borderRadius: 4 }}>
-                      <div style={{ fontWeight: 600 }}>{d.keyword}</div>
-                      <div style={{ color: d.brand_mentioned ? '#2e7d32' : '#999' }}>
-                        {d.brand_mentioned ? '✓ Brand visible' : 'Not mentioned'}
-                        {d.has_ai_overview ? ' · AI Overview present' : ''}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <p style={{ fontSize: 12, color: '#999' }}>No AI visibility data.</p>
-          )}
-        </div>
-
-        {/* Rankings summary */}
-        <div style={s.card}>
-          <div style={s.cardTitle}>Rankings Summary</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
-            <div style={s.metricRow}><span style={s.metricVal}>{keywords.length}</span><span style={s.metricLabel}>Keywords tracked</span></div>
-            <div style={s.metricRow}><span style={s.metricVal}>{keywords.filter(k => k.current_position && k.current_position <= 10).length}</span><span style={s.metricLabel}>In top 10</span></div>
-            <div style={s.metricRow}><span style={s.metricVal}>{keywords.filter(k => k.current_position && k.current_position <= 3).length}</span><span style={s.metricLabel}>In top 3</span></div>
-            <div style={s.metricRow}><span style={s.metricVal}>{keywords.filter(k => !k.current_position).length}</span><span style={s.metricLabel}>Not ranking</span></div>
+      {/* Rankings summary */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {[
+          { label: 'Keywords tracked', val: keywords.length },
+          { label: 'In top 3', val: keywords.filter(k => k.current_position && k.current_position <= 3).length },
+          { label: 'In top 10', val: keywords.filter(k => k.current_position && k.current_position <= 10).length },
+          { label: 'Not ranking', val: keywords.filter(k => !k.current_position).length },
+        ].map(m => (
+          <div key={m.label} style={s.card}>
+            <div style={s.metricVal}>{m.val}</div>
+            <div style={s.metricLabel}>{m.label}</div>
           </div>
-        </div>
+        ))}
       </div>
 
       {/* Filters */}

@@ -2,7 +2,6 @@ const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const emailService = require('./emailService');
-const dataForSEO = require('../connectors/dataforseo');
 
 async function collectClientData(clientId, periodStart, periodEnd) {
   const { rows: connectors } = await pool.query(
@@ -92,7 +91,7 @@ async function collectClientData(clientId, periodStart, periodEnd) {
   return { data: results, errors };
 }
 
-async function collectSEOData(clientId, domain) {
+async function collectSEOData(clientId) {
   const result = {};
 
   // Rank movements — always from DB, no API cost
@@ -113,38 +112,6 @@ async function collectSEOData(clientId, domain) {
   } catch (err) {
     console.error('[SEO] Failed to fetch rank data:', err.message);
     result.rankings = [];
-  }
-
-  if (!domain) return result;
-
-  // Backlinks + Domain Rank — DataForSEO backlinks summary
-  try {
-    const backlinks = await dataForSEO.fetchBacklinkData(domain);
-    if (backlinks) {
-      result.backlinks = {
-        domain_rank: backlinks.rank,
-        backlinks_total: backlinks.backlinks,
-        referring_domains: backlinks.referring_domains,
-        new_backlinks: backlinks.new_backlinks,
-        lost_backlinks: backlinks.lost_backlinks,
-      };
-    }
-  } catch (err) {
-    console.error('[SEO] Failed to fetch backlink data:', err.message);
-  }
-
-  // LLM / AI Overview visibility
-  try {
-    const topKeywords = result.rankings
-      .filter(k => k.current_position)
-      .sort((a, b) => (a.current_position || 999) - (b.current_position || 999))
-      .slice(0, 8)
-      .map(k => k.keyword);
-
-    const llm = await dataForSEO.fetchLLMVisibility(domain, topKeywords);
-    if (llm) result.llm_visibility = llm;
-  } catch (err) {
-    console.error('[SEO] Failed to fetch LLM visibility data:', err.message);
   }
 
   return result;
