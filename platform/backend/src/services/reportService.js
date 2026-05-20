@@ -236,71 +236,85 @@ function extractTopMetrics(rawData) {
 }
 
 function buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers = [] }) {
-  const metricsHtml = metrics.length ? `
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:24px 0;">
-      ${metrics.map(m => `
-        <div style="border:1px solid #e0e0e0;border-radius:6px;padding:16px;">
-          <div style="font-size:22px;font-weight:700;color:#1a1a1a;">${m.value}</div>
-          <div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">${m.label}</div>
-        </div>`).join('')}
-    </div>` : '';
+  const metricRows = metrics.map((m, i) => `
+    <tr style="${i === 0 ? 'background:#fff2cc;' : i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
+      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#333;">${m.label}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${m.value}</td>
+    </tr>`).join('');
 
-  const rankHtml = rankMovers.length ? `
-    <div style="margin-top:28px;">
-      <div style="font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Keyword Movements</div>
-      <table style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead><tr style="background:#f9f9f9;">
-          <th style="text-align:left;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Keyword</th>
-          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Now</th>
-          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">7d Ago</th>
-          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Change</th>
-        </tr></thead>
-        <tbody>
-          ${rankMovers.map(r => {
-            const change = r.change;
-            const changeStr = change > 0 ? `<span style="color:#2e7d32;">↑${change}</span>` : change < 0 ? `<span style="color:#c62828;">↓${Math.abs(change)}</span>` : '–';
-            return `<tr style="border-bottom:1px solid #f5f5f5;">
-              <td style="padding:8px 12px;">${r.keyword}</td>
-              <td style="padding:8px 12px;text-align:center;font-weight:700;">${r.current ?? '—'}</td>
-              <td style="padding:8px 12px;text-align:center;color:#999;">${r.previous ?? '—'}</td>
-              <td style="padding:8px 12px;text-align:center;">${changeStr}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table>
-    </div>` : '';
+  const rankRows = rankMovers.map(r => {
+    const change = r.change;
+    const chStr = change > 0 ? `<span style="color:#2e7d32;">&#8593;${change}</span>` : change < 0 ? `<span style="color:#c62828;">&#8595;${Math.abs(change)}</span>` : '&ndash;';
+    return `<tr>
+      <td style="padding:5px 10px;border:1px solid #000;font-size:12px;">${r.keyword}</td>
+      <td style="padding:5px 10px;border:1px solid #000;font-size:12px;text-align:center;font-weight:700;">${r.current ?? '&mdash;'}</td>
+      <td style="padding:5px 10px;border:1px solid #000;font-size:12px;text-align:center;color:#808080;">${r.previous ?? '&mdash;'}</td>
+      <td style="padding:5px 10px;border:1px solid #000;font-size:12px;text-align:center;">${chStr}</td>
+    </tr>`;
+  }).join('');
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #f5f5f5; color: #1a1a1a; }
-    .wrap { max-width: 680px; margin: 0 auto; background: white; }
-    .header { background: #1a1a1a; color: white; padding: 32px 40px; }
-    .header .agency { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; opacity: 0.6; margin-bottom: 8px; }
-    .header h1 { font-size: 22px; font-weight: 700; }
-    .header .period { font-size: 13px; opacity: 0.7; margin-top: 4px; }
-    .body { padding: 32px 40px; }
-    .summary { font-size: 15px; line-height: 1.7; color: #333; }
-    .footer { background: #f9f9f9; border-top: 1px solid #e8e8e8; padding: 20px 40px; font-size: 11px; color: #aaa; text-align: center; }
-  </style>
 </head>
-<body>
-  <div class="wrap">
-    <div class="header">
-      <div class="agency">October Communications</div>
-      <h1>${client.name} — Weekly Snapshot</h1>
-      <div class="period">${period}</div>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+  <div style="max-width:680px;margin:24px auto;background:white;padding:32px 40px;">
+
+    <!-- Header -->
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
+      <tr>
+        <td style="vertical-align:bottom;">
+          <div style="font-size:16px;font-weight:700;color:#000;letter-spacing:0.5px;">OCTOBER</div>
+          <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:2px;">Communications</div>
+        </td>
+        <td style="vertical-align:bottom;text-align:right;">
+          <div style="font-size:15px;font-weight:700;color:#000;">${client.name} &mdash; Weekly Snapshot</div>
+          <div style="font-size:13px;color:#808080;margin-top:2px;">${period}</div>
+        </td>
+      </tr>
+    </table>
+    <div style="border-top:1px solid #000;margin-bottom:24px;"></div>
+
+    <!-- Summary -->
+    <div style="font-size:13px;color:#333;line-height:1.7;margin-bottom:24px;">
+      ${summaryText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 10px;">${p}</p>`).join('')}
     </div>
-    <div class="body">
-      ${metricsHtml}
-      <div class="summary">${summaryText.split('\n').filter(p => p.trim()).map(p => `<p style="margin-bottom:12px;">${p}</p>`).join('')}</div>
-      ${rankHtml}
+
+    <!-- Metrics -->
+    ${metrics.length ? `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Key Metrics</div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:left;">Metric</th>
+          <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:right;">This Week</th>
+        </tr>
+        ${metricRows}
+      </table>
+    </div>` : ''}
+
+    <!-- Rankings -->
+    ${rankMovers.length ? `
+    <div style="margin-bottom:24px;">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Keyword Movements</div>
+      <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+        <tr>
+          <th style="padding:5px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:left;">Keyword</th>
+          <th style="padding:5px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:center;">Now</th>
+          <th style="padding:5px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:center;">7d Ago</th>
+          <th style="padding:5px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:center;">Change</th>
+        </tr>
+        ${rankRows}
+      </table>
+    </div>` : ''}
+
+    <!-- Footer -->
+    <div style="border-top:1px solid #e0e0e0;padding-top:10px;font-size:10px;color:#808080;">
+      Private &amp; Confidential &middot; October Communications Ltd. &middot; Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
     </div>
-    <div class="footer">October Communications · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+
   </div>
 </body>
 </html>`;
