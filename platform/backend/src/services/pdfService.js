@@ -5,7 +5,27 @@ const fs = require('fs');
 const PDF_DIR = path.join(__dirname, '../../pdfs');
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 
+const FONTS_DIR = path.join(__dirname, '../../../frontend/public/fonts');
 const LOGO_SVG_PATH = path.join(__dirname, '../assets/october-logo.svg');
+
+function fontFace(family, weight, style, file) {
+  try {
+    const b64 = fs.readFileSync(path.join(FONTS_DIR, file)).toString('base64');
+    return `@font-face { font-family: '${family}'; font-weight: ${weight}; font-style: ${style}; src: url('data:font/woff2;base64,${b64}') format('woff2'); }`;
+  } catch { return ''; }
+}
+
+function buildFontCSS() {
+  return [
+    fontFace('Brockmann', '400', 'normal', 'brockmann-regular-webfont.woff2'),
+    fontFace('Brockmann', '400', 'italic', 'brockmann-regularitalic-webfont.woff2'),
+    fontFace('Brockmann', '600', 'normal', 'brockmann-semibold-webfont.woff2'),
+    fontFace('Brockmann', '600', 'italic', 'brockmann-semibolditalic-webfont.woff2'),
+    fontFace('Brockmann', '700', 'normal', 'brockmann-bold-webfont.woff2'),
+    fontFace('Brockmann', '700', 'italic', 'brockmann-bolditalic-webfont.woff2'),
+  ].filter(Boolean).join('\n');
+}
+
 function getLogoDataUri() {
   try {
     const svg = fs.readFileSync(LOGO_SVG_PATH, 'utf8');
@@ -47,7 +67,9 @@ async function generatePDF(reportId, htmlContent) {
   }
 }
 
-const PAGE_CSS = `
+function getPageCSS() {
+  return `
+${buildFontCSS()}
 @page { size: A4; margin: 0; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -68,7 +90,7 @@ body {
 .page:last-child { page-break-after: avoid; }
 
 /* ---- Cover ---- */
-.cover { padding: 40pt 42pt 40pt; display: flex; flex-direction: column; }
+.cover { padding: 40pt 42pt 40pt; display: flex; flex-direction: column; width: 210mm; min-height: 297mm; page-break-after: always; }
 .cover-top { display: flex; justify-content: space-between; align-items: flex-start; }
 .cover-logo { font-size: 14pt; font-weight: 700; letter-spacing: 0.5px; }
 .cover-logo .sub { font-size: 8pt; font-weight: 400; color: #808080; text-transform: uppercase; letter-spacing: 2px; display: block; margin-top: 2pt; }
@@ -141,7 +163,7 @@ li strong { display: block; margin-bottom: 2pt; }
   font-size: 7pt;
   color: #808080;
 }
-`;
+`;}
 
 function pageHeader(clientName, period) {
   return `
@@ -168,7 +190,7 @@ function buildMonthlyReportHtml({ client, period, executiveSummary, sections, re
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>${PAGE_CSS}</style>
+  <style>${getPageCSS()}</style>
 </head>
 <body>
 
@@ -357,7 +379,7 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>${PAGE_CSS}</style>
+  <style>${getPageCSS()}</style>
 </head>
 <body>
 
@@ -371,12 +393,7 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
     </div>
   </div>
   <hr class="cover-hr">
-  <div class="cover-body">
-    <div class="cover-client">${clientName}</div>
-    <div class="cover-report-type">Weekly Snapshot</div>
-    <div class="cover-date">w/c ${weekLabel}</div>
-  </div>
-  <div style="border-top:0.5pt solid #ccc;padding-top:6pt;display:flex;justify-content:space-between;font-size:7pt;color:#808080;margin-top:auto;">
+  <div style="margin-top:auto;border-top:0.5pt solid #ccc;padding-top:6pt;display:flex;justify-content:space-between;font-size:7pt;color:#808080;">
     <span>Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
     <span>Private &amp; Confidential. October Communications Ltd. Company No. 8816416. Registered in England and Wales.</span>
   </div>
