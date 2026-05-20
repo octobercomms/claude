@@ -6,7 +6,7 @@ const dataCollector = require('./dataCollector');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
-    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
+    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients, c.slug FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
   );
   if (!rows.length) throw new Error(`Report ${reportId} not found`);
@@ -19,17 +19,21 @@ async function generateReport(reportId) {
     const periodEnd = report.period_end.toISOString().split('T')[0];
     const period = formatPeriod(report.report_type, periodStart, periodEnd);
 
-    // Collect data from all connectors
-    const collectedData = await dataCollector.collectClientData(
-      report.client_id, periodStart, periodEnd
-    );
+    // Collect connector data and SEO data in parallel
+    const [collectedData, seoData] = await Promise.all([
+      dataCollector.collectClientData(report.client_id, periodStart, periodEnd),
+      dataCollector.collectSEOData(report.client_id, report.slug).catch(err => {
+        console.error('[Report] SEO data collection failed:', err.message);
+        return { rankings: [] };
+      }),
+    ]);
 
     const sections = dataCollector.buildReportSections(collectedData);
 
     if (report.report_type === 'monthly') {
-      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data);
+      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData);
     } else {
-      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data);
+      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData);
     }
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
@@ -41,21 +45,23 @@ async function generateReport(reportId) {
   }
 }
 
-async function generateMonthlyReport(report, period, periodStart, periodEnd, sections, rawData) {
+async function generateMonthlyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}) {
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
-  // Generate AI content
+  // Generate AI content (pass SEO data to Claude for richer summaries)
   const [executiveSummary, recommendations] = await Promise.all([
     claudeService.generateExecutiveSummary({
       clientName: client.name,
       period,
       monthlyFocus: client.monthly_focus,
       data: rawData,
+      seoData,
     }),
     claudeService.generateRecommendations({
       monthlyFocus: client.monthly_focus,
       data: rawData,
+      seoData,
     }),
   ]);
 
@@ -66,6 +72,7 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
     executiveSummary,
     sections,
     recommendations,
+    seoData,
   });
 
   // Generate PDF
@@ -86,12 +93,13 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   await sendReport(report.id, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
 }
 
-async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData) {
+async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}) {
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
   // Build weekly metrics summary
   const metrics = extractTopMetrics(rawData);
+  const rankMovers = extractRankMovers(seoData.rankings || [], 'weekly');
   const weekLabel = new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
   const summaryText = await claudeService.generateWeeklySummary({
@@ -99,9 +107,10 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
     week: period,
     monthlyFocus: client.monthly_focus,
     metrics,
+    rankMovers,
   });
 
-  const htmlContent = buildWeeklyHtmlPreview({ client, period, summaryText, metrics });
+  const htmlContent = buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers });
 
   await pool.query(
     'UPDATE reports SET status = $1, generated_at = NOW(), html_content = $2, summary = $3 WHERE id = $4',
@@ -220,7 +229,7 @@ function extractTopMetrics(rawData) {
   return metrics.slice(0, 8);
 }
 
-function buildWeeklyHtmlPreview({ client, period, summaryText, metrics }) {
+function buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers = [] }) {
   const metricsHtml = metrics.length ? `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:24px 0;">
       ${metrics.map(m => `
@@ -228,6 +237,31 @@ function buildWeeklyHtmlPreview({ client, period, summaryText, metrics }) {
           <div style="font-size:22px;font-weight:700;color:#1a1a1a;">${m.value}</div>
           <div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:0.5px;">${m.label}</div>
         </div>`).join('')}
+    </div>` : '';
+
+  const rankHtml = rankMovers.length ? `
+    <div style="margin-top:28px;">
+      <div style="font-size:11px;font-weight:600;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;">Keyword Movements</div>
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead><tr style="background:#f9f9f9;">
+          <th style="text-align:left;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Keyword</th>
+          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Now</th>
+          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">7d Ago</th>
+          <th style="text-align:center;padding:8px 12px;font-weight:600;font-size:11px;color:#666;border-bottom:1px solid #e8e8e8;">Change</th>
+        </tr></thead>
+        <tbody>
+          ${rankMovers.map(r => {
+            const change = r.change;
+            const changeStr = change > 0 ? `<span style="color:#2e7d32;">↑${change}</span>` : change < 0 ? `<span style="color:#c62828;">↓${Math.abs(change)}</span>` : '–';
+            return `<tr style="border-bottom:1px solid #f5f5f5;">
+              <td style="padding:8px 12px;">${r.keyword}</td>
+              <td style="padding:8px 12px;text-align:center;font-weight:700;">${r.current ?? '—'}</td>
+              <td style="padding:8px 12px;text-align:center;color:#999;">${r.previous ?? '—'}</td>
+              <td style="padding:8px 12px;text-align:center;">${changeStr}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
     </div>` : '';
 
   return `<!DOCTYPE html>
@@ -258,11 +292,28 @@ function buildWeeklyHtmlPreview({ client, period, summaryText, metrics }) {
     <div class="body">
       ${metricsHtml}
       <div class="summary">${summaryText.split('\n').filter(p => p.trim()).map(p => `<p style="margin-bottom:12px;">${p}</p>`).join('')}</div>
+      ${rankHtml}
     </div>
     <div class="footer">October Communications · Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
   </div>
 </body>
 </html>`;
+}
+
+function extractRankMovers(rankings, period = 'weekly') {
+  if (!rankings.length) return [];
+  return rankings
+    .map(kw => {
+      const current = kw.current_position ? parseInt(kw.current_position) : null;
+      const previous = period === 'weekly'
+        ? (kw.position_7d_ago ? parseInt(kw.position_7d_ago) : null)
+        : (kw.position_30d_ago ? parseInt(kw.position_30d_ago) : null);
+      const change = (current && previous) ? previous - current : null; // positive = improved
+      return { keyword: kw.keyword, current, previous, change, tag: kw.tag };
+    })
+    .filter(r => r.current !== null)
+    .sort((a, b) => Math.abs(b.change || 0) - Math.abs(a.change || 0))
+    .slice(0, 15);
 }
 
 function formatPeriod(reportType, start, end) {

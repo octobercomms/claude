@@ -31,8 +31,9 @@ async function generatePDF(reportId, htmlContent) {
   }
 }
 
-function buildMonthlyReportHtml({ client, period, executiveSummary, sections, recommendations }) {
+function buildMonthlyReportHtml({ client, period, executiveSummary, sections, recommendations, seoData = {} }) {
   const sectionHtml = sections.map(s => buildSectionHtml(s)).join('');
+  const seoSectionsHtml = buildSEOSectionsHtml(seoData);
 
   return `<!DOCTYPE html>
 <html>
@@ -114,6 +115,9 @@ function buildMonthlyReportHtml({ client, period, executiveSummary, sections, re
 
 <!-- Data Sections -->
 ${sectionHtml}
+
+<!-- SEO Sections -->
+${seoSectionsHtml}
 
 <!-- Recommendations -->
 <div class="page content-page">
@@ -199,6 +203,111 @@ function formatRecommendations(text) {
     }).join('')}</ol>`;
   }
   return `<div>${text.split('\n').map(p => `<p>${p}</p>`).join('')}</div>`;
+}
+
+function buildSEOSectionsHtml(seoData) {
+  const parts = [];
+
+  // Rankings section
+  const rankings = (seoData.rankings || []).filter(k => k.current_position);
+  if (rankings.length) {
+    const improved = rankings.filter(k => {
+      const curr = parseInt(k.current_position);
+      const prev = parseInt(k.position_30d_ago);
+      return prev && curr && prev - curr >= 3;
+    }).sort((a, b) => (parseInt(b.position_30d_ago) - parseInt(b.current_position)) - (parseInt(a.position_30d_ago) - parseInt(a.current_position)));
+
+    const declined = rankings.filter(k => {
+      const curr = parseInt(k.current_position);
+      const prev = parseInt(k.position_30d_ago);
+      return prev && curr && curr - prev >= 3;
+    });
+
+    const top10 = [...rankings].sort((a, b) => (a.current_position || 999) - (b.current_position || 999)).slice(0, 10);
+
+    parts.push(`
+    <div class="page content-page">
+      <div class="page-header">
+        <span class="section-title">Organic Rankings</span>
+        <span class="client-label">${rankings.length} keywords tracked</span>
+      </div>
+      ${top10.length ? buildTableHtml({
+        heading: 'Top 10 Ranking Keywords',
+        headers: ['Keyword', 'Location', 'Position', '30d Ago', 'Best Ever'],
+        rows: top10.map(k => [
+          k.keyword,
+          k.location_name || 'UK',
+          k.current_position || '—',
+          k.position_30d_ago || '—',
+          k.best_position || '—',
+        ]),
+      }) : ''}
+      ${improved.length ? buildTableHtml({
+        heading: 'Biggest Improvements This Month',
+        headers: ['Keyword', 'Now', '30d Ago', 'Change'],
+        rows: improved.slice(0, 10).map(k => {
+          const change = parseInt(k.position_30d_ago) - parseInt(k.current_position);
+          return [k.keyword, k.current_position, k.position_30d_ago, `↑${change}`];
+        }),
+      }) : ''}
+      ${declined.length ? buildTableHtml({
+        heading: 'Declined This Month',
+        headers: ['Keyword', 'Now', '30d Ago', 'Change'],
+        rows: declined.slice(0, 10).map(k => {
+          const change = parseInt(k.current_position) - parseInt(k.position_30d_ago);
+          return [k.keyword, k.current_position, k.position_30d_ago, `↓${change}`];
+        }),
+      }) : ''}
+    </div>`);
+  }
+
+  // Backlinks + Domain Rank section
+  const bl = seoData.backlinks;
+  if (bl) {
+    parts.push(`
+    <div class="page content-page">
+      <div class="page-header">
+        <span class="section-title">Domain Authority &amp; Backlinks</span>
+        <span class="client-label">DataForSEO Domain Rank</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="value">${bl.domain_rank ?? '—'}</div><div class="label">Domain Rank (0–100)</div></div>
+        <div class="metric-card"><div class="value">${(bl.backlinks_total || 0).toLocaleString()}</div><div class="label">Total Backlinks</div></div>
+        <div class="metric-card"><div class="value">${(bl.referring_domains || 0).toLocaleString()}</div><div class="label">Referring Domains</div></div>
+        ${bl.new_backlinks != null ? `<div class="metric-card"><div class="value" style="color:#2e7d32;">+${bl.new_backlinks}</div><div class="label">New This Month</div></div>` : ''}
+        ${bl.lost_backlinks != null ? `<div class="metric-card"><div class="value" style="color:#c62828;">-${bl.lost_backlinks}</div><div class="label">Lost This Month</div></div>` : ''}
+      </div>
+    </div>`);
+  }
+
+  // LLM Visibility section
+  const llm = seoData.llm_visibility;
+  if (llm) {
+    parts.push(`
+    <div class="page content-page">
+      <div class="page-header">
+        <span class="section-title">AI Brand Visibility</span>
+        <span class="client-label">Google AI Overview presence</span>
+      </div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="value">${llm.keywords_checked}</div><div class="label">Keywords Checked</div></div>
+        <div class="metric-card"><div class="value">${llm.ai_overview_present}</div><div class="label">Triggered AI Overview</div></div>
+        <div class="metric-card"><div class="value">${llm.brand_visible}</div><div class="label">Brand Mentioned</div></div>
+      </div>
+      ${llm.details?.length ? buildTableHtml({
+        heading: 'Keyword-Level Breakdown',
+        headers: ['Keyword', 'AI Overview', 'Brand Visible', 'Snippet'],
+        rows: llm.details.map(d => [
+          d.keyword,
+          d.has_ai_overview ? 'Yes' : 'No',
+          d.brand_mentioned ? '✓ Yes' : '✗ No',
+          d.snippet ? d.snippet.slice(0, 80) + '…' : '—',
+        ]),
+      }) : ''}
+    </div>`);
+  }
+
+  return parts.join('');
 }
 
 module.exports = { generatePDF, buildMonthlyReportHtml };

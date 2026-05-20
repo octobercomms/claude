@@ -108,13 +108,14 @@ router.delete('/keywords/:id', async (req, res) => {
   }
 });
 
-// Get rank history for a keyword (30 days)
+// Get rank history for a keyword (12 months)
 router.get('/keywords/:id/history', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT checked_at, position, url FROM seo_rank_history
        WHERE keyword_id = $1
-       ORDER BY checked_at DESC LIMIT 90`,
+         AND checked_at >= CURRENT_DATE - INTERVAL '12 months'
+       ORDER BY checked_at ASC`,
       [req.params.id]
     );
     res.json(rows);
