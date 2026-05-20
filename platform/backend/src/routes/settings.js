@@ -5,6 +5,8 @@ const { authenticate } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
 
+const bcrypt = require('bcryptjs');
+
 const SETTINGS_KEYS = [
   'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_ADS_DEVELOPER_TOKEN',
   'META_APP_ID', 'META_APP_SECRET',
@@ -15,6 +17,7 @@ const SETTINGS_KEYS = [
   'EMAIL_PROVIDER',
   'GMAIL_USER', 'GMAIL_APP_PASSWORD',
   'SES_SMTP_USER', 'SES_SMTP_PASS', 'SES_REGION', 'SES_FROM_EMAIL',
+  'ALERT_EMAIL',
 ];
 
 router.use(authenticate);
@@ -75,6 +78,73 @@ router.post('/platform-keys', async (req, res) => {
       updates.push(key);
     }
     res.json({ updated: updates });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET account info (username only)
+router.get('/account', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT value FROM platform_settings WHERE key = 'ADMIN_USERNAME'`);
+    let username = '';
+    if (result.rows.length) {
+      try { username = decrypt(JSON.parse(result.rows[0].value)) || ''; } catch {}
+    }
+    res.json({ username: username || process.env.ADMIN_USERNAME || '' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST update account credentials
+router.post('/account', async (req, res) => {
+  const { username, currentPassword, newPassword } = req.body;
+  if (!currentPassword) return res.status(400).json({ error: 'Current password required' });
+
+  try {
+    // Verify current password
+    const storedHash = await (async () => {
+      const r = await db.query(`SELECT value FROM platform_settings WHERE key = 'ADMIN_PASSWORD'`);
+      if (r.rows.length) {
+        try { return decrypt(JSON.parse(r.rows[0].value)) || null; } catch { return null; }
+      }
+      return null;
+    })();
+
+    const envPassword = process.env.ADMIN_PASSWORD || '';
+    const passwordToCheck = storedHash || envPassword;
+
+    const valid = passwordToCheck.startsWith('$2')
+      ? await bcrypt.compare(currentPassword, passwordToCheck)
+      : currentPassword === passwordToCheck;
+
+    if (!valid) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    // Update username
+    if (username) {
+      const encUser = encrypt(username);
+      await db.query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ('ADMIN_USERNAME', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+        [JSON.stringify(encUser)]
+      );
+      process.env.ADMIN_USERNAME = username;
+    }
+
+    // Update password
+    if (newPassword) {
+      const hash = await bcrypt.hash(newPassword, 12);
+      const encPass = encrypt(hash);
+      await db.query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ('ADMIN_PASSWORD', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+        [JSON.stringify(encPass)]
+      );
+      process.env.ADMIN_PASSWORD = hash;
+    }
+
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
