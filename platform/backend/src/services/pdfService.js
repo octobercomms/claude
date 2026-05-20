@@ -5,6 +5,22 @@ const fs = require('fs');
 const PDF_DIR = path.join(__dirname, '../../pdfs');
 if (!fs.existsSync(PDF_DIR)) fs.mkdirSync(PDF_DIR, { recursive: true });
 
+const LOGO_SVG_PATH = path.join(__dirname, '../assets/october-logo.svg');
+function getLogoDataUri() {
+  try {
+    const svg = fs.readFileSync(LOGO_SVG_PATH, 'utf8');
+    return `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
+  } catch {
+    return null;
+  }
+}
+
+function logoImg(height = 55) {
+  const uri = getLogoDataUri();
+  if (!uri) return '<div style="font-size:14pt;font-weight:700;letter-spacing:0.5px;">OCTOBER<span style="display:block;font-size:8pt;font-weight:400;color:#808080;text-transform:uppercase;letter-spacing:2px;">Communications</span></div>';
+  return `<img src="${uri}" height="${height}" alt="October" style="display:block;">`;
+}
+
 async function generatePDF(reportId, htmlContent) {
   const browser = await puppeteer.launch({
     headless: 'new',
@@ -130,7 +146,7 @@ li strong { display: block; margin-bottom: 2pt; }
 function pageHeader(clientName, period) {
   return `
   <div class="pg-head">
-    <span class="pg-head-l">October Communications</span>
+    <span class="pg-head-l">${logoImg(28)}</span>
     <span class="pg-head-r">${clientName} &middot; ${period}</span>
   </div>
   <hr class="pg-hr">`;
@@ -159,7 +175,7 @@ function buildMonthlyReportHtml({ client, period, executiveSummary, sections, re
 <!-- Cover Page -->
 <div class="cover">
   <div class="cover-top">
-    <div class="cover-logo">OCTOBER<span class="sub">Communications</span></div>
+    <div class="cover-logo">${logoImg(55)}</div>
     <div class="cover-right">
       <div class="report-for">Report for ${client.name}</div>
       <div class="period">${period}</div>
@@ -322,4 +338,75 @@ function buildSEOSectionsHtml(seoData, client = {}, period = '') {
   return parts.join('');
 }
 
-module.exports = { generatePDF, buildMonthlyReportHtml };
+function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics = [], rankMovers = [] }) {
+  const clientName = client.name || '';
+
+  const metricRows = metrics.slice(0, 8).map((m, i) => {
+    const cls = i === 0 ? ' class="current"' : i % 2 === 1 ? ' class="alt"' : '';
+    return `<tr${cls}><td>${m.label}</td><td style="text-align:right;">${m.value}</td></tr>`;
+  }).join('');
+
+  const rankRows = rankMovers.map(r => {
+    const change = r.change;
+    const chStr = change > 0 ? `&#8593;${change}` : change < 0 ? `&#8595;${Math.abs(change)}` : '&ndash;';
+    const chStyle = change > 0 ? 'color:#2e7d32;' : change < 0 ? 'color:#c62828;' : '';
+    return `<tr><td>${r.keyword}</td><td style="text-align:center;font-weight:700;">${r.current ?? '&mdash;'}</td><td style="text-align:center;color:#808080;">${r.previous ?? '&mdash;'}</td><td style="text-align:center;${chStyle}">${chStr}</td></tr>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>${PAGE_CSS}</style>
+</head>
+<body>
+
+<!-- Cover Page -->
+<div class="cover">
+  <div class="cover-top">
+    <div class="cover-logo">${logoImg(55)}</div>
+    <div class="cover-right">
+      <div class="report-for">Report for ${clientName}</div>
+      <div class="period">${period}</div>
+    </div>
+  </div>
+  <hr class="cover-hr">
+  <div class="cover-body">
+    <div class="cover-client">${clientName}</div>
+    <div class="cover-report-type">Weekly Snapshot</div>
+    <div class="cover-date">w/c ${weekLabel}</div>
+  </div>
+  <div style="border-top:0.5pt solid #ccc;padding-top:6pt;display:flex;justify-content:space-between;font-size:7pt;color:#808080;margin-top:auto;">
+    <span>Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+    <span>Private &amp; Confidential. October Communications Ltd. Company No. 8816416. Registered in England and Wales.</span>
+  </div>
+</div>
+
+<!-- Summary + Metrics Page -->
+<div class="page">
+  ${pageHeader(clientName, period)}
+  <div class="section-title">Weekly Snapshot &mdash; w/c ${weekLabel}</div>
+  ${summaryText.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('')}
+
+  ${metrics.length ? `
+  <div class="sub-title" style="margin-top:16pt;">Key Metrics</div>
+  <table class="w-full">
+    <thead><tr><th>Metric</th><th style="text-align:right;">This Week</th></tr></thead>
+    <tbody>${metricRows}</tbody>
+  </table>` : ''}
+
+  ${rankMovers.length ? `
+  <div class="sub-title">Keyword Movements</div>
+  <table class="w-full">
+    <thead><tr><th>Keyword</th><th style="text-align:center;">Now</th><th style="text-align:center;">7d Ago</th><th style="text-align:center;">Change</th></tr></thead>
+    <tbody>${rankRows}</tbody>
+  </table>` : ''}
+
+  ${pageFooter(clientName, period)}
+</div>
+
+</body>
+</html>`;
+}
+
+module.exports = { generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml };

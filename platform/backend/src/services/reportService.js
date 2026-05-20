@@ -118,15 +118,20 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
 
   const htmlContent = buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers });
 
+  // Generate weekly PDF
+  const weeklyPdfHtml = pdfService.buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics, rankMovers });
+  const pdfPath = await pdfService.generatePDF(`${report.id}-weekly`, weeklyPdfHtml);
+
   await pool.query(
-    'UPDATE reports SET status = $1, generated_at = NOW(), html_content = $2, summary = $3 WHERE id = $4',
-    ['generated', htmlContent, JSON.stringify({ summaryText, metrics, weekLabel }), report.id]
+    'UPDATE reports SET status = $1, generated_at = NOW(), pdf_path = $2, html_content = $3, summary = $4 WHERE id = $5',
+    ['generated', pdfPath, htmlContent, JSON.stringify({ summaryText, metrics, weekLabel }), report.id]
   );
 
-  await sendReport(report.id, { summaryText, metrics, weekLabel });
+  await sendReport(report.id, { summaryText, metrics, weekLabel, pdfPath });
 }
 
 async function sendReport(reportId, overrides = {}) {
+  // overrides.pdfPath can be passed directly (not stored in summary JSON)
   const { rows } = await pool.query(
     'SELECT r.*, c.name as client_name, c.report_recipients FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
@@ -178,6 +183,7 @@ async function sendReport(reportId, overrides = {}) {
         weekLabel,
         summaryText: overrides.summaryText || 'Please see the weekly snapshot below.',
         metrics: overrides.metrics || [],
+        pdfPath: overrides.pdfPath || report.pdf_path || null,
       });
     }
 
@@ -265,9 +271,8 @@ function buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMove
     <!-- Header -->
     <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:10px;">
       <tr>
-        <td style="vertical-align:bottom;">
-          <div style="font-size:16px;font-weight:700;color:#000;letter-spacing:0.5px;">OCTOBER</div>
-          <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:2px;">Communications</div>
+        <td style="vertical-align:bottom;width:120px;">
+          <img src="https://raw.githubusercontent.com/octobercomms/claude/main/platform/backend/src/assets/october-logo.gif" height="50" alt="October" style="display:block;">
         </td>
         <td style="vertical-align:bottom;text-align:right;">
           <div style="font-size:15px;font-weight:700;color:#000;">${client.name} &mdash; Weekly Snapshot</div>
