@@ -1,5 +1,9 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const fs = require('fs');
+
+const LOGO_GIF_PATH = path.join(__dirname, '../assets/october-logo.gif');
+const LOGO_CID = 'october-logo@octobercomms';
 
 function getTransporter() {
   const { buildTransporter } = require('../routes/settings');
@@ -13,37 +17,57 @@ function getSenderAddress() {
   return `"October Communications" <${process.env.GMAIL_USER}>`;
 }
 
+function logoAttachment() {
+  return {
+    filename: 'october-logo.gif',
+    path: LOGO_GIF_PATH,
+    cid: LOGO_CID,
+    contentDisposition: 'inline',
+  };
+}
+
 async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath, metrics }) {
   const subject = `${clientName} Monthly Report — ${period}`;
   const html = buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics });
 
-  const mailOptions = {
-    from: getSenderAddress(),
-    to: Array.isArray(to) ? to.join(', ') : to,
-    subject,
-    html,
-    attachments: pdfPath ? [{
+  const attachments = [logoAttachment()];
+  if (pdfPath) {
+    attachments.push({
       filename: `${clientName.replace(/\s+/g, '-')}-Monthly-Report-${period}.pdf`,
       path: pdfPath,
       contentType: 'application/pdf',
-    }] : [],
-  };
+    });
+  }
 
-  return getTransporter().sendMail(mailOptions);
-}
-
-async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics }) {
-  const subject = `${clientName} Weekly Snapshot — w/c ${weekLabel}`;
-  const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
-
-  const mailOptions = {
+  return getTransporter().sendMail({
     from: getSenderAddress(),
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     html,
-  };
+    attachments,
+  });
+}
 
-  return getTransporter().sendMail(mailOptions);
+async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics, pdfPath }) {
+  const subject = `${clientName} Weekly Snapshot — w/c ${weekLabel}`;
+  const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
+
+  const attachments = [logoAttachment()];
+  if (pdfPath) {
+    attachments.push({
+      filename: `${clientName.replace(/\s+/g, '-')}-Weekly-Snapshot-${weekLabel}.pdf`,
+      path: pdfPath,
+      contentType: 'application/pdf',
+    });
+  }
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject,
+    html,
+    attachments,
+  });
 }
 
 async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl }) {
@@ -96,17 +120,16 @@ function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }
 <body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
   <tr>
-    <td align="center" style="padding:24px 12px;">
-      <table width="620" cellpadding="0" cellspacing="0" style="background:white;max-width:620px;">
+    <td style="padding:24px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:white;">
 
         <!-- Header: logo left, client right -->
         <tr>
           <td style="padding:28px 32px 0;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="vertical-align:bottom;">
-                  <div style="font-size:16px;font-weight:700;color:#000;letter-spacing:0.5px;line-height:1.2;">OCTOBER</div>
-                  <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:2px;">Communications</div>
+                <td style="vertical-align:bottom;width:120px;">
+                  <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
                 </td>
                 <td style="vertical-align:bottom;text-align:right;">
                   <div style="font-size:15px;font-weight:700;color:#000;">Report for ${clientName}</div>
@@ -178,17 +201,16 @@ function buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics = []
 <body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
   <tr>
-    <td align="center" style="padding:24px 12px;">
-      <table width="620" cellpadding="0" cellspacing="0" style="background:white;max-width:620px;">
+    <td style="padding:24px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:white;">
 
         <!-- Header -->
         <tr>
           <td style="padding:28px 32px 0;">
             <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="vertical-align:bottom;">
-                  <div style="font-size:16px;font-weight:700;color:#000;letter-spacing:0.5px;line-height:1.2;">OCTOBER</div>
-                  <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:2px;">Communications</div>
+                <td style="vertical-align:bottom;width:120px;">
+                  <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
                 </td>
                 <td style="vertical-align:bottom;text-align:right;">
                   <div style="font-size:15px;font-weight:700;color:#000;">${clientName} — Weekly Snapshot</div>
