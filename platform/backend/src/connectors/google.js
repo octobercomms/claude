@@ -81,23 +81,29 @@ async function fetchGA4Data(credentials, params) {
   const { propertyId, startDate, endDate } = params;
   if (!propertyId) throw new Error('GA4 property not selected — open the client connectors tab and choose a property.');
 
-  const { data } = await axios.post(
-    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
-    {
-      dateRanges: [
-        { startDate, endDate },
-        { startDate: getPreviousPeriodStart(startDate, endDate), endDate: getPreviousPeriodEnd(startDate, endDate) },
-      ],
-      metrics: [
-        { name: 'sessions' }, { name: 'activeUsers' }, { name: 'screenPageViews' },
-        { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' },
-        { name: 'totalRevenue' },
-      ],
-      dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
-    },
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
-  );
-  return data;
+  try {
+    const { data } = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [
+          { startDate, endDate },
+          { startDate: getPreviousPeriodStart(startDate, endDate), endDate: getPreviousPeriodEnd(startDate, endDate) },
+        ],
+        metrics: [
+          { name: 'sessions' }, { name: 'activeUsers' }, { name: 'screenPageViews' },
+          { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' },
+          { name: 'totalRevenue' },
+        ],
+        dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+      },
+      { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    );
+    return data;
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+    const status = err.response?.status;
+    throw new Error(`GA4 API error (${status}): ${JSON.stringify(detail)}`);
+  }
 }
 
 // Search Console data fetch
