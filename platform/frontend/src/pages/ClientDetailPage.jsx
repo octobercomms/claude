@@ -372,7 +372,22 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
   const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
+  const [diagnosing, setDiagnosing] = React.useState(false);
+  const [diagnoseResult, setDiagnoseResult] = React.useState(null);
   const statusColor = { active: '#2e7d32', error: '#c62828', expired: '#e65100', disconnected: '#999' };
+
+  async function handleDiagnose() {
+    setDiagnosing(true);
+    setDiagnoseResult(null);
+    try {
+      const result = await api.get(`/connectors/${connector.id}/diagnose`);
+      setDiagnoseResult(result);
+    } catch (err) {
+      setDiagnoseResult({ error: err.message });
+    } finally {
+      setDiagnosing(false);
+    }
+  }
 
   React.useEffect(() => {
     if (isOAuth && isActive) {
@@ -424,6 +439,11 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
         <div style={{ display: 'flex', gap: 6 }}>
           {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
           {isOAuth && isActive && (
+            <button onClick={handleDiagnose} disabled={diagnosing} style={styles.btnSm}>
+              {diagnosing ? 'Diagnosing…' : 'Diagnose'}
+            </button>
+          )}
+          {isOAuth && isActive && (
             <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
           )}
           {isOAuth ? (
@@ -438,6 +458,36 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
           <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
         </div>
       </div>
+      {diagnoseResult && (
+        <div style={{ marginTop: 10, background: '#f5f5f5', borderRadius: 4, padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
+            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14 }}>×</button>
+          </div>
+          {diagnoseResult.token_info && (
+            <div style={{ marginBottom: 6 }}>
+              <span style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
+                {diagnoseResult.token_info.error
+                  ? `Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
+                  : `Account: ${diagnoseResult.token_info.email || 'unknown'}`}
+              </span>
+              {diagnoseResult.token_info.scopes && (
+                <div style={{ color: diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '#2e7d32' : '#c62828' }}>
+                  analytics.readonly: {diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '✓' : '✗ missing'}
+                </div>
+              )}
+            </div>
+          )}
+          {diagnoseResult.ga4_test && (
+            <div style={{ color: diagnoseResult.ga4_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
+              GA4 test ({diagnoseResult.property_id}): {diagnoseResult.ga4_test.status === 'ok'
+                ? `✓ OK — ${diagnoseResult.ga4_test.row_count} rows`
+                : `✗ ${diagnoseResult.ga4_test.http_status} — ${JSON.stringify(diagnoseResult.ga4_test.error)}`}
+            </div>
+          )}
+          {diagnoseResult.error && <div style={{ color: '#c62828' }}>Error: {diagnoseResult.error}</div>}
+        </div>
+      )}
       {isOAuth && isActive && (
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
