@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 
 const CONNECTOR_TYPES = [
@@ -35,7 +35,9 @@ export default function ClientDetailPage() {
   const [saving, setSaving] = useState(false);
   const [parsingSuggestions, setParsingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState(null);
-  const [tab, setTab] = useState('details');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'details';
+  function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
@@ -148,26 +150,13 @@ export default function ClientDetailPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
   if (!client) return <div style={{ color: '#c62828', padding: 40 }}>Client not found</div>;
 
-  const tabs = ['details', 'connectors', 'recipients', 'schedule'];
-
   return (
     <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4, cursor: 'pointer' }} onClick={() => navigate('/clients')}>← Clients</div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{client.name}</h1>
-        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{client.name}</h1>
         <span style={{ fontSize: 12, fontWeight: 600, color: client.active ? '#2e7d32' : '#999' }}>
           {client.active ? 'Active' : 'Inactive'}
         </span>
-      </div>
-
-      <div style={styles.tabs}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
       </div>
 
       {tab === 'details' && (
@@ -180,6 +169,9 @@ export default function ClientDetailPage() {
               <input style={styles.input} value={client.slug} onChange={e => setClient(p => ({ ...p, slug: e.target.value }))} />
             </Field>
           </div>
+          <Field label="Domain (used for SEO data — e.g. falconenamelware.com)">
+            <input style={styles.input} value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
+          </Field>
           <Field label="Active">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
               <input type="checkbox" checked={client.active} onChange={e => setClient(p => ({ ...p, active: e.target.checked }))} />
@@ -438,7 +430,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
-          {isOAuth && isActive && (
+          {isOAuth && connector.status !== 'disconnected' && (
             <button onClick={handleDiagnose} disabled={diagnosing} style={styles.btnSm}>
               {diagnosing ? 'Diagnosing…' : 'Diagnose'}
             </button>

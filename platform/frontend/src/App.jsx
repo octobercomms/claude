@@ -8,6 +8,7 @@ import ClientsPage from './pages/ClientsPage';
 import ClientDetailPage from './pages/ClientDetailPage';
 import ReportsPage from './pages/ReportsPage';
 import RankingsPage from './pages/RankingsPage';
+import ClientSEOPage from './pages/ClientSEOPage';
 import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }) {
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="clients" element={<ClientsPage />} />
             <Route path="clients/:id" element={<ClientDetailPage />} />
+            <Route path="clients/:id/seo" element={<ClientSEOPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="settings" element={<SettingsPage />} />

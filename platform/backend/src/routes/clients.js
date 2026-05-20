@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
 
 // Update client
 router.put('/:id', async (req, res) => {
-  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule } = req.body;
+  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, domain } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -65,8 +65,9 @@ router.put('/:id', async (req, res) => {
       `UPDATE clients SET
         name = $1, slug = $2, active = $3,
         briefing_field = $4, monthly_focus = $5,
-        report_recipients = $6, report_schedule = $7
-       WHERE id = $8 RETURNING *`,
+        report_recipients = $6, report_schedule = $7,
+        domain = $8
+       WHERE id = $9 RETURNING *`,
       [
         name ?? c.name,
         slug ?? c.slug,
@@ -75,6 +76,7 @@ router.put('/:id', async (req, res) => {
         monthly_focus ?? c.monthly_focus,
         JSON.stringify(report_recipients ?? c.report_recipients),
         JSON.stringify(report_schedule ?? c.report_schedule),
+        domain ?? c.domain ?? null,
         req.params.id,
       ]
     );

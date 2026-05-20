@@ -189,6 +189,26 @@ router.get('/export/:clientId', async (req, res) => {
   }
 });
 
+// SEO summary: backlinks + domain rank for a client's domain
+router.get('/seo-summary/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT domain, slug FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const domain = rows[0].domain || rows[0].slug;
+    const backlinks = await dataForSEO.fetchBacklinkData(domain);
+    if (!backlinks) return res.json({});
+    res.json({
+      domain_rank: backlinks.rank,
+      backlinks_total: backlinks.backlinks,
+      referring_domains: backlinks.referring_domains,
+      new_backlinks: backlinks.new_backlinks,
+      lost_backlinks: backlinks.lost_backlinks,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Fetch Google reviews for a client's domain
 router.get('/reviews/:clientId', async (req, res) => {
   try {
