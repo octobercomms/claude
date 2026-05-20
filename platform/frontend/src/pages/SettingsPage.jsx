@@ -80,6 +80,13 @@ const KEY_GROUPS = [
       { key: 'N8N_WEBHOOK_BASE_URL', label: 'Webhook Base URL', placeholder: 'https://your-n8n.example.com', type: 'text' },
     ],
   },
+  {
+    title: 'Alerts',
+    hint: 'Email address for platform alerts — connector failures, token expiry, and daily health check summaries.',
+    keys: [
+      { key: 'ALERT_EMAIL', label: 'Alert Email', placeholder: 'you@octobercomms.com', type: 'text' },
+    ],
+  },
 ];
 
 export default function SettingsPage() {
@@ -91,9 +98,13 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testMsg, setTestMsg] = useState('');
+  const [account, setAccount] = useState({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [accountMsg, setAccountMsg] = useState('');
 
   useEffect(() => {
     api.get('/settings/platform-keys').then(data => setValues(data));
+    api.get('/settings/account').then(data => setAccount(prev => ({ ...prev, username: data.username || '' }))).catch(() => {});
   }, []);
 
   async function toggleReveal(key) {
@@ -128,6 +139,29 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSaveAccount(e) {
+    e.preventDefault();
+    if (account.newPassword && account.newPassword !== account.confirmPassword) {
+      setAccountMsg('New passwords do not match.');
+      return;
+    }
+    setSavingAccount(true);
+    setAccountMsg('');
+    try {
+      await api.post('/settings/account', {
+        username: account.username,
+        currentPassword: account.currentPassword,
+        newPassword: account.newPassword || undefined,
+      });
+      setAccountMsg('Account updated.');
+      setAccount(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+    } catch (err) {
+      setAccountMsg(`Error: ${err.message}`);
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
   async function handleTestEmail(e) {
     e.preventDefault();
     setSendingTest(true);
@@ -153,11 +187,32 @@ export default function SettingsPage() {
           <InfoRow label="Environment" value={import.meta.env.MODE} />
         </Section>
 
-        <Section title="Authentication">
-          <p style={styles.hint}>
-            Admin credentials are set via the <code>.env</code> file on the server.
-            Change <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> and restart the service.
-          </p>
+        <Section title="Account">
+          <p style={styles.hint}>Change your login username or password. Enter your current password to confirm.</p>
+          <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+            <div style={styles.field}>
+              <label style={styles.label}>Username</label>
+              <input type="text" style={styles.input} value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label}>Current Password</label>
+              <input type="password" style={styles.input} value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label}>New Password <span style={{ fontWeight: 400, textTransform: 'none' }}>(leave blank to keep current)</span></label>
+              <input type="password" style={styles.input} value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
+            </div>
+            {account.newPassword && (
+              <div style={styles.field}>
+                <label style={styles.label}>Confirm New Password</label>
+                <input type="password" style={styles.input} value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button type="submit" style={styles.btn} disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
+              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{accountMsg}</span>}
+            </div>
+          </form>
         </Section>
 
         <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>

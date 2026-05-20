@@ -19,20 +19,26 @@ async function generateReport(reportId) {
     const periodEnd = report.period_end.toISOString().split('T')[0];
     const period = formatPeriod(report.report_type, periodStart, periodEnd);
 
-    const [collectedData, seoData] = await Promise.all([
+    const [collectedData, seoData, chatHistory] = await Promise.all([
       dataCollector.collectClientData(report.client_id, periodStart, periodEnd),
       dataCollector.collectSEOData(report.client_id).catch(err => {
         console.error('[Report] SEO data collection failed:', err.message);
         return { rankings: [] };
       }),
+      pool.query(
+        `SELECT role, content FROM client_chat_messages
+         WHERE client_id = $1 AND created_at >= NOW() - INTERVAL '90 days'
+         ORDER BY created_at ASC`,
+        [report.client_id]
+      ).then(r => r.rows).catch(() => []),
     ]);
 
     const sections = dataCollector.buildReportSections(collectedData);
 
     if (report.report_type === 'monthly') {
-      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData);
+      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData, chatHistory);
     } else {
-      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData);
+      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData, chatHistory);
     }
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
@@ -44,11 +50,10 @@ async function generateReport(reportId) {
   }
 }
 
-async function generateMonthlyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}) {
+async function generateMonthlyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}, chatHistory = []) {
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
-  // Generate AI content (pass SEO data to Claude for richer summaries)
   const [executiveSummary, recommendations] = await Promise.all([
     claudeService.generateExecutiveSummary({
       clientName: client.name,
@@ -56,11 +61,13 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
       monthlyFocus: client.monthly_focus,
       data: rawData,
       seoData,
+      chatHistory,
     }),
     claudeService.generateRecommendations({
       monthlyFocus: client.monthly_focus,
       data: rawData,
       seoData,
+      chatHistory,
     }),
   ]);
 
@@ -92,11 +99,10 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   await sendReport(report.id, { summaryHtml: `<p>${executiveSummary.replace(/\n/g, '<br>')}</p>`, metrics: topMetrics });
 }
 
-async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}) {
+async function generateWeeklyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}, chatHistory = []) {
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
-  // Build weekly metrics summary
   const metrics = extractTopMetrics(rawData);
   const rankMovers = extractRankMovers(seoData.rankings || [], 'weekly');
   const weekLabel = new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
@@ -107,6 +113,7 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
     monthlyFocus: client.monthly_focus,
     metrics,
     rankMovers,
+    chatHistory,
   });
 
   const htmlContent = buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers });

@@ -8,9 +8,11 @@ export default function Layout() {
   const location = useLocation();
   const clientMatch = useMatch('/clients/:id');
   const clientSeoMatch = useMatch('/clients/:id/seo');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id;
+  const clientChatMatch = useMatch('/clients/:id/chat');
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
+  const onChatPage = !!clientChatMatch;
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -64,6 +66,12 @@ export default function Layout() {
                     style={({ isActive }) => subLinkStyle(isActive)}
                   >
                     SEO
+                  </NavLink>
+                  <NavLink
+                    to={`/clients/${clientId}/chat`}
+                    style={({ isActive }) => subLinkStyle(isActive)}
+                  >
+                    Report Chat
                   </NavLink>
                 </div>
               )}
