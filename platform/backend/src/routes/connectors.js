@@ -1,4 +1,5 @@
 const express = require('express');
+const axios = require('axios');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../utils/encryption');
@@ -165,6 +166,68 @@ router.post('/client/:clientId', async (req, res) => {
     }
 
     res.status(201).json(newConn);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Diagnose a Google connector — shows token owner, scopes, and a live GA4 test
+router.get('/:id/diagnose', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM connectors WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    const row = rows[0];
+    const creds = decrypt(row.credentials);
+    if (!creds) return res.status(400).json({ error: 'No credentials stored' });
+
+    const result = { connector_type: row.connector_type, config: row.config };
+
+    // Check token validity and get account info
+    try {
+      const tokenInfoRes = await axios.get(
+        `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${creds.access_token}`
+      );
+      result.token_info = {
+        email: tokenInfoRes.data.email,
+        scopes: tokenInfoRes.data.scope,
+        expires_in: tokenInfoRes.data.exp ? `${Math.round((tokenInfoRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
+      };
+    } catch (tokenErr) {
+      result.token_info = { error: tokenErr.response?.data || tokenErr.message };
+      // Try to refresh
+      try {
+        const google = require('../connectors/google');
+        const refreshed = await google.refreshToken ? null : null; // placeholder
+        result.token_info.note = 'Token may be expired — try re-authorising';
+      } catch {}
+    }
+
+    // For GA4 connectors, test the Data API directly
+    if (row.connector_type === 'ga4') {
+      const propertyId = row.config?.value;
+      result.property_id = propertyId || '(not set)';
+      if (propertyId) {
+        try {
+          const testRes = await axios.post(
+            `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+            {
+              dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
+              metrics: [{ name: 'sessions' }],
+            },
+            { headers: { Authorization: `Bearer ${creds.access_token}` } }
+          );
+          result.ga4_test = { status: 'ok', row_count: testRes.data.rowCount };
+        } catch (ga4Err) {
+          result.ga4_test = {
+            status: 'error',
+            http_status: ga4Err.response?.status,
+            error: ga4Err.response?.data?.error || ga4Err.message,
+          };
+        }
+      }
+    }
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
