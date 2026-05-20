@@ -21,19 +21,6 @@ cron.schedule('0 6 * * *', async () => {
   await runDailyRankChecks();
 });
 
-// Monthly cleanup: prune rank history older than 12 months (1st of month, 03:00 AM)
-cron.schedule('0 3 1 * *', async () => {
-  console.log('[Scheduler] Pruning rank history older than 12 months...');
-  try {
-    const { rowCount } = await pool.query(
-      `DELETE FROM seo_rank_history WHERE checked_at < CURRENT_DATE - INTERVAL '12 months'`
-    );
-    console.log(`[Scheduler] Pruned ${rowCount} old rank history rows`);
-  } catch (err) {
-    console.error('[Scheduler] Rank history cleanup error:', err.message);
-  }
-});
-
 async function runScheduledReports(reportType) {
   try {
     const { rows: clients } = await pool.query(
