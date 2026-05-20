@@ -152,6 +152,11 @@ export default function ReportsPage() {
                   <span style={{ color: STATUS_COLORS[r.status] || '#888', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
                     {r.status}
                   </span>
+                  {r.status === 'failed' && r.error_log && (
+                    <div style={{ fontSize: 11, color: '#c62828', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
+                      {r.error_log}
+                    </div>
+                  )}
                 </td>
                 <td style={styles.td}>{r.generated_at ? fmtDate(r.generated_at) : '—'}</td>
                 <td style={styles.td}>{r.sent_at ? fmtDate(r.sent_at) : '—'}</td>
@@ -163,8 +168,8 @@ export default function ReportsPage() {
                     {r.pdf_path && (
                       <a href={`/pdfs/report-${r.id}.pdf`} target="_blank" rel="noreferrer" style={styles.btnSm}>PDF</a>
                     )}
-                    {(r.status === 'generated' || r.status === 'sent') && (
-                      <button onClick={() => handleResend(r.id)} style={styles.btnSm}>Resend</button>
+                    {(r.status === 'generated' || r.status === 'sent' || r.status === 'failed') && (
+                      <button onClick={() => handleResend(r.id)} style={styles.btnSm}>{r.status === 'failed' ? 'Retry' : 'Resend'}</button>
                     )}
                     <button onClick={() => handleDelete(r.id)} style={{ ...styles.btnSm, color: '#c62828' }}>✕</button>
                   </div>
