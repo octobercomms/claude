@@ -383,26 +383,17 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
 </head>
 <body>
 
-<!-- Cover Page -->
-<div class="cover">
+<!-- Page 1: header + content (no separate cover for weekly) -->
+<div class="page">
   <div class="cover-top">
     <div class="cover-logo">${logoImg(55)}</div>
     <div class="cover-right">
-      <div class="report-for">Report for ${clientName}</div>
-      <div class="period">${period}</div>
+      <div class="report-for">${clientName} &mdash; Weekly Snapshot</div>
+      <div class="period">w/c ${weekLabel}</div>
     </div>
   </div>
-  <hr class="cover-hr">
-  <div style="margin-top:auto;border-top:0.5pt solid #ccc;padding-top:6pt;display:flex;justify-content:space-between;font-size:7pt;color:#808080;">
-    <span>Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-    <span>Private &amp; Confidential. October Communications Ltd. Company No. 8816416. Registered in England and Wales.</span>
-  </div>
-</div>
+  <hr class="cover-hr" style="margin-bottom:20pt;">
 
-<!-- Summary + Metrics Page -->
-<div class="page">
-  ${pageHeader(clientName, period)}
-  <div class="section-title">Weekly Snapshot &mdash; w/c ${weekLabel}</div>
   ${summaryText.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('')}
 
   ${metrics.length ? `
