@@ -6,7 +6,7 @@ const dataCollector = require('./dataCollector');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
-    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients, c.slug, c.domain FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
+    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
   );
   if (!rows.length) throw new Error(`Report ${reportId} not found`);
@@ -19,10 +19,9 @@ async function generateReport(reportId) {
     const periodEnd = report.period_end.toISOString().split('T')[0];
     const period = formatPeriod(report.report_type, periodStart, periodEnd);
 
-    // Collect connector data and SEO data in parallel
     const [collectedData, seoData] = await Promise.all([
       dataCollector.collectClientData(report.client_id, periodStart, periodEnd),
-      dataCollector.collectSEOData(report.client_id, report.domain || report.slug).catch(err => {
+      dataCollector.collectSEOData(report.client_id).catch(err => {
         console.error('[Report] SEO data collection failed:', err.message);
         return { rankings: [] };
       }),
