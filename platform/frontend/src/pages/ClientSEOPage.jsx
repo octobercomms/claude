@@ -95,6 +95,17 @@ function fmtVolume(v) {
   return String(v);
 }
 
+// Buckets keywords under a group label (by tag or landing page).
+function groupKeywords(list, by) {
+  const groups = {};
+  for (const kw of list) {
+    const raw = by === 'tag' ? kw.tag : kw.target_url;
+    const label = (raw && String(raw).trim()) || (by === 'tag' ? 'Untagged' : 'No landing page');
+    (groups[label] = groups[label] || []).push(kw);
+  }
+  return Object.keys(groups).sort().map(label => ({ label, keywords: groups[label] }));
+}
+
 // Inline position-over-time chart shown when a keyword row is expanded.
 function ExpandedChart({ kw, rankMatrix, range, setRange }) {
   const hist = (rankMatrix && rankMatrix.positions[kw.id]) || {};
@@ -145,6 +156,8 @@ export default function ClientSEOPage() {
   const [expandedId, setExpandedId] = useState(null);
   const [expandRange, setExpandRange] = useState('all');
   const [editingTag, setEditingTag] = useState(null);
+  const [groupBy, setGroupBy] = useState('none');
+  const [collapsedGroups, setCollapsedGroups] = useState(() => new Set());
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkText, setBulkText] = useState('');
@@ -212,6 +225,70 @@ export default function ClientSEOPage() {
       setKeywords(prev => prev.map(k => (k.id === kw.id ? { ...k, tag: updated.tag } : k)));
       if (updated.tag && !tags.includes(updated.tag)) setTags(prev => [...prev, updated.tag]);
     } catch (err) { toast(err.message, 'error'); }
+  }
+
+  function toggleGroup(label) {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label); else next.add(label);
+      return next;
+    });
+  }
+
+  function renderKeywordRow(kw) {
+    const change = kw.current_position && kw.previous_position ? kw.previous_position - kw.current_position : null;
+    const loc = LOCATIONS.find(l => l.code === kw.location_code);
+    const expanded = expandedId === kw.id;
+    return (
+      <React.Fragment key={kw.id}>
+      <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
+        <td style={s.td}>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
+          {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
+        </td>
+        <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
+        <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
+        <td style={s.td} onClick={e => e.stopPropagation()}>
+          {editingTag && editingTag.id === kw.id ? (
+            <input autoFocus value={editingTag.value}
+              onChange={e => setEditingTag({ id: kw.id, value: e.target.value })}
+              onBlur={() => saveTag(kw)}
+              onKeyDown={e => { if (e.key === 'Enter') saveTag(kw); if (e.key === 'Escape') setEditingTag(null); }}
+              placeholder="tag…"
+              style={{ ...s.input, padding: '4px 8px', width: 120, fontSize: 12 }} />
+          ) : (
+            <span onClick={() => setEditingTag({ id: kw.id, value: kw.tag || '' })}
+              title="Click to edit tag"
+              style={kw.tag ? { ...s.chip, cursor: 'text' } : { cursor: 'text', color: '#bbb', fontSize: 12 }}>
+              {kw.tag || '+ tag'}
+            </span>
+          )}
+        </td>
+        <td style={{ ...s.td, fontWeight: 600 }}>{fmtVolume(kw.search_volume)}</td>
+        <td style={s.td}>
+          <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
+          {change !== null && (
+            <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? '#2e7d32' : change < 0 ? '#c62828' : '#888' }}>
+              {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
+            </span>
+          )}
+        </td>
+        <td style={s.td}>{kw.previous_position || '—'}</td>
+        <td style={{ ...s.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+        <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
+        <td style={s.td} onClick={e => e.stopPropagation()}>
+          <button onClick={() => handleDelete(kw.id)} title="Delete keyword" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={10} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+            <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
+          </td>
+        </tr>
+      )}
+      </React.Fragment>
+    );
   }
 
   async function handleAdd(e) {
@@ -567,14 +644,24 @@ export default function ClientSEOPage() {
       )}
 
       {/* View toggle */}
-      <div style={{ display: 'flex', marginBottom: 12 }}>
-        {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
-          <button key={v} onClick={() => setKwView(v)} style={{
-            padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
-            background: kwView === v ? '#1a1a1a' : '#fff', color: kwView === v ? '#fff' : '#444',
-            borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
-          }}>{label}</button>
-        ))}
+      <div style={{ display: 'flex', marginBottom: 12, gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex' }}>
+          {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
+            <button key={v} onClick={() => setKwView(v)} style={{
+              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
+              background: kwView === v ? '#1a1a1a' : '#fff', color: kwView === v ? '#fff' : '#444',
+              borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
+            }}>{label}</button>
+          ))}
+        </div>
+        {kwView === 'current' && (
+          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
+            style={{ ...s.input, width: 190, padding: '6px 10px', fontSize: 13, flex: '0 0 auto' }}>
+            <option value="none">No grouping</option>
+            <option value="tag">Group by tag</option>
+            <option value="url">Group by landing page</option>
+          </select>
+        )}
       </div>
 
       {/* Keywords table — current */}
@@ -594,61 +681,29 @@ export default function ClientSEOPage() {
           <tbody>
             {sorted.length === 0 ? (
               <tr><td colSpan={10} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
-            ) : sorted.map(kw => {
-              const change = kw.current_position && kw.previous_position ? kw.previous_position - kw.current_position : null;
-              const loc = LOCATIONS.find(l => l.code === kw.location_code);
-              const expanded = expandedId === kw.id;
-              return (
-                <React.Fragment key={kw.id}>
-                <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
-                  <td style={s.td}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
-                    {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
-                  </td>
-                  <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
-                  <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
-                  <td style={s.td} onClick={e => e.stopPropagation()}>
-                    {editingTag && editingTag.id === kw.id ? (
-                      <input autoFocus value={editingTag.value}
-                        onChange={e => setEditingTag({ id: kw.id, value: e.target.value })}
-                        onBlur={() => saveTag(kw)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveTag(kw); if (e.key === 'Escape') setEditingTag(null); }}
-                        placeholder="tag…"
-                        style={{ ...s.input, padding: '4px 8px', width: 120, fontSize: 12 }} />
-                    ) : (
-                      <span onClick={() => setEditingTag({ id: kw.id, value: kw.tag || '' })}
-                        title="Click to edit tag"
-                        style={kw.tag ? { ...s.chip, cursor: 'text' } : { cursor: 'text', color: '#bbb', fontSize: 12 }}>
-                        {kw.tag || '+ tag'}
-                      </span>
-                    )}
-                  </td>
-                  <td style={{ ...s.td, fontWeight: 600 }}>{fmtVolume(kw.search_volume)}</td>
-                  <td style={s.td}>
-                    <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
-                    {change !== null && (
-                      <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? '#2e7d32' : change < 0 ? '#c62828' : '#888' }}>
-                        {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
-                      </span>
-                    )}
-                  </td>
-                  <td style={s.td}>{kw.previous_position || '—'}</td>
-                  <td style={{ ...s.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
-                  <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
-                  <td style={s.td} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => handleDelete(kw.id)} title="Delete keyword" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
-                  </td>
-                </tr>
-                {expanded && (
-                  <tr>
-                    <td colSpan={10} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
-                      <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
-                    </td>
-                  </tr>
-                )}
-                </React.Fragment>
-              );
-            })}
+            ) : groupBy === 'none' ? (
+              sorted.map(renderKeywordRow)
+            ) : (
+              groupKeywords(sorted, groupBy).map(group => {
+                const collapsed = collapsedGroups.has(group.label);
+                const ranked = group.keywords.filter(k => k.current_position);
+                const avg = ranked.length ? Math.round(ranked.reduce((sum, k) => sum + k.current_position, 0) / ranked.length) : null;
+                return (
+                  <React.Fragment key={group.label}>
+                    <tr onClick={() => toggleGroup(group.label)} style={{ cursor: 'pointer', background: '#eee' }}>
+                      <td colSpan={10} style={{ ...s.td, fontWeight: 700, fontSize: 12 }}>
+                        <span style={{ display: 'inline-block', width: 18, color: '#888' }}>{collapsed ? '▶' : '▼'}</span>
+                        {group.label}
+                        <span style={{ marginLeft: 10, fontWeight: 400, color: '#888' }}>
+                          {group.keywords.length} keyword{group.keywords.length === 1 ? '' : 's'}{avg !== null ? ` · avg position ${avg}` : ''}
+                        </span>
+                      </td>
+                    </tr>
+                    {!collapsed && group.keywords.map(renderKeywordRow)}
+                  </React.Fragment>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>
