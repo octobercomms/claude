@@ -98,6 +98,8 @@ async function fetchData(credentials, params) {
   const base = `${apiDomain}/inventory/v1`;
   const headers = { Authorization: `Zoho-oauthtoken ${creds.access_token}` };
 
+  console.log(`[Zoho Inventory] fetching org=${orgId} via ${apiDomain} period=${startDate}→${endDate}`);
+
   const errors = [];
 
   let items = [];
@@ -107,8 +109,9 @@ async function fetchData(credentials, params) {
       params: { organization_id: orgId },
     });
     items = res.data.items || [];
+    console.log(`[Zoho Inventory] items response: code=${res.data.code} count=${items.length} keys=${Object.keys(res.data).join(',')}`);
   } catch (err) {
-    const detail = err.response?.data?.message || err.message;
+    const detail = err.response?.data?.message || err.response?.status || err.message;
     errors.push(`items: ${detail}`);
     console.error('[Zoho Inventory] items fetch failed:', detail);
   }
@@ -120,8 +123,9 @@ async function fetchData(credentials, params) {
       params: { organization_id: orgId, date_start: startDate, date_end: endDate },
     });
     orders = res.data.salesorders || [];
+    console.log(`[Zoho Inventory] salesorders response: code=${res.data.code} count=${orders.length} keys=${Object.keys(res.data).join(',')}`);
   } catch (err) {
-    const detail = err.response?.data?.message || err.message;
+    const detail = err.response?.data?.message || err.response?.status || err.message;
     errors.push(`salesorders: ${detail}`);
     console.error('[Zoho Inventory] salesorders fetch failed:', detail);
   }
