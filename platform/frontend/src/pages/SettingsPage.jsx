@@ -293,15 +293,23 @@ export default function SettingsPage() {
                 ))}
               </div>
               {group.test === 'dataforseo' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
-                  <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
-                    style={{ ...styles.btn, padding: '8px 16px', fontSize: 13 }}>
-                    {testingDfs ? 'Testing…' : 'Test connection'}
-                  </button>
-                  {dfsTestMsg && (
-                    <span style={{ fontSize: 13, color: dfsTestMsg.ok ? '#2e7d32' : '#c62828' }}>
-                      {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
-                    </span>
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
+                      style={{ ...styles.btn, padding: '8px 16px', fontSize: 13 }}>
+                      {testingDfs ? 'Testing…' : 'Test connection'}
+                    </button>
+                    {dfsTestMsg && (
+                      <span style={{ fontSize: 13, color: dfsTestMsg.ok ? '#2e7d32' : '#c62828' }}>
+                        {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
+                      </span>
+                    )}
+                  </div>
+                  {dfsTestMsg && dfsTestMsg.sent && (
+                    <div style={{ fontSize: 12, color: '#888', marginTop: 8, lineHeight: 1.5 }}>
+                      Sent to DataForSEO — login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} characters ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO status code ${dfsTestMsg.code}` : ''}.
+                      {!dfsTestMsg.ok && ' Confirm the login and the password length exactly match app.dataforseo.com/api-access.'}
+                    </div>
                   )}
                 </div>
               )}
