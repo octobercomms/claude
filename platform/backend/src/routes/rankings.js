@@ -13,6 +13,7 @@ router.get('/keywords', async (req, res) => {
     let query = `
       SELECT k.*,
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
+        (SELECT source FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_source,
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1) as previous_position,
         (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
         (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
@@ -112,13 +113,39 @@ router.delete('/keywords/:id', async (req, res) => {
 router.get('/keywords/:id/history', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT checked_at, position, url FROM seo_rank_history
+      `SELECT checked_at, position, url, source FROM seo_rank_history
        WHERE keyword_id = $1
          AND checked_at >= CURRENT_DATE - INTERVAL '12 months'
        ORDER BY checked_at ASC`,
       [req.params.id]
     );
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rank history matrix for all of a client's keywords (last 90 days)
+router.get('/history/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT h.keyword_id, h.checked_at, h.position, h.source
+       FROM seo_rank_history h
+       JOIN seo_keywords k ON k.id = h.keyword_id
+       WHERE k.client_id = $1
+         AND h.checked_at >= CURRENT_DATE - INTERVAL '90 days'
+       ORDER BY h.checked_at DESC`,
+      [req.params.clientId]
+    );
+    const dates = [];
+    const positions = {};
+    for (const r of rows) {
+      const d = (r.checked_at instanceof Date ? r.checked_at.toISOString() : String(r.checked_at)).slice(0, 10);
+      if (!dates.includes(d)) dates.push(d);
+      if (!positions[r.keyword_id]) positions[r.keyword_id] = {};
+      positions[r.keyword_id][d] = { p: r.position, src: r.source };
+    }
+    res.json({ dates, positions });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

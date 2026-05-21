@@ -32,6 +32,27 @@ const LOCATIONS = [
   { name: 'South Africa', code: 2710, flag: '🇿🇦' },
 ];
 
+// Position pill: green for top 10, orange for 11-100. Legacy data shows
+// italic + lighter, live DataForSEO data shows bold.
+function PosBox({ p, legacy }) {
+  if (p == null) return <span style={{ color: '#bbb' }}>—</span>;
+  const top = p <= 10;
+  return (
+    <span style={{
+      display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '3px 8px',
+      borderRadius: 5, fontSize: 13,
+      fontWeight: legacy ? 500 : 700,
+      fontStyle: legacy ? 'italic' : 'normal',
+      background: top ? '#e4f4e8' : '#fcecd9',
+      color: top ? '#1d7a3a' : '#9a5a13',
+    }}>{p}</span>
+  );
+}
+
+function fmtDay(d) {
+  return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 export default function ClientSEOPage() {
   const toast = useToast();
   const { id } = useParams();
@@ -61,6 +82,12 @@ export default function ClientSEOPage() {
   const [backlinksLoading, setBacklinksLoading] = useState(false);
   const [backlinksError, setBacklinksError] = useState('');
   const [backlinksFetched, setBacklinksFetched] = useState(false);
+  const [sortKey, setSortKey] = useState(null);
+  const [sortDir, setSortDir] = useState('asc');
+  const [kwView, setKwView] = useState('current');
+  const [rankMatrix, setRankMatrix] = useState(null);
+  const [rankMatrixLoading, setRankMatrixLoading] = useState(false);
+  const [rankMatrixFetched, setRankMatrixFetched] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -185,12 +212,62 @@ export default function ClientSEOPage() {
     }
   }
 
+  async function loadRankMatrix() {
+    setRankMatrixLoading(true);
+    try {
+      const data = await api.get(`/rankings/history/${id}`);
+      setRankMatrix(data);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setRankMatrixLoading(false);
+      setRankMatrixFetched(true);
+    }
+  }
+
   const filtered = keywords.filter(k => {
     if (filterTag && k.tag !== filterTag) return false;
     if (filterLocation && String(k.location_code) !== String(filterLocation)) return false;
     if (search && !k.keyword.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
+
+  function sortValue(kw, key) {
+    if (rankMatrix && rankMatrix.dates.includes(key)) {
+      const cell = rankMatrix.positions[kw.id] ? rankMatrix.positions[kw.id][key] : null;
+      return cell ? cell.p : null;
+    }
+    switch (key) {
+      case 'keyword': return (kw.keyword || '').toLowerCase();
+      case 'location': return (kw.location_name || '').toLowerCase();
+      case 'device': return (kw.device || '').toLowerCase();
+      case 'tag': return (kw.tag || '').toLowerCase();
+      case 'position': return kw.current_position ?? null;
+      case 'prev': return kw.previous_position ?? null;
+      case 'best': return kw.best_position ?? null;
+      case 'checked': return kw.last_checked ? new Date(kw.last_checked).getTime() : null;
+      default: return null;
+    }
+  }
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+    else { setSortKey(key); setSortDir('asc'); }
+  }
+
+  const sorted = sortKey
+    ? [...filtered].sort((a, b) => {
+        const va = sortValue(a, sortKey);
+        const vb = sortValue(b, sortKey);
+        const na = va == null || va === '';
+        const nb = vb == null || vb === '';
+        if (na && nb) return 0;
+        if (na) return 1;
+        if (nb) return -1;
+        const cmp = typeof va === 'string' ? va.localeCompare(vb) : va - vb;
+        return sortDir === 'asc' ? cmp : -cmp;
+      })
+    : filtered;
 
   const [activeTab, setActiveTab] = useState('keywords');
 
@@ -199,6 +276,12 @@ export default function ClientSEOPage() {
       loadBacklinks();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    if (kwView === 'history' && !rankMatrixFetched && !rankMatrixLoading) {
+      loadRankMatrix();
+    }
+  }, [kwView]);
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
@@ -328,16 +411,35 @@ export default function ClientSEOPage() {
         </div>
       )}
 
-      {/* Keywords table */}
+      {/* View toggle */}
+      <div style={{ display: 'flex', marginBottom: 12 }}>
+        {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
+          <button key={v} onClick={() => setKwView(v)} style={{
+            padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
+            background: kwView === v ? '#1a1a1a' : '#fff', color: kwView === v ? '#fff' : '#444',
+            borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {/* Keywords table — current */}
+      {kwView === 'current' && (
       <div style={s.tableWrap}>
         <table style={s.table}>
           <thead>
-            <tr>{['Keyword', 'Location', 'Device', 'Tag', 'Position', 'Prev', 'Best', 'Checked', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr>
+            <tr>
+              {[['keyword', 'Keyword'], ['location', 'Location'], ['device', 'Device'], ['tag', 'Tag'], ['position', 'Position'], ['prev', 'Prev'], ['best', 'Best'], ['checked', 'Checked']].map(([key, label]) => (
+                <th key={key} style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort(key)}>
+                  {label}{sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+              ))}
+              <th style={s.th}></th>
+            </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {sorted.length === 0 ? (
               <tr><td colSpan={9} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
-            ) : filtered.map(kw => {
+            ) : sorted.map(kw => {
               const change = kw.current_position && kw.previous_position ? kw.previous_position - kw.current_position : null;
               const loc = LOCATIONS.find(l => l.code === kw.location_code);
               return (
@@ -350,7 +452,7 @@ export default function ClientSEOPage() {
                   <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
                   <td style={s.td}>{kw.tag ? <span style={s.chip}>{kw.tag}</span> : '—'}</td>
                   <td style={s.td}>
-                    <span style={{ fontSize: 16, fontWeight: 700 }}>{kw.current_position || '—'}</span>
+                    <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
                     {change !== null && (
                       <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? '#2e7d32' : change < 0 ? '#c62828' : '#888' }}>
                         {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
@@ -369,6 +471,63 @@ export default function ClientSEOPage() {
           </tbody>
         </table>
       </div>
+      )}
+
+      {/* Keywords table — by date */}
+      {kwView === 'history' && (
+      <div style={{ ...s.tableWrap, overflowX: 'auto' }}>
+        {rankMatrixLoading ? (
+          <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading rank history…</div>
+        ) : !rankMatrix || rankMatrix.dates.length === 0 ? (
+          <div style={{ padding: 20, color: '#888', fontSize: 13 }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
+        ) : (
+          <table style={s.table}>
+            <thead>
+              <tr>
+                <th style={{ ...s.th, cursor: 'pointer', userSelect: 'none', position: 'sticky', left: 0, background: '#f9f9f9', zIndex: 2 }} onClick={() => toggleSort('keyword')}>
+                  Keyword{sortKey === 'keyword' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                <th style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort('location')}>
+                  Location{sortKey === 'location' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                </th>
+                {rankMatrix.dates.map(d => (
+                  <th key={d} style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => toggleSort(d)}>
+                    {fmtDay(d)}{sortKey === d ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(kw => {
+                const loc = LOCATIONS.find(l => l.code === kw.location_code);
+                const kwHist = rankMatrix.positions[kw.id] || {};
+                return (
+                  <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
+                    <td style={{ ...s.td, position: 'sticky', left: 0, background: '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
+                    <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
+                    {rankMatrix.dates.map(d => {
+                      const cell = kwHist[d];
+                      return (
+                        <td key={d} style={{ ...s.td, textAlign: 'center' }}>
+                          <PosBox p={cell ? cell.p : null} legacy={cell ? cell.src === 'legacy' : false} />
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
+      )}
+
+      {(kwView === 'current' || (rankMatrix && rankMatrix.dates.length > 0)) && (
+        <p style={{ marginTop: 10, fontSize: 11, color: '#aaa' }}>
+          <strong>Bold</strong> = live DataForSEO data · <em>italic</em> = imported legacy data ·
+          green = top 10 · orange = 11–100 · click a keyword for its position graph.
+        </p>
+      )}
 
       </>}
 
