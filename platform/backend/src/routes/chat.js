@@ -468,8 +468,8 @@ router.get('/:clientId', async (req, res) => {
 });
 
 router.post('/:clientId', async (req, res) => {
-  const { message } = req.body;
-  if (!message?.trim()) return res.status(400).json({ error: 'message required' });
+  const { message, image } = req.body;
+  if (!message?.trim() && !image) return res.status(400).json({ error: 'message required' });
 
   const clientId = req.params.clientId;
   try {
@@ -486,15 +486,24 @@ router.post('/:clientId', async (req, res) => {
     const client = clientRes.rows[0];
     const history = historyRes.rows.reverse();
 
+    const userText = message?.trim() || '';
     await pool.query(
       'INSERT INTO client_chat_messages (client_id, role, content) VALUES ($1, $2, $3)',
-      [clientId, 'user', message.trim()]
+      [clientId, 'user', userText + (image ? ` [image: ${image.name}]` : '')]
     );
+
+    // Build user message content — support image attachments for Claude vision
+    const userContent = image
+      ? [
+          { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
+          ...(userText ? [{ type: 'text', text: userText }] : []),
+        ]
+      : userText;
 
     // Agentic loop with tool use
     let messages = [
       ...history.map(m => ({ role: m.role, content: m.content })),
-      { role: 'user', content: message.trim() },
+      { role: 'user', content: userContent },
     ];
     const toolsUsed = [];
     let finalText = '';

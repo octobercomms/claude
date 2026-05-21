@@ -39,6 +39,8 @@ export default function ClientChatPage() {
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState([]);
+  const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -60,17 +62,32 @@ export default function ClientChatPage() {
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
-    if (!text || sending) return;
+    if ((!text && attachedFiles.length === 0) || sending) return;
 
-    const optimistic = { id: `tmp-${Date.now()}`, role: 'user', content: text, created_at: new Date().toISOString() };
+    const optimistic = {
+      id: `tmp-${Date.now()}`, role: 'user',
+      content: text + (attachedFiles.length ? ` [${attachedFiles.length} file(s) attached]` : ''),
+      created_at: new Date().toISOString(),
+    };
     setMessages(prev => [...prev, optimistic]);
     setInput('');
     setSending(true);
 
     try {
-      const reply = await api.post(`/chat/${id}`, { message: text });
+      let imageData = null;
+      if (attachedFiles.length > 0) {
+        // Convert first image to base64 for Claude vision
+        const file = attachedFiles[0];
+        imageData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ base64: reader.result.split(',')[1], mediaType: file.type, name: file.name });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+        setAttachedFiles([]);
+      }
+      const reply = await api.post(`/chat/${id}`, { message: text, image: imageData });
       setMessages(prev => [...prev, reply]);
-      // Refresh context log in case Claude added entries
       api.get(`/chat/${id}/context`).then(setContextLog).catch(() => {});
     } catch (err) {
       setMessages(prev => [...prev, {
@@ -82,6 +99,12 @@ export default function ClientChatPage() {
     } finally {
       setSending(false);
     }
+  }
+
+  function handleFileChange(e) {
+    const files = Array.from(e.target.files || []);
+    setAttachedFiles(prev => [...prev, ...files].slice(0, 3));
+    e.target.value = '';
   }
 
   async function handleClear() {
@@ -200,19 +223,37 @@ export default function ClientChatPage() {
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={handleSend} style={s.inputRow}>
-          <textarea
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Ask Claude to check data, investigate an issue, or log a decision…"
-            style={s.textarea}
-            rows={2}
-            disabled={sending}
-          />
-          <button type="submit" disabled={sending || !input.trim()} style={s.sendBtn}>
-            {sending ? '…' : 'Send'}
-          </button>
+        <form onSubmit={handleSend} style={{ ...s.inputRow, flexDirection: 'column', gap: 8 }}>
+          {attachedFiles.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {attachedFiles.map((f, i) => (
+                <span key={i} style={{ fontSize: 12, background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  📎 {f.name}
+                  <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <textarea
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask Claude to check data, investigate an issue, or log a decision…"
+              style={s.textarea}
+              rows={2}
+              disabled={sending}
+            />
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
+              style={{ ...s.sendBtn, background: '#f5f5f5', color: '#555', fontSize: 18, padding: '0 14px' }}>
+              📎
+            </button>
+            <button type="submit" disabled={sending || (!input.trim() && attachedFiles.length === 0)} style={s.sendBtn}>
+              {sending ? '…' : 'Send'}
+            </button>
+          </div>
         </form>
       </div>
 
