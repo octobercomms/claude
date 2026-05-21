@@ -174,20 +174,37 @@ export default function ClientSEOPage() {
     return true;
   });
 
+  const [activeTab, setActiveTab] = useState('keywords');
+
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>SEO — {client?.name}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
-          <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
-          <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
-          <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
-        </div>
+        {activeTab === 'keywords' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
+            <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
+        {[['keywords', 'Keywords'], ['authority', 'Authority'], ['backlinks', 'Backlinks']].map(([key, label]) => (
+          <button key={key} onClick={() => setActiveTab(key)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
+            fontWeight: activeTab === key ? 700 : 400, color: activeTab === key ? '#1a1a1a' : '#888',
+            borderBottom: activeTab === key ? '2px solid #1a1a1a' : '2px solid transparent',
+            marginBottom: -2,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {activeTab === 'keywords' && <>
       {/* Rankings summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
@@ -329,8 +346,10 @@ export default function ClientSEOPage() {
         </table>
       </div>
 
-      {/* Manual SEO Metrics */}
-      <div style={{ ...s.card, marginTop: 24 }}>
+      </>}
+
+      {activeTab === 'authority' && (
+      <div style={{ ...s.card, marginTop: 0 }}>
         <div style={s.cardTitle}>Manual SEO Metrics</div>
 
         {/* Metrics history table */}
@@ -407,6 +426,18 @@ export default function ClientSEOPage() {
           </div>
         </form>
       </div>
+
+      )}
+
+      {activeTab === 'backlinks' && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Backlinks</div>
+          <p style={{ marginTop: 12, color: '#888', fontSize: 13 }}>
+            Backlink data is pulled automatically via DataForSEO when a domain is configured for this client.
+            Go to <strong>Client Details</strong> to set the domain, then run a Diagnose on the DataForSEO connector to fetch live data.
+          </p>
+        </div>
+      )}
 
       {/* History modal */}
       {historyModal && (
