@@ -15,12 +15,13 @@ function getAuthUrl(state) {
 }
 
 async function exchangeCode(code) {
-  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', {
+  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     client_id: process.env.AMAZON_CLIENT_ID,
     client_secret: process.env.AMAZON_CLIENT_SECRET,
-  }, {
+    redirect_uri: process.env.AMAZON_REDIRECT_URI || '',
+  }), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
@@ -60,12 +61,18 @@ async function checkTokenValidity(credentials) {
 }
 
 async function fetchData(credentials, params) {
+  if (!credentials.access_token) {
+    throw new Error('Amazon SP-API requires OAuth authentication — the connector needs to be connected via the Amazon OAuth flow, not just a Seller ID. Set AMAZON_CLIENT_ID and AMAZON_CLIENT_SECRET in Settings, then reconnect.');
+  }
+
   const { marketplace, startDate, endDate } = params;
 
   const marketplaceIds = {
     uk: 'A1F83G8C2ARO7P',
     us: 'ATVPDKIKX0DER',
-    eu: 'A1PA6795UKMFR9', // Germany as EU default
+    fr: 'A13V1IB3VIYZZH',
+    de: 'A1PA6795UKMFR9',
+    eu: 'A1PA6795UKMFR9',
   };
 
   const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
@@ -75,6 +82,7 @@ async function fetchData(credentials, params) {
   }
 
   // SP-API Sales and Traffic report
+  try {
   const { data } = await axios.get(
     'https://sellingpartnerapi-eu.amazon.com/sales/v1/orderMetrics',
     {
@@ -89,8 +97,13 @@ async function fetchData(credentials, params) {
       },
     }
   );
-
   return data;
+  } catch (err) {
+    const status = err.response?.status;
+    const detail = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+    if (status === 403) throw new Error(`Amazon SP-API 403: App does not have permission to access this data. Ensure your Amazon Developer app has been granted the required SP-API roles (Selling Partner Insights) and that the seller has authorised the app.`);
+    throw new Error(`Amazon SP-API error (${status}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+  }
 }
 
 module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData };

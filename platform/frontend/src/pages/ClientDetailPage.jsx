@@ -28,7 +28,7 @@ const CONNECTOR_GROUPS = [
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
-const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
+const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory','amazon_seller'];
 const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
@@ -151,6 +151,7 @@ export default function ClientDetailPage() {
     let provider;
     if (type.startsWith('google') || type === 'ga4') provider = 'google';
     else if (type === 'zoho_inventory') provider = 'zoho';
+    else if (type === 'amazon_seller') provider = 'amazon';
     else provider = 'meta';
     const url = `/auth/${provider}/start?client_id=${clientId}`;
     const win = window.open(url, 'oauth', 'width=600,height=700');

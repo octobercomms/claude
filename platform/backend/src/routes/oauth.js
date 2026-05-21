@@ -6,6 +6,7 @@ const { encrypt } = require('../utils/encryption');
 const googleConnector = require('../connectors/google');
 const metaConnector = require('../connectors/meta');
 const zohoInventoryConnector = require('../connectors/zoho_inventory');
+const amazonConnector = require('../connectors/amazon');
 
 const router = express.Router();
 
@@ -178,6 +179,59 @@ router.get('/zoho/callback', async (req, res) => {
     res.send(oauthPopupHtml('success', 'Zoho Inventory connected successfully.', 'zoho'));
   } catch (err) {
     console.error('Zoho OAuth callback error:', err);
+    res.send(oauthPopupHtml('error', err.message));
+  }
+});
+
+// ─── Amazon SP-API OAuth ─────────────────────────────────────────
+
+router.get('/amazon/start', (req, res) => {
+  const { client_id, connector_id } = req.query;
+  if (!client_id) return res.status(400).send('client_id required');
+  if (!process.env.AMAZON_CLIENT_ID) return res.status(400).send('AMAZON_CLIENT_ID not configured in Settings');
+  const state = Buffer.from(JSON.stringify({ client_id, connector_id })).toString('base64');
+  const url = amazonConnector.getAuthUrl(state);
+  res.redirect(url);
+});
+
+router.get('/amazon/callback', async (req, res) => {
+  const { spapi_oauth_code, selling_partner_id, state, error } = req.query;
+  if (error) return res.send(oauthPopupHtml('error', error));
+  if (!spapi_oauth_code) return res.send(oauthPopupHtml('error', 'No OAuth code received from Amazon'));
+  try {
+    const { client_id, connector_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const tokens = await amazonConnector.exchangeCode(spapi_oauth_code);
+    const creds = encrypt({ ...tokens, seller_id: selling_partner_id });
+
+    // Find connector: use specific connector_id if provided, otherwise latest disconnected amazon_seller
+    let connectorRow;
+    if (connector_id) {
+      const { rows } = await pool.query('SELECT * FROM connectors WHERE id = $1', [connector_id]);
+      connectorRow = rows[0];
+    }
+    if (!connectorRow) {
+      const { rows } = await pool.query(
+        "SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'amazon_seller' AND status != 'active' ORDER BY created_at DESC LIMIT 1",
+        [client_id]
+      );
+      connectorRow = rows[0];
+    }
+    if (!connectorRow) {
+      // Create a new connector
+      const { rows } = await pool.query(
+        "INSERT INTO connectors (client_id, connector_type, store_label) VALUES ($1, 'amazon_seller', $2) RETURNING *",
+        [client_id, selling_partner_id || null]
+      );
+      connectorRow = rows[0];
+    }
+
+    await pool.query(
+      "UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL WHERE id = $2",
+      [JSON.stringify(creds), connectorRow.id]
+    );
+    res.send(oauthPopupHtml('success', `Amazon Seller ${selling_partner_id || ''} connected successfully.`, 'amazon'));
+  } catch (err) {
+    console.error('Amazon OAuth callback error:', err);
     res.send(oauthPopupHtml('error', err.message));
   }
 });
