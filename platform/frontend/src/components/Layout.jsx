@@ -119,5 +119,5 @@ const styles = {
     border: '1px solid #333', color: 'white', borderRadius: 4,
     cursor: 'pointer', fontSize: 12,
   },
-  main: { flex: 1, padding: '32px', overflow: 'auto', maxWidth: 1200 },
+  main: { flex: 1, padding: '32px', overflow: 'auto' },
 };

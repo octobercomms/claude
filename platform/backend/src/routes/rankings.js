@@ -163,6 +163,15 @@ router.post('/check/:clientId', async (req, res) => {
       return res.json({ message: 'No active keywords', checked: 0 });
     }
 
+    // Validate DataForSEO up front so the user gets an immediate, visible
+    // error instead of a silent background failure.
+    try {
+      await dataForSEO.checkTokenValidity();
+    } catch (err) {
+      const detail = err.response?.data?.status_message || err.message;
+      return res.status(502).json({ error: `DataForSEO check failed: ${detail}` });
+    }
+
     // Run async
     runRankChecks(keywords).catch(err => {
       console.error('Rank check error:', err.message);
@@ -325,6 +334,26 @@ async function runRankChecks(keywords) {
       );
     } catch (err) {
       console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);
+    }
+  }
+
+  // Refresh search volumes — one batched DataForSEO call per location.
+  const byLocation = {};
+  for (const kw of keywords) {
+    const loc = kw.location_code || 2826;
+    (byLocation[loc] = byLocation[loc] || []).push(kw);
+  }
+  for (const [loc, kws] of Object.entries(byLocation)) {
+    try {
+      const volumes = await dataForSEO.fetchSearchVolume(kws.map(k => k.keyword), Number(loc));
+      for (const kw of kws) {
+        const v = volumes[kw.keyword.toLowerCase()];
+        if (v !== undefined) {
+          await pool.query('UPDATE seo_keywords SET search_volume = $1 WHERE id = $2', [v, kw.id]);
+        }
+      }
+    } catch (err) {
+      console.error('Search volume fetch failed:', err.message);
     }
   }
 }

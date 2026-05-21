@@ -53,6 +53,84 @@ function fmtDay(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
+// Minimal trend line for the summary cards.
+function Sparkline({ data, color = '#3355cc', reverse = false }) {
+  const pts = (data || []).filter(v => v != null);
+  if (pts.length < 2) return <div style={{ height: 32, marginTop: 8 }} />;
+  return (
+    <div style={{ height: 32, marginTop: 8 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <LineChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
+          <YAxis hide reversed={reverse} domain={['dataMin', 'dataMax']} />
+          <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+// Per-date aggregates across all keywords, oldest first, for the sparklines.
+function buildTrend(rankMatrix) {
+  if (!rankMatrix || !rankMatrix.dates || rankMatrix.dates.length < 2) return null;
+  const dates = [...rankMatrix.dates].reverse();
+  const kwIds = Object.keys(rankMatrix.positions);
+  return dates.map(d => {
+    let sum = 0, ranked = 0, top3 = 0, top10 = 0;
+    for (const kid of kwIds) {
+      const cell = rankMatrix.positions[kid][d];
+      if (cell && cell.p != null) {
+        sum += cell.p; ranked++;
+        if (cell.p <= 3) top3++;
+        if (cell.p <= 10) top10++;
+      }
+    }
+    return { date: d, avgPos: ranked ? Math.round(sum / ranked) : null, top3, top10, ranked };
+  });
+}
+
+function fmtVolume(v) {
+  if (v == null) return '—';
+  if (v >= 10000) return Math.round(v / 1000) + 'K';
+  if (v >= 1000) return (v / 1000).toFixed(1).replace('.0', '') + 'K';
+  return String(v);
+}
+
+// Inline position-over-time chart shown when a keyword row is expanded.
+function ExpandedChart({ kw, rankMatrix, range, setRange }) {
+  const hist = (rankMatrix && rankMatrix.positions[kw.id]) || {};
+  let series = Object.keys(hist).sort().map(d => ({ date: d, position: hist[d].p }));
+  if (range !== 'all') {
+    const days = range === '7' ? 7 : 30;
+    const cutoff = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    series = series.filter(pt => pt.date >= cutoff);
+  }
+  const hasData = series.filter(p => p.position != null).length >= 2;
+  return (
+    <div style={{ padding: '16px 24px' }}>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+        {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
+          <button key={v} onClick={() => setRange(v)} style={{
+            padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '1px solid #ddd',
+            background: range === v ? '#1a1a1a' : '#fff', color: range === v ? '#fff' : '#555',
+          }}>{l}</button>
+        ))}
+      </div>
+      {hasData ? (
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={series} margin={{ top: 5, right: 24, left: -12, bottom: 5 }}>
+            <XAxis dataKey="date" tickFormatter={fmtDay} tick={{ fontSize: 10 }} />
+            <YAxis reversed domain={['auto', 'auto']} tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip formatter={v => [`Position ${v}`, 'Rank']} labelFormatter={fmtDay} />
+            <Line type="monotone" dataKey="position" stroke="#1a1a1a" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+          </LineChart>
+        </ResponsiveContainer>
+      ) : (
+        <p style={{ color: '#888', fontSize: 12, padding: '24px 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
+      )}
+    </div>
+  );
+}
+
 export default function ClientSEOPage() {
   const toast = useToast();
   const { id } = useParams();
@@ -64,8 +142,9 @@ export default function ClientSEOPage() {
   const [filterTag, setFilterTag] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [search, setSearch] = useState('');
-  const [historyModal, setHistoryModal] = useState(null);
-  const [history, setHistory] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+  const [expandRange, setExpandRange] = useState('all');
+  const [editingTag, setEditingTag] = useState(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [showBulkForm, setShowBulkForm] = useState(false);
   const [bulkText, setBulkText] = useState('');
@@ -88,6 +167,7 @@ export default function ClientSEOPage() {
   const [rankMatrix, setRankMatrix] = useState(null);
   const [rankMatrixLoading, setRankMatrixLoading] = useState(false);
   const [rankMatrixFetched, setRankMatrixFetched] = useState(false);
+  const [bucket, setBucket] = useState('all');
 
   useEffect(() => {
     Promise.all([
@@ -118,10 +198,20 @@ export default function ClientSEOPage() {
     }).finally(() => setLoading(false));
   }, [id]);
 
-  async function openHistory(kw) {
-    setHistoryModal(kw);
-    const data = await api.get(`/rankings/keywords/${kw.id}/history`);
-    setHistory(data);
+  function toggleExpand(kw) {
+    setExpandedId(prev => (prev === kw.id ? null : kw.id));
+  }
+
+  async function saveTag(kw) {
+    if (!editingTag || editingTag.id !== kw.id) return;
+    const next = editingTag.value.trim();
+    setEditingTag(null);
+    if (next === (kw.tag || '')) return;
+    try {
+      const updated = await api.put(`/rankings/keywords/${kw.id}`, { tag: next });
+      setKeywords(prev => prev.map(k => (k.id === kw.id ? { ...k, tag: updated.tag } : k)));
+      if (updated.tag && !tags.includes(updated.tag)) setTags(prev => [...prev, updated.tag]);
+    } catch (err) { toast(err.message, 'error'); }
   }
 
   async function handleAdd(e) {
@@ -143,12 +233,15 @@ export default function ClientSEOPage() {
   async function handleCheckAll() {
     setChecking(true);
     try {
-      await api.post(`/rankings/check/${id}`);
+      const res = await api.post(`/rankings/check/${id}`);
+      toast(`Rank check started for ${res.keywords} keyword${res.keywords === 1 ? '' : 's'} — live results appear over the next few minutes.`, 'success');
       setTimeout(async () => {
-        const kws = await api.get(`/rankings/keywords?client_id=${id}`);
-        setKeywords(kws);
+        try {
+          const kws = await api.get(`/rankings/keywords?client_id=${id}`);
+          setKeywords(kws);
+        } catch {}
         setChecking(false);
-      }, 3000);
+      }, 8000);
     } catch (err) { toast(err.message, 'error'); setChecking(false); }
   }
 
@@ -225,10 +318,28 @@ export default function ClientSEOPage() {
     }
   }
 
-  const filtered = keywords.filter(k => {
+  const preBucket = keywords.filter(k => {
     if (filterTag && k.tag !== filterTag) return false;
     if (filterLocation && String(k.location_code) !== String(filterLocation)) return false;
     if (search && !k.keyword.toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+  const bucketCounts = {
+    all: preBucket.length,
+    top3: preBucket.filter(k => k.current_position && k.current_position <= 3).length,
+    top10: preBucket.filter(k => k.current_position && k.current_position <= 10).length,
+    top30: preBucket.filter(k => k.current_position && k.current_position <= 30).length,
+    rest: preBucket.filter(k => k.current_position && k.current_position > 30).length,
+    none: preBucket.filter(k => !k.current_position).length,
+  };
+  const filtered = preBucket.filter(k => {
+    if (bucket === 'all') return true;
+    const p = k.current_position;
+    if (bucket === 'top3') return p && p <= 3;
+    if (bucket === 'top10') return p && p <= 10;
+    if (bucket === 'top30') return p && p <= 30;
+    if (bucket === 'rest') return p && p > 30;
+    if (bucket === 'none') return !p;
     return true;
   });
 
@@ -242,6 +353,7 @@ export default function ClientSEOPage() {
       case 'location': return (kw.location_name || '').toLowerCase();
       case 'device': return (kw.device || '').toLowerCase();
       case 'tag': return (kw.tag || '').toLowerCase();
+      case 'volume': return kw.search_volume ?? null;
       case 'position': return kw.current_position ?? null;
       case 'prev': return kw.previous_position ?? null;
       case 'best': return kw.best_position ?? null;
@@ -278,10 +390,8 @@ export default function ClientSEOPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    if (kwView === 'history' && !rankMatrixFetched && !rankMatrixLoading) {
-      loadRankMatrix();
-    }
-  }, [kwView]);
+    loadRankMatrix();
+  }, []);
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
@@ -313,17 +423,62 @@ export default function ClientSEOPage() {
 
       {activeTab === 'keywords' && <>
       {/* Rankings summary */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
-        {[
-          { label: 'Keywords tracked', val: keywords.length },
-          { label: 'In top 3', val: keywords.filter(k => k.current_position && k.current_position <= 3).length },
-          { label: 'In top 10', val: keywords.filter(k => k.current_position && k.current_position <= 10).length },
-          { label: 'Not ranking', val: keywords.filter(k => !k.current_position).length },
-        ].map(m => (
-          <div key={m.label} style={s.card}>
-            <div style={s.metricVal}>{m.val}</div>
-            <div style={s.metricLabel}>{m.label}</div>
+      {(() => {
+        const trend = buildTrend(rankMatrix);
+        const ranked = keywords.filter(k => k.current_position);
+        const avgNow = ranked.length ? Math.round(ranked.reduce((a, k) => a + k.current_position, 0) / ranked.length) : null;
+        const rankedPrev = keywords.filter(k => k.previous_position);
+        const avgPrev = rankedPrev.length ? Math.round(rankedPrev.reduce((a, k) => a + k.previous_position, 0) / rankedPrev.length) : null;
+        const t3 = keywords.filter(k => k.current_position && k.current_position <= 3).length;
+        const t3p = keywords.filter(k => k.previous_position && k.previous_position <= 3).length;
+        const t10 = keywords.filter(k => k.current_position && k.current_position <= 10).length;
+        const t10p = keywords.filter(k => k.previous_position && k.previous_position <= 10).length;
+        const cards = [
+          { label: 'Keywords tracked', value: keywords.length },
+          { label: 'Average position', value: avgNow ?? '—', delta: (avgPrev != null && avgNow != null) ? avgPrev - avgNow : null, spark: trend && trend.map(t => t.avgPos), sparkReverse: true },
+          { label: 'In top 3', value: t3, delta: t3 - t3p, spark: trend && trend.map(t => t.top3) },
+          { label: 'In top 10', value: t10, delta: t10 - t10p, spark: trend && trend.map(t => t.top10) },
+          { label: 'Not ranking', value: keywords.filter(k => !k.current_position).length, spark: trend && trend.map(t => keywords.length - t.ranked) },
+        ];
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 16 }}>
+            {cards.map(c => (
+              <div key={c.label} style={s.card}>
+                <div style={s.metricLabel}>{c.label}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a' }}>{c.value}</div>
+                  {c.delta != null && c.delta !== 0 && (
+                    <span style={{ fontSize: 12, fontWeight: 600, color: c.delta > 0 ? '#2e7d32' : '#c62828' }}>
+                      {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
+                    </span>
+                  )}
+                </div>
+                <Sparkline data={c.spark} reverse={c.sparkReverse} />
+              </div>
+            ))}
           </div>
+        );
+      })()}
+
+      {/* Position buckets */}
+      <div style={{ display: 'flex', border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden', marginBottom: 16, background: '#fff' }}>
+        {[
+          { key: 'all', label: 'All' },
+          { key: 'top3', label: 'Top 3' },
+          { key: 'top10', label: 'Top 10' },
+          { key: 'top30', label: 'Top 30' },
+          { key: 'rest', label: '31–100' },
+          { key: 'none', label: 'Not ranking' },
+        ].map((b, i) => (
+          <button key={b.key} onClick={() => setBucket(b.key)} style={{
+            flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
+            borderLeft: i ? '1px solid #eee' : 'none',
+            background: bucket === b.key ? '#1a1a1a' : '#fff',
+            color: bucket === b.key ? '#fff' : '#444',
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 700 }}>{bucketCounts[b.key]}</div>
+            <div style={{ fontSize: 11, opacity: 0.85 }}>{b.label}</div>
+          </button>
         ))}
       </div>
 
@@ -428,7 +583,7 @@ export default function ClientSEOPage() {
         <table style={s.table}>
           <thead>
             <tr>
-              {[['keyword', 'Keyword'], ['location', 'Location'], ['device', 'Device'], ['tag', 'Tag'], ['position', 'Position'], ['prev', 'Prev'], ['best', 'Best'], ['checked', 'Checked']].map(([key, label]) => (
+              {[['keyword', 'Keyword'], ['location', 'Location'], ['device', 'Device'], ['tag', 'Tag'], ['volume', 'Volume'], ['position', 'Position'], ['prev', 'Prev'], ['best', 'Best'], ['checked', 'Checked']].map(([key, label]) => (
                 <th key={key} style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort(key)}>
                   {label}{sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
@@ -438,19 +593,37 @@ export default function ClientSEOPage() {
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={9} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
+              <tr><td colSpan={10} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
             ) : sorted.map(kw => {
               const change = kw.current_position && kw.previous_position ? kw.previous_position - kw.current_position : null;
               const loc = LOCATIONS.find(l => l.code === kw.location_code);
+              const expanded = expandedId === kw.id;
               return (
-                <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
+                <React.Fragment key={kw.id}>
+                <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
                   <td style={s.td}>
                     <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
                     {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
                   </td>
                   <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
                   <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
-                  <td style={s.td}>{kw.tag ? <span style={s.chip}>{kw.tag}</span> : '—'}</td>
+                  <td style={s.td} onClick={e => e.stopPropagation()}>
+                    {editingTag && editingTag.id === kw.id ? (
+                      <input autoFocus value={editingTag.value}
+                        onChange={e => setEditingTag({ id: kw.id, value: e.target.value })}
+                        onBlur={() => saveTag(kw)}
+                        onKeyDown={e => { if (e.key === 'Enter') saveTag(kw); if (e.key === 'Escape') setEditingTag(null); }}
+                        placeholder="tag…"
+                        style={{ ...s.input, padding: '4px 8px', width: 120, fontSize: 12 }} />
+                    ) : (
+                      <span onClick={() => setEditingTag({ id: kw.id, value: kw.tag || '' })}
+                        title="Click to edit tag"
+                        style={kw.tag ? { ...s.chip, cursor: 'text' } : { cursor: 'text', color: '#bbb', fontSize: 12 }}>
+                        {kw.tag || '+ tag'}
+                      </span>
+                    )}
+                  </td>
+                  <td style={{ ...s.td, fontWeight: 600 }}>{fmtVolume(kw.search_volume)}</td>
                   <td style={s.td}>
                     <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
                     {change !== null && (
@@ -463,9 +636,17 @@ export default function ClientSEOPage() {
                   <td style={{ ...s.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
                   <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
                   <td style={s.td} onClick={e => e.stopPropagation()}>
-                    <button onClick={() => handleDelete(kw.id)} style={{ ...s.btnSm, color: '#c62828' }}>Delete</button>
+                    <button onClick={() => handleDelete(kw.id)} title="Delete keyword" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
                   </td>
                 </tr>
+                {expanded && (
+                  <tr>
+                    <td colSpan={10} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+                      <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
+                    </td>
+                  </tr>
+                )}
+                </React.Fragment>
               );
             })}
           </tbody>
@@ -501,9 +682,11 @@ export default function ClientSEOPage() {
               {sorted.map(kw => {
                 const loc = LOCATIONS.find(l => l.code === kw.location_code);
                 const kwHist = rankMatrix.positions[kw.id] || {};
+                const expanded = expandedId === kw.id;
                 return (
-                  <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
-                    <td style={{ ...s.td, position: 'sticky', left: 0, background: '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
+                  <React.Fragment key={kw.id}>
+                  <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
+                    <td style={{ ...s.td, position: 'sticky', left: 0, background: expanded ? '#fafafa' : '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
                     <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
                     {rankMatrix.dates.map(d => {
                       const cell = kwHist[d];
@@ -514,6 +697,14 @@ export default function ClientSEOPage() {
                       );
                     })}
                   </tr>
+                  {expanded && (
+                    <tr>
+                      <td colSpan={2 + rankMatrix.dates.length} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+                        <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
@@ -665,29 +856,6 @@ export default function ClientSEOPage() {
         </div>
       )}
 
-      {/* History modal */}
-      {historyModal && (
-        <div style={s.overlay} onClick={() => setHistoryModal(null)}>
-          <div style={s.modal} onClick={e => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 15 }}>{historyModal.keyword}</h3>
-              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
-            </div>
-            {history.length > 0 ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={history} margin={{ top: 5, right: 20, left: -20, bottom: 5 }}>
-                  <XAxis dataKey="checked_at" tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} tick={{ fontSize: 10 }} />
-                  <YAxis reversed domain={['auto', 'auto']} tick={{ fontSize: 10 }} />
-                  <Tooltip formatter={v => [`Position ${v}`, 'Rank']} />
-                  <Line type="monotone" dataKey="position" stroke="#1a1a1a" strokeWidth={2} dot={{ r: 2 }} connectNulls />
-                </LineChart>
-              </ResponsiveContainer>
-            ) : (
-              <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>No rank history yet</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -708,6 +876,4 @@ const s = {
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
   td: { padding: '11px 16px', borderBottom: '1px solid #f5f5f5', verticalAlign: 'middle' },
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: 'white', borderRadius: 8, padding: 28, width: '100%', maxWidth: 620, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
 };

@@ -60,6 +60,23 @@ async function checkRank(keyword) {
     : { position: null, url: null };
 }
 
+// Monthly Google search volume for a batch of keywords (one location).
+async function fetchSearchVolume(keywords, locationCode = 2826) {
+  const client = getClient();
+  const { data } = await client.post('/keywords_data/google_ads/search_volume/live', [{
+    keywords: keywords.slice(0, 1000),
+    location_code: locationCode,
+    language_code: 'en',
+  }]);
+  const result = data.tasks?.[0]?.result;
+  if (!Array.isArray(result)) return {};
+  const out = {};
+  for (const r of result) {
+    if (r.keyword) out[r.keyword.toLowerCase()] = r.search_volume ?? null;
+  }
+  return out;
+}
+
 // DataForSEO's backlinks API needs a bare domain (no protocol/www/path) —
 // a full URL is treated as a single page and returns almost no data.
 function normalizeDomain(input) {
@@ -186,4 +203,4 @@ async function fetchData(credentials, params) {
   return results;
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchData };
+module.exports = { authType, checkTokenValidity, checkRank, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchData };
