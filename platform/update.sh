@@ -6,9 +6,11 @@ SOURCE_DIR="/opt/october-source"
 BACKEND_DIST="/opt/october-platform"
 FRONTEND_DIST="/var/www/platform"
 
-echo "==> Pulling latest from main..."
+echo "==> Syncing source to origin/main..."
 cd "$SOURCE_DIR"
-git pull origin main
+git fetch origin main
+git reset --hard origin/main
+echo "    HEAD is now: $(git log --oneline -1)"
 
 echo "==> Running migrations..."
 cd "$SOURCE_DIR/platform/backend"
@@ -26,6 +28,7 @@ npm run build
 
 echo "==> Publishing frontend..."
 rsync -a --delete "$SOURCE_DIR/platform/frontend/dist/" "$FRONTEND_DIST/"
+echo "    Published: $(ls "$FRONTEND_DIST"/assets/*.js 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
 
 echo "==> Restarting backend..."
 pm2 restart october-platform
