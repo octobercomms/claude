@@ -57,6 +57,10 @@ export default function ClientSEOPage() {
   const [seoMetrics, setSeoMetrics] = useState([]);
   const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', moz_da: '', authority_score: '', referring_domains: '', notes: '' });
   const [savingMetrics, setSavingMetrics] = useState(false);
+  const [backlinks, setBacklinks] = useState(null);
+  const [backlinksLoading, setBacklinksLoading] = useState(false);
+  const [backlinksError, setBacklinksError] = useState('');
+  const [backlinksFetched, setBacklinksFetched] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -167,6 +171,20 @@ export default function ClientSEOPage() {
     const a = document.createElement('a'); a.href = url; a.download = 'keywords.csv'; a.click();
   }
 
+  async function loadBacklinks() {
+    setBacklinksLoading(true);
+    setBacklinksError('');
+    try {
+      const data = await api.get(`/rankings/seo-summary/${id}`);
+      setBacklinks(data);
+    } catch (err) {
+      setBacklinksError(err.message);
+    } finally {
+      setBacklinksLoading(false);
+      setBacklinksFetched(true);
+    }
+  }
+
   const filtered = keywords.filter(k => {
     if (filterTag && k.tag !== filterTag) return false;
     if (filterLocation && String(k.location_code) !== String(filterLocation)) return false;
@@ -175,6 +193,12 @@ export default function ClientSEOPage() {
   });
 
   const [activeTab, setActiveTab] = useState('keywords');
+
+  useEffect(() => {
+    if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {
+      loadBacklinks();
+    }
+  }, [activeTab]);
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
@@ -430,11 +454,54 @@ export default function ClientSEOPage() {
       )}
 
       {activeTab === 'backlinks' && (
-        <div style={s.card}>
-          <div style={s.cardTitle}>Backlinks</div>
-          <p style={{ marginTop: 12, color: '#888', fontSize: 13 }}>
-            Backlink data is pulled automatically via DataForSEO when a domain is configured for this client.
-            Go to <strong>Client Details</strong> to set the domain, then run a Diagnose on the DataForSEO connector to fetch live data.
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={s.cardTitle}>Backlink Profile{backlinks?.domain ? ` — ${backlinks.domain}` : ''}</div>
+            <button onClick={loadBacklinks} style={s.btnGhost} disabled={backlinksLoading}>
+              {backlinksLoading ? 'Fetching…' : 'Refresh'}
+            </button>
+          </div>
+
+          {backlinksLoading && !backlinks && (
+            <div style={{ ...s.card, color: '#888', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
+          )}
+
+          {backlinksError && (
+            <div style={{ ...s.card, color: '#c62828', fontSize: 13 }}>
+              Couldn't load backlink data: {backlinksError}
+            </div>
+          )}
+
+          {!backlinksError && backlinks?.empty && (
+            <div style={{ ...s.card, color: '#888', fontSize: 13 }}>
+              No backlink data returned for <strong>{backlinks.domain}</strong> yet.
+            </div>
+          )}
+
+          {!backlinksError && backlinks && !backlinks.empty && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+              {[
+                { label: 'Domain Rank', val: backlinks.domain_rank },
+                { label: 'Total Backlinks', val: backlinks.backlinks_total },
+                { label: 'Referring Domains', val: backlinks.referring_domains },
+                { label: 'Referring IPs', val: backlinks.referring_ips },
+                { label: 'New Backlinks', val: backlinks.new_backlinks, color: '#2e7d32' },
+                { label: 'Lost Backlinks', val: backlinks.lost_backlinks, color: '#c62828' },
+                { label: 'Broken Backlinks', val: backlinks.broken_backlinks },
+                { label: 'Spam Score', val: backlinks.spam_score },
+              ].map(m => (
+                <div key={m.label} style={s.card}>
+                  <div style={{ ...s.metricVal, color: m.color || '#1a1a1a' }}>
+                    {m.val == null ? '—' : Number(m.val).toLocaleString('en-GB')}
+                  </div>
+                  <div style={s.metricLabel}>{m.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <p style={{ marginTop: 16, color: '#aaa', fontSize: 12 }}>
+            Live data from DataForSEO for the domain set on the <strong>Details</strong> tab. Each refresh runs a new query.
           </p>
         </div>
       )}
