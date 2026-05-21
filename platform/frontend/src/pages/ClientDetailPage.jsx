@@ -37,6 +37,7 @@ export default function ClientDetailPage() {
   const toast = useToast();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [parsingSuggestions, setParsingSuggestions] = useState(false);
@@ -44,6 +45,18 @@ export default function ClientDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'details';
   function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
+
+  useEffect(() => {
+    api.get(`/reports?client_id=${id}`).then(setReports).catch(() => {});
+  }, [id]);
+
+  async function handleGenerateReport(type) {
+    try {
+      await api.post('/reports/trigger', { client_id: id, report_type: type });
+      toast(`${type === 'weekly' ? 'Weekly' : 'Monthly'} report generation started.`, 'success');
+      setTimeout(() => { api.get(`/reports?client_id=${id}`).then(setReports).catch(() => {}); }, 4000);
+    } catch (err) { toast(err.message, 'error'); }
+  }
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
@@ -306,34 +319,45 @@ export default function ClientDetailPage() {
         </div>
       )}
 
-      {tab === 'recipients' && (
-        <form onSubmit={handleSave} style={styles.card}>
-          <Field label="Monthly Report Recipients (one per line)">
-            <textarea
-              style={{ ...styles.input, minHeight: 100, fontFamily: 'monospace', fontSize: 12 }}
-              value={(client.report_recipients?.monthly || []).join('\n')}
-              onChange={e => setClient(p => ({
-                ...p,
-                report_recipients: { ...p.report_recipients, monthly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }
-              }))}
-            />
-          </Field>
-          <Field label="Weekly Report Recipients (one per line)">
-            <textarea
-              style={{ ...styles.input, minHeight: 100, fontFamily: 'monospace', fontSize: 12 }}
-              value={(client.report_recipients?.weekly || []).join('\n')}
-              onChange={e => setClient(p => ({
-                ...p,
-                report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }
-              }))}
-            />
-          </Field>
-          <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
-        </form>
-      )}
+      {tab === 'reports' && (
+        <>
+        <div style={styles.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => handleGenerateReport('weekly')} style={styles.btnSm}>Generate weekly</button>
+              <button type="button" onClick={() => handleGenerateReport('monthly')} style={styles.btnSm}>Generate monthly</button>
+            </div>
+          </div>
+          {reports.length === 0 ? (
+            <p style={{ fontSize: 13, color: '#888', margin: '12px 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
+              <thead>
+                <tr>
+                  {['Type', 'Period start', 'Status', 'Generated'].map(h => (
+                    <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {reports.map(r => (
+                  <tr key={r.id}>
+                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
+                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
+                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>
+                      <span style={{ color: r.status === 'sent' || r.status === 'generated' ? '#2e7d32' : r.status === 'failed' ? '#c62828' : '#888' }}>{r.status}</span>
+                    </td>
+                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: '#888' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
 
-      {tab === 'schedule' && (
-        <form onSubmit={handleSave} style={styles.card}>
+        <form onSubmit={handleSave} style={{ ...styles.card, marginTop: 24 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Schedule</div>
           <div style={styles.grid2}>
             <Field label="Weekly Day">
               <select
@@ -362,7 +386,31 @@ export default function ClientDetailPage() {
             />
           </Field>
 
-          <div style={{ borderTop: '1px solid #eee', margin: '4px 0', paddingTop: 16 }}>
+          <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Recipients</div>
+            <Field label="Monthly Report Recipients (one per line)">
+              <textarea
+                style={{ ...styles.input, minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                value={(client.report_recipients?.monthly || []).join('\n')}
+                onChange={e => setClient(p => ({
+                  ...p,
+                  report_recipients: { ...p.report_recipients, monthly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }
+                }))}
+              />
+            </Field>
+            <Field label="Weekly Report Recipients (one per line)">
+              <textarea
+                style={{ ...styles.input, minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                value={(client.report_recipients?.weekly || []).join('\n')}
+                onChange={e => setClient(p => ({
+                  ...p,
+                  report_recipients: { ...p.report_recipients, weekly: e.target.value.split('\n').map(s => s.trim()).filter(Boolean) }
+                }))}
+              />
+            </Field>
+          </div>
+
+          <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Sections</div>
             <p style={{ fontSize: 12, color: '#888', margin: '6px 0 12px' }}>
               Choose which sections appear in each report type. Unticked sections are skipped.
@@ -401,6 +449,7 @@ export default function ClientDetailPage() {
 
           <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>
+        </>
       )}
 
       {credModal && (

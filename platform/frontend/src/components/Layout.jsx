@@ -48,44 +48,17 @@ export default function Layout() {
               <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
               {item.to === '/clients' && clientId && (
                 <div>
-                  {[
-                    { tab: 'details', label: 'Details' },
-                    { tab: 'connectors', label: 'Connectors' },
-                    { tab: 'recipients', label: 'Recipients' },
-                    { tab: 'schedule', label: 'Schedule' },
-                  ].map(sub => (
-                    <NavLink
-                      key={sub.tab}
-                      to={`/clients/${clientId}?tab=${sub.tab}`}
-                      style={subLinkStyle(!onSeoPage && currentTab === sub.tab)}
-                    >
-                      {sub.label}
-                    </NavLink>
-                  ))}
-                  <NavLink
-                    to={`/clients/${clientId}/seo`}
-                    style={({ isActive }) => subLinkStyle(isActive)}
-                  >
-                    SEO
-                  </NavLink>
-                  <NavLink
-                    to={`/clients/${clientId}/ads`}
-                    style={({ isActive }) => subLinkStyle(isActive)}
-                  >
-                    Ads
-                  </NavLink>
-                  <NavLink
-                    to={`/clients/${clientId}/chat`}
-                    style={({ isActive }) => subLinkStyle(isActive)}
-                  >
-                    Data Analyst
-                  </NavLink>
+                  <NavLink to={`/clients/${clientId}?tab=details`} style={subLinkStyle(!!clientMatch && currentTab === 'details')}>Details</NavLink>
+                  <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>Data Analyst</NavLink>
+                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>SEO</NavLink>
+                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Ads</NavLink>
+                  <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
+                  <NavLink to={`/clients/${clientId}?tab=connectors`} style={subLinkStyle(!!clientMatch && currentTab === 'connectors')}>Connectors</NavLink>
                 </div>
               )}
             </li>
           ))}
           {[
-            { to: '/reports', label: 'Reports' },
             { to: '/settings', label: 'Settings' },
           ].map(item => (
             <li key={item.to}>
