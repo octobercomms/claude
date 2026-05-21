@@ -128,6 +128,8 @@ async function fetchSearchConsoleData(credentials, params) {
 async function fetchGoogleAdsData(credentials, params) {
   const creds = await getValidToken(credentials);
   const { customerId, startDate, endDate } = params;
+  // API requires customer ID without dashes (e.g. 9543280011 not 954-328-0011)
+  const cleanCustomerId = (customerId || '').replace(/-/g, '');
 
   const query = `
     SELECT campaign.name, metrics.clicks, metrics.impressions, metrics.ctr,
@@ -139,17 +141,23 @@ async function fetchGoogleAdsData(credentials, params) {
     LIMIT 50
   `;
 
-  const { data } = await axios.post(
-    `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`,
-    { query },
-    {
-      headers: {
-        Authorization: `Bearer ${creds.access_token}`,
-        'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '',
-      },
-    }
-  );
-  return data;
+  try {
+    const { data } = await axios.post(
+      `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`,
+      { query },
+      {
+        headers: {
+          Authorization: `Bearer ${creds.access_token}`,
+          'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '',
+        },
+      }
+    );
+    return data;
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.response?.data?.[0]?.error?.message || err.message;
+    const status = err.response?.status;
+    throw new Error(`Google Ads API error (${status}): ${detail}`);
+  }
 }
 
 async function listGA4Properties(credentials) {
@@ -226,13 +234,41 @@ async function listAccounts(credentials, connectorType) {
   }
 }
 
+async function fetchMerchantCenterData(credentials, params) {
+  const creds = await getValidToken(credentials);
+  const { merchantId, startDate, endDate } = params;
+  if (!merchantId) throw new Error('Merchant Center account not selected — open the client connectors tab and choose an account.');
+
+  const search = (query) => axios.post(
+    `https://merchantapi.googleapis.com/reports/v1beta/accounts/${merchantId}:search`,
+    { query },
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+
+  try {
+    const [perfRes, productRes] = await Promise.allSettled([
+      search(`SELECT metrics.clicks, metrics.impressions, metrics.ctr FROM MerchantPerformanceView WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'`),
+      search(`SELECT segments.offer_id, segments.title, metrics.clicks, metrics.impressions FROM ProductPerformanceView WHERE segments.date BETWEEN '${startDate}' AND '${endDate}' ORDER BY metrics.clicks DESC LIMIT 20`),
+    ]);
+
+    return {
+      performance: perfRes.status === 'fulfilled' ? (perfRes.value.data.results || []) : [],
+      top_products: productRes.status === 'fulfilled' ? (productRes.value.data.results || []) : [],
+    };
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.message;
+    const status = err.response?.status;
+    throw new Error(`Merchant Center API error (${status}): ${detail}`);
+  }
+}
+
 async function fetchData(credentials, params) {
   const { connectorType, ...rest } = params;
   switch (connectorType) {
     case 'ga4': return fetchGA4Data(credentials, rest);
     case 'google_search_console': return fetchSearchConsoleData(credentials, rest);
     case 'google_ads': return fetchGoogleAdsData(credentials, rest);
-    case 'google_merchant_center': return { note: 'Merchant Center data via Content API' };
+    case 'google_merchant_center': return fetchMerchantCenterData(credentials, rest);
     default: throw new Error(`Unknown Google connector type: ${connectorType}`);
   }
 }
