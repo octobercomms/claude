@@ -62,6 +62,18 @@ export default function ClientAdsPage() {
     loadAdsData(d);
   }
 
+  async function handleMarginBlur() {
+    const val = parseFloat(adsMarginInput);
+    if (isNaN(val) || val < 0 || val > 100) return;
+    const decimal = val / 100;
+    setAdsMargin(decimal);
+    try {
+      await api.patch(`/clients/${id}/ads-margin`, { ads_margin: decimal });
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
@@ -217,7 +229,21 @@ export default function ClientAdsPage() {
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Ads Performance — {client?.name}</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Live spend, ROAS, and campaign data from Google Ads and Meta Ads.</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 8, padding: '4px 10px', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 6 }}>
+              <span style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>Gross Margin</span>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={adsMarginInput}
+                onChange={e => setAdsMarginInput(e.target.value)}
+                onBlur={handleMarginBlur}
+                style={{ width: 52, padding: '4px 6px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, textAlign: 'right' }}
+              />
+              <span style={{ fontSize: 12, color: '#666' }}>%</span>
+            </div>
             {[7, 14, 30, 90].map(d => (
               <button key={d} onClick={() => handlePeriodChange(d)}
                 style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
@@ -257,6 +283,13 @@ export default function ClientAdsPage() {
                           <MetricCard label="Spend" value={fmtCurrency(g.spend)} />
                           <MetricCard label="Revenue" value={g.convValue > 0 ? fmtCurrency(g.convValue) : '—'} />
                           <MetricCard label="ROAS" value={g.roas ? `${g.roas.toFixed(2)}x` : '—'} />
+                          {g.convValue > 0 && (
+                            <MetricCard
+                              label={`Profit (${Math.round(adsMargin * 100)}% margin)`}
+                              value={fmtCurrency(g.convValue * adsMargin - g.spend)}
+                              sub="Revenue × margin − Spend"
+                            />
+                          )}
                           <MetricCard label="Clicks" value={fmt(g.clicks)} />
                           <MetricCard label="Conversions" value={fmt(g.convs)} />
                           <MetricCard label="CPC" value={fmtCurrency(g.avgCpc)} sub="avg" />
@@ -266,7 +299,7 @@ export default function ClientAdsPage() {
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                               <thead>
                                 <tr style={{ background: '#f5f5f5' }}>
-                                  {['Campaign', 'Spend', 'Revenue', 'ROAS', 'Clicks', 'Conv.'].map(h => (
+                                  {['Campaign', 'Spend', 'Revenue', 'Profit', 'ROAS', 'Clicks', 'Conv.'].map(h => (
                                     <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
                                   ))}
                                 </tr>
@@ -274,11 +307,13 @@ export default function ClientAdsPage() {
                               <tbody>
                                 {g.campaigns.map((c, j) => {
                                   const roas = c.spend > 0 && c.convValue > 0 ? (c.convValue / c.spend).toFixed(2) : null;
+                                  const profit = c.convValue > 0 ? c.convValue * adsMargin - c.spend : null;
                                   return (
                                     <tr key={j} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                       <td style={{ padding: '8px 12px' }}>{c.name}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmtCurrency(c.spend)}</td>
                                       <td style={{ padding: '8px 12px' }}>{c.convValue > 0 ? fmtCurrency(c.convValue) : '—'}</td>
+                                      <td style={{ padding: '8px 12px', color: profit != null ? (profit >= 0 ? '#2e7d32' : '#c62828') : undefined, fontWeight: profit != null ? 600 : undefined }}>{profit != null ? fmtCurrency(profit) : '—'}</td>
                                       <td style={{ padding: '8px 12px' }}>{roas ? `${roas}x` : '—'}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmt(c.clicks)}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmt(c.conversions)}</td>
@@ -315,6 +350,13 @@ export default function ClientAdsPage() {
                           <MetricCard label="Spend" value={fmtCurrency(m.spend)} />
                           <MetricCard label="Revenue" value={m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—'} />
                           <MetricCard label="ROAS" value={m.roas ? `${m.roas.toFixed(2)}x` : '—'} />
+                          {m.purchaseValue > 0 && (
+                            <MetricCard
+                              label={`Profit (${Math.round(adsMargin * 100)}% margin)`}
+                              value={fmtCurrency(m.purchaseValue * adsMargin - m.spend)}
+                              sub="Revenue × margin − Spend"
+                            />
+                          )}
                           <MetricCard label="Impressions" value={fmt(m.imps)} />
                           <MetricCard label="Clicks" value={fmt(m.clicks)} />
                           <MetricCard label="CTR" value={m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—'} />
