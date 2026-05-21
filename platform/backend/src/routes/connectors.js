@@ -256,6 +256,56 @@ router.get('/:id/diagnose', async (req, res) => {
   }
 });
 
+// Fetch live ads data for the Ads Performance page
+router.get('/client/:clientId/ads-data', async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 30, 90);
+  const periodEnd = new Date();
+  const periodStart = new Date(periodEnd - days * 86400000);
+  const fmt = d => d.toISOString().split('T')[0];
+  const startDate = fmt(periodStart);
+  const endDate = fmt(periodEnd);
+
+  async function fetchOne(row) {
+    const creds = decrypt(row.credentials);
+    const config = row.config || {};
+    const connModule = connectorFactory.get(row.connector_type);
+    const raw = await connModule.fetchData(creds, {
+      ...config,
+      connectorType: row.connector_type,
+      customerId: config.value,
+      adAccountId: config.value,
+      startDate,
+      endDate,
+    });
+    return raw;
+  }
+
+  try {
+    const [googleRows, metaRows] = await Promise.all([
+      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'google_ads' AND status = 'active'", [req.params.clientId]),
+      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'meta_ads' AND status = 'active'", [req.params.clientId]),
+    ]);
+
+    const mapRows = (rows) => Promise.all(rows.map(async row => {
+      try {
+        const raw = await fetchOne(row);
+        return { connector_id: row.id, store_label: row.store_label, data: raw };
+      } catch (err) {
+        return { connector_id: row.id, store_label: row.store_label, error: err.message };
+      }
+    }));
+
+    const [googleResults, metaResults] = await Promise.all([
+      mapRows(googleRows.rows),
+      mapRows(metaRows.rows),
+    ]);
+
+    res.json({ google_ads: googleResults, meta_ads: metaResults, days, startDate, endDate });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete connector
 router.delete('/:id', async (req, res) => {
   try {
