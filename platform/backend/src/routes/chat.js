@@ -111,7 +111,7 @@ async function toolGetClientInfo(clientId) {
       status: c.status,
       last_checked: c.last_checked,
       error: c.error_message || null,
-      config_keys: c.config ? Object.keys(c.config) : [],
+      config: c.config || null,
     })),
   };
 }
