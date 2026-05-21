@@ -114,8 +114,8 @@ export default function SettingsPage() {
   const [values, setValues] = useState({});
   const [revealed, setRevealed] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState({});
-  const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState('');
+  const [savingSection, setSavingSection] = useState(null);
+  const [sectionResult, setSectionResult] = useState(null);
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testMsg, setTestMsg] = useState('');
@@ -144,21 +144,29 @@ export default function SettingsPage() {
     setValues(prev => ({ ...prev, [key]: val }));
   }
 
-  async function handleSave(e) {
-    e.preventDefault();
-    setSaving(true);
-    setSaveMsg('');
+  async function handleSaveSection(group) {
+    setSavingSection(group.title);
+    setSectionResult(null);
     try {
-      const { updated } = await api.post('/settings/platform-keys', values);
-      setSaveMsg(updated.length ? `Saved: ${updated.join(', ')}` : 'No changes to save.');
+      const body = {};
+      for (const k of group.keys) {
+        const v = values[k.key];
+        if (v && v !== '••••••••') body[k.key] = v;
+      }
+      if (Object.keys(body).length === 0) {
+        setSectionResult({ title: group.title, ok: false, message: 'Enter a value first' });
+        return;
+      }
+      await api.post('/settings/platform-keys', body);
       const fresh = await api.get('/settings/platform-keys');
       setValues(fresh);
-      setRevealed(false);
       setVisibleKeys({});
+      setSectionResult({ title: group.title, ok: true, message: 'Saved' });
+      setTimeout(() => setSectionResult(r => (r && r.title === group.title ? null : r)), 4000);
     } catch (err) {
-      setSaveMsg(`Error: ${err.message}`);
+      setSectionResult({ title: group.title, ok: false, message: err.message });
     } finally {
-      setSaving(false);
+      setSavingSection(null);
     }
   }
 
@@ -254,7 +262,7 @@ export default function SettingsPage() {
           </form>
         </Section>
 
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }} autoComplete="off">
+        <form onSubmit={e => e.preventDefault()} style={{ display: 'flex', flexDirection: 'column', gap: 24 }} autoComplete="off">
           {/* Dummy fields to prevent browser autofill from hitting real inputs */}
           <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
           <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
@@ -313,19 +321,19 @@ export default function SettingsPage() {
                   )}
                 </div>
               )}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 18 }}>
+                <button type="button" onClick={() => handleSaveSection(group)} disabled={savingSection === group.title}
+                  style={{ ...styles.btn, padding: '8px 18px', fontSize: 13 }}>
+                  {savingSection === group.title ? 'Saving…' : 'Save'}
+                </button>
+                {sectionResult && sectionResult.title === group.title && (
+                  <span style={{ fontSize: 13, fontWeight: 600, color: sectionResult.ok ? '#2e7d32' : '#c62828' }}>
+                    {sectionResult.ok ? '✓ Saved' : `✗ ${sectionResult.message}`}
+                  </span>
+                )}
+              </div>
             </Section>
           ))}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <button type="submit" style={styles.btn} disabled={saving}>
-              {saving ? 'Saving…' : 'Save Settings'}
-            </button>
-            {saveMsg && (
-              <span style={{ fontSize: 13, color: saveMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>
-                {saveMsg}
-              </span>
-            )}
-          </div>
         </form>
 
         <Section title="Send Test Email">
