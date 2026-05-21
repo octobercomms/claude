@@ -152,7 +152,7 @@ async function fetchGoogleAdsData(credentials, params) {
     const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
     if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
     return axios.post(
-      `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:search`,
+      `https://googleads.googleapis.com/v19/customers/${cleanCustomerId}/googleAds:search`,
       { query },
       { headers }
     );
@@ -190,7 +190,7 @@ async function fetchGoogleAdsData(credentials, params) {
     let candidates = [];
     try {
       const { data: accountsData } = await axios.get(
-        'https://googleads.googleapis.com/v17/customers:listAccessibleCustomers',
+        'https://googleads.googleapis.com/v19/customers:listAccessibleCustomers',
         { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
       );
       candidates = (accountsData.resourceNames || [])
@@ -254,7 +254,7 @@ async function listGoogleAdsAccounts(credentials) {
   if (!devToken) return [];
   try {
     const { data } = await axios.get(
-      'https://googleads.googleapis.com/v17/customers:listAccessibleCustomers',
+      'https://googleads.googleapis.com/v19/customers:listAccessibleCustomers',
       { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
     );
     return (data.resourceNames || []).map(name => ({
