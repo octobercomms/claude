@@ -1,29 +1,44 @@
 const axios = require('axios');
+const { getSetting } = require('../utils/settings');
 
 const authType = 'apikey';
 
-function getClient() {
-  const login = process.env.DATAFORSEO_LOGIN;
-  const password = process.env.DATAFORSEO_PASSWORD;
+// Credentials live in the platform_settings table (written by the Settings
+// page) — read them there at call time so a saved change takes effect
+// immediately, with process.env as a fallback.
+async function getClient() {
+  const login = await getSetting('DATAFORSEO_LOGIN');
+  const password = await getSetting('DATAFORSEO_PASSWORD');
   if (!login || !password) throw new Error('DataForSEO credentials not configured');
 
-  return axios.create({
+  const client = axios.create({
     baseURL: 'https://api.dataforseo.com/v3',
-    auth: { username: login, password },
+    auth: { username: login.trim(), password: password.trim() },
     headers: { 'Content-Type': 'application/json' },
   });
+  client.interceptors.response.use(
+    res => res,
+    err => {
+      if (err.response?.status === 401) {
+        const detail = err.response.data?.status_message || 'check the login and password on the Settings page';
+        throw new Error(`DataForSEO authentication failed — ${detail}`);
+      }
+      throw err;
+    }
+  );
+  return client;
 }
 
 async function checkTokenValidity(credentials) {
   // DataForSEO uses env vars, not per-connector credentials
-  const client = getClient();
+  const client = await getClient();
   const { data } = await client.get('/appendix/user_data');
   if (data.status_code !== 20000) throw new Error('Invalid DataForSEO credentials');
   return true;
 }
 
 async function checkRank(keyword) {
-  const client = getClient();
+  const client = await getClient();
 
   const { data } = await client.post('/serp/google/organic/live/advanced', [{
     keyword: keyword.keyword,
@@ -62,7 +77,7 @@ async function checkRank(keyword) {
 
 // Monthly Google search volume for a batch of keywords (one location).
 async function fetchSearchVolume(keywords, locationCode = 2826) {
-  const client = getClient();
+  const client = await getClient();
   const { data } = await client.post('/keywords_data/google_ads/search_volume/live', [{
     keywords: keywords.slice(0, 1000),
     location_code: locationCode,
@@ -90,7 +105,7 @@ function normalizeDomain(input) {
 }
 
 async function fetchBacklinkData(domain) {
-  const client = getClient();
+  const client = await getClient();
   const { data } = await client.post('/backlinks/summary/live', [{
     target: normalizeDomain(domain),
     limit: 1,
@@ -101,7 +116,7 @@ async function fetchBacklinkData(domain) {
 }
 
 async function fetchDomainAuthority(domain) {
-  const client = getClient();
+  const client = await getClient();
   const { data } = await client.post('/domain_analytics/whois/overview/live', [{
     target: domain,
   }]);
@@ -111,7 +126,7 @@ async function fetchDomainAuthority(domain) {
 }
 
 async function fetchReviews(domain, { limit = 100 } = {}) {
-  const client = getClient();
+  const client = await getClient();
   const { data } = await client.post('/business_data/google/reviews/live/advanced', [{
     keyword: domain,
     location_code: 2826,
@@ -153,7 +168,7 @@ async function fetchReviews(domain, { limit = 100 } = {}) {
 }
 
 async function fetchLLMVisibility(domain, keywords = []) {
-  const client = getClient();
+  const client = await getClient();
   // Use LLM Responses API to test brand presence in AI answers
   const prompts = keywords.length
     ? keywords.slice(0, 5).map(kw => ({ keyword: kw, location_code: 2826, language_code: 'en' }))
