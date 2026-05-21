@@ -196,7 +196,7 @@ export default function HomePage() {
         <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
           <div>
             <div style={{ color: YELLOW, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>AI Report Chat</div>
-            <h2 style={{ fontSize: 38, fontWeight: 800, margin: '0 0 20px', letterSpacing: -1, lineHeight: 1.15 }}>Talk to your client's data</h2>
+            <h2 style={{ fontSize: 38, fontWeight: 800, margin: '0 0 20px', letterSpacing: -1, lineHeight: 1.15 }}>Talk to your clients&apos; data</h2>
             <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.7 }}>
               Ask Claude anything: "Why did traffic drop last week?", "Which campaigns have the best ROAS?", "Summarise this month's performance for the board meeting."
             </p>
@@ -209,7 +209,7 @@ export default function HomePage() {
               { role: 'user', text: 'How did Shopify perform last month?' },
               { role: 'ai', text: '📊 Revenue was £42,180 across 318 orders (AOV £132.65). Up 18% vs prior period. Top-performing product: Cast Iron Skillet. Conversion rate held at 3.2%. One anomaly: traffic from paid search dropped 22% week 3 — worth investigating Google Ads.' },
               { role: 'user', text: 'What should we do about the paid search drop?' },
-              { role: 'ai', text: '🎯 Google Ads data shows spend was flat but impressions fell. Likely cause: Quality Score drop or increased competition on brand terms. I'd recommend auditing negative keywords and checking for bid strategy changes around that date.' },
+              { role: 'ai', text: '🎯 Google Ads data shows spend was flat but impressions fell. Likely cause: Quality Score drop or increased competition on brand terms. Recommend auditing negative keywords and checking for bid strategy changes around that date.' },
             ].map((m, i) => (
               <div key={i} style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                 <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? YELLOW : '#a3e635', whiteSpace: 'nowrap', marginTop: 2 }}>
@@ -235,7 +235,7 @@ export default function HomePage() {
               </div>
             ))}
           </div>
-          <p style={{ marginTop: 32, fontSize: 14, color: GREY }}>More integrations added regularly. Don't see yours? <a href="mailto:hello@octobercomms.com" style={{ color: DARK, fontWeight: 600 }}>Let us know.</a></p>
+          <p style={{ marginTop: 32, fontSize: 14, color: GREY }}>More integrations added regularly. Don&apos;t see yours? <a href="mailto:hello@octobercomms.com" style={{ color: DARK, fontWeight: 600 }}>Let us know.</a></p>
         </div>
       </section>
 
