@@ -142,6 +142,7 @@ function buildReportSections(collectedData, connectorErrors) {
     const [type, storeLabel] = key.split(':');
     sections.push({
       title: CONNECTOR_LABELS[type] || type,
+      type,
       storeLabel: storeLabel || null,
       data,
       metrics: extractKeyMetrics(type, data),
@@ -155,6 +156,7 @@ function buildReportSections(collectedData, connectorErrors) {
     const [type, storeLabel] = key.split(':');
     sections.push({
       title: CONNECTOR_LABELS[type] || type,
+      type,
       storeLabel: storeLabel || null,
       data: null,
       unavailable: true,

@@ -78,7 +78,7 @@ export default function Layout() {
                     to={`/clients/${clientId}/chat`}
                     style={({ isActive }) => subLinkStyle(isActive)}
                   >
-                    Report Chat
+                    Data Analyst
                   </NavLink>
                 </div>
               )}

@@ -361,6 +361,44 @@ export default function ClientDetailPage() {
               onChange={e => setClient(p => ({ ...p, report_schedule: { ...p.report_schedule, monthly_day: parseInt(e.target.value) } }))}
             />
           </Field>
+
+          <div style={{ borderTop: '1px solid #eee', margin: '4px 0', paddingTop: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Sections</div>
+            <p style={{ fontSize: 12, color: '#888', margin: '6px 0 12px' }}>
+              Choose which sections appear in each report type. Unticked sections are skipped.
+            </p>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr>
+                  {['Section', 'Weekly', 'Monthly'].map((h, i) => (
+                    <th key={h} style={{ textAlign: i === 0 ? 'left' : 'center', padding: i === 0 ? '4px 24px 8px 0' : '4px 16px 8px', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[{ key: 'seo', label: 'SEO Rankings' }, ...[...new Set(connectors.map(c => c.connector_type))].map(t => ({ key: t, label: CONNECTOR_LABELS[t] || t }))].map(({ key, label }) => (
+                  <tr key={key}>
+                    <td style={{ padding: '6px 24px 6px 0', borderTop: '1px solid #f5f5f5' }}>{label}</td>
+                    {['weekly', 'monthly'].map(period => (
+                      <td key={period} style={{ textAlign: 'center', padding: '6px 16px', borderTop: '1px solid #f5f5f5' }}>
+                        <input
+                          type="checkbox"
+                          checked={client.report_sections?.[key]?.[period] !== false}
+                          onChange={() => setClient(p => {
+                            const rs = { ...(p.report_sections || {}) };
+                            const cur = rs[key] || {};
+                            rs[key] = { ...cur, [period]: cur[period] === false };
+                            return { ...p, report_sections: rs };
+                          })}
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
           <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>
       )}
