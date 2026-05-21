@@ -23,8 +23,8 @@ const CONNECTOR_LABELS = {
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
-  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
-  { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
+  { label: 'E-commerce', types: ['shopify','shopify_email','woocommerce','amazon_seller'] },
+  { label: 'Email Marketing', types: ['klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
