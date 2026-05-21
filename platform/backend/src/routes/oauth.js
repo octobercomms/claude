@@ -1,4 +1,6 @@
 const express = require('express');
+const crypto = require('crypto');
+const axios = require('axios');
 const pool = require('../db');
 const { encrypt } = require('../utils/encryption');
 const googleConnector = require('../connectors/google');
@@ -35,7 +37,7 @@ router.get('/google/callback', async (req, res) => {
       );
     }
 
-    res.send(oauthPopupHtml('success', 'Google connected successfully.'));
+    res.send(oauthPopupHtml('success', 'Google connected successfully.', 'google'));
   } catch (err) {
     console.error('Google OAuth callback error:', err);
     res.send(oauthPopupHtml('error', err.message));
@@ -71,9 +73,73 @@ router.get('/meta/callback', async (req, res) => {
       );
     }
 
-    res.send(oauthPopupHtml('success', 'Meta connected successfully.'));
+    res.send(oauthPopupHtml('success', 'Meta connected successfully.', 'meta'));
   } catch (err) {
     console.error('Meta OAuth callback error:', err);
+    res.send(oauthPopupHtml('error', err.message));
+  }
+});
+
+// ─── Shopify OAuth ──────────────────────────────────────────────
+
+const SHOPIFY_SCOPES = 'read_orders,read_products,read_analytics,read_reports,read_customers';
+
+router.get('/shopify/start', (req, res) => {
+  const { client_id, shop, connector_id } = req.query;
+  if (!client_id || !shop || !connector_id) return res.status(400).send('client_id, shop, and connector_id required');
+
+  const clientId = process.env.SHOPIFY_CLIENT_ID;
+  const redirectUri = process.env.SHOPIFY_REDIRECT_URI || `${process.env.APP_URL || ''}/auth/shopify/callback`;
+
+  if (!clientId) return res.status(500).send('SHOPIFY_CLIENT_ID not configured in platform settings');
+
+  const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
+  const state = Buffer.from(JSON.stringify({ client_id, connector_id, shop: shopDomain })).toString('base64url');
+
+  const url = `https://${shopDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${SHOPIFY_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+  res.redirect(url);
+});
+
+router.get('/shopify/callback', async (req, res) => {
+  const { code, state, shop, hmac, error } = req.query;
+  if (error) return res.send(oauthPopupHtml('error', error));
+
+  try {
+    const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
+    if (!clientSecret) throw new Error('SHOPIFY_CLIENT_SECRET not configured');
+
+    // Verify HMAC
+    const params = { ...req.query };
+    delete params.hmac;
+    delete params.signature;
+    const message = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
+    const digest = crypto.createHmac('sha256', clientSecret).update(message).digest('hex');
+    if (digest !== hmac) throw new Error('HMAC verification failed');
+
+    const { client_id, connector_id, shop: storedShop } = JSON.parse(Buffer.from(state, 'base64url').toString());
+    if (storedShop !== shop) throw new Error('Shop domain mismatch');
+
+    // Exchange code for access token
+    const tokenRes = await axios.post(`https://${shop}/admin/oauth/access_token`, {
+      client_id: process.env.SHOPIFY_CLIENT_ID,
+      client_secret: clientSecret,
+      code,
+    });
+
+    const { access_token } = tokenRes.data;
+    if (!access_token) throw new Error('No access token returned');
+
+    const credentials = { shop_domain: shop, access_token };
+    const encrypted = encrypt(credentials);
+
+    await pool.query(
+      `UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL WHERE id = $2`,
+      [JSON.stringify(encrypted), connector_id]
+    );
+
+    res.send(oauthPopupHtml('success', `Shopify connected: ${shop}`));
+  } catch (err) {
+    console.error('Shopify OAuth callback error:', err.message);
     res.send(oauthPopupHtml('error', err.message));
   }
 });
@@ -87,7 +153,7 @@ router.get('/meta/reauth', (req, res) => {
   res.redirect(url);
 });
 
-function oauthPopupHtml(status, message) {
+function oauthPopupHtml(status, message, provider = 'unknown') {
   const isSuccess = status === 'success';
   const safeMessage = String(message).replace(/'/g, "\\'").replace(/</g, '&lt;').replace(/>/g, '&gt;');
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
@@ -99,7 +165,7 @@ function oauthPopupHtml(status, message) {
     <button onclick="window.close()" style="background:#000;color:#fff;border:none;padding:10px 24px;border-radius:4px;cursor:pointer;font-size:14px">Close Window</button>
   </div>
   <script>
-    try { window.opener.postMessage({type:'${isSuccess ? 'oauth_success' : 'oauth_error'}',${isSuccess ? "provider:'unknown'" : `error:'${safeMessage}'`}},'*'); } catch(e){}
+    try { window.opener.postMessage({type:'${isSuccess ? 'oauth_success' : 'oauth_error'}',${isSuccess ? `provider:'${provider}'` : `error:'${safeMessage}'`}},'*'); } catch(e){}
     setTimeout(function(){ window.close(); }, 800);
   </script>
 </body></html>`;

@@ -20,11 +20,12 @@ const CONNECTOR_LABELS = {
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
-  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
+  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'], oauth: 'shopify', oauthTypes: ['shopify','shopify_email'] },
   { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
 ];
 
 const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights'];
+const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
   const { id } = useParams();
@@ -41,6 +42,7 @@ export default function ClientDetailPage() {
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
+  const [shopifyModal, setShopifyModal] = useState(null); // { connectorId, type }
 
   useEffect(() => {
     Promise.all([
@@ -106,7 +108,8 @@ export default function ClientDetailPage() {
         if (conn.status !== 'active') {
           openOAuth(type, id);
         }
-        // status === 'active' means credentials were auto-copied — dropdown will load automatically
+      } else if (SHOPIFY_TYPES.includes(type)) {
+        setShopifyModal({ connectorId: conn.id, type });
       } else {
         setCredModal(conn);
         setCredValues({});
@@ -130,7 +133,7 @@ export default function ClientDetailPage() {
     setAddAnotherModal(type);
   }
 
-  function openOAuth(type, clientId) {
+  function openOAuth(type, clientId, extra = {}) {
     const provider = type.startsWith('google') || type === 'ga4' ? 'google' : 'meta';
     const url = `/auth/${provider}/start?client_id=${clientId}`;
     const win = window.open(url, 'oauth', 'width=600,height=700');
@@ -142,6 +145,23 @@ export default function ClientDetailPage() {
       }
       if (e.data.type === 'oauth_error') {
         alert(`OAuth error: ${e.data.error}`);
+        window.removeEventListener('message', handler);
+      }
+    });
+  }
+
+  function openShopifyOAuth(connectorId, shop) {
+    const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
+    const url = `/auth/shopify/start?client_id=${id}&connector_id=${connectorId}&shop=${encodeURIComponent(shopDomain)}`;
+    const win = window.open(url, 'shopify_oauth', 'width=600,height=700');
+    window.addEventListener('message', function handler(e) {
+      if (e.data.type === 'oauth_success') {
+        api.get(`/connectors/client/${id}`).then(setConnectors);
+        window.removeEventListener('message', handler);
+        win?.close();
+      }
+      if (e.data.type === 'oauth_error') {
+        alert(`Shopify OAuth error: ${e.data.error}`);
         window.removeEventListener('message', handler);
       }
     });
@@ -239,6 +259,7 @@ export default function ClientDetailPage() {
                         clientId={id}
                         onCheck={handleCheckConnector}
                         onOpenOAuth={openOAuth}
+                        onOpenShopifyOAuth={(connectorId) => setShopifyModal({ connectorId, type: conn.connector_type })}
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
                         onConfigSave={handleConfigSave}
@@ -252,8 +273,11 @@ export default function ClientDetailPage() {
                     {unconnected.map(type => (
                       <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fafafa', borderRadius: 4, border: '1px dashed #ddd' }}>
                         <span style={{ fontSize: 13, color: '#aaa' }}>{CONNECTOR_LABELS[type]}</span>
-                        {!group.oauth && (
+                        {(!group.oauth || (group.oauthTypes && !group.oauthTypes.includes(type))) && (
                           <button onClick={() => addConnector(type)} style={styles.btnSm}>+ Add</button>
+                        )}
+                        {group.oauthTypes && group.oauthTypes.includes(type) && (
+                          <button onClick={() => addConnector(type)} style={styles.btnSm}>+ Connect</button>
                         )}
                       </div>
                     ))}
@@ -342,6 +366,13 @@ export default function ClientDetailPage() {
           onClose={() => setAddAnotherModal(null)}
         />
       )}
+
+      {shopifyModal && (
+        <ShopifyModal
+          onConfirm={(shop) => { openShopifyOAuth(shopifyModal.connectorId, shop); setShopifyModal(null); }}
+          onClose={() => setShopifyModal(null)}
+        />
+      )}
     </div>
   );
 }
@@ -357,8 +388,9 @@ const MANUAL_PLACEHOLDER = {
   google_merchant_center: 'e.g. 12345678',
 };
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
+  const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
@@ -424,8 +456,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
           {connector.store_label && <span style={{ fontSize: 12, color: '#888' }}>({connector.store_label})</span>}
-          <span style={{ fontSize: 11, fontWeight: 600, color: isOAuth && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
-            {isOAuth && isActive ? '✓ Authorised' : connector.status}
+          <span style={{ fontSize: 11, fontWeight: 600, color: (isOAuth || isShopify) && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+            {(isOAuth || isShopify) && isActive ? '✓ Authorised' : connector.status}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
@@ -441,6 +473,10 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
           {isOAuth ? (
             <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
               {isActive ? 'Reauth' : 'Connect'}
+            </button>
+          ) : isShopify ? (
+            <button onClick={() => onOpenShopifyOAuth(connector.id)} style={styles.btnSm}>
+              {isActive ? 'Reconnect' : 'Connect'}
             </button>
           ) : (
             <button onClick={() => onEditCredentials(connector)} style={styles.btnSm}>
@@ -562,6 +598,39 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
         </Field>
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
           <button onClick={() => onConfirm(label.trim() || null)} style={styles.btn}>Add</button>
+          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ShopifyModal({ onConfirm, onClose }) {
+  const [shop, setShop] = useState('');
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modal}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect Shopify Store</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
+          Enter your Shopify store domain. You'll be redirected to Shopify to approve access.
+        </p>
+        <Field label="Store Domain">
+          <input
+            autoFocus
+            style={styles.input}
+            value={shop}
+            onChange={e => setShop(e.target.value)}
+            placeholder="your-store.myshopify.com"
+            onKeyDown={e => e.key === 'Enter' && shop.trim() && onConfirm(shop.trim())}
+          />
+        </Field>
+        <p style={{ margin: '12px 0 0', fontSize: 12, color: '#999' }}>
+          Make sure your Shopify app credentials are saved in Settings first.
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button onClick={() => shop.trim() && onConfirm(shop.trim())} style={styles.btn} disabled={!shop.trim()}>
+            Connect with Shopify
+          </button>
           <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
         </div>
       </div>

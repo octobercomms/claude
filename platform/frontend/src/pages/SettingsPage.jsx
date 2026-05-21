@@ -58,6 +58,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Shopify',
+    hint: 'Required for Shopify connectors. Create a custom app in the Shopify Partners dashboard (partners.shopify.com → Apps → Create app → Public app). Set the redirect URL to your platform URL + /auth/shopify/callback. Paste the API key and secret below.',
+    keys: [
+      { key: 'SHOPIFY_CLIENT_ID', label: 'API Key (Client ID)', placeholder: 'a1b2c3d4e5f6…', type: 'text' },
+      { key: 'SHOPIFY_CLIENT_SECRET', label: 'API Secret (Client Secret)', placeholder: 'shpss_…', type: 'password' },
+      { key: 'SHOPIFY_REDIRECT_URI', label: 'Redirect URI (must match Shopify app config)', placeholder: 'https://your-platform.com/auth/shopify/callback', type: 'text' },
+    ],
+  },
+  {
     title: 'DataForSEO',
     hint: 'Used for keyword rank tracking. Get credentials at dataforseo.com.',
     keys: [
