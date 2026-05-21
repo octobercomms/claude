@@ -26,7 +26,7 @@ const features = [
   {
     icon: '🤖',
     title: 'AI Report Chat',
-    desc: 'Ask Claude anything about your client's performance. Get instant answers from live connector data — no spreadsheets, no waiting.',
+    desc: "Ask Claude anything about your client's performance. Get instant answers from live connector data — no spreadsheets, no waiting.",
   },
   {
     icon: '📡',
