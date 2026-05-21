@@ -28,7 +28,7 @@ const CONNECTOR_GROUPS = [
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
-const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory','amazon_seller'];
+const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
 const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
@@ -759,8 +759,9 @@ function getCredentialFields(type) {
     klaviyo: [{ key: 'api_key', label: 'API Key', secret: true }],
     brevo: [{ key: 'api_key', label: 'API Key', secret: true }],
     amazon_seller: [
-      { key: 'seller_id', label: 'Seller ID' },
-      { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / eu' },
+      { key: 'refresh_token', label: 'Refresh Token', secret: true, placeholder: 'Atzr|...' },
+      { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / de / fr / us' },
+      { key: 'seller_id', label: 'Seller ID (optional)', placeholder: 'A1B2C3...' },
     ],
     cin7: [
       { key: 'account_id', label: 'Account ID', placeholder: 'Your Cin7 account ID' },
