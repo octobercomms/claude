@@ -7,7 +7,7 @@ function getAuthUrl(state) {
     client_id: process.env.ZOHO_CLIENT_ID,
     redirect_uri: process.env.ZOHO_REDIRECT_URI,
     response_type: 'code',
-    scope: 'ZohoInventory.items.READ,ZohoInventory.salesorders.READ,ZohoInventory.organizations.READ',
+    scope: 'ZohoInventory.FullAccess.all',
     access_type: 'offline',
     prompt: 'consent',
     state,
