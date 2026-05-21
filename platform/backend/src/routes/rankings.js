@@ -189,6 +189,45 @@ router.get('/export/:clientId', async (req, res) => {
   }
 });
 
+// Get last 12 months of manual SEO metrics for a client
+router.get('/seo-metrics/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM seo_manual_metrics
+       WHERE client_id = $1
+         AND month >= date_trunc('month', CURRENT_DATE - INTERVAL '11 months')
+       ORDER BY month DESC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upsert manual SEO metrics for a client/month
+router.put('/seo-metrics/:clientId', async (req, res) => {
+  const { month, moz_da, authority_score, referring_domains, notes } = req.body;
+  if (!month) return res.status(400).json({ error: 'month is required (YYYY-MM-DD)' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO seo_manual_metrics (client_id, month, moz_da, authority_score, referring_domains, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (client_id, month) DO UPDATE SET
+         moz_da = EXCLUDED.moz_da,
+         authority_score = EXCLUDED.authority_score,
+         referring_domains = EXCLUDED.referring_domains,
+         notes = EXCLUDED.notes,
+         updated_at = NOW()
+       RETURNING *`,
+      [req.params.clientId, month, moz_da ?? null, authority_score ?? null, referring_domains ?? null, notes ?? null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // SEO summary: backlinks + domain rank for a client's domain
 router.get('/seo-summary/:clientId', async (req, res) => {
   try {

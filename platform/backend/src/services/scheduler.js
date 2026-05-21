@@ -28,6 +28,12 @@ cron.schedule('30 7 * * *', async () => {
   await runConnectorHealthCheck();
 });
 
+// Daily report reminder: 08:00 AM — check if any client's monthly report is due in 48 hours
+cron.schedule('0 8 * * *', async () => {
+  console.log('[Scheduler] Checking for report reminders...');
+  await runReportReminderCheck();
+});
+
 async function runScheduledReports(reportType) {
   try {
     const { rows: clients } = await pool.query(
@@ -133,6 +139,50 @@ async function runConnectorHealthCheck() {
   }
 }
 
+async function runReportReminderCheck() {
+  try {
+    const { rows: clients } = await pool.query(
+      'SELECT * FROM clients WHERE active = true'
+    );
+
+    const now = new Date();
+    const twoDaysFromNow = new Date(now);
+    twoDaysFromNow.setDate(now.getDate() + 2);
+    const targetDay = twoDaysFromNow.getDate();
+    const targetMonth = twoDaysFromNow.getMonth();
+    const targetYear = twoDaysFromNow.getFullYear();
+
+    for (const client of clients) {
+      const schedule = client.report_schedule || {};
+      if (!schedule.monthly_day) continue;
+
+      const monthlyDay = schedule.monthly_day;
+
+      // Calculate next report date from today
+      let nextReportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
+      if (nextReportDate <= now) {
+        nextReportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
+      }
+
+      // Check if next report date is exactly 2 days from now
+      if (
+        nextReportDate.getDate() === targetDay &&
+        nextReportDate.getMonth() === targetMonth &&
+        nextReportDate.getFullYear() === targetYear
+      ) {
+        try {
+          console.log(`[Scheduler] Sending report reminder for ${client.name}`);
+          await emailService.sendReportReminderEmail(client);
+        } catch (err) {
+          console.error(`[Scheduler] Failed to send reminder for ${client.name}:`, err.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Scheduler] Fatal error in runReportReminderCheck:', err.message);
+  }
+}
+
 function getPeriodDates(reportType) {
   const now = new Date();
   if (reportType === 'monthly') {
@@ -155,4 +205,4 @@ function getPeriodDates(reportType) {
   };
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks };
+module.exports = { runScheduledReports, runDailyRankChecks, runReportReminderCheck };

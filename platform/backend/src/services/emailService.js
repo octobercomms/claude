@@ -298,4 +298,28 @@ async function sendConnectorHealthAlert(issues) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert };
+async function sendReportReminderEmail(client) {
+  if (!process.env.ALERT_EMAIL) return;
+
+  const schedule = client.report_schedule || {};
+  const monthlyDay = schedule.monthly_day || 1;
+  const now = new Date();
+  // Next report date: if today is before monthly_day this month, use this month; else next month
+  let reportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
+  if (reportDate <= now) {
+    reportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
+  }
+  const dateStr = reportDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const subject = `Reminder: ${client.name} monthly report due in 48 hours`;
+  const text = `The monthly report for ${client.name} is scheduled to run on ${dateStr}.\n\nPlease log in to update any manual SEO metrics before the report runs: https://platform.octobercomms.com/clients/${client.id}/seo\n\nOctober Performance Marketing Platform`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject,
+    text,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail };
