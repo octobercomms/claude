@@ -147,6 +147,7 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, store
       merchantId: configValue,
       adAccountId: configValue,
       accountId: configValue,
+      organizationId: configValue,
       startDate: fmt(periodStart),
       endDate: fmt(periodEnd),
       periodStart: fmt(periodStart),
@@ -237,6 +238,22 @@ function summariseConnectorData(type, raw, days) {
       const reports = raw.reports || [];
       return { period_days: days, reports_found: reports.length, note: raw.note || null, reports: reports.slice(0, 10).map(r => ({ id: r.id, name: r.name, category: r.category })) };
     }
+    if (type === 'zoho_inventory') {
+      const items = raw.items || [];
+      const orders = raw.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const lowStock = items.filter(i => (i.available_stock || 0) <= (i.reorder_level || 0) && i.available_stock != null);
+      const topLow = lowStock.slice(0, 5).map(i => ({ name: i.name, sku: i.sku, available: i.available_stock, reorder_at: i.reorder_level }));
+      return { period_days: days, orders: orders.length, revenue: `£${revenue.toFixed(2)}`, active_skus: items.length, low_stock_count: lowStock.length, low_stock_items: topLow };
+    }
+    if (type === 'cin7') {
+      const stock = raw.stock || [];
+      const orders = raw.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const outOfStock = stock.filter(s => (s.available || 0) <= 0);
+      const topOut = outOfStock.slice(0, 5).map(s => ({ name: s.name || s.productName, sku: s.styleCode || s.sku, available: s.available }));
+      return { period_days: days, orders: orders.length, revenue: `£${revenue.toFixed(2)}`, skus_tracked: stock.length, out_of_stock_count: outOfStock.length, out_of_stock_items: topOut };
+    }
     if (type === 'klaviyo' || type === 'brevo') {
       return { period_days: days, total_campaigns: raw.total_campaigns, aggregated_stats: raw.aggregated_stats };
     }
@@ -308,7 +325,7 @@ async function toolDetectAnomalies(clientId) {
     try {
       const connModule = connectorFactory.get(connector.connector_type);
       const cv = config.value;
-      const configMapped = { propertyId: cv, siteUrl: cv, customerId: cv, merchantId: cv, adAccountId: cv, accountId: cv };
+      const configMapped = { propertyId: cv, siteUrl: cv, customerId: cv, merchantId: cv, adAccountId: cv, accountId: cv, organizationId: cv };
       const [curr, prev] = await Promise.all([
         connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(thisStart), endDate: fmt(now), periodStart: fmt(thisStart), periodEnd: fmt(now) }),
         connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(prevStart), endDate: fmt(thisStart), periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),

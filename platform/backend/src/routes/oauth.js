@@ -5,6 +5,7 @@ const pool = require('../db');
 const { encrypt } = require('../utils/encryption');
 const googleConnector = require('../connectors/google');
 const metaConnector = require('../connectors/meta');
+const zohoInventoryConnector = require('../connectors/zoho_inventory');
 
 const router = express.Router();
 
@@ -143,6 +144,40 @@ router.get('/shopify/callback', async (req, res) => {
     res.send(oauthPopupHtml('error', err.message));
   }
 });
+
+// ─── Zoho Inventory OAuth ────────────────────────────────────────
+
+router.get('/zoho/start', (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).send('client_id required');
+  const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
+  const url = zohoInventoryConnector.getAuthUrl(state);
+  res.redirect(url);
+});
+
+router.get('/zoho/callback', async (req, res) => {
+  const { code, state, error } = req.query;
+  if (error) return res.send(oauthPopupHtml('error', error));
+
+  try {
+    const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const tokens = await zohoInventoryConnector.exchangeCode(code);
+    const encrypted = encrypt(tokens);
+
+    await pool.query(
+      `UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL
+       WHERE client_id = $2 AND connector_type = 'zoho_inventory'`,
+      [JSON.stringify(encrypted), client_id]
+    );
+
+    res.send(oauthPopupHtml('success', 'Zoho Inventory connected successfully.', 'zoho'));
+  } catch (err) {
+    console.error('Zoho OAuth callback error:', err);
+    res.send(oauthPopupHtml('error', err.message));
+  }
+});
+
+// ─── Reauth links ────────────────────────────────────────────────
 
 // Reauth link from email alert (token-less, opens OAuth flow)
 router.get('/meta/reauth', (req, res) => {

@@ -7,6 +7,7 @@ const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
   'meta_ads','instagram_insights','shopify','woocommerce',
   'klaviyo','brevo','shopify_email','amazon_seller',
+  'zoho_inventory','cin7',
 ];
 
 const CONNECTOR_LABELS = {
@@ -16,6 +17,7 @@ const CONNECTOR_LABELS = {
   shopify: 'Shopify', woocommerce: 'WooCommerce', klaviyo: 'Klaviyo',
   brevo: 'Brevo', shopify_email: 'Shopify Email',
   amazon_seller: 'Amazon Seller',
+  zoho_inventory: 'Zoho Inventory', cin7: 'Cin7',
 };
 
 const CONNECTOR_GROUPS = [
@@ -23,9 +25,10 @@ const CONNECTOR_GROUPS = [
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
   { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
   { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
+  { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
-const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights'];
+const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
 const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
@@ -134,7 +137,10 @@ export default function ClientDetailPage() {
   }
 
   function openOAuth(type, clientId) {
-    const provider = type.startsWith('google') || type === 'ga4' ? 'google' : 'meta';
+    let provider;
+    if (type.startsWith('google') || type === 'ga4') provider = 'google';
+    else if (type === 'zoho_inventory') provider = 'zoho';
+    else provider = 'meta';
     const url = `/auth/${provider}/start?client_id=${clientId}`;
     const win = window.open(url, 'oauth', 'width=600,height=700');
     window.addEventListener('message', function handler(e) {
@@ -379,6 +385,7 @@ export default function ClientDetailPage() {
 const ACCOUNT_LABEL = {
   ga4: 'Property', google_search_console: 'Site', google_ads: 'Customer ID',
   google_merchant_center: 'Merchant ID', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
+  zoho_inventory: 'Organisation',
 };
 
 const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center'];
@@ -667,6 +674,10 @@ function getCredentialFields(type) {
     amazon_seller: [
       { key: 'seller_id', label: 'Seller ID' },
       { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / eu' },
+    ],
+    cin7: [
+      { key: 'account_id', label: 'Account ID', placeholder: 'Your Cin7 account ID' },
+      { key: 'api_key', label: 'Application Key', secret: true, placeholder: 'Cin7 application key' },
     ],
   };
   return fieldMap[type] || [{ key: 'api_key', label: 'API Key', secret: true }];

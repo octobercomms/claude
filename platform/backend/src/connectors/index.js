@@ -6,6 +6,8 @@ const klaviyo = require('./klaviyo');
 const brevo = require('./brevo');
 const amazonSeller = require('./amazon');
 const dataForSEO = require('./dataforseo');
+const zohoInventory = require('./zoho_inventory');
+const cin7 = require('./cin7');
 
 const connectors = {
   ga4: google,
@@ -21,6 +23,8 @@ const connectors = {
   brevo: brevo,
   amazon_seller: amazonSeller,
   dataforseo: dataForSEO,
+  zoho_inventory: zohoInventory,
+  cin7: cin7,
 };
 
 module.exports = {
