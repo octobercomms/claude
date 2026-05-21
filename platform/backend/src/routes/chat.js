@@ -135,11 +135,20 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, store
   const fmt = d => d.toISOString().split('T')[0];
 
   const config = connector.config || {};
+  const configValue = config.value;
   try {
     const connModule = connectorFactory.get(connector_type);
     const raw = await connModule.fetchData(creds, {
       ...config,
       connectorType: connector_type,
+      propertyId: configValue,
+      siteUrl: configValue,
+      customerId: configValue,
+      merchantId: configValue,
+      adAccountId: configValue,
+      accountId: configValue,
+      startDate: fmt(periodStart),
+      endDate: fmt(periodEnd),
       periodStart: fmt(periodStart),
       periodEnd: fmt(periodEnd),
     });
@@ -278,9 +287,11 @@ async function toolDetectAnomalies(clientId) {
     const config = connector.config || {};
     try {
       const connModule = connectorFactory.get(connector.connector_type);
+      const cv = config.value;
+      const configMapped = { propertyId: cv, siteUrl: cv, customerId: cv, merchantId: cv, adAccountId: cv, accountId: cv };
       const [curr, prev] = await Promise.all([
-        connModule.fetchData(creds, { ...config, connectorType: connector.connector_type, periodStart: fmt(thisStart), periodEnd: fmt(now) }),
-        connModule.fetchData(creds, { ...config, connectorType: connector.connector_type, periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),
+        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(thisStart), endDate: fmt(now), periodStart: fmt(thisStart), periodEnd: fmt(now) }),
+        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(prevStart), endDate: fmt(thisStart), periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),
       ]);
       const currSummary = summariseConnectorData(connector.connector_type, curr, 7);
       const prevSummary = summariseConnectorData(connector.connector_type, prev, 7);
