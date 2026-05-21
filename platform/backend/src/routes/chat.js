@@ -89,6 +89,24 @@ const TOOLS = [
       required: ['id'],
     },
   },
+  {
+    name: 'get_report_sections',
+    description: 'Read which sections are currently included in this client\'s weekly and monthly reports. Returns every available section (SEO plus each connected data source) with its weekly/monthly on-off state.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'set_report_section',
+    description: 'Turn a report section on or off for the weekly and/or monthly report. Use when the account manager asks to add or remove a section from a report. The section key is "seo" or a connector type such as ga4, google_ads, shopify, meta_ads.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        section: { type: 'string', description: 'Section key: "seo" or a connector type (ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, klaviyo, brevo, etc.)' },
+        weekly: { type: 'boolean', description: 'true to include in the weekly report, false to exclude. Omit to leave unchanged.' },
+        monthly: { type: 'boolean', description: 'true to include in the monthly report, false to exclude. Omit to leave unchanged.' },
+      },
+      required: ['section'],
+    },
+  },
 ];
 
 // ── Tool implementations ───────────────────────────────────────────────────
@@ -411,6 +429,42 @@ async function toolResolveContextEntry(entryId) {
   return { success: true, resolved: rows[0] };
 }
 
+async function toolGetReportSections(clientId) {
+  const { rows } = await pool.query('SELECT report_sections FROM clients WHERE id = $1', [clientId]);
+  if (!rows.length) return { error: 'Client not found' };
+  const config = rows[0].report_sections || {};
+  const { rows: conns } = await pool.query(
+    'SELECT DISTINCT connector_type FROM connectors WHERE client_id = $1', [clientId]
+  );
+  const keys = ['seo', ...conns.map(c => c.connector_type)];
+  return {
+    sections: keys.map(key => ({
+      section: key,
+      weekly: config[key]?.weekly !== false,
+      monthly: config[key]?.monthly !== false,
+    })),
+    note: 'A section is included in a report unless explicitly disabled for it.',
+  };
+}
+
+async function toolSetReportSection(clientId, { section, weekly, monthly }) {
+  if (!section) return { error: 'section is required' };
+  const { rows } = await pool.query('SELECT report_sections FROM clients WHERE id = $1', [clientId]);
+  if (!rows.length) return { error: 'Client not found' };
+  const config = rows[0].report_sections || {};
+  const cur = { ...(config[section] || {}) };
+  if (typeof weekly === 'boolean') cur.weekly = weekly;
+  if (typeof monthly === 'boolean') cur.monthly = monthly;
+  config[section] = cur;
+  await pool.query('UPDATE clients SET report_sections = $1 WHERE id = $2', [JSON.stringify(config), clientId]);
+  return {
+    success: true,
+    section,
+    weekly: cur.weekly !== false,
+    monthly: cur.monthly !== false,
+  };
+}
+
 async function executeTool(name, input, clientId) {
   switch (name) {
     case 'get_client_info':       return toolGetClientInfo(clientId);
@@ -421,6 +475,8 @@ async function executeTool(name, input, clientId) {
     case 'get_context_log':       return toolGetContextLog(clientId, input.status);
     case 'add_context_entry':     return toolAddContextEntry(clientId, input);
     case 'resolve_context_entry': return toolResolveContextEntry(input.id);
+    case 'get_report_sections':   return toolGetReportSections(clientId);
+    case 'set_report_section':    return toolSetReportSection(clientId, input);
     default: return { error: `Unknown tool: ${name}` };
   }
 }
@@ -439,7 +495,7 @@ You have tools to read live data, check SEO rankings, view reports, detect anoma
 Your responsibilities:
 1. Investigate performance questions by pulling actual data, not estimating
 2. Flag anomalies — significant metric changes, connector errors, unusual patterns
-3. Help decide which sections and metrics belong in their reports
+3. Help decide which sections belong in their reports — use get_report_sections and set_report_section to add or remove sections when asked
 4. Maintain the context log: add decisions, open investigations, pending items; close them when resolved
 5. Suggest angles the account manager might not have considered
 6. Give concrete, specific advice grounded in the actual data you've pulled
