@@ -12,11 +12,14 @@ function getAuthUrl(state) {
     prompt: 'consent',
     state,
   });
-  return `https://accounts.zoho.com/oauth/v2/auth?${params}`;
+  const zohoAccounts = process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
+  return `${zohoAccounts}/oauth/v2/auth?${params}`;
 }
 
 async function exchangeCode(code) {
-  const { data } = await axios.post('https://accounts.zoho.com/oauth/v2/token', null, {
+  // Use EU token endpoint when configured for EU — accounts.zoho.com may omit api_domain in response
+  const zohoAccounts = process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
+  const { data } = await axios.post(`${zohoAccounts}/oauth/v2/token`, null, {
     params: {
       code,
       client_id: process.env.ZOHO_CLIENT_ID,
@@ -48,7 +51,8 @@ async function exchangeCode(code) {
 
 async function refreshToken(credentials) {
   if (!credentials.refresh_token) throw new Error('No refresh token — please reconnect Zoho Inventory.');
-  const { data } = await axios.post('https://accounts.zoho.com/oauth/v2/token', null, {
+  const zohoAccounts = process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
+  const { data } = await axios.post(`${zohoAccounts}/oauth/v2/token`, null, {
     params: {
       refresh_token: credentials.refresh_token,
       client_id: process.env.ZOHO_CLIENT_ID,
