@@ -249,8 +249,8 @@ export default function SettingsPage() {
                       <input
                         type={visibleKeys[key] ? 'text' : type}
                         style={{ ...styles.input, flex: 1 }}
-                        value={values[key] || ''}
-                        placeholder={!revealed && values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                        value={values[key] === '••••••••' ? '' : (values[key] || '')}
+                        placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
                         onChange={e => handleChange(key, e.target.value)}
                         autoComplete="off"
                       />
