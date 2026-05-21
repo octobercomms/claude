@@ -69,6 +69,8 @@ async function collectClientData(clientId, periodStart, periodEnd) {
         adAccountId: config.value,      // Meta Ads
         accountId: config.value,        // Instagram
         organizationId: config.value,   // Zoho Inventory
+        brevoListId: config.list_id,        // Brevo — per-client list scope
+        brevoAutomation: config.automation, // Brevo — automation label
       });
 
       results[key] = data;
