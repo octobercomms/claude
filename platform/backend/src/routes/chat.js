@@ -245,7 +245,9 @@ function summariseConnectorData(type, raw, days) {
       const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
       const lowStock = items.filter(i => (i.available_stock || 0) <= (i.reorder_level || 0) && i.available_stock != null);
       const topLow = lowStock.slice(0, 5).map(i => ({ name: i.name, sku: i.sku, available: i.available_stock, reorder_at: i.reorder_level }));
-      return { period_days: days, orders: orders.length, revenue: `£${revenue.toFixed(2)}`, active_skus: items.length, low_stock_count: lowStock.length, low_stock_items: topLow };
+      const result = { period_days: days, orders: orders.length, revenue: `£${revenue.toFixed(2)}`, active_skus: items.length, low_stock_count: lowStock.length, low_stock_items: topLow };
+      if (raw.fetch_errors) result.fetch_errors = raw.fetch_errors;
+      return result;
     }
     if (type === 'cin7') {
       const stock = raw.stock || [];

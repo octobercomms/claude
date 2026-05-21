@@ -98,21 +98,35 @@ async function fetchData(credentials, params) {
   const base = `${apiDomain}/inventory/v1`;
   const headers = { Authorization: `Zoho-oauthtoken ${creds.access_token}` };
 
-  const [itemsResult, ordersResult] = await Promise.allSettled([
-    axios.get(`${base}/items`, {
-      headers,
-      params: { organization_id: orgId, status: 'active', per_page: 200 },
-    }),
-    axios.get(`${base}/salesorders`, {
-      headers,
-      params: { organization_id: orgId, date_start: startDate, date_end: endDate, per_page: 200 },
-    }),
-  ]);
+  const errors = [];
 
-  const items = itemsResult.status === 'fulfilled' ? (itemsResult.value.data.items || []) : [];
-  const orders = ordersResult.status === 'fulfilled' ? (ordersResult.value.data.salesorders || []) : [];
+  let items = [];
+  try {
+    const res = await axios.get(`${base}/items`, {
+      headers,
+      params: { organization_id: orgId },
+    });
+    items = res.data.items || [];
+  } catch (err) {
+    const detail = err.response?.data?.message || err.message;
+    errors.push(`items: ${detail}`);
+    console.error('[Zoho Inventory] items fetch failed:', detail);
+  }
 
-  return { items, orders };
+  let orders = [];
+  try {
+    const res = await axios.get(`${base}/salesorders`, {
+      headers,
+      params: { organization_id: orgId, date_start: startDate, date_end: endDate },
+    });
+    orders = res.data.salesorders || [];
+  } catch (err) {
+    const detail = err.response?.data?.message || err.message;
+    errors.push(`salesorders: ${detail}`);
+    console.error('[Zoho Inventory] salesorders fetch failed:', detail);
+  }
+
+  return { items, orders, ...(errors.length ? { fetch_errors: errors } : {}) };
 }
 
 module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts };
