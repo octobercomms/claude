@@ -224,17 +224,24 @@ async function testCredentials({ login, password } = {}) {
   const user = (login || await getSetting('DATAFORSEO_LOGIN') || '').trim();
   const pass = (password || await getSetting('DATAFORSEO_PASSWORD') || '').trim();
   if (!user || !pass) return { ok: false, message: 'No DataForSEO login/password set.' };
+  // Echo back exactly what was sent so credential mismatches are visible.
+  const sent = {
+    login: user,
+    passwordLength: pass.length,
+    passwordPreview: pass.length > 4 ? `${pass.slice(0, 2)}…${pass.slice(-2)}` : '••',
+  };
   try {
     const { data } = await axios.get('https://api.dataforseo.com/v3/appendix/user_data', {
       auth: { username: user, password: pass },
     });
     if (data.status_code === 20000) {
       const balance = data.tasks?.[0]?.result?.[0]?.money?.balance;
-      return { ok: true, message: balance != null ? `Connected — account balance $${balance}.` : 'Connected successfully.' };
+      return { ok: true, message: balance != null ? `Connected — account balance $${balance}.` : 'Connected successfully.', sent };
     }
-    return { ok: false, message: data.status_message || 'DataForSEO rejected the request.' };
+    return { ok: false, message: data.status_message || 'DataForSEO rejected the request.', code: data.status_code, sent };
   } catch (err) {
-    return { ok: false, message: err.response?.data?.status_message || err.message };
+    const d = err.response?.data;
+    return { ok: false, message: d?.status_message || err.message, code: d?.status_code || err.response?.status || null, sent };
   }
 }
 
