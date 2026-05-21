@@ -529,18 +529,18 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#aaa', padding: 0 }} title="Edit label">✎</button>}
             </span>
           )}
-          <span style={{ fontSize: 11, fontWeight: 600, color: (isOAuth || isShopify) && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
-            {(isOAuth || isShopify) && isActive ? '✓ Connected' : connector.status}
+          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+            {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
-          {isOAuth && connector.status !== 'disconnected' && (
+          {connector.status !== 'disconnected' && (
             <button onClick={handleDiagnose} disabled={diagnosing} style={styles.btnSm}>
               {diagnosing ? 'Diagnosing…' : 'Diagnose'}
             </button>
           )}
-          {(isOAuth || isShopify) && isActive && (
+          {isActive && (
             <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
           )}
           {isOAuth ? (
@@ -566,25 +566,43 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
             <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14 }}>×</button>
           </div>
+          {/* Credentials stored */}
+          {diagnoseResult.credentials && (
+            <div style={{ color: diagnoseResult.credentials === 'none stored' ? '#c62828' : '#555', marginBottom: 4 }}>
+              Credentials: {diagnoseResult.credentials === 'none stored' ? '✗ none stored — use Connect/Update to save credentials' : `✓ stored (${diagnoseResult.credentials})`}
+            </div>
+          )}
+          {/* Generic check result (non-Google connectors) */}
+          {diagnoseResult.check && (
+            <div style={{ color: diagnoseResult.check.status === 'ok' ? '#2e7d32' : '#c62828', marginBottom: 4 }}>
+              {diagnoseResult.check.status === 'ok' ? '✓' : '✗'} {diagnoseResult.check.detail}
+            </div>
+          )}
+          {/* Google token info */}
           {diagnoseResult.token_info && (
-            <div style={{ marginBottom: 6 }}>
-              <span style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
                 {diagnoseResult.token_info.error
-                  ? `Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
-                  : `Account: ${diagnoseResult.token_info.email || 'unknown'}`}
-              </span>
-              {diagnoseResult.token_info.scopes && (
-                <div style={{ color: diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '#2e7d32' : '#c62828' }}>
-                  analytics.readonly: {diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '✓' : '✗ missing'}
-                </div>
+                  ? `✗ Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
+                  : `✓ Account: ${diagnoseResult.token_info.email || 'unknown'} (expires ${diagnoseResult.token_info.expires_in})`}
+              </div>
+              {diagnoseResult.token_info.note && (
+                <div style={{ color: '#e65100' }}>{diagnoseResult.token_info.note}</div>
               )}
             </div>
           )}
-          {diagnoseResult.ga4_test && (
-            <div style={{ color: diagnoseResult.ga4_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
-              GA4 test ({diagnoseResult.property_id}): {diagnoseResult.ga4_test.status === 'ok'
-                ? `✓ OK — ${diagnoseResult.ga4_test.row_count} rows`
-                : `✗ ${diagnoseResult.ga4_test.http_status} — ${JSON.stringify(diagnoseResult.ga4_test.error)}`}
+          {/* Live API test (GA4) */}
+          {diagnoseResult.live_test && (
+            <div style={{ color: diagnoseResult.live_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
+              Live test: {diagnoseResult.live_test.status === 'ok'
+                ? `✓ ${diagnoseResult.live_test.detail}`
+                : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${JSON.stringify(diagnoseResult.live_test.error)}`}
+            </div>
+          )}
+          {/* Config summary */}
+          {diagnoseResult.config && Object.keys(diagnoseResult.config).length > 0 && (
+            <div style={{ color: '#888', marginTop: 4 }}>
+              Config: {JSON.stringify(diagnoseResult.config)}
             </div>
           )}
           {diagnoseResult.error && <div style={{ color: '#c62828' }}>Error: {diagnoseResult.error}</div>}

@@ -179,74 +179,94 @@ router.post('/client/:clientId', async (req, res) => {
   }
 });
 
-// Diagnose a Google connector — shows token owner, scopes, and a live GA4 test
+// Diagnose any connector — credential check, config summary, live API test
 router.get('/:id/diagnose', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM connectors WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
     const row = rows[0];
+
+    const result = {
+      connector_type: row.connector_type,
+      store_label: row.store_label || null,
+      status: row.status,
+      last_checked: row.last_checked,
+      config: row.config || null,
+    };
+
+    // Check if credentials are stored at all
     const creds = decrypt(row.credentials);
-    if (!creds) return res.status(400).json({ error: 'No credentials stored' });
-
-    const result = { connector_type: row.connector_type, config: row.config };
-
-    // Check token validity and get account info
-    try {
-      const tokenInfoRes = await axios.get(
-        `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${creds.access_token}`
-      );
-      result.token_info = {
-        email: tokenInfoRes.data.email,
-        scopes: tokenInfoRes.data.scope,
-        expires_in: tokenInfoRes.data.exp ? `${Math.round((tokenInfoRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
-      };
-    } catch (tokenErr) {
-      result.token_info = { error: tokenErr.response?.data || tokenErr.message };
-      // Attempt token refresh and retry
-      try {
-        const googleConnector = require('../connectors/google');
-        const refreshed = await googleConnector.refreshToken(creds);
-        const retryRes = await axios.get(
-          `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${refreshed.access_token}`
-        );
-        result.token_info = {
-          email: retryRes.data.email,
-          scopes: retryRes.data.scope,
-          expires_in: retryRes.data.exp ? `${Math.round((retryRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
-          note: 'Token was expired and has been refreshed',
-        };
-        // Persist the refreshed credentials
-        const { encrypt } = require('../utils/encryption');
-        await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [
-          JSON.stringify(encrypt(refreshed)), row.id,
-        ]);
-      } catch {
-        result.token_info.note = 'Token is expired — re-authorise this connector';
-      }
+    if (!creds || Object.keys(creds).length === 0) {
+      result.credentials = 'none stored';
+      return res.json(result);
     }
 
-    // For GA4 connectors, test the Data API directly
-    if (row.connector_type === 'ga4') {
-      const propertyId = row.config?.value;
-      result.property_id = propertyId || '(not set)';
-      if (propertyId) {
+    // Report which credential fields are present (not values)
+    result.credentials = Object.keys(creds).join(', ');
+
+    const GOOGLE_TYPES = ['ga4', 'google_search_console', 'google_ads', 'google_merchant_center'];
+    const isGoogle = GOOGLE_TYPES.includes(row.connector_type);
+
+    if (isGoogle) {
+      // Google: check OAuth token info
+      try {
+        const tokenInfoRes = await axios.get(
+          `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${creds.access_token}`
+        );
+        result.token_info = {
+          email: tokenInfoRes.data.email,
+          scopes: tokenInfoRes.data.scope,
+          expires_in: tokenInfoRes.data.exp ? `${Math.round((tokenInfoRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
+        };
+      } catch (tokenErr) {
+        result.token_info = { error: tokenErr.response?.data || tokenErr.message };
         try {
-          const testRes = await axios.post(
-            `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
-            {
-              dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-              metrics: [{ name: 'sessions' }],
-            },
-            { headers: { Authorization: `Bearer ${creds.access_token}` } }
+          const googleConnector = require('../connectors/google');
+          const refreshed = await googleConnector.refreshToken(creds);
+          const retryRes = await axios.get(
+            `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${refreshed.access_token}`
           );
-          result.ga4_test = { status: 'ok', row_count: testRes.data.rowCount };
-        } catch (ga4Err) {
-          result.ga4_test = {
-            status: 'error',
-            http_status: ga4Err.response?.status,
-            error: ga4Err.response?.data?.error || ga4Err.message,
+          result.token_info = {
+            email: retryRes.data.email,
+            scopes: retryRes.data.scope,
+            expires_in: retryRes.data.exp ? `${Math.round((retryRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
+            note: 'Token was expired and has been refreshed',
           };
+          const { encrypt } = require('../utils/encryption');
+          await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [
+            JSON.stringify(encrypt(refreshed)), row.id,
+          ]);
+        } catch {
+          result.token_info.note = 'Token is expired — re-authorise this connector';
         }
+      }
+
+      if (row.connector_type === 'ga4') {
+        const propertyId = row.config?.value;
+        result.property_id = propertyId || '(not set)';
+        if (propertyId) {
+          try {
+            const testRes = await axios.post(
+              `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+              { dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }], metrics: [{ name: 'sessions' }] },
+              { headers: { Authorization: `Bearer ${creds.access_token}` } }
+            );
+            result.live_test = { status: 'ok', detail: `${testRes.data.rowCount} rows returned` };
+          } catch (ga4Err) {
+            result.live_test = { status: 'error', http_status: ga4Err.response?.status, error: ga4Err.response?.data?.error || ga4Err.message };
+          }
+        }
+      }
+    } else {
+      // Non-Google: call checkTokenValidity and report result
+      try {
+        const connector = connectorFactory.get(row.connector_type);
+        await connector.checkTokenValidity(creds);
+        result.check = { status: 'ok', detail: 'Credentials are valid' };
+        await pool.query('UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2', ['active', row.id]);
+      } catch (checkErr) {
+        result.check = { status: 'error', detail: checkErr.message };
+        await pool.query('UPDATE connectors SET status = $1, error_message = $2 WHERE id = $3', ['error', checkErr.message, row.id]);
       }
     }
 
