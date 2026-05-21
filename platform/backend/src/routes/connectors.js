@@ -89,8 +89,10 @@ router.get('/:id/accounts', async (req, res) => {
     const accounts = await connector.listAccounts(creds, row.connector_type);
     res.json(accounts);
   } catch (err) {
-    console.error('listAccounts error:', err.message);
-    res.status(500).json({ error: err.message });
+    const detail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+    const status = err.response?.status;
+    console.error('listAccounts error:', status, detail);
+    res.status(200).json({ fetchError: `${status ? `(${status}) ` : ''}${typeof detail === 'string' ? detail : JSON.stringify(detail)}` });
   }
 });
 
