@@ -60,10 +60,22 @@ async function checkRank(keyword) {
     : { position: null, url: null };
 }
 
+// DataForSEO's backlinks API needs a bare domain (no protocol/www/path) —
+// a full URL is treated as a single page and returns almost no data.
+function normalizeDomain(input) {
+  if (!input) return input;
+  return String(input)
+    .trim()
+    .replace(/^https?:\/\//i, '')
+    .replace(/^www\./i, '')
+    .replace(/\/.*$/, '')
+    .toLowerCase();
+}
+
 async function fetchBacklinkData(domain) {
   const client = getClient();
   const { data } = await client.post('/backlinks/summary/live', [{
-    target: domain,
+    target: normalizeDomain(domain),
     limit: 1,
   }]);
 

@@ -234,14 +234,19 @@ router.get('/seo-summary/:clientId', async (req, res) => {
     const { rows } = await pool.query('SELECT domain, slug FROM clients WHERE id = $1', [req.params.clientId]);
     if (!rows.length) return res.status(404).json({ error: 'Client not found' });
     const domain = rows[0].domain || rows[0].slug;
+    if (!domain) return res.status(400).json({ error: 'No domain configured for this client — set it on the Details tab.' });
     const backlinks = await dataForSEO.fetchBacklinkData(domain);
-    if (!backlinks) return res.json({});
+    if (!backlinks) return res.json({ domain, empty: true });
     res.json({
+      domain: backlinks.target || domain,
       domain_rank: backlinks.rank,
       backlinks_total: backlinks.backlinks,
       referring_domains: backlinks.referring_domains,
+      referring_ips: backlinks.referring_ips,
       new_backlinks: backlinks.new_backlinks,
       lost_backlinks: backlinks.lost_backlinks,
+      broken_backlinks: backlinks.broken_backlinks,
+      spam_score: backlinks.backlinks_spam_score,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
