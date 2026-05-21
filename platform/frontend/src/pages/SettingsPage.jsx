@@ -67,6 +67,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Zoho Inventory',
+    hint: 'Required for Zoho Inventory connectors. Create an OAuth app at api-console.zoho.com → Server-based Applications. Set the redirect URL to your platform URL + /auth/zoho/callback.',
+    keys: [
+      { key: 'ZOHO_CLIENT_ID', label: 'Client ID', placeholder: '1000.XXXXXXXX', type: 'text' },
+      { key: 'ZOHO_CLIENT_SECRET', label: 'Client Secret', placeholder: '…', type: 'password' },
+      { key: 'ZOHO_REDIRECT_URI', label: 'Redirect URI (must match Zoho app config)', placeholder: 'https://your-platform.com/auth/zoho/callback', type: 'text' },
+    ],
+  },
+  {
     title: 'DataForSEO',
     hint: 'Used for keyword rank tracking. Get credentials at dataforseo.com.',
     keys: [

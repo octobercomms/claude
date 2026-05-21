@@ -62,12 +62,13 @@ async function collectClientData(clientId, periodStart, periodEnd) {
         endDate: periodEnd,
         storeLabel: connector.store_label,
         // Pass saved account/property selections
-        propertyId: config.value,   // GA4
-        siteUrl: config.value,      // Google Search Console
-        customerId: config.value,   // Google Ads
-        merchantId: config.value,   // Google Merchant Center
-        adAccountId: config.value,  // Meta Ads
-        accountId: config.value,    // Instagram
+        propertyId: config.value,       // GA4
+        siteUrl: config.value,          // Google Search Console
+        customerId: config.value,       // Google Ads
+        merchantId: config.value,       // Google Merchant Center
+        adAccountId: config.value,      // Meta Ads
+        accountId: config.value,        // Instagram
+        organizationId: config.value,   // Zoho Inventory
       });
 
       results[key] = data;
@@ -131,6 +132,8 @@ function buildReportSections(collectedData, connectorErrors) {
     klaviyo: 'Klaviyo',
     brevo: 'Brevo',
     amazon_seller: 'Amazon Seller',
+    zoho_inventory: 'Zoho Inventory',
+    cin7: 'Cin7',
   };
 
   const sections = [];
@@ -280,6 +283,30 @@ function extractKeyMetrics(connectorType, data) {
       if (stats.opens) metrics.push({ label: 'Opens', value: parseInt(stats.opens || 0).toLocaleString() });
       if (stats.clicks) metrics.push({ label: 'Clicks', value: parseInt(stats.clicks || 0).toLocaleString() });
       return metrics;
+    }
+    case 'zoho_inventory': {
+      const items = data.items || [];
+      const orders = data.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const lowStock = items.filter(i => (i.available_stock || 0) <= (i.reorder_level || 0) && i.available_stock != null);
+      return [
+        { label: 'Orders', value: orders.length.toLocaleString() },
+        { label: 'Revenue', value: formatCurrency(revenue) },
+        { label: 'Active SKUs', value: items.length.toLocaleString() },
+        { label: 'Low Stock Items', value: lowStock.length.toLocaleString() },
+      ];
+    }
+    case 'cin7': {
+      const stock = data.stock || [];
+      const orders = data.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const lowStock = stock.filter(s => (s.available || 0) <= 0);
+      return [
+        { label: 'Orders', value: orders.length.toLocaleString() },
+        { label: 'Revenue', value: formatCurrency(revenue) },
+        { label: 'SKUs Tracked', value: stock.length.toLocaleString() },
+        { label: 'Out of Stock', value: lowStock.length.toLocaleString() },
+      ];
     }
     default:
       return [];
@@ -433,6 +460,35 @@ function extractTables(connectorType, data) {
           c.sent_date ? new Date(c.sent_date).toLocaleDateString('en-GB') : '—',
           c.statistics?.opened?.count?.toLocaleString() || '—',
           c.statistics?.clicked?.count?.toLocaleString() || '—',
+        ]),
+      }];
+    }
+    case 'zoho_inventory': {
+      const items = (data.items || []).slice(0, 20);
+      if (!items.length) return [];
+      return [{
+        heading: 'Stock Levels',
+        headers: ['Product', 'SKU', 'Available', 'On Hand', 'Reorder Level'],
+        rows: items.map(i => [
+          i.name || '—',
+          i.sku || '—',
+          (i.available_stock ?? '—').toLocaleString ? (i.available_stock ?? 0).toLocaleString() : '—',
+          (i.actual_available_stock ?? '—').toLocaleString ? (i.actual_available_stock ?? 0).toLocaleString() : '—',
+          i.reorder_level != null ? i.reorder_level : '—',
+        ]),
+      }];
+    }
+    case 'cin7': {
+      const stock = (data.stock || []).slice(0, 20);
+      if (!stock.length) return [];
+      return [{
+        heading: 'Stock on Hand',
+        headers: ['Product', 'SKU', 'Available', 'On Hand'],
+        rows: stock.map(s => [
+          s.name || s.productName || '—',
+          s.styleCode || s.sku || '—',
+          (s.available ?? 0).toLocaleString(),
+          (s.onHand ?? 0).toLocaleString(),
         ]),
       }];
     }
