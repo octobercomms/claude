@@ -336,6 +336,26 @@ async function runRankChecks(keywords) {
       console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);
     }
   }
+
+  // Refresh search volumes — one batched DataForSEO call per location.
+  const byLocation = {};
+  for (const kw of keywords) {
+    const loc = kw.location_code || 2826;
+    (byLocation[loc] = byLocation[loc] || []).push(kw);
+  }
+  for (const [loc, kws] of Object.entries(byLocation)) {
+    try {
+      const volumes = await dataForSEO.fetchSearchVolume(kws.map(k => k.keyword), Number(loc));
+      for (const kw of kws) {
+        const v = volumes[kw.keyword.toLowerCase()];
+        if (v !== undefined) {
+          await pool.query('UPDATE seo_keywords SET search_volume = $1 WHERE id = $2', [v, kw.id]);
+        }
+      }
+    } catch (err) {
+      console.error('Search volume fetch failed:', err.message);
+    }
+  }
 }
 
 module.exports = router;
