@@ -329,6 +329,85 @@ export default function ClientSEOPage() {
         </table>
       </div>
 
+      {/* Manual SEO Metrics */}
+      <div style={{ ...s.card, marginTop: 24 }}>
+        <div style={s.cardTitle}>Manual SEO Metrics</div>
+
+        {/* Metrics history table */}
+        <div style={{ overflowX: 'auto', marginTop: 12 }}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Edit'].map(h => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {seoMetrics.slice(0, 6).length === 0 ? (
+                <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No metrics yet — enter values below</td></tr>
+              ) : seoMetrics.slice(0, 6).map((m, i) => {
+                const monthLabel = m.month
+                  ? new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+                  : '—';
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                    <td style={s.td}>{monthLabel}</td>
+                    <td style={s.td}>{m.moz_da ?? '—'}</td>
+                    <td style={s.td}>{m.authority_score ?? '—'}</td>
+                    <td style={s.td}>{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
+                    <td style={{ ...s.td, maxWidth: 200, color: '#666' }}>{m.notes || '—'}</td>
+                    <td style={s.td}>
+                      <button
+                        style={s.btnSm}
+                        onClick={() => {
+                          const iso = m.month ? m.month.slice(0, 10) : '';
+                          setSeoMetricEdit({
+                            month: iso,
+                            moz_da: m.moz_da ?? '',
+                            authority_score: m.authority_score ?? '',
+                            referring_domains: m.referring_domains ?? '',
+                            notes: m.notes ?? '',
+                          });
+                        }}
+                      >Edit</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Inline edit / entry form */}
+        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+            {seoMetricEdit.month
+              ? `Editing: ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+              : 'Enter / update metrics'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 12 }}>
+            {[
+              { label: 'Month', el: <input type="date" style={s.input} value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
+              { label: 'Moz DA', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Authority Score', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.authority_score} onChange={e => setSeoMetricEdit(p => ({ ...p, authority_score: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Referring Domains', el: <input type="number" min="0" style={s.input} value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
+              { label: 'Notes', el: <input style={s.input} value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
+            ].map(({ label, el }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={s.label}>{label}</label>
+                {el}
+              </div>
+            ))}
+          </div>
+          <div>
+            <button type="submit" style={s.btn} disabled={savingMetrics}>
+              {savingMetrics ? 'Saving…' : 'Save Metrics'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* History modal */}
       {historyModal && (
         <div style={s.overlay} onClick={() => setHistoryModal(null)}>
