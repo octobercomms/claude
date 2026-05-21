@@ -388,10 +388,11 @@ const ACCOUNT_LABEL = {
   zoho_inventory: 'Organisation',
 };
 
-const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center'];
+const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center', 'zoho_inventory'];
 const MANUAL_PLACEHOLDER = {
   google_ads: 'e.g. 123-456-7890',
   google_merchant_center: 'e.g. 12345678',
+  zoho_inventory: 'Organisation ID — find it in your Zoho Inventory URL',
 };
 
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {

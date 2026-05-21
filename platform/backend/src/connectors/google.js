@@ -135,21 +135,24 @@ async function fetchGoogleAdsData(credentials, params) {
   const cleanCustomerId = (customerId || '').replace(/-/g, '');
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
 
+  // Use /search (not /searchStream) — simpler JSON response, easier error messages
+  // metrics.conversion_value is not a valid GAQL field; use metrics.conversions_value
   const query = `
-    SELECT campaign.name, metrics.clicks, metrics.impressions, metrics.ctr,
-           metrics.average_cpc, metrics.conversions, metrics.cost_micros,
-           metrics.conversion_value
+    SELECT campaign.id, campaign.name,
+           metrics.clicks, metrics.impressions, metrics.ctr,
+           metrics.average_cpc, metrics.conversions, metrics.conversions_value,
+           metrics.cost_micros
     FROM campaign
     WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND campaign.status = ENABLED
     ORDER BY metrics.cost_micros DESC
-    LIMIT 50
   `;
 
   const doRequest = (loginCustomerId) => {
     const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
     if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
     return axios.post(
-      `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`,
+      `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:search`,
       { query },
       { headers }
     );
@@ -162,7 +165,9 @@ async function fetchGoogleAdsData(credentials, params) {
       const { data } = await doRequest(explicitMcc);
       return data;
     } catch (err) {
-      const detail = err.response?.data?.error?.message || err.response?.data?.[0]?.error?.message || err.message;
+      const detail = err.response?.data?.error?.details?.[0]?.errors?.[0]?.message
+        || err.response?.data?.error?.message
+        || err.message;
       throw new Error(`Google Ads API error (MCC ${explicitMcc}): ${detail}`);
     }
   }
@@ -205,7 +210,9 @@ async function fetchGoogleAdsData(credentials, params) {
       } catch { continue; }
     }
 
-    const detail = directErr.response?.data?.error?.message || directErr.response?.data?.[0]?.error?.message || directErr.message;
+    const detail = directErr.response?.data?.error?.details?.[0]?.errors?.[0]?.message
+      || directErr.response?.data?.error?.message
+      || directErr.message;
     const status = directErr.response?.status;
     throw new Error(`Google Ads API error (${status}): ${detail}. Set GOOGLE_ADS_MCC_ID in Settings to specify the manager account ID directly.`);
   }
