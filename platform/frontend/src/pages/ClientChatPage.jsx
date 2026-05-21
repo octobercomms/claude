@@ -245,8 +245,8 @@ export default function ClientChatPage() {
               rows={2}
               disabled={sending}
             />
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: 'none' }} />
-            <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image"
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
               style={{ ...s.sendBtn, background: '#f5f5f5', color: '#555', fontSize: 18, padding: '0 14px' }}>
               📎
             </button>

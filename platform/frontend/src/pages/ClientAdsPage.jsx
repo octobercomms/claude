@@ -426,7 +426,7 @@ export default function ClientAdsPage() {
               rows={2}
               disabled={sending}
             />
-            <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleFileChange} style={{ display: 'none' }} />
+            <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
                 style={{ ...s.sendBtn, background: '#f5f5f5', color: '#555', fontSize: 16, padding: '0 10px', flex: 1 }}>

@@ -492,10 +492,12 @@ router.post('/:clientId', async (req, res) => {
       [clientId, 'user', userText + (image ? ` [image: ${image.name}]` : '')]
     );
 
-    // Build user message content — support image attachments for Claude vision
+    // Build user message content — support image and PDF attachments
     const userContent = image
       ? [
-          { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
+          image.mediaType === 'application/pdf'
+            ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: image.base64 } }
+            : { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
           ...(userText ? [{ type: 'text', text: userText }] : []),
         ]
       : userText;
