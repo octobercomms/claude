@@ -6,7 +6,7 @@ const dataCollector = require('./dataCollector');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
-    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
+    'SELECT r.*, c.name as client_name, c.monthly_focus, c.report_recipients, c.report_sections FROM reports r JOIN clients c ON c.id = r.client_id WHERE r.id = $1',
     [reportId]
   );
   if (!rows.length) throw new Error(`Report ${reportId} not found`);
@@ -33,12 +33,19 @@ async function generateReport(reportId) {
       ).then(r => r.rows).catch(() => []),
     ]);
 
-    const sections = dataCollector.buildReportSections(collectedData);
+    // Per-client section toggles — a section is dropped only when explicitly
+    // disabled for this report type; unset sections stay included.
+    const sectionConfig = report.report_sections || {};
+    const isEnabled = key => sectionConfig[key] == null || sectionConfig[key][report.report_type] !== false;
+
+    const sections = dataCollector.buildReportSections(collectedData)
+      .filter(sec => isEnabled(sec.type));
+    const reportSeoData = isEnabled('seo') ? seoData : { rankings: [] };
 
     if (report.report_type === 'monthly') {
-      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData, chatHistory);
+      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, reportSeoData, chatHistory);
     } else {
-      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, seoData, chatHistory);
+      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, reportSeoData, chatHistory);
     }
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
