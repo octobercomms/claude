@@ -246,17 +246,17 @@ export default function ClientSEOPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <select style={s.input} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
+        <select style={{ ...s.input, width: 220, flex: '0 0 auto' }} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
           <option value="">All locations</option>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
         </select>
         {tags.length > 0 && (
-          <select style={s.input} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
+          <select style={{ ...s.input, width: 180, flex: '0 0 auto' }} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
             <option value="">All tags</option>
             {tags.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
-        <input style={{ ...s.input, flex: 1 }} placeholder="Search keywords…" value={search} onChange={e => setSearch(e.target.value)} />
+        <input style={{ ...s.input, flex: 1, minWidth: 0 }} placeholder="Search keywords…" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {/* Add keyword form */}
