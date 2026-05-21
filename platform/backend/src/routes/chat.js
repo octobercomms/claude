@@ -196,10 +196,11 @@ function summariseConnectorData(type, raw, days) {
       return { period_days: days, total_clicks: clicks, total_impressions: imps, avg_position: avgPos?.toFixed(1), top_queries: top };
     }
     if (type === 'google_ads') {
-      const batches = Array.isArray(raw) ? raw : [raw];
+      // /search returns {results:[...]}; /searchStream returned [{results:[...]},...]
+      const results = raw.results || (Array.isArray(raw) ? raw.flatMap(b => b.results || []) : []);
       let spend = 0, clicks = 0, convs = 0;
       const campaigns = {};
-      for (const b of batches) for (const r of (b.results || [])) {
+      for (const r of results) {
         const s = parseInt(r.metrics?.costMicros || 0) / 1e6;
         spend += s;
         clicks += parseInt(r.metrics?.clicks || 0);

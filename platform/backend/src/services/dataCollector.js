@@ -247,17 +247,15 @@ function extractKeyMetrics(connectorType, data) {
       ];
     }
     case 'google_ads': {
-      // Streaming response is array of result batches
-      const batches = Array.isArray(data) ? data : [];
+      // /search returns {results:[...]}; handle legacy searchStream [{results:[...]},...]
+      const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
       let spend = 0, clicks = 0, impressions = 0, conversions = 0;
-      for (const batch of batches) {
-        for (const result of (batch.results || [])) {
-          const m = result.metrics || {};
-          spend += parseInt(m.costMicros || 0) / 1_000_000;
-          clicks += parseInt(m.clicks || 0);
-          impressions += parseInt(m.impressions || 0);
-          conversions += parseFloat(m.conversions || 0);
-        }
+      for (const result of results) {
+        const m = result.metrics || {};
+        spend += parseInt(m.costMicros || 0) / 1_000_000;
+        clicks += parseInt(m.clicks || 0);
+        impressions += parseInt(m.impressions || 0);
+        conversions += parseFloat(m.conversions || 0);
       }
       const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : '0.00';
       return [
@@ -408,18 +406,16 @@ function extractTables(connectorType, data) {
       }];
     }
     case 'google_ads': {
-      const batches = Array.isArray(data) ? data : [];
+      const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
       const campaignMap = {};
-      for (const batch of batches) {
-        for (const result of (batch.results || [])) {
-          const name = result.campaign?.name || 'Unknown';
-          const m = result.metrics || {};
-          if (!campaignMap[name]) campaignMap[name] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
-          campaignMap[name].spend += parseInt(m.costMicros || 0) / 1_000_000;
-          campaignMap[name].clicks += parseInt(m.clicks || 0);
-          campaignMap[name].impressions += parseInt(m.impressions || 0);
-          campaignMap[name].conversions += parseFloat(m.conversions || 0);
-        }
+      for (const result of results) {
+        const name = result.campaign?.name || 'Unknown';
+        const m = result.metrics || {};
+        if (!campaignMap[name]) campaignMap[name] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+        campaignMap[name].spend += parseInt(m.costMicros || 0) / 1_000_000;
+        campaignMap[name].clicks += parseInt(m.clicks || 0);
+        campaignMap[name].impressions += parseInt(m.impressions || 0);
+        campaignMap[name].conversions += parseFloat(m.conversions || 0);
       }
       const sorted = Object.entries(campaignMap).sort((a, b) => b[1].spend - a[1].spend).slice(0, 20);
       if (!sorted.length) return [];
