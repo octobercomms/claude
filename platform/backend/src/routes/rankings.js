@@ -163,6 +163,15 @@ router.post('/check/:clientId', async (req, res) => {
       return res.json({ message: 'No active keywords', checked: 0 });
     }
 
+    // Validate DataForSEO up front so the user gets an immediate, visible
+    // error instead of a silent background failure.
+    try {
+      await dataForSEO.checkTokenValidity();
+    } catch (err) {
+      const detail = err.response?.data?.status_message || err.message;
+      return res.status(502).json({ error: `DataForSEO check failed: ${detail}` });
+    }
+
     // Run async
     runRankChecks(keywords).catch(err => {
       console.error('Rank check error:', err.message);

@@ -143,12 +143,15 @@ export default function ClientSEOPage() {
   async function handleCheckAll() {
     setChecking(true);
     try {
-      await api.post(`/rankings/check/${id}`);
+      const res = await api.post(`/rankings/check/${id}`);
+      toast(`Rank check started for ${res.keywords} keyword${res.keywords === 1 ? '' : 's'} — live results appear over the next few minutes.`, 'success');
       setTimeout(async () => {
-        const kws = await api.get(`/rankings/keywords?client_id=${id}`);
-        setKeywords(kws);
+        try {
+          const kws = await api.get(`/rankings/keywords?client_id=${id}`);
+          setKeywords(kws);
+        } catch {}
         setChecking(false);
-      }, 3000);
+      }, 8000);
     } catch (err) { toast(err.message, 'error'); setChecking(false); }
   }
 
