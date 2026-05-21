@@ -83,7 +83,13 @@ router.get('/meta/callback', async (req, res) => {
 
 // ─── Shopify OAuth ──────────────────────────────────────────────
 
-const SHOPIFY_SCOPES = 'read_orders,read_products,read_analytics,read_reports,read_customers,read_marketing_events';
+const SHOPIFY_SCOPES = [
+  'read_orders', 'read_products', 'read_customers',
+  'read_analytics', 'read_reports', 'read_marketing_events',
+  'read_inventory', 'read_fulfillments', 'read_shipping',
+  'read_price_rules', 'read_discounts', 'read_gift_cards',
+  'read_checkouts', 'read_draft_orders',
+].join(',');
 
 router.get('/shopify/start', (req, res) => {
   const { client_id, shop, connector_id } = req.query;
