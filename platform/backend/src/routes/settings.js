@@ -4,6 +4,7 @@ const db = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
+const dataforseo = require('../connectors/dataforseo');
 
 const bcrypt = require('bcryptjs');
 
@@ -82,6 +83,20 @@ router.post('/platform-keys', async (req, res) => {
     res.json({ updated: updates });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// POST test DataForSEO credentials (uses supplied values, or the saved ones)
+router.post('/test-dataforseo', async (req, res) => {
+  const clean = v => (v && v !== '••••••••' ? v : undefined);
+  try {
+    const result = await dataforseo.testCredentials({
+      login: clean(req.body.login),
+      password: clean(req.body.password),
+    });
+    res.json(result);
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
   }
 });
 
