@@ -540,6 +540,72 @@ function getLabelStyle(label) {
   };
 }
 
+// Per-client Brevo scoping — select a contact list, and optionally record
+// an automation ID/name (Brevo's API can't enumerate automations).
+function BrevoConfig({ connector, onConfigSave }) {
+  const toast = useToast();
+  const cfg = connector.config || {};
+  const [lists, setLists] = React.useState(null);
+  const [listsError, setListsError] = React.useState(null);
+  const [listId, setListId] = React.useState(cfg.list_id ? String(cfg.list_id) : '');
+  const [automation, setAutomation] = React.useState(cfg.automation || '');
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    api.get(`/connectors/${connector.id}/accounts`)
+      .then(data => {
+        if (data && data.fetchError) { setListsError(data.fetchError); setLists([]); }
+        else setLists(Array.isArray(data) ? data : []);
+      })
+      .catch(err => { setListsError(err.message || 'Failed to load lists'); setLists([]); });
+  }, [connector.id]);
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const selected = (lists || []).find(l => String(l.value) === String(listId));
+      const config = {
+        ...(connector.config || {}),
+        list_id: listId || null,
+        list_name: selected ? selected.label : null,
+        automation: automation.trim() || null,
+      };
+      const updated = await api.put(`/connectors/${connector.id}/config`, config);
+      onConfigSave(connector.id, updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>List</span>
+      {lists === null ? (
+        <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+      ) : (
+        <select value={listId} onChange={e => setListId(e.target.value)}
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb' }}>
+          <option value="">All lists</option>
+          {lists.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+        </select>
+      )}
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
+      <input value={automation} onChange={e => setAutomation(e.target.value)}
+        placeholder="All automations (optional ID/name)"
+        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', width: 220 }} />
+      <button type="button" onClick={save} disabled={saving} style={styles.btnSm}>{saving ? 'Saving…' : 'Save'}</button>
+      {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
+      {listsError && <span style={{ fontSize: 11, color: '#c62828' }}>Lists: {listsError}</span>}
+    </div>
+  );
+}
+
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
@@ -723,6 +789,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           )}
           {diagnoseResult.error && <div style={{ color: '#c62828' }}>Error: {diagnoseResult.error}</div>}
         </div>
+      )}
+      {connector.connector_type === 'brevo' && isActive && (
+        <BrevoConfig connector={connector} onConfigSave={onConfigSave} />
       )}
       {isOAuth && isActive && (
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>

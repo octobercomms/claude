@@ -21,10 +21,23 @@ async function checkTokenValidity(credentials) {
   }
 }
 
+// Brevo contact lists — used for per-client list scoping.
+async function listAccounts(credentials) {
+  const headers = getHeaders(credentials);
+  const { data } = await axios.get('https://api.brevo.com/v3/contacts/lists', {
+    headers,
+    params: { limit: 50, offset: 0, sort: 'desc' },
+  });
+  return (data.lists || []).map(l => ({ value: String(l.id), label: l.name }));
+}
+
 async function fetchData(credentials, params) {
-  const { startDate, endDate } = params;
+  const { startDate, endDate, brevoListId, brevoAutomation } = params;
   const headers = getHeaders(credentials);
   const result = { period: { start: startDate, end: endDate }, fetch_errors: [] };
+  if (brevoListId || brevoAutomation) {
+    result.scope = { list_id: brevoListId || null, automation: brevoAutomation || null };
+  }
 
   // Fetch sent campaigns (no date filter — Brevo returns them sorted by sentDate desc)
   try {
@@ -37,10 +50,15 @@ async function fetchData(credentials, params) {
     const start = new Date(startDate);
     const end = new Date(endDate);
     end.setHours(23, 59, 59);
-    const filtered = campaigns.filter(c => {
+    let filtered = campaigns.filter(c => {
       const sent = c.sentDate ? new Date(c.sentDate) : null;
       return sent && sent >= start && sent <= end;
     });
+    // Optional per-client scoping to a single Brevo list
+    if (brevoListId) {
+      const wantList = Number(brevoListId);
+      filtered = filtered.filter(c => Array.isArray(c.recipients?.listIds) && c.recipients.listIds.includes(wantList));
+    }
     result.campaigns = filtered.map(c => ({
       name: c.name,
       subject: c.subject,
@@ -71,4 +89,4 @@ async function fetchData(credentials, params) {
   return result;
 }
 
-module.exports = { authType, checkTokenValidity, fetchData };
+module.exports = { authType, checkTokenValidity, listAccounts, fetchData };
