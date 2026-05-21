@@ -28,18 +28,11 @@ async function fetchData(credentials, params) {
   const [campaignsRes, statsRes] = await Promise.all([
     axios.get('https://api.brevo.com/v3/emailCampaigns', {
       headers,
-      params: {
-        status: 'sent',
-        startDate,
-        endDate,
-        limit: 50,
-        offset: 0,
-        sort: 'desc',
-      },
+      params: { status: 'sent', startDate, endDate, limit: 50, offset: 0, sort: 'desc' },
     }),
     axios.get('https://api.brevo.com/v3/smtp/statistics/aggregatedReport', {
       headers,
-      params: { startDate, endDate, days: 30 },
+      params: { startDate, endDate },
     }),
   ]);
 
