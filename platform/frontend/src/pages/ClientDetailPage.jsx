@@ -23,8 +23,8 @@ const CONNECTOR_LABELS = {
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
-  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
-  { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
+  { label: 'E-commerce', types: ['shopify','shopify_email','woocommerce','amazon_seller'] },
+  { label: 'Email Marketing', types: ['klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
@@ -126,6 +126,17 @@ export default function ClientDetailPage() {
     if (!window.confirm('Remove this connector?')) return;
     await api.delete(`/connectors/${connectorId}`);
     setConnectors(prev => prev.filter(c => c.id !== connectorId));
+  }
+
+  async function resetConnector(connectorId) {
+    if (!window.confirm('Reset credentials? This will disconnect the connector so you can reconnect fresh.')) return;
+    try {
+      const updated = await api.post(`/connectors/${connectorId}/reset`);
+      setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...updated } : c));
+      toast('Connector reset — reconnect to restore access.', 'info');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   function handleConfigSave(connectorId, config) {
@@ -269,6 +280,7 @@ export default function ClientDetailPage() {
                         onOpenShopifyOAuth={(connectorId) => setShopifyModal({ connectorId })}
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
+                        onReset={resetConnector}
                         onConfigSave={handleConfigSave}
                         onAddAnother={handleAddAnother}
                       />
@@ -395,7 +407,7 @@ const MANUAL_PLACEHOLDER = {
   zoho_inventory: 'Organisation ID — find it in your Zoho Inventory URL',
 };
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
@@ -490,6 +502,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
+          {isActive && <button onClick={() => onReset(connector.id)} style={{ ...styles.btnSm, color: '#e65100' }}>Reset</button>}
           <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
         </div>
       </div>

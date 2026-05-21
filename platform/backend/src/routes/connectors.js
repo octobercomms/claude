@@ -258,4 +258,18 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Reset credentials — clears stored token and marks disconnected without deleting the connector row
+router.post('/:id/reset', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      "UPDATE connectors SET credentials = '{}'::jsonb, status = 'disconnected', error_message = NULL, last_checked = NULL WHERE id = $1 RETURNING id, client_id, connector_type, store_label, status, config",
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
