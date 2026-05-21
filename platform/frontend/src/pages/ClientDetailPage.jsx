@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -29,6 +30,7 @@ const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant
 export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,9 +60,9 @@ export default function ClientDetailPage() {
     try {
       const updated = await api.put(`/clients/${id}`, client);
       setClient(updated);
-      alert('Saved.');
+      toast('Saved');
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -72,7 +74,7 @@ export default function ClientDetailPage() {
       const result = await api.post(`/clients/${id}/parse-briefing`);
       setSuggestions(result);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setParsingSuggestions(false);
     }
@@ -83,7 +85,7 @@ export default function ClientDetailPage() {
       const result = await api.post(`/connectors/${connectorId}/check`);
       setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...result } : c));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -94,7 +96,7 @@ export default function ClientDetailPage() {
       setCredModal(null);
       setCredValues({});
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -111,7 +113,7 @@ export default function ClientDetailPage() {
         setCredValues({});
       }
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -140,7 +142,7 @@ export default function ClientDetailPage() {
         win.close();
       }
       if (e.data.type === 'oauth_error') {
-        alert(`OAuth error: ${e.data.error}`);
+        toast(`OAuth error: ${e.data.error}`, 'error');
         window.removeEventListener('message', handler);
       }
     });
@@ -401,7 +403,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
         await api.put(`/connectors/${connector.id}/config`, config);
         onConfigSave(connector.id, config);
       } catch (err) {
-        alert(err.message);
+        toast(err.message, 'error');
       }
     }
   }
@@ -414,7 +416,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
       await api.put(`/connectors/${connector.id}/config`, config);
       onConfigSave(connector.id, config);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 

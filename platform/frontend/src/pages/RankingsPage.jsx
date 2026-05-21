@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -13,6 +14,7 @@ const LOCATIONS = [
 const DEFAULT_LOC = LOCATIONS[0];
 
 export default function RankingsPage() {
+  const toast = useToast();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [keywords, setKeywords] = useState([]);
@@ -64,7 +66,7 @@ export default function RankingsPage() {
       setNewKw({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: DEFAULT_LOC.name, location_code: DEFAULT_LOC.code });
       setShowAddForm(false);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -85,7 +87,7 @@ export default function RankingsPage() {
         setChecking(false);
       }, 3000);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
       setChecking(false);
     }
   }

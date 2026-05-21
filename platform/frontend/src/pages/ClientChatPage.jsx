@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const TOOL_LABELS = {
   get_client_info: 'Client info',
@@ -28,6 +29,7 @@ const TYPE_BG = {
 };
 
 export default function ClientChatPage() {
+  const toast = useToast();
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -98,7 +100,7 @@ export default function ClientChatPage() {
       await api.delete(`/chat/${id}/context/${entryId}`);
       setContextLog(prev => prev.filter(e => e.id !== entryId));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
