@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const authType = 'oauth';
+const authType = 'apikey';
 
 // Amazon SP-API requires a registered developer app
 // See: https://developer-docs.amazon.com/sp-api/docs/registering-your-application
@@ -51,18 +51,21 @@ async function refreshToken(credentials) {
 
 async function checkTokenValidity(credentials) {
   if (!credentials) throw new Error('No credentials');
-  if (!credentials.access_token) {
-    throw new Error('Amazon SP-API requires OAuth — click Connect to authorise via Amazon Seller Central');
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
   }
-  if (credentials.expires_at && Date.now() > credentials.expires_at - 60000) {
-    return refreshToken(credentials);
+  // Exchange refresh token for access token to verify it works
+  try {
+    const refreshed = await refreshToken(credentials);
+    return refreshed;
+  } catch (err) {
+    throw new Error(`Amazon token exchange failed: ${err.message}`);
   }
-  return true;
 }
 
 async function fetchData(credentials, params) {
-  if (!credentials.access_token) {
-    throw new Error('Amazon SP-API requires OAuth authentication — the connector needs to be connected via the Amazon OAuth flow, not just a Seller ID. Set AMAZON_CLIENT_ID and AMAZON_CLIENT_SECRET in Settings, then reconnect.');
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
   }
 
   const { marketplace, startDate, endDate } = params;
@@ -77,7 +80,7 @@ async function fetchData(credentials, params) {
 
   const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
   let creds = credentials;
-  if (creds.expires_at && Date.now() > creds.expires_at - 60000) {
+  if (!creds.access_token || (creds.expires_at && Date.now() > creds.expires_at - 60000)) {
     creds = await refreshToken(creds);
   }
 
