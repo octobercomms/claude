@@ -130,6 +130,24 @@ router.get('/:id/focus-history', async (req, res) => {
   }
 });
 
+// Update ads margin
+router.patch('/:id/ads-margin', async (req, res) => {
+  const { ads_margin } = req.body;
+  if (ads_margin == null) return res.status(400).json({ error: 'ads_margin is required' });
+  const val = parseFloat(ads_margin);
+  if (isNaN(val) || val < 0 || val > 1) return res.status(400).json({ error: 'ads_margin must be a number between 0 and 1' });
+  try {
+    const { rows } = await pool.query(
+      'UPDATE clients SET ads_margin = $1 WHERE id = $2 RETURNING *',
+      [val, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete client
 router.delete('/:id', async (req, res) => {
   try {

@@ -7,9 +7,29 @@ import { useToast } from '../context/ToastContext';
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
   { name: 'United States', code: 2840, flag: '🇺🇸' },
+  { name: 'Germany', code: 2276, flag: '🇩🇪' },
+  { name: 'France', code: 2250, flag: '🇫🇷' },
   { name: 'Ireland', code: 2372, flag: '🇮🇪' },
   { name: 'Australia', code: 2036, flag: '🇦🇺' },
   { name: 'Canada', code: 2124, flag: '🇨🇦' },
+  { name: 'Italy', code: 2380, flag: '🇮🇹' },
+  { name: 'Spain', code: 2724, flag: '🇪🇸' },
+  { name: 'Netherlands', code: 2528, flag: '🇳🇱' },
+  { name: 'Sweden', code: 2752, flag: '🇸🇪' },
+  { name: 'Poland', code: 2616, flag: '🇵🇱' },
+  { name: 'Belgium', code: 2056, flag: '🇧🇪' },
+  { name: 'Portugal', code: 2620, flag: '🇵🇹' },
+  { name: 'Switzerland', code: 2756, flag: '🇨🇭' },
+  { name: 'Austria', code: 2040, flag: '🇦🇹' },
+  { name: 'Norway', code: 2578, flag: '🇳🇴' },
+  { name: 'Denmark', code: 2208, flag: '🇩🇰' },
+  { name: 'Finland', code: 2246, flag: '🇫🇮' },
+  { name: 'New Zealand', code: 2554, flag: '🇳🇿' },
+  { name: 'Japan', code: 2392, flag: '🇯🇵' },
+  { name: 'India', code: 2356, flag: '🇮🇳' },
+  { name: 'Singapore', code: 2702, flag: '🇸🇬' },
+  { name: 'UAE', code: 2784, flag: '🇦🇪' },
+  { name: 'South Africa', code: 2710, flag: '🇿🇦' },
 ];
 
 export default function ClientSEOPage() {
@@ -34,16 +54,36 @@ export default function ClientSEOPage() {
   const [bulkMsg, setBulkMsg] = useState('');
   const [bulking, setBulking] = useState(false);
   const [newKw, setNewKw] = useState({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
+  const [seoMetrics, setSeoMetrics] = useState([]);
+  const [seoMetricEdit, setSeoMetricEdit] = useState({ month: '', moz_da: '', authority_score: '', referring_domains: '', notes: '' });
+  const [savingMetrics, setSavingMetrics] = useState(false);
 
   useEffect(() => {
     Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/rankings/keywords?client_id=${id}`),
       api.get(`/rankings/tags/${id}`),
-    ]).then(([c, kws, t]) => {
+      api.get(`/rankings/seo-metrics/${id}`),
+    ]).then(([c, kws, t, metrics]) => {
       setClient(c);
       setKeywords(kws);
       setTags(t);
+      setSeoMetrics(metrics);
+      // Pre-fill edit form with current month
+      const now = new Date();
+      const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
+      const existing = metrics.find(m => m.month && m.month.startsWith(currentMonth.slice(0, 7)));
+      if (existing) {
+        setSeoMetricEdit({
+          month: currentMonth,
+          moz_da: existing.moz_da ?? '',
+          authority_score: existing.authority_score ?? '',
+          referring_domains: existing.referring_domains ?? '',
+          notes: existing.notes ?? '',
+        });
+      } else {
+        setSeoMetricEdit(p => ({ ...p, month: currentMonth }));
+      }
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -97,6 +137,27 @@ export default function ClientSEOPage() {
       setBulkText('');
     } catch (err) { setBulkMsg(`Error: ${err.message}`); }
     finally { setBulking(false); }
+  }
+
+  async function handleSaveSeoMetrics(e) {
+    e.preventDefault();
+    setSavingMetrics(true);
+    try {
+      const updated = await api.put(`/rankings/seo-metrics/${id}`, {
+        month: seoMetricEdit.month,
+        moz_da: seoMetricEdit.moz_da !== '' ? Number(seoMetricEdit.moz_da) : null,
+        authority_score: seoMetricEdit.authority_score !== '' ? Number(seoMetricEdit.authority_score) : null,
+        referring_domains: seoMetricEdit.referring_domains !== '' ? Number(seoMetricEdit.referring_domains) : null,
+        notes: seoMetricEdit.notes || null,
+      });
+      setSeoMetrics(prev => {
+        const idx = prev.findIndex(m => m.month && m.month.startsWith(updated.month.slice(0, 7)));
+        if (idx >= 0) { const next = [...prev]; next[idx] = updated; return next; }
+        return [updated, ...prev].sort((a, b) => b.month.localeCompare(a.month));
+      });
+      toast('SEO metrics saved', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setSavingMetrics(false); }
   }
 
   async function handleExport() {
