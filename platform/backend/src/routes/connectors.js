@@ -97,10 +97,18 @@ router.get('/:id/accounts', async (req, res) => {
 // Save config (selected account/property) for a connector
 router.put('/:id/config', async (req, res) => {
   try {
-    await pool.query(
-      'UPDATE connectors SET config = $1, updated_at = NOW() WHERE id = $2',
-      [JSON.stringify(req.body), req.params.id]
-    );
+    const body = req.body;
+    if (body.label !== undefined) {
+      await pool.query(
+        'UPDATE connectors SET config = $1, store_label = $2, updated_at = NOW() WHERE id = $3',
+        [JSON.stringify(body), body.label || null, req.params.id]
+      );
+    } else {
+      await pool.query(
+        'UPDATE connectors SET config = $1, updated_at = NOW() WHERE id = $2',
+        [JSON.stringify(body), req.params.id]
+      );
+    }
     const { rows } = await pool.query(
       'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, config FROM connectors WHERE id = $1',
       [req.params.id]
