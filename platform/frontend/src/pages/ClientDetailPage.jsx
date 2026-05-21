@@ -437,6 +437,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   const [editingLabel, setEditingLabel] = React.useState(false);
   const [labelInput, setLabelInput] = React.useState(connector.store_label || '');
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
+  const [accountsError, setAccountsError] = React.useState(null);
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
   const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
@@ -460,9 +461,13 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   React.useEffect(() => {
     if (isOAuth && isActive) {
       setLoadingAccounts(true);
+      setAccountsError(null);
       api.get(`/connectors/${connector.id}/accounts`)
-        .then(data => setAccounts(data))
-        .catch(() => setAccounts([]))
+        .then(data => {
+          if (data && data.fetchError) { setAccountsError(data.fetchError); setAccounts([]); }
+          else setAccounts(data);
+        })
+        .catch(err => { setAccountsError(err.message || 'Failed to load accounts'); setAccounts([]); })
         .finally(() => setLoadingAccounts(false));
     }
   }, [connector.id, isOAuth, isActive]);
@@ -627,6 +632,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               />
               <button onClick={handleManualSave} style={styles.btnSm}>Save</button>
             </div>
+          ) : accountsError ? (
+            <span style={{ fontSize: 12, color: '#c62828' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
           ) : accounts && accounts.length === 0 ? (
             <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
