@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -12,6 +13,7 @@ const LOCATIONS = [
 ];
 
 export default function ClientSEOPage() {
+  const toast = useToast();
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [keywords, setKeywords] = useState([]);
@@ -58,7 +60,7 @@ export default function ClientSEOPage() {
       setKeywords(prev => [...prev, kw]);
       setNewKw({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: 'United Kingdom', location_code: 2826 });
       setShowAddForm(false);
-    } catch (err) { alert(err.message); }
+    } catch (err) { toast(err.message, 'error'); }
   }
 
   async function handleDelete(kwId) {
@@ -76,7 +78,7 @@ export default function ClientSEOPage() {
         setKeywords(kws);
         setChecking(false);
       }, 3000);
-    } catch (err) { alert(err.message); setChecking(false); }
+    } catch (err) { toast(err.message, 'error'); setChecking(false); }
   }
 
   async function handleBulkImport(e) {

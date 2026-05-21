@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const STATUS_COLORS = {
   sent: '#2e7d32', generated: '#1565c0', generating: '#f57c00',
@@ -7,6 +8,7 @@ const STATUS_COLORS = {
 };
 
 export default function ReportsPage() {
+  const toast = useToast();
   const [reports, setReports] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +33,7 @@ export default function ReportsPage() {
       setReports(updated);
       setShowTrigger(false);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setTriggering(false);
     }
@@ -41,9 +43,9 @@ export default function ReportsPage() {
     if (!window.confirm('Resend this report?')) return;
     try {
       await api.post(`/reports/${reportId}/resend`);
-      alert('Resend initiated.');
+      toast('Resend initiated');
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -53,7 +55,7 @@ export default function ReportsPage() {
       await api.delete(`/reports/${reportId}`);
       setReports(prev => prev.filter(r => r.id !== reportId));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
