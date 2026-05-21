@@ -72,19 +72,51 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
 }
 
 async function fetchEmailData(credentials, startDate, endDate) {
-  // Shopify Email data via Analytics API
   const { shop_domain, access_token } = credentials;
   const headers = { 'X-Shopify-Access-Token': access_token };
 
+  const errors = [];
+
+  // Marketing Events API — captures email sends, open/click metrics (requires read_marketing_events scope)
+  let marketingEvents = [];
+  try {
+    const { data } = await axios.get(
+      `https://${shop_domain}/admin/api/2024-01/marketing_events.json`,
+      {
+        headers,
+        params: {
+          limit: 250,
+          started_at_min: `${startDate}T00:00:00Z`,
+          started_at_max: `${endDate}T23:59:59Z`,
+        },
+      }
+    );
+    marketingEvents = data.marketing_events || [];
+  } catch (err) {
+    const status = err.response?.status;
+    const msg = err.response?.data?.errors || err.message;
+    errors.push(`marketing_events (${status}): ${JSON.stringify(msg)}`);
+    console.error('[Shopify Email] marketing_events fetch failed:', status, msg);
+  }
+
+  // Reports API — custom report list (requires read_reports scope)
+  let reports = [];
   try {
     const { data } = await axios.get(
       `https://${shop_domain}/admin/api/2024-01/reports.json`,
-      { headers, params: { since_id: 0, limit: 50 } }
+      { headers, params: { limit: 50 } }
     );
-    return { reports: data.reports || [], note: 'Shopify Email analytics via Reports API' };
-  } catch {
-    return { note: 'Shopify Email detailed analytics require Shopify Plus Reports API access' };
+    reports = data.reports || [];
+  } catch (err) {
+    const status = err.response?.status;
+    const msg = err.response?.data?.errors || err.message;
+    errors.push(`reports (${status}): ${JSON.stringify(msg)}`);
+    console.error('[Shopify Email] reports fetch failed:', status, msg);
   }
+
+  const result = { marketing_events: marketingEvents, reports };
+  if (errors.length) result.fetch_errors = errors;
+  return result;
 }
 
 async function fetchData(credentials, params) {
