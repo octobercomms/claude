@@ -95,6 +95,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'October Outreach',
+    hint: 'Contact-finding APIs for the Outreach module. Keys from hunter.io, icypeas.com and serper.dev.',
+    keys: [
+      { key: 'HUNTER_API_KEY', label: 'Hunter API Key', placeholder: 'Hunter.io API key', type: 'password' },
+      { key: 'ICYPEAS_API_KEY', label: 'Icypeas API Key', placeholder: 'Icypeas API key', type: 'password' },
+      { key: 'SERPER_API_KEY', label: 'Serper API Key', placeholder: 'Serper.dev API key', type: 'password' },
+    ],
+  },
+  {
     title: 'n8n Integration',
     hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
     keys: [

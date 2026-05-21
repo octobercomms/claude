@@ -13,6 +13,7 @@ import RankingsPage from './pages/RankingsPage';
 import ClientSEOPage from './pages/ClientSEOPage';
 import ClientChatPage from './pages/ClientChatPage';
 import ClientAdsPage from './pages/ClientAdsPage';
+import ClientOutreachPage from './pages/ClientOutreachPage';
 import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }) {
@@ -42,6 +43,7 @@ export default function App() {
             <Route path="clients/:id/seo" element={<ClientSEOPage />} />
             <Route path="clients/:id/chat" element={<ClientChatPage />} />
             <Route path="clients/:id/ads" element={<ClientAdsPage />} />
+            <Route path="clients/:id/outreach" element={<ClientOutreachPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="settings" element={<SettingsPage />} />
