@@ -152,7 +152,11 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, store
       periodStart: fmt(periodStart),
       periodEnd: fmt(periodEnd),
     });
-    return summariseConnectorData(connector_type, raw, daysNum);
+    return {
+      store_label: connector.store_label || null,
+      config_value: configValue || null,
+      ...summariseConnectorData(connector_type, raw, daysNum),
+    };
   } catch (err) {
     return { error: err.message };
   }
@@ -205,6 +209,18 @@ function summariseConnectorData(type, raw, days) {
       const topCampaigns = Object.entries(campaigns).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, s]) => ({ campaign: name, spend: `£${s.toFixed(2)}` }));
       return { period_days: days, total_spend: `£${spend.toFixed(2)}`, clicks, conversions: convs.toFixed(1), top_campaigns: topCampaigns };
     }
+    if (type === 'google_merchant_center') {
+      const perf = raw.performance || [];
+      const clicks = perf.reduce((s, r) => s + parseInt(r.metrics?.clicks || 0), 0);
+      const impressions = perf.reduce((s, r) => s + parseInt(r.metrics?.impressions || 0), 0);
+      const avgCtr = impressions ? (clicks / impressions * 100).toFixed(2) : '0.00';
+      const topProducts = (raw.top_products || []).slice(0, 10).map(r => ({
+        title: r.segments?.title || r.segments?.offerId,
+        clicks: r.metrics?.clicks,
+        impressions: r.metrics?.impressions,
+      }));
+      return { period_days: days, total_clicks: clicks, total_impressions: impressions, avg_ctr: `${avgCtr}%`, top_products: topProducts };
+    }
     if (type === 'meta_ads') {
       const data = raw.data || [];
       const spend = data.reduce((s, r) => s + parseFloat(r.spend || 0), 0);
@@ -216,6 +232,10 @@ function summariseConnectorData(type, raw, days) {
     if (type === 'shopify' || type === 'woocommerce') {
       const s = raw.summary || {};
       return { period_days: days, revenue: `£${parseFloat(s.total_revenue || 0).toFixed(2)}`, orders: s.total_orders, aov: `£${parseFloat(s.avg_order_value || 0).toFixed(2)}` };
+    }
+    if (type === 'shopify_email') {
+      const reports = raw.reports || [];
+      return { period_days: days, reports_found: reports.length, note: raw.note || null, reports: reports.slice(0, 10).map(r => ({ id: r.id, name: r.name, category: r.category })) };
     }
     if (type === 'klaviyo' || type === 'brevo') {
       return { period_days: days, total_campaigns: raw.total_campaigns, aggregated_stats: raw.aggregated_stats };
