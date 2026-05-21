@@ -155,6 +155,18 @@ async function fetchGoogleAdsData(credentials, params) {
     );
   };
 
+  // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
+  const explicitMcc = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
+  if (explicitMcc) {
+    try {
+      const { data } = await doRequest(explicitMcc);
+      return data;
+    } catch (err) {
+      const detail = err.response?.data?.error?.message || err.response?.data?.[0]?.error?.message || err.message;
+      throw new Error(`Google Ads API error (MCC ${explicitMcc}): ${detail}`);
+    }
+  }
+
   // Try cached login-customer-id first
   const cached = adsLoginCache.get(cleanCustomerId);
   if (cached) {
@@ -179,19 +191,23 @@ async function fetchGoogleAdsData(credentials, params) {
       candidates = (accountsData.resourceNames || [])
         .map(r => r.replace('customers/', ''))
         .filter(id => id !== cleanCustomerId);
-    } catch { /* fall through to throw original error */ }
+      console.log(`[Google Ads] Auto-discovery candidates for ${cleanCustomerId}:`, candidates);
+    } catch (listErr) {
+      console.warn('[Google Ads] listAccessibleCustomers failed:', listErr.response?.data || listErr.message);
+    }
 
     for (const loginId of candidates) {
       try {
         const { data } = await doRequest(loginId);
         adsLoginCache.set(cleanCustomerId, loginId);
+        console.log(`[Google Ads] Found working login-customer-id ${loginId} for customer ${cleanCustomerId}`);
         return data;
       } catch { continue; }
     }
 
     const detail = directErr.response?.data?.error?.message || directErr.response?.data?.[0]?.error?.message || directErr.message;
     const status = directErr.response?.status;
-    throw new Error(`Google Ads API error (${status}): ${detail}`);
+    throw new Error(`Google Ads API error (${status}): ${detail}. Set GOOGLE_ADS_MCC_ID in Settings to specify the manager account ID directly.`);
   }
 }
 
