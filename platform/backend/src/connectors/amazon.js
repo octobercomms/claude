@@ -73,10 +73,18 @@ async function fetchData(credentials, params) {
   const marketplaceIds = {
     uk: 'A1F83G8C2ARO7P',
     us: 'ATVPDKIKX0DER',
+    ca: 'A2EUQ1WTGCTBG2',
     fr: 'A13V1IB3VIYZZH',
     de: 'A1PA6795UKMFR9',
+    it: 'APJ6JRA9NG5V4',
+    es: 'A1RKKUPIHCS9HS',
     eu: 'A1PA6795UKMFR9',
   };
+
+  // Regional endpoints — must match the marketplace
+  const regionalEndpoint = ['us', 'ca', 'mx', 'br'].includes(marketplace)
+    ? 'https://sellingpartnerapi-na.amazon.com'
+    : 'https://sellingpartnerapi-eu.amazon.com';
 
   const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
   let creds = credentials;
@@ -87,7 +95,7 @@ async function fetchData(credentials, params) {
   // SP-API Sales and Traffic report
   try {
   const { data } = await axios.get(
-    'https://sellingpartnerapi-eu.amazon.com/sales/v1/orderMetrics',
+    `${regionalEndpoint}/sales/v1/orderMetrics`,
     {
       headers: {
         Authorization: `Bearer ${creds.access_token}`,
