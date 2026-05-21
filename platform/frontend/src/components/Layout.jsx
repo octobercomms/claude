@@ -9,7 +9,8 @@ export default function Layout() {
   const clientMatch = useMatch('/clients/:id');
   const clientSeoMatch = useMatch('/clients/:id/seo');
   const clientChatMatch = useMatch('/clients/:id/chat');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id;
+  const clientAdsMatch = useMatch('/clients/:id/ads');
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
@@ -66,6 +67,12 @@ export default function Layout() {
                     style={({ isActive }) => subLinkStyle(isActive)}
                   >
                     SEO
+                  </NavLink>
+                  <NavLink
+                    to={`/clients/${clientId}/ads`}
+                    style={({ isActive }) => subLinkStyle(isActive)}
+                  >
+                    Ads
                   </NavLink>
                   <NavLink
                     to={`/clients/${clientId}/chat`}

@@ -23,8 +23,8 @@ const CONNECTOR_LABELS = {
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
-  { label: 'E-commerce', types: ['shopify','shopify_email','woocommerce','amazon_seller'] },
-  { label: 'Email Marketing', types: ['klaviyo','brevo'] },
+  { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
+  { label: 'Email Marketing', types: ['shopify_email','klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
@@ -407,10 +407,34 @@ const MANUAL_PLACEHOLDER = {
   zoho_inventory: 'Organisation ID — find it in your Zoho Inventory URL',
 };
 
+function getCountryFlag(label) {
+  if (!label) return '';
+  const u = label.toUpperCase();
+  if (u.includes('UK') || u.includes('GB') || u.includes('BRITAIN')) return '🇬🇧';
+  if (u.includes(' US') || u.includes('USA') || u.includes('UNITED STATES') || u.startsWith('US')) return '🇺🇸';
+  if (u.includes('EU') || u.includes('EUROPE')) return '🇪🇺';
+  if (u.includes('AU') || u.includes('AUSTRALIA')) return '🇦🇺';
+  if (u.includes('CA') || u.includes('CANADA')) return '🇨🇦';
+  return '';
+}
+
+function getLabelStyle(label) {
+  const isB2B = label && label.toUpperCase().includes('B2B');
+  return {
+    fontSize: 11, fontWeight: 700, padding: '2px 8px',
+    borderRadius: 12,
+    background: isB2B ? '#1565c0' : '#2e7d32',
+    color: '#fff',
+    whiteSpace: 'nowrap',
+  };
+}
+
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
+  const [editingLabel, setEditingLabel] = React.useState(false);
+  const [labelInput, setLabelInput] = React.useState(connector.store_label || '');
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
@@ -474,7 +498,41 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
-          {connector.store_label && <span style={{ fontSize: 12, color: '#888' }}>({connector.store_label})</span>}
+          {editingLabel ? (
+            <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                autoFocus
+                value={labelInput}
+                onChange={e => setLabelInput(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    const config = { ...(connector.config || {}), label: labelInput };
+                    await api.put(`/connectors/${connector.id}/config`, config);
+                    onConfigSave(connector.id, { ...connector.config, label: labelInput });
+                    connector.store_label = labelInput;
+                    setEditingLabel(false);
+                  } else if (e.key === 'Escape') { setEditingLabel(false); }
+                }}
+                style={{ fontSize: 12, padding: '1px 6px', borderRadius: 4, border: '1px solid #bbb', width: 120 }}
+              />
+              <button onClick={async () => {
+                const config = { ...(connector.config || {}), label: labelInput };
+                await api.put(`/connectors/${connector.id}/config`, config);
+                onConfigSave(connector.id, { ...connector.config, label: labelInput });
+                connector.store_label = labelInput;
+                setEditingLabel(false);
+              }} style={{ ...styles.btnSm, padding: '1px 6px' }}>✓</button>
+              <button onClick={() => setEditingLabel(false)} style={{ ...styles.btnSm, padding: '1px 6px' }}>✕</button>
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {connector.store_label
+                ? <span style={getLabelStyle(connector.store_label)}>{getCountryFlag(connector.store_label)} {connector.store_label}</span>
+                : <span style={{ fontSize: 11, color: '#aaa', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
+              }
+              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#aaa', padding: 0 }} title="Edit label">✎</button>}
+            </span>
+          )}
           <span style={{ fontSize: 11, fontWeight: 600, color: (isOAuth || isShopify) && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
             {(isOAuth || isShopify) && isActive ? '✓ Connected' : connector.status}
           </span>
