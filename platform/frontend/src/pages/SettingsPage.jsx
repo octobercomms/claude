@@ -235,7 +235,10 @@ export default function SettingsPage() {
           </form>
         </Section>
 
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }} autoComplete="off">
+          {/* Dummy fields to prevent browser autofill from hitting real inputs */}
+          <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
+          <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
           {KEY_GROUPS.map(group => (
             <Section key={group.title} title={group.title}>
               {group.hint && <p style={styles.hint}>{group.hint}</p>}
@@ -253,7 +256,7 @@ export default function SettingsPage() {
                         value={values[key] === '••••••••' ? '' : (values[key] || '')}
                         placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
                         onChange={e => handleChange(key, e.target.value)}
-                        autoComplete="off"
+                        autoComplete="new-password"
                       />
                       {type === 'password' && (
                         <button
