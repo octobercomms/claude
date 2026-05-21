@@ -529,8 +529,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#aaa', padding: 0 }} title="Edit label">✎</button>}
             </span>
           )}
-          <span style={{ fontSize: 11, fontWeight: 600, color: (isOAuth || isShopify) && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
-            {(isOAuth || isShopify) && isActive ? '✓ Connected' : connector.status}
+          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+            {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
