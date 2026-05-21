@@ -4,14 +4,21 @@ const authType = 'apikey';
 
 function getHeaders(credentials) {
   if (!credentials.api_key) throw new Error('api_key required');
-  return { 'api-key': credentials.api_key, Accept: 'application/json' };
+  return { 'api-key': credentials.api_key.trim(), Accept: 'application/json' };
 }
 
 async function checkTokenValidity(credentials) {
   const headers = getHeaders(credentials);
-  const { data } = await axios.get('https://api.brevo.com/v3/account', { headers });
-  if (!data.email) throw new Error('Invalid Brevo API key');
-  return true;
+  try {
+    const { data } = await axios.get('https://api.brevo.com/v3/account', { headers });
+    if (!data.email) throw new Error('Invalid Brevo API key — no account returned');
+    return true;
+  } catch (err) {
+    const detail = err.response?.data?.message || err.response?.data?.error || err.message;
+    const status = err.response?.status;
+    if (status === 401) throw new Error('Brevo API key is invalid or unauthorised (401) — make sure you\'re using a v3 API key from Brevo → Settings → API Keys, not an SMTP key');
+    throw new Error(`Brevo error (${status || 'network'}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+  }
 }
 
 async function fetchData(credentials, params) {
