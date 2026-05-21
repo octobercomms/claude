@@ -502,7 +502,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
-          {isActive && <button onClick={() => onReset(connector.id)} style={{ ...styles.btnSm, color: '#e65100' }}>Reset</button>}
+          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} style={{ ...styles.btnSm, color: '#e65100' }}>Reset</button>}
           <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
         </div>
       </div>
