@@ -49,7 +49,10 @@ async function refreshToken(credentials) {
 }
 
 async function checkTokenValidity(credentials) {
-  if (!credentials || !credentials.access_token) throw new Error('No credentials');
+  if (!credentials) throw new Error('No credentials');
+  // Accept seller_id-based credentials (manual entry) without requiring OAuth tokens
+  if (credentials.seller_id) return true;
+  if (!credentials.access_token) throw new Error('No credentials — enter your Seller ID to save this connector');
   if (credentials.expires_at && Date.now() > credentials.expires_at - 60000) {
     return refreshToken(credentials);
   }

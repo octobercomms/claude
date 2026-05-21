@@ -139,8 +139,8 @@ export default function ClientDetailPage() {
     }
   }
 
-  function handleConfigSave(connectorId, config) {
-    setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, config } : c));
+  function handleConfigSave(connectorId, updatedConnector) {
+    setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...updatedConnector } : c));
   }
 
   function handleAddAnother(type) {
@@ -473,8 +473,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
     if (value) {
       const config = { value, label: option?.label || value };
       try {
-        await api.put(`/connectors/${connector.id}/config`, config);
-        onConfigSave(connector.id, config);
+        const updated = await api.put(`/connectors/${connector.id}/config`, config);
+        onConfigSave(connector.id, updated);
       } catch (err) {
         toast(err.message, 'error');
       }
@@ -486,8 +486,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
     if (!value) return;
     const config = { value, label: value };
     try {
-      await api.put(`/connectors/${connector.id}/config`, config);
-      onConfigSave(connector.id, config);
+      const updated = await api.put(`/connectors/${connector.id}/config`, config);
+      onConfigSave(connector.id, updated);
     } catch (err) {
       toast(err.message, 'error');
     }
@@ -506,20 +506,16 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                 onChange={e => setLabelInput(e.target.value)}
                 onKeyDown={async e => {
                   if (e.key === 'Enter') {
-                    const config = { ...(connector.config || {}), label: labelInput };
-                    await api.put(`/connectors/${connector.id}/config`, config);
-                    onConfigSave(connector.id, { ...connector.config, label: labelInput });
-                    connector.store_label = labelInput;
+                    const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
+                    onConfigSave(connector.id, updated);
                     setEditingLabel(false);
                   } else if (e.key === 'Escape') { setEditingLabel(false); }
                 }}
                 style={{ fontSize: 12, padding: '1px 6px', borderRadius: 4, border: '1px solid #bbb', width: 120 }}
               />
               <button onClick={async () => {
-                const config = { ...(connector.config || {}), label: labelInput };
-                await api.put(`/connectors/${connector.id}/config`, config);
-                onConfigSave(connector.id, { ...connector.config, label: labelInput });
-                connector.store_label = labelInput;
+                const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
+                onConfigSave(connector.id, updated);
                 setEditingLabel(false);
               }} style={{ ...styles.btnSm, padding: '1px 6px' }}>✓</button>
               <button onClick={() => setEditingLabel(false)} style={{ ...styles.btnSm, padding: '1px 6px' }}>✕</button>
