@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
   'meta_ads','instagram_insights','shopify','woocommerce',
   'klaviyo','brevo','shopify_email','amazon_seller',
+  'zoho_inventory','cin7',
 ];
 
 const CONNECTOR_LABELS = {
@@ -15,30 +17,37 @@ const CONNECTOR_LABELS = {
   shopify: 'Shopify', woocommerce: 'WooCommerce', klaviyo: 'Klaviyo',
   brevo: 'Brevo', shopify_email: 'Shopify Email',
   amazon_seller: 'Amazon Seller',
+  zoho_inventory: 'Zoho Inventory', cin7: 'Cin7',
 };
 
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
   { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
-  { label: 'Email Marketing', types: ['klaviyo','brevo','shopify_email'] },
+  { label: 'Email Marketing', types: ['shopify_email','klaviyo','brevo'] },
+  { label: 'Inventory', types: ['zoho_inventory','cin7'] },
 ];
 
-const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights'];
+const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
+const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const toast = useToast();
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [parsingSuggestions, setParsingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState(null);
-  const [tab, setTab] = useState('details');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab = searchParams.get('tab') || 'details';
+  function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
+  const [shopifyModal, setShopifyModal] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -56,9 +65,9 @@ export default function ClientDetailPage() {
     try {
       const updated = await api.put(`/clients/${id}`, client);
       setClient(updated);
-      alert('Saved.');
+      toast('Saved');
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setSaving(false);
     }
@@ -70,7 +79,7 @@ export default function ClientDetailPage() {
       const result = await api.post(`/clients/${id}/parse-briefing`);
       setSuggestions(result);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     } finally {
       setParsingSuggestions(false);
     }
@@ -81,7 +90,7 @@ export default function ClientDetailPage() {
       const result = await api.post(`/connectors/${connectorId}/check`);
       setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...result } : c));
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -92,7 +101,7 @@ export default function ClientDetailPage() {
       setCredModal(null);
       setCredValues({});
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -101,16 +110,15 @@ export default function ClientDetailPage() {
       const conn = await api.post(`/connectors/client/${id}`, { connector_type: type, store_label: label });
       setConnectors(prev => [...prev, conn]);
       if (OAUTH_TYPES.includes(type)) {
-        if (conn.status !== 'active') {
-          openOAuth(type, id);
-        }
-        // status === 'active' means credentials were auto-copied — dropdown will load automatically
+        if (conn.status !== 'active') openOAuth(type, id);
+      } else if (SHOPIFY_TYPES.includes(type)) {
+        setShopifyModal({ connectorId: conn.id });
       } else {
         setCredModal(conn);
         setCredValues({});
       }
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -120,8 +128,19 @@ export default function ClientDetailPage() {
     setConnectors(prev => prev.filter(c => c.id !== connectorId));
   }
 
-  function handleConfigSave(connectorId, config) {
-    setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, config } : c));
+  async function resetConnector(connectorId) {
+    if (!window.confirm('Reset credentials? This will disconnect the connector so you can reconnect fresh.')) return;
+    try {
+      const updated = await api.post(`/connectors/${connectorId}/reset`);
+      setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...updated } : c));
+      toast('Connector reset — reconnect to restore access.', 'info');
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  }
+
+  function handleConfigSave(connectorId, updatedConnector) {
+    setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...updatedConnector } : c));
   }
 
   function handleAddAnother(type) {
@@ -129,7 +148,11 @@ export default function ClientDetailPage() {
   }
 
   function openOAuth(type, clientId) {
-    const provider = type.startsWith('google') || type === 'ga4' ? 'google' : 'meta';
+    let provider;
+    if (type.startsWith('google') || type === 'ga4') provider = 'google';
+    else if (type === 'zoho_inventory') provider = 'zoho';
+    else if (type === 'amazon_seller') provider = 'amazon';
+    else provider = 'meta';
     const url = `/auth/${provider}/start?client_id=${clientId}`;
     const win = window.open(url, 'oauth', 'width=600,height=700');
     window.addEventListener('message', function handler(e) {
@@ -139,7 +162,25 @@ export default function ClientDetailPage() {
         win.close();
       }
       if (e.data.type === 'oauth_error') {
-        alert(`OAuth error: ${e.data.error}`);
+        toast(`OAuth error: ${e.data.error}`, 'error');
+        window.removeEventListener('message', handler);
+      }
+    });
+  }
+
+  function openShopifyOAuth(connectorId, shop) {
+    const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
+    const url = `/auth/shopify/start?client_id=${id}&connector_id=${connectorId}&shop=${encodeURIComponent(shopDomain)}`;
+    const win = window.open(url, 'shopify_oauth', 'width=600,height=700');
+    window.addEventListener('message', function handler(e) {
+      if (e.data.type === 'oauth_success') {
+        api.get(`/connectors/client/${id}`).then(setConnectors);
+        window.removeEventListener('message', handler);
+        win?.close();
+        toast('Shopify connected');
+      }
+      if (e.data.type === 'oauth_error') {
+        toast(`Shopify error: ${e.data.error}`, 'error');
         window.removeEventListener('message', handler);
       }
     });
@@ -148,26 +189,13 @@ export default function ClientDetailPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
   if (!client) return <div style={{ color: '#c62828', padding: 40 }}>Client not found</div>;
 
-  const tabs = ['details', 'connectors', 'recipients', 'schedule'];
-
   return (
     <div>
       <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 4, cursor: 'pointer' }} onClick={() => navigate('/clients')}>← Clients</div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{client.name}</h1>
-        </div>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{client.name}</h1>
         <span style={{ fontSize: 12, fontWeight: 600, color: client.active ? '#2e7d32' : '#999' }}>
           {client.active ? 'Active' : 'Inactive'}
         </span>
-      </div>
-
-      <div style={styles.tabs}>
-        {tabs.map(t => (
-          <button key={t} onClick={() => setTab(t)} style={{ ...styles.tab, ...(tab === t ? styles.tabActive : {}) }}>
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
       </div>
 
       {tab === 'details' && (
@@ -180,6 +208,9 @@ export default function ClientDetailPage() {
               <input style={styles.input} value={client.slug} onChange={e => setClient(p => ({ ...p, slug: e.target.value }))} />
             </Field>
           </div>
+          <Field label="Domain (used for SEO data — e.g. falconenamelware.com)">
+            <input style={styles.input} value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
+          </Field>
           <Field label="Active">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
               <input type="checkbox" checked={client.active} onChange={e => setClient(p => ({ ...p, active: e.target.checked }))} />
@@ -247,8 +278,10 @@ export default function ClientDetailPage() {
                         clientId={id}
                         onCheck={handleCheckConnector}
                         onOpenOAuth={openOAuth}
+                        onOpenShopifyOAuth={(connectorId) => setShopifyModal({ connectorId })}
                         onEditCredentials={(c) => { setCredModal(c); setCredValues({}); }}
                         onDelete={deleteConnector}
+                        onReset={resetConnector}
                         onConfigSave={handleConfigSave}
                         onAddAnother={handleAddAnother}
                       />
@@ -350,6 +383,14 @@ export default function ClientDetailPage() {
           onClose={() => setAddAnotherModal(null)}
         />
       )}
+
+      {shopifyModal && (
+        <ShopifyModal
+          onConfirm={(shop) => { openShopifyOAuth(shopifyModal.connectorId, shop); setShopifyModal(null); }}
+          onClose={() => setShopifyModal(null)}
+        />
+      )}
+
     </div>
   );
 }
@@ -357,18 +398,69 @@ export default function ClientDetailPage() {
 const ACCOUNT_LABEL = {
   ga4: 'Property', google_search_console: 'Site', google_ads: 'Customer ID',
   google_merchant_center: 'Merchant ID', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
+  zoho_inventory: 'Organisation',
 };
 
-const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center'];
+const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center', 'zoho_inventory'];
 const MANUAL_PLACEHOLDER = {
   google_ads: 'e.g. 123-456-7890',
   google_merchant_center: 'e.g. 12345678',
+  zoho_inventory: 'Organisation ID — find it in your Zoho Inventory URL',
 };
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredentials, onDelete, onConfigSave, onAddAnother }) {
+function getCountryFlag(label) {
+  if (!label) return '';
+  const u = label.toUpperCase();
+  if (u.includes('UK') || u.includes('GB') || u.includes('BRITAIN')) return '🇬🇧';
+  if (u.includes(' US') || u.includes('USA') || u.includes('UNITED STATES') || u.startsWith('US')) return '🇺🇸';
+  if (u.includes('EU') || u.includes('EUROPE')) return '🇪🇺';
+  if (u.includes('AU') || u.includes('AUSTRALIA')) return '🇦🇺';
+  if (u.includes('CA') || u.includes('CANADA')) return '🇨🇦';
+  if (u.includes('DE') || u.includes('GERMANY') || u.includes('DEUTSCH')) return '🇩🇪';
+  if (u.includes('FR') || u.includes('FRANCE') || u.includes('FRENCH')) return '🇫🇷';
+  if (u.includes('IT') || u.includes('ITALY') || u.includes('ITALIAN')) return '🇮🇹';
+  if (u.includes('ES') || u.includes('SPAIN') || u.includes('SPANISH')) return '🇪🇸';
+  if (u.includes('NL') || u.includes('NETHERLANDS') || u.includes('DUTCH')) return '🇳🇱';
+  if (u.includes('SE') || u.includes('SWEDEN') || u.includes('SWEDISH')) return '🇸🇪';
+  if (u.includes('PL') || u.includes('POLAND') || u.includes('POLISH')) return '🇵🇱';
+  if (u.includes('BE') || u.includes('BELGIUM') || u.includes('BELGIAN')) return '🇧🇪';
+  if (u.includes('IE') || u.includes('IRELAND') || u.includes('IRISH')) return '🇮🇪';
+  if (u.includes('JP') || u.includes('JAPAN') || u.includes('JAPANESE')) return '🇯🇵';
+  if (u.includes('MX') || u.includes('MEXICO') || u.includes('MEXICAN')) return '🇲🇽';
+  if (u.includes('BR') || u.includes('BRAZIL') || u.includes('BRAZILIAN')) return '🇧🇷';
+  if (u.includes('IN') || u.includes('INDIA') || u.includes('INDIAN')) return '🇮🇳';
+  if (u.includes('SG') || u.includes('SINGAPORE')) return '🇸🇬';
+  if (u.includes('AE') || u.includes('UAE') || u.includes('EMIRATES')) return '🇦🇪';
+  if (u.includes('NZ') || u.includes('NEW ZEALAND')) return '🇳🇿';
+  if (u.includes('ZA') || u.includes('SOUTH AFRICA')) return '🇿🇦';
+  if (u.includes('NO') || u.includes('NORWAY') || u.includes('NORWEGIAN')) return '🇳🇴';
+  if (u.includes('DK') || u.includes('DENMARK') || u.includes('DANISH')) return '🇩🇰';
+  if (u.includes('FI') || u.includes('FINLAND') || u.includes('FINNISH')) return '🇫🇮';
+  if (u.includes('CH') || u.includes('SWITZERLAND') || u.includes('SWISS')) return '🇨🇭';
+  if (u.includes('AT') || u.includes('AUSTRIA') || u.includes('AUSTRIAN')) return '🇦🇹';
+  if (u.includes('PT') || u.includes('PORTUGAL') || u.includes('PORTUGUESE')) return '🇵🇹';
+  return '';
+}
+
+function getLabelStyle(label) {
+  const isB2B = label && label.toUpperCase().includes('B2B');
+  return {
+    fontSize: 11, fontWeight: 700, padding: '2px 8px',
+    borderRadius: 12,
+    background: isB2B ? '#1565c0' : '#2e7d32',
+    color: '#fff',
+    whiteSpace: 'nowrap',
+  };
+}
+
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
+  const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
+  const [editingLabel, setEditingLabel] = React.useState(false);
+  const [labelInput, setLabelInput] = React.useState(connector.store_label || '');
   const [accounts, setAccounts] = React.useState(null); // null = not loaded yet
+  const [accountsError, setAccountsError] = React.useState(null);
   const [loadingAccounts, setLoadingAccounts] = React.useState(false);
   const [selectedValue, setSelectedValue] = React.useState(connector.config?.value || '');
   const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
@@ -392,9 +484,13 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
   React.useEffect(() => {
     if (isOAuth && isActive) {
       setLoadingAccounts(true);
+      setAccountsError(null);
       api.get(`/connectors/${connector.id}/accounts`)
-        .then(data => setAccounts(data))
-        .catch(() => setAccounts([]))
+        .then(data => {
+          if (data && data.fetchError) { setAccountsError(data.fetchError); setAccounts([]); }
+          else setAccounts(data);
+        })
+        .catch(err => { setAccountsError(err.message || 'Failed to load accounts'); setAccounts([]); })
         .finally(() => setLoadingAccounts(false));
     }
   }, [connector.id, isOAuth, isActive]);
@@ -406,10 +502,10 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
     if (value) {
       const config = { value, label: option?.label || value };
       try {
-        await api.put(`/connectors/${connector.id}/config`, config);
-        onConfigSave(connector.id, config);
+        const updated = await api.put(`/connectors/${connector.id}/config`, config);
+        onConfigSave(connector.id, updated);
       } catch (err) {
-        alert(err.message);
+        toast(err.message, 'error');
       }
     }
   }
@@ -419,10 +515,10 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
     if (!value) return;
     const config = { value, label: value };
     try {
-      await api.put(`/connectors/${connector.id}/config`, config);
-      onConfigSave(connector.id, config);
+      const updated = await api.put(`/connectors/${connector.id}/config`, config);
+      onConfigSave(connector.id, updated);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -431,30 +527,65 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
-          {connector.store_label && <span style={{ fontSize: 12, color: '#888' }}>({connector.store_label})</span>}
-          <span style={{ fontSize: 11, fontWeight: 600, color: isOAuth && isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
-            {isOAuth && isActive ? '✓ Authorised' : connector.status}
+          {editingLabel ? (
+            <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <input
+                autoFocus
+                value={labelInput}
+                onChange={e => setLabelInput(e.target.value)}
+                onKeyDown={async e => {
+                  if (e.key === 'Enter') {
+                    const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
+                    onConfigSave(connector.id, updated);
+                    setEditingLabel(false);
+                  } else if (e.key === 'Escape') { setEditingLabel(false); }
+                }}
+                style={{ fontSize: 12, padding: '1px 6px', borderRadius: 4, border: '1px solid #bbb', width: 120 }}
+              />
+              <button onClick={async () => {
+                const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
+                onConfigSave(connector.id, updated);
+                setEditingLabel(false);
+              }} style={{ ...styles.btnSm, padding: '1px 6px' }}>✓</button>
+              <button onClick={() => setEditingLabel(false)} style={{ ...styles.btnSm, padding: '1px 6px' }}>✕</button>
+            </span>
+          ) : (
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {connector.store_label
+                ? <span style={getLabelStyle(connector.store_label)}>{getCountryFlag(connector.store_label)} {connector.store_label}</span>
+                : <span style={{ fontSize: 11, color: '#aaa', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
+              }
+              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#aaa', padding: 0 }} title="Edit label">✎</button>}
+            </span>
+          )}
+          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+            {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
-          {isOAuth && isActive && (
+          {connector.status !== 'disconnected' && (
             <button onClick={handleDiagnose} disabled={diagnosing} style={styles.btnSm}>
               {diagnosing ? 'Diagnosing…' : 'Diagnose'}
             </button>
           )}
-          {isOAuth && isActive && (
+          {isActive && (
             <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
           )}
           {isOAuth ? (
             <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
               {isActive ? 'Reauth' : 'Connect'}
             </button>
+          ) : isShopify ? (
+            <button onClick={() => onOpenShopifyOAuth(connector.id)} style={styles.btnSm}>
+              {isActive ? 'Reconnect' : 'Connect'}
+            </button>
           ) : (
             <button onClick={() => onEditCredentials(connector)} style={styles.btnSm}>
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
+          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} style={{ ...styles.btnSm, color: '#e65100' }}>Reset</button>}
           <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
         </div>
       </div>
@@ -464,25 +595,43 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
             <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
             <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14 }}>×</button>
           </div>
+          {/* Credentials stored */}
+          {diagnoseResult.credentials && (
+            <div style={{ color: diagnoseResult.credentials === 'none stored' ? '#c62828' : '#555', marginBottom: 4 }}>
+              Credentials: {diagnoseResult.credentials === 'none stored' ? '✗ none stored — use Connect/Update to save credentials' : `✓ stored (${diagnoseResult.credentials})`}
+            </div>
+          )}
+          {/* Generic check result (non-Google connectors) */}
+          {diagnoseResult.check && (
+            <div style={{ color: diagnoseResult.check.status === 'ok' ? '#2e7d32' : '#c62828', marginBottom: 4 }}>
+              {diagnoseResult.check.status === 'ok' ? '✓' : '✗'} {diagnoseResult.check.detail}
+            </div>
+          )}
+          {/* Google token info */}
           {diagnoseResult.token_info && (
-            <div style={{ marginBottom: 6 }}>
-              <span style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
+            <div style={{ marginBottom: 4 }}>
+              <div style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
                 {diagnoseResult.token_info.error
-                  ? `Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
-                  : `Account: ${diagnoseResult.token_info.email || 'unknown'}`}
-              </span>
-              {diagnoseResult.token_info.scopes && (
-                <div style={{ color: diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '#2e7d32' : '#c62828' }}>
-                  analytics.readonly: {diagnoseResult.token_info.scopes.includes('analytics.readonly') ? '✓' : '✗ missing'}
-                </div>
+                  ? `✗ Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
+                  : `✓ Account: ${diagnoseResult.token_info.email || 'unknown'} (expires ${diagnoseResult.token_info.expires_in})`}
+              </div>
+              {diagnoseResult.token_info.note && (
+                <div style={{ color: '#e65100' }}>{diagnoseResult.token_info.note}</div>
               )}
             </div>
           )}
-          {diagnoseResult.ga4_test && (
-            <div style={{ color: diagnoseResult.ga4_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
-              GA4 test ({diagnoseResult.property_id}): {diagnoseResult.ga4_test.status === 'ok'
-                ? `✓ OK — ${diagnoseResult.ga4_test.row_count} rows`
-                : `✗ ${diagnoseResult.ga4_test.http_status} — ${JSON.stringify(diagnoseResult.ga4_test.error)}`}
+          {/* Live API test (GA4) */}
+          {diagnoseResult.live_test && (
+            <div style={{ color: diagnoseResult.live_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
+              Live test: {diagnoseResult.live_test.status === 'ok'
+                ? `✓ ${diagnoseResult.live_test.detail}`
+                : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${JSON.stringify(diagnoseResult.live_test.error)}`}
+            </div>
+          )}
+          {/* Config summary */}
+          {diagnoseResult.config && Object.keys(diagnoseResult.config).length > 0 && (
+            <div style={{ color: '#888', marginTop: 4 }}>
+              Config: {JSON.stringify(diagnoseResult.config)}
             </div>
           )}
           {diagnoseResult.error && <div style={{ color: '#c62828' }}>Error: {diagnoseResult.error}</div>}
@@ -506,6 +655,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
               />
               <button onClick={handleManualSave} style={styles.btnSm}>Save</button>
             </div>
+          ) : accountsError ? (
+            <span style={{ fontSize: 12, color: '#c62828' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
           ) : accounts && accounts.length === 0 ? (
             <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
@@ -522,11 +673,17 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onEditCredent
 
 function CredentialModal({ connector, values, onChange, onSave, onClose }) {
   const fields = getCredentialFields(connector.connector_type);
+  const isShopify = connector.connector_type === 'shopify' || connector.connector_type === 'shopify_email';
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modal}>
         <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
         {connector.store_label && <p style={{ margin: '0 0 16px', color: '#888', fontSize: 13 }}>{connector.store_label}</p>}
+        {isShopify && (
+          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: '#666', background: '#f5f5f5', padding: '10px 12px', borderRadius: 4, lineHeight: 1.5 }}>
+            Get the access token from your store admin: <strong>Settings → Apps → Develop apps → Create app → Configure scopes → Install → copy Admin API access token</strong> (starts with shpat_)
+          </p>
+        )}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {fields.map(f => (
             <Field key={f.key} label={f.label}>
@@ -577,6 +734,34 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
   );
 }
 
+function ShopifyModal({ onConfirm, onClose }) {
+  const [shop, setShop] = useState('');
+  return (
+    <div style={styles.modalOverlay}>
+      <div style={styles.modal}>
+        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect Shopify Store</h3>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
+          Enter the store domain. You'll approve access in a Shopify popup.
+        </p>
+        <Field label="Store Domain">
+          <input
+            autoFocus style={styles.input} value={shop}
+            onChange={e => setShop(e.target.value)}
+            placeholder="falcon-eu.myshopify.com"
+            onKeyDown={e => e.key === 'Enter' && shop.trim() && onConfirm(shop.trim())}
+          />
+        </Field>
+        <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+          <button onClick={() => shop.trim() && onConfirm(shop.trim())} style={styles.btn} disabled={!shop.trim()}>
+            Connect with Shopify
+          </button>
+          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Field({ label, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -604,8 +789,13 @@ function getCredentialFields(type) {
     klaviyo: [{ key: 'api_key', label: 'API Key', secret: true }],
     brevo: [{ key: 'api_key', label: 'API Key', secret: true }],
     amazon_seller: [
-      { key: 'seller_id', label: 'Seller ID' },
-      { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / eu' },
+      { key: 'refresh_token', label: 'Refresh Token', secret: true, placeholder: 'Atzr|...' },
+      { key: 'marketplace', label: 'Marketplace', placeholder: 'uk / us / de / fr / us' },
+      { key: 'seller_id', label: 'Seller ID (optional)', placeholder: 'A1B2C3...' },
+    ],
+    cin7: [
+      { key: 'account_id', label: 'Account ID', placeholder: 'Your Cin7 account ID' },
+      { key: 'api_key', label: 'Application Key', secret: true, placeholder: 'Cin7 application key' },
     ],
   };
   return fieldMap[type] || [{ key: 'api_key', label: 'API Key', secret: true }];

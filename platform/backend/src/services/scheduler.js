@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const pool = require('../db');
 const reportService = require('./reportService');
 const dataForSEO = require('../connectors/dataforseo');
+const emailService = require('./emailService');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -19,6 +20,18 @@ cron.schedule('0 8 1 * *', async () => {
 cron.schedule('0 6 * * *', async () => {
   console.log('[Scheduler] Running daily SEO rank checks...');
   await runDailyRankChecks();
+});
+
+// Daily connector health check: 07:30 AM
+cron.schedule('30 7 * * *', async () => {
+  console.log('[Scheduler] Running connector health check...');
+  await runConnectorHealthCheck();
+});
+
+// Daily report reminder: 08:00 AM — check if any client's monthly report is due in 48 hours
+cron.schedule('0 8 * * *', async () => {
+  console.log('[Scheduler] Checking for report reminders...');
+  await runReportReminderCheck();
 });
 
 async function runScheduledReports(reportType) {
@@ -95,6 +108,81 @@ async function runDailyRankChecks() {
   }
 }
 
+async function runConnectorHealthCheck() {
+  try {
+    const { rows } = await pool.query(
+      `SELECT con.connector_type, con.status, con.error_message, con.store_label,
+              cl.name as client_name
+       FROM connectors con
+       JOIN clients cl ON cl.id = con.client_id
+       WHERE cl.active = true
+         AND con.status IN ('error', 'expired', 'disconnected')
+       ORDER BY cl.name, con.connector_type`
+    );
+
+    if (!rows.length) {
+      console.log('[Scheduler] Connector health check: all connectors healthy.');
+      return;
+    }
+
+    const issues = rows.map(r => ({
+      clientName: r.client_name,
+      connectorType: r.store_label ? `${r.connector_type} (${r.store_label})` : r.connector_type,
+      status: r.status,
+      errorMessage: r.error_message,
+    }));
+
+    console.log(`[Scheduler] Connector health check: ${issues.length} issue(s) found. Sending alert.`);
+    await emailService.sendConnectorHealthAlert(issues);
+  } catch (err) {
+    console.error('[Scheduler] Connector health check failed:', err.message);
+  }
+}
+
+async function runReportReminderCheck() {
+  try {
+    const { rows: clients } = await pool.query(
+      'SELECT * FROM clients WHERE active = true'
+    );
+
+    const now = new Date();
+    const twoDaysFromNow = new Date(now);
+    twoDaysFromNow.setDate(now.getDate() + 2);
+    const targetDay = twoDaysFromNow.getDate();
+    const targetMonth = twoDaysFromNow.getMonth();
+    const targetYear = twoDaysFromNow.getFullYear();
+
+    for (const client of clients) {
+      const schedule = client.report_schedule || {};
+      if (!schedule.monthly_day) continue;
+
+      const monthlyDay = schedule.monthly_day;
+
+      // Calculate next report date from today
+      let nextReportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
+      if (nextReportDate <= now) {
+        nextReportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
+      }
+
+      // Check if next report date is exactly 2 days from now
+      if (
+        nextReportDate.getDate() === targetDay &&
+        nextReportDate.getMonth() === targetMonth &&
+        nextReportDate.getFullYear() === targetYear
+      ) {
+        try {
+          console.log(`[Scheduler] Sending report reminder for ${client.name}`);
+          await emailService.sendReportReminderEmail(client);
+        } catch (err) {
+          console.error(`[Scheduler] Failed to send reminder for ${client.name}:`, err.message);
+        }
+      }
+    }
+  } catch (err) {
+    console.error('[Scheduler] Fatal error in runReportReminderCheck:', err.message);
+  }
+}
+
 function getPeriodDates(reportType) {
   const now = new Date();
   if (reportType === 'monthly') {
@@ -117,4 +205,4 @@ function getPeriodDates(reportType) {
   };
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks };
+module.exports = { runScheduledReports, runDailyRankChecks, runReportReminderCheck };

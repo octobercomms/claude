@@ -1,5 +1,9 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const fs = require('fs');
+
+const LOGO_GIF_PATH = path.join(__dirname, '../assets/october-logo.gif');
+const LOGO_CID = 'october-logo@octobercomms';
 
 function getTransporter() {
   const { buildTransporter } = require('../routes/settings');
@@ -13,37 +17,57 @@ function getSenderAddress() {
   return `"October Communications" <${process.env.GMAIL_USER}>`;
 }
 
+function logoAttachment() {
+  return {
+    filename: 'october-logo.gif',
+    path: LOGO_GIF_PATH,
+    cid: LOGO_CID,
+    contentDisposition: 'inline',
+  };
+}
+
 async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath, metrics }) {
   const subject = `${clientName} Monthly Report — ${period}`;
   const html = buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics });
 
-  const mailOptions = {
-    from: getSenderAddress(),
-    to: Array.isArray(to) ? to.join(', ') : to,
-    subject,
-    html,
-    attachments: pdfPath ? [{
+  const attachments = [logoAttachment()];
+  if (pdfPath) {
+    attachments.push({
       filename: `${clientName.replace(/\s+/g, '-')}-Monthly-Report-${period}.pdf`,
       path: pdfPath,
       contentType: 'application/pdf',
-    }] : [],
-  };
+    });
+  }
 
-  return getTransporter().sendMail(mailOptions);
-}
-
-async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics }) {
-  const subject = `${clientName} Weekly Snapshot — w/c ${weekLabel}`;
-  const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
-
-  const mailOptions = {
+  return getTransporter().sendMail({
     from: getSenderAddress(),
     to: Array.isArray(to) ? to.join(', ') : to,
     subject,
     html,
-  };
+    attachments,
+  });
+}
 
-  return getTransporter().sendMail(mailOptions);
+async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics, pdfPath }) {
+  const subject = `${clientName} Weekly Snapshot — w/c ${weekLabel}`;
+  const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
+
+  const attachments = [logoAttachment()];
+  if (pdfPath) {
+    attachments.push({
+      filename: `${clientName.replace(/\s+/g, '-')}-Weekly-Snapshot-${weekLabel}.pdf`,
+      path: pdfPath,
+      contentType: 'application/pdf',
+    });
+  }
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject,
+    html,
+    attachments,
+  });
 }
 
 async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl }) {
@@ -84,124 +108,218 @@ async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl })
 }
 
 function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }) {
-  const metricTiles = metrics.slice(0, 6).map(m => `
-    <td style="width: 33%; padding: 16px; text-align: center; border: 1px solid #e0e0e0; border-radius: 4px;">
-      <div style="font-size: 24px; font-weight: bold; color: #1a1a1a;">${m.value}</div>
-      <div style="font-size: 12px; color: #666; margin-top: 4px;">${m.label}</div>
-      ${m.change ? `<div style="font-size: 12px; color: ${m.change > 0 ? '#2e7d32' : '#c62828'}; margin-top: 2px;">${m.change > 0 ? '↑' : '↓'} ${Math.abs(m.change)}%</div>` : ''}
-    </td>
-  `).join('');
+  const metricRows = metrics.slice(0, 8).map((m, i) => `
+    <tr style="${i === 0 ? 'background:#fff2cc;' : i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
+      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#666;">${m.label}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${m.value}</td>
+    </tr>`).join('');
 
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 10px;">
-        <table width="600" cellpadding="0" cellspacing="0" style="background: white; border-radius: 8px; overflow: hidden;">
-          <!-- Header -->
-          <tr>
-            <td style="background: #1a1a1a; padding: 32px; text-align: center;">
-              <h1 style="color: white; margin: 0; font-size: 24px; letter-spacing: 2px;">OCTOBER COMMUNICATIONS</h1>
-            </td>
-          </tr>
-          <!-- Title -->
-          <tr>
-            <td style="padding: 32px; border-bottom: 2px solid #f0f0f0;">
-              <h2 style="margin: 0; color: #1a1a1a; font-size: 20px;">${clientName}</h2>
-              <p style="margin: 8px 0 0; color: #666;">Monthly Performance Report — ${period}</p>
-            </td>
-          </tr>
-          <!-- Summary -->
-          <tr>
-            <td style="padding: 24px 32px; border-bottom: 1px solid #f0f0f0;">
-              <div style="color: #333; line-height: 1.6;">${summaryHtml}</div>
-            </td>
-          </tr>
-          <!-- Metrics -->
-          ${metrics.length ? `
-          <tr>
-            <td style="padding: 24px 32px; border-bottom: 1px solid #f0f0f0;">
-              <h3 style="margin: 0 0 16px; color: #1a1a1a; font-size: 14px; text-transform: uppercase; letter-spacing: 1px;">Key Metrics</h3>
-              <table width="100%" cellpadding="8" cellspacing="4">
-                <tr>${metricTiles}</tr>
-              </table>
-            </td>
-          </tr>
-          ` : ''}
-          <!-- Footer -->
-          <tr>
-            <td style="background: #f9f9f9; padding: 20px 32px; text-align: center;">
-              <p style="margin: 0; color: #999; font-size: 12px;">Full report attached as PDF</p>
-              <p style="margin: 8px 0 0; color: #999; font-size: 12px;">© October Communications</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
+  <tr>
+    <td style="padding:24px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:white;">
+
+        <!-- Header: logo left, client right -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:bottom;width:120px;">
+                  <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
+                </td>
+                <td style="vertical-align:bottom;text-align:right;">
+                  <div style="font-size:15px;font-weight:700;color:#000;">Report for ${clientName}</div>
+                  <div style="font-size:13px;color:#808080;margin-top:2px;">${period}</div>
+                </td>
+              </tr>
+            </table>
+            <div style="border-top:1px solid #000;margin:12px 0 0;"></div>
+          </td>
+        </tr>
+
+        <!-- Summary -->
+        <tr>
+          <td style="padding:20px 32px 16px;">
+            <div style="font-size:13px;font-weight:700;color:#000;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Executive Summary</div>
+            <div style="font-size:13px;color:#333;line-height:1.7;">${summaryHtml}</div>
+          </td>
+        </tr>
+
+        <!-- Metrics table -->
+        ${metrics.length ? `
+        <tr>
+          <td style="padding:0 32px 20px;">
+            <div style="font-size:13px;font-weight:700;color:#000;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Key Metrics</div>
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:left;font-weight:700;">Metric</th>
+                <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:right;font-weight:700;">Value</th>
+              </tr>
+              ${metricRows}
+            </table>
+          </td>
+        </tr>` : ''}
+
+        <!-- PDF note -->
+        <tr>
+          <td style="padding:0 32px 20px;">
+            <div style="border-top:1px solid #e0e0e0;padding-top:14px;font-size:12px;color:#808080;">
+              The full report is attached as a PDF.
+            </div>
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:14px 32px;border-top:1px solid #e0e0e0;">
+            <div style="font-size:10px;color:#808080;">Private &amp; Confidential. October Communications Ltd. Company No. 8816416. VAT Registration No. GB 176 6335 82. Registered in England and Wales. Registered address: 85 Great Portland Street, First Floor, London, W1W 7LT. www.octobercomms.com</div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
 
 function buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics = [] }) {
-  const metricTiles = metrics.slice(0, 8).map(m => `
-    <tr>
-      <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0;">
-        <span style="color: #666; font-size: 13px;">${m.label}</span>
-      </td>
-      <td style="padding: 10px 16px; border-bottom: 1px solid #f0f0f0; text-align: right;">
-        <strong style="color: #1a1a1a;">${m.value}</strong>
-        ${m.change !== undefined ? `<span style="margin-left: 8px; font-size: 12px; color: ${m.change > 0 ? '#2e7d32' : '#c62828'};">${m.change > 0 ? '↑' : '↓'} ${Math.abs(m.change)}% WoW</span>` : ''}
-      </td>
-    </tr>
-  `).join('');
+  const metricRows = metrics.slice(0, 8).map((m, i) => `
+    <tr style="${i === 0 ? 'background:#fff2cc;' : i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
+      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#333;">${m.label}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${m.value}</td>
+    </tr>`).join('');
 
   return `<!DOCTYPE html>
 <html>
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5;">
-    <tr>
-      <td align="center" style="padding: 20px 10px;">
-        <table width="600" cellpadding="0" cellspacing="0" style="background: white; border-radius: 8px; overflow: hidden;">
-          <tr>
-            <td style="background: #1a1a1a; padding: 24px 32px;">
-              <h1 style="color: white; margin: 0; font-size: 18px; letter-spacing: 2px;">OCTOBER COMMUNICATIONS</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 24px 32px; border-bottom: 1px solid #f0f0f0;">
-              <h2 style="margin: 0; color: #1a1a1a;">${clientName} — Weekly Snapshot</h2>
-              <p style="margin: 6px 0 0; color: #666; font-size: 14px;">w/c ${weekLabel}</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 20px 32px; border-bottom: 1px solid #f0f0f0;">
-              <p style="margin: 0; color: #333; line-height: 1.7;">${summaryText}</p>
-            </td>
-          </tr>
-          ${metrics.length ? `
-          <tr>
-            <td style="padding: 8px 32px;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                ${metricTiles}
-              </table>
-            </td>
-          </tr>
-          ` : ''}
-          <tr>
-            <td style="background: #f9f9f9; padding: 16px 32px; text-align: center;">
-              <p style="margin: 0; color: #999; font-size: 12px;">© October Communications</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
+  <tr>
+    <td style="padding:24px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:white;">
+
+        <!-- Header -->
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:bottom;width:120px;">
+                  <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
+                </td>
+                <td style="vertical-align:bottom;text-align:right;">
+                  <div style="font-size:15px;font-weight:700;color:#000;">${clientName} — Weekly Snapshot</div>
+                  <div style="font-size:13px;color:#808080;margin-top:2px;">w/c ${weekLabel}</div>
+                </td>
+              </tr>
+            </table>
+            <div style="border-top:1px solid #000;margin:12px 0 0;"></div>
+          </td>
+        </tr>
+
+        <!-- Summary -->
+        <tr>
+          <td style="padding:20px 32px ${metrics.length ? '16px' : '20px'};">
+            <div style="font-size:13px;color:#333;line-height:1.7;">${summaryText.split('\n').filter(p => p.trim()).map(p => `<p style="margin:0 0 10px;">${p}</p>`).join('')}</div>
+          </td>
+        </tr>
+
+        <!-- Metrics -->
+        ${metrics.length ? `
+        <tr>
+          <td style="padding:0 32px 24px;">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+              <tr>
+                <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:left;font-weight:700;">Metric</th>
+                <th style="padding:6px 10px;border:1px solid #000;background:#d9d9d9;font-size:11px;text-align:right;font-weight:700;">This Week</th>
+              </tr>
+              ${metricRows}
+            </table>
+          </td>
+        </tr>` : ''}
+
+        <!-- Footer -->
+        <tr>
+          <td style="padding:14px 32px;border-top:1px solid #e0e0e0;">
+            <div style="font-size:10px;color:#808080;">Private &amp; Confidential. October Communications Ltd. Company No. 8816416. VAT Registration No. GB 176 6335 82. Registered in England and Wales. www.octobercomms.com</div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert };
+async function sendConnectorHealthAlert(issues) {
+  if (!process.env.ALERT_EMAIL) return;
+
+  const rows = issues.map(i => `
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${i.clientName}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">${i.connectorType}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #c62828; font-weight: 600;">${i.status}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; color: #666; font-size: 12px;">${i.errorMessage || '—'}</td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1a1a1a;">Connector Health Alert</h2>
+      <p style="color: #666;">${issues.length} connector${issues.length !== 1 ? 's' : ''} need attention.</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;">
+        <thead>
+          <tr style="background: #f5f5f5;">
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Client</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Connector</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Status</th>
+            <th style="text-align: left; padding: 8px 12px; font-size: 12px; color: #666; text-transform: uppercase;">Error</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="margin-top: 24px; color: #666; font-size: 13px;">
+        Log in to the platform to reauthorise any expired connectors.
+      </p>
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Performance Marketing Platform — daily health check</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `Platform alert: ${issues.length} connector${issues.length !== 1 ? 's' : ''} need attention`,
+    html,
+  });
+}
+
+async function sendReportReminderEmail(client) {
+  if (!process.env.ALERT_EMAIL) return;
+
+  const schedule = client.report_schedule || {};
+  const monthlyDay = schedule.monthly_day || 1;
+  const now = new Date();
+  // Next report date: if today is before monthly_day this month, use this month; else next month
+  let reportDate = new Date(now.getFullYear(), now.getMonth(), monthlyDay);
+  if (reportDate <= now) {
+    reportDate = new Date(now.getFullYear(), now.getMonth() + 1, monthlyDay);
+  }
+  const dateStr = reportDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const subject = `Reminder: ${client.name} monthly report due in 48 hours`;
+  const text = `The monthly report for ${client.name} is scheduled to run on ${dateStr}.\n\nPlease log in to update any manual SEO metrics before the report runs: https://platform.octobercomms.com/clients/${client.id}/seo\n\nOctober Performance Marketing Platform`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject,
+    text,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail };

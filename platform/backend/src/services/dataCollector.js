@@ -62,12 +62,13 @@ async function collectClientData(clientId, periodStart, periodEnd) {
         endDate: periodEnd,
         storeLabel: connector.store_label,
         // Pass saved account/property selections
-        propertyId: config.value,   // GA4
-        siteUrl: config.value,      // Google Search Console
-        customerId: config.value,   // Google Ads
-        merchantId: config.value,   // Google Merchant Center
-        adAccountId: config.value,  // Meta Ads
-        accountId: config.value,    // Instagram
+        propertyId: config.value,       // GA4
+        siteUrl: config.value,          // Google Search Console
+        customerId: config.value,       // Google Ads
+        merchantId: config.value,       // Google Merchant Center
+        adAccountId: config.value,      // Meta Ads
+        accountId: config.value,        // Instagram
+        organizationId: config.value,   // Zoho Inventory
       });
 
       results[key] = data;
@@ -91,6 +92,32 @@ async function collectClientData(clientId, periodStart, periodEnd) {
   return { data: results, errors };
 }
 
+async function collectSEOData(clientId) {
+  const result = {};
+
+  // Rank movements — always from DB, no API cost
+  try {
+    const { rows: keywords } = await pool.query(
+      `SELECT k.id, k.keyword, k.tag, k.device, k.location_name,
+         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
+         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 6) as position_7d_ago,
+         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 29) as position_30d_ago,
+         (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
+         (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
+       FROM seo_keywords k
+       WHERE k.client_id = $1 AND k.active = true
+       ORDER BY k.keyword`,
+      [clientId]
+    );
+    result.rankings = keywords;
+  } catch (err) {
+    console.error('[SEO] Failed to fetch rank data:', err.message);
+    result.rankings = [];
+  }
+
+  return result;
+}
+
 function buildReportSections(collectedData, connectorErrors) {
   const CONNECTOR_LABELS = {
     ga4: 'Google Analytics 4',
@@ -105,6 +132,8 @@ function buildReportSections(collectedData, connectorErrors) {
     klaviyo: 'Klaviyo',
     brevo: 'Brevo',
     amazon_seller: 'Amazon Seller',
+    zoho_inventory: 'Zoho Inventory',
+    cin7: 'Cin7',
   };
 
   const sections = [];
@@ -145,7 +174,7 @@ function extractKeyMetrics(connectorType, data) {
       const s = data.summary || {};
       return [
         { label: 'Total Revenue', value: formatCurrency(s.total_revenue) },
-        { label: 'Orders', value: s.total_orders || 0 },
+        { label: 'Orders', value: (s.total_orders || 0).toLocaleString() },
         { label: 'Avg Order Value', value: formatCurrency(s.avg_order_value) },
       ];
     }
@@ -155,12 +184,126 @@ function extractKeyMetrics(connectorType, data) {
         acc.spend += parseFloat(r.spend || 0);
         acc.clicks += parseInt(r.clicks || 0);
         acc.impressions += parseInt(r.impressions || 0);
+        acc.conversions += parseFloat(r.actions?.find(a => a.action_type === 'purchase')?.value || 0);
         return acc;
-      }, { spend: 0, clicks: 0, impressions: 0 });
+      }, { spend: 0, clicks: 0, impressions: 0, conversions: 0 });
+      const ctr = totals.impressions > 0 ? ((totals.clicks / totals.impressions) * 100).toFixed(2) : '0.00';
       return [
         { label: 'Ad Spend', value: formatCurrency(totals.spend) },
         { label: 'Clicks', value: totals.clicks.toLocaleString() },
         { label: 'Impressions', value: totals.impressions.toLocaleString() },
+        { label: 'CTR', value: `${ctr}%` },
+      ];
+    }
+    case 'ga4': {
+      const dimHeaders = (data.dimensionHeaders || []).map(h => h.name);
+      const metHeaders = (data.metricHeaders || []).map(h => h.name);
+      const dateRangeIdx = dimHeaders.indexOf('dateRange');
+
+      let sessions = 0, users = 0, conversions = 0, revenue = 0;
+      let bounceSum = 0, durationSum = 0, rowCount = 0;
+
+      for (const row of (data.rows || [])) {
+        // Only include current period rows when dateRange dimension is present
+        if (dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value !== 'date_range_0') continue;
+        const mv = row.metricValues || [];
+        const get = name => parseFloat(mv[metHeaders.indexOf(name)]?.value || 0);
+        sessions += get('sessions');
+        users += get('activeUsers');
+        conversions += get('conversions');
+        revenue += get('totalRevenue');
+        bounceSum += get('bounceRate');
+        durationSum += get('averageSessionDuration');
+        rowCount++;
+      }
+
+      const metrics = [
+        { label: 'Sessions', value: Math.round(sessions).toLocaleString() },
+        { label: 'Users', value: Math.round(users).toLocaleString() },
+        { label: 'Conversions', value: Math.round(conversions).toLocaleString() },
+      ];
+      if (revenue > 0) metrics.push({ label: 'Revenue (GA4)', value: formatCurrency(revenue) });
+      if (rowCount > 0) {
+        const avgDuration = durationSum / rowCount;
+        metrics.push({ label: 'Avg Session', value: `${Math.floor(avgDuration / 60)}m ${Math.round(avgDuration % 60)}s` });
+      }
+      return metrics;
+    }
+    case 'google_search_console': {
+      const rows = data.rows || [];
+      if (!rows.length) return [];
+      const totals = rows.reduce((acc, r) => {
+        acc.clicks += r.clicks || 0;
+        acc.impressions += r.impressions || 0;
+        acc.ctrSum += r.ctr || 0;
+        acc.positionSum += r.position || 0;
+        return acc;
+      }, { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0 });
+      return [
+        { label: 'Organic Clicks', value: totals.clicks.toLocaleString() },
+        { label: 'Impressions', value: totals.impressions.toLocaleString() },
+        { label: 'Avg CTR', value: `${((totals.ctrSum / rows.length) * 100).toFixed(2)}%` },
+        { label: 'Avg Position', value: (totals.positionSum / rows.length).toFixed(1) },
+      ];
+    }
+    case 'google_ads': {
+      // /search returns {results:[...]}; handle legacy searchStream [{results:[...]},...]
+      const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
+      let spend = 0, clicks = 0, impressions = 0, conversions = 0;
+      for (const result of results) {
+        const m = result.metrics || {};
+        spend += parseInt(m.costMicros || 0) / 1_000_000;
+        clicks += parseInt(m.clicks || 0);
+        impressions += parseInt(m.impressions || 0);
+        conversions += parseFloat(m.conversions || 0);
+      }
+      const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : '0.00';
+      return [
+        { label: 'Ad Spend', value: formatCurrency(spend) },
+        { label: 'Clicks', value: clicks.toLocaleString() },
+        { label: 'Conversions', value: Math.round(conversions).toLocaleString() },
+        { label: 'CTR', value: `${ctr}%` },
+      ];
+    }
+    case 'klaviyo': {
+      const campaigns = data.campaigns || [];
+      return [
+        { label: 'Campaigns Sent', value: campaigns.length.toString() },
+      ];
+    }
+    case 'brevo': {
+      const stats = data.aggregated_stats || {};
+      const campaigns = data.campaigns || [];
+      const metrics = [
+        { label: 'Campaigns Sent', value: campaigns.length.toString() },
+      ];
+      if (stats.delivered) metrics.push({ label: 'Delivered', value: parseInt(stats.delivered || 0).toLocaleString() });
+      if (stats.opens) metrics.push({ label: 'Opens', value: parseInt(stats.opens || 0).toLocaleString() });
+      if (stats.clicks) metrics.push({ label: 'Clicks', value: parseInt(stats.clicks || 0).toLocaleString() });
+      return metrics;
+    }
+    case 'zoho_inventory': {
+      const items = data.items || [];
+      const orders = data.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const lowStock = items.filter(i => (i.available_stock || 0) <= (i.reorder_level || 0) && i.available_stock != null);
+      return [
+        { label: 'Orders', value: orders.length.toLocaleString() },
+        { label: 'Revenue', value: formatCurrency(revenue) },
+        { label: 'Active SKUs', value: items.length.toLocaleString() },
+        { label: 'Low Stock Items', value: lowStock.length.toLocaleString() },
+      ];
+    }
+    case 'cin7': {
+      const stock = data.stock || [];
+      const orders = data.orders || [];
+      const revenue = orders.reduce((s, o) => s + parseFloat(o.total || 0), 0);
+      const lowStock = stock.filter(s => (s.available || 0) <= 0);
+      return [
+        { label: 'Orders', value: orders.length.toLocaleString() },
+        { label: 'Revenue', value: formatCurrency(revenue) },
+        { label: 'SKUs Tracked', value: stock.length.toLocaleString() },
+        { label: 'Out of Stock', value: lowStock.length.toLocaleString() },
       ];
     }
     default:
@@ -202,6 +345,149 @@ function extractTables(connectorType, data) {
         ]),
       }];
     }
+    case 'ga4': {
+      const dimHeaders = (data.dimensionHeaders || []).map(h => h.name);
+      const metHeaders = (data.metricHeaders || []).map(h => h.name);
+      const dateRangeIdx = dimHeaders.indexOf('dateRange');
+      const channelIdx = dimHeaders.indexOf('sessionDefaultChannelGroup');
+      if (channelIdx < 0) return [];
+
+      // Aggregate sessions per channel for current period
+      const channelMap = {};
+      for (const row of (data.rows || [])) {
+        if (dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value !== 'date_range_0') continue;
+        const channel = row.dimensionValues?.[channelIdx]?.value || 'Unknown';
+        const mv = row.metricValues || [];
+        const get = name => parseFloat(mv[metHeaders.indexOf(name)]?.value || 0);
+        if (!channelMap[channel]) channelMap[channel] = { sessions: 0, users: 0, conversions: 0 };
+        channelMap[channel].sessions += get('sessions');
+        channelMap[channel].users += get('activeUsers');
+        channelMap[channel].conversions += get('conversions');
+      }
+
+      const sorted = Object.entries(channelMap).sort((a, b) => b[1].sessions - a[1].sessions).slice(0, 10);
+      if (!sorted.length) return [];
+      return [{
+        heading: 'Sessions by Channel',
+        headers: ['Channel', 'Sessions', 'Users', 'Conversions'],
+        rows: sorted.map(([channel, m]) => [
+          channel,
+          Math.round(m.sessions).toLocaleString(),
+          Math.round(m.users).toLocaleString(),
+          Math.round(m.conversions).toLocaleString(),
+        ]),
+      }];
+    }
+    case 'google_search_console': {
+      // Group by query (first dimension key), top 20 by clicks
+      const rowMap = {};
+      for (const row of (data.rows || [])) {
+        const query = row.keys?.[0] || '';
+        if (!query) continue;
+        if (!rowMap[query]) rowMap[query] = { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0, count: 0 };
+        rowMap[query].clicks += row.clicks || 0;
+        rowMap[query].impressions += row.impressions || 0;
+        rowMap[query].ctrSum += row.ctr || 0;
+        rowMap[query].positionSum += row.position || 0;
+        rowMap[query].count++;
+      }
+      const sorted = Object.entries(rowMap).sort((a, b) => b[1].clicks - a[1].clicks).slice(0, 20);
+      if (!sorted.length) return [];
+      return [{
+        heading: 'Top Organic Queries',
+        headers: ['Query', 'Clicks', 'Impressions', 'CTR', 'Position'],
+        rows: sorted.map(([query, m]) => [
+          query,
+          m.clicks.toLocaleString(),
+          m.impressions.toLocaleString(),
+          `${((m.ctrSum / m.count) * 100).toFixed(2)}%`,
+          (m.positionSum / m.count).toFixed(1),
+        ]),
+      }];
+    }
+    case 'google_ads': {
+      const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
+      const campaignMap = {};
+      for (const result of results) {
+        const name = result.campaign?.name || 'Unknown';
+        const m = result.metrics || {};
+        if (!campaignMap[name]) campaignMap[name] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+        campaignMap[name].spend += parseInt(m.costMicros || 0) / 1_000_000;
+        campaignMap[name].clicks += parseInt(m.clicks || 0);
+        campaignMap[name].impressions += parseInt(m.impressions || 0);
+        campaignMap[name].conversions += parseFloat(m.conversions || 0);
+      }
+      const sorted = Object.entries(campaignMap).sort((a, b) => b[1].spend - a[1].spend).slice(0, 20);
+      if (!sorted.length) return [];
+      return [{
+        heading: 'Campaign Performance',
+        headers: ['Campaign', 'Spend', 'Clicks', 'Conversions', 'CPA'],
+        rows: sorted.map(([name, m]) => [
+          name,
+          formatCurrency(m.spend),
+          m.clicks.toLocaleString(),
+          Math.round(m.conversions).toLocaleString(),
+          m.conversions > 0 ? formatCurrency(m.spend / m.conversions) : '—',
+        ]),
+      }];
+    }
+    case 'klaviyo': {
+      const campaigns = (data.campaigns || []).slice(0, 20);
+      if (!campaigns.length) return [];
+      return [{
+        heading: 'Email Campaigns',
+        headers: ['Campaign', 'Status', 'Sent Date'],
+        rows: campaigns.map(c => [
+          c.name,
+          c.status || '—',
+          c.scheduled_at ? new Date(c.scheduled_at).toLocaleDateString('en-GB') : '—',
+        ]),
+      }];
+    }
+    case 'brevo': {
+      const campaigns = (data.campaigns || []).slice(0, 20);
+      if (!campaigns.length) return [];
+      return [{
+        heading: 'Email Campaigns',
+        headers: ['Campaign', 'Subject', 'Sent Date', 'Opens', 'Clicks'],
+        rows: campaigns.map(c => [
+          c.name,
+          c.subject || '—',
+          c.sent_date ? new Date(c.sent_date).toLocaleDateString('en-GB') : '—',
+          c.statistics?.opened?.count?.toLocaleString() || '—',
+          c.statistics?.clicked?.count?.toLocaleString() || '—',
+        ]),
+      }];
+    }
+    case 'zoho_inventory': {
+      const items = (data.items || []).slice(0, 20);
+      if (!items.length) return [];
+      return [{
+        heading: 'Stock Levels',
+        headers: ['Product', 'SKU', 'Available', 'On Hand', 'Reorder Level'],
+        rows: items.map(i => [
+          i.name || '—',
+          i.sku || '—',
+          (i.available_stock ?? '—').toLocaleString ? (i.available_stock ?? 0).toLocaleString() : '—',
+          (i.actual_available_stock ?? '—').toLocaleString ? (i.actual_available_stock ?? 0).toLocaleString() : '—',
+          i.reorder_level != null ? i.reorder_level : '—',
+        ]),
+      }];
+    }
+    case 'cin7': {
+      const stock = (data.stock || []).slice(0, 20);
+      if (!stock.length) return [];
+      return [{
+        heading: 'Stock on Hand',
+        headers: ['Product', 'SKU', 'Available', 'On Hand'],
+        rows: stock.map(s => [
+          s.name || s.productName || '—',
+          s.styleCode || s.sku || '—',
+          (s.available ?? 0).toLocaleString(),
+          (s.onHand ?? 0).toLocaleString(),
+        ]),
+      }];
+    }
     default:
       return [];
   }
@@ -213,4 +499,4 @@ function formatCurrency(val) {
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
 }
 
-module.exports = { collectClientData, buildReportSections };
+module.exports = { collectClientData, collectSEOData, buildReportSections };

@@ -47,6 +47,7 @@ const KEY_GROUPS = [
     hint: 'Optional. A developer token enables automatic account discovery for Google Ads connectors. Apply at ads.google.com → Tools → API Center. Without it, enter Customer IDs manually in the connector.',
     keys: [
       { key: 'GOOGLE_ADS_DEVELOPER_TOKEN', label: 'Developer Token', placeholder: 'ABcDEF…', type: 'password' },
+      { key: 'GOOGLE_ADS_MCC_ID', label: 'Manager Account ID (MCC)', placeholder: 'e.g. 1234567890', type: 'text' },
     ],
   },
   {
@@ -55,6 +56,24 @@ const KEY_GROUPS = [
     keys: [
       { key: 'META_APP_ID', label: 'App ID', placeholder: '1234567890', type: 'text' },
       { key: 'META_APP_SECRET', label: 'App Secret', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Shopify',
+    hint: 'Required for Shopify connectors. Create a custom app in the Shopify Partners dashboard (partners.shopify.com → Apps → Create app → Public app). Set the redirect URL to your platform URL + /auth/shopify/callback. Paste the API key and secret below.',
+    keys: [
+      { key: 'SHOPIFY_CLIENT_ID', label: 'API Key (Client ID)', placeholder: 'a1b2c3d4e5f6…', type: 'text' },
+      { key: 'SHOPIFY_CLIENT_SECRET', label: 'API Secret (Client Secret)', placeholder: 'shpss_…', type: 'password' },
+      { key: 'SHOPIFY_REDIRECT_URI', label: 'Redirect URI (must match Shopify app config)', placeholder: 'https://your-platform.com/auth/shopify/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'Zoho Inventory',
+    hint: 'Required for Zoho Inventory connectors. Create an OAuth app at api-console.zoho.com → Server-based Applications. Set the redirect URL to your platform URL + /auth/zoho/callback.',
+    keys: [
+      { key: 'ZOHO_CLIENT_ID', label: 'Client ID', placeholder: '1000.XXXXXXXX', type: 'text' },
+      { key: 'ZOHO_CLIENT_SECRET', label: 'Client Secret', placeholder: '…', type: 'password' },
+      { key: 'ZOHO_REDIRECT_URI', label: 'Redirect URI (must match Zoho app config)', placeholder: 'https://your-platform.com/auth/zoho/callback', type: 'text' },
     ],
   },
   {
@@ -71,6 +90,7 @@ const KEY_GROUPS = [
     note: 'Amazon SP-API requires a registered developer application approved by Amazon before credentials can be generated. This is a separate process from standard API key setup.',
     keys: [
       { key: 'AMAZON_CLIENT_ID', label: 'Client ID', placeholder: 'amzn1.application-oa2-client.…', type: 'text' },
+      { key: 'AMAZON_CLIENT_SECRET', label: 'Client Secret', placeholder: 'Client secret from LWA credentials', type: 'password' },
     ],
   },
   {
@@ -78,6 +98,13 @@ const KEY_GROUPS = [
     hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
     keys: [
       { key: 'N8N_WEBHOOK_BASE_URL', label: 'Webhook Base URL', placeholder: 'https://your-n8n.example.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'Alerts',
+    hint: 'Email address for platform alerts — connector failures, token expiry, and daily health check summaries.',
+    keys: [
+      { key: 'ALERT_EMAIL', label: 'Alert Email', placeholder: 'you@octobercomms.com', type: 'text' },
     ],
   },
 ];
@@ -91,9 +118,13 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testMsg, setTestMsg] = useState('');
+  const [account, setAccount] = useState({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [accountMsg, setAccountMsg] = useState('');
 
   useEffect(() => {
     api.get('/settings/platform-keys').then(data => setValues(data));
+    api.get('/settings/account').then(data => setAccount(prev => ({ ...prev, username: data.username || '' }))).catch(() => {});
   }, []);
 
   async function toggleReveal(key) {
@@ -128,6 +159,29 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSaveAccount(e) {
+    e.preventDefault();
+    if (account.newPassword && account.newPassword !== account.confirmPassword) {
+      setAccountMsg('New passwords do not match.');
+      return;
+    }
+    setSavingAccount(true);
+    setAccountMsg('');
+    try {
+      await api.post('/settings/account', {
+        username: account.username,
+        currentPassword: account.currentPassword,
+        newPassword: account.newPassword || undefined,
+      });
+      setAccountMsg('Account updated.');
+      setAccount(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+    } catch (err) {
+      setAccountMsg(`Error: ${err.message}`);
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
   async function handleTestEmail(e) {
     e.preventDefault();
     setSendingTest(true);
@@ -153,14 +207,38 @@ export default function SettingsPage() {
           <InfoRow label="Environment" value={import.meta.env.MODE} />
         </Section>
 
-        <Section title="Authentication">
-          <p style={styles.hint}>
-            Admin credentials are set via the <code>.env</code> file on the server.
-            Change <code>ADMIN_USERNAME</code> and <code>ADMIN_PASSWORD</code> and restart the service.
-          </p>
+        <Section title="Account">
+          <p style={styles.hint}>Change your login username or password. Enter your current password to confirm.</p>
+          <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 16 }}>
+            <div style={styles.field}>
+              <label style={styles.label}>Username</label>
+              <input type="text" style={styles.input} value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label}>Current Password</label>
+              <input type="password" style={styles.input} value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
+            </div>
+            <div style={styles.field}>
+              <label style={styles.label}>New Password <span style={{ fontWeight: 400, textTransform: 'none' }}>(leave blank to keep current)</span></label>
+              <input type="password" style={styles.input} value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
+            </div>
+            {account.newPassword && (
+              <div style={styles.field}>
+                <label style={styles.label}>Confirm New Password</label>
+                <input type="password" style={styles.input} value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
+              </div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button type="submit" style={styles.btn} disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
+              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{accountMsg}</span>}
+            </div>
+          </form>
         </Section>
 
-        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: 24 }} autoComplete="off">
+          {/* Dummy fields to prevent browser autofill from hitting real inputs */}
+          <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
+          <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
           {KEY_GROUPS.map(group => (
             <Section key={group.title} title={group.title}>
               {group.hint && <p style={styles.hint}>{group.hint}</p>}
@@ -175,10 +253,10 @@ export default function SettingsPage() {
                       <input
                         type={visibleKeys[key] ? 'text' : type}
                         style={{ ...styles.input, flex: 1 }}
-                        value={values[key] || ''}
-                        placeholder={!revealed && values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                        value={values[key] === '••••••••' ? '' : (values[key] || '')}
+                        placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
                         onChange={e => handleChange(key, e.target.value)}
-                        autoComplete="off"
+                        autoComplete="new-password"
                       />
                       {type === 'password' && (
                         <button

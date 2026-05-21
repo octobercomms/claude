@@ -1,18 +1,40 @@
 import React, { useEffect, useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
   { name: 'United States', code: 2840, flag: '🇺🇸' },
+  { name: 'Germany', code: 2276, flag: '🇩🇪' },
+  { name: 'France', code: 2250, flag: '🇫🇷' },
   { name: 'Ireland', code: 2372, flag: '🇮🇪' },
   { name: 'Australia', code: 2036, flag: '🇦🇺' },
   { name: 'Canada', code: 2124, flag: '🇨🇦' },
+  { name: 'Italy', code: 2380, flag: '🇮🇹' },
+  { name: 'Spain', code: 2724, flag: '🇪🇸' },
+  { name: 'Netherlands', code: 2528, flag: '🇳🇱' },
+  { name: 'Sweden', code: 2752, flag: '🇸🇪' },
+  { name: 'Poland', code: 2616, flag: '🇵🇱' },
+  { name: 'Belgium', code: 2056, flag: '🇧🇪' },
+  { name: 'Portugal', code: 2620, flag: '🇵🇹' },
+  { name: 'Switzerland', code: 2756, flag: '🇨🇭' },
+  { name: 'Austria', code: 2040, flag: '🇦🇹' },
+  { name: 'Norway', code: 2578, flag: '🇳🇴' },
+  { name: 'Denmark', code: 2208, flag: '🇩🇰' },
+  { name: 'Finland', code: 2246, flag: '🇫🇮' },
+  { name: 'New Zealand', code: 2554, flag: '🇳🇿' },
+  { name: 'Japan', code: 2392, flag: '🇯🇵' },
+  { name: 'India', code: 2356, flag: '🇮🇳' },
+  { name: 'Singapore', code: 2702, flag: '🇸🇬' },
+  { name: 'UAE', code: 2784, flag: '🇦🇪' },
+  { name: 'South Africa', code: 2710, flag: '🇿🇦' },
 ];
 
 const DEFAULT_LOC = LOCATIONS[0];
 
 export default function RankingsPage() {
+  const toast = useToast();
   const [clients, setClients] = useState([]);
   const [selectedClient, setSelectedClient] = useState('');
   const [keywords, setKeywords] = useState([]);
@@ -64,7 +86,7 @@ export default function RankingsPage() {
       setNewKw({ keyword: '', target_url: '', device: 'desktop', tag: '', location_name: DEFAULT_LOC.name, location_code: DEFAULT_LOC.code });
       setShowAddForm(false);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
     }
   }
 
@@ -85,7 +107,7 @@ export default function RankingsPage() {
         setChecking(false);
       }, 3000);
     } catch (err) {
-      alert(err.message);
+      toast(err.message, 'error');
       setChecking(false);
     }
   }

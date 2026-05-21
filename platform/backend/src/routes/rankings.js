@@ -108,13 +108,14 @@ router.delete('/keywords/:id', async (req, res) => {
   }
 });
 
-// Get rank history for a keyword (30 days)
+// Get rank history for a keyword (12 months)
 router.get('/keywords/:id/history', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT checked_at, position, url FROM seo_rank_history
        WHERE keyword_id = $1
-       ORDER BY checked_at DESC LIMIT 90`,
+         AND checked_at >= CURRENT_DATE - INTERVAL '12 months'
+       ORDER BY checked_at ASC`,
       [req.params.id]
     );
     res.json(rows);
@@ -183,6 +184,98 @@ router.get('/export/:clientId', async (req, res) => {
     }
 
     res.type('text/csv').send(csvLines.join('\n'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get last 12 months of manual SEO metrics for a client
+router.get('/seo-metrics/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM seo_manual_metrics
+       WHERE client_id = $1
+         AND month >= date_trunc('month', CURRENT_DATE - INTERVAL '11 months')
+       ORDER BY month DESC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Upsert manual SEO metrics for a client/month
+router.put('/seo-metrics/:clientId', async (req, res) => {
+  const { month, moz_da, authority_score, referring_domains, notes } = req.body;
+  if (!month) return res.status(400).json({ error: 'month is required (YYYY-MM-DD)' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO seo_manual_metrics (client_id, month, moz_da, authority_score, referring_domains, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       ON CONFLICT (client_id, month) DO UPDATE SET
+         moz_da = EXCLUDED.moz_da,
+         authority_score = EXCLUDED.authority_score,
+         referring_domains = EXCLUDED.referring_domains,
+         notes = EXCLUDED.notes,
+         updated_at = NOW()
+       RETURNING *`,
+      [req.params.clientId, month, moz_da ?? null, authority_score ?? null, referring_domains ?? null, notes ?? null]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// SEO summary: backlinks + domain rank for a client's domain
+router.get('/seo-summary/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT domain, slug FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const domain = rows[0].domain || rows[0].slug;
+    const backlinks = await dataForSEO.fetchBacklinkData(domain);
+    if (!backlinks) return res.json({});
+    res.json({
+      domain_rank: backlinks.rank,
+      backlinks_total: backlinks.backlinks,
+      referring_domains: backlinks.referring_domains,
+      new_backlinks: backlinks.new_backlinks,
+      lost_backlinks: backlinks.lost_backlinks,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Fetch Google reviews for a client's domain
+router.get('/reviews/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = rows[0];
+    const domain = req.query.domain || client.slug;
+    const data = await dataForSEO.fetchReviews(domain);
+    res.json(data || { error: 'No review data returned' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Check LLM / AI Overview visibility for a client
+router.get('/llm-visibility/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = rows[0];
+    const domain = req.query.domain || client.slug;
+    const { rows: kwRows } = await pool.query(
+      'SELECT DISTINCT keyword FROM seo_keywords WHERE client_id = $1 AND active = true LIMIT 10',
+      [req.params.clientId]
+    );
+    const keywords = kwRows.map(r => r.keyword);
+    const data = await dataForSEO.fetchLLMVisibility(domain, keywords);
+    res.json(data || { error: 'No LLM visibility data returned' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

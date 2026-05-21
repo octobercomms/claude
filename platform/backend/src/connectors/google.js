@@ -125,31 +125,97 @@ async function fetchSearchConsoleData(credentials, params) {
 }
 
 // Google Ads data fetch
+// Cache: customerId -> loginCustomerId that worked, to avoid re-discovery on every call
+const adsLoginCache = new Map();
+
 async function fetchGoogleAdsData(credentials, params) {
   const creds = await getValidToken(credentials);
   const { customerId, startDate, endDate } = params;
+  // API requires customer ID without dashes (e.g. 9543280011 not 954-328-0011)
+  const cleanCustomerId = (customerId || '').replace(/-/g, '');
+  const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
 
+  // Use /search (not /searchStream) — simpler JSON response, easier error messages
+  // metrics.conversion_value is not a valid GAQL field; use metrics.conversions_value
   const query = `
-    SELECT campaign.name, metrics.clicks, metrics.impressions, metrics.ctr,
-           metrics.average_cpc, metrics.conversions, metrics.cost_micros,
-           metrics.conversion_value
+    SELECT campaign.id, campaign.name,
+           metrics.clicks, metrics.impressions, metrics.ctr,
+           metrics.average_cpc, metrics.conversions, metrics.conversions_value,
+           metrics.cost_micros
     FROM campaign
     WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND campaign.status = ENABLED
     ORDER BY metrics.cost_micros DESC
-    LIMIT 50
   `;
 
-  const { data } = await axios.post(
-    `https://googleads.googleapis.com/v17/customers/${customerId}/googleAds:searchStream`,
-    { query },
-    {
-      headers: {
-        Authorization: `Bearer ${creds.access_token}`,
-        'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '',
-      },
+  const doRequest = (loginCustomerId) => {
+    const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
+    if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
+    return axios.post(
+      `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:search`,
+      { query },
+      { headers }
+    );
+  };
+
+  // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
+  const explicitMcc = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
+  if (explicitMcc) {
+    try {
+      const { data } = await doRequest(explicitMcc);
+      return data;
+    } catch (err) {
+      const detail = err.response?.data?.error?.details?.[0]?.errors?.[0]?.message
+        || err.response?.data?.error?.message
+        || err.message;
+      throw new Error(`Google Ads API error (MCC ${explicitMcc}): ${detail}`);
     }
-  );
-  return data;
+  }
+
+  // Try cached login-customer-id first
+  const cached = adsLoginCache.get(cleanCustomerId);
+  if (cached) {
+    try {
+      const { data } = await doRequest(cached);
+      return data;
+    } catch { adsLoginCache.delete(cleanCustomerId); }
+  }
+
+  // Try direct access (no login-customer-id)
+  try {
+    const { data } = await doRequest(null);
+    return data;
+  } catch (directErr) {
+    // Auto-discover MCC: try each accessible customer as login-customer-id
+    let candidates = [];
+    try {
+      const { data: accountsData } = await axios.get(
+        'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
+        { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
+      );
+      candidates = (accountsData.resourceNames || [])
+        .map(r => r.replace('customers/', ''))
+        .filter(id => id !== cleanCustomerId);
+      console.log(`[Google Ads] Auto-discovery candidates for ${cleanCustomerId}:`, candidates);
+    } catch (listErr) {
+      console.warn('[Google Ads] listAccessibleCustomers failed:', listErr.response?.data || listErr.message);
+    }
+
+    for (const loginId of candidates) {
+      try {
+        const { data } = await doRequest(loginId);
+        adsLoginCache.set(cleanCustomerId, loginId);
+        console.log(`[Google Ads] Found working login-customer-id ${loginId} for customer ${cleanCustomerId}`);
+        return data;
+      } catch { continue; }
+    }
+
+    const detail = directErr.response?.data?.error?.details?.[0]?.errors?.[0]?.message
+      || directErr.response?.data?.error?.message
+      || directErr.message;
+    const status = directErr.response?.status;
+    throw new Error(`Google Ads API error (${status}): ${detail}. Set GOOGLE_ADS_MCC_ID in Settings to specify the manager account ID directly.`);
+  }
 }
 
 async function listGA4Properties(credentials) {
@@ -188,7 +254,7 @@ async function listGoogleAdsAccounts(credentials) {
   if (!devToken) return [];
   try {
     const { data } = await axios.get(
-      'https://googleads.googleapis.com/v17/customers:listAccessibleCustomers',
+      'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
       { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
     );
     return (data.resourceNames || []).map(name => ({
@@ -226,13 +292,41 @@ async function listAccounts(credentials, connectorType) {
   }
 }
 
+async function fetchMerchantCenterData(credentials, params) {
+  const creds = await getValidToken(credentials);
+  const { merchantId, startDate, endDate } = params;
+  if (!merchantId) throw new Error('Merchant Center account not selected — open the client connectors tab and choose an account.');
+
+  const search = (query) => axios.post(
+    `https://merchantapi.googleapis.com/reports/v1beta/accounts/${merchantId}:search`,
+    { query },
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+
+  try {
+    const [perfRes, productRes] = await Promise.allSettled([
+      search(`SELECT metrics.clicks, metrics.impressions, metrics.ctr FROM MerchantPerformanceView WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'`),
+      search(`SELECT segments.offer_id, segments.title, metrics.clicks, metrics.impressions FROM ProductPerformanceView WHERE segments.date BETWEEN '${startDate}' AND '${endDate}' ORDER BY metrics.clicks DESC LIMIT 20`),
+    ]);
+
+    return {
+      performance: perfRes.status === 'fulfilled' ? (perfRes.value.data.results || []) : [],
+      top_products: productRes.status === 'fulfilled' ? (productRes.value.data.results || []) : [],
+    };
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.message;
+    const status = err.response?.status;
+    throw new Error(`Merchant Center API error (${status}): ${detail}`);
+  }
+}
+
 async function fetchData(credentials, params) {
   const { connectorType, ...rest } = params;
   switch (connectorType) {
     case 'ga4': return fetchGA4Data(credentials, rest);
     case 'google_search_console': return fetchSearchConsoleData(credentials, rest);
     case 'google_ads': return fetchGoogleAdsData(credentials, rest);
-    case 'google_merchant_center': return { note: 'Merchant Center data via Content API' };
+    case 'google_merchant_center': return fetchMerchantCenterData(credentials, rest);
     default: throw new Error(`Unknown Google connector type: ${connectorType}`);
   }
 }

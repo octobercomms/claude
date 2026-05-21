@@ -8,7 +8,16 @@ function getClient() {
 
 const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.`;
 
-async function generateExecutiveSummary({ clientName, period, monthlyFocus, data }) {
+function buildChatContext(chatHistory) {
+  if (!chatHistory?.length) return '';
+  const recent = chatHistory.slice(-20);
+  const lines = recent.map(m => `${m.role === 'user' ? 'Account manager' : 'Analyst'}: ${m.content}`).join('\n\n');
+  return `\nRecent conversations about this client's reporting (use these to understand priorities, what to include/exclude, and what to investigate):\n${lines}`;
+}
+
+async function generateExecutiveSummary({ clientName, period, monthlyFocus, data, seoData = {}, chatHistory = [] }) {
+  const seoContext = buildSEOContext(seoData);
+  const chatContext = buildChatContext(chatHistory);
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
@@ -18,31 +27,39 @@ async function generateExecutiveSummary({ clientName, period, monthlyFocus, data
       content: `Client: ${clientName}
 Period: ${period}
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
-Data: ${JSON.stringify(data, null, 2)}
+Marketing data: ${JSON.stringify(data, null, 2)}
+${seoContext ? `SEO ranking data:\n${seoContext}` : ''}${chatContext}
 
-Write an executive summary for this report. 300-400 words. Reference the monthly focus. Highlight the most significant movements in the data. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
+Write an executive summary for this report. 300-400 words. Reference the monthly focus and any priorities or investigations discussed in the conversations above. Highlight the most significant movements in the data. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
     }],
   });
   return message.content[0].text;
 }
 
-async function generateRecommendations({ monthlyFocus, data }) {
+async function generateRecommendations({ monthlyFocus, data, seoData = {}, chatHistory = [] }) {
+  const seoContext = buildSEOContext(seoData);
+  const chatContext = buildChatContext(chatHistory);
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
     system: SYSTEM_PROMPT,
     messages: [{
       role: 'user',
-      content: `Based on this data and the monthly focus below, write a prioritised list of up to 8 recommendations. Each recommendation should be specific and actionable. No generic advice.
+      content: `Based on this data and context below, write a prioritised list of up to 8 recommendations. Each recommendation should be specific and actionable. No generic advice. Reference any specific investigations or priorities from the conversations.
 
 Monthly focus: ${monthlyFocus || 'No specific focus set.'}
-Data: ${JSON.stringify(data, null, 2)}`,
+Marketing data: ${JSON.stringify(data, null, 2)}
+${seoContext ? `SEO ranking data:\n${seoContext}` : ''}${chatContext}`,
     }],
   });
   return message.content[0].text;
 }
 
-async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics }) {
+async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics, rankMovers = [], chatHistory = [] }) {
+  const rankContext = rankMovers.length
+    ? `\nRanking movements: ${rankMovers.filter(r => r.change).map(r => `${r.keyword} ${r.change > 0 ? `↑${r.change}` : `↓${Math.abs(r.change)}`} (now ${r.current})`).join(', ')}`
+    : '';
+  const chatContext = buildChatContext(chatHistory);
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 512,
@@ -52,12 +69,27 @@ async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics }
       content: `Client: ${clientName}
 Week: ${week}
 Monthly focus context: ${monthlyFocus || 'No specific focus set.'}
-Key metrics this week: ${JSON.stringify(metrics, null, 2)}
+Key metrics this week: ${JSON.stringify(metrics, null, 2)}${rankContext}${chatContext}
 
-Write 2-3 sentences summarising this week's performance. Reference any notable movements. Be direct. British English.`,
+Write 2-3 sentences summarising this week's performance. Reference any notable movements and any specific things being tracked in the conversations. Be direct. British English.`,
     }],
   });
   return message.content[0].text;
+}
+
+function buildSEOContext(seoData) {
+  const parts = [];
+  const rankings = (seoData.rankings || []).filter(k => k.current_position);
+  if (rankings.length) {
+    const top5 = [...rankings].sort((a, b) => a.current_position - b.current_position).slice(0, 5);
+    parts.push(`Top keywords: ${top5.map(k => `${k.keyword} (pos ${k.current_position})`).join(', ')}`);
+    const movers = rankings.filter(k => {
+      const change = Math.abs((parseInt(k.position_30d_ago) || 0) - (parseInt(k.current_position) || 0));
+      return change >= 3;
+    });
+    if (movers.length) parts.push(`Notable movers: ${movers.map(k => `${k.keyword} ${k.position_30d_ago > k.current_position ? '↑' : '↓'}`).join(', ')}`);
+  }
+  return parts.join('\n');
 }
 
 async function parseConnectorBriefing(briefingText) {

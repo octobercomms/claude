@@ -1,6 +1,6 @@
 const axios = require('axios');
 
-const authType = 'oauth';
+const authType = 'apikey';
 
 // Amazon SP-API requires a registered developer app
 // See: https://developer-docs.amazon.com/sp-api/docs/registering-your-application
@@ -15,12 +15,13 @@ function getAuthUrl(state) {
 }
 
 async function exchangeCode(code) {
-  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', {
+  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', new URLSearchParams({
     grant_type: 'authorization_code',
     code,
     client_id: process.env.AMAZON_CLIENT_ID,
     client_secret: process.env.AMAZON_CLIENT_SECRET,
-  }, {
+    redirect_uri: process.env.AMAZON_REDIRECT_URI || '',
+  }), {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
   });
 
@@ -49,31 +50,52 @@ async function refreshToken(credentials) {
 }
 
 async function checkTokenValidity(credentials) {
-  if (!credentials || !credentials.access_token) throw new Error('No credentials');
-  if (credentials.expires_at && Date.now() > credentials.expires_at - 60000) {
-    return refreshToken(credentials);
+  if (!credentials) throw new Error('No credentials');
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
   }
-  return true;
+  // Exchange refresh token for access token to verify it works
+  try {
+    const refreshed = await refreshToken(credentials);
+    return refreshed;
+  } catch (err) {
+    throw new Error(`Amazon token exchange failed: ${err.message}`);
+  }
 }
 
 async function fetchData(credentials, params) {
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
+  }
+
   const { marketplace, startDate, endDate } = params;
 
   const marketplaceIds = {
     uk: 'A1F83G8C2ARO7P',
     us: 'ATVPDKIKX0DER',
-    eu: 'A1PA6795UKMFR9', // Germany as EU default
+    ca: 'A2EUQ1WTGCTBG2',
+    fr: 'A13V1IB3VIYZZH',
+    de: 'A1PA6795UKMFR9',
+    it: 'APJ6JRA9NG5V4',
+    es: 'A1RKKUPIHCS9HS',
+    eu: 'A1PA6795UKMFR9',
   };
+
+  // Regional endpoints — must match the marketplace
+  const regionalEndpoint = ['us', 'ca', 'mx', 'br'].includes(marketplace)
+    ? 'https://sellingpartnerapi-na.amazon.com'
+    : 'https://sellingpartnerapi-eu.amazon.com';
 
   const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
   let creds = credentials;
-  if (creds.expires_at && Date.now() > creds.expires_at - 60000) {
+  if (!creds.access_token || (creds.expires_at && Date.now() > creds.expires_at - 60000)) {
     creds = await refreshToken(creds);
   }
 
   // SP-API Sales and Traffic report
+  try {
   const { data } = await axios.get(
-    'https://sellingpartnerapi-eu.amazon.com/sales/v1/orderMetrics',
+    `${regionalEndpoint}/sales/v1/orderMetrics`,
     {
       headers: {
         Authorization: `Bearer ${creds.access_token}`,
@@ -86,8 +108,13 @@ async function fetchData(credentials, params) {
       },
     }
   );
-
   return data;
+  } catch (err) {
+    const status = err.response?.status;
+    const detail = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+    if (status === 403) throw new Error(`Amazon SP-API 403: App does not have permission to access this data. Ensure your Amazon Developer app has been granted the required SP-API roles (Selling Partner Insights) and that the seller has authorised the app.`);
+    throw new Error(`Amazon SP-API error (${status}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+  }
 }
 
 module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData };
