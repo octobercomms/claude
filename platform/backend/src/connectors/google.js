@@ -125,11 +125,15 @@ async function fetchSearchConsoleData(credentials, params) {
 }
 
 // Google Ads data fetch
+// Cache: customerId -> loginCustomerId that worked, to avoid re-discovery on every call
+const adsLoginCache = new Map();
+
 async function fetchGoogleAdsData(credentials, params) {
   const creds = await getValidToken(credentials);
   const { customerId, startDate, endDate } = params;
   // API requires customer ID without dashes (e.g. 9543280011 not 954-328-0011)
   const cleanCustomerId = (customerId || '').replace(/-/g, '');
+  const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
 
   const query = `
     SELECT campaign.name, metrics.clicks, metrics.impressions, metrics.ctr,
@@ -141,21 +145,52 @@ async function fetchGoogleAdsData(credentials, params) {
     LIMIT 50
   `;
 
-  try {
-    const { data } = await axios.post(
+  const doRequest = (loginCustomerId) => {
+    const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
+    if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
+    return axios.post(
       `https://googleads.googleapis.com/v17/customers/${cleanCustomerId}/googleAds:searchStream`,
       { query },
-      {
-        headers: {
-          Authorization: `Bearer ${creds.access_token}`,
-          'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '',
-        },
-      }
+      { headers }
     );
+  };
+
+  // Try cached login-customer-id first
+  const cached = adsLoginCache.get(cleanCustomerId);
+  if (cached) {
+    try {
+      const { data } = await doRequest(cached);
+      return data;
+    } catch { adsLoginCache.delete(cleanCustomerId); }
+  }
+
+  // Try direct access (no login-customer-id)
+  try {
+    const { data } = await doRequest(null);
     return data;
-  } catch (err) {
-    const detail = err.response?.data?.error?.message || err.response?.data?.[0]?.error?.message || err.message;
-    const status = err.response?.status;
+  } catch (directErr) {
+    // Auto-discover MCC: try each accessible customer as login-customer-id
+    let candidates = [];
+    try {
+      const { data: accountsData } = await axios.get(
+        'https://googleads.googleapis.com/v17/customers:listAccessibleCustomers',
+        { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
+      );
+      candidates = (accountsData.resourceNames || [])
+        .map(r => r.replace('customers/', ''))
+        .filter(id => id !== cleanCustomerId);
+    } catch { /* fall through to throw original error */ }
+
+    for (const loginId of candidates) {
+      try {
+        const { data } = await doRequest(loginId);
+        adsLoginCache.set(cleanCustomerId, loginId);
+        return data;
+      } catch { continue; }
+    }
+
+    const detail = directErr.response?.data?.error?.message || directErr.response?.data?.[0]?.error?.message || directErr.message;
+    const status = directErr.response?.status;
     throw new Error(`Google Ads API error (${status}): ${detail}`);
   }
 }
