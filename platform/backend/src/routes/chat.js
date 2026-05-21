@@ -236,8 +236,18 @@ function summariseConnectorData(type, raw, days) {
       return { period_days: days, revenue: `£${parseFloat(s.total_revenue || 0).toFixed(2)}`, orders: s.total_orders, aov: `£${parseFloat(s.avg_order_value || 0).toFixed(2)}` };
     }
     if (type === 'shopify_email') {
+      const events = raw.marketing_events || [];
       const reports = raw.reports || [];
-      return { period_days: days, reports_found: reports.length, note: raw.note || null, reports: reports.slice(0, 10).map(r => ({ id: r.id, name: r.name, category: r.category })) };
+      const emailEvents = events.filter(e => e.marketing_channel === 'email' || e.event_type === 'email');
+      const result = {
+        period_days: days,
+        email_campaigns: emailEvents.length,
+        marketing_events_total: events.length,
+        reports_found: reports.length,
+        campaigns: emailEvents.slice(0, 10).map(e => ({ name: e.event_type, subject: e.description, started_at: e.started_at, budget: e.budget })),
+      };
+      if (raw.fetch_errors) result.fetch_errors = raw.fetch_errors;
+      return result;
     }
     if (type === 'zoho_inventory') {
       const items = raw.items || [];
