@@ -21,6 +21,8 @@ export default function ClientAdsPage() {
   const [adsData, setAdsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const [adsMargin, setAdsMargin] = useState(0.46);
+  const [adsMarginInput, setAdsMarginInput] = useState('46');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -29,7 +31,13 @@ export default function ClientAdsPage() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    api.get(`/clients/${id}`).then(setClient).catch(() => {});
+    api.get(`/clients/${id}`).then(c => {
+      setClient(c);
+      if (c?.ads_margin != null) {
+        setAdsMargin(parseFloat(c.ads_margin));
+        setAdsMarginInput(String(Math.round(parseFloat(c.ads_margin) * 100)));
+      }
+    }).catch(() => {});
     loadAdsData(30);
   }, [id]);
 
