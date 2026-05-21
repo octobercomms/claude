@@ -540,7 +540,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {diagnosing ? 'Diagnosing…' : 'Diagnose'}
             </button>
           )}
-          {(isOAuth || isShopify) && isActive && (
+          {isActive && (
             <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
           )}
           {isOAuth ? (
