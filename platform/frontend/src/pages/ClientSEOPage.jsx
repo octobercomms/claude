@@ -174,20 +174,37 @@ export default function ClientSEOPage() {
     return true;
   });
 
+  const [activeTab, setActiveTab] = useState('keywords');
+
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>SEO — {client?.name}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
-          <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
-          <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
-          <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
-        </div>
+        {activeTab === 'keywords' && (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
+            <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
+          </div>
+        )}
       </div>
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
+        {[['keywords', 'Keywords'], ['authority', 'Authority'], ['backlinks', 'Backlinks']].map(([key, label]) => (
+          <button key={key} onClick={() => setActiveTab(key)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
+            fontWeight: activeTab === key ? 700 : 400, color: activeTab === key ? '#1a1a1a' : '#888',
+            borderBottom: activeTab === key ? '2px solid #1a1a1a' : '2px solid transparent',
+            marginBottom: -2,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {activeTab === 'keywords' && <>
       {/* Rankings summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
         {[
@@ -328,6 +345,99 @@ export default function ClientSEOPage() {
           </tbody>
         </table>
       </div>
+
+      </>}
+
+      {activeTab === 'authority' && (
+      <div style={{ ...s.card, marginTop: 0 }}>
+        <div style={s.cardTitle}>Manual SEO Metrics</div>
+
+        {/* Metrics history table */}
+        <div style={{ overflowX: 'auto', marginTop: 12 }}>
+          <table style={s.table}>
+            <thead>
+              <tr>
+                {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Edit'].map(h => (
+                  <th key={h} style={s.th}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {seoMetrics.slice(0, 6).length === 0 ? (
+                <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No metrics yet — enter values below</td></tr>
+              ) : seoMetrics.slice(0, 6).map((m, i) => {
+                const monthLabel = m.month
+                  ? new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
+                  : '—';
+                return (
+                  <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                    <td style={s.td}>{monthLabel}</td>
+                    <td style={s.td}>{m.moz_da ?? '—'}</td>
+                    <td style={s.td}>{m.authority_score ?? '—'}</td>
+                    <td style={s.td}>{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
+                    <td style={{ ...s.td, maxWidth: 200, color: '#666' }}>{m.notes || '—'}</td>
+                    <td style={s.td}>
+                      <button
+                        style={s.btnSm}
+                        onClick={() => {
+                          const iso = m.month ? m.month.slice(0, 10) : '';
+                          setSeoMetricEdit({
+                            month: iso,
+                            moz_da: m.moz_da ?? '',
+                            authority_score: m.authority_score ?? '',
+                            referring_domains: m.referring_domains ?? '',
+                            notes: m.notes ?? '',
+                          });
+                        }}
+                      >Edit</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Inline edit / entry form */}
+        <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+            {seoMetricEdit.month
+              ? `Editing: ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
+              : 'Enter / update metrics'}
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 12 }}>
+            {[
+              { label: 'Month', el: <input type="date" style={s.input} value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
+              { label: 'Moz DA', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Authority Score', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.authority_score} onChange={e => setSeoMetricEdit(p => ({ ...p, authority_score: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Referring Domains', el: <input type="number" min="0" style={s.input} value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
+              { label: 'Notes', el: <input style={s.input} value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
+            ].map(({ label, el }) => (
+              <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <label style={s.label}>{label}</label>
+                {el}
+              </div>
+            ))}
+          </div>
+          <div>
+            <button type="submit" style={s.btn} disabled={savingMetrics}>
+              {savingMetrics ? 'Saving…' : 'Save Metrics'}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      )}
+
+      {activeTab === 'backlinks' && (
+        <div style={s.card}>
+          <div style={s.cardTitle}>Backlinks</div>
+          <p style={{ marginTop: 12, color: '#888', fontSize: 13 }}>
+            Backlink data is pulled automatically via DataForSEO when a domain is configured for this client.
+            Go to <strong>Client Details</strong> to set the domain, then run a Diagnose on the DataForSEO connector to fetch live data.
+          </p>
+        </div>
+      )}
 
       {/* History modal */}
       {historyModal && (

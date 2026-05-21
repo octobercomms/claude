@@ -21,6 +21,8 @@ export default function ClientAdsPage() {
   const [adsData, setAdsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
+  const [adsMargin, setAdsMargin] = useState(0.46);
+  const [adsMarginInput, setAdsMarginInput] = useState('46');
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
@@ -29,7 +31,13 @@ export default function ClientAdsPage() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    api.get(`/clients/${id}`).then(setClient).catch(() => {});
+    api.get(`/clients/${id}`).then(c => {
+      setClient(c);
+      if (c?.ads_margin != null) {
+        setAdsMargin(parseFloat(c.ads_margin));
+        setAdsMarginInput(String(Math.round(parseFloat(c.ads_margin) * 100)));
+      }
+    }).catch(() => {});
     loadAdsData(30);
   }, [id]);
 
@@ -52,6 +60,18 @@ export default function ClientAdsPage() {
   function handlePeriodChange(d) {
     setDays(d);
     loadAdsData(d);
+  }
+
+  async function handleMarginBlur() {
+    const val = parseFloat(adsMarginInput);
+    if (isNaN(val) || val < 0 || val > 100) return;
+    const decimal = val / 100;
+    setAdsMargin(decimal);
+    try {
+      await api.patch(`/clients/${id}/ads-margin`, { ads_margin: decimal });
+    } catch (err) {
+      toast(err.message, 'error');
+    }
   }
 
   async function handleSend(e) {
@@ -188,9 +208,23 @@ export default function ClientAdsPage() {
 
   const googleEntries = (adsData?.google_ads || []).map(parseGoogleAds);
   const metaEntries = (adsData?.meta_ads || []).map(parseMetaAds);
-  const hasGoogle = googleEntries.length > 0;
-  const hasMeta = metaEntries.length > 0;
+  const hasGoogle = googleEntries.filter(g => !g.error).length > 0;
+  const hasMeta = metaEntries.filter(m => !m.error).length > 0;
   const noConnectors = !loading && !hasGoogle && !hasMeta;
+
+  const tabs = [...(hasGoogle ? ['google'] : []), ...(hasMeta ? ['meta'] : [])];
+  const [adsTab, setAdsTab] = useState('google');
+  const activeAdsTab = tabs.includes(adsTab) ? adsTab : (tabs[0] || 'google');
+
+  // Combined totals
+  const googleTotal = googleEntries.filter(g => !g.error).reduce(
+    (acc, g) => ({ spend: acc.spend + g.spend, revenue: acc.revenue + g.convValue, clicks: acc.clicks + g.clicks, convs: acc.convs + g.convs }),
+    { spend: 0, revenue: 0, clicks: 0, convs: 0 }
+  );
+  const metaTotal = metaEntries.filter(m => !m.error).reduce(
+    (acc, m) => ({ spend: acc.spend + m.spend, revenue: acc.revenue + m.purchaseValue, clicks: acc.clicks + m.clicks, imps: acc.imps + m.imps }),
+    { spend: 0, revenue: 0, clicks: 0, imps: 0 }
+  );
 
   const SUGGESTIONS = [
     'Why is my ROAS low this month?',
@@ -199,17 +233,29 @@ export default function ClientAdsPage() {
     'Where should I increase budget?',
   ];
 
+  // Margin input block (shared, shown in header)
+  const MarginInput = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 6 }}>
+      <span style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>Gross Margin</span>
+      <input type="number" min="0" max="100" step="1" value={adsMarginInput}
+        onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
+        style={{ width: 48, padding: '4px 6px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, textAlign: 'right' }} />
+      <span style={{ fontSize: 12, color: '#666' }}>%</span>
+    </div>
+  );
+
   return (
     <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
 
       {/* Main panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Ads Performance — {client?.name}</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>Live spend, ROAS, and campaign data from Google Ads and Meta Ads.</p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <MarginInput />
             {[7, 14, 30, 90].map(d => (
               <button key={d} onClick={() => handlePeriodChange(d)}
                 style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
@@ -218,6 +264,22 @@ export default function ClientAdsPage() {
             ))}
           </div>
         </div>
+
+        {/* Platform tabs */}
+        {!loading && !noConnectors && (
+          <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
+            {hasGoogle && (
+              <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'google' ? '2px solid #4285f4' : '2px solid transparent', marginBottom: -2 }}>
+                Google Ads
+              </button>
+            )}
+            {hasMeta && (
+              <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'meta' ? '2px solid #1877f2' : '2px solid transparent', marginBottom: -2 }}>
+                Meta Ads
+              </button>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>Loading ads data…</div>
@@ -230,47 +292,57 @@ export default function ClientAdsPage() {
           </div>
         ) : (
           <>
-            {/* Google Ads */}
-            {hasGoogle && (
-              <div style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-                  <span style={{ background: '#4285f4', color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>Google Ads</span>
-                </h2>
+            {/* Google Ads Tab */}
+            {activeAdsTab === 'google' && hasGoogle && (
+              <div>
+                {/* Combined total */}
+                {googleEntries.filter(g => !g.error).length > 1 && (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <MetricCard label="Total Spend" value={fmtCurrency(googleTotal.spend)} />
+                      <MetricCard label="Total Revenue" value={googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—'} />
+                      <MetricCard label="Blended ROAS" value={googleTotal.spend > 0 && googleTotal.revenue > 0 ? `${(googleTotal.revenue / googleTotal.spend).toFixed(2)}x` : '—'} />
+                      {googleTotal.revenue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(googleTotal.revenue * adsMargin - googleTotal.spend)} sub="Revenue × margin − Spend" />}
+                      <MetricCard label="Clicks" value={fmt(googleTotal.clicks)} />
+                      <MetricCard label="Conversions" value={fmt(googleTotal.convs)} />
+                    </div>
+                    <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0 8px' }} />
+                  </div>
+                )}
+                {/* Per-country */}
                 {googleEntries.map((g, i) => (
-                  <div key={i} style={{ marginBottom: googleEntries.length > 1 ? 20 : 0 }}>
-                    {googleEntries.length > 1 && g.store_label && (
-                      <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 8 }}>{g.store_label}</div>
-                    )}
-                    {g.error ? (
-                      <div style={{ color: '#c62828', fontSize: 13 }}>{g.error}</div>
-                    ) : (
+                  <div key={i} style={{ marginBottom: 28 }}>
+                    {g.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{g.store_label}</div>}
+                    {g.error ? <div style={{ color: '#c62828', fontSize: 13, marginBottom: 8 }}>{g.error}</div> : (
                       <>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                           <MetricCard label="Spend" value={fmtCurrency(g.spend)} />
                           <MetricCard label="Revenue" value={g.convValue > 0 ? fmtCurrency(g.convValue) : '—'} />
                           <MetricCard label="ROAS" value={g.roas ? `${g.roas.toFixed(2)}x` : '—'} />
+                          {g.convValue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(g.convValue * adsMargin - g.spend)} sub="Revenue × margin − Spend" />}
                           <MetricCard label="Clicks" value={fmt(g.clicks)} />
-                          <MetricCard label="Conversions" value={fmt(g.convs)} />
+                          <MetricCard label="Conv." value={fmt(g.convs)} />
                           <MetricCard label="CPC" value={fmtCurrency(g.avgCpc)} sub="avg" />
                         </div>
                         {g.campaigns?.length > 0 && (
                           <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                              <thead>
-                                <tr style={{ background: '#f5f5f5' }}>
-                                  {['Campaign', 'Spend', 'Revenue', 'ROAS', 'Clicks', 'Conv.'].map(h => (
-                                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
+                              <thead><tr style={{ background: '#f5f5f5' }}>
+                                {['Campaign', 'Spend', 'Revenue', 'Profit', 'ROAS', 'Clicks', 'Conv.'].map(h => (
+                                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
+                                ))}
+                              </tr></thead>
                               <tbody>
                                 {g.campaigns.map((c, j) => {
                                   const roas = c.spend > 0 && c.convValue > 0 ? (c.convValue / c.spend).toFixed(2) : null;
+                                  const profit = c.convValue > 0 ? c.convValue * adsMargin - c.spend : null;
                                   return (
                                     <tr key={j} style={{ borderBottom: '1px solid #f0f0f0' }}>
                                       <td style={{ padding: '8px 12px' }}>{c.name}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmtCurrency(c.spend)}</td>
                                       <td style={{ padding: '8px 12px' }}>{c.convValue > 0 ? fmtCurrency(c.convValue) : '—'}</td>
+                                      <td style={{ padding: '8px 12px', color: profit != null ? (profit >= 0 ? '#2e7d32' : '#c62828') : undefined, fontWeight: profit != null ? 600 : undefined }}>{profit != null ? fmtCurrency(profit) : '—'}</td>
                                       <td style={{ padding: '8px 12px' }}>{roas ? `${roas}x` : '—'}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmt(c.clicks)}</td>
                                       <td style={{ padding: '8px 12px' }}>{fmt(c.conversions)}</td>
@@ -288,25 +360,35 @@ export default function ClientAdsPage() {
               </div>
             )}
 
-            {/* Meta Ads */}
-            {hasMeta && (
-              <div style={{ marginBottom: 32 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>
-                  <span style={{ background: '#1877f2', color: '#fff', borderRadius: 4, padding: '2px 8px', fontSize: 12 }}>Meta Ads</span>
-                </h2>
+            {/* Meta Ads Tab */}
+            {activeAdsTab === 'meta' && hasMeta && (
+              <div>
+                {/* Combined total */}
+                {metaEntries.filter(m => !m.error).length > 1 && (
+                  <div style={{ marginBottom: 28 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                      <MetricCard label="Total Spend" value={fmtCurrency(metaTotal.spend)} />
+                      <MetricCard label="Total Revenue" value={metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—'} />
+                      <MetricCard label="Blended ROAS" value={metaTotal.spend > 0 && metaTotal.revenue > 0 ? `${(metaTotal.revenue / metaTotal.spend).toFixed(2)}x` : '—'} />
+                      {metaTotal.revenue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(metaTotal.revenue * adsMargin - metaTotal.spend)} sub="Revenue × margin − Spend" />}
+                      <MetricCard label="Clicks" value={fmt(metaTotal.clicks)} />
+                      <MetricCard label="Impressions" value={fmt(metaTotal.imps)} />
+                    </div>
+                    <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0 8px' }} />
+                  </div>
+                )}
+                {/* Per-country */}
                 {metaEntries.map((m, i) => (
-                  <div key={i} style={{ marginBottom: metaEntries.length > 1 ? 20 : 0 }}>
-                    {metaEntries.length > 1 && m.store_label && (
-                      <div style={{ fontSize: 12, color: '#888', fontWeight: 600, marginBottom: 8 }}>{m.store_label}</div>
-                    )}
-                    {m.error ? (
-                      <div style={{ color: '#c62828', fontSize: 13 }}>{m.error}</div>
-                    ) : (
+                  <div key={i} style={{ marginBottom: 28 }}>
+                    {m.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{m.store_label}</div>}
+                    {m.error ? <div style={{ color: '#c62828', fontSize: 13, marginBottom: 8 }}>{m.error}</div> : (
                       <>
-                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                           <MetricCard label="Spend" value={fmtCurrency(m.spend)} />
                           <MetricCard label="Revenue" value={m.purchaseValue > 0 ? fmtCurrency(m.purchaseValue) : '—'} />
                           <MetricCard label="ROAS" value={m.roas ? `${m.roas.toFixed(2)}x` : '—'} />
+                          {m.purchaseValue > 0 && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(m.purchaseValue * adsMargin - m.spend)} sub="Revenue × margin − Spend" />}
                           <MetricCard label="Impressions" value={fmt(m.imps)} />
                           <MetricCard label="Clicks" value={fmt(m.clicks)} />
                           <MetricCard label="CTR" value={m.ctr ? `${(m.ctr * 100).toFixed(2)}%` : '—'} />
@@ -314,13 +396,11 @@ export default function ClientAdsPage() {
                         {m.campaigns?.length > 0 && (
                           <div style={{ overflowX: 'auto' }}>
                             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                              <thead>
-                                <tr style={{ background: '#f5f5f5' }}>
-                                  {['Campaign', 'Spend', 'Clicks', 'Impressions'].map(h => (
-                                    <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
-                                  ))}
-                                </tr>
-                              </thead>
+                              <thead><tr style={{ background: '#f5f5f5' }}>
+                                {['Campaign', 'Spend', 'Clicks', 'Impressions'].map(h => (
+                                  <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
+                                ))}
+                              </tr></thead>
                               <tbody>
                                 {m.campaigns.map((c, j) => (
                                   <tr key={j} style={{ borderBottom: '1px solid #f0f0f0' }}>
