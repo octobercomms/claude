@@ -218,4 +218,24 @@ async function fetchData(credentials, params) {
   return results;
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchData };
+// Verifies a DataForSEO login/password pair (or, when omitted, the saved
+// credentials) by calling the lightweight user_data endpoint.
+async function testCredentials({ login, password } = {}) {
+  const user = (login || await getSetting('DATAFORSEO_LOGIN') || '').trim();
+  const pass = (password || await getSetting('DATAFORSEO_PASSWORD') || '').trim();
+  if (!user || !pass) return { ok: false, message: 'No DataForSEO login/password set.' };
+  try {
+    const { data } = await axios.get('https://api.dataforseo.com/v3/appendix/user_data', {
+      auth: { username: user, password: pass },
+    });
+    if (data.status_code === 20000) {
+      const balance = data.tasks?.[0]?.result?.[0]?.money?.balance;
+      return { ok: true, message: balance != null ? `Connected — account balance $${balance}.` : 'Connected successfully.' };
+    }
+    return { ok: false, message: data.status_message || 'DataForSEO rejected the request.' };
+  } catch (err) {
+    return { ok: false, message: err.response?.data?.status_message || err.message };
+  }
+}
+
+module.exports = { authType, checkTokenValidity, checkRank, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchData, testCredentials };

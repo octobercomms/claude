@@ -78,10 +78,11 @@ const KEY_GROUPS = [
   },
   {
     title: 'DataForSEO',
-    hint: 'Used for keyword rank tracking. Get credentials at dataforseo.com.',
+    hint: 'Keyword rank tracking, backlinks and search volume. Copy the API login and password from app.dataforseo.com/api-access — the API password is not your dashboard login password.',
+    test: 'dataforseo',
     keys: [
-      { key: 'DATAFORSEO_LOGIN', label: 'Login (email)', placeholder: 'you@example.com', type: 'text' },
-      { key: 'DATAFORSEO_PASSWORD', label: 'Password', placeholder: '…', type: 'password' },
+      { key: 'DATAFORSEO_LOGIN', label: 'API login (email)', placeholder: 'you@example.com', type: 'text' },
+      { key: 'DATAFORSEO_PASSWORD', label: 'API password', placeholder: 'From app.dataforseo.com/api-access', type: 'password' },
     ],
   },
   {
@@ -121,6 +122,8 @@ export default function SettingsPage() {
   const [account, setAccount] = useState({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
   const [savingAccount, setSavingAccount] = useState(false);
   const [accountMsg, setAccountMsg] = useState('');
+  const [testingDfs, setTestingDfs] = useState(false);
+  const [dfsTestMsg, setDfsTestMsg] = useState(null);
 
   useEffect(() => {
     api.get('/settings/platform-keys').then(data => setValues(data));
@@ -193,6 +196,22 @@ export default function SettingsPage() {
       setTestMsg(`Error: ${err.message}`);
     } finally {
       setSendingTest(false);
+    }
+  }
+
+  async function handleTestDataForSEO() {
+    setTestingDfs(true);
+    setDfsTestMsg(null);
+    try {
+      const result = await api.post('/settings/test-dataforseo', {
+        login: values.DATAFORSEO_LOGIN,
+        password: values.DATAFORSEO_PASSWORD,
+      });
+      setDfsTestMsg(result);
+    } catch (err) {
+      setDfsTestMsg({ ok: false, message: err.message });
+    } finally {
+      setTestingDfs(false);
     }
   }
 
@@ -273,6 +292,19 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
+              {group.test === 'dataforseo' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14 }}>
+                  <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
+                    style={{ ...styles.btn, padding: '8px 16px', fontSize: 13 }}>
+                    {testingDfs ? 'Testing…' : 'Test connection'}
+                  </button>
+                  {dfsTestMsg && (
+                    <span style={{ fontSize: 13, color: dfsTestMsg.ok ? '#2e7d32' : '#c62828' }}>
+                      {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
+                    </span>
+                  )}
+                </div>
+              )}
             </Section>
           ))}
 
