@@ -3,6 +3,76 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
+// Claude-drafted email sequence for a campaign — generate and edit steps.
+function CampaignSequence({ campaign }) {
+  const toast = useToast();
+  const [steps, setSteps] = useState(null);
+  const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    api.get(`/outreach/campaigns/${campaign.id}/sequences`)
+      .then(setSteps)
+      .catch(() => setSteps([]));
+  }, [campaign.id]);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const seq = await api.post(`/outreach/campaigns/${campaign.id}/generate`, {});
+      setSteps(seq);
+      toast('Email sequence drafted by Claude', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function updateStep(stepId, field, value) {
+    setSteps(prev => prev.map(st => (st.id === stepId ? { ...st, [field]: value } : st)));
+  }
+
+  async function saveStep(step) {
+    try {
+      await api.put(`/outreach/sequences/${step.id}`, {
+        subject: step.subject, body: step.body, delay_days: step.delay_days,
+      });
+      toast('Step saved', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  return (
+    <div style={{ padding: '16px 24px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+        <button onClick={generate} disabled={generating} style={s.btn}>
+          {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
+        </button>
+        <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up, final nudge.</span>
+      </div>
+      {steps === null ? (
+        <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>
+      ) : steps.length === 0 ? (
+        <p style={{ fontSize: 12, color: '#888' }}>No sequence yet — generate one with Claude.</p>
+      ) : (
+        steps.map(step => (
+          <div key={step.id} style={{ ...s.card, marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+              Step {step.step_number} · sent day {step.delay_days}
+            </div>
+            <input style={{ ...s.input, width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+              value={step.subject || ''} placeholder="Subject"
+              onChange={e => updateStep(step.id, 'subject', e.target.value)} />
+            <textarea style={{ ...s.input, width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
+              value={step.body || ''} placeholder="Email body"
+              onChange={e => updateStep(step.id, 'body', e.target.value)} />
+            <button onClick={() => saveStep(step)} style={{ ...s.btn, marginTop: 8 }}>Save step</button>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
 export default function ClientOutreachPage() {
   const { id } = useParams();
   const toast = useToast();
@@ -26,6 +96,7 @@ export default function ClientOutreachPage() {
   const [searching, setSearching] = useState(false);
   const [serperDomains, setSerperDomains] = useState([]);
   const [serperError, setSerperError] = useState('');
+  const [expandedCampaign, setExpandedCampaign] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -74,12 +145,12 @@ export default function ClientOutreachPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
-  async function runFind(domainArg) {
+  async function runFind(domainArg, source = 'hunter') {
     const domain = (typeof domainArg === 'string' ? domainArg : findDomain).trim();
     if (!domain) return;
     setFinding(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
     try {
-      const res = await api.post('/outreach/find/hunter', { domain });
+      const res = await api.post(`/outreach/find/${source}`, { domain });
       setFoundContacts(res.contacts || []);
       setSearched(true);
     } catch (err) {
@@ -171,12 +242,13 @@ export default function ClientOutreachPage() {
                   ))}
                 </div>
               )}
-              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or find emails for a known domain (Hunter.io)</div>
+              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or find emails for a known domain</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input style={{ ...s.input, flex: 1 }} placeholder="Company domain — e.g. example.com"
                   value={findDomain} onChange={e => setFindDomain(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') runFind(); }} />
-                <button onClick={runFind} disabled={finding} style={s.btn}>{finding ? 'Searching…' : 'Find'}</button>
+                  onKeyDown={e => { if (e.key === 'Enter') runFind(findDomain, 'hunter'); }} />
+                <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} style={s.btn}>{finding ? '…' : 'Hunter'}</button>
+                <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} style={s.btnGhost}>{finding ? '…' : 'Icypeas'}</button>
               </div>
               {findError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
@@ -258,16 +330,26 @@ export default function ClientOutreachPage() {
                 {campaigns.length === 0 ? (
                   <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No campaigns yet — create one above</td></tr>
                 ) : campaigns.map(c => (
-                  <tr key={c.id}>
+                  <React.Fragment key={c.id}>
+                  <tr style={{ cursor: 'pointer', background: expandedCampaign === c.id ? '#fafafa' : undefined }}
+                    onClick={() => setExpandedCampaign(v => (v === c.id ? null : c.id))}>
                     <td style={s.td}>
-                      <div style={{ fontWeight: 600 }}>{c.name}</div>
+                      <div style={{ fontWeight: 600 }}>{expandedCampaign === c.id ? '▾ ' : '▸ '}{c.name}</div>
                       {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description}</div>}
                     </td>
                     <td style={s.td}><span style={s.chip}>{c.status}</span></td>
                     <td style={s.td}>{c.contact_count || 0}</td>
                     <td style={s.td}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
-                    <td style={s.td}><button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button></td>
+                    <td style={s.td} onClick={e => e.stopPropagation()}><button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button></td>
                   </tr>
+                  {expandedCampaign === c.id && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+                        <CampaignSequence campaign={c} />
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

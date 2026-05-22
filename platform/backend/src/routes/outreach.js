@@ -4,6 +4,8 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const hunter = require('../services/hunter');
 const serper = require('../services/serper');
+const icypeas = require('../services/icypeas');
+const outreachAi = require('../services/outreachAi');
 
 router.use(authenticate);
 
@@ -154,6 +156,68 @@ router.post('/find/serper', async (req, res) => {
     res.json({ domains });
   } catch (err) {
     res.status(502).json({ error: err.message });
+  }
+});
+
+router.post('/find/icypeas', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  try {
+    const result = await icypeas.domainSearch(domain.trim());
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// ── Email sequences ────────────────────────────────────────────────────────
+
+router.get('/campaigns/:id/sequences', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/campaigns/:id/generate', async (req, res) => {
+  try {
+    const { rows: camps } = await pool.query('SELECT * FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    const steps = await outreachAi.writeSequence(camps[0], req.body.instructions || '');
+    await pool.query('DELETE FROM outreach_sequences WHERE campaign_id = $1', [req.params.id]);
+    const saved = [];
+    for (const s of steps) {
+      const { rows } = await pool.query(
+        `INSERT INTO outreach_sequences (campaign_id, step_number, subject, body, delay_days)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [req.params.id, s.step_number, s.subject, s.body, s.delay_days]
+      );
+      saved.push(rows[0]);
+    }
+    res.json(saved);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.put('/sequences/:id', async (req, res) => {
+  try {
+    const { rows: cur } = await pool.query('SELECT * FROM outreach_sequences WHERE id = $1', [req.params.id]);
+    if (!cur.length) return res.status(404).json({ error: 'Sequence step not found' });
+    const c = cur[0];
+    const b = req.body;
+    const { rows } = await pool.query(
+      'UPDATE outreach_sequences SET subject = $1, body = $2, delay_days = $3 WHERE id = $4 RETURNING *',
+      [b.subject ?? c.subject, b.body ?? c.body, b.delay_days ?? c.delay_days, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
