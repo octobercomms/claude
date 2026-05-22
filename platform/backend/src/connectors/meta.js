@@ -162,4 +162,29 @@ async function fetchData(credentials, params) {
   }
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts };
+// Report which Meta permissions the access token actually holds.
+async function getAccessReport(credentials) {
+  if (!credentials?.access_token) throw new Error('No credentials');
+  const NEEDED = {
+    ads_read: 'Ads insights',
+    read_insights: 'Page & IG insights',
+    instagram_basic: 'Instagram basic',
+    instagram_insights: 'Instagram insights',
+    pages_read_engagement: 'Page engagement',
+    business_management: 'Business assets',
+  };
+  const { data } = await axios.get(`${BASE_URL}/me/permissions`, {
+    params: { access_token: credentials.access_token },
+  });
+  const granted = (data.data || []).filter(p => p.status === 'granted').map(p => p.permission);
+  const entries = Object.entries(NEEDED);
+  return {
+    granted: entries.filter(([k]) => granted.includes(k)).map(([, v]) => v),
+    missing: entries.filter(([k]) => !granted.includes(k)).map(([, v]) => v),
+    limitations: entries
+      .filter(([k]) => !granted.includes(k))
+      .map(([, v]) => `${v} unavailable — permission not granted. Reauthorise Meta to add it.`),
+  };
+}
+
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, getAccessReport };

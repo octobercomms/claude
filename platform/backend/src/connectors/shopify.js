@@ -2,6 +2,14 @@ const axios = require('axios');
 
 const authType = 'apikey';
 
+// OAuth scopes this connector requests — also the source of truth for oauth.js.
+const REQUIRED_SCOPES = [
+  'read_orders', 'read_all_orders', 'read_products', 'read_customers',
+  'read_analytics', 'read_reports', 'read_marketing_events',
+  'read_inventory', 'read_fulfillments', 'read_shipping',
+  'read_price_rules', 'read_discounts', 'read_draft_orders',
+];
+
 async function checkTokenValidity(credentials) {
   const { shop_domain, access_token } = credentials;
   if (!shop_domain || !access_token) throw new Error('shop_domain and access_token required');
@@ -166,4 +174,26 @@ async function fetchData(credentials, params) {
   return fetchAnalyticsData(credentials, startDate, endDate);
 }
 
-module.exports = { authType, checkTokenValidity, fetchData };
+// Report which OAuth scopes this store's access token actually holds.
+async function getAccessReport(credentials) {
+  const { shop_domain, access_token } = credentials;
+  if (!shop_domain || !access_token) throw new Error('shop_domain and access_token required');
+
+  const { data } = await axios.get(
+    `https://${shop_domain}/admin/oauth/access_scopes.json`,
+    { headers: { 'X-Shopify-Access-Token': access_token } }
+  );
+  const granted = (data.access_scopes || []).map(s => s.handle);
+  const missing = REQUIRED_SCOPES.filter(s => !granted.includes(s));
+
+  const limitations = [];
+  if (missing.includes('read_all_orders')) {
+    limitations.push('Without read_all_orders, only orders from roughly the last 60 days are returned — older revenue reads as £0. The Shopify app must be approved for this scope (Partner/Dev Dashboard), then the store reconnected.');
+  }
+  if (missing.includes('read_customers')) {
+    limitations.push('Without read_customers, customer-level detail is unavailable.');
+  }
+  return { granted, missing, limitations };
+}
+
+module.exports = { authType, checkTokenValidity, fetchData, getAccessReport, REQUIRED_SCOPES };

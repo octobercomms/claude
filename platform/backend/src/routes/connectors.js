@@ -8,6 +8,17 @@ const connectorFactory = require('../connectors');
 const router = express.Router();
 router.use(authenticate);
 
+// Known provider limits for connectors without programmatic scope introspection.
+const KNOWN_LIMITATIONS = {
+  google_search_console: ['Search Console retains roughly 16 months of history — older periods return no data.'],
+  amazon_seller: ['SP-API access depends on the Selling Partner Insights role being approved in Amazon Seller Central. A 403 means the role or marketplace is not authorised.'],
+  klaviyo: ['Klaviyo API keys can be scoped — a restricted key may block campaign reporting. Per-campaign revenue needs a "Placed Order" conversion metric configured in Klaviyo.'],
+  brevo: ['Brevo v3 API keys have full account access — there are no per-scope restrictions.'],
+  zoho_inventory: ['Zoho access depends on the OAuth scopes on the token — ZohoInventory.items.READ and ZohoInventory.salesorders.READ are required.'],
+  cin7: ['Cin7 access is controlled by the API account permissions configured in Cin7.'],
+  dataforseo: ['DataForSEO uses account-level API access — there are no scopes; usage is limited by account credits.'],
+};
+
 // Get connectors for a client
 router.get('/client/:clientId', async (req, res) => {
   try {
@@ -270,6 +281,20 @@ router.get('/:id/diagnose', async (req, res) => {
         result.check = { status: 'error', detail: checkErr.message };
         await pool.query('UPDATE connectors SET status = $1, error_message = $2 WHERE id = $3', ['error', checkErr.message, row.id]);
       }
+    }
+
+    // Access report — which scopes/permissions this connector actually holds,
+    // and the known limits of what it cannot see.
+    const connectorModule = connectorFactory.get(row.connector_type);
+    if (typeof connectorModule.getAccessReport === 'function') {
+      try {
+        result.access = await connectorModule.getAccessReport(creds);
+      } catch (accessErr) {
+        const detail = accessErr.response?.data?.error?.message || accessErr.response?.data?.errors || accessErr.message;
+        result.access = { error: typeof detail === 'string' ? detail : JSON.stringify(detail) };
+      }
+    } else if (KNOWN_LIMITATIONS[row.connector_type]) {
+      result.access = { limitations: KNOWN_LIMITATIONS[row.connector_type] };
     }
 
     res.json(result);

@@ -310,6 +310,30 @@ async function fetchGoogleAdsData(credentials, params) {
   }
 }
 
+// Report which Google API scopes the OAuth token actually holds.
+async function getAccessReport(credentials) {
+  const creds = await getValidToken(credentials);
+  const { data } = await axios.get(
+    `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${creds.access_token}`
+  );
+  const granted = (data.scope || '').split(/\s+/).filter(Boolean);
+  const SCOPE_LABELS = {
+    'https://www.googleapis.com/auth/analytics.readonly': 'GA4 Analytics',
+    'https://www.googleapis.com/auth/webmasters.readonly': 'Search Console',
+    'https://www.googleapis.com/auth/adwords': 'Google Ads',
+    'https://www.googleapis.com/auth/content': 'Merchant Center',
+  };
+  const checks = Object.entries(SCOPE_LABELS).map(([scope, label]) => ({ label, has: granted.includes(scope) }));
+  return {
+    account: data.email || null,
+    granted: checks.filter(c => c.has).map(c => c.label),
+    missing: checks.filter(c => !c.has).map(c => c.label),
+    limitations: checks
+      .filter(c => !c.has)
+      .map(c => `${c.label} data is unavailable — its scope was not granted. Re-authorise Google to add it.`),
+  };
+}
+
 async function listGA4Properties(credentials) {
   const creds = await getValidToken(credentials);
   const { data } = await axios.get(
@@ -438,4 +462,4 @@ function getPreviousPeriodEnd(start, end) {
   return prevEnd.toISOString().split('T')[0];
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily, getAccessReport };

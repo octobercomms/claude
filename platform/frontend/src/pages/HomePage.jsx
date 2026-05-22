@@ -203,7 +203,7 @@ export default function HomePage() {
             <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
             <div style={{ flex: '1 1 320px', maxWidth: 380, background: DARK, color: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 18px 44px rgba(0,0,0,0.22)' }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: YELLOW, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>The October platform</div>
-              {['Connect & sync — 20+ connectors', 'AI-written client reports', 'SEO rank tracking', 'Data Analyst — chat with your data', 'Sales & Traffic dashboards', 'AI outreach campaigns'].map(t => (
+              {['Connect & sync — 20+ connectors', 'AI-written client reports', 'SEO rank tracking', 'AI Data Analyst — chat with your data', 'Sales & Traffic dashboards', 'AI outreach campaigns'].map(t => (
                 <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '9px 0', fontSize: 14, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
                   <span style={{ color: YELLOW }}>✦</span><span>{t}</span>
                 </div>
