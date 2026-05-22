@@ -215,7 +215,29 @@ function summariseConnectorData(type, raw, days) {
         if (ch) channels[ch] = (channels[ch] || 0) + parseFloat(row.metricValues?.[sessIdx]?.value || 0);
       }
       const topChannels = Object.entries(channels).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([ch, s]) => ({ channel: ch, sessions: Math.round(s) }));
-      return { period_days: days, sessions: Math.round(sessions), users: Math.round(users), conversions: Math.round(convs), top_channels: topChannels };
+      const result = { period_days: days, sessions: Math.round(sessions), users: Math.round(users), conversions: Math.round(convs), top_channels: topChannels };
+      if (raw.source_medium?.length) {
+        result.top_sources = raw.source_medium.slice(0, 10).map(r => ({
+          source: r.sessionSourceMedium,
+          sessions: Math.round(r.sessions || 0),
+          conversions: Math.round(r.conversions || 0),
+          revenue: `£${(r.totalRevenue || 0).toFixed(2)}`,
+        }));
+      }
+      if (raw.landing_pages?.length) {
+        result.top_landing_pages = raw.landing_pages.slice(0, 10).map(r => ({
+          page: r.landingPagePlusQueryString,
+          sessions: Math.round(r.sessions || 0),
+          conversions: Math.round(r.conversions || 0),
+        }));
+      }
+      if (raw.events?.length) {
+        result.top_events = raw.events.slice(0, 15).map(r => ({
+          event: r.eventName,
+          count: Math.round(r.eventCount || 0),
+        }));
+      }
+      return result;
     }
     if (type === 'google_search_console') {
       const rows = raw.rows || [];
@@ -240,7 +262,7 @@ function summariseConnectorData(type, raw, days) {
         if (name) campaigns[name] = (campaigns[name] || 0) + s;
       }
       const topCampaigns = Object.entries(campaigns).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, s]) => ({ campaign: name, spend: `£${s.toFixed(2)}` }));
-      return {
+      const result = {
         period_days: days,
         total_spend: `£${spend.toFixed(2)}`,
         clicks,
@@ -249,6 +271,21 @@ function summariseConnectorData(type, raw, days) {
         roas: spend ? +(convValue / spend).toFixed(2) : null,
         top_campaigns: topCampaigns,
       };
+      if (raw.keyword_view?.length) {
+        result.top_keywords = raw.keyword_view.slice(0, 20).map(r => {
+          const kSpend = parseInt(r.metrics?.costMicros || 0) / 1e6;
+          return {
+            keyword: r.adGroupCriterion?.keyword?.text,
+            match_type: r.adGroupCriterion?.keyword?.matchType,
+            campaign: r.campaign?.name,
+            clicks: parseInt(r.metrics?.clicks || 0),
+            spend: `£${kSpend.toFixed(2)}`,
+            conversions: +parseFloat(r.metrics?.conversions || 0).toFixed(1),
+            conversion_value: `£${parseFloat(r.metrics?.conversionsValue || 0).toFixed(2)}`,
+          };
+        });
+      }
+      return result;
     }
     if (type === 'google_merchant_center') {
       const perf = raw.performance || [];
@@ -296,7 +333,25 @@ function summariseConnectorData(type, raw, days) {
     }
     if (type === 'shopify' || type === 'woocommerce') {
       const s = raw.summary || {};
-      return { period_days: days, revenue: `£${parseFloat(s.total_revenue || 0).toFixed(2)}`, orders: s.total_orders, aov: `£${parseFloat(s.avg_order_value || 0).toFixed(2)}` };
+      const result = {
+        period_days: days,
+        revenue: `£${parseFloat(s.total_revenue || 0).toFixed(2)}`,
+        orders: s.total_orders,
+        aov: `£${parseFloat(s.avg_order_value || 0).toFixed(2)}`,
+      };
+      if (s.total_refunds != null) {
+        result.refunds = `£${parseFloat(s.total_refunds).toFixed(2)}`;
+        result.refunded_orders = s.refunded_orders;
+        result.net_revenue = `£${parseFloat(s.net_revenue || 0).toFixed(2)}`;
+      }
+      if (raw.top_products?.length) {
+        result.top_products = raw.top_products.slice(0, 10).map(p => ({
+          title: p.title,
+          units: p.units,
+          revenue: `£${(p.revenue || 0).toFixed(2)}`,
+        }));
+      }
+      return result;
     }
     if (type === 'shopify_email') {
       const events = raw.marketing_events || [];
@@ -345,12 +400,39 @@ function summariseConnectorData(type, raw, days) {
       };
     }
     if (type === 'klaviyo') {
-      return {
+      const perf = raw.performance || [];
+      const result = {
         period_days: days,
         total_campaigns: raw.total_campaigns,
-        campaigns: (raw.campaigns || []).slice(0, 25),
-        note: 'Per-campaign open/click/revenue not yet wired in for Klaviyo — campaign list only.',
+        campaigns: perf.length
+          ? perf.slice(0, 25).map(p => ({ name: p.name, ...p.statistics }))
+          : (raw.campaigns || []).slice(0, 25),
       };
+      if (raw.note) result.note = raw.note;
+      return result;
+    }
+    if (type === 'amazon_seller') {
+      const payload = raw.payload || [];
+      const t = payload[0] || {};
+      const money = m => (m && m.amount != null) ? `${m.currencyCode || ''} ${parseFloat(m.amount).toFixed(2)}`.trim() : null;
+      const result = {
+        period_days: days,
+        orders: t.orderCount ?? null,
+        units: t.unitCount ?? null,
+        revenue: money(t.totalSales),
+        avg_unit_price: money(t.averageUnitPrice),
+      };
+      const daily = raw.daily || [];
+      if (daily.length) {
+        result.daily = daily.slice(-120).map(d => ({
+          date: (d.interval || '').split('T')[0],
+          orders: d.orderCount,
+          units: d.unitCount,
+          revenue: d.totalSales ? parseFloat(d.totalSales.amount || 0).toFixed(2) : '0.00',
+        }));
+        if (daily.length > 120) result.daily_note = `Showing most recent 120 of ${daily.length} days.`;
+      }
+      return result;
     }
     return { period_days: days, raw_keys: Object.keys(raw) };
   } catch (e) {
@@ -567,6 +649,8 @@ Your responsibilities:
 Connected data sources: ${connectorList}
 
 Data limits to know: the Shopify connector only returns orders from roughly the last 60 days unless that store's Shopify app has the read_all_orders scope; Google Search Console retains about 16 months. Empty data for an older period is almost always one of these provider limits — explain it that way rather than guessing about connection dates.
+
+get_connector_data returns rich detail you should use: GA4 includes traffic source/medium, top landing pages and key events; Google Ads includes spend, ROAS, conversion value and top keywords; Meta Ads includes purchases, ROAS and cost-per-purchase; Shopify includes refunds, net revenue and best-selling products; Brevo and Klaviyo include per-campaign open/click/revenue stats; Amazon includes a daily sales breakdown.
 
 Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: ${client.monthly_focus || 'not set'}
 

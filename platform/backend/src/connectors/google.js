@@ -75,30 +75,77 @@ async function getValidToken(credentials) {
   return credentials;
 }
 
+// Flatten a GA4 runReport response into plain objects keyed by dimension/metric name.
+function ga4Rows(report) {
+  if (!report) return [];
+  const dims = (report.dimensionHeaders || []).map(h => h.name);
+  const mets = (report.metricHeaders || []).map(h => h.name);
+  return (report.rows || []).map(row => {
+    const o = {};
+    dims.forEach((d, i) => { o[d] = row.dimensionValues?.[i]?.value; });
+    mets.forEach((m, i) => { o[m] = parseFloat(row.metricValues?.[i]?.value || 0); });
+    return o;
+  });
+}
+
 // GA4 data fetch
 async function fetchGA4Data(credentials, params) {
   const creds = await getValidToken(credentials);
   const { propertyId, startDate, endDate } = params;
   if (!propertyId) throw new Error('GA4 property not selected — open the client connectors tab and choose a property.');
 
+  const runReport = (body) => axios.post(
+    `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+    body,
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+
   try {
-    const { data } = await axios.post(
-      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
-      {
-        dateRanges: [
-          { startDate, endDate },
-          { startDate: getPreviousPeriodStart(startDate, endDate), endDate: getPreviousPeriodEnd(startDate, endDate) },
-        ],
-        metrics: [
-          { name: 'sessions' }, { name: 'activeUsers' }, { name: 'screenPageViews' },
-          { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' },
-          { name: 'totalRevenue' },
-        ],
-        dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
-      },
-      { headers: { Authorization: `Bearer ${creds.access_token}` } }
-    );
-    return data;
+    // Main report — current vs previous period; the summariser depends on this shape.
+    const { data } = await runReport({
+      dateRanges: [
+        { startDate, endDate },
+        { startDate: getPreviousPeriodStart(startDate, endDate), endDate: getPreviousPeriodEnd(startDate, endDate) },
+      ],
+      metrics: [
+        { name: 'sessions' }, { name: 'activeUsers' }, { name: 'screenPageViews' },
+        { name: 'bounceRate' }, { name: 'averageSessionDuration' }, { name: 'conversions' },
+        { name: 'totalRevenue' },
+      ],
+      dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+    });
+
+    // Supplementary breakdowns — best-effort, must never block the main report.
+    const [sourceMedium, landingPages, events] = await Promise.allSettled([
+      runReport({
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'conversions' }, { name: 'totalRevenue' }],
+        dimensions: [{ name: 'sessionSourceMedium' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 15,
+      }),
+      runReport({
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'sessions' }, { name: 'conversions' }, { name: 'totalRevenue' }],
+        dimensions: [{ name: 'landingPagePlusQueryString' }],
+        orderBys: [{ metric: { metricName: 'sessions' }, desc: true }],
+        limit: 15,
+      }),
+      runReport({
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'eventCount' }, { name: 'eventValue' }],
+        dimensions: [{ name: 'eventName' }],
+        orderBys: [{ metric: { metricName: 'eventCount' }, desc: true }],
+        limit: 20,
+      }),
+    ]);
+
+    return {
+      ...data,
+      source_medium: sourceMedium.status === 'fulfilled' ? ga4Rows(sourceMedium.value.data) : [],
+      landing_pages: landingPages.status === 'fulfilled' ? ga4Rows(landingPages.value.data) : [],
+      events: events.status === 'fulfilled' ? ga4Rows(events.value.data) : [],
+    };
   } catch (err) {
     const detail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
     const status = err.response?.status;
@@ -160,7 +207,7 @@ async function fetchGoogleAdsData(credentials, params) {
 
   // Use /search (not /searchStream) — simpler JSON response, easier error messages
   // metrics.conversion_value is not a valid GAQL field; use metrics.conversions_value
-  const query = `
+  const campaignQuery = `
     SELECT campaign.id, campaign.name,
            metrics.clicks, metrics.impressions, metrics.ctr,
            metrics.average_cpc, metrics.conversions, metrics.conversions_value,
@@ -170,8 +217,19 @@ async function fetchGoogleAdsData(credentials, params) {
       AND campaign.status = ENABLED
     ORDER BY metrics.cost_micros DESC
   `;
+  const keywordQuery = `
+    SELECT campaign.name, ad_group.name,
+           ad_group_criterion.keyword.text, ad_group_criterion.keyword.match_type,
+           metrics.clicks, metrics.impressions, metrics.cost_micros,
+           metrics.conversions, metrics.conversions_value
+    FROM keyword_view
+    WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
+      AND campaign.status = ENABLED
+    ORDER BY metrics.cost_micros DESC
+    LIMIT 50
+  `;
 
-  const doRequest = (loginCustomerId) => {
+  const search = (loginCustomerId, query) => {
     const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
     if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
     return axios.post(
@@ -181,12 +239,25 @@ async function fetchGoogleAdsData(credentials, params) {
     );
   };
 
+  // Run the campaign query (required) plus the keyword query (best-effort) on a
+  // login-customer-id already proven to work for this account.
+  const fetchBoth = async (loginCustomerId) => {
+    const { data } = await search(loginCustomerId, campaignQuery);
+    let keywords = [];
+    try {
+      const kwRes = await search(loginCustomerId, keywordQuery);
+      keywords = kwRes.data.results || [];
+    } catch (kwErr) {
+      console.warn('[Google Ads] keyword_view fetch failed:', kwErr.response?.data?.error?.message || kwErr.message);
+    }
+    return { ...data, keyword_view: keywords };
+  };
+
   // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
   const explicitMcc = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
   if (explicitMcc) {
     try {
-      const { data } = await doRequest(explicitMcc);
-      return data;
+      return await fetchBoth(explicitMcc);
     } catch (err) {
       const detail = err.response?.data?.error?.details?.[0]?.errors?.[0]?.message
         || err.response?.data?.error?.message
@@ -199,15 +270,13 @@ async function fetchGoogleAdsData(credentials, params) {
   const cached = adsLoginCache.get(cleanCustomerId);
   if (cached) {
     try {
-      const { data } = await doRequest(cached);
-      return data;
+      return await fetchBoth(cached);
     } catch { adsLoginCache.delete(cleanCustomerId); }
   }
 
   // Try direct access (no login-customer-id)
   try {
-    const { data } = await doRequest(null);
-    return data;
+    return await fetchBoth(null);
   } catch (directErr) {
     // Auto-discover MCC: try each accessible customer as login-customer-id
     let candidates = [];
@@ -226,10 +295,10 @@ async function fetchGoogleAdsData(credentials, params) {
 
     for (const loginId of candidates) {
       try {
-        const { data } = await doRequest(loginId);
+        const result = await fetchBoth(loginId);
         adsLoginCache.set(cleanCustomerId, loginId);
         console.log(`[Google Ads] Found working login-customer-id ${loginId} for customer ${cleanCustomerId}`);
-        return data;
+        return result;
       } catch { continue; }
     }
 

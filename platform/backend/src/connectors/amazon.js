@@ -92,23 +92,30 @@ async function fetchData(credentials, params) {
     creds = await refreshToken(creds);
   }
 
-  // SP-API Sales and Traffic report
-  try {
-  const { data } = await axios.get(
+  // SP-API order metrics — period total plus a daily breakdown.
+  const interval = `${startDate}T00:00:00+00:00--${endDate}T23:59:59+00:00`;
+  const getMetrics = (granularity) => axios.get(
     `${regionalEndpoint}/sales/v1/orderMetrics`,
     {
       headers: {
         Authorization: `Bearer ${creds.access_token}`,
         'x-amz-access-token': creds.access_token,
       },
-      params: {
-        marketplaceIds: marketplaceId,
-        interval: `${startDate}T00:00:00+00:00--${endDate}T23:59:59+00:00`,
-        granularity: 'Total',
-      },
+      params: { marketplaceIds: marketplaceId, interval, granularity },
     }
   );
-  return data;
+
+  try {
+    const { data } = await getMetrics('Total');
+    // Daily granularity is best-effort — never let it fail the whole call.
+    let daily = [];
+    try {
+      const dayRes = await getMetrics('Day');
+      daily = dayRes.data.payload || [];
+    } catch (dayErr) {
+      console.warn('[Amazon] daily orderMetrics fetch failed:', dayErr.response?.status, dayErr.message);
+    }
+    return { ...data, daily };
   } catch (err) {
     const status = err.response?.status;
     const detail = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;

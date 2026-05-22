@@ -33,23 +33,69 @@ async function fetchData(credentials, params) {
     }),
     axios.get('https://a.klaviyo.com/api/metrics/', {
       headers,
-      params: { 'page[size]': 20 },
+      params: { 'page[size]': 100 },
     }),
   ]);
 
-  // Aggregate campaign stats
   const campaigns = campaignsRes.data.data || [];
+  const campaignName = {};
+  campaigns.forEach(c => { campaignName[c.id] = c.attributes?.name; });
 
-  return {
+  // The Campaign Values report needs a conversion metric to attribute revenue —
+  // "Placed Order" is the Shopify/ecommerce default.
+  const metrics = metricsRes.data.data || [];
+  const orderMetric = metrics.find(m => /^placed order$/i.test(m.attributes?.name || ''))
+    || metrics.find(m => /placed order|ordered product|checkout/i.test(m.attributes?.name || ''));
+
+  let performance = [];
+  let note = null;
+  if (!orderMetric) {
+    note = 'No "Placed Order" conversion metric found in Klaviyo — campaign list returned without per-campaign performance.';
+  } else if (campaigns.length) {
+    try {
+      const { data } = await axios.post(
+        'https://a.klaviyo.com/api/campaign-values-reports/',
+        {
+          data: {
+            type: 'campaign-values-report',
+            attributes: {
+              timeframe: { start: `${startDate}T00:00:00`, end: `${endDate}T23:59:59` },
+              conversion_metric_id: orderMetric.id,
+              statistics: [
+                'recipients', 'delivered', 'opens_unique', 'open_rate',
+                'clicks_unique', 'click_rate', 'conversions', 'conversion_value',
+                'unsubscribes',
+              ],
+            },
+          },
+        },
+        { headers }
+      );
+      const results = data.data?.attributes?.results || [];
+      performance = results.map(r => ({
+        campaign_id: r.groupings?.campaign_id,
+        name: campaignName[r.groupings?.campaign_id] || r.groupings?.campaign_id,
+        statistics: r.statistics,
+      }));
+    } catch (err) {
+      const detail = err.response?.data?.errors?.[0]?.detail || err.message;
+      note = `Per-campaign performance report unavailable: ${detail}`;
+    }
+  }
+
+  const result = {
     period: { start: startDate, end: endDate },
     campaigns: campaigns.map(c => ({
+      id: c.id,
       name: c.attributes.name,
       status: c.attributes.status,
       scheduled_at: c.attributes.scheduled_at,
     })),
     total_campaigns: campaigns.length,
-    note: 'Full open/click rates available via campaign metrics API',
+    performance,
   };
+  if (note) result.note = note;
+  return result;
 }
 
 module.exports = { authType, checkTokenValidity, fetchData };
