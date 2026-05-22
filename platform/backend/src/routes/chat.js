@@ -25,12 +25,14 @@ const TOOLS = [
   },
   {
     name: 'get_connector_data',
-    description: 'Fetch live data from a specific connector. Use this to investigate performance, check metrics, answer questions about a specific channel. Fetches the most recent available data.',
+    description: 'Fetch data from a specific connector for any time period — recent or historical. Use this to investigate performance, check metrics, answer questions about a channel, and make year-on-year or period-over-period comparisons.',
     input_schema: {
       type: 'object',
       properties: {
         connector_type: { type: 'string', description: 'e.g. ga4, google_ads, shopify, meta_ads, google_search_console, woocommerce, klaviyo, brevo' },
-        days: { type: 'number', description: 'Number of days to fetch (default 30, max 90)' },
+        days: { type: 'number', description: 'Number of days back from today to fetch (default 30) — for a recent window.' },
+        start_date: { type: 'string', description: 'Start of an explicit period, YYYY-MM-DD. Use start_date and end_date together for historical periods or comparisons (e.g. last year, a specific quarter).' },
+        end_date: { type: 'string', description: 'End of an explicit period, YYYY-MM-DD.' },
         store_label: { type: 'string', description: 'For multi-store clients (e.g. DTC, B2B). Omit to use first matching connector.' },
       },
       required: ['connector_type'],
@@ -134,8 +136,7 @@ async function toolGetClientInfo(clientId) {
   };
 }
 
-async function toolGetConnectorData(clientId, { connector_type, days = 30, store_label }) {
-  const daysNum = Math.min(Number(days) || 30, 90);
+async function toolGetConnectorData(clientId, { connector_type, days = 30, start_date, end_date, store_label }) {
   const whereClause = store_label
     ? 'client_id = $1 AND connector_type = $2 AND store_label = $3 AND status = \'active\''
     : 'client_id = $1 AND connector_type = $2 AND status = \'active\'';
@@ -148,9 +149,19 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, store
   let creds;
   try { creds = decrypt(connector.credentials); } catch { return { error: 'Failed to decrypt credentials' }; }
 
-  const periodEnd = new Date();
-  const periodStart = new Date(periodEnd - daysNum * 86400000);
+  // Date range — an explicit start/end period, otherwise `days` back from today.
+  const isoDate = /^\d{4}-\d{2}-\d{2}$/;
+  let periodStart, periodEnd;
+  if (start_date && end_date && isoDate.test(start_date) && isoDate.test(end_date)) {
+    periodStart = new Date(start_date);
+    periodEnd = new Date(end_date);
+  } else {
+    const daysNum = Math.min(Math.max(Number(days) || 30, 1), 1095);
+    periodEnd = new Date();
+    periodStart = new Date(periodEnd.getTime() - daysNum * 86400000);
+  }
   const fmt = d => d.toISOString().split('T')[0];
+  const daysSpan = Math.max(1, Math.round((periodEnd - periodStart) / 86400000));
 
   const config = connector.config || {};
   const configValue = config.value;
@@ -174,7 +185,8 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, store
     return {
       store_label: connector.store_label || null,
       config_value: configValue || null,
-      ...summariseConnectorData(connector_type, raw, daysNum),
+      period: { start: fmt(periodStart), end: fmt(periodEnd) },
+      ...summariseConnectorData(connector_type, raw, daysSpan),
     };
   } catch (err) {
     return { error: err.message };
