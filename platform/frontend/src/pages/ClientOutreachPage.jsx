@@ -22,6 +22,10 @@ export default function ClientOutreachPage() {
   const [findError, setFindError] = useState('');
   const [searched, setSearched] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
+  const [aud, setAud] = useState({ industry: '', location: '', specialisation: '' });
+  const [searching, setSearching] = useState(false);
+  const [serperDomains, setSerperDomains] = useState([]);
+  const [serperError, setSerperError] = useState('');
 
   useEffect(() => {
     Promise.all([
@@ -70,11 +74,12 @@ export default function ClientOutreachPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
-  async function runFind() {
-    if (!findDomain.trim()) return;
+  async function runFind(domainArg) {
+    const domain = (typeof domainArg === 'string' ? domainArg : findDomain).trim();
+    if (!domain) return;
     setFinding(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
     try {
-      const res = await api.post('/outreach/find/hunter', { domain: findDomain.trim() });
+      const res = await api.post('/outreach/find/hunter', { domain });
       setFoundContacts(res.contacts || []);
       setSearched(true);
     } catch (err) {
@@ -101,6 +106,18 @@ export default function ClientOutreachPage() {
       setFoundContacts([]); setSelected(new Set()); setSearched(false); setShowFinder(false);
       toast(`Added ${added.length} contact${added.length === 1 ? '' : 's'}`, 'success');
     } catch (err) { toast(err.message, 'error'); }
+  }
+
+  async function runSerper() {
+    setSearching(true); setSerperError(''); setSerperDomains([]);
+    try {
+      const res = await api.post('/outreach/find/serper', aud);
+      setSerperDomains(res.domains || []);
+    } catch (err) {
+      setSerperError(err.message);
+    } finally {
+      setSearching(false);
+    }
   }
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
@@ -130,7 +147,31 @@ export default function ClientOutreachPage() {
           </div>
           {showFinder && (
             <div style={{ ...s.card, marginTop: 12 }}>
-              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find contacts via Hunter.io</div>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find companies by audience (Serper)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 8 }}>
+                <input style={s.input} placeholder="Industry" value={aud.industry}
+                  onChange={e => setAud(p => ({ ...p, industry: e.target.value }))} />
+                <input style={s.input} placeholder="Location" value={aud.location}
+                  onChange={e => setAud(p => ({ ...p, location: e.target.value }))} />
+                <input style={s.input} placeholder="Specialisation" value={aud.specialisation}
+                  onChange={e => setAud(p => ({ ...p, specialisation: e.target.value }))} />
+                <button onClick={runSerper} disabled={searching} style={s.btn}>{searching ? 'Searching…' : 'Search'}</button>
+              </div>
+              {serperError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
+              {serperDomains.length > 0 && (
+                <div style={{ marginTop: 10 }}>
+                  {serperDomains.map(d => (
+                    <div key={d.domain} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '1px solid #f0f0f0' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{d.domain}</div>
+                        {d.title && <div style={{ fontSize: 11, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
+                      </div>
+                      <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} style={s.btnGhost}>Find emails →</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or find emails for a known domain (Hunter.io)</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input style={{ ...s.input, flex: 1 }} placeholder="Company domain — e.g. example.com"
                   value={findDomain} onChange={e => setFindDomain(e.target.value)}

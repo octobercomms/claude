@@ -3,6 +3,7 @@ const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const hunter = require('../services/hunter');
+const serper = require('../services/serper');
 
 router.use(authenticate);
 
@@ -141,6 +142,16 @@ router.post('/find/hunter', async (req, res) => {
   try {
     const result = await hunter.domainSearch(domain.trim());
     res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.post('/find/serper', async (req, res) => {
+  const { industry, location, specialisation } = req.body;
+  try {
+    const domains = await serper.findBusinessDomains({ industry, location, specialisation });
+    res.json({ domains });
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
