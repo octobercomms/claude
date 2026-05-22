@@ -10,7 +10,9 @@ export default function Layout() {
   const clientSeoMatch = useMatch('/clients/:id/seo');
   const clientChatMatch = useMatch('/clients/:id/chat');
   const clientAdsMatch = useMatch('/clients/:id/ads');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id;
+  const clientOutreachMatch = useMatch('/clients/:id/outreach');
+  const clientSalesMatch = useMatch('/clients/:id/sales-traffic');
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;

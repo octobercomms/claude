@@ -41,11 +41,14 @@ export default function ClientSalesTrafficPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Sales &amp; Traffic — {client?.name || ''}</h1>
-        <select value={days} onChange={e => setDays(Number(e.target.value))} style={s.input}>
-          <option value={30}>Last 30 days</option>
-          <option value={60}>Last 60 days</option>
-          <option value={90}>Last 90 days</option>
-        </select>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[7, 14, 30, 90].map(d => (
+            <button key={d} onClick={() => setDays(d)}
+              style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
+              {d}d
+            </button>
+          ))}
+        </div>
       </div>
 
       {loading ? (
