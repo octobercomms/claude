@@ -7,6 +7,7 @@ const googleConnector = require('../connectors/google');
 const metaConnector = require('../connectors/meta');
 const zohoInventoryConnector = require('../connectors/zoho_inventory');
 const amazonConnector = require('../connectors/amazon');
+const shopifyConnector = require('../connectors/shopify');
 
 const router = express.Router();
 
@@ -84,12 +85,7 @@ router.get('/meta/callback', async (req, res) => {
 
 // ─── Shopify OAuth ──────────────────────────────────────────────
 
-const SHOPIFY_SCOPES = [
-  'read_orders', 'read_all_orders', 'read_products', 'read_customers',
-  'read_analytics', 'read_reports', 'read_marketing_events',
-  'read_inventory', 'read_fulfillments', 'read_shipping',
-  'read_price_rules', 'read_discounts', 'read_draft_orders',
-].join(',');
+const SHOPIFY_SCOPES = shopifyConnector.REQUIRED_SCOPES.join(',');
 
 router.get('/shopify/start', (req, res) => {
   const { client_id, shop, connector_id } = req.query;

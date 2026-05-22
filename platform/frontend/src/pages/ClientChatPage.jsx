@@ -153,7 +153,7 @@ export default function ClientChatPage() {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Data Analyst — {client?.name}</h1>
+            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>AI Data Analyst — {client?.name}</h1>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
               Claude can read live connector data, check SEO, detect anomalies, and log decisions.
             </p>

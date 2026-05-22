@@ -781,6 +781,29 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                 : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${JSON.stringify(diagnoseResult.live_test.error)}`}
             </div>
           )}
+          {/* Access report — scopes / permissions and what it can't see */}
+          {diagnoseResult.access && (
+            <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e3e3e3' }}>
+              {diagnoseResult.access.error ? (
+                <div style={{ color: '#c62828' }}>Access check failed: {diagnoseResult.access.error}</div>
+              ) : (
+                <>
+                  {diagnoseResult.access.account && (
+                    <div style={{ color: '#555' }}>Account: {diagnoseResult.access.account}</div>
+                  )}
+                  {diagnoseResult.access.granted?.length > 0 && (
+                    <div style={{ color: '#2e7d32' }}>✓ Can access: {diagnoseResult.access.granted.join(', ')}</div>
+                  )}
+                  {diagnoseResult.access.missing?.length > 0 && (
+                    <div style={{ color: '#c62828', marginTop: 2 }}>✗ Cannot access: {diagnoseResult.access.missing.join(', ')}</div>
+                  )}
+                  {(diagnoseResult.access.limitations || []).map((l, i) => (
+                    <div key={i} style={{ color: '#e65100', marginTop: 3, fontFamily: 'sans-serif', lineHeight: 1.4 }}>⚠ {l}</div>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
           {/* Config summary */}
           {diagnoseResult.config && Object.keys(diagnoseResult.config).length > 0 && (
             <div style={{ color: '#888', marginTop: 4 }}>

@@ -181,8 +181,8 @@ router.post('/test-email', async (req, res) => {
     await transporter.sendMail({
       from,
       to,
-      subject: 'October Platform — Test Email',
-      text: 'This is a test email from the October Performance Marketing Platform.',
+      subject: 'October Marketing Intelligence — Test Email',
+      text: 'This is a test email from October Marketing Intelligence.',
     });
     res.json({ ok: true });
   } catch (err) {
