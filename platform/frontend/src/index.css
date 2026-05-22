@@ -68,4 +68,9 @@
   [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
   [style*="display: flex"] { flex-wrap: wrap; }
   table { display: block; overflow-x: auto; }
+
+  /* Marketing homepage */
+  .home nav { padding-left: 16px !important; padding-right: 16px !important; }
+  .home section, .home footer { padding-left: 18px !important; padding-right: 18px !important; }
+  .home-navlink, .home-brandtext { display: none !important; }
 }

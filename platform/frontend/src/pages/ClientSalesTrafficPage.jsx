@@ -10,22 +10,80 @@ const fmtDay = d => {
   return isNaN(dt) ? d : dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
+const pad = n => String(n).padStart(2, '0');
+const isoLocal = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const isoToday = () => isoLocal(new Date());
+const isoDaysAgo = n => isoLocal(new Date(Date.now() - n * 86400000));
+function recentMonths(count) {
+  const out = [];
+  const now = new Date();
+  for (let i = 0; i < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const y = d.getFullYear(), m = d.getMonth();
+    out.push({
+      key: `${y}-${pad(m + 1)}`,
+      label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+      start: `${y}-${pad(m + 1)}-01`,
+      end: `${y}-${pad(m + 1)}-${pad(new Date(y, m + 1, 0).getDate())}`,
+    });
+  }
+  return out;
+}
+
 export default function ClientSalesTrafficPage() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
-  const [days, setDays] = useState(30);
+  const [start, setStart] = useState(() => isoDaysAgo(29));
+  const [end, setEnd] = useState(() => isoToday());
+  const [activeKey, setActiveKey] = useState('d30');
+  const [showCustom, setShowCustom] = useState(false);
+  const [customStart, setCustomStart] = useState(() => isoDaysAgo(29));
+  const [customEnd, setCustomEnd] = useState(() => isoToday());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch(() => {}); }, [id]);
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/sales-traffic/${id}?days=${days}`)
+    api.get(`/sales-traffic/${id}?start=${start}&end=${end}`)
       .then(setData)
       .catch(err => setData({ error: err.message }))
       .finally(() => setLoading(false));
-  }, [id, days]);
+  }, [id, start, end]);
+
+  const months = recentMonths(12);
+
+  function selectDays(n) {
+    setStart(isoDaysAgo(n - 1));
+    setEnd(isoToday());
+    setActiveKey('d' + n);
+    setShowCustom(false);
+  }
+
+  function selectPreset(value) {
+    if (!value) return;
+    const now = new Date();
+    if (value === 'mtd') {
+      setStart(`${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`);
+      setEnd(isoToday()); setActiveKey('mtd'); setShowCustom(false);
+    } else if (value === 'ytd') {
+      setStart(`${now.getFullYear()}-01-01`);
+      setEnd(isoToday()); setActiveKey('ytd'); setShowCustom(false);
+    } else if (value === 'custom') {
+      setActiveKey('custom'); setShowCustom(true);
+    } else {
+      const m = months.find(x => x.key === value);
+      if (m) { setStart(m.start); setEnd(m.end); setActiveKey(value); setShowCustom(false); }
+    }
+  }
+
+  function applyCustom() {
+    if (!customStart || !customEnd) return;
+    const s = customStart <= customEnd ? customStart : customEnd;
+    const e = customStart <= customEnd ? customEnd : customStart;
+    setStart(s); setEnd(e); setActiveKey('custom');
+  }
 
   const k = (data && data.kpis) || {};
   const cards = [
@@ -39,16 +97,37 @@ export default function ClientSalesTrafficPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Sales &amp; Traffic — {client?.name || ''}</h1>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[7, 14, 30, 90].map(d => (
-            <button key={d} onClick={() => setDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
-              {d}d
-            </button>
-          ))}
-        </div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 16px' }}>Sales &amp; Traffic — {client?.name || ''}</h1>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+        {[7, 14, 30, 90].map(d => (
+          <button key={d} onClick={() => selectDays(d)}
+            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: activeKey === 'd' + d ? '#1a1a1a' : '#fff', color: activeKey === 'd' + d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
+            {d}d
+          </button>
+        ))}
+        <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
+          onChange={e => selectPreset(e.target.value)}
+          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, cursor: 'pointer' }}>
+          <option value="">Period…</option>
+          <option value="mtd">Month to date</option>
+          <option value="ytd">Year to date</option>
+          <option value="custom">Custom range…</option>
+          <optgroup label="Months">
+            {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+          </optgroup>
+        </select>
+        {showCustom && (
+          <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
+            <span style={{ color: '#888', fontSize: 13 }}>to</span>
+            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
+            <button onClick={applyCustom}
+              style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#1a1a1a', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Apply</button>
+          </span>
+        )}
+        <span style={{ fontSize: 12, color: '#888' }}>{fmtDay(start)} – {fmtDay(end)}</span>
       </div>
 
       {loading ? (

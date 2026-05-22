@@ -121,24 +121,34 @@ export default function HomePage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistDone, setWaitlistDone] = useState(false);
 
-  function handleWaitlist(e) {
+  async function handleWaitlist(e) {
     e.preventDefault();
-    if (waitlistEmail) setWaitlistDone(true);
+    if (!waitlistEmail) return;
+    try {
+      await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail }),
+      });
+    } catch {
+      // Still confirm to the visitor — don't block on a notification failure.
+    }
+    setWaitlistDone(true);
   }
 
   return (
-    <div style={{ fontFamily: 'Inter, system-ui, sans-serif', color: DARK, lineHeight: 1.6 }}>
+    <div className="home" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: DARK, lineHeight: 1.6 }}>
 
       {/* Nav */}
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${BORDER}`, padding: '0 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/logo-black.gif" alt="October" style={{ height: 28 }} />
-          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>Performance Marketing Platform</span>
+          <img src="/logo-yellow.gif" alt="October" style={{ height: 28 }} />
+          <span className="home-brandtext" style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>Performance Marketing Platform</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <a href="#features" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Features</a>
-          <a href="#integrations" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Integrations</a>
-          <a href="#pricing" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Pricing</a>
+          <a className="home-navlink" href="#features" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Features</a>
+          <a className="home-navlink" href="#integrations" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Integrations</a>
+          <a className="home-navlink" href="#pricing" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Pricing</a>
           <Link to="/login" style={{ fontSize: 14, color: DARK, textDecoration: 'none', fontWeight: 600, padding: '8px 18px', border: `1.5px solid ${DARK}`, borderRadius: 8 }}>
             Log in
           </Link>
