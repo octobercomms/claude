@@ -24,7 +24,7 @@ async function fetchOrderData(credentials, startDate, endDate) {
     created_at_min: `${startDate}T00:00:00Z`,
     created_at_max: `${endDate}T23:59:59Z`,
     limit: 250,
-    fields: 'id,created_at,total_price,subtotal_price,financial_status,fulfillment_status,line_items,customer',
+    fields: 'id,created_at,total_price,subtotal_price,total_discounts,financial_status,fulfillment_status,line_items,refunds,customer',
   };
 
   const orders = [];
@@ -67,14 +67,45 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
     return acc;
   }, {});
 
+  // Refunds — sum the money actually moved back via refund transactions.
+  let refundTotal = 0, refundedOrders = 0;
+  for (const o of orders) {
+    let orderRefund = 0;
+    for (const r of (o.refunds || [])) {
+      for (const t of (r.transactions || [])) {
+        if (t.kind === 'refund') orderRefund += parseFloat(t.amount || 0);
+      }
+    }
+    if (orderRefund > 0) { refundTotal += orderRefund; refundedOrders++; }
+  }
+
+  // Product-level breakdown from line items.
+  const products = {};
+  for (const o of orders) {
+    for (const li of (o.line_items || [])) {
+      const key = li.product_id ? `${li.product_id}` : (li.title || li.name || 'unknown');
+      if (!products[key]) products[key] = { title: li.title || li.name || key, units: 0, revenue: 0 };
+      const qty = parseInt(li.quantity || 0);
+      products[key].units += qty;
+      products[key].revenue += parseFloat(li.price || 0) * qty;
+    }
+  }
+  const topProducts = Object.values(products)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 15);
+
   return {
     period: { start: startDate, end: endDate },
     summary: {
       total_revenue: totalRevenue.toFixed(2),
       total_orders: totalOrders,
       avg_order_value: avgOrderValue.toFixed(2),
+      total_refunds: refundTotal.toFixed(2),
+      refunded_orders: refundedOrders,
+      net_revenue: (totalRevenue - refundTotal).toFixed(2),
       financial_status_breakdown: financialBreakdown,
     },
+    top_products: topProducts,
     orders: orders.slice(0, 50), // Include first 50 for detail
   };
 }
