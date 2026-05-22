@@ -10,12 +10,20 @@ router.use(authenticate);
 
 // Aggregated GA4 + ecommerce data for the client Sales & Traffic dashboard.
 router.get('/:clientId', async (req, res) => {
-  const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 90);
-  const startDate = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
-  const endDate = new Date().toISOString().slice(0, 10);
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+  let startDate, endDate;
+  if (iso.test(req.query.start || '') && iso.test(req.query.end || '')) {
+    startDate = req.query.start;
+    endDate = req.query.end;
+    if (startDate > endDate) { const t = startDate; startDate = endDate; endDate = t; }
+  } else {
+    const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 366);
+    startDate = new Date(Date.now() - (days - 1) * 86400000).toISOString().slice(0, 10);
+    endDate = new Date().toISOString().slice(0, 10);
+  }
 
   const result = {
-    range: { start: startDate, end: endDate, days },
+    range: { start: startDate, end: endDate },
     kpis: {}, trafficTrend: [], salesTrend: [], channels: [], notes: [],
   };
 
