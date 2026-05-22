@@ -228,18 +228,27 @@ function summariseConnectorData(type, raw, days) {
     if (type === 'google_ads') {
       // /search returns {results:[...]}; /searchStream returned [{results:[...]},...]
       const results = raw.results || (Array.isArray(raw) ? raw.flatMap(b => b.results || []) : []);
-      let spend = 0, clicks = 0, convs = 0;
+      let spend = 0, clicks = 0, convs = 0, convValue = 0;
       const campaigns = {};
       for (const r of results) {
         const s = parseInt(r.metrics?.costMicros || 0) / 1e6;
         spend += s;
         clicks += parseInt(r.metrics?.clicks || 0);
         convs += parseFloat(r.metrics?.conversions || 0);
+        convValue += parseFloat(r.metrics?.conversionsValue || 0);
         const name = r.campaign?.name;
         if (name) campaigns[name] = (campaigns[name] || 0) + s;
       }
       const topCampaigns = Object.entries(campaigns).sort((a, b) => b[1] - a[1]).slice(0, 6).map(([name, s]) => ({ campaign: name, spend: `£${s.toFixed(2)}` }));
-      return { period_days: days, total_spend: `£${spend.toFixed(2)}`, clicks, conversions: convs.toFixed(1), top_campaigns: topCampaigns };
+      return {
+        period_days: days,
+        total_spend: `£${spend.toFixed(2)}`,
+        clicks,
+        conversions: convs.toFixed(1),
+        conversion_value: `£${convValue.toFixed(2)}`,
+        roas: spend ? +(convValue / spend).toFixed(2) : null,
+        top_campaigns: topCampaigns,
+      };
     }
     if (type === 'google_merchant_center') {
       const perf = raw.performance || [];
@@ -255,11 +264,35 @@ function summariseConnectorData(type, raw, days) {
     }
     if (type === 'meta_ads') {
       const data = raw.data || [];
+      const PURCHASE = ['purchase', 'omni_purchase', 'offsite_conversion.fb_pixel_purchase'];
+      const sumAction = (arr, types) => (arr || []).filter(a => types.includes(a.action_type)).reduce((s, a) => s + parseFloat(a.value || 0), 0);
       const spend = data.reduce((s, r) => s + parseFloat(r.spend || 0), 0);
       const imps = data.reduce((s, r) => s + parseInt(r.impressions || 0), 0);
       const clicks = data.reduce((s, r) => s + parseInt(r.clicks || 0), 0);
-      const top = data.sort((a, b) => parseFloat(b.spend) - parseFloat(a.spend)).slice(0, 6).map(r => ({ campaign: r.campaign_name, spend: `£${parseFloat(r.spend).toFixed(2)}` }));
-      return { period_days: days, total_spend: `£${spend.toFixed(2)}`, impressions: imps, clicks, top_campaigns: top };
+      const purchases = data.reduce((s, r) => s + sumAction(r.actions, PURCHASE), 0);
+      const revenue = data.reduce((s, r) => s + sumAction(r.action_values, PURCHASE), 0);
+      const top = data.sort((a, b) => parseFloat(b.spend) - parseFloat(a.spend)).slice(0, 6).map(r => {
+        const cSpend = parseFloat(r.spend || 0);
+        const cRev = sumAction(r.action_values, PURCHASE);
+        return {
+          campaign: r.campaign_name,
+          spend: `£${cSpend.toFixed(2)}`,
+          purchases: Math.round(sumAction(r.actions, PURCHASE)),
+          revenue: `£${cRev.toFixed(2)}`,
+          roas: cSpend ? +(cRev / cSpend).toFixed(2) : null,
+        };
+      });
+      return {
+        period_days: days,
+        total_spend: `£${spend.toFixed(2)}`,
+        impressions: imps,
+        clicks,
+        purchases: Math.round(purchases),
+        conversion_value: `£${revenue.toFixed(2)}`,
+        roas: spend ? +(revenue / spend).toFixed(2) : null,
+        cost_per_purchase: purchases ? `£${(spend / purchases).toFixed(2)}` : null,
+        top_campaigns: top,
+      };
     }
     if (type === 'shopify' || type === 'woocommerce') {
       const s = raw.summary || {};
@@ -297,8 +330,27 @@ function summariseConnectorData(type, raw, days) {
       const topOut = outOfStock.slice(0, 5).map(s => ({ name: s.name || s.productName, sku: s.styleCode || s.sku, available: s.available }));
       return { period_days: days, orders: orders.length, revenue: `£${revenue.toFixed(2)}`, skus_tracked: stock.length, out_of_stock_count: outOfStock.length, out_of_stock_items: topOut };
     }
-    if (type === 'klaviyo' || type === 'brevo') {
-      return { period_days: days, total_campaigns: raw.total_campaigns, aggregated_stats: raw.aggregated_stats };
+    if (type === 'brevo') {
+      return {
+        period_days: days,
+        total_campaigns: raw.total_campaigns,
+        campaigns: (raw.campaigns || []).slice(0, 25).map(c => ({
+          name: c.name,
+          subject: c.subject,
+          sent_date: c.sent_date,
+          statistics: c.statistics,
+        })),
+        aggregated_stats: raw.aggregated_stats,
+        scope: raw.scope,
+      };
+    }
+    if (type === 'klaviyo') {
+      return {
+        period_days: days,
+        total_campaigns: raw.total_campaigns,
+        campaigns: (raw.campaigns || []).slice(0, 25),
+        note: 'Per-campaign open/click/revenue not yet wired in for Klaviyo — campaign list only.',
+      };
     }
     return { period_days: days, raw_keys: Object.keys(raw) };
   } catch (e) {
