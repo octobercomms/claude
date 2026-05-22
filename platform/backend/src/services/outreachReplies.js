@@ -1,4 +1,3 @@
-const { ImapFlow } = require('imapflow');
 const pool = require('../db');
 const { getSetting } = require('../utils/settings');
 
@@ -12,6 +11,8 @@ async function pollReplies() {
   if (!host || !user || !pass) return { skipped: 'IMAP not configured' };
   const port = Number(await getSetting('OUTREACH_IMAP_PORT')) || 993;
 
+  // Loaded lazily so a missing optional dependency cannot crash startup.
+  const { ImapFlow } = require('imapflow');
   const client = new ImapFlow({
     host: host.trim(),
     port,
