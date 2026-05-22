@@ -50,6 +50,7 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/outreach', require('./routes/outreach'));
 app.use('/api/sales-traffic', require('./routes/salesTraffic'));
+app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/auth', require('./routes/oauth'));
 
 // Serve PDFs

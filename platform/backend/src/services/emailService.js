@@ -322,4 +322,14 @@ async function sendReportReminderEmail(client) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail };
+async function sendWaitlistSignup(email) {
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: 'octobercomms@gmail.com',
+    subject: `New waitlist signup: ${email}`,
+    text: `${email} joined the Performance Marketing Platform waitlist on ${new Date().toUTCString()}.`,
+    html: `<p><strong>${email}</strong> joined the Performance Marketing Platform waitlist.</p><p style="color:#888">${new Date().toUTCString()}</p>`,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup };

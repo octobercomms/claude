@@ -121,9 +121,19 @@ export default function HomePage() {
   const [waitlistEmail, setWaitlistEmail] = useState('');
   const [waitlistDone, setWaitlistDone] = useState(false);
 
-  function handleWaitlist(e) {
+  async function handleWaitlist(e) {
     e.preventDefault();
-    if (waitlistEmail) setWaitlistDone(true);
+    if (!waitlistEmail) return;
+    try {
+      await fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: waitlistEmail }),
+      });
+    } catch {
+      // Still confirm to the visitor — don't block on a notification failure.
+    }
+    setWaitlistDone(true);
   }
 
   return (
