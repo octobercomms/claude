@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const hunter = require('../services/hunter');
 
 router.use(authenticate);
 
@@ -129,6 +130,19 @@ router.delete('/campaigns/:id', async (req, res) => {
     res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Contact finding ────────────────────────────────────────────────────────
+
+router.post('/find/hunter', async (req, res) => {
+  const { domain } = req.body;
+  if (!domain) return res.status(400).json({ error: 'domain required' });
+  try {
+    const result = await hunter.domainSearch(domain.trim());
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
 });
 

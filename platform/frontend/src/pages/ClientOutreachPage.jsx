@@ -15,6 +15,13 @@ export default function ClientOutreachPage() {
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
   const [showAddCampaign, setShowAddCampaign] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
+  const [showFinder, setShowFinder] = useState(false);
+  const [findDomain, setFindDomain] = useState('');
+  const [finding, setFinding] = useState(false);
+  const [foundContacts, setFoundContacts] = useState([]);
+  const [findError, setFindError] = useState('');
+  const [searched, setSearched] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
 
   useEffect(() => {
     Promise.all([
@@ -63,6 +70,39 @@ export default function ClientOutreachPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
+  async function runFind() {
+    if (!findDomain.trim()) return;
+    setFinding(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
+    try {
+      const res = await api.post('/outreach/find/hunter', { domain: findDomain.trim() });
+      setFoundContacts(res.contacts || []);
+      setSearched(true);
+    } catch (err) {
+      setFindError(err.message);
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  function toggleSelected(i) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      return next;
+    });
+  }
+
+  async function addFound() {
+    const picked = foundContacts.filter((_, i) => selected.has(i));
+    if (!picked.length) return;
+    try {
+      const { contacts: added } = await api.post('/outreach/contacts/bulk', { client_id: id, contacts: picked });
+      setContacts(p => [...added, ...p]);
+      setFoundContacts([]); setSelected(new Set()); setSearched(false); setShowFinder(false);
+      toast(`Added ${added.length} contact${added.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
@@ -84,7 +124,46 @@ export default function ClientOutreachPage() {
 
       {tab === 'contacts' && (
         <div>
-          <button onClick={() => setShowAddContact(v => !v)} style={s.btn}>{showAddContact ? 'Cancel' : '+ Add contact'}</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setShowAddContact(v => !v)} style={s.btn}>{showAddContact ? 'Cancel' : '+ Add contact'}</button>
+            <button onClick={() => setShowFinder(v => !v)} style={s.btnGhost}>{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
+          </div>
+          {showFinder && (
+            <div style={{ ...s.card, marginTop: 12 }}>
+              <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find contacts via Hunter.io</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input style={{ ...s.input, flex: 1 }} placeholder="Company domain — e.g. example.com"
+                  value={findDomain} onChange={e => setFindDomain(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') runFind(); }} />
+                <button onClick={runFind} disabled={finding} style={s.btn}>{finding ? 'Searching…' : 'Find'}</button>
+              </div>
+              {findError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
+              {searched && foundContacts.length === 0 && !findError && (
+                <p style={{ color: '#888', fontSize: 12, margin: '8px 0 0' }}>No emails found for that domain.</p>
+              )}
+              {foundContacts.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <table style={s.table}>
+                    <thead><tr>{['', 'Name', 'Email', 'Role', 'Confidence'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                    <tbody>
+                      {foundContacts.map((c, i) => (
+                        <tr key={i}>
+                          <td style={s.td}><input type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
+                          <td style={s.td}>{c.name || '—'}</td>
+                          <td style={s.td}>{c.email}</td>
+                          <td style={s.td}>{c.role || '—'}</td>
+                          <td style={s.td}>{c.confidence != null ? `${c.confidence}%` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <button onClick={addFound} disabled={selected.size === 0} style={{ ...s.btn, marginTop: 10 }}>
+                    Add {selected.size} selected
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {showAddContact && (
             <form onSubmit={addContact} style={{ ...s.card, marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
               {['name', 'email', 'company', 'role', 'website'].map(f => (
@@ -161,6 +240,7 @@ export default function ClientOutreachPage() {
 const s = {
   card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 16 },
   btn: { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' },
+  btnGhost: { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
   input: { padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit' },
   tableWrap: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse' },
