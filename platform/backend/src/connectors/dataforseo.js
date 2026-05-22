@@ -3,6 +3,31 @@ const { getSetting } = require('../utils/settings');
 
 const authType = 'apikey';
 
+// DataForSEO's api-access page shows the API login, the API password, AND a
+// ready-made base64 "Authorization" token (base64 of "login:password").
+// Users often paste that token into the password field — detect it and
+// recover the real login/password pair so either form works.
+function resolveCreds(login, password) {
+  login = (login || '').trim();
+  password = (password || '').trim();
+  for (const value of [password, login]) {
+    if (value.length >= 24 && /^[A-Za-z0-9+/]+={0,2}$/.test(value)) {
+      try {
+        const decoded = Buffer.from(value, 'base64').toString('utf8');
+        const colon = decoded.indexOf(':');
+        if (colon > 0) {
+          const user = decoded.slice(0, colon);
+          const pass = decoded.slice(colon + 1);
+          if (/^[^\s:]+@[^\s:]+\.[^\s:]+$/.test(user) && pass && !pass.includes(':')) {
+            return { username: user, password: pass };
+          }
+        }
+      } catch { /* not base64 — fall through */ }
+    }
+  }
+  return { username: login, password };
+}
+
 // Credentials live in the platform_settings table (written by the Settings
 // page) — read them there at call time so a saved change takes effect
 // immediately, with process.env as a fallback.
@@ -11,9 +36,10 @@ async function getClient() {
   const password = await getSetting('DATAFORSEO_PASSWORD');
   if (!login || !password) throw new Error('DataForSEO credentials not configured');
 
+  const creds = resolveCreds(login, password);
   const client = axios.create({
     baseURL: 'https://api.dataforseo.com/v3',
-    auth: { username: login.trim(), password: password.trim() },
+    auth: { username: creds.username, password: creds.password },
     headers: { 'Content-Type': 'application/json' },
   });
   client.interceptors.response.use(
@@ -221,14 +247,16 @@ async function fetchData(credentials, params) {
 // Verifies a DataForSEO login/password pair (or, when omitted, the saved
 // credentials) by calling the lightweight user_data endpoint.
 async function testCredentials({ login, password } = {}) {
-  const user = (login || await getSetting('DATAFORSEO_LOGIN') || '').trim();
-  const pass = (password || await getSetting('DATAFORSEO_PASSWORD') || '').trim();
-  if (!user || !pass) return { ok: false, message: 'No DataForSEO login/password set.' };
+  const rawUser = (login || await getSetting('DATAFORSEO_LOGIN') || '').trim();
+  const rawPass = (password || await getSetting('DATAFORSEO_PASSWORD') || '').trim();
+  if (!rawUser || !rawPass) return { ok: false, message: 'No DataForSEO login/password set.' };
+  const { username: user, password: pass } = resolveCreds(rawUser, rawPass);
   // Echo back exactly what was sent so credential mismatches are visible.
   const sent = {
     login: user,
     passwordLength: pass.length,
     passwordPreview: pass.length > 4 ? `${pass.slice(0, 2)}…${pass.slice(-2)}` : '••',
+    recoveredFromToken: pass !== rawPass || user !== rawUser,
   };
   try {
     const { data } = await axios.get('https://api.dataforseo.com/v3/appendix/user_data', {

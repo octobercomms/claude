@@ -43,7 +43,7 @@ async function fetchData(credentials, params) {
   try {
     const { data } = await axios.get('https://api.brevo.com/v3/emailCampaigns', {
       headers,
-      params: { status: 'sent', limit: 50, offset: 0, sort: 'desc' },
+      params: { status: 'sent', limit: 100, offset: 0, sort: 'desc' },
     });
     const campaigns = data.campaigns || [];
     // Filter to period manually
@@ -63,26 +63,28 @@ async function fetchData(credentials, params) {
       name: c.name,
       subject: c.subject,
       sent_date: c.sentDate,
-      statistics: c.statistics,
+      statistics: c.statistics?.globalStats || c.statistics || null,
     }));
     result.total_campaigns = filtered.length;
+
+    // Aggregate performance for the period from each campaign's own stats.
+    // Derived here rather than from /smtp/statistics/aggregatedReport, which
+    // measures transactional email — a different dataset that is not always
+    // enabled on the account and was returning 400 on marketing-only accounts.
+    const agg = {};
+    for (const c of filtered) {
+      const g = c.statistics?.globalStats || {};
+      for (const [k, v] of Object.entries(g)) {
+        if (typeof v === 'number') agg[k] = (agg[k] || 0) + v;
+      }
+    }
+    result.aggregated_stats = agg;
   } catch (err) {
+    const code = err.response?.data?.code;
     const detail = err.response?.data?.message || err.message;
-    result.fetch_errors.push(`campaigns: ${detail}`);
+    result.fetch_errors.push(`campaigns: ${code ? `[${code}] ` : ''}${detail}`);
     result.campaigns = [];
     result.total_campaigns = 0;
-  }
-
-  // Fetch aggregated SMTP stats
-  try {
-    const { data } = await axios.get('https://api.brevo.com/v3/smtp/statistics/aggregatedReport', {
-      headers,
-      params: { startDate, endDate },
-    });
-    result.aggregated_stats = data;
-  } catch (err) {
-    const detail = err.response?.data?.message || err.message;
-    result.fetch_errors.push(`aggregated_stats: ${detail}`);
   }
 
   if (result.fetch_errors.length === 0) delete result.fetch_errors;
