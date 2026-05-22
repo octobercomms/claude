@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -14,6 +14,8 @@ export default function Layout() {
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
+
+  const [navOpen, setNavOpen] = useState(false);
 
   function handleLogout() { logout(); navigate('/login'); }
 
@@ -32,8 +34,12 @@ export default function Layout() {
   });
 
   return (
-    <div style={styles.shell}>
-      <nav style={styles.nav}>
+    <div className="app-shell">
+      <button className="app-hamburger" onClick={() => setNavOpen(o => !o)} aria-label="Menu">
+        {navOpen ? '✕' : '☰'}
+      </button>
+      <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
+      <nav className={'app-nav' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)}>
         <div style={styles.navBrand}>
           <img src="/logo-black.gif" alt="October" style={styles.logo} />
           <div style={styles.brandSub}>Performance<br/>Marketing<br/>Platform</div>
@@ -52,6 +58,8 @@ export default function Layout() {
                   <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>Data Analyst</NavLink>
                   <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>SEO</NavLink>
                   <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Ads</NavLink>
+                  <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
+                  <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Outreach</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=connectors`} style={subLinkStyle(!!clientMatch && currentTab === 'connectors')}>Connectors</NavLink>
                 </div>
@@ -69,7 +77,7 @@ export default function Layout() {
 
         <button onClick={handleLogout} style={styles.logoutBtn}>Sign out</button>
       </nav>
-      <main style={styles.main}>
+      <main className="app-main">
         <Outlet />
       </main>
     </div>

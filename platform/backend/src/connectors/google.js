@@ -106,6 +106,29 @@ async function fetchGA4Data(credentials, params) {
   }
 }
 
+// Single-range GA4 report for the Sales & Traffic dashboard — daily rows
+// split by channel, so trends and source breakdowns can be derived.
+async function fetchGA4Daily(credentials, { propertyId, startDate, endDate }) {
+  const creds = await getValidToken(credentials);
+  if (!propertyId) throw new Error('GA4 property not selected — choose one on the Connectors tab.');
+  try {
+    const { data } = await axios.post(
+      `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+      {
+        dateRanges: [{ startDate, endDate }],
+        metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'transactions' }, { name: 'totalRevenue' }],
+        dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+        limit: 100000,
+      },
+      { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    );
+    return data;
+  } catch (err) {
+    const detail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
+    throw new Error(`GA4 API error (${err.response?.status}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+  }
+}
+
 // Search Console data fetch
 async function fetchSearchConsoleData(credentials, params) {
   const creds = await getValidToken(credentials);
@@ -346,4 +369,4 @@ function getPreviousPeriodEnd(start, end) {
   return prevEnd.toISOString().split('T')[0];
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily };

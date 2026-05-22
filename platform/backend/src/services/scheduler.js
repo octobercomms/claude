@@ -3,6 +3,8 @@ const pool = require('../db');
 const reportService = require('./reportService');
 const dataForSEO = require('../connectors/dataforseo');
 const emailService = require('./emailService');
+const outreachSender = require('./outreachSender');
+const outreachReplies = require('./outreachReplies');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -205,4 +207,65 @@ function getPeriodDates(reportType) {
   };
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks, runReportReminderCheck };
+// Outreach — send due campaign emails every 3 minutes, in small batches.
+cron.schedule('*/3 * * * *', async () => {
+  try { await runOutreachSends(); }
+  catch (err) { console.error('Outreach send job failed:', err.message); }
+});
+
+// Outreach — poll the reply inbox every 15 minutes.
+cron.schedule('*/15 * * * *', async () => {
+  try { await outreachReplies.pollReplies(); }
+  catch (err) { console.error('Outreach reply poll failed:', err.message); }
+});
+
+async function runOutreachSends() {
+  const { rows: due } = await pool.query(
+    `SELECT s.id AS send_id, s.contact_id, s.campaign_id,
+            seq.subject, seq.body,
+            con.name, con.email, con.company,
+            cl.outreach_sending
+       FROM outreach_sends s
+       JOIN outreach_sequences seq ON seq.id = s.sequence_id
+       JOIN outreach_contacts con ON con.id = s.contact_id
+       JOIN outreach_campaigns cam ON cam.id = s.campaign_id
+       JOIN clients cl ON cl.id = cam.client_id
+      WHERE s.status = 'pending'
+        AND s.scheduled_at <= NOW()
+        AND cam.status = 'active'
+      ORDER BY s.scheduled_at
+      LIMIT 25`
+  );
+
+  for (const row of due) {
+    // Stop the sequence if the contact has already replied to this campaign.
+    const { rows: replied } = await pool.query(
+      'SELECT 1 FROM outreach_sends WHERE campaign_id = $1 AND contact_id = $2 AND replied_at IS NOT NULL LIMIT 1',
+      [row.campaign_id, row.contact_id]
+    );
+    if (replied.length) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
+    // Claim the row so overlapping runs can't double-send it.
+    const claim = await pool.query(
+      "UPDATE outreach_sends SET status = 'sending' WHERE id = $1 AND status = 'pending'",
+      [row.send_id]
+    );
+    if (claim.rowCount === 0) continue;
+    try {
+      await outreachSender.sendOutreachEmail({
+        send: { id: row.send_id },
+        contact: { name: row.name, email: row.email, company: row.company },
+        step: { subject: row.subject, body: row.body },
+        sending: row.outreach_sending,
+      });
+      await pool.query("UPDATE outreach_sends SET status = 'sent', sent_at = NOW() WHERE id = $1", [row.send_id]);
+    } catch (err) {
+      console.error(`Outreach send ${row.send_id} failed:`, err.message);
+      await pool.query("UPDATE outreach_sends SET status = 'failed' WHERE id = $1", [row.send_id]);
+    }
+  }
+}
+
+module.exports = { runScheduledReports, runDailyRankChecks, runReportReminderCheck, runOutreachSends };
