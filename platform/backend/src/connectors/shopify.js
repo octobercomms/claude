@@ -18,21 +18,29 @@ async function fetchOrderData(credentials, startDate, endDate) {
   const { shop_domain, access_token } = credentials;
   const headers = { 'X-Shopify-Access-Token': access_token };
 
-  const { data } = await axios.get(
-    `https://${shop_domain}/admin/api/2024-01/orders.json`,
-    {
-      headers,
-      params: {
-        status: 'any',
-        created_at_min: `${startDate}T00:00:00Z`,
-        created_at_max: `${endDate}T23:59:59Z`,
-        limit: 250,
-        fields: 'id,created_at,total_price,subtotal_price,financial_status,fulfillment_status,line_items,customer',
-      },
-    }
-  );
+  let url = `https://${shop_domain}/admin/api/2024-01/orders.json`;
+  let params = {
+    status: 'any',
+    created_at_min: `${startDate}T00:00:00Z`,
+    created_at_max: `${endDate}T23:59:59Z`,
+    limit: 250,
+    fields: 'id,created_at,total_price,subtotal_price,financial_status,fulfillment_status,line_items,customer',
+  };
 
-  return data.orders || [];
+  const orders = [];
+  // Shopify caps a page at 250 orders and paginates via a cursor in the
+  // Link header — follow rel="next" until exhausted (50-page safety cap).
+  for (let page = 0; page < 50 && url; page++) {
+    const res = await axios.get(url, { headers, params });
+    orders.push(...(res.data.orders || []));
+    const link = res.headers.link || res.headers.Link || '';
+    const next = link.split(',').find(s => s.includes('rel="next"'));
+    const match = next && next.match(/<([^>]+)>/);
+    url = match ? match[1] : null;
+    params = undefined; // the next-page URL already carries limit + page_info
+  }
+
+  return orders;
 }
 
 async function fetchProductData(credentials) {
