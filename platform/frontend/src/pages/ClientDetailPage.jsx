@@ -57,6 +57,13 @@ export default function ClientDetailPage() {
       setTimeout(() => { api.get(`/reports?client_id=${id}`).then(setReports).catch(() => {}); }, 4000);
     } catch (err) { toast(err.message, 'error'); }
   }
+  async function handleDeleteReport(reportId) {
+    if (!window.confirm('Delete this report? This cannot be undone.')) return;
+    try {
+      await api.delete(`/reports/${reportId}`);
+      setReports(prev => prev.filter(r => r.id !== reportId));
+    } catch (err) { toast(err.message, 'error'); }
+  }
   const [credModal, setCredModal] = useState(null);
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
@@ -335,21 +342,33 @@ export default function ClientDetailPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
               <thead>
                 <tr>
-                  {['Type', 'Period start', 'Status', 'Generated'].map(h => (
+                  {['Type', 'Period start', 'Status', 'Generated', ''].map(h => (
                     <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {reports.map(r => (
-                  <tr key={r.id}>
-                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
-                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
-                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>
-                      <span style={{ color: r.status === 'sent' || r.status === 'generated' ? '#2e7d32' : r.status === 'failed' ? '#c62828' : '#888' }}>{r.status}</span>
-                    </td>
-                    <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: '#888' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
-                  </tr>
+                  <React.Fragment key={r.id}>
+                    <tr>
+                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
+                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
+                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>
+                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? '#2e7d32' : r.status === 'failed' ? '#c62828' : '#888' }}>{r.status}</span>
+                      </td>
+                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: '#888' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
+                      <td style={{ padding: '7px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
+                        <button type="button" onClick={() => handleDeleteReport(r.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Delete</button>
+                      </td>
+                    </tr>
+                    {r.status === 'failed' && r.error_log && (
+                      <tr>
+                        <td colSpan={5} style={{ padding: '0 12px 8px 0', color: '#c62828', fontSize: 12, fontFamily: 'monospace', lineHeight: 1.5 }}>
+                          ⚠ {r.error_log}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>
