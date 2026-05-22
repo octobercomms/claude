@@ -184,6 +184,42 @@ export default function HomePage() {
         Trusted by performance marketing agencies · Connects to the tools you already use · Reports your clients actually read
       </div>
 
+      {/* How it works */}
+      <section id="how-it-works" style={{ background: '#fff', padding: '100px 40px' }}>
+        <div style={{ maxWidth: 1140, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 56 }}>
+            <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, margin: '0 0 12px', letterSpacing: -1 }}>One pipeline. Every client.</h2>
+            <p style={{ fontSize: 18, color: GREY, maxWidth: 540, margin: '0 auto' }}>
+              Connect your tools once. October ingests and standardises the data, then turns it into reports, dashboards and answers.
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 260px', maxWidth: 320, background: LIGHT_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: GREY, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Your data sources</div>
+              {['Paid media — Google, Meta, Amazon', 'Analytics — GA4 & Search Console', 'Ecommerce — Shopify & WooCommerce', 'Email — Klaviyo & Brevo', 'SEO — rank & backlink tracking', 'CRM & inventory'].map(t => (
+                <div key={t} style={{ padding: '9px 0', fontSize: 14, color: DARK, borderTop: `1px solid ${BORDER}` }}>{t}</div>
+              ))}
+            </div>
+            <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
+            <div style={{ flex: '1 1 320px', maxWidth: 380, background: DARK, color: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 18px 44px rgba(0,0,0,0.22)' }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: YELLOW, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>The October platform</div>
+              {['Connect & sync — 20+ connectors', 'AI-written client reports', 'SEO rank tracking', 'Data Analyst — chat with your data', 'Sales & Traffic dashboards', 'AI outreach campaigns'].map(t => (
+                <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '9px 0', fontSize: 14, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
+                  <span style={{ color: YELLOW }}>✦</span><span>{t}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
+            <div style={{ flex: '1 1 260px', maxWidth: 320, background: LIGHT_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 24 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: GREY, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>What you get</div>
+              {['Client-ready PDF reports', 'Live dashboards', 'Instant answers from your data', 'Automated outreach', 'Everything in one login'].map(t => (
+                <div key={t} style={{ padding: '9px 0', fontSize: 14, color: DARK, borderTop: `1px solid ${BORDER}` }}>{t}</div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Features */}
       <section id="features" style={{ padding: '100px 40px', maxWidth: 1100, margin: '0 auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 60 }}>
