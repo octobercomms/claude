@@ -16,9 +16,12 @@ function getAuthUrl(state) {
   return `${zohoAccounts}/oauth/v2/auth?${params}`;
 }
 
-async function exchangeCode(code) {
-  // Use EU token endpoint when configured for EU — accounts.zoho.com may omit api_domain in response
-  const zohoAccounts = process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
+async function exchangeCode(code, accountsServer) {
+  // Zoho is multi-DC: an authorization code is only valid at the data centre
+  // that issued it. Zoho passes that DC back to the callback as the
+  // `accounts-server` query parameter — use it for the token exchange,
+  // otherwise an EU/IN/AU code redeemed against .com returns no token.
+  const zohoAccounts = accountsServer || process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
   const { data } = await axios.post(`${zohoAccounts}/oauth/v2/token`, null, {
     params: {
       code,
@@ -29,12 +32,18 @@ async function exchangeCode(code) {
     },
   });
 
+  if (!data.access_token) {
+    throw new Error(`Zoho token exchange failed${data.error ? `: ${data.error}` : ''} — the connection must be authorised in the same Zoho data centre.`);
+  }
+
   const tokens = {
     access_token: data.access_token,
     refresh_token: data.refresh_token,
     expires_at: Date.now() + (data.expires_in || 3600) * 1000,
     // api_domain tells us which region server to use (e.g. https://www.zohoapis.eu for EU)
     api_domain: data.api_domain || 'https://www.zohoapis.com',
+    // accounts_server is the DC to use when refreshing the token later
+    accounts_server: zohoAccounts,
   };
 
   // Fetch first org ID automatically so first-time setup needs fewer clicks
@@ -51,7 +60,7 @@ async function exchangeCode(code) {
 
 async function refreshToken(credentials) {
   if (!credentials.refresh_token) throw new Error('No refresh token — please reconnect Zoho Inventory.');
-  const zohoAccounts = process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
+  const zohoAccounts = credentials.accounts_server || process.env.ZOHO_ACCOUNTS_URL || 'https://accounts.zoho.com';
   const { data } = await axios.post(`${zohoAccounts}/oauth/v2/token`, null, {
     params: {
       refresh_token: credentials.refresh_token,
@@ -60,6 +69,7 @@ async function refreshToken(credentials) {
       grant_type: 'refresh_token',
     },
   });
+  if (!data.access_token) throw new Error('Zoho token refresh failed — please reconnect Zoho Inventory.');
   return {
     ...credentials,
     access_token: data.access_token,
