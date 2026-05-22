@@ -4,6 +4,7 @@ const reportService = require('./reportService');
 const dataForSEO = require('../connectors/dataforseo');
 const emailService = require('./emailService');
 const outreachSender = require('./outreachSender');
+const outreachReplies = require('./outreachReplies');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -210,6 +211,12 @@ function getPeriodDates(reportType) {
 cron.schedule('*/3 * * * *', async () => {
   try { await runOutreachSends(); }
   catch (err) { console.error('Outreach send job failed:', err.message); }
+});
+
+// Outreach — poll the reply inbox every 15 minutes.
+cron.schedule('*/15 * * * *', async () => {
+  try { await outreachReplies.pollReplies(); }
+  catch (err) { console.error('Outreach reply poll failed:', err.message); }
 });
 
 async function runOutreachSends() {

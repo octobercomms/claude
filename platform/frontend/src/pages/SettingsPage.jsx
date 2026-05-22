@@ -104,6 +104,16 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Outreach Reply Inbox',
+    hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies and stop follow-ups automatically.',
+    keys: [
+      { key: 'OUTREACH_IMAP_HOST', label: 'IMAP Host', placeholder: 'e.g. imap.gmail.com', type: 'text' },
+      { key: 'OUTREACH_IMAP_PORT', label: 'IMAP Port', placeholder: '993', type: 'text' },
+      { key: 'OUTREACH_IMAP_USER', label: 'IMAP User', placeholder: 'replies@example.com', type: 'text' },
+      { key: 'OUTREACH_IMAP_PASSWORD', label: 'IMAP Password', placeholder: 'App password', type: 'password' },
+    ],
+  },
+  {
     title: 'n8n Integration',
     hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
     keys: [
