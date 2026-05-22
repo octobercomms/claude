@@ -3,7 +3,6 @@
 set -e
 
 SOURCE_DIR="/opt/october-source"
-BACKEND_DIST="/opt/october-platform"
 FRONTEND_DIST="/var/www/platform"
 
 echo "==> Syncing source to origin/main..."
@@ -16,9 +15,8 @@ echo "==> Running migrations..."
 cd "$SOURCE_DIR/platform/backend"
 node migrations/run.js
 
-echo "==> Syncing backend..."
-rsync -a --exclude=node_modules --exclude=.env "$SOURCE_DIR/platform/backend/" "$BACKEND_DIST/"
-cd "$BACKEND_DIST"
+echo "==> Installing backend dependencies..."
+cd "$SOURCE_DIR/platform/backend"
 npm install --omit=dev --silent
 
 echo "==> Rebuilding frontend..."
