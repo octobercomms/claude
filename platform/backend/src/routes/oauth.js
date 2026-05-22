@@ -163,7 +163,9 @@ router.get('/zoho/callback', async (req, res) => {
 
   try {
     const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
-    const tokens = await zohoInventoryConnector.exchangeCode(code);
+    // Zoho returns the issuing data centre as `accounts-server` — the code
+    // is only redeemable there.
+    const tokens = await zohoInventoryConnector.exchangeCode(code, req.query['accounts-server']);
     const encrypted = encrypt(tokens);
 
     await pool.query(
