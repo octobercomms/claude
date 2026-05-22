@@ -4,10 +4,12 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
-function CampaignSequence({ campaign }) {
+function CampaignSequence({ campaign, onCampaignChange }) {
   const toast = useToast();
   const [steps, setSteps] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [testTo, setTestTo] = useState('');
 
   useEffect(() => {
     api.get(`/outreach/campaigns/${campaign.id}/sequences`)
@@ -41,6 +43,36 @@ function CampaignSequence({ campaign }) {
     } catch (err) { toast(err.message, 'error'); }
   }
 
+  async function launch() {
+    if (!window.confirm('Launch this campaign? Emails will start sending to all of this client’s contacts.')) return;
+    setBusy(true);
+    try {
+      const res = await api.post(`/outreach/campaigns/${campaign.id}/launch`, {});
+      toast(`Campaign launched — ${res.enrolled} contact${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
+      if (onCampaignChange) onCampaignChange();
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function setCampaignState(action) {
+    setBusy(true);
+    try {
+      await api.post(`/outreach/campaigns/${campaign.id}/${action}`, {});
+      if (onCampaignChange) onCampaignChange();
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function testSend() {
+    if (!testTo.trim()) { toast('Enter a test recipient address', 'error'); return; }
+    setBusy(true);
+    try {
+      await api.post(`/outreach/campaigns/${campaign.id}/test`, { to: testTo.trim() });
+      toast(`Test email sent to ${testTo.trim()}`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
   return (
     <div style={{ padding: '16px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
@@ -49,6 +81,25 @@ function CampaignSequence({ campaign }) {
         </button>
         <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up, final nudge.</span>
       </div>
+      {steps && steps.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+          {campaign.status === 'draft' && (
+            <button onClick={launch} disabled={busy} style={s.btn}>{busy ? '…' : '▶ Launch campaign'}</button>
+          )}
+          {campaign.status === 'active' && (
+            <button onClick={() => setCampaignState('pause')} disabled={busy} style={s.btnGhost}>{busy ? '…' : '⏸ Pause'}</button>
+          )}
+          {campaign.status === 'paused' && (
+            <button onClick={() => setCampaignState('resume')} disabled={busy} style={s.btn}>{busy ? '…' : '▶ Resume'}</button>
+          )}
+          <input style={{ ...s.input, width: 190 }} placeholder="test@you.com" value={testTo}
+            onChange={e => setTestTo(e.target.value)} />
+          <button onClick={testSend} disabled={busy} style={s.btnGhost}>Test send</button>
+          <span style={{ fontSize: 12, color: '#888' }}>
+            {campaign.contact_count || 0} enrolled · {campaign.sent_count || 0} sent · {campaign.opened_count || 0} opened
+          </span>
+        </div>
+      )}
       {steps === null ? (
         <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>
       ) : steps.length === 0 ? (
@@ -97,6 +148,9 @@ export default function ClientOutreachPage() {
   const [serperDomains, setSerperDomains] = useState([]);
   const [serperError, setSerperError] = useState('');
   const [expandedCampaign, setExpandedCampaign] = useState(null);
+  const [sendCfg, setSendCfg] = useState({});
+  const [savingSend, setSavingSend] = useState(false);
+  const [sendSaved, setSendSaved] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -104,7 +158,7 @@ export default function ClientOutreachPage() {
       api.get(`/outreach/contacts?client_id=${id}`),
       api.get(`/outreach/campaigns?client_id=${id}`),
     ])
-      .then(([c, ct, cp]) => { setClient(c); setContacts(ct); setCampaigns(cp); })
+      .then(([c, ct, cp]) => { setClient(c); setContacts(ct); setCampaigns(cp); setSendCfg(c.outreach_sending || {}); })
       .catch(err => toast(err.message, 'error'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -143,6 +197,20 @@ export default function ClientOutreachPage() {
       await api.delete(`/outreach/campaigns/${cid}`);
       setCampaigns(p => p.filter(x => x.id !== cid));
     } catch (err) { toast(err.message, 'error'); }
+  }
+
+  function refreshCampaigns() {
+    api.get(`/outreach/campaigns?client_id=${id}`).then(setCampaigns).catch(() => {});
+  }
+
+  async function saveSending() {
+    setSavingSend(true); setSendSaved(false);
+    try {
+      await api.put(`/outreach/sending/${id}`, sendCfg);
+      setSendSaved(true);
+      setTimeout(() => setSendSaved(false), 3000);
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setSavingSend(false); }
   }
 
   async function runFind(domainArg, source = 'hunter') {
@@ -201,11 +269,12 @@ export default function ClientOutreachPage() {
       </p>
 
       <div style={{ display: 'flex', marginBottom: 16 }}>
-        {[['contacts', `Contacts (${contacts.length})`], ['campaigns', `Campaigns (${campaigns.length})`]].map(([v, label], i) => (
+        {[['contacts', `Contacts (${contacts.length})`], ['campaigns', `Campaigns (${campaigns.length})`], ['sending', 'Sending']].map(([v, label], i, arr) => (
           <button key={v} onClick={() => setTab(v)} style={{
             padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
             background: tab === v ? '#1a1a1a' : '#fff', color: tab === v ? '#fff' : '#444',
-            borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
+            borderRadius: i === 0 ? '4px 0 0 4px' : i === arr.length - 1 ? '0 4px 4px 0' : '0',
+            borderLeft: i === 0 ? '1px solid #ddd' : 'none',
           }}>{label}</button>
         ))}
       </div>
@@ -345,7 +414,7 @@ export default function ClientOutreachPage() {
                   {expandedCampaign === c.id && (
                     <tr>
                       <td colSpan={5} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
-                        <CampaignSequence campaign={c} />
+                        <CampaignSequence campaign={c} onCampaignChange={refreshCampaigns} />
                       </td>
                     </tr>
                   )}
@@ -354,6 +423,24 @@ export default function ClientOutreachPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {tab === 'sending' && (
+        <div style={{ ...s.card, maxWidth: 520 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Outreach sending</div>
+          <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
+            How outreach emails for this client are sent. Leave a field blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
+          </p>
+          {[['from_name', 'From name'], ['from_email', 'From email'], ['reply_to', 'Reply-To email']].map(([k, label]) => (
+            <div key={k} style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>{label}</label>
+              <input style={{ ...s.input, width: '100%', boxSizing: 'border-box' }} value={sendCfg[k] || ''}
+                onChange={e => setSendCfg(p => ({ ...p, [k]: e.target.value }))} />
+            </div>
+          ))}
+          <button onClick={saveSending} disabled={savingSend} style={s.btn}>{savingSend ? 'Saving…' : 'Save sending settings'}</button>
+          {sendSaved && <span style={{ marginLeft: 10, color: '#2e7d32', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
         </div>
       )}
     </div>

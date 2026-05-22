@@ -6,6 +6,18 @@ const hunter = require('../services/hunter');
 const serper = require('../services/serper');
 const icypeas = require('../services/icypeas');
 const outreachAi = require('../services/outreachAi');
+const outreachSender = require('../services/outreachSender');
+
+// Public — open-tracking pixel, loaded directly by recipients' email clients.
+const TRACK_PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
+router.get('/track/open/:sendId', async (req, res) => {
+  try {
+    await pool.query('UPDATE outreach_sends SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL', [req.params.sendId]);
+  } catch { /* always return the pixel */ }
+  res.set('Content-Type', 'image/gif');
+  res.set('Cache-Control', 'no-store');
+  res.send(TRACK_PIXEL);
+});
 
 router.use(authenticate);
 
@@ -100,7 +112,9 @@ router.get('/campaigns', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT c.*,
-         (SELECT COUNT(*) FROM outreach_campaign_contacts cc WHERE cc.campaign_id = c.id) AS contact_count
+         (SELECT COUNT(*) FROM outreach_campaign_contacts cc WHERE cc.campaign_id = c.id) AS contact_count,
+         (SELECT COUNT(*) FROM outreach_sends s WHERE s.campaign_id = c.id AND s.status = 'sent') AS sent_count,
+         (SELECT COUNT(*) FROM outreach_sends s WHERE s.campaign_id = c.id AND s.opened_at IS NOT NULL) AS opened_count
        FROM outreach_campaigns c
        WHERE c.client_id = $1
        ORDER BY c.created_at DESC`,
@@ -218,6 +232,115 @@ router.put('/sequences/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Sending config ─────────────────────────────────────────────────────────
+
+router.get('/sending/:clientId', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT outreach_sending FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    res.json(rows[0].outreach_sending || {});
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/sending/:clientId', async (req, res) => {
+  const { from_name, from_email, reply_to } = req.body;
+  try {
+    const config = { from_name: from_name || null, from_email: from_email || null, reply_to: reply_to || null };
+    await pool.query('UPDATE clients SET outreach_sending = $1 WHERE id = $2', [JSON.stringify(config), req.params.clientId]);
+    res.json(config);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Campaign launch & control ──────────────────────────────────────────────
+
+router.post('/campaigns/:id/launch', async (req, res) => {
+  try {
+    const { rows: camps } = await pool.query('SELECT * FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    const campaign = camps[0];
+
+    const { rows: steps } = await pool.query(
+      'SELECT * FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number', [req.params.id]
+    );
+    if (!steps.length) return res.status(400).json({ error: 'Generate an email sequence before launching.' });
+
+    const { rows: contacts } = await pool.query(
+      "SELECT * FROM outreach_contacts WHERE client_id = $1 AND email IS NOT NULL AND email <> ''",
+      [campaign.client_id]
+    );
+    if (!contacts.length) return res.status(400).json({ error: 'No contacts with an email address to send to.' });
+
+    const now = Date.now();
+    let enrolled = 0;
+    for (const contact of contacts) {
+      const { rows: existing } = await pool.query(
+        'SELECT 1 FROM outreach_campaign_contacts WHERE campaign_id = $1 AND contact_id = $2',
+        [req.params.id, contact.id]
+      );
+      if (existing.length) continue;
+      await pool.query(
+        'INSERT INTO outreach_campaign_contacts (campaign_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, contact.id]
+      );
+      for (const step of steps) {
+        const scheduledAt = new Date(now + (step.delay_days || 0) * 86400000);
+        await pool.query(
+          `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
+           VALUES ($1, $2, $3, 'pending', $4)`,
+          [req.params.id, contact.id, step.id, scheduledAt]
+        );
+      }
+      enrolled++;
+    }
+    await pool.query("UPDATE outreach_campaigns SET status = 'active', launched_at = NOW() WHERE id = $1", [req.params.id]);
+    res.json({ enrolled, steps: steps.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/campaigns/:id/pause', async (req, res) => {
+  try {
+    await pool.query("UPDATE outreach_campaigns SET status = 'paused' WHERE id = $1", [req.params.id]);
+    res.json({ status: 'paused' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/campaigns/:id/resume', async (req, res) => {
+  try {
+    await pool.query("UPDATE outreach_campaigns SET status = 'active' WHERE id = $1", [req.params.id]);
+    res.json({ status: 'active' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/campaigns/:id/test', async (req, res) => {
+  const { to } = req.body;
+  if (!to) return res.status(400).json({ error: 'A test recipient email is required.' });
+  try {
+    const { rows: camps } = await pool.query(
+      `SELECT cam.*, cl.outreach_sending FROM outreach_campaigns cam
+       JOIN clients cl ON cl.id = cam.client_id WHERE cam.id = $1`, [req.params.id]
+    );
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    const { rows: steps } = await pool.query(
+      'SELECT * FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number LIMIT 1', [req.params.id]
+    );
+    if (!steps.length) return res.status(400).json({ error: 'Generate an email sequence first.' });
+    await outreachSender.sendTest(camps[0], steps[0], camps[0].outreach_sending, to.trim());
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
 });
 
