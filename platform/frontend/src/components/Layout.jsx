@@ -44,7 +44,7 @@ export default function Layout() {
       <nav className={'app-nav' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)}>
         <div style={styles.navBrand}>
           <img src="/logo-black.gif" alt="October" style={styles.logo} />
-          <div style={styles.brandSub}>Performance<br/>Marketing<br/>Platform</div>
+          <div style={styles.brandSub}>Marketing<br/>Intelligence</div>
         </div>
 
         <ul style={styles.navList}>

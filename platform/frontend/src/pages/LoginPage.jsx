@@ -38,7 +38,7 @@ export default function LoginPage() {
       </div>
       <div style={styles.card}>
         <div style={styles.cardHeader}>
-          <div style={styles.cardTitle}>Performance Marketing Platform</div>
+          <div style={styles.cardTitle}>Marketing Intelligence</div>
         </div>
         <form onSubmit={handleSubmit} style={styles.form}>
           {error && <div style={styles.error}>{error}</div>}

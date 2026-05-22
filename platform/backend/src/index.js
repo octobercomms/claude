@@ -62,7 +62,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toI
 // Start server, load DB settings in background
 require('./services/scheduler');
 const server = app.listen(PORT, () => {
-  console.log(`October Platform backend running on port ${PORT}`);
+  console.log(`October Marketing Intelligence backend running on port ${PORT}`);
   loadSettingsFromDb();
 });
 

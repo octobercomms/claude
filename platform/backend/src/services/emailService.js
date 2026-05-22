@@ -95,7 +95,7 @@ async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl })
           Reauthorise Meta Connection
         </a>
       </p>
-      <p style="color: #666; font-size: 12px;">October Performance Marketing Platform</p>
+      <p style="color: #666; font-size: 12px;">October Marketing Intelligence</p>
     </div>
   `;
 
@@ -287,7 +287,7 @@ async function sendConnectorHealthAlert(issues) {
       <p style="margin-top: 24px; color: #666; font-size: 13px;">
         Log in to the platform to reauthorise any expired connectors.
       </p>
-      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Performance Marketing Platform — daily health check</p>
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Marketing Intelligence — daily health check</p>
     </div>`;
 
   return getTransporter().sendMail({
@@ -312,7 +312,7 @@ async function sendReportReminderEmail(client) {
   const dateStr = reportDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   const subject = `Reminder: ${client.name} monthly report due in 48 hours`;
-  const text = `The monthly report for ${client.name} is scheduled to run on ${dateStr}.\n\nPlease log in to update any manual SEO metrics before the report runs: https://platform.octobercomms.com/clients/${client.id}/seo\n\nOctober Performance Marketing Platform`;
+  const text = `The monthly report for ${client.name} is scheduled to run on ${dateStr}.\n\nPlease log in to update any manual SEO metrics before the report runs: https://platform.octobercomms.com/clients/${client.id}/seo\n\nOctober Marketing Intelligence`;
 
   return getTransporter().sendMail({
     from: getSenderAddress(),
@@ -327,8 +327,8 @@ async function sendWaitlistSignup(email) {
     from: getSenderAddress(),
     to: 'octobercomms@gmail.com',
     subject: `New waitlist signup: ${email}`,
-    text: `${email} joined the Performance Marketing Platform waitlist on ${new Date().toUTCString()}.`,
-    html: `<p><strong>${email}</strong> joined the Performance Marketing Platform waitlist.</p><p style="color:#888">${new Date().toUTCString()}</p>`,
+    text: `${email} joined the October Marketing Intelligence waitlist on ${new Date().toUTCString()}.`,
+    html: `<p><strong>${email}</strong> joined the October Marketing Intelligence waitlist.</p><p style="color:#888">${new Date().toUTCString()}</p>`,
   });
 }
 

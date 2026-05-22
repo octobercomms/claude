@@ -143,7 +143,7 @@ export default function HomePage() {
       <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${BORDER}`, padding: '0 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <img src="/logo-yellow.gif" alt="October" style={{ height: 28 }} />
-          <span className="home-brandtext" style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>Performance Marketing Platform</span>
+          <span className="home-brandtext" style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>Marketing Intelligence</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           <a className="home-navlink" href="#features" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Features</a>
@@ -159,14 +159,14 @@ export default function HomePage() {
       <section style={{ background: DARK, color: '#fff', padding: '100px 40px', textAlign: 'center' }}>
         <div style={{ maxWidth: 780, margin: '0 auto' }}>
           <div style={{ display: 'inline-block', background: YELLOW, color: DARK, fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, marginBottom: 24, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-            Built for performance marketers
+            Built for marketing agencies
           </div>
           <h1 style={{ fontSize: 'clamp(36px, 6vw, 68px)', fontWeight: 800, margin: '0 0 24px', lineHeight: 1.1, letterSpacing: -1.5 }}>
             One platform.<br />
             <span style={{ color: YELLOW }}>All your client data.</span>
           </h1>
-          <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)', maxWidth: 560, margin: '0 auto 40px', lineHeight: 1.6 }}>
-            Connect Google, Meta, Shopify and 20+ more. Generate AI-powered reports, track SEO, and chat with your data — across every client.
+          <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)', maxWidth: 580, margin: '0 auto 40px', lineHeight: 1.6 }}>
+            Bring your ecommerce, sales, email, SEO and outreach into one place, and use AI to analyse the data.
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <a href="#pricing" style={{ background: YELLOW, color: DARK, padding: '14px 32px', borderRadius: 10, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>
@@ -181,7 +181,7 @@ export default function HomePage() {
 
       {/* Social proof strip */}
       <div style={{ background: '#f3f4f6', borderBottom: `1px solid ${BORDER}`, padding: '16px 40px', textAlign: 'center', fontSize: 13, color: GREY }}>
-        Trusted by performance marketing agencies · Connects to the tools you already use · Reports your clients actually read
+        Trusted by marketing agencies · Connects to the tools you already use · Reports your clients actually read
       </div>
 
       {/* How it works */}
@@ -202,7 +202,7 @@ export default function HomePage() {
             </div>
             <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
             <div style={{ flex: '1 1 320px', maxWidth: 380, background: DARK, color: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 18px 44px rgba(0,0,0,0.22)' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: YELLOW, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>The October platform</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: YELLOW, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>October Marketing Intelligence</div>
               {['Connect & sync — 20+ connectors', 'AI-written client reports', 'SEO rank tracking', 'AI Data Analyst — chat with your data', 'Sales & Traffic dashboards', 'AI outreach campaigns'].map(t => (
                 <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '9px 0', fontSize: 14, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
                   <span style={{ color: YELLOW }}>✦</span><span>{t}</span>
