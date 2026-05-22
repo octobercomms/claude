@@ -68,7 +68,12 @@ async function fetchData(credentials, params) {
     throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
   }
 
-  const { marketplace, startDate, endDate } = params;
+  const { startDate, endDate } = params;
+  // The connector's marketplace is saved on its own credentials. Reading it
+  // only from params meant every connector fell back to the UK marketplace +
+  // EU endpoint — so a US connector's North-America token hit the EU endpoint
+  // and returned a 403.
+  const marketplace = String(credentials.marketplace || params.marketplace || 'uk').trim().toLowerCase();
 
   const marketplaceIds = {
     uk: 'A1F83G8C2ARO7P',
