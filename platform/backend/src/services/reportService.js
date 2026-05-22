@@ -61,18 +61,30 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
+  // Condense connector data for the AI prompt. The raw API responses (full
+  // order lists, GA4 rows, etc.) can run past a million tokens and exceed the
+  // model's limit — the section metrics and tables carry what the summary needs.
+  const condensed = sections.map(s => ({
+    connector: s.title,
+    store: s.storeLabel || undefined,
+    unavailable: s.unavailable || undefined,
+    error: s.errorMessage || undefined,
+    metrics: s.metrics,
+    tables: s.tables,
+  }));
+
   const [executiveSummary, recommendations] = await Promise.all([
     claudeService.generateExecutiveSummary({
       clientName: client.name,
       period,
       monthlyFocus: client.monthly_focus,
-      data: rawData,
+      data: condensed,
       seoData,
       chatHistory,
     }),
     claudeService.generateRecommendations({
       monthlyFocus: client.monthly_focus,
-      data: rawData,
+      data: condensed,
       seoData,
       chatHistory,
     }),
