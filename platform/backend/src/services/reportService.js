@@ -103,8 +103,10 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   // shows "Page X of Y" + the company details automatically.
   const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true });
 
-  // Extract top metrics for email
-  const topMetrics = extractTopMetrics(rawData);
+  // Extract top metrics for email — restricted to the connectors actually
+  // enabled for monthly reports.
+  const allowedTypes = new Set(sections.map(s => s.type));
+  const topMetrics = extractTopMetrics(rawData, allowedTypes);
 
   // Build email summary HTML
   const summaryHtml = `<p>${executiveSummary.split('\n')[0]}</p>`;
@@ -122,16 +124,35 @@ async function generateWeeklyReport(report, period, periodStart, periodEnd, sect
   const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
   const client = clientRow.rows[0];
 
-  const metrics = extractTopMetrics(rawData);
+  // Restrict top-line metrics to the connector types that were actually
+  // enabled for weekly reports — otherwise every connected source shows up.
+  const allowedTypes = new Set(sections.map(s => s.type));
+  const metrics = extractTopMetrics(rawData, allowedTypes);
   const rankMovers = extractRankMovers(seoData.rankings || [], 'weekly');
   const weekLabel = new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
 
+  // Mirror the monthly path: give Claude the actual per-section data and the
+  // account manager's per-section instructions, so it can write a focused
+  // summary instead of guessing from a flat metrics list.
+  const sectionInstructions = client.section_instructions || {};
+  const condensed = sections.map(s => ({
+    connector: s.title,
+    store: s.storeLabel || undefined,
+    unavailable: s.unavailable || undefined,
+    error: s.errorMessage || undefined,
+    instruction: sectionInstructions[s.type] || undefined,
+    metrics: s.metrics,
+    tables: s.tables,
+  }));
+
   const summaryText = await claudeService.generateWeeklySummary({
     clientName: client.name,
+    clientBriefing: client.briefing_field,
     week: period,
     monthlyFocus: client.monthly_focus,
     metrics,
     rankMovers,
+    sections: condensed,
     chatHistory,
   });
 
@@ -219,11 +240,16 @@ async function sendReport(reportId, overrides = {}) {
   }
 }
 
-function extractTopMetrics(rawData) {
+function extractTopMetrics(rawData, allowedTypes = null) {
   const metrics = [];
   for (const [key, data] of Object.entries(rawData)) {
     if (!data) continue;
     const type = key.split(':')[0];
+    // When section toggles supply an allowed-types set, skip connectors the
+    // account manager has unticked for this report type. Without this filter
+    // every connected source contributes to the email/PDF summary metrics,
+    // regardless of what the user asked to appear in the report.
+    if (allowedTypes && !allowedTypes.has(type)) continue;
 
     if ((type === 'shopify' || type === 'woocommerce') && data.summary) {
       metrics.push(
@@ -236,9 +262,14 @@ function extractTopMetrics(rawData) {
       const spend = data.data.reduce((s, r) => s + parseFloat(r.spend || 0), 0);
       metrics.push({ label: 'Meta Spend', value: `£${spend.toFixed(2)}` });
     }
-    if (type === 'google_ads' && Array.isArray(data)) {
+    if (type === 'google_ads') {
+      // Google Ads /search returns { results: [...] }; legacy searchStream
+      // returned [{ results: [...] }, ...]. Both shapes still appear in
+      // historic data, so handle both — the old `Array.isArray(data)` guard
+      // alone silently dropped every Google Ads metric.
+      const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
       let spend = 0;
-      for (const batch of data) for (const r of (batch.results || [])) spend += parseInt(r.metrics?.costMicros || 0) / 1_000_000;
+      for (const r of results) spend += parseInt(r.metrics?.costMicros || 0) / 1_000_000;
       if (spend > 0) metrics.push({ label: 'Google Ads Spend', value: `£${spend.toFixed(2)}` });
     }
     if (type === 'ga4' && data.rows?.length) {
