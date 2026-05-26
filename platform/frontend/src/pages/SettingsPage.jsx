@@ -156,6 +156,16 @@ const KEY_GROUPS = [
       { key: 'ALERT_EMAIL', label: 'Alert Email', placeholder: 'you@octobercomms.com', type: 'text' },
     ],
   },
+  {
+    title: 'Report Footer',
+    category: 'Other',
+    hint: 'Three lines printed at the bottom of every report PDF, beneath the "Page X of Y" line. Edit any time. Leave blank to use the built-in October defaults. Header is locked.',
+    keys: [
+      { key: 'REPORT_FOOTER_LINE_1', label: 'Footer line 1', placeholder: 'Private & Confidential · October Communications Ltd.', type: 'text' },
+      { key: 'REPORT_FOOTER_LINE_2', label: 'Footer line 2', placeholder: 'Company No. 8816416 · VAT Registration No. GB 176 6335 82 · Registered in England and Wales', type: 'text' },
+      { key: 'REPORT_FOOTER_LINE_3', label: 'Footer line 3', placeholder: '85 Great Portland Street, First Floor, London W1W 7LT · www.octobercomms.com', type: 'text' },
+    ],
+  },
 ];
 
 // Top-level categories displayed as collapsible cards in a responsive grid.

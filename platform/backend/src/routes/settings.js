@@ -25,6 +25,9 @@ const SETTINGS_KEYS = [
   'SES_ACCESS_KEY_ID', 'SES_SECRET_ACCESS_KEY',
   'OUTREACH_SENDING_DOMAIN', 'OUTREACH_DEFAULT_REPLY_TO',
   'ALERT_EMAIL',
+  // Editable report footer — three lines printed on every PDF page beneath
+  // the "Page X of Y" line. Leave blank to use the built-in defaults.
+  'REPORT_FOOTER_LINE_1', 'REPORT_FOOTER_LINE_2', 'REPORT_FOOTER_LINE_3',
 ];
 
 router.use(authenticate);
