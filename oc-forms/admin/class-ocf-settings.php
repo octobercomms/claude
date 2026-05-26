@@ -7,6 +7,9 @@ class OCF_Settings {
 
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'register' ) );
+		// Priority 1 so we redirect before any other plugin's admin_init
+		// handler can flush output and break the redirect.
+		add_action( 'admin_init', array( __CLASS__, 'dispatch_actions' ), 1 );
 	}
 
 	public static function register() {
@@ -27,22 +30,55 @@ class OCF_Settings {
 
 	public static function sanitize_bool( $v ) {
 		return $v ? 1 : 0;
-
-		add_action( 'admin_post_ocf_regenerate_api_key', array( __CLASS__, 'regenerate_api_key' ) );
 	}
 
-	public static function regenerate_api_key() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
-		check_admin_referer( 'ocf_regenerate_api_key' );
-		update_option( 'ocf_api_key', wp_generate_password( 48, false, false ) );
-		self::redirect( admin_url( 'admin.php?page=oc-forms-settings&regenerated=1' ) );
+	/**
+	 * One central dispatcher for every plugin admin action. Triggers off
+	 * a single `ocf_action` parameter (GET or POST). Fires early enough
+	 * that no other plugin can flush output before our redirect.
+	 */
+	public static function dispatch_actions() {
+		$action = isset( $_REQUEST['ocf_action'] ) ? sanitize_key( wp_unslash( $_REQUEST['ocf_action'] ) ) : '';
+		if ( ! $action ) { return; }
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( 'Forbidden' );
+		}
+
+		switch ( $action ) {
+			case 'regenerate_api_key':
+				check_admin_referer( 'ocf_regenerate_api_key' );
+				update_option( 'ocf_api_key', wp_generate_password( 48, false, false ) );
+				self::redirect( admin_url( 'admin.php?page=oc-forms-settings&regenerated=1' ) );
+				break;
+
+			case 'send_test_email':
+				check_admin_referer( 'ocf_send_test_email' );
+				OCF_Mail::handle_test_email_inline();
+				break;
+
+			case 'duplicate_form':
+				$source_id = absint( $_REQUEST['form_id'] ?? 0 );
+				check_admin_referer( 'ocf_duplicate_form_' . $source_id );
+				OCF_Admin::duplicate_form_inline( $source_id );
+				break;
+
+			case 'bulk_delete_submissions':
+				check_admin_referer( 'ocf_bulk_delete_submissions' );
+				OCF_Submissions_List::bulk_delete_inline();
+				break;
+
+			case 'delete_submission':
+				$id = absint( $_REQUEST['id'] ?? 0 );
+				check_admin_referer( 'ocf_delete_submission_' . $id );
+				OCF_Submissions_List::single_delete_inline( $id );
+				break;
+		}
 	}
 
 	/**
 	 * Redirect that survives the "headers already sent" case: some other
-	 * plugins (Compliance banners, debug bars, etc.) flush output early,
-	 * which makes wp_safe_redirect a silent no-op and strands the user
-	 * on admin-post.php. Fall back to a JS / meta-refresh.
+	 * plugins flush output early, which makes wp_safe_redirect a silent
+	 * no-op. Fall back to a JS / meta-refresh.
 	 */
 	public static function redirect( $url ) {
 		$url = wp_validate_redirect( $url, admin_url() );
@@ -92,7 +128,7 @@ class OCF_Settings {
 			<div class="notice notice-error is-dismissible"><p>Test email failed.<?php echo $test_err ? ' Reason: <code>' . esc_html( $test_err ) . '</code>' : ''; ?> Check your SES credentials, region, and that the From address is a verified SES identity.</p></div>
 		<?php endif; ?>
 		<div class="wrap">
-			<h1>October Forms — Settings</h1>
+			<h1>October Forms — Settings <span style="font-size: 13px; color: #6c7781; font-weight: normal;">v<?php echo esc_html( OCF_VERSION ); ?></span></h1>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ocf_settings' ); ?>
 				<table class="form-table" role="presentation">
@@ -187,8 +223,8 @@ class OCF_Settings {
 
 			<?php if ( $ses_enabled ) : ?>
 			<h3>Send a test email</h3>
-			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display: flex; gap: 8px; align-items: center; max-width: 600px;">
-				<input type="hidden" name="action" value="ocf_send_test_email">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin.php?page=oc-forms-settings' ) ); ?>" style="display: flex; gap: 8px; align-items: center; max-width: 600px;">
+				<input type="hidden" name="ocf_action" value="send_test_email">
 				<?php wp_nonce_field( 'ocf_send_test_email' ); ?>
 				<input type="email" name="to" placeholder="you@example.com" class="regular-text" required>
 				<?php submit_button( 'Send test email', 'secondary', 'submit', false ); ?>
@@ -208,14 +244,19 @@ class OCF_Settings {
 					<th scope="row"><label for="ocf_api_key">API key</label></th>
 					<td>
 						<input type="text" readonly id="ocf_api_key_view" value="<?php echo esc_attr( $api_key ); ?>" class="large-text code" onfocus="this.select()" placeholder="(none — generate one below)">
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top: 8px;">
-							<input type="hidden" name="action" value="ocf_regenerate_api_key">
-							<?php wp_nonce_field( 'ocf_regenerate_api_key' ); ?>
-							<?php submit_button( $api_key ? 'Regenerate API key' : 'Generate API key', 'secondary', 'submit', false ); ?>
+						<?php $regen_url = wp_nonce_url(
+							admin_url( 'admin.php?page=oc-forms-settings&ocf_action=regenerate_api_key' ),
+							'ocf_regenerate_api_key'
+						); ?>
+						<p style="margin-top: 8px;">
+							<a class="button button-secondary" href="<?php echo esc_url( $regen_url ); ?>"
+								<?php if ( $api_key ) : ?>onclick="return confirm('Regenerate the API key? The current one will be immediately invalidated.');"<?php endif; ?>>
+								<?php echo $api_key ? 'Regenerate API key' : 'Generate API key'; ?>
+							</a>
 							<?php if ( $api_key ) : ?>
 								<span class="description" style="margin-left: 8px;">Regenerating immediately invalidates the old key.</span>
 							<?php endif; ?>
-						</form>
+						</p>
 					</td>
 				</tr>
 			</table>

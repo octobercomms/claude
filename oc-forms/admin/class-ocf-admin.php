@@ -9,20 +9,26 @@ class OCF_Admin {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
 		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 10, 2 );
-		add_action( 'admin_post_ocf_duplicate_form', array( __CLASS__, 'handle_duplicate' ) );
 	}
 
 	public static function row_actions( $actions, $post ) {
 		if ( $post->post_type !== OCF_CPT ) { return $actions; }
-		$url = wp_nonce_url( admin_url( 'admin-post.php?action=ocf_duplicate_form&form_id=' . $post->ID ), 'ocf_duplicate_form_' . $post->ID );
+		$url = self::duplicate_url( $post->ID );
 		$actions['ocf_duplicate'] = '<a href="' . esc_url( $url ) . '">Duplicate</a>';
 		return $actions;
 	}
 
-	public static function handle_duplicate() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
-		$source_id = absint( $_GET['form_id'] ?? 0 );
-		check_admin_referer( 'ocf_duplicate_form_' . $source_id );
+	public static function duplicate_url( $post_id ) {
+		return wp_nonce_url(
+			admin_url( 'admin.php?page=oc-forms&ocf_action=duplicate_form&form_id=' . (int) $post_id ),
+			'ocf_duplicate_form_' . (int) $post_id
+		);
+	}
+
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function duplicate_form_inline( $source_id ) {
 		if ( ! $source_id || ! OCF_CPT::exists( $source_id ) ) { wp_die( 'Form not found' ); }
 
 		$source = get_post( $source_id );
@@ -113,7 +119,7 @@ class OCF_Admin {
 						<td>
 							<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $f->ID ) ); ?>">Submissions</a>
 							<a class="button" href="<?php echo esc_url( get_edit_post_link( $f->ID ) ); ?>">Edit</a>
-							<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=ocf_duplicate_form&form_id=' . $f->ID ), 'ocf_duplicate_form_' . $f->ID ) ); ?>">Duplicate</a>
+							<a class="button" href="<?php echo esc_url( self::duplicate_url( $f->ID ) ); ?>">Duplicate</a>
 						</td>
 					</tr>
 				<?php endforeach; endif; ?>

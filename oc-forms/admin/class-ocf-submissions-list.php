@@ -7,14 +7,12 @@ class OCF_Submissions_List {
 
 	public static function init() {
 		add_action( 'admin_init', array( __CLASS__, 'maybe_export' ) );
-		add_action( 'admin_post_ocf_bulk_delete_submissions', array( __CLASS__, 'handle_bulk_delete' ) );
-		add_action( 'admin_post_ocf_delete_submission',       array( __CLASS__, 'handle_single_delete' ) );
 	}
 
-	public static function handle_bulk_delete() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
-		check_admin_referer( 'ocf_bulk_delete_submissions' );
-
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function bulk_delete_inline() {
 		$form_id = absint( $_POST['form_id'] ?? 0 );
 		$ids     = array_map( 'absint', (array) ( $_POST['submission_ids'] ?? array() ) );
 		$ids     = array_values( array_filter( $ids ) );
@@ -24,21 +22,18 @@ class OCF_Submissions_List {
 			if ( OCF_Submission::delete( $id ) ) { $deleted++; }
 		}
 
-		$url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted );
-		OCF_Settings::redirect( $url );
+		OCF_Settings::redirect( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted ) );
 	}
 
-	public static function handle_single_delete() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
-		$id = absint( $_GET['id'] ?? 0 );
-		check_admin_referer( 'ocf_delete_submission_' . $id );
-
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function single_delete_inline( $id ) {
 		$row     = OCF_Submission::find( $id );
 		$form_id = $row ? (int) $row['form_id'] : 0;
 		$deleted = OCF_Submission::delete( $id ) ? 1 : 0;
 
-		$url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted );
-		OCF_Settings::redirect( $url );
+		OCF_Settings::redirect( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted ) );
 	}
 
 	public static function maybe_export() {
@@ -126,9 +121,10 @@ class OCF_Submissions_List {
 
 		echo '<p><a class="button" href="' . esc_url( $export_url ) . '">Export CSV</a></p>';
 
-		$action_url = admin_url( 'admin-post.php' );
+		// POSTs back to the same admin page; dispatcher in OCF_Settings catches ocf_action.
+		$action_url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id );
 		echo '<form method="post" action="' . esc_url( $action_url ) . '" onsubmit="return ocfConfirmBulk(this);">';
-		echo '<input type="hidden" name="action" value="ocf_bulk_delete_submissions">';
+		echo '<input type="hidden" name="ocf_action" value="bulk_delete_submissions">';
 		echo '<input type="hidden" name="form_id" value="' . (int) $form_id . '">';
 		wp_nonce_field( 'ocf_bulk_delete_submissions' );
 
@@ -148,7 +144,7 @@ class OCF_Submissions_List {
 		foreach ( $rows as $r ) {
 			$view        = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&view=' . $r['id'] );
 			$delete_url  = wp_nonce_url(
-				admin_url( 'admin-post.php?action=ocf_delete_submission&id=' . (int) $r['id'] ),
+				admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&ocf_action=delete_submission&id=' . (int) $r['id'] ),
 				'ocf_delete_submission_' . (int) $r['id']
 			);
 			$secs = (int) ( $r['seconds_active'] ?? 0 );
@@ -228,7 +224,7 @@ class OCF_Submissions_List {
 		}
 		echo '</tbody></table>';
 		$delete_url = wp_nonce_url(
-			admin_url( 'admin-post.php?action=ocf_delete_submission&id=' . (int) $sub['id'] ),
+			admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . (int) $sub['form_id'] . '&ocf_action=delete_submission&id=' . (int) $sub['id'] ),
 			'ocf_delete_submission_' . (int) $sub['id']
 		);
 		echo '<p>';

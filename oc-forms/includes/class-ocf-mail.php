@@ -17,7 +17,6 @@ class OCF_Mail {
 		add_action( 'phpmailer_init',   array( __CLASS__, 'configure_phpmailer' ) );
 		add_filter( 'wp_mail_from',      array( __CLASS__, 'filter_from_address' ) );
 		add_filter( 'wp_mail_from_name', array( __CLASS__, 'filter_from_name' ) );
-		add_action( 'admin_post_ocf_send_test_email', array( __CLASS__, 'handle_test_email' ) );
 	}
 
 	public static function ses_enabled() {
@@ -77,10 +76,11 @@ class OCF_Mail {
 		return $custom !== '' ? $custom : (string) get_bloginfo( 'name' );
 	}
 
-	public static function handle_test_email() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
-		check_admin_referer( 'ocf_send_test_email' );
-
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce have
+	 * already been verified by the dispatcher.
+	 */
+	public static function handle_test_email_inline() {
 		$to = sanitize_email( wp_unslash( $_POST['to'] ?? '' ) );
 		if ( ! is_email( $to ) ) {
 			wp_safe_redirect( admin_url( 'admin.php?page=oc-forms-settings&test=invalid' ) );
