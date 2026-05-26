@@ -47,18 +47,30 @@ router.get('/stats', async (req, res) => {
 
 // Which outreach integrations are configured on the platform.
 router.get('/system-status', async (_req, res) => {
+  // Required keys per integration; ANY-of arrays count as configured if any
+  // value is present (used for the email transport, which can be Gmail or SES).
   const groups = [
     ['Claude AI', ['CLAUDE_API_KEY']],
     ['Hunter.io', ['HUNTER_API_KEY']],
     ['Icypeas', ['ICYPEAS_API_KEY', 'ICYPEAS_API_SECRET', 'ICYPEAS_USER_ID']],
     ['Serper (Web Search)', ['SERPER_API_KEY']],
-    ['Email Sending (SES)', ['SES_ACCESS_KEY_ID', 'SES_SECRET_ACCESS_KEY']],
+    ['Email Sending', [['GMAIL_USER', 'GMAIL_APP_PASSWORD'], ['SES_SMTP_USER', 'SES_SMTP_PASS']]],
     ['Reply Polling (IMAP)', ['OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD']],
   ];
   try {
     const results = await Promise.all(groups.map(async ([name, keys]) => {
-      const values = await Promise.all(keys.map(getSetting));
-      const configured = values.every(v => v && String(v).trim());
+      let configured;
+      if (Array.isArray(keys[0])) {
+        // ANY group of all-set keys counts (e.g. either Gmail OR SES creds)
+        const groupChecks = await Promise.all(keys.map(async group => {
+          const values = await Promise.all(group.map(getSetting));
+          return values.every(v => v && String(v).trim());
+        }));
+        configured = groupChecks.some(Boolean);
+      } else {
+        const values = await Promise.all(keys.map(getSetting));
+        configured = values.every(v => v && String(v).trim());
+      }
       return { name, status: configured ? 'connected' : 'missing' };
     }));
     res.json(results);
