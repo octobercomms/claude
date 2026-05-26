@@ -24,7 +24,79 @@ async function resolveTemplate({ template, client, period, rawData, seoData, cha
       resolved.push({ id: section.id, type: 'error', title: section.title, message: err.message });
     }
   }
+
+  // Annotate non-narrative sections with a one-sentence "what stands out"
+  // insight from Claude. A single batched call keeps cost / latency in check.
+  try {
+    const insights = await generateSectionInsights({ resolved, client, period });
+    for (const s of resolved) {
+      if (insights[s.id]) s.insight = insights[s.id];
+    }
+  } catch (err) {
+    console.error('[templateRenderer] insights pass failed:', err.message);
+  }
   return resolved;
+}
+
+// Batch insight generator — gives each non-narrative section a single
+// commercially-pointed sentence to help the reader scan the page. We send
+// every section's summarised data in one prompt rather than per-section to
+// keep API spend predictable and reports fast.
+async function generateSectionInsights({ resolved, client, period }) {
+  const candidates = resolved.filter(s => s.type !== 'narrative' && s.type !== 'error' && hasContent(s));
+  if (!candidates.length) return {};
+  const summarised = candidates.map(s => ({ id: s.id, title: s.title, type: s.type, data: insightPayload(s) }));
+  const prompt = `Client: ${client.name}
+Period: ${period}
+
+For each section below, write ONE plain-English sentence that tells the reader what's notable — pick out the biggest number, the biggest mover, or the most actionable point. Be specific (include figures), commercial in tone, British English, no filler.
+
+Sections:
+${JSON.stringify(summarised, null, 2)}
+
+Return ONLY a JSON object mapping section id → sentence. Example:
+{ "ecom_summary": "Combined B2C revenue hit £24,674 across 150 orders, with the US store contributing 73% on a £223 AOV.", "google_ads": "Both Google Ads markets returned positive ROAS, UK at 6.85× outpacing US at 6.61×." }`;
+  const reply = await claudeService.callClaude({ max_tokens: 1024, system: SYSTEM_PROMPT, user: prompt });
+  try {
+    const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    return JSON.parse(cleaned);
+  } catch {
+    return {};
+  }
+}
+
+function hasContent(s) {
+  if (s.type === 'metrics_grid') return (s.cells?.length || s.rows?.length);
+  if (s.type === 'tables') return s.tables?.length;
+  if (s.type === 'bar_chart') return s.chart?.data?.length;
+  if (s.type === 'position_distribution') return s.rankings?.length;
+  return false;
+}
+
+// A compact shape per section for the insights prompt — enough for Claude to
+// reason about without shipping the full payload.
+function insightPayload(s) {
+  if (s.type === 'metrics_grid') {
+    if (s.layout === 'table') return { metricLabels: s.metricLabels, rows: s.rows };
+    return { cells: (s.cells || []).slice(0, 12) };
+  }
+  if (s.type === 'tables') return (s.tables || []).map(t => ({ heading: t.heading, headers: t.headers, rows: (t.rows || []).slice(0, 10) }));
+  if (s.type === 'bar_chart') return s.chart?.data || [];
+  if (s.type === 'position_distribution') {
+    const counts = { top3: 0, '4-10': 0, '11-20': 0, '21-50': 0, '51-100': 0, '100+': 0 };
+    for (const k of (s.rankings || [])) {
+      const p = parseInt(k.current_position);
+      if (!p) continue;
+      if (p <= 3) counts.top3++;
+      else if (p <= 10) counts['4-10']++;
+      else if (p <= 20) counts['11-20']++;
+      else if (p <= 50) counts['21-50']++;
+      else if (p <= 100) counts['51-100']++;
+      else counts['100+']++;
+    }
+    return counts;
+  }
+  return null;
 }
 
 async function resolveSection(section, ctx) {
@@ -87,8 +159,8 @@ function previewMetrics(match) {
 }
 
 function resolveMetricsGrid(section, { rawData }) {
-  const cells = tpl.resolveMetricsGrid(section, rawData);
-  return { id: section.id, type: 'metrics_grid', title: section.title, cells };
+  const result = tpl.resolveMetricsGrid(section, rawData);
+  return { id: section.id, type: 'metrics_grid', title: section.title, ...result };
 }
 
 function resolveConnectorTable(section, { rawData }) {

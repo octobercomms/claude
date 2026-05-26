@@ -146,15 +146,41 @@ function matchSources(rawData, sources) {
 }
 
 // ─── METRICS_GRID RESOLUTION ──────────────────────────────────────────────
-// Returns [{ label, value }, …] cells for a metrics_grid section.
+// Returns one of:
+//   { layout: 'cells', cells: [{ label, value }, …] }
+//   { layout: 'table', metricLabels: [...], rows: [{ source, values: [...] }] }
+//
+// "table" layout is chosen when the AM asked for a multi-source LIST mode
+// (e.g. all Shopify stores, each with its own row). A 3-store × 3-metric
+// table is far more legible than 9 chunked cells.
 function resolveMetricsGrid(section, rawData) {
   const matches = matchSources(rawData, section.sources);
-  if (!matches.length) return [];
+  if (!matches.length) return { layout: 'cells', cells: [] };
 
   const metricKeys = section.metrics || [];
-  const cells = [];
 
+  // Multi-source list mode → render as a table.
+  if (section.aggregate === 'list' && matches.length > 1 && metricKeys.length >= 1) {
+    const metricLabels = [];
+    const rows = [];
+    for (const m of matches) {
+      const catalog = METRIC_CATALOG[m.type] || {};
+      const sourceLabel = m.storeLabel || m.type;
+      const values = [];
+      for (const mk of metricKeys) {
+        const def = catalog[mk];
+        if (!def) { values.push('—'); continue; }
+        if (metricLabels.length < metricKeys.length) metricLabels.push(def.label);
+        values.push(formatValue(def.get(m.data), def.format));
+      }
+      rows.push({ source: sourceLabel, values });
+    }
+    return { layout: 'table', metricLabels, rows };
+  }
+
+  // Single source OR list with one metric → flat cell row.
   if (section.aggregate === 'list' || matches.length === 1) {
+    const cells = [];
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
       const tag = m.storeLabel ? `${m.storeLabel} — ` : '';
@@ -164,40 +190,40 @@ function resolveMetricsGrid(section, rawData) {
         cells.push({ label: `${tag}${def.label}`, value: formatValue(def.get(m.data), def.format) });
       }
     }
-  } else {
-    // aggregate === 'sum' (default for multi-source) — combine across sources.
-    // AOV is special: avg-of-avg is misleading, so we recompute as total
-    // revenue / total orders when both are pulled from the same connector.
-    const totals = {};
-    for (const m of matches) {
-      const catalog = METRIC_CATALOG[m.type] || {};
-      for (const mk of metricKeys) {
-        const def = catalog[mk];
-        if (!def) continue;
-        if (mk === 'aov') continue;   // handled below
-        if (mk === 'roas') continue;  // handled below
-        totals[mk] = (totals[mk] || 0) + def.get(m.data);
-        totals[`__format_${mk}`] = def.format;
-        totals[`__label_${mk}`] = def.label;
-      }
-    }
-    // Derived: AOV from summed revenue / orders, ROAS from value / spend
-    if (metricKeys.includes('aov') && totals.orders) {
-      totals.aov = totals.revenue / totals.orders;
-      totals.__format_aov = 'currency';
-      totals.__label_aov = 'AOV';
-    }
-    if (metricKeys.includes('roas') && totals.spend) {
-      totals.roas = totals.conv_value / totals.spend;
-      totals.__format_roas = 'multiple';
-      totals.__label_roas = 'ROAS';
-    }
+    return { layout: 'cells', cells };
+  }
+
+  // aggregate === 'sum' (default multi-source) — combine across sources, with
+  // AOV recomputed from total revenue / total orders and ROAS from value /
+  // spend (an average of averages would be misleading).
+  const totals = {};
+  for (const m of matches) {
+    const catalog = METRIC_CATALOG[m.type] || {};
     for (const mk of metricKeys) {
-      if (totals[mk] == null) continue;
-      cells.push({ label: totals[`__label_${mk}`] || mk, value: formatValue(totals[mk], totals[`__format_${mk}`] || 'integer') });
+      const def = catalog[mk];
+      if (!def) continue;
+      if (mk === 'aov' || mk === 'roas') continue;
+      totals[mk] = (totals[mk] || 0) + def.get(m.data);
+      totals[`__format_${mk}`] = def.format;
+      totals[`__label_${mk}`] = def.label;
     }
   }
-  return cells;
+  if (metricKeys.includes('aov') && totals.orders) {
+    totals.aov = totals.revenue / totals.orders;
+    totals.__format_aov = 'currency';
+    totals.__label_aov = 'AOV';
+  }
+  if (metricKeys.includes('roas') && totals.spend) {
+    totals.roas = totals.conv_value / totals.spend;
+    totals.__format_roas = 'multiple';
+    totals.__label_roas = 'ROAS';
+  }
+  const cells = [];
+  for (const mk of metricKeys) {
+    if (totals[mk] == null) continue;
+    cells.push({ label: totals[`__label_${mk}`] || mk, value: formatValue(totals[mk], totals[`__format_${mk}`] || 'integer') });
+  }
+  return { layout: 'cells', cells };
 }
 
 // ─── CONNECTOR_TABLE RESOLUTION ───────────────────────────────────────────

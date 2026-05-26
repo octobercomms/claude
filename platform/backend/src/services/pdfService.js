@@ -41,21 +41,53 @@ function logoImg(height = 55) {
   return `<img src="${uri}" height="${height}" alt="October" style="display:block;">`;
 }
 
-// Footer rendered by puppeteer on every page — gives us automatic page
-// numbering (which would otherwise require manual @page CSS gymnastics).
-function buildPrintFooterTemplate() {
-  return `<div style="width:100%;font-size:6.5pt;color:#808080;text-align:center;font-family:Arial,sans-serif;padding:0 42pt;line-height:1.5;-webkit-print-color-adjust:exact;">
-    <div style="border-top:0.5pt solid #ccc;padding-top:5pt;">
-      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
-      &middot; Private &amp; Confidential &middot; October Communications Ltd.
+// Header rendered by puppeteer at the top of every page — October logo + the
+// report identifier. Inline styles because the print engine renders header /
+// footer templates in their own context (no shared CSS).
+function buildPrintHeaderTemplate(clientName, period) {
+  const logo = getLogoDataUri();
+  return `<div style="width:100%;padding:6mm 15mm 0;font-family:Arial,sans-serif;box-sizing:border-box;-webkit-print-color-adjust:exact;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:4pt;border-bottom:0.5pt solid #000;">
+      <div style="flex:0 0 auto;">${logo ? `<img src="${logo}" style="height:28px;display:block;">` : ''}</div>
+      <div style="text-align:right;">
+        <div style="font-size:11pt;font-weight:700;color:#000;">Report for ${escapeForTemplate(clientName)}</div>
+        <div style="font-size:9pt;color:#808080;margin-top:2pt;">${escapeForTemplate(period)}</div>
+      </div>
     </div>
-    <div>Company No. 8816416 &middot; VAT Registration No. GB 176 6335 82 &middot; Registered in England and Wales</div>
-    <div>85 Great Portland Street, First Floor, London W1W 7LT &middot; www.octobercomms.com</div>
   </div>`;
 }
 
+// Footer rendered by puppeteer on every page. `footerLines` lets the platform
+// admin override the company-details strip from Settings → Report Appearance;
+// page numbering is always on the first line.
+function buildPrintFooterTemplate(footerLines = []) {
+  const lines = footerLines.filter(Boolean);
+  const defaults = [
+    'Private & Confidential · October Communications Ltd.',
+    'Company No. 8816416 · VAT Registration No. GB 176 6335 82 · Registered in England and Wales',
+    '85 Great Portland Street, First Floor, London W1W 7LT · www.octobercomms.com',
+  ];
+  const [first, ...rest] = lines.length ? lines : defaults;
+  return `<div style="width:100%;font-size:6.5pt;color:#808080;text-align:center;font-family:Arial,sans-serif;padding:0 15mm;line-height:1.5;-webkit-print-color-adjust:exact;box-sizing:border-box;">
+    <div style="border-top:0.5pt solid #ccc;padding-top:5pt;">
+      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+      ${first ? `&middot; ${escapeForTemplate(first)}` : ''}
+    </div>
+    ${rest.map(l => `<div>${escapeForTemplate(l)}</div>`).join('')}
+  </div>`;
+}
+
+function escapeForTemplate(str) {
+  return String(str ?? '').replace(/[<>&]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c]));
+}
+
 async function generatePDF(reportId, htmlContent, options = {}) {
-  const { printFooter = false } = options;
+  // Header lives inline in the body — puppeteer just handles the footer strip
+  // (Page X of Y + configurable company lines). Trying to render the header
+  // via puppeteer's headerTemplate left the body content overlapping the
+  // logo because the print-engine margin and inline content layout systems
+  // didn't agree on heights.
+  const { printFooter = false, footerLines = [] } = options;
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -74,9 +106,9 @@ async function generatePDF(reportId, htmlContent, options = {}) {
       printBackground: true,
       displayHeaderFooter: printFooter,
       headerTemplate: printFooter ? '<div></div>' : undefined,
-      footerTemplate: printFooter ? buildPrintFooterTemplate() : undefined,
+      footerTemplate: printFooter ? buildPrintFooterTemplate(footerLines) : undefined,
       margin: printFooter
-        ? { top: '0', right: '0', bottom: '19mm', left: '0' }
+        ? { top: '0', right: '0', bottom: '22mm', left: '0' }
         : { top: '0', right: '0', bottom: '0', left: '0' },
     });
 
@@ -135,10 +167,30 @@ body {
 .pg-hr { border: none; border-top: 1pt solid #000; margin: 10pt 0 18pt; }
 
 /* ---- Section title ---- */
-.section-title { font-size: 14pt; font-weight: 700; margin-bottom: 14pt; }
-.sub-title { font-size: 9pt; font-weight: 700; margin: 16pt 0 6pt; }
-.store-sub { font-size: 11pt; font-weight: 700; color: #1a1a1a; margin: 20pt 0 10pt; padding-bottom: 4pt; border-bottom: 0.5pt solid #ccc; }
+.section-title { font-size: 13pt; font-weight: 700; margin-bottom: 4pt; }
+.sub-title { font-size: 9pt; font-weight: 700; margin: 12pt 0 5pt; }
+.store-sub { font-size: 11pt; font-weight: 700; color: #1a1a1a; margin: 16pt 0 8pt; padding-bottom: 3pt; border-bottom: 0.5pt solid #ccc; }
 .store-sub:first-of-type { margin-top: 0; }
+
+/* ---- Flowing template-driven layout ---- */
+.report-content { padding: 12mm 15mm 6mm; }
+.report-head { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 6pt; border-bottom: 1pt solid #000; margin-bottom: 18pt; }
+.report-head-l { flex: 0 0 auto; }
+.report-head-r { text-align: right; }
+.report-head-title { font-size: 14pt; font-weight: 700; line-height: 1.1; }
+.report-head-period { font-size: 10pt; color: #808080; margin-top: 3pt; }
+.section { margin-bottom: 22pt; page-break-inside: avoid; }
+.section-insight {
+  font-size: 9pt;
+  color: #555;
+  font-style: italic;
+  line-height: 1.45;
+  margin: 0 0 10pt;
+  padding-left: 8pt;
+  border-left: 2pt solid #E7CD41;
+}
+.metrics-table th { background: #f3f3f3; font-weight: 700; padding: 5pt 8pt; border: 0.5pt solid #ccc; font-size: 8pt; }
+.metrics-table td { padding: 5pt 8pt; border: 0.5pt solid #eee; }
 
 /* ---- Tables ---- */
 table { border-collapse: collapse; font-size: 8pt; margin-bottom: 16pt; }
@@ -521,11 +573,20 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
 </html>`;
 }
 
-// Template-driven HTML builder. Takes a list of resolved sections (see
-// templateRenderer.js) and renders them inside the standard October page
-// chrome — same header / footer / page CSS as the legacy monthly path.
-function buildTemplateReportHtml({ client, period, sections }) {
-  const blocks = sections.map(s => renderResolvedSection(s, client, period)).filter(Boolean).join('\n');
+// Template-driven HTML builder. Sections flow on a continuous content area
+// with `page-break-inside: avoid` on each block, so the printer packs as many
+// sections per physical page as fit. The October header is rendered inline
+// once at the top; puppeteer's footer template puts Page X of Y on every page.
+function buildTemplateReportHtml({ client = {}, period = '', sections }) {
+  const blocks = sections.map(renderResolvedSection).filter(Boolean).join('\n');
+  const logo = getLogoDataUri();
+  const headerHtml = `<div class="report-head">
+    <div class="report-head-l">${logo ? `<img src="${logo}" style="height:36px;display:block;">` : ''}</div>
+    <div class="report-head-r">
+      <div class="report-head-title">Report for ${escapeXml(client.name || '')}</div>
+      <div class="report-head-period">${escapeXml(period)}</div>
+    </div>
+  </div>`;
   return `<!DOCTYPE html>
 <html>
 <head>
@@ -533,45 +594,73 @@ function buildTemplateReportHtml({ client, period, sections }) {
   <style>${getPageCSS()}</style>
 </head>
 <body>
+<div class="report-content">
+${headerHtml}
 ${blocks}
+</div>
 </body>
 </html>`;
 }
 
-function renderResolvedSection(s, client, period) {
-  const head = pageHeader(client.name || '', period || '');
+function renderResolvedSection(s) {
   const title = `<div class="section-title">${escapeXml(s.title || '')}</div>`;
+  const insight = s.insight
+    ? `<div class="section-insight">${escapeXml(s.insight)}</div>`
+    : '';
+  const open = `<div class="section">`;
+  const close = `</div>`;
 
   switch (s.type) {
-    case 'narrative':
-      return `<div class="page with-print-footer">${head}${title}${(s.text || '').split('\n').filter(p => p.trim()).map(p => `<p>${escapeXml(p)}</p>`).join('')}</div>`;
+    case 'narrative': {
+      const paragraphs = (s.text || '').split('\n').filter(p => p.trim()).map(p => `<p>${escapeXml(p)}</p>`).join('');
+      return `${open}${title}${paragraphs}${close}`;
+    }
     case 'metrics_grid': {
-      if (!s.cells || !s.cells.length) return '';
-      // Chunk into rows of 4 — at >4 cells per row the labels stack
-      // awkwardly and values get cramped at A4 width.
+      if (s.layout === 'table' && s.rows?.length) {
+        return `${open}${title}${insight}${buildMetricsTableHtml(s.metricLabels || [], s.rows)}${close}`;
+      }
+      const cells = s.cells || [];
+      if (!cells.length) return '';
+      // Chunk single-row grids at 4 cells per row; above that labels and
+      // values cramp at A4 width.
       const PER_ROW = 4;
       const rows = [];
-      for (let i = 0; i < s.cells.length; i += PER_ROW) rows.push(s.cells.slice(i, i + PER_ROW));
+      for (let i = 0; i < cells.length; i += PER_ROW) rows.push(cells.slice(i, i + PER_ROW));
       const rowsHtml = rows.map(row => `<div class="metrics-row">${row.map(c => `<div class="metric-cell"><div class="val">${escapeXml(c.value)}</div><div class="lbl">${escapeXml(c.label)}</div></div>`).join('')}</div>`).join('');
-      return `<div class="page with-print-footer">${head}${title}${rowsHtml}</div>`;
+      return `${open}${title}${insight}${rowsHtml}${close}`;
     }
     case 'tables': {
       if (!s.tables || !s.tables.length) return '';
-      return `<div class="page with-print-footer">${head}${title}${s.tables.map(t => buildTableHtml(t)).join('')}</div>`;
+      return `${open}${title}${insight}${s.tables.map(t => buildTableHtml(t)).join('')}${close}`;
     }
     case 'bar_chart': {
       if (!s.chart) return '';
-      return `<div class="page with-print-footer">${head}${title}${buildChartHtml(s.chart)}</div>`;
+      return `${open}${title}${insight}${buildChartHtml(s.chart)}${close}`;
     }
     case 'position_distribution': {
-      if (!s.rankings || !s.rankings.length) return '';
-      return `<div class="page with-print-footer">${head}${title}${buildPositionDistributionHtml(s.rankings.filter(k => k.current_position))}</div>`;
+      const rankings = (s.rankings || []).filter(k => k.current_position);
+      if (!rankings.length) return '';
+      return `${open}${title}${insight}${buildPositionDistributionHtml(rankings)}${close}`;
     }
     case 'error':
-      return `<div class="page with-print-footer">${head}${title}<div class="unavail">${escapeXml(s.message || 'Section failed to render.')}</div></div>`;
+      return `${open}${title}<div class="unavail">${escapeXml(s.message || 'Section failed to render.')}</div>${close}`;
     default:
       return '';
   }
+}
+
+// Multi-source list rendering: rows = stores / accounts, cols = metrics.
+// Replaces the old "chunk 9 cells into rows of 4" approach which mixed
+// stores across rows and made the breakdown unreadable.
+function buildMetricsTableHtml(metricLabels, rows) {
+  return `
+    <table class="w-full metrics-table">
+      <thead><tr><th></th>${metricLabels.map(l => `<th style="text-align:right;">${escapeXml(l)}</th>`).join('')}</tr></thead>
+      <tbody>${rows.map((r, i) => `<tr${i % 2 === 1 ? ' class="alt"' : ''}>
+        <td style="font-weight:700;">${escapeXml(r.source)}</td>
+        ${(r.values || []).map(v => `<td style="text-align:right;">${escapeXml(v)}</td>`).join('')}
+      </tr>`).join('')}</tbody>
+    </table>`;
 }
 
 module.exports = { generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml };

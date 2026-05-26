@@ -68,7 +68,8 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
   });
 
   const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });
-  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true });
+  const footerLines = [process.env.REPORT_FOOTER_LINE_1, process.env.REPORT_FOOTER_LINE_2, process.env.REPORT_FOOTER_LINE_3].filter(Boolean);
+  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true, footerLines });
 
   // Email summary: first narrative section's first paragraph, plus a small
   // metric strip extracted from the first metrics_grid (if any).
