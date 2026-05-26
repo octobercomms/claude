@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
+import EditContactModal from '../components/EditContactModal';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -152,6 +153,9 @@ export default function ClientOutreachPage() {
   const [serperError, setSerperError] = useState('');
   const [expandedCampaign, setExpandedCampaign] = useState(null);
   const [wizardCampaignId, setWizardCampaignId] = useState(null);
+  const [editingContact, setEditingContact] = useState(null);
+  const [selectedContacts, setSelectedContacts] = useState(() => new Set());
+  const [contactFilter, setContactFilter] = useState({ search: '', contact_type: '', location: '' });
   const [sendCfg, setSendCfg] = useState({});
   const [savingSend, setSavingSend] = useState(false);
   const [sendSaved, setSendSaved] = useState(false);
@@ -280,6 +284,73 @@ export default function ClientOutreachPage() {
     } finally {
       setSearching(false);
     }
+  }
+
+  // ── Contacts table — filtering, bulk select, CSV import/export ───────────
+  const filteredContacts = useMemo(() => {
+    const q = contactFilter.search.toLowerCase().trim();
+    const loc = contactFilter.location.toLowerCase().trim();
+    const typ = contactFilter.contact_type.trim();
+    return contacts.filter(c => {
+      if (q) {
+        const hay = [c.name, c.first_name, c.last_name, c.email, c.company].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (loc && !(c.location || '').toLowerCase().includes(loc)) return false;
+      if (typ && c.contact_type !== typ) return false;
+      return true;
+    });
+  }, [contacts, contactFilter]);
+
+  const allSelected = filteredContacts.length > 0 && filteredContacts.every(c => selectedContacts.has(c.id));
+  function toggleContactSelected(cid) {
+    setSelectedContacts(prev => { const n = new Set(prev); n.has(cid) ? n.delete(cid) : n.add(cid); return n; });
+  }
+  function toggleSelectAll() {
+    if (allSelected) setSelectedContacts(new Set());
+    else setSelectedContacts(new Set(filteredContacts.map(c => c.id)));
+  }
+  async function handleBulkDelete() {
+    if (!window.confirm(`Delete ${selectedContacts.size} selected contact${selectedContacts.size === 1 ? '' : 's'}? This cannot be undone.`)) return;
+    const ids = [...selectedContacts];
+    try {
+      await api.post('/outreach/contacts/bulk-delete', { client_id: id, ids });
+      setContacts(p => p.filter(c => !selectedContacts.has(c.id)));
+      setSelectedContacts(new Set());
+      toast(`Deleted ${ids.length} contact${ids.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  function handleCsvExport() {
+    const headers = ['first_name', 'last_name', 'email', 'company', 'contact_type', 'title', 'location', 'linkedin_url', 'source', 'status', 'notes'];
+    const csv = [
+      headers.join(','),
+      ...contacts.map(c => headers.map(h => csvEscape(c[h] || c[h === 'title' ? 'role' : ''] || '')).join(',')),
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `contacts-${(client?.name || 'client').replace(/\W+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+  }
+
+  async function handleCsvImport(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const parsed = parseCsv(text);
+      if (parsed.length === 0) { toast('No usable rows found in CSV (every row needs an email).', 'error'); return; }
+      const res = await api.post('/outreach/contacts/bulk', { client_id: id, contacts: parsed });
+      setContacts(p => [...res.contacts, ...p]);
+      toast(`Imported ${res.inserted} of ${parsed.length} contact${parsed.length === 1 ? '' : 's'}`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  function onContactUpdated(updated) {
+    setContacts(p => p.map(c => c.id === updated.id ? updated : c));
   }
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
@@ -451,26 +522,82 @@ export default function ClientOutreachPage() {
               <button type="submit" style={{ ...s.btn, gridColumn: '1 / -1', justifySelf: 'start' }}>Add contact</button>
             </form>
           )}
+
+          {/* Secondary toolbar: CSV import/export + bulk actions */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+            <label style={{ ...s.btnGhost, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', margin: 0 }}>
+              ↑ Import CSV
+              <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleCsvImport} />
+            </label>
+            <button onClick={handleCsvExport} disabled={contacts.length === 0} style={s.btnGhost}>↓ Export CSV</button>
+            {selectedContacts.size > 0 && (
+              <button onClick={handleBulkDelete} style={{ ...s.btnGhost, color: '#c62828', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
+            )}
+            <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
+              CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
+            </span>
+          </div>
+
+          {/* Filters row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 10, marginTop: 12 }}>
+            <input style={s.input} placeholder="Search name / email / company" value={contactFilter.search}
+              onChange={e => setContactFilter(f => ({ ...f, search: e.target.value }))} />
+            <input style={s.input} list="contact-types-filter" placeholder="Filter by type"
+              value={contactFilter.contact_type} onChange={e => setContactFilter(f => ({ ...f, contact_type: e.target.value }))} />
+            <datalist id="contact-types-filter">
+              {['architect', 'interior_designer', 'journalist', 'editor', 'developer', 'retailer', 'distributor', 'agency'].map(t => <option key={t} value={t} />)}
+            </datalist>
+            <input style={s.input} placeholder="Filter by location" value={contactFilter.location}
+              onChange={e => setContactFilter(f => ({ ...f, location: e.target.value }))} />
+          </div>
+
+          {/* Contacts table */}
           <div style={{ ...s.tableWrap, marginTop: 12 }}>
             <table style={s.table}>
-              <thead><tr>{['Name', 'Email', 'Company', 'Role', 'Status', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+              <thead>
+                <tr>
+                  <th style={{ ...s.th, width: 32 }}>
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
+                  </th>
+                  {['Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Added', ''].map(h => <th key={h} style={s.th}>{h}</th>)}
+                </tr>
+              </thead>
               <tbody>
-                {contacts.length === 0 ? (
-                  <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No contacts yet — add one above</td></tr>
-                ) : contacts.map(c => (
+                {filteredContacts.length === 0 ? (
+                  <tr><td colSpan={9} style={{ ...s.td, textAlign: 'center', color: '#888' }}>
+                    {contacts.length === 0 ? 'No contacts yet — add manually, find new, or import a CSV.' : 'No contacts match these filters.'}
+                  </td></tr>
+                ) : filteredContacts.map(c => (
                   <tr key={c.id}>
-                    <td style={s.td}>{c.name || '—'}</td>
+                    <td style={s.td}><input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} /></td>
+                    <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
                     <td style={s.td}>{c.email || '—'}</td>
                     <td style={s.td}>{c.company || '—'}</td>
-                    <td style={s.td}>{c.role || '—'}</td>
+                    <td style={s.td}>{c.contact_type || '—'}</td>
+                    <td style={s.td}>{c.location || '—'}</td>
                     <td style={s.td}><span style={s.chip}>{c.status}</span></td>
-                    <td style={s.td}><button onClick={() => deleteContact(c.id)} title="Delete" style={s.del}>×</button></td>
+                    <td style={s.td}>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
+                    <td style={s.td}>
+                      <button onClick={() => setEditingContact(c)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>Edit</button>
+                      <button onClick={() => deleteContact(c.id)} title="Delete" style={s.del}>×</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+          <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
+            Showing {filteredContacts.length} of {contacts.length} contact{contacts.length === 1 ? '' : 's'}.
+          </p>
         </div>
+      )}
+
+      {editingContact && (
+        <EditContactModal
+          contact={editingContact}
+          onClose={() => setEditingContact(null)}
+          onSaved={onContactUpdated}
+        />
       )}
 
       {tab === 'campaigns' && wizardCampaignId && (
@@ -534,6 +661,71 @@ export default function ClientOutreachPage() {
       )}
     </div>
   );
+}
+
+// Escape a single value for CSV — double-quote and escape inner quotes if the
+// value contains anything CSV-sensitive.
+function csvEscape(v) {
+  const s = String(v ?? '');
+  if (/["\n\r,]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+  return s;
+}
+
+// Simple CSV parser. Handles quoted fields with embedded commas / newlines /
+// escaped quotes. Maps a flexible set of header aliases to our canonical
+// contact fields per the product brief.
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuote = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuote) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') inQuote = false;
+      else field += ch;
+    } else {
+      if (ch === '"') inQuote = true;
+      else if (ch === ',') { row.push(field); field = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.length > 1 || row[0] !== '') rows.push(row);
+        row = [];
+      } else field += ch;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  if (!rows.length) return [];
+  const ALIASES = {
+    first: 'first_name', firstname: 'first_name', first_name: 'first_name',
+    last: 'last_name', lastname: 'last_name', last_name: 'last_name',
+    full_name: 'name', name: 'name',
+    email_address: 'email', email: 'email', e_mail: 'email',
+    company_name: 'company', practice: 'company', company: 'company', organisation: 'company', organization: 'company',
+    type: 'contact_type', contact_type: 'contact_type',
+    role: 'title', position: 'title', job_title: 'title', title: 'title',
+    city: 'location', location: 'location', address: 'location',
+    linkedin: 'linkedin_url', linkedin_url: 'linkedin_url',
+    notes: 'notes', note: 'notes',
+    source: 'source',
+  };
+  const headers = rows[0].map(h => {
+    const k = h.trim().toLowerCase().replace(/[\s-]+/g, '_');
+    return ALIASES[k] || k;
+  });
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const cells = rows[r];
+    if (!cells.length || cells.every(c => !c.trim())) continue;
+    const o = {};
+    headers.forEach((h, i) => {
+      const val = (cells[i] || '').trim();
+      if (val) o[h] = val;
+    });
+    if (!o.email) continue;
+    out.push(o);
+  }
+  return out;
 }
 
 const s = {
