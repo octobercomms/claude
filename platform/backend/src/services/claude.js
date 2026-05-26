@@ -72,41 +72,54 @@ async function chatBuildReportTemplate({ client, reportType, availableConnectors
     .filter(t => reportTemplate.METRIC_CATALOG[t])
     .map(t => `- ${t}: ${Object.keys(reportTemplate.METRIC_CATALOG[t]).join(', ')}`)
     .join('\n') || '(no connector catalogs available)';
-  const tools = [{
-    name: 'propose_template',
-    description: 'Surface a draft report template for the account manager to review. Call this whenever the template should change — after answering questions, after the AM asks for an edit, or to propose a starting point. The frontend renders the result as a live preview the AM can lock.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        template: {
-          type: 'object',
-          properties: {
-            version: { type: 'number' },
-            sections: {
-              type: 'array',
-              items: {
-                type: 'object',
-                properties: {
-                  id: { type: 'string' },
-                  title: { type: 'string' },
-                  type: { type: 'string', enum: ['narrative', 'metrics_grid', 'connector_table', 'bar_chart', 'position_distribution'] },
-                  sources: {},
-                  prompt: { type: 'string' },
-                  aggregate: { type: 'string', enum: ['sum', 'list'] },
-                  metrics: { type: 'array', items: { type: 'string' } },
-                  dimension: { type: 'string' },
-                  metric: { type: 'string' },
+  const tools = [
+    {
+      name: 'propose_template',
+      description: 'Surface a draft report template for the account manager to review. Call this whenever the template should change — after answering questions, after the AM asks for an edit, or to propose a starting point. The frontend renders the result as a live preview the AM can lock.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          template: {
+            type: 'object',
+            properties: {
+              version: { type: 'number' },
+              sections: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  properties: {
+                    id: { type: 'string' },
+                    title: { type: 'string' },
+                    type: { type: 'string', enum: ['narrative', 'metrics_grid', 'connector_table', 'bar_chart', 'position_distribution'] },
+                    sources: {},
+                    prompt: { type: 'string' },
+                    aggregate: { type: 'string', enum: ['sum', 'list'] },
+                    metrics: { type: 'array', items: { type: 'string' } },
+                    dimension: { type: 'string' },
+                    metric: { type: 'string' },
+                  },
+                  required: ['id', 'title', 'type'],
                 },
-                required: ['id', 'title', 'type'],
               },
             },
+            required: ['version', 'sections'],
           },
-          required: ['version', 'sections'],
         },
+        required: ['template'],
       },
-      required: ['template'],
     },
-  }];
+    {
+      name: 'reply_only',
+      description: 'Send a plain reply without changing the template. Use this ONLY for genuine clarifying questions you cannot answer yourself, or when the AM is just chatting and not requesting a template change. If the AM asked for an edit or a draft — even a vague one — do NOT use this; call propose_template with your best interpretation instead.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'The message to send to the account manager.' },
+        },
+        required: ['message'],
+      },
+    },
+  ];
 
   const system = `You are designing a ${reportType} marketing report template for a client of October Communications. You speak conversationally with the account manager and use the propose_template tool whenever the template should change.
 
@@ -122,9 +135,11 @@ Source spec: ["*"] means "everything available". An entry like { type: "shopify"
 
 Aggregate: "sum" combines numeric metrics across matched sources (with AOV recomputed from total revenue / total orders, ROAS recomputed from value / spend). "list" produces one cell per metric per source.
 
-When the AM describes what they want, ask one or two clarifying questions if necessary, then call propose_template with a draft. After they react, refine and call propose_template again. Don't propose anything before you understand the request. Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
+Every turn you MUST call exactly one tool: either propose_template (commits a draft the AM can lock) or reply_only (plain reply, no template change). There is no third option — you cannot send a free-text response. If you have a draft in mind, call propose_template. If you genuinely need clarification before you can draft, call reply_only with the question.
 
-Critical: if you intend to update or create a template — if you say "let me put that together", "here it is", "I'll update that", "let me propose", "done", or anything implying the template is changing — you MUST call propose_template in that same response. Never describe what you are about to do without doing it in the same turn.
+Default to propose_template. The AM can always iterate on a draft, but cannot iterate on a promise of one. Only use reply_only when the AM asked an open question with no implied edit, or when answering "yes/no/which one?" without a draft would be impossible. Never use reply_only to say "let me put that together", "on it", "building now", or anything implying a draft is coming — if a draft is coming, call propose_template now instead.
+
+Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
 
 Brief replies. No long explanations. Use British English.`;
 
@@ -151,16 +166,24 @@ ${currentTemplate
     max_tokens: 2048,
     system,
     tools,
+    tool_choice: { type: 'any' },
     messages,
   });
 
-  // The frontend renders the assistant's text reply and, if propose_template
-  // was called, shows the proposed template as a live preview with a "lock"
-  // button. We don't auto-save — the AM has to click lock.
+  // tool_choice: "any" forces exactly one tool call per turn — either
+  // propose_template (commits a draft) or reply_only (text reply). This
+  // eliminates the failure mode where Claude says "let me put that together"
+  // and then never calls the tool.
+  const proposeUses = response.content.filter(b => b.type === 'tool_use' && b.name === 'propose_template');
+  const replyUses = response.content.filter(b => b.type === 'tool_use' && b.name === 'reply_only');
   const textBlocks = response.content.filter(b => b.type === 'text');
-  const toolUses = response.content.filter(b => b.type === 'tool_use' && b.name === 'propose_template');
-  const reply = textBlocks.map(b => b.text).join('\n').trim();
-  const proposed = toolUses.length ? toolUses[toolUses.length - 1].input?.template : null;
+  const proposed = proposeUses.length ? proposeUses[proposeUses.length - 1].input?.template : null;
+  let reply = textBlocks.map(b => b.text).join('\n').trim();
+  if (replyUses.length) {
+    const replyMsg = replyUses.map(b => b.input?.message).filter(Boolean).join('\n').trim();
+    reply = reply ? `${reply}\n${replyMsg}` : replyMsg;
+  }
+  if (!reply && proposed) reply = 'Updated the draft on the right — let me know what to change.';
   return { reply, proposed };
 }
 
