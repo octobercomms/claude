@@ -26,9 +26,11 @@ function logoAttachment() {
   };
 }
 
-async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath, metrics }) {
+async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath, metrics, sections }) {
   const subject = `${clientName} Monthly Report — ${period}`;
-  const html = buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics });
+  const html = sections && sections.length
+    ? buildFullReportEmailHtml({ clientName, period, sections, periodLabel: period })
+    : buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics });
 
   const attachments = [logoAttachment()];
   if (pdfPath) {
@@ -48,9 +50,11 @@ async function sendMonthlyReport({ to, clientName, period, summaryHtml, pdfPath,
   });
 }
 
-async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics, pdfPath }) {
+async function sendWeeklyReport({ to, clientName, weekLabel, summaryText, metrics, pdfPath, sections }) {
   const subject = `${clientName} Weekly Snapshot — w/c ${weekLabel}`;
-  const html = buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
+  const html = sections && sections.length
+    ? buildFullReportEmailHtml({ clientName, period: `w/c ${weekLabel}`, sections, periodLabel: `Weekly Snapshot — w/c ${weekLabel}` })
+    : buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics });
 
   const attachments = [logoAttachment()];
   if (pdfPath) {
@@ -105,6 +109,223 @@ async function sendMetaTokenAlert({ clientName, connectorType, reauthoriseUrl })
     subject,
     html,
   });
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[<>&'"]/g, c =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
+}
+
+// Mirrors pdfService.renderResolvedSection — same section types, same data
+// shapes, but with email-safe inline-styled HTML (tables instead of flexbox,
+// no @page rules). The email then shows the same content the PDF does.
+function renderEmailSection(s) {
+  if (!s) return '';
+  const title = s.title ? `<div style="font-size:14px;font-weight:700;color:#000;margin:0 0 6px;">${escapeHtml(s.title)}</div>` : '';
+  const insight = s.insight
+    ? `<div style="font-size:12px;color:#555;font-style:italic;line-height:1.5;margin:0 0 10px;padding:6px 10px;border-left:3px solid #E7CD41;background:#fffdf5;">${escapeHtml(s.insight)}</div>`
+    : '';
+  const wrap = (inner) => `<div style="margin:0 0 22px;">${title}${insight}${inner}</div>`;
+
+  switch (s.type) {
+    case 'narrative': {
+      const paragraphs = (s.text || '').split('\n').filter(p => p.trim())
+        .map(p => `<p style="margin:0 0 10px;font-size:13px;color:#333;line-height:1.7;">${escapeHtml(p)}</p>`).join('');
+      return wrap(paragraphs);
+    }
+    case 'metrics_grid': {
+      if (s.layout === 'table' && s.rows?.length) {
+        return wrap(buildMetricsTableEmail(s.metricLabels || [], s.rows));
+      }
+      const cells = s.cells || [];
+      if (!cells.length) return '';
+      // Chunk at 4 per row — same as PDF; in email we use a table for layout
+      const PER_ROW = 4;
+      const rows = [];
+      for (let i = 0; i < cells.length; i += PER_ROW) rows.push(cells.slice(i, i + PER_ROW));
+      const rowsHtml = rows.map(row => {
+        const padCount = PER_ROW - row.length;
+        const tds = row.map(c => `
+          <td width="${Math.floor(100 / PER_ROW)}%" style="padding:10px 12px;border:1px solid #000;vertical-align:top;">
+            <div style="font-size:18px;font-weight:700;color:#000;line-height:1.2;">${escapeHtml(c.value)}</div>
+            <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">${escapeHtml(c.label)}</div>
+          </td>`).join('');
+        const padding = padCount > 0
+          ? Array(padCount).fill(`<td style="border:1px solid #000;background:#fafafa;"></td>`).join('')
+          : '';
+        return `<tr>${tds}${padding}</tr>`;
+      }).join('');
+      return wrap(`<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:6px;">${rowsHtml}</table>`);
+    }
+    case 'tables': {
+      if (!s.tables || !s.tables.length) return '';
+      return wrap(s.tables.map(t => buildTableEmail(t)).join(''));
+    }
+    case 'bar_chart': {
+      if (!s.chart) return '';
+      return wrap(buildChartEmail(s.chart));
+    }
+    case 'position_distribution': {
+      const rankings = (s.rankings || []).filter(k => k.current_position);
+      if (!rankings.length) return '';
+      return wrap(buildPositionDistributionEmail(rankings));
+    }
+    case 'error':
+      return wrap(`<div style="background:#fff8e1;border:1px solid #e0c000;padding:10px 12px;font-size:12px;color:#5d4000;">${escapeHtml(s.message || 'Section failed to render.')}</div>`);
+    default:
+      return '';
+  }
+}
+
+function buildTableEmail({ heading, headers = [], rows = [], highlightFirst = false }) {
+  if (!rows.length) return '';
+  const head = headers.length
+    ? `<thead><tr>${headers.map(h => `<th style="background:#d9d9d9;font-size:11px;text-align:left;font-weight:700;padding:6px 8px;border:1px solid #000;">${escapeHtml(h)}</th>`).join('')}</tr></thead>`
+    : '';
+  const body = rows.map((row, i) => {
+    const bg = highlightFirst && i === 0 ? 'background:#fff2cc;font-weight:700;' : (i % 2 === 1 ? 'background:#f7f7f7;' : '');
+    return `<tr style="${bg}">${row.map(c => `<td style="padding:5px 8px;border:1px solid #000;font-size:12px;color:#1a1a1a;${bg}">${c == null ? '' : escapeHtml(c)}</td>`).join('')}</tr>`;
+  }).join('');
+  const headingHtml = heading ? `<div style="font-size:11px;font-weight:700;margin:12px 0 5px;color:#000;">${escapeHtml(heading)}</div>` : '';
+  return `${headingHtml}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">${head}<tbody>${body}</tbody></table>`;
+}
+
+function buildMetricsTableEmail(metricLabels, rows) {
+  const head = `<thead><tr><th style="background:#f3f3f3;font-weight:700;padding:6px 8px;border:0.5px solid #ccc;font-size:11px;text-align:left;"></th>${metricLabels.map(l => `<th style="background:#f3f3f3;font-weight:700;padding:6px 8px;border:0.5px solid #ccc;font-size:11px;text-align:right;">${escapeHtml(l)}</th>`).join('')}</tr></thead>`;
+  const body = rows.map((r, i) => `<tr style="${i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
+    <td style="padding:5px 8px;border:0.5px solid #eee;font-weight:700;font-size:12px;">${escapeHtml(r.source)}</td>
+    ${(r.values || []).map(v => `<td style="padding:5px 8px;border:0.5px solid #eee;text-align:right;font-size:12px;">${escapeHtml(v)}</td>`).join('')}
+  </tr>`).join('');
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">${head}<tbody>${body}</tbody></table>`;
+}
+
+// Inline SVG horizontal bar chart — same renderer as the PDF. Modern email
+// clients (Gmail web/iOS/Android, Apple Mail, Outlook.com) render inline SVG.
+// Outlook desktop (Word engine) does not — those readers see alt text only.
+function buildChartEmail(chart) {
+  if (chart.type !== 'hbar' || !chart.data?.length) return '';
+  const total = chart.data.reduce((s, d) => s + (d.value || 0), 0);
+  const max = Math.max(...chart.data.map(d => d.value || 0));
+  if (max <= 0) return '';
+  const width = 560;
+  const rowHeight = 22;
+  const labelWidth = 160;
+  const valueWidth = 130;
+  const barAreaWidth = width - labelWidth - valueWidth - 8;
+  const height = chart.data.length * rowHeight + 8;
+  const valueX = labelWidth + barAreaWidth + 6;
+  const bars = chart.data.map((d, i) => {
+    const y = i * rowHeight + 4;
+    const bw = (d.value / max) * barAreaWidth;
+    const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
+    return `
+      <text x="0" y="${y + 13}" font-size="10" fill="#1a1a1a">${escapeHtml(d.label)}</text>
+      <rect x="${labelWidth}" y="${y + 3}" width="${bw}" height="${rowHeight - 8}" fill="#E7CD41" />
+      <text x="${valueX}" y="${y + 13}" font-size="10" fill="#1a1a1a">${d.value.toLocaleString()} (${pct}%)</text>`;
+  }).join('');
+
+  // Text-only fallback in a hidden table for clients that strip SVG. We use
+  // mso-hide:all so Outlook ignores the SVG and shows the table instead.
+  const fallbackRows = chart.data.map(d => {
+    const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
+    return `<tr><td style="padding:4px 8px;border:1px solid #000;font-size:11px;">${escapeHtml(d.label)}</td><td style="padding:4px 8px;border:1px solid #000;font-size:11px;text-align:right;">${d.value.toLocaleString()} (${pct}%)</td></tr>`;
+  }).join('');
+
+  return `
+    <!--[if !mso]><!-->
+    <div style="margin:0 0 6px;">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="100%" style="max-width:${width}px;display:block;">
+        ${bars}
+      </svg>
+    </div>
+    <!--<![endif]-->
+    <!--[if mso]>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:6px;">${fallbackRows}</table>
+    <![endif]-->`;
+}
+
+function buildPositionDistributionEmail(rankings) {
+  const buckets = [
+    { label: 'Top 3', min: 1, max: 3 },
+    { label: '4 — 10', min: 4, max: 10 },
+    { label: '11 — 20', min: 11, max: 20 },
+    { label: '21 — 50', min: 21, max: 50 },
+    { label: '51 — 100', min: 51, max: 100 },
+    { label: '100+', min: 101, max: Infinity },
+  ];
+  const counts = buckets.map(b => rankings.filter(k => {
+    const p = parseInt(k.current_position);
+    return p >= b.min && p <= b.max;
+  }).length);
+  const cells = buckets.map((b, i) => `
+    <td width="${Math.floor(100 / buckets.length)}%" style="padding:8px 6px;border:1px solid #000;text-align:center;">
+      <div style="font-size:18px;font-weight:700;color:#000;line-height:1.2;">${counts[i]}</div>
+      <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:0.5px;margin-top:3px;">${b.label}</div>
+    </td>`).join('');
+  return `
+    <div style="font-size:11px;font-weight:700;margin:0 0 6px;color:#000;">Positions in Search Results</div>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+      <tr>${cells}</tr>
+    </table>`;
+}
+
+// Full-report email body — header, every resolved section, footer. Used when
+// the report path supplies `sections`; falls back to the legacy summary-only
+// builders if not.
+function buildFullReportEmailHtml({ clientName, period, periodLabel, sections }) {
+  const sectionsHtml = sections.map(renderEmailSection).filter(Boolean).join('');
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f0f0f0;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f0f0;">
+  <tr>
+    <td style="padding:24px 12px;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background:white;max-width:680px;margin:0 auto;">
+
+        <tr>
+          <td style="padding:28px 32px 0;">
+            <table width="100%" cellpadding="0" cellspacing="0">
+              <tr>
+                <td style="vertical-align:bottom;width:120px;">
+                  <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
+                </td>
+                <td style="vertical-align:bottom;text-align:right;">
+                  <div style="font-size:15px;font-weight:700;color:#000;">Report for ${escapeHtml(clientName)}</div>
+                  <div style="font-size:13px;color:#808080;margin-top:2px;">${escapeHtml(periodLabel || period)}</div>
+                </td>
+              </tr>
+            </table>
+            <div style="border-top:1px solid #000;margin:12px 0 18px;"></div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 32px 8px;">
+            ${sectionsHtml}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:0 32px 20px;">
+            <div style="border-top:1px solid #e0e0e0;padding-top:14px;font-size:12px;color:#808080;">
+              The full report is also attached as a PDF.
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding:14px 32px;border-top:1px solid #e0e0e0;">
+            <div style="font-size:10px;color:#808080;">Private &amp; Confidential. October Communications Ltd. Company No. 8816416. VAT Registration No. GB 176 6335 82. Registered in England and Wales. Registered address: 85 Great Portland Street, First Floor, London, W1W 7LT. www.octobercomms.com</div>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>`;
 }
 
 function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }) {

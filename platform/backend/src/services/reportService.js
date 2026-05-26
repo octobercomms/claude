@@ -71,8 +71,9 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
   const footerLines = [process.env.REPORT_FOOTER_LINE_1, process.env.REPORT_FOOTER_LINE_2, process.env.REPORT_FOOTER_LINE_3].filter(Boolean);
   const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true, footerLines });
 
-  // Email summary: first narrative section's first paragraph, plus a small
-  // metric strip extracted from the first metrics_grid (if any).
+  // Email body now mirrors the PDF — we pass the full resolved sections array
+  // through to emailService. Keep the legacy summary/metrics fields too so
+  // older resends and any other consumers of `reports.summary` still work.
   const firstNarrative = resolved.find(s => s.type === 'narrative');
   const firstMetricsGrid = resolved.find(s => s.type === 'metrics_grid');
   const summaryText = firstNarrative?.text || '';
@@ -80,7 +81,7 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
 
   await pool.query(
     'UPDATE reports SET status = $1, generated_at = NOW(), pdf_path = $2, html_content = $3, summary = $4 WHERE id = $5',
-    ['generated', pdfPath, htmlContent, JSON.stringify({ summaryHtml: summaryText, summaryText, metrics: topMetrics }), report.id]
+    ['generated', pdfPath, htmlContent, JSON.stringify({ summaryHtml: summaryText, summaryText, metrics: topMetrics, sections: resolved }), report.id]
   );
 
   const weekLabel = report.report_type === 'weekly'
@@ -91,6 +92,7 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
     summaryHtml: `<p>${summaryText.replace(/\n/g, '<br>')}</p>`,
     summaryText,
     metrics: topMetrics,
+    sections: resolved,
     weekLabel,
     pdfPath,
   });
@@ -224,6 +226,7 @@ async function sendReport(reportId, overrides = {}) {
   if (!overrides.summaryHtml && stored.summaryHtml) overrides.summaryHtml = `<p>${stored.summaryHtml.replace(/\n/g, '<br>')}</p>`;
   if (!overrides.metrics && stored.metrics) overrides.metrics = stored.metrics;
   if (!overrides.weekLabel && stored.weekLabel) overrides.weekLabel = stored.weekLabel;
+  if (!overrides.sections && stored.sections) overrides.sections = stored.sections;
 
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sending', reportId]);
 
@@ -253,6 +256,7 @@ async function sendReport(reportId, overrides = {}) {
         summaryHtml: overrides.summaryHtml || '<p>Please see the attached PDF for the full report.</p>',
         pdfPath: report.pdf_path,
         metrics: overrides.metrics || [],
+        sections: overrides.sections || null,
       });
     } else {
       const weekLabel = overrides.weekLabel || new Date(report.period_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
@@ -263,6 +267,7 @@ async function sendReport(reportId, overrides = {}) {
         summaryText: overrides.summaryText || 'Please see the weekly snapshot below.',
         metrics: overrides.metrics || [],
         pdfPath: overrides.pdfPath || report.pdf_path || null,
+        sections: overrides.sections || null,
       });
     }
 

@@ -62,6 +62,14 @@ const KEY_GROUPS = [
     title: 'Meta',
     category: 'Ad Platforms',
     hint: 'Required for Meta Ads and Instagram connectors. Create an app at developers.facebook.com, then add the redirect URL below to the app\'s App Domains (Settings → Basic) and Valid OAuth Redirect URIs (Facebook Login for Business → Settings).',
+    scopes: {
+      label: 'Required permissions (App Review)',
+      help: 'Paste these into the App Review request in Meta for Developers — see platform/backend/src/connectors/meta.js for the source of truth.',
+      values: [
+        'ads_read', 'read_insights', 'instagram_basic',
+        'instagram_manage_insights', 'pages_read_engagement', 'business_management',
+      ],
+    },
     keys: [
       { key: 'META_APP_ID', label: 'App ID', placeholder: '1234567890', type: 'text' },
       { key: 'META_APP_SECRET', label: 'App Secret', placeholder: '…', type: 'password' },
@@ -71,7 +79,17 @@ const KEY_GROUPS = [
   {
     title: 'Shopify',
     category: 'Ecommerce & Inventory',
-    hint: 'Required for Shopify connectors. Create a custom app in the Shopify Partners dashboard (partners.shopify.com → Apps → Create app → Public app). Set the redirect URL to your platform URL + /auth/shopify/callback. Paste the API key and secret below.',
+    hint: 'Required for Shopify connectors. Create one app in the Shopify Partners dashboard (partners.shopify.com → Apps → Create app). Either "Public" distribution (works for any store) or "Custom" distribution with each client store added to the allow-list. Set the redirect URL to your platform URL + /auth/shopify/callback. One app + one set of API keys works for every client store — each store just runs the install flow with the same credentials.',
+    scopes: {
+      label: 'Required access scopes',
+      help: 'Paste these into the app\'s Configuration → Access scopes section in the Shopify Partners dashboard. Source of truth: platform/backend/src/connectors/shopify.js.',
+      values: [
+        'read_orders', 'read_all_orders', 'read_products', 'read_customers',
+        'read_analytics', 'read_reports', 'read_marketing_events',
+        'read_inventory', 'read_fulfillments', 'read_shipping',
+        'read_price_rules', 'read_discounts', 'read_draft_orders',
+      ],
+    },
     keys: [
       { key: 'SHOPIFY_CLIENT_ID', label: 'API Key (Client ID)', placeholder: 'a1b2c3d4e5f6…', type: 'text' },
       { key: 'SHOPIFY_CLIENT_SECRET', label: 'API Secret (Client Secret)', placeholder: 'shpss_…', type: 'password' },
@@ -375,6 +393,7 @@ export default function SettingsPage() {
                         {group.note && (
                           <div style={styles.note}><strong>Developer app required.</strong> {group.note}</div>
                         )}
+                        {group.scopes && <ScopesBlock scopes={group.scopes} />}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
                           {group.keys.map(({ key, label, placeholder, type }) => (
                             <div key={key} style={styles.field}>
@@ -465,6 +484,37 @@ export default function SettingsPage() {
   );
 }
 
+function ScopesBlock({ scopes }) {
+  const [copied, setCopied] = useState(false);
+  const csv = scopes.values.join(',');
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(csv);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+  return (
+    <div style={styles.scopes}>
+      <div style={styles.scopesHead}>
+        <div>
+          <div style={styles.scopesLabel}>{scopes.label}</div>
+          {scopes.help && <div style={styles.scopesHelp}>{scopes.help}</div>}
+        </div>
+        <button type="button" onClick={copy} style={styles.scopesCopyBtn}>
+          {copied ? '✓ Copied' : 'Copy all'}
+        </button>
+      </div>
+      <code style={styles.scopesCode}>{csv}</code>
+      <div style={styles.scopesChips}>
+        {scopes.values.map(s => (
+          <span key={s} style={styles.scopeChip}>{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Card({ children }) {
   return <div style={styles.card}>{children}</div>;
 }
@@ -512,4 +562,12 @@ const styles = {
   eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
   envHint: { fontSize: 10, color: '#aaa' },
   btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
+  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '1px solid #e8e8e8', borderRadius: 4 },
+  scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
+  scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },
+  scopesCopyBtn: { background: 'white', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
+  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
+  scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
+  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
 };
