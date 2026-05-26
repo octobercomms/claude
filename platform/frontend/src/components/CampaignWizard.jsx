@@ -1,0 +1,608 @@
+import React, { useEffect, useState } from 'react';
+import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+
+// 5-step Campaign Wizard. The component manages step state locally and
+// persists each step's data to the backend on Next so the user can resume
+// a draft campaign mid-flow if they leave.
+//
+// Steps: 1 Campaign · 2 Audience · 3 Contacts · 4 Emails · 5 Launch
+const STEPS = [
+  { key: 1, label: 'Campaign' },
+  { key: 2, label: 'Audience' },
+  { key: 3, label: 'Contacts' },
+  { key: 4, label: 'Emails' },
+  { key: 5, label: 'Launch' },
+];
+
+export default function CampaignWizard({ clientId, campaignId, onExit, onCampaignChange }) {
+  const toast = useToast();
+  const [campaign, setCampaign] = useState(null);
+  const [step, setStep] = useState(1);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!campaignId) return;
+    api.get(`/outreach/campaigns?client_id=${clientId}`)
+      .then(rows => {
+        const found = rows.find(c => c.id === campaignId);
+        if (found) setCampaign(found);
+      })
+      .catch(err => toast(err.message, 'error'));
+  }, [campaignId, clientId]);
+
+  function updateCampaign(patch) {
+    setCampaign(prev => ({ ...prev, ...patch }));
+  }
+
+  async function persistAndNext(patch = {}) {
+    if (!campaign) return;
+    setBusy(true);
+    try {
+      const updated = await api.put(`/outreach/campaigns/${campaign.id}`, patch);
+      setCampaign(updated);
+      if (onCampaignChange) onCampaignChange();
+      setStep(s => Math.min(s + 1, 5));
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!campaign) {
+    return <div style={{ color: '#888', padding: 24 }}>Loading campaign…</div>;
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <button onClick={onExit} style={s.btnGhost}>← Campaigns</button>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>{campaign.name || 'New campaign'}</div>
+        <div style={{ width: 100 }} />
+      </div>
+
+      {/* Breadcrumb / step indicator */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
+        {STEPS.map(({ key, label }) => (
+          <button key={key}
+            onClick={() => key < step && setStep(key)}
+            disabled={key > step}
+            style={{
+              background: 'none', border: 'none',
+              cursor: key <= step ? 'pointer' : 'default',
+              padding: '10px 16px', fontSize: 13,
+              fontWeight: step === key ? 700 : 400,
+              color: step === key ? '#1a1a1a' : key < step ? '#666' : '#bbb',
+              borderBottom: step === key ? '2px solid #1a1a1a' : '2px solid transparent',
+              marginBottom: -2,
+            }}>
+            <span style={{ display: 'inline-block', width: 18, height: 18, lineHeight: '18px', borderRadius: 9, background: step >= key ? '#1a1a1a' : '#e8e8e8', color: step >= key ? '#fff' : '#888', fontSize: 11, fontWeight: 700, marginRight: 6, textAlign: 'center' }}>{key}</span>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {step === 1 && <StepCampaignDetails campaign={campaign} updateCampaign={updateCampaign} busy={busy} onNext={() => persistAndNext({
+        name: campaign.name, brand: campaign.brand, campaign_type: campaign.campaign_type,
+        from_name: campaign.from_name, from_email: campaign.from_email, reply_to: campaign.reply_to,
+        coupon_code: campaign.coupon_code, press_release_url: campaign.press_release_url,
+      })} />}
+      {step === 2 && <StepAudience campaign={campaign} setCampaign={setCampaign} onBack={() => setStep(1)} onNext={() => setStep(3)} />}
+      {step === 3 && <StepContacts campaign={campaign} clientId={clientId} onBack={() => setStep(2)} onNext={() => setStep(4)} />}
+      {step === 4 && <StepEmails campaign={campaign} onBack={() => setStep(3)} onNext={() => setStep(5)} />}
+      {step === 5 && <StepLaunch campaign={campaign} onBack={() => setStep(4)} onExit={onExit} onCampaignChange={onCampaignChange} />}
+    </div>
+  );
+}
+
+// ─── Step 1 ─────────────────────────────────────────────────────────────────
+function StepCampaignDetails({ campaign, updateCampaign, busy, onNext }) {
+  const type = campaign.campaign_type || 'outreach';
+  return (
+    <div style={s.card}>
+      <H>Campaign Details</H>
+      <Grid2>
+        <Field label="Campaign name">
+          <input style={s.input} value={campaign.name || ''} onChange={e => updateCampaign({ name: e.target.value })} placeholder="e.g. ADF 2026 Tour Submissions" />
+        </Field>
+        <Field label="Brand">
+          <input style={s.input} value={campaign.brand || ''} onChange={e => updateCampaign({ brand: e.target.value })} placeholder="e.g. October Comms" />
+        </Field>
+        <Field label="Type">
+          <select style={s.input} value={type} onChange={e => updateCampaign({ campaign_type: e.target.value })}>
+            <option value="outreach">Outreach</option>
+            <option value="press_release">Press Release</option>
+          </select>
+        </Field>
+        <div />
+        <Field label="From name">
+          <input style={s.input} value={campaign.from_name || ''} onChange={e => updateCampaign({ from_name: e.target.value })} placeholder="e.g. James Nelson" />
+        </Field>
+        <Field label="From email">
+          <input style={s.input} value={campaign.from_email || ''} onChange={e => updateCampaign({ from_email: e.target.value })} placeholder="james@brand.example" />
+        </Field>
+        <Field label="Reply-To email">
+          <input style={s.input} value={campaign.reply_to || ''} onChange={e => updateCampaign({ reply_to: e.target.value })} placeholder="replies@octobercomms.com" />
+        </Field>
+        <div />
+        {type === 'press_release' && (
+          <Field label="Press release URL" full>
+            <input style={s.input} value={campaign.press_release_url || ''} onChange={e => updateCampaign({ press_release_url: e.target.value })} placeholder="https://…" />
+          </Field>
+        )}
+        {type === 'outreach' && (
+          <Field label="Coupon code (optional)">
+            <input style={s.input} value={campaign.coupon_code || ''} onChange={e => updateCampaign({ coupon_code: e.target.value })} placeholder="e.g. WELCOME20" />
+          </Field>
+        )}
+      </Grid2>
+      <Footer>
+        <button disabled={busy || !campaign.name} onClick={onNext} style={s.btn}>{busy ? 'Saving…' : 'Next: Audience →'}</button>
+      </Footer>
+    </div>
+  );
+}
+
+// ─── Step 2 ─────────────────────────────────────────────────────────────────
+function StepAudience({ campaign, setCampaign, onBack, onNext }) {
+  const toast = useToast();
+  const [audience, setAudience] = useState(campaign.audience_description || '');
+  const [extra, setExtra] = useState('');
+  const [excludeSearched, setExcludeSearched] = useState(true);
+  const [perDomain, setPerDomain] = useState(25);
+  const [refining, setRefining] = useState(false);
+  const refined = campaign.refined_audience || null;
+
+  async function refine() {
+    setRefining(true);
+    try {
+      const result = await api.post(`/outreach/campaigns/${campaign.id}/refine-audience`, {
+        audience_description: audience, extra_instructions: extra, exclude_searched: excludeSearched,
+      });
+      setCampaign(prev => ({ ...prev, refined_audience: result, audience_description: audience }));
+      toast('Audience refined by Claude', 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setRefining(false);
+    }
+  }
+
+  function removeDomain(idx) {
+    const next = { ...refined, domains: refined.domains.filter((_, i) => i !== idx) };
+    setCampaign(prev => ({ ...prev, refined_audience: next }));
+  }
+  function removeTitle(idx) {
+    const next = { ...refined, job_titles: refined.job_titles.filter((_, i) => i !== idx) };
+    setCampaign(prev => ({ ...prev, refined_audience: next }));
+  }
+  function addDomain(d) {
+    const dom = String(d).trim().toLowerCase();
+    if (!dom || refined.domains.includes(dom)) return;
+    const next = { ...refined, domains: [...refined.domains, dom] };
+    setCampaign(prev => ({ ...prev, refined_audience: next }));
+  }
+
+  return (
+    <div style={s.card}>
+      <H>Audience</H>
+      <Field label="Describe the audience in plain English" full>
+        <textarea style={{ ...s.input, minHeight: 80, resize: 'vertical' }} value={audience} onChange={e => setAudience(e.target.value)}
+          placeholder="e.g. Small to mid-size architecture firms in Atlanta working on residential and commercial projects" />
+      </Field>
+      <Field label="Extra instructions for Claude (optional)" full>
+        <textarea style={{ ...s.input, minHeight: 60, resize: 'vertical' }} value={extra} onChange={e => setExtra(e.target.value)}
+          placeholder="e.g. Prioritise firms with sustainability focus" />
+      </Field>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 4, flexWrap: 'wrap' }}>
+        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <input type="checkbox" checked={excludeSearched} onChange={e => setExcludeSearched(e.target.checked)} />
+          Exclude domains already searched ({(campaign.searched_domains || []).length})
+        </label>
+        <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          Contacts per domain
+          <select style={{ ...s.input, padding: '4px 6px', fontSize: 12 }} value={perDomain} onChange={e => setPerDomain(parseInt(e.target.value, 10))}>
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+          </select>
+        </label>
+        <button onClick={refine} disabled={refining || !audience.trim()} style={s.btn}>
+          {refining ? 'Refining…' : (refined ? '↻ Re-refine with Claude' : '✦ Refine with Claude')}
+        </button>
+      </div>
+
+      {refined && (
+        <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
+          <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Refined description</div>
+          <p style={{ fontSize: 13, color: '#333', margin: '0 0 12px', lineHeight: 1.6 }}>{refined.refined_description}</p>
+          {refined.rationale && (
+            <p style={{ fontSize: 12, color: '#888', fontStyle: 'italic', margin: '0 0 14px' }}>{refined.rationale}</p>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', marginBottom: 6 }}>
+                Target domains ({refined.domains.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {refined.domains.map((d, i) => (
+                  <Tag key={d + i} onRemove={() => removeDomain(i)}>{d}</Tag>
+                ))}
+              </div>
+              <AddPill onAdd={addDomain} placeholder="+ add domain" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', marginBottom: 6 }}>
+                Job titles ({refined.job_titles.length})
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {refined.job_titles.map((t, i) => (
+                  <Tag key={t + i} onRemove={() => removeTitle(i)}>{t}</Tag>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Footer>
+        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={async () => {
+          if (refined) {
+            await api.put(`/outreach/campaigns/${campaign.id}`, { refined_audience: refined, audience_description: audience });
+          }
+          onNext();
+        }} disabled={!refined} style={s.btn}>
+          Next: Find Contacts →
+        </button>
+      </Footer>
+    </div>
+  );
+}
+
+// ─── Step 3 ─────────────────────────────────────────────────────────────────
+function StepContacts({ campaign, clientId, onBack, onNext }) {
+  const toast = useToast();
+  const [mode, setMode] = useState('find');
+  const [batchIdx, setBatchIdx] = useState(0);
+  const [searching, setSearching] = useState(false);
+  const [foundContacts, setFoundContacts] = useState([]);
+  const [selectedFound, setSelectedFound] = useState(() => new Set());
+  const [existing, setExisting] = useState([]);
+  const [selectedExisting, setSelectedExisting] = useState(() => new Set());
+  const [filter, setFilter] = useState({ contact_type: '', location: '', search: '' });
+  const [saving, setSaving] = useState(false);
+
+  const refined = campaign.refined_audience || { domains: [], job_titles: [] };
+  const allDomains = refined.domains || [];
+  const remaining = allDomains.slice(batchIdx * 8);
+  const nextBatch = remaining.slice(0, 8);
+
+  useEffect(() => {
+    if (mode !== 'existing') return;
+    const params = new URLSearchParams({ client_id: clientId, exclude_campaign: campaign.id });
+    if (filter.contact_type) params.set('contact_type', filter.contact_type);
+    if (filter.location) params.set('location', filter.location);
+    if (filter.search) params.set('search', filter.search);
+    api.get(`/outreach/contacts?${params}`).then(setExisting).catch(() => setExisting([]));
+  }, [mode, filter, campaign.id, clientId]);
+
+  async function searchNext() {
+    if (nextBatch.length === 0) return;
+    setSearching(true);
+    try {
+      const res = await api.post(`/outreach/campaigns/${campaign.id}/search-batch`, {
+        domains: nextBatch, job_titles: refined.job_titles || [], contacts_per_domain: 25,
+      });
+      setFoundContacts(prev => mergeUniqueByEmail([...prev, ...(res.contacts || [])]));
+      setBatchIdx(i => i + 1);
+      toast(`Found ${res.contacts.length} contact${res.contacts.length === 1 ? '' : 's'} across ${nextBatch.length} domains`, 'success');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setSearching(false);
+    }
+  }
+
+  function toggleFound(i) {
+    setSelectedFound(prev => { const n = new Set(prev); n.has(i) ? n.delete(i) : n.add(i); return n; });
+  }
+  function toggleExisting(id) {
+    setSelectedExisting(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }
+
+  async function saveAndContinue() {
+    const new_contacts = foundContacts.filter((_, i) => selectedFound.has(i));
+    const contact_ids = [...selectedExisting];
+    if (new_contacts.length === 0 && contact_ids.length === 0) {
+      toast('Select at least one contact first', 'error');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await api.post(`/outreach/campaigns/${campaign.id}/contacts/add`, { new_contacts, contact_ids });
+      toast(`Added ${res.added} contact${res.added === 1 ? '' : 's'} to the campaign`, 'success');
+      onNext();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const totalSelected = selectedFound.size + selectedExisting.size;
+
+  return (
+    <div style={s.card}>
+      <H>Find Contacts</H>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setMode('find')} style={{ ...s.tabBtn, ...(mode === 'find' ? s.tabBtnActive : {}) }}>Find new contacts</button>
+        <button onClick={() => setMode('existing')} style={{ ...s.tabBtn, ...(mode === 'existing' ? s.tabBtnActive : {}) }}>Existing contacts</button>
+      </div>
+
+      {mode === 'find' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+            <div style={{ fontSize: 13, color: '#444' }}>
+              Searching domains <strong>{batchIdx * 8 + 1}</strong>–<strong>{Math.min((batchIdx + 1) * 8, allDomains.length)}</strong> of {allDomains.length}
+            </div>
+            <button onClick={searchNext} disabled={searching || nextBatch.length === 0} style={s.btn}>
+              {searching ? 'Searching…' : nextBatch.length === 0 ? 'No more domains' : `Search next ${nextBatch.length} ${nextBatch.length === 1 ? 'domain' : 'domains'}`}
+            </button>
+            <span style={{ fontSize: 12, color: '#888' }}>Hunter.io + Icypeas in parallel, deduped by email.</span>
+          </div>
+          {foundContacts.length > 0 && (
+            <ResultsTable rows={foundContacts} selected={selectedFound} onToggle={toggleFound} />
+          )}
+          {foundContacts.length === 0 && batchIdx === 0 && (
+            <p style={{ fontSize: 12, color: '#888' }}>Click “Search next” above to start finding contacts at the refined-audience domains.</p>
+          )}
+        </div>
+      )}
+
+      {mode === 'existing' && (
+        <div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 12 }}>
+            <input style={s.input} placeholder="Search name / email / company" value={filter.search}
+              onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} />
+            <input style={s.input} placeholder="Contact type — e.g. architect" value={filter.contact_type}
+              onChange={e => setFilter(f => ({ ...f, contact_type: e.target.value }))} />
+            <input style={s.input} placeholder="Location keyword" value={filter.location}
+              onChange={e => setFilter(f => ({ ...f, location: e.target.value }))} />
+          </div>
+          {existing.length === 0 ? (
+            <p style={{ fontSize: 12, color: '#888' }}>No contacts match these filters.</p>
+          ) : (
+            <ExistingTable rows={existing} selected={selectedExisting} onToggle={toggleExisting} />
+          )}
+        </div>
+      )}
+
+      <Footer>
+        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <span style={{ fontSize: 12, color: '#666' }}>{totalSelected} selected</span>
+        <button onClick={saveAndContinue} disabled={saving || totalSelected === 0} style={s.btn}>
+          {saving ? 'Saving…' : 'Next: Write Emails →'}
+        </button>
+      </Footer>
+    </div>
+  );
+}
+
+// ─── Step 4 ─────────────────────────────────────────────────────────────────
+function StepEmails({ campaign, onBack, onNext }) {
+  const toast = useToast();
+  const [steps, setSteps] = useState(null);
+  const [generating, setGenerating] = useState(false);
+  const [savingStep, setSavingStep] = useState(null);
+
+  useEffect(() => {
+    api.get(`/outreach/campaigns/${campaign.id}/sequences`).then(setSteps).catch(() => setSteps([]));
+  }, [campaign.id]);
+
+  async function generate() {
+    setGenerating(true);
+    try {
+      const seq = await api.post(`/outreach/campaigns/${campaign.id}/generate`, {});
+      setSteps(seq);
+      toast('Sequence drafted by Claude', 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setGenerating(false); }
+  }
+
+  function updateStep(stepId, field, value) {
+    setSteps(prev => prev.map(st => (st.id === stepId ? { ...st, [field]: value } : st)));
+  }
+
+  async function saveStep(stepRow) {
+    setSavingStep(stepRow.id);
+    try {
+      await api.put(`/outreach/sequences/${stepRow.id}`, {
+        subject: stepRow.subject, body: stepRow.body, delay_days: stepRow.delay_days,
+      });
+      toast(`Step ${stepRow.step_number} saved`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setSavingStep(null); }
+  }
+
+  return (
+    <div style={s.card}>
+      <H>Write Emails</H>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <button onClick={generate} disabled={generating} style={s.btn}>
+          {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
+        </button>
+        <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up at day 4, final nudge at day 9.</span>
+      </div>
+      {steps === null && <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>}
+      {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: '#888' }}>No sequence yet — generate one with Claude.</p>}
+      {steps && steps.map(stp => (
+        <div key={stp.id} style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 12, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+            Step {stp.step_number} · sent day {stp.delay_days}
+          </div>
+          <input style={{ ...s.input, width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+            value={stp.subject || ''} placeholder="Subject"
+            onChange={e => updateStep(stp.id, 'subject', e.target.value)} />
+          <textarea style={{ ...s.input, width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
+            value={stp.body || ''} placeholder="Email body — use {{first_name}}, {{company}}"
+            onChange={e => updateStep(stp.id, 'body', e.target.value)} />
+          <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} style={{ ...s.btn, marginTop: 8 }}>
+            {savingStep === stp.id ? 'Saving…' : 'Save step'}
+          </button>
+        </div>
+      ))}
+      <Footer>
+        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={onNext} disabled={!steps || steps.length === 0} style={s.btn}>Next: Launch →</button>
+      </Footer>
+    </div>
+  );
+}
+
+// ─── Step 5 ─────────────────────────────────────────────────────────────────
+function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function launch() {
+    if (!window.confirm('Launch this campaign? The first email will start sending immediately to all enrolled contacts.')) return;
+    setBusy(true);
+    try {
+      const res = await api.post(`/outreach/campaigns/${campaign.id}/launch`, {});
+      toast(`Launched — ${res.enrolled} contact${res.enrolled === 1 ? '' : 's'} enrolled`, 'success');
+      if (onCampaignChange) onCampaignChange();
+      onExit();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <div style={s.card}>
+      <H>Launch</H>
+      <p style={{ fontSize: 13, color: '#555', marginTop: 0 }}>Review the campaign and launch when ready.</p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
+        <Summary label="Campaign" value={campaign.name} />
+        <Summary label="Brand" value={campaign.brand || '—'} />
+        <Summary label="Type" value={campaign.campaign_type === 'press_release' ? 'Press Release' : 'Outreach'} />
+        <Summary label="From" value={campaign.from_email ? `${campaign.from_name || ''} <${campaign.from_email}>` : '—'} />
+        <Summary label="Reply-To" value={campaign.reply_to || '—'} />
+        <Summary label="Contacts enrolled" value={String(campaign.contact_count || 0)} />
+      </div>
+      <Footer>
+        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={launch} disabled={busy || !campaign.contact_count} style={s.btn}>
+          {busy ? 'Launching…' : '▶ Launch campaign'}
+        </button>
+      </Footer>
+    </div>
+  );
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function mergeUniqueByEmail(list) {
+  const seen = new Set();
+  const out = [];
+  for (const c of list) {
+    const k = (c.email || '').toLowerCase();
+    if (!k || seen.has(k)) continue;
+    seen.add(k); out.push(c);
+  }
+  return out;
+}
+function ResultsTable({ rows, selected, onToggle }) {
+  return (
+    <table style={s.table}>
+      <thead><tr>{['', 'Name', 'Email', 'Title', 'Company', 'Source'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+      <tbody>
+        {rows.map((c, i) => (
+          <tr key={i}>
+            <td style={s.td}><input type="checkbox" checked={selected.has(i)} onChange={() => onToggle(i)} /></td>
+            <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+            <td style={s.td}>{c.email}</td>
+            <td style={s.td}>{c.title || c.role || '—'}</td>
+            <td style={s.td}>{c.company || c.website || '—'}</td>
+            <td style={s.td}><span style={s.chip}>{c.source || '—'}</span></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+function ExistingTable({ rows, selected, onToggle }) {
+  return (
+    <table style={s.table}>
+      <thead><tr>{['', 'Name', 'Email', 'Type', 'Location', 'Company'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+      <tbody>
+        {rows.map(c => (
+          <tr key={c.id}>
+            <td style={s.td}><input type="checkbox" checked={selected.has(c.id)} onChange={() => onToggle(c.id)} /></td>
+            <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+            <td style={s.td}>{c.email}</td>
+            <td style={s.td}>{c.contact_type || '—'}</td>
+            <td style={s.td}>{c.location || '—'}</td>
+            <td style={s.td}>{c.company || '—'}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+function Tag({ children, onRemove }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f1f1', border: '1px solid #e0e0e0', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
+      {children}
+      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
+    </span>
+  );
+}
+function AddPill({ onAdd, placeholder }) {
+  const [v, setV] = useState('');
+  return (
+    <input style={{ ...s.input, marginTop: 8, fontSize: 12, padding: '4px 8px', maxWidth: 220 }}
+      value={v} placeholder={placeholder}
+      onChange={e => setV(e.target.value)}
+      onKeyDown={e => {
+        if (e.key === 'Enter' && v.trim()) { onAdd(v); setV(''); }
+      }} />
+  );
+}
+function Summary({ label, value }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 600 }}>{value || '—'}</div>
+    </div>
+  );
+}
+function H({ children }) { return <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 12px' }}>{children}</h2>; }
+function Field({ label, children, full }) {
+  return (
+    <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
+      <label style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      {children}
+    </div>
+  );
+}
+function Grid2({ children }) {
+  return <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>{children}</div>;
+}
+function Footer({ children }) {
+  return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 22, gap: 12, flexWrap: 'wrap' }}>{children}</div>;
+}
+
+const s = {
+  card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 20 },
+  btn: { padding: '8px 16px', fontSize: 13, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' },
+  btnGhost: { padding: '8px 16px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
+  input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 },
+  th: { padding: '8px 10px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
+  td: { padding: '8px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12 },
+  chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px' },
+  tabBtn: { background: '#fff', border: '1px solid #ddd', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 13 },
+  tabBtnActive: { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' },
+};

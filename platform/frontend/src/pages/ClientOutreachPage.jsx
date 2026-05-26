@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import CampaignWizard from '../components/CampaignWizard';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -150,6 +151,7 @@ export default function ClientOutreachPage() {
   const [serperDomains, setSerperDomains] = useState([]);
   const [serperError, setSerperError] = useState('');
   const [expandedCampaign, setExpandedCampaign] = useState(null);
+  const [wizardCampaignId, setWizardCampaignId] = useState(null);
   const [sendCfg, setSendCfg] = useState({});
   const [savingSend, setSavingSend] = useState(false);
   const [sendSaved, setSendSaved] = useState(false);
@@ -196,6 +198,19 @@ export default function ClientOutreachPage() {
       setCampaigns(p => [{ ...c, contact_count: 0 }, ...p]);
       setNewCampaign({ name: '', audience_description: '' });
       setShowAddCampaign(false);
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  async function startNewCampaign() {
+    try {
+      const c = await api.post('/outreach/campaigns', {
+        client_id: id,
+        name: 'Untitled campaign',
+        campaign_type: 'outreach',
+      });
+      setCampaigns(p => [{ ...c, contact_count: 0 }, ...p]);
+      setTab('campaigns');
+      setWizardCampaignId(c.id);
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -277,7 +292,7 @@ export default function ClientOutreachPage() {
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Outreach — {client?.name}</h1>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} style={s.btnGhost}>+ Add Contact</button>
-          <button onClick={() => { setTab('campaigns'); setShowAddCampaign(true); }} style={s.btn}>+ New Campaign</button>
+          <button onClick={startNewCampaign} style={s.btn}>+ New Campaign</button>
         </div>
       </div>
 
@@ -458,47 +473,41 @@ export default function ClientOutreachPage() {
         </div>
       )}
 
-      {tab === 'campaigns' && (
+      {tab === 'campaigns' && wizardCampaignId && (
+        <CampaignWizard
+          clientId={id}
+          campaignId={wizardCampaignId}
+          onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
+          onCampaignChange={refreshCampaigns}
+        />
+      )}
+
+      {tab === 'campaigns' && !wizardCampaignId && (
         <div>
-          <button onClick={() => setShowAddCampaign(v => !v)} style={s.btn}>{showAddCampaign ? 'Cancel' : '+ New campaign'}</button>
-          {showAddCampaign && (
-            <form onSubmit={addCampaign} style={{ ...s.card, marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <input style={s.input} placeholder="Campaign name" value={newCampaign.name}
-                required onChange={e => setNewCampaign(p => ({ ...p, name: e.target.value }))} />
-              <textarea style={{ ...s.input, minHeight: 70, resize: 'vertical' }}
-                placeholder="Audience description — who are we reaching out to, and why?"
-                value={newCampaign.audience_description}
-                onChange={e => setNewCampaign(p => ({ ...p, audience_description: e.target.value }))} />
-              <button type="submit" style={{ ...s.btn, alignSelf: 'start' }}>Create campaign</button>
-            </form>
-          )}
+          <button onClick={startNewCampaign} style={s.btn}>+ New campaign</button>
           <div style={{ ...s.tableWrap, marginTop: 12 }}>
             <table style={s.table}>
-              <thead><tr>{['Campaign', 'Status', 'Contacts', 'Created', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+              <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
               <tbody>
                 {campaigns.length === 0 ? (
-                  <tr><td colSpan={5} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No campaigns yet — create one above</td></tr>
+                  <tr><td colSpan={8} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
                 ) : campaigns.map(c => (
-                  <React.Fragment key={c.id}>
-                  <tr style={{ cursor: 'pointer', background: expandedCampaign === c.id ? '#fafafa' : undefined }}
-                    onClick={() => setExpandedCampaign(v => (v === c.id ? null : c.id))}>
+                  <tr key={c.id}>
                     <td style={s.td}>
-                      <div style={{ fontWeight: 600 }}>{expandedCampaign === c.id ? '▾ ' : '▸ '}{c.name}</div>
-                      {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description}</div>}
+                      <div style={{ fontWeight: 600 }}>{c.name}</div>
+                      {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
+                    <td style={s.td}>{c.brand || '—'}</td>
+                    <td style={s.td}>{c.campaign_type === 'press_release' ? 'Press' : 'Outreach'}</td>
                     <td style={s.td}><span style={s.chip}>{c.status}</span></td>
                     <td style={s.td}>{c.contact_count || 0}</td>
+                    <td style={s.td}>{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
                     <td style={s.td}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
-                    <td style={s.td} onClick={e => e.stopPropagation()}><button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button></td>
+                    <td style={s.td}>
+                      <button onClick={() => setWizardCampaignId(c.id)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>Open wizard</button>
+                      <button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button>
+                    </td>
                   </tr>
-                  {expandedCampaign === c.id && (
-                    <tr>
-                      <td colSpan={5} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
-                        <CampaignSequence campaign={c} onCampaignChange={refreshCampaigns} />
-                      </td>
-                    </tr>
-                  )}
-                  </React.Fragment>
                 ))}
               </tbody>
             </table>
