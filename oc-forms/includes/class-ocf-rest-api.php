@@ -230,10 +230,11 @@ class OCF_REST_API {
 		return rest_ensure_response( array(
 			'ok'     => true,
 			'ending' => array(
-				'heading'   => $ending['heading'] ?? 'Thanks!',
-				'body'      => $ending['body'] ?? '',
-				'cta_label' => $ending['cta_label'] ?? '',
-				'cta_url'   => $ending['cta_url'] ?? '',
+				'heading'      => $ending['heading'] ?? 'Thanks!',
+				'body'         => $ending['body'] ?? '',
+				'cta_label'    => $ending['cta_label'] ?? '',
+				'cta_url'      => $ending['cta_url'] ?? '',
+				'redirect_url' => $ending['redirect_url'] ?? '',
 			),
 		) );
 	}

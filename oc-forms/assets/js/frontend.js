@@ -260,7 +260,7 @@
 			if (stepIdx > 0) {
 				foot.appendChild(el('button', { type: 'button', class: 'ocf-btn ocf-btn-ghost', onClick: prev }, [labels.back_label || 'Back']));
 			}
-			if (anyQuestionSkippable(step)) {
+			if (step.skippable) {
 				foot.appendChild(el('button', { type: 'button', class: 'ocf-btn ocf-btn-ghost', onClick: skip }, [labels.skip_label || 'Skip']));
 			}
 			if (isLast && schema.spam && schema.spam.turnstile && cfg.turnstileKey) {
@@ -278,12 +278,6 @@
 			turnstileWidget = window.turnstile.render(host, {
 				sitekey: cfg.turnstileKey,
 				callback: function (t) { turnstileToken = t; }
-			});
-		}
-
-		function anyQuestionSkippable(step) {
-			return step.questions.some(function (q) {
-				return q.skippable && !q.required && evalLogic(q.show_if, answers);
 			});
 		}
 
@@ -332,11 +326,7 @@
 		}
 
 		function skip() {
-			var step = currentStep();
-			// Clear skippable answers in this step.
-			step.questions.forEach(function (q) {
-				if (q.skippable && !q.required) { delete answers[q.id]; }
-			});
+			// Move to the next step without validating the current one.
 			stepIdx += 1;
 			renderStep();
 		}
@@ -362,7 +352,12 @@
 				ocf_hp: (root.querySelector('input[name="ocf_hp"]') || {}).value || '',
 				ocf_hp_email: (root.querySelector('input[name="ocf_hp_email"]') || {}).value || ''
 			} }).then(function (res) {
-				renderEnding(res.ending || {});
+				var ending = res.ending || {};
+				if (ending.redirect_url) {
+					window.location.href = ending.redirect_url;
+					return;
+				}
+				renderEnding(ending);
 			}).catch(function (err) {
 				if (btn) { btn.disabled = false; btn.textContent = (schema.settings && schema.settings.submit_label) || 'Submit'; }
 				stepHost.appendChild(el('div', { class: 'ocf-error' }, [err.message || 'Submission failed.']));

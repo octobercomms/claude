@@ -3,7 +3,7 @@
  * Plugin Name: nvelope Forms
  * Plugin URI: https://nvelope.co
  * Description: Multi-step lead generation forms for nvelope.co — image-card pickers, conditional logic, file uploads, partial submission capture, per-client theming, Brevo integration. Self-hosted replacement for Fillout and Gravity Forms.
- * Version: 1.1.7
+ * Version: 1.1.8
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCF_VERSION', '1.1.7' );
+define( 'OCF_VERSION', '1.1.8' );
 define( 'OCF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCF_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCF_CPT', 'ocf_form' );

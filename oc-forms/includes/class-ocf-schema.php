@@ -85,10 +85,11 @@ class OCF_Schema {
 			),
 			'endings'  => array(
 				'default' => array(
-					'heading'   => 'Thanks — we got it.',
-					'body'      => 'We will be in touch shortly.',
-					'cta_label' => '',
-					'cta_url'   => '',
+					'heading'      => 'Thanks — we got it.',
+					'body'         => 'We will be in touch shortly.',
+					'cta_label'    => '',
+					'cta_url'      => '',
+					'redirect_url' => '',
 				),
 			),
 			'steps'    => array(),
@@ -133,6 +134,7 @@ class OCF_Schema {
 				'id'         => self::clean_id( $step['id'] ?? '' ),
 				'title'      => sanitize_text_field( $step['title'] ?? '' ),
 				'show_title' => ! empty( $step['show_title'] ),
+				'skippable'  => ! empty( $step['skippable'] ),
 				'show_if'    => self::sanitize_logic( $step['show_if'] ?? array() ),
 				'questions'  => array(),
 			);

@@ -233,6 +233,10 @@
 			el('span', null, ['Show step title as heading on the form'])
 		]));
 		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['By default the step title is an internal label for the builder only.']));
+		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
+			el('input', { type: 'checkbox', checked: step.skippable ? 'checked' : null, onChange: function (e) { step.skippable = e.target.checked; syncHiddenInput(); } }),
+			el('span', null, ['Show "Skip" button on this step'])
+		]));
 		host.appendChild(logicEditor('Show step if…', step.show_if || [], function (rules) { step.show_if = rules; syncHiddenInput(); }));
 	}
 
@@ -280,10 +284,6 @@
 		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
 			el('input', { type: 'checkbox', checked: q.required ? 'checked' : null, onChange: function (e) { q.required = e.target.checked; syncHiddenInput(); } }),
 			el('span', null, ['Required'])
-		]));
-		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
-			el('input', { type: 'checkbox', checked: q.skippable ? 'checked' : null, onChange: function (e) { q.skippable = e.target.checked; syncHiddenInput(); } }),
-			el('span', null, ['Show "Skip" button'])
 		]));
 
 		// Options
@@ -533,7 +533,15 @@
 
 	function renderEndings(host) {
 		var e = schema.endings.default = schema.endings.default || {};
-		host.appendChild(el('h3', null, ['Ending screen']));
+		host.appendChild(el('h3', null, ['On submit']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Redirect to URL after submit (optional)']),
+			el('input', { type: 'url', class: 'widefat', placeholder: 'https://nvelope.co/thank-you', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['If set, the visitor is redirected here once the form is submitted. The ending screen below is ignored.']));
+
+		host.appendChild(el('h4', null, ['Ending screen (used when no redirect is set)']));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Heading']),
 			el('input', { type: 'text', class: 'widefat', value: e.heading || '', onInput: function (ev) { e.heading = ev.target.value; syncHiddenInput(); } })
