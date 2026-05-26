@@ -55,13 +55,49 @@
 
 .ocf-choices { display: flex; flex-direction: column; gap: 8px; }
 .ocf-choice {
-	display: flex; align-items: center; gap: 10px;
+	display: flex; align-items: center; gap: 12px;
 	padding: 12px 14px; border: 1px solid var(--ocf-border);
 	border-radius: var(--ocf-radius); cursor: pointer;
 }
 .ocf-choice:hover { border-color: var(--ocf-primary); }
 .ocf-choice.is-checked { border-color: var(--ocf-primary); background: rgba(0,0,0,.02); }
-.ocf-choice input { accent-color: var(--ocf-primary); }
+
+/* Custom-styled circular radio + checkbox for choice and image-card inputs.
+   Native UI is replaced with a 20px circle that gets an accent-colored
+   tick on selection. */
+.ocf-choice input[type="radio"],
+.ocf-choice input[type="checkbox"],
+.ocf-image-card-meta input[type="radio"],
+.ocf-image-card-meta input[type="checkbox"] {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 20px;
+	height: 20px;
+	min-width: 20px;
+	border: 2px solid var(--ocf-border);
+	border-radius: 50%;
+	background: #fff;
+	margin: 0;
+	cursor: pointer;
+	position: relative;
+	transition: border-color .15s;
+}
+.ocf-choice input:checked,
+.ocf-image-card-meta input:checked {
+	border-color: var(--ocf-accent);
+}
+.ocf-choice input:checked::after,
+.ocf-image-card-meta input:checked::after {
+	content: '';
+	position: absolute;
+	left: 4px;
+	top: 0;
+	width: 6px;
+	height: 11px;
+	border: solid var(--ocf-accent);
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
 
 .ocf-image-cards {
 	display: grid; gap: 16px;
@@ -78,13 +114,17 @@
 	cursor: pointer;
 	background: #fff;
 	transition: border-color .15s, transform .15s, box-shadow .15s;
+	position: relative;
 }
-.ocf-image-card:hover { border-color: var(--ocf-primary); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(0,0,0,.06); }
-.ocf-image-card.is-selected { border-color: var(--ocf-primary); box-shadow: 0 0 0 2px var(--ocf-primary) inset; }
+.ocf-image-card:hover { border-color: var(--ocf-primary); transform: translateY(-1px); }
+.ocf-image-card.is-selected {
+	border-color: var(--ocf-primary);
+	/* Inset ring sits on top of the image edge — exactly what we want when selected. */
+	box-shadow: 0 0 0 3px var(--ocf-primary) inset;
+}
 .ocf-image-card-img { aspect-ratio: 4 / 3; background: var(--ocf-surface); }
 .ocf-image-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.ocf-image-card-meta { display: flex; align-items: center; gap: 10px; padding: 12px 14px; font-size: 14px; }
-.ocf-image-card-meta input { accent-color: var(--ocf-primary); }
+.ocf-image-card-meta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 14px; }
 
 .ocf-grid { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ocf-grid th, .ocf-grid td { padding: 8px 10px; border-bottom: 1px solid var(--ocf-border); text-align: center; }
