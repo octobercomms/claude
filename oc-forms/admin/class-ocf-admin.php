@@ -39,8 +39,7 @@ class OCF_Admin {
 		if ( $schema ) {
 			update_post_meta( $new_id, OCF_Schema::META_KEY, wp_slash( $schema ) );
 		}
-		wp_safe_redirect( get_edit_post_link( $new_id, '' ) );
-		exit;
+		OCF_Settings::redirect( get_edit_post_link( $new_id, '' ) );
 	}
 
 	public static function menu() {

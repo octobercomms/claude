@@ -35,7 +35,26 @@ class OCF_Settings {
 		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Forbidden' ); }
 		check_admin_referer( 'ocf_regenerate_api_key' );
 		update_option( 'ocf_api_key', wp_generate_password( 48, false, false ) );
-		wp_safe_redirect( admin_url( 'admin.php?page=oc-forms-settings&regenerated=1' ) );
+		self::redirect( admin_url( 'admin.php?page=oc-forms-settings&regenerated=1' ) );
+	}
+
+	/**
+	 * Redirect that survives the "headers already sent" case: some other
+	 * plugins (Compliance banners, debug bars, etc.) flush output early,
+	 * which makes wp_safe_redirect a silent no-op and strands the user
+	 * on admin-post.php. Fall back to a JS / meta-refresh.
+	 */
+	public static function redirect( $url ) {
+		$url = wp_validate_redirect( $url, admin_url() );
+		if ( ! headers_sent() ) {
+			wp_safe_redirect( $url );
+			exit;
+		}
+		printf(
+			'<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=%1$s"><script>window.location.href=%2$s;</script><title>Redirecting…</title></head><body><p>Redirecting… <a href="%1$s">Continue</a>.</p></body></html>',
+			esc_attr( $url ),
+			wp_json_encode( $url )
+		);
 		exit;
 	}
 

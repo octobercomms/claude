@@ -109,7 +109,6 @@ class OCF_Mail {
 		if ( ! $sent && $failure_msg ) {
 			set_transient( 'ocf_test_mail_error', $failure_msg, 60 );
 		}
-		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
-		exit;
+		OCF_Settings::redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 	}
 }

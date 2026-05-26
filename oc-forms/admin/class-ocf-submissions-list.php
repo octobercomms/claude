@@ -25,8 +25,7 @@ class OCF_Submissions_List {
 		}
 
 		$url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted );
-		wp_safe_redirect( $url );
-		exit;
+		OCF_Settings::redirect( $url );
 	}
 
 	public static function handle_single_delete() {
@@ -39,8 +38,7 @@ class OCF_Submissions_List {
 		$deleted = OCF_Submission::delete( $id ) ? 1 : 0;
 
 		$url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted );
-		wp_safe_redirect( $url );
-		exit;
+		OCF_Settings::redirect( $url );
 	}
 
 	public static function maybe_export() {
