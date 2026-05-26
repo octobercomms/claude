@@ -104,14 +104,18 @@ body {
 .cover-date { font-size: 16pt; font-weight: 400; margin-top: 6pt; }
 
 /* ---- Page header ---- */
-.pg-head { display: flex; justify-content: space-between; align-items: baseline; }
-.pg-head-l { font-size: 9pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
-.pg-head-r { font-size: 8pt; color: #808080; }
-.pg-hr { border: none; border-top: 1pt solid #000; margin: 8pt 0 20pt; }
+.pg-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.pg-head-l { flex: 0 0 auto; }
+.pg-head-r { text-align: right; }
+.pg-head-title { font-size: 13pt; font-weight: 700; line-height: 1.1; }
+.pg-head-period { font-size: 10pt; color: #808080; margin-top: 3pt; }
+.pg-hr { border: none; border-top: 1pt solid #000; margin: 10pt 0 18pt; }
 
 /* ---- Section title ---- */
-.section-title { font-size: 14pt; font-weight: 700; margin-bottom: 16pt; }
+.section-title { font-size: 14pt; font-weight: 700; margin-bottom: 14pt; }
 .sub-title { font-size: 9pt; font-weight: 700; margin: 16pt 0 6pt; }
+.store-sub { font-size: 11pt; font-weight: 700; color: #1a1a1a; margin: 20pt 0 10pt; padding-bottom: 4pt; border-bottom: 0.5pt solid #ccc; }
+.store-sub:first-of-type { margin-top: 0; }
 
 /* ---- Tables ---- */
 table { border-collapse: collapse; font-size: 8pt; margin-bottom: 16pt; }
@@ -153,37 +157,60 @@ li strong { display: block; margin-bottom: 2pt; }
 /* Footer */
 .pg-footer {
   position: absolute;
-  bottom: 18pt;
+  bottom: 16pt;
   left: 42pt;
   right: 42pt;
   border-top: 0.5pt solid #ccc;
-  padding-top: 4pt;
-  display: flex;
-  justify-content: space-between;
-  font-size: 7pt;
+  padding-top: 5pt;
+  font-size: 6.5pt;
   color: #808080;
+  text-align: center;
+  line-height: 1.5;
 }
+.pg-footer div { margin: 0; }
 `;}
 
 function pageHeader(clientName, period) {
   return `
   <div class="pg-head">
-    <span class="pg-head-l">${logoImg(28)}</span>
-    <span class="pg-head-r">${clientName} &middot; ${period}</span>
+    <div class="pg-head-l">${logoImg(36)}</div>
+    <div class="pg-head-r">
+      <div class="pg-head-title">Report for ${clientName}</div>
+      <div class="pg-head-period">${period}</div>
+    </div>
   </div>
   <hr class="pg-hr">`;
 }
 
-function pageFooter(clientName, period) {
+function pageFooter() {
   return `
   <div class="pg-footer">
-    <span>Private &amp; Confidential &middot; October Communications Ltd.</span>
-    <span>${clientName} &middot; ${period}</span>
+    <div>Private &amp; Confidential &middot; October Communications Ltd.</div>
+    <div>Company No. 8816416 &middot; VAT Registration No. GB 176 6335 82 &middot; Registered in England and Wales</div>
+    <div>85 Great Portland Street, First Floor, London W1W 7LT &middot; www.octobercomms.com</div>
   </div>`;
 }
 
-function buildMonthlyReportHtml({ client, period, executiveSummary, sections, recommendations, seoData = {} }) {
-  const sectionHtml = sections.map(s => buildSectionHtml(s, client, period)).join('');
+function buildMonthlyReportHtml({ client, period, executiveSummary, sections, seoData = {} }) {
+  // Group sections by connector type so that all stores of a single connector
+  // (e.g. multiple Shopify stores) render in one combined section, with each
+  // store as a sub-block within. Avoids the old one-page-per-store sprawl.
+  const sectionsByType = {};
+  const typeOrder = [];
+  for (const s of sections) {
+    if (!sectionsByType[s.type]) {
+      sectionsByType[s.type] = [];
+      typeOrder.push(s.type);
+    }
+    sectionsByType[s.type].push(s);
+  }
+  const sectionGroups = typeOrder.map(type => ({
+    type,
+    title: sectionsByType[type][0].title,
+    sections: sectionsByType[type],
+  }));
+
+  const sectionHtml = sectionGroups.map(g => buildSectionGroupHtml(g, client, period)).join('');
   const seoSectionsHtml = buildSEOSectionsHtml(seoData, client, period);
 
   return `<!DOCTYPE html>
@@ -194,64 +221,49 @@ function buildMonthlyReportHtml({ client, period, executiveSummary, sections, re
 </head>
 <body>
 
-<!-- Cover Page -->
-<div class="cover">
-  <div class="cover-top">
-    <div class="cover-logo">${logoImg(55)}</div>
-    <div class="cover-right">
-      <div class="report-for">Report for ${client.name}</div>
-      <div class="period">${period}</div>
-    </div>
-  </div>
-  <hr class="cover-hr">
-  <div class="cover-body">
-    <div class="cover-client">${client.name}</div>
-    <div class="cover-report-type">Monthly Performance Report</div>
-    <div class="cover-date">${period}</div>
-  </div>
-  <div style="border-top:0.5pt solid #ccc;padding-top:6pt;display:flex;justify-content:space-between;font-size:7pt;color:#808080;margin-top:auto;">
-    <span>Generated ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
-    <span>Private &amp; Confidential. October Communications Ltd. Company No. 8816416. Registered in England and Wales.</span>
-  </div>
-</div>
-
 <!-- Executive Summary -->
 <div class="page">
   ${pageHeader(client.name, period)}
   <div class="section-title">Executive Summary</div>
   ${executiveSummary.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('')}
-  ${pageFooter(client.name, period)}
+  ${pageFooter()}
 </div>
 
-<!-- Data Sections -->
+<!-- Data Sections (grouped by connector type) -->
 ${sectionHtml}
 
 <!-- SEO Sections -->
 ${seoSectionsHtml}
 
-<!-- Recommendations -->
-<div class="page">
-  ${pageHeader(client.name, period)}
-  <div class="section-title">Recommendations</div>
-  ${formatRecommendations(recommendations)}
-  ${pageFooter(client.name, period)}
-</div>
-
 </body>
 </html>`;
 }
 
-function buildSectionHtml(section, client = {}, period = '') {
+function buildSectionGroupHtml(group, client = {}, period = '') {
   const clientName = client.name || '';
+  const hasMultipleStores = group.sections.length > 1
+    || (group.sections.length === 1 && group.sections[0].storeLabel);
+
+  const blocks = group.sections.map(s => buildSectionBlock(s, hasMultipleStores)).join('');
+
+  return `
+  <div class="page">
+    ${pageHeader(clientName, period)}
+    <div class="section-title">${group.title}</div>
+    ${blocks}
+    ${pageFooter()}
+  </div>`;
+}
+
+function buildSectionBlock(section, showStoreLabel) {
+  const subHeading = showStoreLabel && section.storeLabel
+    ? `<div class="store-sub">${section.storeLabel}</div>`
+    : '';
 
   if (!section.data || section.unavailable) {
     return `
-    <div class="page">
-      ${pageHeader(clientName, period)}
-      <div class="section-title">${section.title}${section.storeLabel ? ` <span style="font-weight:400;font-size:11pt;color:#808080;">— ${section.storeLabel}</span>` : ''}</div>
-      <div class="unavail">${section.errorMessage || 'Data unavailable — connector not configured or token expired.'}</div>
-      ${pageFooter(clientName, period)}
-    </div>`;
+    ${subHeading}
+    <div class="unavail">${section.errorMessage || 'Data unavailable — connector not configured or token expired.'}</div>`;
   }
 
   const metrics = section.metrics || [];
@@ -268,13 +280,9 @@ function buildSectionHtml(section, client = {}, period = '') {
   const tablesHtml = tables.map(t => buildTableHtml(t)).join('');
 
   return `
-  <div class="page">
-    ${pageHeader(clientName, period)}
-    <div class="section-title">${section.title}${section.storeLabel ? ` <span style="font-weight:400;font-size:11pt;color:#808080;">— ${section.storeLabel}</span>` : ''}</div>
+    ${subHeading}
     ${metricsHtml}
-    ${tablesHtml}
-    ${pageFooter(clientName, period)}
-  </div>`;
+    ${tablesHtml}`;
 }
 
 function buildTableHtml({ heading, headers, rows, highlightFirst = false }) {
@@ -288,23 +296,6 @@ function buildTableHtml({ heading, headers, rows, highlightFirst = false }) {
         return `<tr${cls}>${row.map(cell => `<td>${cell ?? ''}</td>`).join('')}</tr>`;
       }).join('')}</tbody>
     </table>`;
-}
-
-function formatRecommendations(text) {
-  if (!text) return '<p>No recommendations generated.</p>';
-  const lines = text.split('\n').filter(l => l.trim());
-  const items = lines.filter(l => /^\d+\./.test(l.trim()) || l.startsWith('-') || l.startsWith('•'));
-  if (items.length) {
-    return `<ol>${items.map(item => {
-      const clean = item.replace(/^[\d]+\.\s*|-\s*|•\s*/, '').trim();
-      const colonIdx = clean.indexOf(':');
-      if (colonIdx > 0 && colonIdx < 60) {
-        return `<li><strong>${clean.slice(0, colonIdx)}:</strong>${clean.slice(colonIdx + 1)}</li>`;
-      }
-      return `<li>${clean}</li>`;
-    }).join('')}</ol>`;
-  }
-  return `<div>${text.split('\n').map(p => `<p>${p}</p>`).join('')}</div>`;
 }
 
 function buildSEOSectionsHtml(seoData, client = {}, period = '') {
@@ -353,7 +344,7 @@ function buildSEOSectionsHtml(seoData, client = {}, period = '') {
           return [k.keyword, k.current_position, k.position_30d_ago, `↓${change}`];
         }),
       }) : ''}
-      ${pageFooter(clientName, period)}
+      ${pageFooter()}
     </div>`);
   }
 
@@ -410,7 +401,7 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
     <tbody>${rankRows}</tbody>
   </table>` : ''}
 
-  ${pageFooter(clientName, period)}
+  ${pageFooter()}
 </div>
 
 </body>

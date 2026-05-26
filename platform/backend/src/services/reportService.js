@@ -80,24 +80,15 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
     };
   });
 
-  const [executiveSummary, recommendations] = await Promise.all([
-    claudeService.generateExecutiveSummary({
-      clientName: client.name,
-      clientBriefing: client.briefing_field,
-      period,
-      monthlyFocus: client.monthly_focus,
-      data: condensed,
-      seoData,
-      chatHistory,
-    }),
-    claudeService.generateRecommendations({
-      clientBriefing: client.briefing_field,
-      monthlyFocus: client.monthly_focus,
-      data: condensed,
-      seoData,
-      chatHistory,
-    }),
-  ]);
+  const executiveSummary = await claudeService.generateExecutiveSummary({
+    clientName: client.name,
+    clientBriefing: client.briefing_field,
+    period,
+    monthlyFocus: client.monthly_focus,
+    data: condensed,
+    seoData,
+    chatHistory,
+  });
 
   // Build HTML
   const htmlContent = pdfService.buildMonthlyReportHtml({
@@ -105,7 +96,6 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
     period,
     executiveSummary,
     sections,
-    recommendations,
     seoData,
   });
 
