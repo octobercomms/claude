@@ -290,7 +290,7 @@ export default function SettingsPage() {
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>Settings</h1>
 
       {/* Always-visible essentials: platform info + account */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(440px, 100%), 1fr))', gap: 16, alignItems: 'start', marginBottom: 16, maxWidth: 1100 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start', marginBottom: 16 }}>
         <Card>
           <CardTitle>Platform</CardTitle>
           <InfoRow label="Platform URL" value={window.location.origin} />
@@ -333,7 +333,7 @@ export default function SettingsPage() {
         <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
         <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(440px, 100%), 1fr))', gap: 16, alignItems: 'start', maxWidth: 1100 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
           {CATEGORIES.map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
             const open = !!openCategories[cat.title];
