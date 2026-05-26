@@ -5,10 +5,14 @@ const API_VERSION = 'v22.0';
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
 function getAuthUrl(state) {
+  // Meta renamed `instagram_insights` to `instagram_manage_insights` on the
+  // Facebook Login / Graph API flow — the old name now returns
+  // "Invalid Scope" from the consent dialog. We only read Ads / Instagram
+  // data so we request the read-only scopes (no ads_management).
   const scopes = [
-    'ads_read', 'ads_management', 'read_insights',
-    'instagram_basic', 'instagram_insights', 'pages_read_engagement',
-    'business_management',
+    'ads_read', 'read_insights',
+    'instagram_basic', 'instagram_manage_insights',
+    'pages_read_engagement', 'business_management',
   ].join(',');
   const params = new URLSearchParams({
     client_id: process.env.META_APP_ID,
