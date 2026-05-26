@@ -173,13 +173,18 @@ body {
 .store-sub:first-of-type { margin-top: 0; }
 
 /* ---- Flowing template-driven layout ---- */
-.report-content { padding: 12mm 15mm 6mm; }
+.report-content { padding: 12mm 15mm 30pt; }
 .report-head { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 6pt; border-bottom: 1pt solid #000; margin-bottom: 18pt; }
 .report-head-l { flex: 0 0 auto; }
 .report-head-r { text-align: right; }
 .report-head-title { font-size: 14pt; font-weight: 700; line-height: 1.1; }
 .report-head-period { font-size: 10pt; color: #808080; margin-top: 3pt; }
-.section { margin-bottom: 22pt; page-break-inside: avoid; }
+/* Keep entire sections together — if one doesn't fit on the current page,
+   push it to the next. Both legacy and modern spellings of the property
+   are set because Chrome (puppeteer) honours the modern one more reliably
+   for flex and table children. */
+.section { margin-bottom: 22pt; page-break-inside: avoid; break-inside: avoid; }
+.metrics-row, .metrics-table, .chart-block, table { page-break-inside: avoid; break-inside: avoid; }
 .section-insight {
   font-size: 9pt;
   color: #555;
