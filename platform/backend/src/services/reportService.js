@@ -242,35 +242,41 @@ async function sendReport(reportId, overrides = {}) {
 
 function extractTopMetrics(rawData, allowedTypes = null) {
   const metrics = [];
-  for (const [key, data] of Object.entries(rawData)) {
-    if (!data) continue;
-    const type = key.split(':')[0];
-    // When section toggles supply an allowed-types set, skip connectors the
-    // account manager has unticked for this report type. Without this filter
-    // every connected source contributes to the email/PDF summary metrics,
-    // regardless of what the user asked to appear in the report.
-    if (allowedTypes && !allowedTypes.has(type)) continue;
+
+  // Sort by key so that multi-store connectors render contiguously (all
+  // Shopify rows together, then GA4, then Google Ads) instead of interleaved
+  // with whatever order collectedData happened to be built in. The key is
+  // `${type}:${storeLabel}` so alphabetical sort naturally groups by type.
+  const entries = Object.entries(rawData)
+    .filter(([k, d]) => d && (!allowedTypes || allowedTypes.has(k.split(':')[0])))
+    .sort((a, b) => a[0].localeCompare(b[0]));
+
+  for (const [key, data] of entries) {
+    const [type, storeLabel] = key.split(':');
+    // Prefix the metric label with the store when one is present, so the
+    // table reader can tell `UK B2C — Revenue £6,225` apart from
+    // `EU B2C — Revenue £403`. Without this, multi-store clients get rows
+    // that look like duplicates.
+    const tag = storeLabel ? `${storeLabel} — ` : '';
 
     if ((type === 'shopify' || type === 'woocommerce') && data.summary) {
       metrics.push(
-        { label: 'Revenue', value: `£${parseFloat(data.summary.total_revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` },
-        { label: 'Orders', value: String(data.summary.total_orders || 0) },
-        { label: 'AOV', value: `£${parseFloat(data.summary.avg_order_value || 0).toFixed(2)}` }
+        { label: `${tag}Revenue`, value: `£${parseFloat(data.summary.total_revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 2 })}` },
+        { label: `${tag}Orders`, value: String(data.summary.total_orders || 0) },
+        { label: `${tag}AOV`, value: `£${parseFloat(data.summary.avg_order_value || 0).toFixed(2)}` }
       );
     }
     if (type === 'meta_ads' && data.data) {
       const spend = data.data.reduce((s, r) => s + parseFloat(r.spend || 0), 0);
-      metrics.push({ label: 'Meta Spend', value: `£${spend.toFixed(2)}` });
+      if (spend > 0) metrics.push({ label: `${tag}Meta Spend`, value: `£${spend.toFixed(2)}` });
     }
     if (type === 'google_ads') {
-      // Google Ads /search returns { results: [...] }; legacy searchStream
-      // returned [{ results: [...] }, ...]. Both shapes still appear in
-      // historic data, so handle both — the old `Array.isArray(data)` guard
-      // alone silently dropped every Google Ads metric.
+      // /search returns { results: [...] }; legacy searchStream returned
+      // [{ results: [...] }, ...]. Both shapes still appear in historic data.
       const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
       let spend = 0;
       for (const r of results) spend += parseInt(r.metrics?.costMicros || 0) / 1_000_000;
-      if (spend > 0) metrics.push({ label: 'Google Ads Spend', value: `£${spend.toFixed(2)}` });
+      if (spend > 0) metrics.push({ label: `${tag}Google Ads Spend`, value: `£${spend.toFixed(2)}` });
     }
     if (type === 'ga4' && data.rows?.length) {
       const metHeaders = (data.metricHeaders || []).map(h => h.name);
@@ -281,14 +287,17 @@ function extractTopMetrics(rawData, allowedTypes = null) {
         if (dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value !== 'date_range_0') continue;
         sessions += parseFloat(row.metricValues?.[metHeaders.indexOf('sessions')]?.value || 0);
       }
-      if (sessions > 0) metrics.push({ label: 'Sessions', value: Math.round(sessions).toLocaleString() });
+      if (sessions > 0) metrics.push({ label: `${tag}Sessions`, value: Math.round(sessions).toLocaleString() });
     }
     if (type === 'google_search_console' && data.rows?.length) {
       const clicks = data.rows.reduce((s, r) => s + (r.clicks || 0), 0);
-      if (clicks > 0) metrics.push({ label: 'Organic Clicks', value: clicks.toLocaleString() });
+      if (clicks > 0) metrics.push({ label: `${tag}Organic Clicks`, value: clicks.toLocaleString() });
     }
   }
-  return metrics.slice(0, 8);
+  // Cap raised from 8 — clients with several stores (e.g. UK / US / EU B2C
+  // + B2B) easily exceed 8 just on Shopify metrics, which silently dropped
+  // later stores from the table.
+  return metrics.slice(0, 24);
 }
 
 function buildWeeklyHtmlPreview({ client, period, summaryText, metrics, rankMovers = [] }) {
