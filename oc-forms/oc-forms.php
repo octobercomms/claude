@@ -15,7 +15,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCF_VERSION', '1.1.0' );
+define( 'OCF_VERSION', '1.1.1' );
 define( 'OCF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCF_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCF_CPT', 'ocf_form' );
@@ -32,6 +32,7 @@ require_once OCF_PATH . 'includes/class-ocf-analytics.php';
 require_once OCF_PATH . 'includes/class-ocf-renderer.php';
 require_once OCF_PATH . 'includes/class-ocf-rest-api.php';
 require_once OCF_PATH . 'includes/class-ocf-public-api.php';
+require_once OCF_PATH . 'includes/class-ocf-compat.php';
 
 if ( is_admin() ) {
 	require_once OCF_PATH . 'admin/class-ocf-admin.php';
@@ -50,6 +51,7 @@ add_action( 'plugins_loaded', function () {
 	OCF_REST_API::init();
 	OCF_Public_API::init();
 	OCF_Spam::init();
+	OCF_Compat::init();
 
 	if ( is_admin() ) {
 		OCF_Admin::init();
