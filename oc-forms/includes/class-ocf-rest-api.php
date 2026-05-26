@@ -168,7 +168,12 @@ class OCF_REST_API {
 			return new WP_Error( 'ocf_invalid_token', 'Invalid submission token', array( 'status' => 400 ) );
 		}
 		if ( $row['status'] === 'complete' ) {
-			return rest_ensure_response( array( 'ok' => true, 'already_complete' => true ) );
+			$schema_complete = OCF_Schema::get( (int) $row['form_id'] );
+			return rest_ensure_response( array(
+				'ok'               => true,
+				'already_complete' => true,
+				'ending'           => self::shape_ending( $schema_complete['endings']['default'] ?? array() ),
+			) );
 		}
 		$form_id = (int) $row['form_id'];
 		$schema  = OCF_Schema::get( $form_id );
@@ -214,29 +219,47 @@ class OCF_REST_API {
 		// Final progression update before marking complete.
 		$step_reached   = max( 0, (int) $req->get_param( 'step_reached' ) );
 		$seconds_active = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
-		OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+		try {
+			OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: analytics update_progress threw: ' . $e->getMessage() );
+		}
 
 		OCF_Submission::mark_complete( (int) $row['id'] );
 
-		do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );
+		// Side-effects below MUST NOT 500 the response — the submission is
+		// already saved and the user needs the ending screen / redirect.
+		try {
+			do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: ocf_after_submit hook threw: ' . $e->getMessage() );
+		}
+		try {
+			OCF_Brevo::dispatch( (int) $row['id'], $form_id, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: Brevo dispatch threw: ' . $e->getMessage() );
+		}
+		try {
+			self::notify_admin( $form_id, $row, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: notify_admin threw: ' . $e->getMessage() );
+		}
 
-		// Brevo dispatch (sync best-effort; the row gets retried by cron on failure).
-		OCF_Brevo::dispatch( (int) $row['id'], $form_id, $answers );
-
-		// Site-wide notification email.
-		self::notify_admin( $form_id, $row, $answers );
-
-		$ending = $schema['endings']['default'] ?? array();
 		return rest_ensure_response( array(
 			'ok'     => true,
-			'ending' => array(
-				'heading'      => $ending['heading'] ?? 'Thanks!',
-				'body'         => $ending['body'] ?? '',
-				'cta_label'    => $ending['cta_label'] ?? '',
-				'cta_url'      => $ending['cta_url'] ?? '',
-				'redirect_url' => $ending['redirect_url'] ?? '',
-			),
+			'ending' => self::shape_ending( $schema['endings']['default'] ?? array() ),
 		) );
+	}
+
+	private static function shape_ending( $ending ) {
+		$ending = is_array( $ending ) ? $ending : array();
+		return array(
+			'heading'      => $ending['heading']      ?? 'Thanks!',
+			'body'         => $ending['body']         ?? '',
+			'cta_label'    => $ending['cta_label']    ?? '',
+			'cta_url'      => $ending['cta_url']      ?? '',
+			'redirect_url' => $ending['redirect_url'] ?? '',
+		);
 	}
 
 	private static function sanitize_answers( $raw, $form_id ) {
