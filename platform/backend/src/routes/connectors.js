@@ -363,6 +363,29 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Store per-connector Shopify app credentials (API Key + Secret) without
+// triggering a token check. Merges with existing credentials so a previously
+// OAuth'd access_token is preserved if present.
+router.put('/:id/shopify-app', async (req, res) => {
+  try {
+    const { shopify_client_id, shopify_client_secret } = req.body;
+    if (!shopify_client_id || !shopify_client_secret) {
+      return res.status(400).json({ error: 'shopify_client_id and shopify_client_secret required' });
+    }
+    const { rows } = await pool.query('SELECT credentials, connector_type FROM connectors WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    if (!['shopify', 'shopify_email'].includes(rows[0].connector_type)) {
+      return res.status(400).json({ error: 'Not a Shopify connector' });
+    }
+    const existing = rows[0].credentials ? decrypt(rows[0].credentials) || {} : {};
+    const merged = { ...existing, shopify_client_id, shopify_client_secret };
+    await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [JSON.stringify(encrypt(merged)), req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Reset credentials — clears stored token and marks disconnected without deleting the connector row
 router.post('/:id/reset', async (req, res) => {
   try {

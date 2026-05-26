@@ -237,7 +237,18 @@ export default function ClientDetailPage() {
     });
   }
 
-  function openShopifyOAuth(connectorId, shop) {
+  async function openShopifyOAuth(connectorId, shop, shopifyClientId, shopifyClientSecret) {
+    if (shopifyClientId && shopifyClientSecret) {
+      try {
+        await api.put(`/connectors/${connectorId}/shopify-app`, {
+          shopify_client_id: shopifyClientId,
+          shopify_client_secret: shopifyClientSecret,
+        });
+      } catch (err) {
+        toast(`Could not save app credentials: ${err.message}`, 'error');
+        return;
+      }
+    }
     const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
     const url = `/auth/shopify/start?client_id=${id}&connector_id=${connectorId}&shop=${encodeURIComponent(shopDomain)}`;
     const win = window.open(url, 'shopify_oauth', 'width=600,height=700');
@@ -570,7 +581,10 @@ export default function ClientDetailPage() {
 
       {shopifyModal && (
         <ShopifyModal
-          onConfirm={(shop) => { openShopifyOAuth(shopifyModal.connectorId, shop); setShopifyModal(null); }}
+          onConfirm={({ shop, clientId, clientSecret }) => {
+            openShopifyOAuth(shopifyModal.connectorId, shop, clientId, clientSecret);
+            setShopifyModal(null);
+          }}
           onClose={() => setShopifyModal(null)}
         />
       )}
@@ -1109,6 +1123,10 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
 
 function ShopifyModal({ onConfirm, onClose }) {
   const [shop, setShop] = useState('');
+  const [useOwnApp, setUseOwnApp] = useState(false);
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const canConfirm = shop.trim() && (!useOwnApp || (clientId.trim() && clientSecret.trim()));
   return (
     <div style={styles.modalOverlay}>
       <div style={styles.modal}>
@@ -1120,12 +1138,33 @@ function ShopifyModal({ onConfirm, onClose }) {
           <input
             autoFocus style={styles.input} value={shop}
             onChange={e => setShop(e.target.value)}
-            placeholder="falcon-eu.myshopify.com"
-            onKeyDown={e => e.key === 'Enter' && shop.trim() && onConfirm(shop.trim())}
+            placeholder="goldfinger.myshopify.com"
           />
         </Field>
+        <div style={{ margin: '14px 0 0' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#444' }}>
+            <input type="checkbox" checked={useOwnApp} onChange={e => setUseOwnApp(e.target.checked)} />
+            This client has their own Shopify app (different API Key)
+          </label>
+        </div>
+        {useOwnApp && (
+          <div style={{ marginTop: 12, padding: '12px 14px', background: '#f9f9f9', border: '1px solid #e8e8e8', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+              Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
+            </p>
+            <Field label="API Key (Client ID)">
+              <input style={styles.input} value={clientId} onChange={e => setClientId(e.target.value)} placeholder="a1b2c3d4e5f6…" />
+            </Field>
+            <Field label="API Secret (Client Secret)">
+              <input type="password" style={styles.input} value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="shpss_…" />
+            </Field>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <button onClick={() => shop.trim() && onConfirm(shop.trim())} style={styles.btn} disabled={!shop.trim()}>
+          <button
+            onClick={() => canConfirm && onConfirm({ shop: shop.trim(), clientId: useOwnApp ? clientId.trim() : null, clientSecret: useOwnApp ? clientSecret.trim() : null })}
+            style={styles.btn} disabled={!canConfirm}
+          >
             Connect with Shopify
           </button>
           <button onClick={onClose} style={styles.btnGhost}>Cancel</button>

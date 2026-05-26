@@ -2,7 +2,7 @@ const express = require('express');
 const crypto = require('crypto');
 const axios = require('axios');
 const pool = require('../db');
-const { encrypt } = require('../utils/encryption');
+const { encrypt, decrypt } = require('../utils/encryption');
 const googleConnector = require('../connectors/google');
 const metaConnector = require('../connectors/meta');
 const zohoInventoryConnector = require('../connectors/zoho_inventory');
@@ -109,19 +109,27 @@ router.get('/meta/callback', async (req, res) => {
 
 const SHOPIFY_SCOPES = shopifyConnector.REQUIRED_SCOPES.join(',');
 
-router.get('/shopify/start', (req, res) => {
+router.get('/shopify/start', async (req, res) => {
   const { client_id, shop, connector_id } = req.query;
   if (!client_id || !shop || !connector_id) return res.status(400).send('client_id, shop, and connector_id required');
 
-  const clientId = process.env.SHOPIFY_CLIENT_ID;
-  const redirectUri = process.env.SHOPIFY_REDIRECT_URI || `${process.env.APP_URL || ''}/auth/shopify/callback`;
+  // Per-connector app credentials take precedence over global platform settings.
+  let shopifyClientId = process.env.SHOPIFY_CLIENT_ID;
+  try {
+    const { rows } = await pool.query('SELECT credentials FROM connectors WHERE id = $1', [connector_id]);
+    if (rows.length && rows[0].credentials) {
+      const creds = decrypt(rows[0].credentials);
+      if (creds?.shopify_client_id) shopifyClientId = creds.shopify_client_id;
+    }
+  } catch {}
 
-  if (!clientId) return res.status(500).send('SHOPIFY_CLIENT_ID not configured in platform settings');
+  const redirectUri = process.env.SHOPIFY_REDIRECT_URI || `${process.env.APP_URL || ''}/auth/shopify/callback`;
+  if (!shopifyClientId) return res.status(500).send('No Shopify API Key configured — set one in platform Settings or enter per-client app credentials in the connector modal.');
 
   const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
   const state = Buffer.from(JSON.stringify({ client_id, connector_id, shop: shopDomain })).toString('base64url');
 
-  const url = `https://${shopDomain}/admin/oauth/authorize?client_id=${clientId}&scope=${SHOPIFY_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+  const url = `https://${shopDomain}/admin/oauth/authorize?client_id=${shopifyClientId}&scope=${SHOPIFY_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
   res.redirect(url);
 });
 
@@ -130,31 +138,37 @@ router.get('/shopify/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const clientSecret = process.env.SHOPIFY_CLIENT_SECRET;
-    if (!clientSecret) throw new Error('SHOPIFY_CLIENT_SECRET not configured');
+    const { client_id, connector_id } = JSON.parse(Buffer.from(state, 'base64url').toString());
+
+    // Load existing connector credentials — per-connector app credentials take
+    // precedence over global platform settings, and we preserve them when
+    // saving the new access_token so they aren't wiped on reconnect.
+    const { rows } = await pool.query('SELECT credentials FROM connectors WHERE id = $1', [connector_id]);
+    const existingCreds = rows[0]?.credentials ? decrypt(rows[0].credentials) || {} : {};
+    const shopifyClientId = existingCreds.shopify_client_id || process.env.SHOPIFY_CLIENT_ID;
+    const shopifyClientSecret = existingCreds.shopify_client_secret || process.env.SHOPIFY_CLIENT_SECRET;
+    if (!shopifyClientSecret) throw new Error('SHOPIFY_CLIENT_SECRET not configured');
 
     // Verify HMAC
     const params = { ...req.query };
     delete params.hmac;
     delete params.signature;
     const message = Object.keys(params).sort().map(k => `${k}=${params[k]}`).join('&');
-    const digest = crypto.createHmac('sha256', clientSecret).update(message).digest('hex');
+    const digest = crypto.createHmac('sha256', shopifyClientSecret).update(message).digest('hex');
     if (digest !== hmac) throw new Error('HMAC verification failed');
-
-    const { client_id, connector_id } = JSON.parse(Buffer.from(state, 'base64url').toString());
-    // Note: shop domain comparison skipped — HMAC above is the authoritative check
 
     // Exchange code for access token
     const tokenRes = await axios.post(`https://${shop}/admin/oauth/access_token`, {
-      client_id: process.env.SHOPIFY_CLIENT_ID,
-      client_secret: clientSecret,
+      client_id: shopifyClientId,
+      client_secret: shopifyClientSecret,
       code,
     });
 
     const { access_token } = tokenRes.data;
     if (!access_token) throw new Error('No access token returned');
 
-    const credentials = { shop_domain: shop, access_token };
+    // Merge with existing credentials to preserve shopify_client_id/secret
+    const credentials = { ...existingCreds, shop_domain: shop, access_token };
     const encrypted = encrypt(credentials);
 
     await pool.query(
