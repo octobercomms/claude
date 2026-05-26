@@ -197,7 +197,7 @@ const styles = {
   input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 },
   btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: '#f0f0f0', color: '#333', border: 'none', borderRadius: 4, padding: '5px 10px', fontSize: 11, cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'inline-block' },
+  btnSm: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' },
   tableWrap: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },

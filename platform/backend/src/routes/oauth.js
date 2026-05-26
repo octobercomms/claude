@@ -30,14 +30,24 @@ router.get('/google/callback', async (req, res) => {
     const tokens = await googleConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
-    // Update all Google connectors for this client
+    // Update every Google connector this client already has, AND ensure all
+    // four Google types exist — one OAuth should unlock GA4, Search Console,
+    // Google Ads and Merchant Center together rather than making the user
+    // run the consent flow four times.
     const googleTypes = ['ga4', 'google_search_console', 'google_ads', 'google_merchant_center'];
     for (const type of googleTypes) {
-      await pool.query(
+      const { rowCount } = await pool.query(
         `UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL
          WHERE client_id = $2 AND connector_type = $3`,
         [JSON.stringify(encrypted), client_id, type]
       );
+      if (rowCount === 0) {
+        await pool.query(
+          `INSERT INTO connectors (client_id, connector_type, credentials, status, last_checked)
+           VALUES ($1, $2, $3, 'active', NOW())`,
+          [client_id, type, JSON.stringify(encrypted)]
+        );
+      }
     }
 
     res.send(oauthPopupHtml('success', 'Google connected successfully.', 'google'));
@@ -66,14 +76,22 @@ router.get('/meta/callback', async (req, res) => {
     const tokens = await metaConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
-    // Update Meta Ads and Instagram Insights connectors
+    // Same pattern as Google — one Meta OAuth covers Meta Ads and Instagram
+    // Insights, so ensure both rows exist for this client.
     const metaTypes = ['meta_ads', 'instagram_insights'];
     for (const type of metaTypes) {
-      await pool.query(
+      const { rowCount } = await pool.query(
         `UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL
          WHERE client_id = $2 AND connector_type = $3`,
         [JSON.stringify(encrypted), client_id, type]
       );
+      if (rowCount === 0) {
+        await pool.query(
+          `INSERT INTO connectors (client_id, connector_type, credentials, status, last_checked)
+           VALUES ($1, $2, $3, 'active', NOW())`,
+          [client_id, type, JSON.stringify(encrypted)]
+        );
+      }
     }
 
     res.send(oauthPopupHtml('success', 'Meta connected successfully.', 'meta'));
