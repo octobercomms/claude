@@ -161,18 +161,30 @@ function resolveMetricsGrid(section, rawData) {
 
   // Multi-source list mode → render as a table.
   if (section.aggregate === 'list' && matches.length > 1 && metricKeys.length >= 1) {
-    const metricLabels = [];
+    // Resolve column labels up-front from the metric keys themselves — using
+    // the first source that has a definition for each key. This avoids a
+    // bug where invalid keys later in the array caused subsequent iterations
+    // to "fill in" missing label slots with the wrong labels (e.g. duplicate
+    // "Revenue" columns when Claude proposed an unknown metric like
+    // "total_revenue").
+    const metricLabels = metricKeys.map(mk => {
+      for (const m of matches) {
+        const def = (METRIC_CATALOG[m.type] || {})[mk];
+        if (def) return def.label;
+      }
+      // Unknown metric key — humanise so the column doesn't read like a
+      // variable name ("total_revenue" → "Total Revenue").
+      return mk.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    });
     const rows = [];
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
       const sourceLabel = m.storeLabel || m.type;
-      const values = [];
-      for (const mk of metricKeys) {
+      const values = metricKeys.map(mk => {
         const def = catalog[mk];
-        if (!def) { values.push('—'); continue; }
-        if (metricLabels.length < metricKeys.length) metricLabels.push(def.label);
-        values.push(formatValue(def.get(m.data), def.format));
-      }
+        if (!def) return '—';
+        return formatValue(def.get(m.data), def.format);
+      });
       rows.push({ source: sourceLabel, values });
     }
     return { layout: 'table', metricLabels, rows };
