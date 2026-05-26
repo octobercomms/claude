@@ -197,7 +197,8 @@
 		Object.keys(types).forEach(function (t) {
 			palette.appendChild(el('button', { type: 'button', class: 'button',
 				onClick: function () {
-					var q = { id: uid('q_'), type: t, label: types[t].label, required: false };
+					// Leave the label blank — only show one if the user fills it in.
+					var q = { id: uid('q_'), type: t, label: '', required: false };
 					if (t === 'choice' || t === 'multi_choice' || t === 'image_cards' || t === 'image_cards_multi' || t === 'dropdown') {
 						q.options = [
 							{ label: 'Option A', value: 'a', image: '' },

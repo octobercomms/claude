@@ -12,16 +12,14 @@
 	--ocf-error: #dc2626;
 	font-family: var(--ocf-font);
 	color: #111;
-	max-width: 720px;
+	width: 100%;
 	margin: 0 auto;
 }
 
 .ocf-card {
 	background: var(--ocf-background);
-	border: 1px solid var(--ocf-border);
 	border-radius: calc(var(--ocf-radius) * 1.5);
 	padding: 32px;
-	box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.04);
 }
 
 .ocf-logo { text-align: center; margin-bottom: 16px; }
