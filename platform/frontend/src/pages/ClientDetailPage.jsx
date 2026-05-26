@@ -51,7 +51,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     if (!id || tab !== 'reports') return;
     Promise.all(['weekly', 'monthly'].map(rt =>
-      api.get(`/api/clients/${id}/report-template/${rt}`).then(r => [rt, r.template]).catch(() => [rt, null])
+      api.get(`/clients/${id}/report-template/${rt}`).then(r => [rt, r.template]).catch(() => [rt, null])
     )).then(pairs => setTemplateSummary(Object.fromEntries(pairs)));
   }, [id, tab, templateChatType]);
 

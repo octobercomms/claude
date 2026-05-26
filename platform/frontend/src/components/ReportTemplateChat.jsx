@@ -19,7 +19,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    api.get(`/api/clients/${clientId}/report-template/${reportType}`)
+    api.get(`/clients/${clientId}/report-template/${reportType}`)
       .then(r => {
         setSaved(r.template);
         setConnectors(r.available_connectors || []);
@@ -46,7 +46,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
     setSending(true);
     setError(null);
     try {
-      const { reply, proposed: p } = await api.post(`/api/clients/${clientId}/report-template/${reportType}/chat`, { history: next });
+      const { reply, proposed: p } = await api.post(`/clients/${clientId}/report-template/${reportType}/chat`, { history: next });
       setHistory([...next, { role: 'assistant', content: reply || '(no reply)' }]);
       if (p) setProposed(p);
     } catch (e) {
@@ -63,7 +63,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
     setSaving(true);
     setError(null);
     try {
-      await api.put(`/api/clients/${clientId}/report-template/${reportType}`, { template: proposed });
+      await api.put(`/clients/${clientId}/report-template/${reportType}`, { template: proposed });
       setSaved(proposed);
       onSaved?.(proposed);
       onClose();
