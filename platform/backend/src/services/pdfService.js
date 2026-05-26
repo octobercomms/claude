@@ -184,14 +184,15 @@ body {
 .report-head-r { text-align: right; }
 .report-head-title { font-size: 14pt; font-weight: 700; line-height: 1.1; }
 .report-head-period { font-size: 10pt; color: #808080; margin-top: 3pt; }
-/* Keep entire sections together — if one doesn't fit on the current page,
-   push it to the next. Both legacy and modern spellings of the property
-   are set because Chrome (puppeteer) honours the modern one more reliably
-   for flex and table children. display:block is explicit because
-   break-inside: avoid only applies to block-level boxes. */
-.section { display: block; margin-bottom: 22pt; page-break-inside: avoid; break-inside: avoid-page; }
-.metrics-row, .metrics-table, .chart-block, table, tbody, tr { page-break-inside: avoid; break-inside: avoid-page; }
+/* Atomic blocks — small, self-contained things that should never split
+   mid-element: a row of KPI cells, a single chart, a single table row.
+   Larger containers (.section, table, tbody) are deliberately allowed to
+   break across pages — forbidding it on a table taller than the page
+   forces Chrome to overflow into the footer margin (the bug fixed here). */
+.section { display: block; margin-bottom: 22pt; }
+.metrics-row, .chart-block, tr { page-break-inside: avoid; break-inside: avoid-page; }
 .section-title { page-break-after: avoid; break-after: avoid-page; }
+thead { display: table-header-group; } /* repeat table headers on each page */
 .metrics-table th, .metrics-table td { padding: 4pt 8pt; }
 .section-insight {
   font-size: 9pt;
