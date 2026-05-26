@@ -12,6 +12,11 @@ class OCF_REST_API {
 	}
 
 	public static function register_routes() {
+		register_rest_route( self::NAMESPACE, '/view', array(
+			'methods'             => 'POST',
+			'permission_callback' => '__return_true',
+			'callback'            => array( __CLASS__, 'view' ),
+		) );
 		register_rest_route( self::NAMESPACE, '/start', array(
 			'methods'             => 'POST',
 			'permission_callback' => '__return_true',
@@ -34,6 +39,17 @@ class OCF_REST_API {
 		) );
 	}
 
+	public static function view( WP_REST_Request $req ) {
+		$form_id = self::get_form_or_error( $req->get_param( 'form_id' ) );
+		if ( is_wp_error( $form_id ) ) { return $form_id; }
+		$session = OCF_Schema::clean_id( $req->get_param( 'session' ) );
+		if ( ! $session ) {
+			$session = OCF_Analytics::visitor_session();
+		}
+		$id = OCF_Analytics::record_view( $form_id, $session );
+		return rest_ensure_response( array( 'ok' => true, 'view_id' => $id, 'session' => $session ) );
+	}
+
 	private static function get_form_or_error( $form_id ) {
 		$form_id = absint( $form_id );
 		if ( ! $form_id || ! OCF_CPT::exists( $form_id ) ) {
@@ -48,10 +64,16 @@ class OCF_REST_API {
 	public static function start( WP_REST_Request $req ) {
 		$form_id = self::get_form_or_error( $req->get_param( 'form_id' ) );
 		if ( is_wp_error( $form_id ) ) { return $form_id; }
-		$row = OCF_Submission::create( $form_id );
+		$session = OCF_Schema::clean_id( $req->get_param( 'session' ) );
+		if ( ! $session ) {
+			$session = OCF_Analytics::visitor_session();
+		}
+		$row = OCF_Submission::create( $form_id, $session );
+		OCF_Analytics::link_view_to_submission( $session, $form_id, (int) $row['id'] );
 		return rest_ensure_response( array(
-			'token' => $row['token'],
-			'id'    => (int) $row['id'],
+			'token'   => $row['token'],
+			'id'      => (int) $row['id'],
+			'session' => $session,
 		) );
 	}
 
@@ -67,6 +89,12 @@ class OCF_REST_API {
 		$answers = self::sanitize_answers( $req->get_param( 'answers' ), (int) $row['form_id'] );
 		$email   = self::extract_email( $answers );
 		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
+
+		// Track progression.
+		$step_reached   = max( 0, (int) $req->get_param( 'step_reached' ) );
+		$seconds_active = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
+		OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+
 		return rest_ensure_response( array( 'ok' => true ) );
 	}
 
@@ -182,6 +210,12 @@ class OCF_REST_API {
 
 		$email = self::extract_email( $answers );
 		OCF_Submission::update_payload( (int) $row['id'], $answers, $email );
+
+		// Final progression update before marking complete.
+		$step_reached   = max( 0, (int) $req->get_param( 'step_reached' ) );
+		$seconds_active = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
+		OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+
 		OCF_Submission::mark_complete( (int) $row['id'] );
 
 		do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );

@@ -32,21 +32,22 @@ class OCF_Submission {
 		return $row ?: null;
 	}
 
-	public static function create( $form_id ) {
+	public static function create( $form_id, $session_hash = '' ) {
 		global $wpdb;
 		$now   = current_time( 'mysql' );
 		$token = wp_generate_password( 32, false, false );
 		$wpdb->insert( self::table(), array(
-			'form_id'    => $form_id,
-			'token'      => $token,
-			'status'     => 'partial',
-			'payload'    => wp_json_encode( array() ),
-			'meta'       => wp_json_encode( array() ),
-			'ip_address' => self::client_ip(),
-			'user_agent' => substr( $_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255 ),
-			'referrer'   => esc_url_raw( $_SERVER['HTTP_REFERER'] ?? '' ),
-			'created_at' => $now,
-			'updated_at' => $now,
+			'form_id'      => $form_id,
+			'token'        => $token,
+			'status'       => 'partial',
+			'payload'      => wp_json_encode( array() ),
+			'meta'         => wp_json_encode( array() ),
+			'ip_address'   => self::client_ip(),
+			'user_agent'   => substr( $_SERVER['HTTP_USER_AGENT'] ?? '', 0, 255 ),
+			'referrer'     => esc_url_raw( $_SERVER['HTTP_REFERER'] ?? '' ),
+			'session_hash' => substr( preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $session_hash ), 0, 64 ),
+			'created_at'   => $now,
+			'updated_at'   => $now,
 		) );
 		return self::find( $wpdb->insert_id );
 	}

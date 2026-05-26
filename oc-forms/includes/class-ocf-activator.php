@@ -11,6 +11,7 @@ class OCF_Activator {
 		$submissions     = $wpdb->prefix . 'ocf_submissions';
 		$uploads         = $wpdb->prefix . 'ocf_uploads';
 		$events          = $wpdb->prefix . 'ocf_events';
+		$views           = $wpdb->prefix . 'ocf_views';
 
 		$sql = "CREATE TABLE {$submissions} (
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -23,6 +24,9 @@ class OCF_Activator {
 			ip_address VARCHAR(64) DEFAULT NULL,
 			user_agent VARCHAR(255) DEFAULT NULL,
 			referrer TEXT NULL,
+			step_reached TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			seconds_active INT UNSIGNED NOT NULL DEFAULT 0,
+			session_hash VARCHAR(64) DEFAULT NULL,
 			created_at DATETIME NOT NULL,
 			updated_at DATETIME NOT NULL,
 			completed_at DATETIME DEFAULT NULL,
@@ -30,7 +34,24 @@ class OCF_Activator {
 			UNIQUE KEY token (token),
 			KEY form_id (form_id),
 			KEY status (status),
-			KEY email (email)
+			KEY email (email),
+			KEY session_hash (session_hash)
+		) {$charset_collate};
+
+		CREATE TABLE {$views} (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			form_id BIGINT(20) UNSIGNED NOT NULL,
+			session_hash VARCHAR(64) NOT NULL,
+			submission_id BIGINT(20) UNSIGNED DEFAULT NULL,
+			ip_address VARCHAR(64) DEFAULT NULL,
+			user_agent VARCHAR(255) DEFAULT NULL,
+			referrer TEXT NULL,
+			created_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			KEY form_id (form_id),
+			KEY session_hash (session_hash),
+			KEY created_at (created_at),
+			KEY form_session (form_id, session_hash)
 		) {$charset_collate};
 
 		CREATE TABLE {$uploads} (
