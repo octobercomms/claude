@@ -135,6 +135,7 @@ export default function ClientOutreachPage() {
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
   const [systemStatus, setSystemStatus] = useState([]);
+  const [dnsCheck, setDnsCheck] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
@@ -167,11 +168,13 @@ export default function ClientOutreachPage() {
       api.get(`/outreach/campaigns?client_id=${id}`),
       api.get(`/outreach/stats?client_id=${id}`).catch(() => null),
       api.get(`/outreach/system-status`).catch(() => []),
+      api.get(`/outreach/dns-check`).catch(() => null),
     ])
-      .then(([c, ct, cp, st, ss]) => {
+      .then(([c, ct, cp, st, ss, dns]) => {
         setClient(c); setContacts(ct); setCampaigns(cp);
         setSendCfg(c.outreach_sending || {});
         setStats(st); setSystemStatus(ss || []);
+        setDnsCheck(dns);
       })
       .catch(err => toast(err.message, 'error'))
       .finally(() => setLoading(false));
@@ -374,6 +377,7 @@ export default function ClientOutreachPage() {
           ['campaigns', campaigns.length ? `Campaigns (${campaigns.length})` : 'Campaigns'],
           ['contacts', contacts.length ? `Contacts (${contacts.length})` : 'Contacts'],
           ['sending', 'Sending'],
+          ['help', 'Help'],
         ].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
@@ -407,15 +411,33 @@ export default function ClientOutreachPage() {
               <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
               {systemStatus.length === 0 ? (
                 <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Loading…</p>
-              ) : systemStatus.map(item => (
-                <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
-                  <span>{item.name}</span>
-                  <span style={{ color: item.status === 'connected' ? '#2e7d32' : '#c62828', fontWeight: 600, fontSize: 12 }}>
-                    {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
-                  </span>
-                </div>
-              ))}
-              <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>Configure missing integrations in platform Settings.</p>
+              ) : <>
+                {systemStatus.map(item => (
+                  <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
+                    <span>{item.name}</span>
+                    <span style={{ color: item.status === 'connected' ? '#2e7d32' : '#c62828', fontWeight: 600, fontSize: 12 }}>
+                      {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
+                    </span>
+                  </div>
+                ))}
+                {dnsCheck && dnsCheck.domain && (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
+                      <span>SPF record <code style={{ fontSize: 11, color: '#888' }}>{dnsCheck.domain}</code></span>
+                      <span style={{ color: dnsCheck.spf === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                        {dnsCheck.spf === 'found' ? '✓ Found' : '⚠ Missing'}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
+                      <span>DMARC record</span>
+                      <span style={{ color: dnsCheck.dmarc === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                        {dnsCheck.dmarc === 'found' ? '✓ Found' : '⚠ Missing'}
+                      </span>
+                    </div>
+                  </>
+                )}
+              </>}
+              <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
             </div>
 
             <div style={s.card}>
@@ -592,6 +614,8 @@ export default function ClientOutreachPage() {
         </div>
       )}
 
+      {tab === 'help' && <HelpPanel dnsCheck={dnsCheck} />}
+
       {editingContact && (
         <EditContactModal
           contact={editingContact}
@@ -659,6 +683,85 @@ export default function ClientOutreachPage() {
           {sendSaved && <span style={{ marginLeft: 10, color: '#2e7d32', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
         </div>
       )}
+    </div>
+  );
+}
+
+// Help & Support panel — static setup guides for the integrations Outreach uses.
+function HelpPanel({ dnsCheck }) {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
+      <HelpCard title="Claude AI">
+        <p>Powers audience refinement, email writing and reply classification.</p>
+        <p><strong>What you need:</strong> a paid Anthropic API key from <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">console.anthropic.com</a>.</p>
+        <ol>
+          <li>Create an account and add credit.</li>
+          <li>Create an API key.</li>
+          <li>Paste it into Settings → AI &amp; Email → Claude AI.</li>
+        </ol>
+      </HelpCard>
+
+      <HelpCard title="Hunter.io">
+        <p>Finds published email addresses by company domain. Free plan: 50 searches/month.</p>
+        <ol>
+          <li>Sign up at <a href="https://hunter.io" target="_blank" rel="noreferrer">hunter.io</a>.</li>
+          <li>Open your API key under Dashboard → API.</li>
+          <li>Paste it into Settings → Outreach → October Outreach.</li>
+        </ol>
+      </HelpCard>
+
+      <HelpCard title="Icypeas">
+        <p>Lead database with PAYG credits that never expire. Use as the primary finder alongside Hunter.</p>
+        <ol>
+          <li>Sign up at <a href="https://icypeas.com" target="_blank" rel="noreferrer">icypeas.com</a> and top up credits.</li>
+          <li>Go to Settings → API in your Icypeas account.</li>
+          <li>Copy the <strong>API Key</strong>, <strong>API Secret</strong> and <strong>User ID</strong> — all three are required.</li>
+          <li>Paste all three into Settings → Outreach → October Outreach.</li>
+        </ol>
+      </HelpCard>
+
+      <HelpCard title="Email Sending — Amazon SES">
+        <p>Recommended for outreach because of low cost (~$0.10 / 1,000 emails) and good deliverability.</p>
+        <ol>
+          <li>Verify your sending domain in the SES console.</li>
+          <li>Move out of sandbox mode (request production access) so you can send to any address.</li>
+          <li>Create an IAM user with <code>ses:SendEmail</code> permission and grab its <strong>Access Key ID</strong> + <strong>Secret Access Key</strong>.</li>
+          <li>Save them in Settings → AI &amp; Email → Amazon SES. The platform uses the SESv2 API automatically when these are set.</li>
+        </ol>
+      </HelpCard>
+
+      <HelpCard title="SPF, DKIM &amp; DMARC">
+        <p>Three DNS records that decide whether your emails land in the inbox or junk.</p>
+        <ul>
+          <li><strong>SPF</strong> — TXT record on your sending domain authorising the sender. For SES: <code>v=spf1 include:amazonses.com -all</code></li>
+          <li><strong>DKIM</strong> — set up in the SES console (Verified identities → Configuration → DKIM). Three CNAME records.</li>
+          <li><strong>DMARC</strong> — TXT record on <code>_dmarc.yourdomain.com</code>. A safe starter: <code>v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com</code></li>
+        </ul>
+        {dnsCheck && dnsCheck.domain && (
+          <p style={{ marginTop: 10, fontSize: 12, color: '#666' }}>
+            Current check for <code>{dnsCheck.domain}</code>:{' '}
+            <span style={{ color: dnsCheck.spf === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
+            <span style={{ color: dnsCheck.dmarc === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
+          </p>
+        )}
+      </HelpCard>
+
+      <HelpCard title="Reply Polling (IMAP)">
+        <p>The platform polls your reply inbox over IMAP. When a reply arrives, Claude classifies it as <em>interested / not_now / not_relevant / unsubscribe / auto_reply / question</em>, follow-ups to that contact are cancelled, and unsubscribes flip the contact's status.</p>
+        <ol>
+          <li>Use a dedicated reply inbox (e.g. <code>replies@yourbrand.com</code>).</li>
+          <li>If using Gmail, enable IMAP and create an <strong>App Password</strong> (Google Account → Security → 2-Step Verification → App passwords).</li>
+          <li>Add the host (<code>imap.gmail.com</code>), port (<code>993</code>), user and password to Settings → Outreach → Outreach Reply Inbox.</li>
+        </ol>
+      </HelpCard>
+    </div>
+  );
+}
+function HelpCard({ title, children }) {
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
+      {children}
     </div>
   );
 }

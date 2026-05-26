@@ -101,4 +101,46 @@ async function refineAudience({ campaign, audienceDescription, extraInstructions
   };
 }
 
-module.exports = { writeSequence, refineAudience };
+// Classify an inbound reply to an outreach email. Used by the IMAP poller to
+// decide whether to suppress future sends. Mirrors the WP plugin's
+// OO_Claude::classify_reply.
+async function classifyReply({ replyText, campaignName }) {
+  if (!replyText) return null;
+  const apiKey = await getSetting('CLAUDE_API_KEY');
+  if (!apiKey) return null;
+  const client = new Anthropic({ apiKey: apiKey.trim() });
+
+  const system = 'You classify inbound replies to cold outreach emails. Respond only with valid JSON.';
+  const prompt = `Classify this reply to the campaign "${campaignName || 'an outreach campaign'}".
+
+Reply text:
+"""
+${replyText.slice(0, 4000)}
+"""
+
+Respond as valid JSON only:
+{"classification":"interested|not_now|not_relevant|unsubscribe|auto_reply|question","summary":"one short sentence summarising the reply"}`;
+
+  const resp = await client.messages.create({
+    model: MODEL,
+    max_tokens: 256,
+    system,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const text = resp.content.find(b => b.type === 'text')?.text || '';
+  const match = text.match(/\{[\s\S]*\}/);
+  if (!match) return null;
+  try {
+    const parsed = JSON.parse(match[0]);
+    const allowed = ['interested', 'not_now', 'not_relevant', 'unsubscribe', 'auto_reply', 'question'];
+    return {
+      classification: allowed.includes(parsed.classification) ? parsed.classification : 'question',
+      summary: String(parsed.summary || '').trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { writeSequence, refineAudience, classifyReply };

@@ -22,6 +22,39 @@ router.get('/track/open/:sendId', async (req, res) => {
 
 router.use(authenticate);
 
+// ── Deliverability ─────────────────────────────────────────────────────────
+
+// Live SPF + DMARC DNS check for the outreach sending domain. Returns the
+// found records (if any) and a found/missing status, so the dashboard System
+// Status panel can flag a misconfigured sender before campaigns go out.
+router.get('/dns-check', async (req, res) => {
+  let domain = (req.query.domain || '').trim().toLowerCase();
+  if (!domain) {
+    domain = (await getSetting('OUTREACH_SENDING_DOMAIN'))
+      || ((await getSetting('SES_FROM_EMAIL')) || '').split('@')[1]
+      || '';
+  }
+  if (!domain) return res.json({ domain: null, spf: 'missing', dmarc: 'missing' });
+
+  const dns = require('dns').promises;
+  const lookup = async (host) => {
+    try { return await dns.resolveTxt(host); }
+    catch { return []; }
+  };
+  const flatten = (records) => records.map(parts => parts.join(''));
+
+  const [base, dmarc] = await Promise.all([lookup(domain), lookup(`_dmarc.${domain}`)]);
+  const spfRecord = flatten(base).find(r => /^v=spf1\b/i.test(r));
+  const dmarcRecord = flatten(dmarc).find(r => /^v=DMARC1\b/i.test(r));
+  res.json({
+    domain,
+    spf: spfRecord ? 'found' : 'missing',
+    spf_record: spfRecord || null,
+    dmarc: dmarcRecord ? 'found' : 'missing',
+    dmarc_record: dmarcRecord || null,
+  });
+});
+
 // ── Dashboard ──────────────────────────────────────────────────────────────
 
 // Aggregate counts shown on the Outreach dashboard for a client.
