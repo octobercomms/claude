@@ -72,28 +72,6 @@ Write an executive summary for this report. 300-400 words. Use the client's "Abo
   return message.content[0].text;
 }
 
-async function generateRecommendations({ clientBriefing, monthlyFocus, data, seoData = {}, chatHistory = [] }) {
-  const seoContext = buildSEOContext(seoData);
-  const chatContext = buildChatContext(chatHistory);
-  const message = await getClient().messages.create({
-    model: MODEL,
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages: [{
-      role: 'user',
-      content: `Based on this data and context, write a prioritised list of up to 8 recommendations. Each recommendation should be specific and actionable. No generic advice.
-
-About the client: ${clientBriefing || '(no briefing set)'}
-Monthly focus: ${monthlyFocus || 'No specific focus set.'}
-
-Marketing data (each section may include an "instruction" from the account manager that should weight that section's recommendation):
-${JSON.stringify(data, null, 2)}
-${seoContext ? `\nSEO ranking data:\n${seoContext}` : ''}${chatContext}`,
-    }],
-  });
-  return message.content[0].text;
-}
-
 async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics, rankMovers = [], chatHistory = [] }) {
   const rankContext = rankMovers.length
     ? `\nRanking movements: ${rankMovers.filter(r => r.change).map(r => `${r.keyword} ${r.change > 0 ? `↑${r.change}` : `↓${Math.abs(r.change)}`} (now ${r.current})`).join(', ')}`
@@ -214,7 +192,6 @@ Respond with just the paragraph. No preamble, no list, no heading.`,
 
 module.exports = {
   generateExecutiveSummary,
-  generateRecommendations,
   generateWeeklySummary,
   researchBriefing,
   suggestMonthlyFocus,
