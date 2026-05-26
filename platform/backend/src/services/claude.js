@@ -124,6 +124,8 @@ Aggregate: "sum" combines numeric metrics across matched sources (with AOV recom
 
 When the AM describes what they want, ask one or two clarifying questions if necessary, then call propose_template with a draft. After they react, refine and call propose_template again. Don't propose anything before you understand the request. Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
 
+Critical: if you intend to update or create a template — if you say "let me put that together", "here it is", "I'll update that", "let me propose", "done", or anything implying the template is changing — you MUST call propose_template in that same response. Never describe what you are about to do without doing it in the same turn.
+
 Brief replies. No long explanations. Use British English.`;
 
   const userIntro = `Client: ${client.name}
