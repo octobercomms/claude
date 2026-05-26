@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
+import FormsTab from '../components/FormsTab';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -355,6 +356,10 @@ export default function ClientDetailPage() {
             );
           })}
         </div>
+      )}
+
+      {tab === 'forms' && (
+        <FormsTab clientId={id} connectors={connectors} />
       )}
 
       {tab === 'reports' && (
@@ -720,6 +725,67 @@ function BrevoConfig({ connector, onConfigSave }) {
   );
 }
 
+// Per-client October Forms scoping — pick which form on the WP install
+// belongs to this client. The API key authenticates against the whole
+// site; this picker just records the form_id (stored in connector.config.value).
+function OctoberFormsConfig({ connector, onConfigSave }) {
+  const toast = useToast();
+  const cfg = connector.config || {};
+  const [forms, setForms] = React.useState(null);
+  const [formsError, setFormsError] = React.useState(null);
+  const [formId, setFormId] = React.useState(cfg.value ? String(cfg.value) : '');
+  const [saving, setSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
+
+  React.useEffect(() => {
+    api.get(`/connectors/${connector.id}/accounts`)
+      .then(data => {
+        if (data && data.fetchError) { setFormsError(data.fetchError); setForms([]); }
+        else setForms(Array.isArray(data) ? data : []);
+      })
+      .catch(err => { setFormsError(err.message || 'Failed to load forms'); setForms([]); });
+  }, [connector.id]);
+
+  async function save() {
+    setSaving(true);
+    setSaved(false);
+    try {
+      const selected = (forms || []).find(f => String(f.value) === String(formId));
+      const config = {
+        ...(connector.config || {}),
+        value: formId || null,
+        label: selected ? selected.label : null,
+      };
+      const updated = await api.put(`/connectors/${connector.id}/config`, config);
+      onConfigSave(connector.id, updated);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</span>
+      {forms === null ? (
+        <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+      ) : (
+        <select value={formId} onChange={e => setFormId(e.target.value)}
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', minWidth: 240 }}>
+          <option value="">— Select a form —</option>
+          {forms.map(f => <option key={f.value} value={f.value}>{f.label}{f.status && f.status !== 'publish' ? ` (${f.status})` : ''}</option>)}
+        </select>
+      )}
+      <button type="button" onClick={save} disabled={saving || !formId} style={styles.btnSm}>{saving ? 'Saving…' : 'Save'}</button>
+      {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
+      {formsError && <span style={{ fontSize: 11, color: '#c62828' }}>Forms: {formsError}</span>}
+    </div>
+  );
+}
+
 function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
@@ -929,6 +995,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       )}
       {connector.connector_type === 'brevo' && isActive && (
         <BrevoConfig connector={connector} onConfigSave={onConfigSave} />
+      )}
+      {connector.connector_type === 'october_forms' && isActive && (
+        <OctoberFormsConfig connector={connector} onConfigSave={onConfigSave} />
       )}
       {isOAuth && isActive && (
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>

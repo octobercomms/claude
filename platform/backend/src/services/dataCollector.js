@@ -71,6 +71,7 @@ async function collectClientData(clientId, periodStart, periodEnd) {
         organizationId: config.value,   // Zoho Inventory
         brevoListId: config.list_id,        // Brevo — per-client list scope
         brevoAutomation: config.automation, // Brevo — automation label
+        formId: config.value,               // October Forms — selected form ID
       });
 
       results[key] = data;
@@ -311,10 +312,12 @@ function extractKeyMetrics(connectorType, data) {
     }
     case 'october_forms': {
       const s = data.summary || {};
+      const pct = v => `${(parseFloat(v || 0) * 100).toFixed(1)}%`;
       return [
-        { label: 'Submissions', value: (s.total_submissions || 0).toLocaleString() },
-        { label: 'Active Forms', value: (s.active_forms || 0).toLocaleString() },
-        { label: 'Total Forms', value: (s.total_forms || 0).toLocaleString() },
+        { label: 'Views', value: (s.views || 0).toLocaleString() },
+        { label: 'Starts', value: (s.starts || 0).toLocaleString() },
+        { label: 'Completes', value: (s.completes || 0).toLocaleString() },
+        { label: 'Conversion', value: pct(s.overall_conversion) },
       ];
     }
     default:
@@ -526,12 +529,20 @@ function extractTables(connectorType, data) {
       }];
     }
     case 'october_forms': {
-      const perForm = (data.summary?.per_form || []).slice(0, 30);
-      if (!perForm.length) return [];
+      // Funnel steps make a more useful table than re-stating the headline
+      // metrics — they show where visitors drop out.
+      const steps = data.funnel?.steps || [];
+      if (!steps.length) return [];
+      const total = steps[0]?.reached || 1;
       return [{
-        heading: 'Submissions by Form',
-        headers: ['Form', 'Submissions'],
-        rows: perForm.map(f => [f.form_title || f.form_id || '—', f.count.toLocaleString()]),
+        heading: 'Funnel — Step Drop-off',
+        headers: ['Step', 'Title', 'Reached', '% of start'],
+        rows: steps.map(s => [
+          s.step_index ?? '—',
+          s.title || s.step_id || '—',
+          (s.reached || 0).toLocaleString(),
+          `${((s.reached / total) * 100).toFixed(1)}%`,
+        ]),
         highlightFirst: false,
       }];
     }

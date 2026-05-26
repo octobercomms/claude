@@ -79,9 +79,13 @@ const METRIC_CATALOG = {
     orders:  { label: 'Orders',  format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
   },
   october_forms: {
-    total_submissions: { label: 'Submissions',   format: 'integer', get: d => parseInt(d.summary?.total_submissions || 0) },
-    active_forms:      { label: 'Active Forms',  format: 'integer', get: d => parseInt(d.summary?.active_forms || 0) },
-    total_forms:       { label: 'Total Forms',   format: 'integer', get: d => parseInt(d.summary?.total_forms || 0) },
+    views:              { label: 'Views',          format: 'integer', get: d => parseInt(d.summary?.views || 0) },
+    starts:             { label: 'Starts',         format: 'integer', get: d => parseInt(d.summary?.starts || 0) },
+    partials:           { label: 'Partials',       format: 'integer', get: d => parseInt(d.summary?.partials || 0) },
+    completes:          { label: 'Completes',      format: 'integer', get: d => parseInt(d.summary?.completes || 0) },
+    overall_conversion: { label: 'Conv. Rate',     format: 'percent', get: d => parseFloat(d.summary?.overall_conversion || 0) * 100 },
+    view_to_start_rate: { label: 'View → Start',   format: 'percent', get: d => parseFloat(d.summary?.view_to_start_rate || 0) * 100 },
+    start_to_complete:  { label: 'Start → Complete', format: 'percent', get: d => parseFloat(d.summary?.start_to_complete || 0) * 100 },
   },
 };
 
@@ -331,8 +335,8 @@ function defaultTemplate(reportType, availableTypes = []) {
     sections.push({ id: 'gsc_table', title: 'Top Organic Queries & Pages', type: 'connector_table', sources: [{ type: 'google_search_console' }] });
   }
   if (has('october_forms')) {
-    sections.push({ id: 'forms_metrics', title: 'October Forms', type: 'metrics_grid', sources: [{ type: 'october_forms' }], aggregate: 'sum', metrics: ['total_submissions', 'active_forms'] });
-    sections.push({ id: 'forms_table', title: 'Form Submissions Breakdown', type: 'connector_table', sources: [{ type: 'october_forms' }] });
+    sections.push({ id: 'forms_metrics', title: 'Lead Form Performance', type: 'metrics_grid', sources: [{ type: 'october_forms' }], aggregate: 'sum', metrics: ['views', 'starts', 'completes', 'overall_conversion'] });
+    sections.push({ id: 'forms_funnel', title: 'Lead Form Funnel', type: 'connector_table', sources: [{ type: 'october_forms' }] });
   }
   if (reportType === 'monthly') {
     sections.push({ id: 'seo_positions', title: 'Positions in Search Results', type: 'position_distribution' });
