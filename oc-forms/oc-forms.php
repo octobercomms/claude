@@ -1,14 +1,14 @@
 <?php
 /**
- * Plugin Name: October Forms
- * Plugin URI: https://octobercomms.com
- * Description: Multi-step lead generation forms with image-card pickers, conditional logic, file uploads, partial submission capture, theming and Brevo integration. A self-hosted replacement for Fillout and Gravity Forms.
+ * Plugin Name: nvelope Forms
+ * Plugin URI: https://nvelope.co
+ * Description: Multi-step lead generation forms for nvelope.co — image-card pickers, conditional logic, file uploads, partial submission capture, per-client theming, Brevo integration. Self-hosted replacement for Fillout and Gravity Forms.
  * Version: 1.0.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: oc-forms
+ * Text Domain: nvelope-forms
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

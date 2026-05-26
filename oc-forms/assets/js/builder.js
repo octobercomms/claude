@@ -522,7 +522,7 @@
 			el('span', null, ['Submissions per IP per 10 min']),
 			el('input', { type: 'number', min: 1, max: 100, value: s.rate_limit || 5, onInput: function (e) { s.rate_limit = parseInt(e.target.value, 10) || 5; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → October Forms.']));
+		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → nvelope Forms.']));
 	}
 
 	function renderEndings(host) {
