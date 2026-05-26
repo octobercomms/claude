@@ -516,6 +516,15 @@
 				: brevoAttrs.length ? ('Map each question to a Brevo contact attribute. ' + brevoAttrs.length + ' available — type or pick from the dropdown.')
 				: 'Map each question to a Brevo contact attribute name (e.g. FIRSTNAME, BUDGET).'
 		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint', style: { background: '#fffbeb', border: '1px solid #fde68a', padding: '8px 10px', borderRadius: '4px' } }, [
+			(function () {
+				var hasEmail = schema.steps.some(function (st) { return (st.questions || []).some(function (q) { return q.type === 'email'; }); });
+				if (hasEmail) {
+					return 'Your Email question is automatically used as the Brevo contact identifier — you do not need to map it here. Map other questions (name, phone, project type, etc.) to their Brevo attributes below.';
+				}
+				return 'Tip: any question of type Email is auto-detected and used as the Brevo contact identifier. Add one to your form so submissions land as real Brevo contacts.';
+			})()
+		]));
 		if (brevoAttrs.length || brevoAttrsError) {
 			host.appendChild(el('p', null, [
 				el('button', { type: 'button', class: 'button button-small', onClick: function () { brevoAttrs = []; brevoAttrsError = ''; loadBrevoAttributes(true); } }, ['Refresh attribute list'])
