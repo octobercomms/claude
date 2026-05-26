@@ -128,9 +128,11 @@ export default function ClientOutreachPage() {
   const { id } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
-  const [tab, setTab] = useState('contacts');
+  const [tab, setTab] = useState('dashboard');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [stats, setStats] = useState(null);
+  const [systemStatus, setSystemStatus] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
@@ -157,8 +159,14 @@ export default function ClientOutreachPage() {
       api.get(`/clients/${id}`),
       api.get(`/outreach/contacts?client_id=${id}`),
       api.get(`/outreach/campaigns?client_id=${id}`),
+      api.get(`/outreach/stats?client_id=${id}`).catch(() => null),
+      api.get(`/outreach/system-status`).catch(() => []),
     ])
-      .then(([c, ct, cp]) => { setClient(c); setContacts(ct); setCampaigns(cp); setSendCfg(c.outreach_sending || {}); })
+      .then(([c, ct, cp, st, ss]) => {
+        setClient(c); setContacts(ct); setCampaigns(cp);
+        setSendCfg(c.outreach_sending || {});
+        setStats(st); setSystemStatus(ss || []);
+      })
       .catch(err => toast(err.message, 'error'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -261,23 +269,95 @@ export default function ClientOutreachPage() {
 
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
+  const recentCampaigns = campaigns.slice(0, 5);
+
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 6 }}>Outreach — {client?.name}</h1>
-      <p style={{ fontSize: 13, color: '#888', margin: '0 0 20px' }}>
-        AI cold-outreach: contacts and campaigns. Contact finding, Claude-drafted email sequences and sending are coming in the next passes.
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Outreach — {client?.name}</h1>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} style={s.btnGhost}>+ Add Contact</button>
+          <button onClick={() => { setTab('campaigns'); setShowAddCampaign(true); }} style={s.btn}>+ New Campaign</button>
+        </div>
+      </div>
 
-      <div style={{ display: 'flex', marginBottom: 16 }}>
-        {[['contacts', `Contacts (${contacts.length})`], ['campaigns', `Campaigns (${campaigns.length})`], ['sending', 'Sending']].map(([v, label], i, arr) => (
-          <button key={v} onClick={() => setTab(v)} style={{
-            padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
-            background: tab === v ? '#1a1a1a' : '#fff', color: tab === v ? '#fff' : '#444',
-            borderRadius: i === 0 ? '4px 0 0 4px' : i === arr.length - 1 ? '0 4px 4px 0' : '0',
-            borderLeft: i === 0 ? '1px solid #ddd' : 'none',
+      {/* Tabs — same underline pattern as the SEO and Ads pages */}
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
+        {[
+          ['dashboard', 'Dashboard'],
+          ['campaigns', campaigns.length ? `Campaigns (${campaigns.length})` : 'Campaigns'],
+          ['contacts', contacts.length ? `Contacts (${contacts.length})` : 'Contacts'],
+          ['sending', 'Sending'],
+        ].map(([key, label]) => (
+          <button key={key} onClick={() => setTab(key)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
+            fontWeight: tab === key ? 700 : 400, color: tab === key ? '#1a1a1a' : '#888',
+            borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent',
+            marginBottom: -2,
           }}>{label}</button>
         ))}
       </div>
+
+      {tab === 'dashboard' && (
+        <div>
+          {/* Stats cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
+            {[
+              ['Active Contacts', stats?.active_contacts],
+              ['Active Campaigns', stats?.active_campaigns],
+              ['Emails Sent', stats?.emails_sent],
+              ['Replies', stats?.replies],
+            ].map(([label, value]) => (
+              <div key={label} style={s.card}>
+                <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>{value ?? '—'}</div>
+                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* System Status + Recent Campaigns */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 16 }}>
+            <div style={s.card}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
+              {systemStatus.length === 0 ? (
+                <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Loading…</p>
+              ) : systemStatus.map(item => (
+                <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
+                  <span>{item.name}</span>
+                  <span style={{ color: item.status === 'connected' ? '#2e7d32' : '#c62828', fontWeight: 600, fontSize: 12 }}>
+                    {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
+                  </span>
+                </div>
+              ))}
+              <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>Configure missing integrations in platform Settings.</p>
+            </div>
+
+            <div style={s.card}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
+                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#666', padding: 0 }}>View all →</button>}
+              </div>
+              {recentCampaigns.length === 0 ? (
+                <p style={{ fontSize: 12, color: '#888', margin: 0 }}>No campaigns yet — use “+ New Campaign” above to create one.</p>
+              ) : (
+                <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                  <tbody>
+                    {recentCampaigns.map(c => (
+                      <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setTab('campaigns')}>
+                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
+                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}><span style={s.chip}>{c.status}</span></td>
+                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: '#888', fontSize: 12 }}>
+                          {new Date(c.created_at).toLocaleDateString('en-GB')}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {tab === 'contacts' && (
         <div>
