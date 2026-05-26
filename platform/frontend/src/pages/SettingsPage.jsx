@@ -61,10 +61,11 @@ const KEY_GROUPS = [
   {
     title: 'Meta',
     category: 'Ad Platforms',
-    hint: 'Required for Meta Ads and Instagram connectors. Create an app at developers.facebook.com.',
+    hint: 'Required for Meta Ads and Instagram connectors. Create an app at developers.facebook.com, then add the redirect URL below to the app\'s App Domains (Settings → Basic) and Valid OAuth Redirect URIs (Facebook Login for Business → Settings).',
     keys: [
       { key: 'META_APP_ID', label: 'App ID', placeholder: '1234567890', type: 'text' },
       { key: 'META_APP_SECRET', label: 'App Secret', placeholder: '…', type: 'password' },
+      { key: 'META_REDIRECT_URI', label: 'Redirect URI (must match Meta app config)', placeholder: 'https://your-platform.com/auth/meta/callback', type: 'text' },
     ],
   },
   {

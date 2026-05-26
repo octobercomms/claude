@@ -59,12 +59,16 @@ router.get('/google/callback', async (req, res) => {
 
 // ─── Meta OAuth ─────────────────────────────────────────────────
 
-router.get('/meta/start', (req, res) => {
+router.get('/meta/start', async (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
   const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
-  const url = metaConnector.getAuthUrl(state);
-  res.redirect(url);
+  try {
+    const url = await metaConnector.getAuthUrl(state);
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
 });
 
 router.get('/meta/callback', async (req, res) => {
@@ -255,12 +259,16 @@ router.get('/amazon/callback', async (req, res) => {
 // ─── Reauth links ────────────────────────────────────────────────
 
 // Reauth link from email alert (token-less, opens OAuth flow)
-router.get('/meta/reauth', (req, res) => {
+router.get('/meta/reauth', async (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
   const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
-  const url = metaConnector.getAuthUrl(state);
-  res.redirect(url);
+  try {
+    const url = await metaConnector.getAuthUrl(state);
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
 });
 
 function oauthPopupHtml(status, message, provider = 'unknown') {

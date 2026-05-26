@@ -1,10 +1,22 @@
 const axios = require('axios');
+const { getSetting } = require('../utils/settings');
 
 const authType = 'oauth';
 const API_VERSION = 'v22.0';
 const BASE_URL = `https://graph.facebook.com/${API_VERSION}`;
 
-function getAuthUrl(state) {
+// Resolve the Meta OAuth callback URL at request time so the platform Settings
+// value is picked up without a server restart. Falls back to env, then to a
+// PLATFORM_URL-derived URL so the connector still works on a fresh install.
+async function resolveRedirectUri() {
+  const fromSetting = await getSetting('META_REDIRECT_URI');
+  if (fromSetting) return fromSetting;
+  if (process.env.META_REDIRECT_URI) return process.env.META_REDIRECT_URI;
+  const base = (await getSetting('PLATFORM_URL')) || process.env.PLATFORM_URL;
+  return base ? `${base.replace(/\/$/, '')}/auth/meta/callback` : '';
+}
+
+async function getAuthUrl(state) {
   // Meta renamed `instagram_insights` to `instagram_manage_insights` on the
   // Facebook Login / Graph API flow — the old name now returns
   // "Invalid Scope" from the consent dialog. We only read Ads / Instagram
@@ -14,9 +26,12 @@ function getAuthUrl(state) {
     'instagram_basic', 'instagram_manage_insights',
     'pages_read_engagement', 'business_management',
   ].join(',');
+  const appId = (await getSetting('META_APP_ID')) || process.env.META_APP_ID;
+  const redirectUri = await resolveRedirectUri();
+  if (!redirectUri) throw new Error('META_REDIRECT_URI is not configured — set it in Settings → Ad Platforms → Meta.');
   const params = new URLSearchParams({
-    client_id: process.env.META_APP_ID,
-    redirect_uri: process.env.META_REDIRECT_URI,
+    client_id: appId,
+    redirect_uri: redirectUri,
     scope: scopes,
     response_type: 'code',
     state,
@@ -25,11 +40,14 @@ function getAuthUrl(state) {
 }
 
 async function exchangeCode(code) {
+  const appId = (await getSetting('META_APP_ID')) || process.env.META_APP_ID;
+  const appSecret = (await getSetting('META_APP_SECRET')) || process.env.META_APP_SECRET;
+  const redirectUri = await resolveRedirectUri();
   const { data: shortLived } = await axios.get(`${BASE_URL}/oauth/access_token`, {
     params: {
-      client_id: process.env.META_APP_ID,
-      client_secret: process.env.META_APP_SECRET,
-      redirect_uri: process.env.META_REDIRECT_URI,
+      client_id: appId,
+      client_secret: appSecret,
+      redirect_uri: redirectUri,
       code,
     },
   });
@@ -38,8 +56,8 @@ async function exchangeCode(code) {
   const { data: longLived } = await axios.get(`${BASE_URL}/oauth/access_token`, {
     params: {
       grant_type: 'fb_exchange_token',
-      client_id: process.env.META_APP_ID,
-      client_secret: process.env.META_APP_SECRET,
+      client_id: appId,
+      client_secret: appSecret,
       fb_exchange_token: shortLived.access_token,
     },
   });
