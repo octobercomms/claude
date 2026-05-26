@@ -126,7 +126,7 @@ async function generatePDF(reportId, htmlContent, options = {}) {
 function getPageCSS() {
   return `
 ${buildFontCSS()}
-@page { size: A4; margin: 0; }
+@page { size: A4; margin: 12mm 15mm 30mm 15mm; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
   font-family: 'Brockmann', Arial, sans-serif;
@@ -178,7 +178,7 @@ body {
 .store-sub:first-of-type { margin-top: 0; }
 
 /* ---- Flowing template-driven layout ---- */
-.report-content { padding: 12mm 15mm 60pt; }
+.report-content { padding: 0; }
 .report-head { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 6pt; border-bottom: 1pt solid #000; margin-bottom: 18pt; }
 .report-head-l { flex: 0 0 auto; }
 .report-head-r { text-align: right; }
