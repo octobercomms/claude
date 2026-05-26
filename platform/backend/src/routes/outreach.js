@@ -214,6 +214,23 @@ router.delete('/contacts/:id', async (req, res) => {
   }
 });
 
+// Bulk delete — used by the Contacts page bulk-select toolbar.
+router.post('/contacts/bulk-delete', async (req, res) => {
+  const { client_id, ids } = req.body;
+  if (!client_id || !Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'client_id and ids[] required' });
+  }
+  try {
+    const { rowCount } = await pool.query(
+      'DELETE FROM outreach_contacts WHERE client_id = $1 AND id = ANY($2::uuid[])',
+      [client_id, ids]
+    );
+    res.json({ deleted: rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Campaigns ──────────────────────────────────────────────────────────────
 
 router.get('/campaigns', async (req, res) => {
