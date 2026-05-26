@@ -35,6 +35,10 @@ const METRIC_CATALOG = {
   shopify: {
     revenue:     { label: 'Revenue',     format: 'currency', get: d => parseFloat(d.summary?.total_revenue || 0) },
     orders:      { label: 'Orders',      format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
+    // In e-commerce a paid order IS a conversion — alias kept so Claude
+    // can propose `conversions` for a Shopify section without leaving an
+    // empty column when the AM expects parity with GA4 vocabulary.
+    conversions: { label: 'Conversions', format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
     aov:         { label: 'AOV',         format: 'currency', get: d => parseFloat(d.summary?.avg_order_value || 0) },
     refunds:     { label: 'Refunds',     format: 'currency', get: d => parseFloat(d.summary?.total_refunds || 0) },
     net_revenue: { label: 'Net Revenue', format: 'currency', get: d => parseFloat(d.summary?.net_revenue || 0) },
@@ -42,6 +46,7 @@ const METRIC_CATALOG = {
   woocommerce: {
     revenue:     { label: 'Revenue',     format: 'currency', get: d => parseFloat(d.summary?.total_revenue || 0) },
     orders:      { label: 'Orders',      format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
+    conversions: { label: 'Conversions', format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
     aov:         { label: 'AOV',         format: 'currency', get: d => parseFloat(d.summary?.avg_order_value || 0) },
   },
   google_ads: {

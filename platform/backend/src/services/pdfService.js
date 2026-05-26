@@ -108,7 +108,12 @@ async function generatePDF(reportId, htmlContent, options = {}) {
       headerTemplate: printFooter ? '<div></div>' : undefined,
       footerTemplate: printFooter ? buildPrintFooterTemplate(footerLines) : undefined,
       margin: printFooter
-        ? { top: '0', right: '0', bottom: '22mm', left: '0' }
+        // 30mm bottom strip — wider than the footer's intrinsic 19mm so that
+        // section content can't bleed into the footer area when Chrome's
+        // break-inside hint can't find a clean place to cut. Earlier we used
+        // 22mm and tall sections (e.g. the Sessions-by-Channel table) still
+        // overlapped the company-details lines.
+        ? { top: '0', right: '0', bottom: '30mm', left: '0' }
         : { top: '0', right: '0', bottom: '0', left: '0' },
     });
 
@@ -173,7 +178,7 @@ body {
 .store-sub:first-of-type { margin-top: 0; }
 
 /* ---- Flowing template-driven layout ---- */
-.report-content { padding: 12mm 15mm 30pt; }
+.report-content { padding: 12mm 15mm 60pt; }
 .report-head { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 6pt; border-bottom: 1pt solid #000; margin-bottom: 18pt; }
 .report-head-l { flex: 0 0 auto; }
 .report-head-r { text-align: right; }
@@ -182,9 +187,12 @@ body {
 /* Keep entire sections together — if one doesn't fit on the current page,
    push it to the next. Both legacy and modern spellings of the property
    are set because Chrome (puppeteer) honours the modern one more reliably
-   for flex and table children. */
-.section { margin-bottom: 22pt; page-break-inside: avoid; break-inside: avoid; }
-.metrics-row, .metrics-table, .chart-block, table { page-break-inside: avoid; break-inside: avoid; }
+   for flex and table children. display:block is explicit because
+   break-inside: avoid only applies to block-level boxes. */
+.section { display: block; margin-bottom: 22pt; page-break-inside: avoid; break-inside: avoid-page; }
+.metrics-row, .metrics-table, .chart-block, table, tbody, tr { page-break-inside: avoid; break-inside: avoid-page; }
+.section-title { page-break-after: avoid; break-after: avoid-page; }
+.metrics-table th, .metrics-table td { padding: 4pt 8pt; }
 .section-insight {
   font-size: 9pt;
   color: #555;
