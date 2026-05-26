@@ -192,12 +192,12 @@
 			}, 600);
 		}
 
+		// Used by click-driven inputs (choice / image cards / dropdown / grid / file remove).
+		// These need an immediate redraw so the visual selection state updates.
 		function setAnswer(qid, value) {
 			answers[qid] = value;
 			queueSave();
-			if (logicReferences(qid)) {
-				renderStep();
-			}
+			renderStep();
 		}
 
 		function logicReferences(qid) {
@@ -233,7 +233,9 @@
 			foot.innerHTML = '';
 			renderProgress();
 
-			if (step.title) {
+			// Step title is an internal label for the builder by default.
+			// Opt in to showing it on the front-end via the "Show as heading" toggle.
+			if (step.title && step.show_title) {
 				stepHost.appendChild(el('h2', { class: 'ocf-step-title' }, [step.title]));
 			}
 

@@ -227,6 +227,11 @@
 			el('span', null, ['Step ID']),
 			el('input', { type: 'text', class: 'widefat', value: step.id, onInput: function (e) { step.id = sanitizeId(e.target.value); syncHiddenInput(); } })
 		]));
+		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
+			el('input', { type: 'checkbox', checked: step.show_title ? 'checked' : null, onChange: function (e) { step.show_title = e.target.checked; syncHiddenInput(); } }),
+			el('span', null, ['Show step title as heading on the form'])
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['By default the step title is an internal label for the builder only.']));
 		host.appendChild(logicEditor('Show step if…', step.show_if || [], function (rules) { step.show_if = rules; syncHiddenInput(); }));
 	}
 

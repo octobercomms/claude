@@ -130,10 +130,11 @@ class OCF_Schema {
 				continue;
 			}
 			$step_clean = array(
-				'id'        => self::clean_id( $step['id'] ?? '' ),
-				'title'     => sanitize_text_field( $step['title'] ?? '' ),
-				'show_if'   => self::sanitize_logic( $step['show_if'] ?? array() ),
-				'questions' => array(),
+				'id'         => self::clean_id( $step['id'] ?? '' ),
+				'title'      => sanitize_text_field( $step['title'] ?? '' ),
+				'show_title' => ! empty( $step['show_title'] ),
+				'show_if'    => self::sanitize_logic( $step['show_if'] ?? array() ),
+				'questions'  => array(),
 			);
 			foreach ( (array) ( $step['questions'] ?? array() ) as $q ) {
 				if ( ! is_array( $q ) || empty( $q['type'] ) ) {
