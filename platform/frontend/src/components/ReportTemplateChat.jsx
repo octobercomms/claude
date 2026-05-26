@@ -129,10 +129,15 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             </div>
           </div>
 
-          <div style={styles.previewPane}>
+          <div style={{ ...styles.previewPane, position: 'relative' }}>
             <div style={styles.previewTitle}>
-              {proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked template') : 'No draft yet'}
+              {sending
+                ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><GeneratingDots /> Generating draft…</span>
+                : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked template') : 'No draft yet'}
             </div>
+            {sending && (
+              <div style={styles.generatingOverlay} />
+            )}
             {proposed ? (
               <TemplatePreview template={proposed} />
             ) : (
@@ -150,15 +155,30 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
           <button
             type="button"
             onClick={lockAndSave}
-            disabled={!proposed || !proposedDiffers || saving}
+            disabled={!proposed || !proposedDiffers || saving || sending}
             style={primaryBtn}
-            title={!proposed ? 'No draft yet' : !proposedDiffers ? 'No changes to lock' : 'Save this template as the locked blueprint'}
+            title={sending ? 'Wait for Claude to finish' : !proposed ? 'No draft yet' : !proposedDiffers ? 'No changes to lock' : 'Save this template as the locked blueprint'}
           >
             {saving ? 'Saving…' : 'Lock & Save'}
           </button>
         </div>
       </div>
     </div>
+  );
+}
+
+function GeneratingDots() {
+  return (
+    <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
+      {[0, 1, 2].map(i => (
+        <span key={i} style={{
+          width: 5, height: 5, borderRadius: '50%', background: '#888', display: 'inline-block',
+          animation: 'pulse-dot 1.2s ease-in-out infinite',
+          animationDelay: `${i * 0.2}s`,
+        }} />
+      ))}
+      <style>{`@keyframes pulse-dot { 0%,80%,100%{opacity:0.2;transform:scale(0.8)} 40%{opacity:1;transform:scale(1)} }`}</style>
+    </span>
   );
 }
 
@@ -207,6 +227,7 @@ const styles = {
   msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
   textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  generatingOverlay: { position: 'absolute', inset: 0, background: 'rgba(250,250,250,0.55)', borderRadius: 4, pointerEvents: 'none', zIndex: 1 },
   sectionCard: { marginBottom: 8, padding: '6px 8px', background: '#fff', border: '1px solid #eee', borderRadius: 3 },
   sectionType: { fontSize: 10, color: '#888', fontFamily: 'monospace', textTransform: 'uppercase' },
   error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
