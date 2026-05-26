@@ -1,0 +1,179 @@
+{
+	"version": 1,
+	"theme": {
+		"primary": "#111111",
+		"accent": "#f59e0b",
+		"font": "Inter",
+		"logo": "",
+		"radius": "8px",
+		"background": "#f5f5f5"
+	},
+	"settings": {
+		"submit_label": "Submit",
+		"next_label": "Continue",
+		"back_label": "Back",
+		"skip_label": "Skip",
+		"show_progress": true
+	},
+	"spam": { "turnstile": true, "honeypot": true, "rate_limit": 5 },
+	"brevo": {
+		"enabled": true,
+		"send_event": true,
+		"event_name": "lead_form_completed",
+		"list_ids": [],
+		"attribute_map": {
+			"q_name":  "FIRSTNAME",
+			"q_email": "EMAIL",
+			"q_phone": "SMS",
+			"q_type":  "PROJECT_TYPE",
+			"q_status": "PROPERTY_STATUS",
+			"q_timing": "TIMING",
+			"q_budget_confidence": "BUDGET_CONFIDENCE",
+			"q_budget_range": "BUDGET_RANGE",
+			"q_source": "SOURCE"
+		},
+		"event_properties_map": {
+			"q_type": "project_type",
+			"q_budget_range": "budget"
+		}
+	},
+	"endings": {
+		"default": {
+			"heading": "Thanks — we got it.",
+			"body": "We'll review your project and be in touch within one business day.",
+			"cta_label": "",
+			"cta_url": ""
+		}
+	},
+	"steps": [
+		{
+			"id": "s_type",
+			"title": "Which best describes where you are right now?",
+			"questions": [
+				{
+					"id": "q_type",
+					"type": "image_cards",
+					"label": "Which best describes where you are right now?",
+					"required": true,
+					"options": [
+						{ "label": "House Extension", "value": "extension", "image": "" },
+						{ "label": "House Renovation", "value": "renovation", "image": "" },
+						{ "label": "New Build House", "value": "new_build", "image": "" },
+						{ "label": "Interior Reconfiguration", "value": "interior", "image": "" }
+					]
+				}
+			]
+		},
+		{
+			"id": "s_status",
+			"title": "What is the current status of the property?",
+			"questions": [
+				{
+					"id": "q_status",
+					"type": "image_cards",
+					"label": "What is the current status of the property?",
+					"required": true,
+					"options": [
+						{ "label": "I already own the property", "value": "owned", "image": "" },
+						{ "label": "I'm in the process of buying", "value": "buying", "image": "" },
+						{ "label": "I haven't secured a property yet", "value": "no_property", "image": "" }
+					]
+				}
+			]
+		},
+		{
+			"id": "s_desc",
+			"title": "Tell us about your project",
+			"questions": [
+				{
+					"id": "q_link",
+					"type": "url",
+					"label": "Link to plans, drawings or photos",
+					"placeholder": "Dropbox / Google Drive or Estate Agent URL",
+					"skippable": true
+				},
+				{
+					"id": "q_files",
+					"type": "file_upload",
+					"label": "Upload any relevant files",
+					"multiple": true,
+					"accept": "pdf,jpg,jpeg,png,heic",
+					"max_size_mb": 25,
+					"skippable": true
+				},
+				{
+					"id": "q_brief",
+					"type": "long_text",
+					"label": "Describe your project or what you would like to achieve",
+					"placeholder": "Please write a brief summary of the proposed project, ideally less than 100 words.",
+					"skippable": true
+				}
+			]
+		},
+		{
+			"id": "s_timing",
+			"title": "When are you hoping to start the project?",
+			"questions": [
+				{
+					"id": "q_timing",
+					"type": "image_cards",
+					"label": "When are you hoping to start the project?",
+					"required": true,
+					"options": [
+						{ "label": "Within 3 months", "value": "0_3m", "image": "" },
+						{ "label": "3 – 6 months", "value": "3_6m", "image": "" },
+						{ "label": "6 – 12 months", "value": "6_12m", "image": "" },
+						{ "label": "More than a year", "value": "12m_plus", "image": "" }
+					]
+				}
+			]
+		},
+		{
+			"id": "s_budget",
+			"title": "Budget",
+			"questions": [
+				{
+					"id": "q_budget_confidence",
+					"type": "image_cards",
+					"label": "How confident do you feel about budget at this stage?",
+					"required": true,
+					"options": [
+						{ "label": "I have a clear budget range", "value": "clear", "image": "" },
+						{ "label": "I have a rough budget", "value": "rough", "image": "" },
+						{ "label": "I need guidance on what's realistic", "value": "guidance", "image": "" }
+					]
+				},
+				{
+					"id": "q_budget_range",
+					"type": "choice",
+					"label": "Which budget feels closest at this stage?",
+					"required": true,
+					"options": [
+						{ "label": "Under £150k", "value": "u150" },
+						{ "label": "£150k – £300k", "value": "150_300" },
+						{ "label": "£300k – £600k", "value": "300_600" },
+						{ "label": "£600k+", "value": "600_plus" }
+					],
+					"help": "A standard renovation will cost £100k–£150k. A standard ground-floor extension or loft conversion will cost £100k–£200k."
+				}
+			]
+		},
+		{
+			"id": "s_contact",
+			"title": "Your details",
+			"questions": [
+				{ "id": "q_name",  "type": "short_text", "label": "Full Name", "required": true },
+				{ "id": "q_email", "type": "email",      "label": "Email",     "required": true },
+				{ "id": "q_phone", "type": "phone",      "label": "Phone number", "skippable": true },
+				{ "id": "q_address", "type": "address",  "label": "Project address" }
+			]
+		},
+		{
+			"id": "s_source",
+			"title": "Last one",
+			"questions": [
+				{ "id": "q_source", "type": "short_text", "label": "How did you hear about us?", "skippable": true }
+			]
+		}
+	]
+}
