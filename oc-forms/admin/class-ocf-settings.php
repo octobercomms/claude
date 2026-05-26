@@ -17,7 +17,16 @@ class OCF_Settings {
 		register_setting( 'ocf_settings', 'ocf_notify_email',         array( 'sanitize_callback' => 'sanitize_email' ) );
 		register_setting( 'ocf_settings', 'ocf_from_name',            array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		register_setting( 'ocf_settings', 'ocf_from_email',           array( 'sanitize_callback' => 'sanitize_email' ) );
+		register_setting( 'ocf_settings', 'ocf_ses_enabled',          array( 'sanitize_callback' => array( __CLASS__, 'sanitize_bool' ) ) );
+		register_setting( 'ocf_settings', 'ocf_ses_region',           array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_ses_smtp_username',    array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_ses_smtp_password',    array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_ses_smtp_port',        array( 'sanitize_callback' => 'absint' ) );
 		register_setting( 'ocf_settings', 'ocf_api_key',              array( 'sanitize_callback' => 'sanitize_text_field' ) );
+	}
+
+	public static function sanitize_bool( $v ) {
+		return $v ? 1 : 0;
 
 		add_action( 'admin_post_ocf_regenerate_api_key', array( __CLASS__, 'regenerate_api_key' ) );
 	}
@@ -41,11 +50,27 @@ class OCF_Settings {
 		$notify      = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
 		$from_name   = get_option( 'ocf_from_name', get_bloginfo( 'name' ) );
 		$from_email  = get_option( 'ocf_from_email', get_option( 'admin_email' ) );
+		$ses_enabled = (bool) get_option( 'ocf_ses_enabled', false );
+		$ses_region  = get_option( 'ocf_ses_region', 'us-east-1' );
+		$ses_user    = get_option( 'ocf_ses_smtp_username', '' );
+		$ses_pass    = get_option( 'ocf_ses_smtp_password', '' );
+		$ses_port    = (int) get_option( 'ocf_ses_smtp_port', 587 );
 		$api_key     = get_option( 'ocf_api_key', '' );
 		$api_base    = rest_url( OCF_Public_API::NAMESPACE_API . '/api/' );
+
+		$test_status = isset( $_GET['test'] ) ? sanitize_text_field( $_GET['test'] ) : '';
+		$test_err    = get_transient( 'ocf_test_mail_error' );
+		if ( $test_status === 'fail' ) { delete_transient( 'ocf_test_mail_error' ); }
 		?>
 		<?php if ( ! empty( $_GET['regenerated'] ) ) : ?>
 			<div class="notice notice-success is-dismissible"><p>API key regenerated. Update your external apps with the new key.</p></div>
+		<?php endif; ?>
+		<?php if ( $test_status === 'ok' ) : ?>
+			<div class="notice notice-success is-dismissible"><p>Test email sent successfully.</p></div>
+		<?php elseif ( $test_status === 'invalid' ) : ?>
+			<div class="notice notice-error is-dismissible"><p>Enter a valid recipient email and try again.</p></div>
+		<?php elseif ( $test_status === 'fail' ) : ?>
+			<div class="notice notice-error is-dismissible"><p>Test email failed.<?php echo $test_err ? ' Reason: <code>' . esc_html( $test_err ) . '</code>' : ''; ?> Check your SES credentials, region, and that the From address is a verified SES identity.</p></div>
 		<?php endif; ?>
 		<div class="wrap">
 			<h1>October Forms — Settings</h1>
@@ -96,12 +121,61 @@ class OCF_Settings {
 						<th scope="row"><label for="ocf_from_email">Email from address</label></th>
 						<td>
 							<input type="email" id="ocf_from_email" name="ocf_from_email" value="<?php echo esc_attr( $from_email ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>">
-							<p class="description">Used as the <code>From:</code> header on lead notification emails. The domain must be verified in your SMTP provider (e.g. Amazon SES) — set up SES via an SMTP plugin such as WP Mail SMTP, then this <code>From</code> will route through it automatically.</p>
+							<p class="description">Used as the <code>From:</code> header on lead notification emails. Must be a verified SES identity (or a verified domain).</p>
+						</td>
+					</tr>
+				</table>
+
+				<h2 style="margin-top: 32px;">Amazon SES (SMTP)</h2>
+				<p>Send all WordPress emails through Amazon SES — no separate SMTP plugin required. Use SES <em>SMTP credentials</em> (generated in SES → SMTP settings → Create SMTP credentials). These are different from regular AWS access keys.</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row">Enable SES</th>
+						<td>
+							<label><input type="checkbox" name="ocf_ses_enabled" value="1" <?php checked( $ses_enabled ); ?>> Route every <code>wp_mail()</code> call through Amazon SES.</label>
+							<p class="description">When off, WordPress uses its default mail transport.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_ses_region">SES region</label></th>
+						<td>
+							<input type="text" id="ocf_ses_region" name="ocf_ses_region" value="<?php echo esc_attr( $ses_region ); ?>" class="regular-text" placeholder="us-east-1">
+							<p class="description">e.g. <code>us-east-1</code>, <code>eu-west-1</code>, <code>eu-west-2</code> (London), <code>ap-southeast-2</code> (Sydney). Match the region where your verified SES identity lives.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_ses_smtp_username">SMTP username</label></th>
+						<td>
+							<input type="text" autocomplete="off" id="ocf_ses_smtp_username" name="ocf_ses_smtp_username" value="<?php echo esc_attr( $ses_user ); ?>" class="regular-text" placeholder="AKIA…">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_ses_smtp_password">SMTP password</label></th>
+						<td>
+							<input type="password" autocomplete="new-password" id="ocf_ses_smtp_password" name="ocf_ses_smtp_password" value="<?php echo esc_attr( $ses_pass ); ?>" class="regular-text">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_ses_smtp_port">SMTP port</label></th>
+						<td>
+							<input type="number" min="1" max="65535" id="ocf_ses_smtp_port" name="ocf_ses_smtp_port" value="<?php echo (int) $ses_port; ?>" class="small-text">
+							<p class="description">587 (STARTTLS — recommended) or 465 (SSL).</p>
 						</td>
 					</tr>
 				</table>
 				<?php submit_button(); ?>
 			</form>
+
+			<?php if ( $ses_enabled ) : ?>
+			<h3>Send a test email</h3>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display: flex; gap: 8px; align-items: center; max-width: 600px;">
+				<input type="hidden" name="action" value="ocf_send_test_email">
+				<?php wp_nonce_field( 'ocf_send_test_email' ); ?>
+				<input type="email" name="to" placeholder="you@example.com" class="regular-text" required>
+				<?php submit_button( 'Send test email', 'secondary', 'submit', false ); ?>
+			</form>
+			<p class="description">Saves and runs <code>wp_mail()</code> through your current SES config. Both the recipient and your From address must be verified identities in SES (unless your account is out of sandbox).</p>
+			<?php endif; ?>
 
 			<hr style="margin: 32px 0;">
 			<h2>External API</h2>
