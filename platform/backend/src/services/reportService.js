@@ -3,6 +3,8 @@ const claudeService = require('./claude');
 const pdfService = require('./pdfService');
 const emailService = require('./emailService');
 const dataCollector = require('./dataCollector');
+const reportTemplate = require('./reportTemplate');
+const templateRenderer = require('./templateRenderer');
 
 async function generateReport(reportId) {
   const { rows } = await pool.query(
@@ -33,20 +35,20 @@ async function generateReport(reportId) {
       ).then(r => r.rows).catch(() => []),
     ]);
 
-    // Per-client section toggles — a section is dropped only when explicitly
-    // disabled for this report type; unset sections stay included.
-    const sectionConfig = report.report_sections || {};
-    const isEnabled = key => sectionConfig[key] == null || sectionConfig[key][report.report_type] !== false;
+    // Reports are now driven by a per-client Claude-designed template stored
+    // on the clients row. If a template is missing we synthesise a sensible
+    // default from the connectors actually configured for this client, so
+    // reports continue to render before the AM has opened the builder.
+    const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [report.client_id]);
+    const client = clientRow.rows[0];
+    const templates = client.report_templates || {};
+    const availableTypes = Array.from(new Set(Object.keys(collectedData.data).map(k => k.split(':')[0])));
+    const template = templates[report.report_type] || reportTemplate.defaultTemplate(report.report_type, availableTypes);
 
-    const sections = dataCollector.buildReportSections(collectedData)
-      .filter(sec => isEnabled(sec.type));
-    const reportSeoData = isEnabled('seo') ? seoData : { rankings: [] };
-
-    if (report.report_type === 'monthly') {
-      await generateMonthlyReport(report, period, periodStart, periodEnd, sections, collectedData.data, reportSeoData, chatHistory);
-    } else {
-      await generateWeeklyReport(report, period, periodStart, periodEnd, sections, collectedData.data, reportSeoData, chatHistory);
-    }
+    await generateTemplatedReport({
+      report, client, period, periodStart, periodEnd, template,
+      rawData: collectedData.data, seoData, chatHistory,
+    });
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
     await pool.query(
@@ -55,6 +57,42 @@ async function generateReport(reportId) {
     );
     throw err;
   }
+}
+
+// Template-driven report generation. Resolves the template's sections into
+// concrete data (narrative paragraphs via Claude, metrics grids, tables,
+// charts), builds the PDF, stores + emails it.
+async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, seoData, chatHistory }) {
+  const resolved = await templateRenderer.resolveTemplate({
+    template, client, period, rawData, seoData, chatHistory,
+  });
+
+  const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });
+  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true });
+
+  // Email summary: first narrative section's first paragraph, plus a small
+  // metric strip extracted from the first metrics_grid (if any).
+  const firstNarrative = resolved.find(s => s.type === 'narrative');
+  const firstMetricsGrid = resolved.find(s => s.type === 'metrics_grid');
+  const summaryText = firstNarrative?.text || '';
+  const topMetrics = (firstMetricsGrid?.cells || []).slice(0, 8);
+
+  await pool.query(
+    'UPDATE reports SET status = $1, generated_at = NOW(), pdf_path = $2, html_content = $3, summary = $4 WHERE id = $5',
+    ['generated', pdfPath, htmlContent, JSON.stringify({ summaryHtml: summaryText, summaryText, metrics: topMetrics }), report.id]
+  );
+
+  const weekLabel = report.report_type === 'weekly'
+    ? new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })
+    : null;
+
+  await sendReport(report.id, {
+    summaryHtml: `<p>${summaryText.replace(/\n/g, '<br>')}</p>`,
+    summaryText,
+    metrics: topMetrics,
+    weekLabel,
+    pdfPath,
+  });
 }
 
 async function generateMonthlyReport(report, period, periodStart, periodEnd, sections, rawData, seoData = {}, chatHistory = []) {

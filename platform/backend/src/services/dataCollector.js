@@ -578,4 +578,4 @@ function makeMetric(label, current, previous, format) {
   return m;
 }
 
-module.exports = { collectClientData, collectSEOData, buildReportSections };
+module.exports = { collectClientData, collectSEOData, buildReportSections, extractTables, extractKeyMetrics, extractCharts };

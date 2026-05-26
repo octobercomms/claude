@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import AIDraftModal from '../components/AIDraftModal';
+import ReportTemplateChat from '../components/ReportTemplateChat';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -44,6 +45,15 @@ export default function ClientDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'details';
   function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
+  const [templateChatType, setTemplateChatType] = useState(null);  // 'weekly' | 'monthly' | null
+  const [templateSummary, setTemplateSummary] = useState({ weekly: null, monthly: null });
+
+  useEffect(() => {
+    if (!id || tab !== 'reports') return;
+    Promise.all(['weekly', 'monthly'].map(rt =>
+      api.get(`/api/clients/${id}/report-template/${rt}`).then(r => [rt, r.template]).catch(() => [rt, null])
+    )).then(pairs => setTemplateSummary(Object.fromEntries(pairs)));
+  }, [id, tab, templateChatType]);
 
   useEffect(() => {
     api.get(`/reports?client_id=${id}`).then(setReports).catch(() => {});
@@ -139,13 +149,6 @@ export default function ClientDetailPage() {
       toast('Monthly focus saved.', 'success');
       setFocusDraft(null);
     } catch (err) { toast(err.message, 'error'); }
-  }
-
-  function setSectionInstruction(sectionKey, value) {
-    setClient(p => ({
-      ...p,
-      section_instructions: { ...(p.section_instructions || {}), [sectionKey]: value },
-    }));
   }
 
   async function handleCheckConnector(connectorId) {
@@ -470,47 +473,39 @@ export default function ClientDetailPage() {
           </div>
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Sections</div>
-            <p style={styles.help}>Tick the report types each section appears in. Optionally write a one-line instruction telling Claude what to emphasise for that section — e.g. <em>"For Shopify, focus on refunds and net revenue."</em></p>
-            <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
-              <thead>
-                <tr>
-                  {['Section', 'Weekly', 'Monthly', 'Instructions for this section (optional)'].map((h, i) => (
-                    <th key={h} style={{ textAlign: i === 0 || i === 3 ? 'left' : 'center', padding: '4px 12px 8px', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[{ key: 'seo', label: 'SEO Rankings' }, ...[...new Set(connectors.map(c => c.connector_type))].map(t => ({ key: t, label: CONNECTOR_LABELS[t] || t }))].map(({ key, label }) => (
-                  <tr key={key}>
-                    <td style={{ padding: '6px 12px 6px 0', borderTop: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>{label}</td>
-                    {['weekly', 'monthly'].map(period => (
-                      <td key={period} style={{ textAlign: 'center', padding: '6px 12px', borderTop: '1px solid #f5f5f5' }}>
-                        <input
-                          type="checkbox"
-                          checked={client.report_sections?.[key]?.[period] !== false}
-                          onChange={() => setClient(p => {
-                            const rs = { ...(p.report_sections || {}) };
-                            const cur = rs[key] || {};
-                            rs[key] = { ...cur, [period]: cur[period] === false };
-                            return { ...p, report_sections: rs };
-                          })}
-                        />
-                      </td>
-                    ))}
-                    <td style={{ padding: '6px 0 6px 12px', borderTop: '1px solid #f5f5f5', width: '100%' }}>
-                      <input
-                        type="text"
-                        style={{ ...styles.input, fontSize: 12, padding: '5px 8px', width: '100%', boxSizing: 'border-box' }}
-                        placeholder="(no extra instructions)"
-                        value={(client.section_instructions || {})[key] || ''}
-                        onChange={e => setSectionInstruction(key, e.target.value)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Templates</div>
+            <p style={styles.help}>
+              Each report has a template — an ordered set of sections, layouts and per-section prompts. Design it conversationally with Claude
+              ("B2C summary across all stores, then B2B, then Google Ads ROAS") and lock it once it looks right. Locked templates drive every
+              report run for this client.
+            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 8 }}>
+              {['weekly', 'monthly'].map(rt => {
+                const tpl = templateSummary[rt];
+                const sections = tpl?.sections || [];
+                return (
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '1px solid #eee', borderRadius: 6, background: '#fafafa' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
+                      <button type="button" onClick={() => setTemplateChatType(rt)} style={{ ...styles.btnSm, padding: '4px 10px' }}>
+                        ✦ {tpl ? 'Edit with Claude' : 'Design with Claude'}
+                      </button>
+                    </div>
+                    {sections.length ? (
+                      <ol style={{ fontSize: 12, color: '#444', paddingLeft: 18, margin: '4px 0 0' }}>
+                        {sections.map(s => (
+                          <li key={s.id} style={{ marginBottom: 2 }}>
+                            <strong>{s.title}</strong> <span style={{ color: '#888', fontFamily: 'monospace', fontSize: 10 }}>{s.type}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <div style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>Not set up yet — using auto-generated default from connectors.</div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
@@ -534,6 +529,16 @@ export default function ClientDetailPage() {
           draft={focusDraft}
           onAccept={handleAcceptFocus}
           onClose={() => setFocusDraft(null)}
+        />
+      )}
+
+      {templateChatType && (
+        <ReportTemplateChat
+          clientId={id}
+          clientName={client?.name || ''}
+          reportType={templateChatType}
+          onClose={() => setTemplateChatType(null)}
+          onSaved={() => setTemplateChatType(null)}
         />
       )}
 

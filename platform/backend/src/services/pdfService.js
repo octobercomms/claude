@@ -521,4 +521,57 @@ function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics
 </html>`;
 }
 
-module.exports = { generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml };
+// Template-driven HTML builder. Takes a list of resolved sections (see
+// templateRenderer.js) and renders them inside the standard October page
+// chrome — same header / footer / page CSS as the legacy monthly path.
+function buildTemplateReportHtml({ client, period, sections }) {
+  const blocks = sections.map(s => renderResolvedSection(s, client, period)).filter(Boolean).join('\n');
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>${getPageCSS()}</style>
+</head>
+<body>
+${blocks}
+</body>
+</html>`;
+}
+
+function renderResolvedSection(s, client, period) {
+  const head = pageHeader(client.name || '', period || '');
+  const title = `<div class="section-title">${escapeXml(s.title || '')}</div>`;
+
+  switch (s.type) {
+    case 'narrative':
+      return `<div class="page with-print-footer">${head}${title}${(s.text || '').split('\n').filter(p => p.trim()).map(p => `<p>${escapeXml(p)}</p>`).join('')}</div>`;
+    case 'metrics_grid': {
+      if (!s.cells || !s.cells.length) return '';
+      // Chunk into rows of 4 — at >4 cells per row the labels stack
+      // awkwardly and values get cramped at A4 width.
+      const PER_ROW = 4;
+      const rows = [];
+      for (let i = 0; i < s.cells.length; i += PER_ROW) rows.push(s.cells.slice(i, i + PER_ROW));
+      const rowsHtml = rows.map(row => `<div class="metrics-row">${row.map(c => `<div class="metric-cell"><div class="val">${escapeXml(c.value)}</div><div class="lbl">${escapeXml(c.label)}</div></div>`).join('')}</div>`).join('');
+      return `<div class="page with-print-footer">${head}${title}${rowsHtml}</div>`;
+    }
+    case 'tables': {
+      if (!s.tables || !s.tables.length) return '';
+      return `<div class="page with-print-footer">${head}${title}${s.tables.map(t => buildTableHtml(t)).join('')}</div>`;
+    }
+    case 'bar_chart': {
+      if (!s.chart) return '';
+      return `<div class="page with-print-footer">${head}${title}${buildChartHtml(s.chart)}</div>`;
+    }
+    case 'position_distribution': {
+      if (!s.rankings || !s.rankings.length) return '';
+      return `<div class="page with-print-footer">${head}${title}${buildPositionDistributionHtml(s.rankings.filter(k => k.current_position))}</div>`;
+    }
+    case 'error':
+      return `<div class="page with-print-footer">${head}${title}<div class="unavail">${escapeXml(s.message || 'Section failed to render.')}</div></div>`;
+    default:
+      return '';
+  }
+}
+
+module.exports = { generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml };
