@@ -6,6 +6,9 @@ const claudeService = require('../services/claude');
 const router = express.Router();
 router.use(authenticate);
 
+// Nested resource — per-client report template (Claude-designed, locked by AM).
+router.use('/:id/report-template', require('./reportTemplates'));
+
 // List all clients
 router.get('/', async (req, res) => {
   try {

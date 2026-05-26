@@ -41,6 +41,114 @@ function getClient() {
 
 const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.`;
 
+// Single-shot text call used by the template renderer for each narrative
+// section. Returns the concatenated text content (no tool use). Keep this
+// generic — section-specific framing lives in templateRenderer.js.
+async function callClaude({ max_tokens, system, user, model = MODEL }) {
+  const message = await getClient().messages.create({
+    model,
+    max_tokens,
+    system: system || SYSTEM_PROMPT,
+    messages: [{ role: 'user', content: user }],
+  });
+  const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
+  return blocks.map(b => b.text).join('\n').trim();
+}
+
+// Template builder — turn-based chat that designs a report template
+// conversationally. The model has one tool, `propose_template`, which lets
+// it surface a draft JSON template the account manager can review and lock.
+//
+// History is full conversation context (passed in from the frontend); we
+// don't store it server-side, the lock action is what persists.
+async function chatBuildReportTemplate({ client, reportType, availableConnectors, currentTemplate, history }) {
+  const tools = [{
+    name: 'propose_template',
+    description: 'Surface a draft report template for the account manager to review. Call this whenever the template should change — after answering questions, after the AM asks for an edit, or to propose a starting point. The frontend renders the result as a live preview the AM can lock.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        template: {
+          type: 'object',
+          properties: {
+            version: { type: 'number' },
+            sections: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string' },
+                  title: { type: 'string' },
+                  type: { type: 'string', enum: ['narrative', 'metrics_grid', 'connector_table', 'bar_chart', 'position_distribution'] },
+                  sources: {},
+                  prompt: { type: 'string' },
+                  aggregate: { type: 'string', enum: ['sum', 'list'] },
+                  metrics: { type: 'array', items: { type: 'string' } },
+                  dimension: { type: 'string' },
+                  metric: { type: 'string' },
+                },
+                required: ['id', 'title', 'type'],
+              },
+            },
+          },
+          required: ['version', 'sections'],
+        },
+      },
+      required: ['template'],
+    },
+  }];
+
+  const system = `You are designing a ${reportType} marketing report template for a client of October Communications. You speak conversationally with the account manager and use the propose_template tool whenever the template should change.
+
+A template is an ordered list of sections. Each section is one of:
+
+- narrative: { id, title, type: "narrative", sources: ["*"] | [{ type, storeLabel? }], prompt: "<what Claude should write>" }
+- metrics_grid: { id, title, type: "metrics_grid", sources, aggregate: "sum" | "list", metrics: ["revenue", "orders", "aov", "spend", "conv_value", "roas", "net", "sessions", "users", "conversions", "clicks", "impressions"] }
+- connector_table: { id, title, type: "connector_table", sources }  (renders the connector's built-in detail tables — campaign performance, top orders, top queries, etc.)
+- bar_chart: { id, title, type: "bar_chart", sources: [{ type: "ga4" }], dimension: "channel", metric: "sessions" }
+- position_distribution: { id, title, type: "position_distribution" }  (SEO ranking buckets — Top 3 / 4-10 / 11-20 / 21-50 / 51-100 / 100+)
+
+Source spec: ["*"] means "everything available". An entry like { type: "shopify" } matches all Shopify connectors regardless of store; { type: "shopify", storeLabel: "UK B2C" } matches that specific store.
+
+Aggregate: "sum" combines numeric metrics across matched sources (with AOV recomputed from total revenue / total orders, ROAS recomputed from value / spend). "list" produces one cell per metric per source.
+
+When the AM describes what they want, ask one or two clarifying questions if necessary, then call propose_template with a draft. After they react, refine and call propose_template again. Don't propose anything before you understand the request. Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
+
+Brief replies. No long explanations. Use British English.`;
+
+  const userIntro = `Client: ${client.name}
+About: ${client.briefing_field || '(no briefing set)'}
+
+Connectors currently configured for this client:
+${availableConnectors.map(c => `- ${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}${c.status !== 'active' ? ` — ${c.status}` : ''}`).join('\n') || '(none yet)'}
+
+${currentTemplate
+  ? `Current saved template:\n${JSON.stringify(currentTemplate, null, 2)}`
+  : 'No template saved yet — this conversation will produce the first one.'}`;
+
+  const messages = [
+    { role: 'user', content: userIntro },
+    ...history.map(m => ({ role: m.role, content: m.content })),
+  ];
+
+  const response = await getClient().messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    system,
+    tools,
+    messages,
+  });
+
+  // The frontend renders the assistant's text reply and, if propose_template
+  // was called, shows the proposed template as a live preview with a "lock"
+  // button. We don't auto-save — the AM has to click lock.
+  const textBlocks = response.content.filter(b => b.type === 'text');
+  const toolUses = response.content.filter(b => b.type === 'tool_use' && b.name === 'propose_template');
+  const reply = textBlocks.map(b => b.text).join('\n').trim();
+  const proposed = toolUses.length ? toolUses[toolUses.length - 1].input?.template : null;
+  return { reply, proposed };
+}
+
 function buildChatContext(chatHistory) {
   if (!chatHistory?.length) return '';
   const recent = chatHistory.slice(-20);
@@ -215,4 +323,6 @@ module.exports = {
   generateWeeklySummary,
   researchBriefing,
   suggestMonthlyFocus,
+  callClaude,
+  chatBuildReportTemplate,
 };
