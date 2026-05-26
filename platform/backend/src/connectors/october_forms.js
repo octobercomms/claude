@@ -5,53 +5,80 @@ const axios = require('axios');
 // instance (site_url) and one API key, then picks ONE form_id via
 // config.value (set via the standard /accounts → /config dance).
 //
-// API reference: {site_url}/wp-content/plugins/oc-forms/API.md
-// All endpoints are GET. Auth header: X-OCF-Api-Key.
+// API reference: {site_url}/wp-json/ocf/v1/api/ (also /oc-forms/API.md)
+// All endpoints are GET. Auth: X-OCF-Api-Key header OR ?api_key= query
+// string — some WP security plugins strip custom request headers, so we
+// always retry with the query-string variant on 401/403.
 
 const authType = 'apikey';
 
-function getHeaders(credentials) {
-  if (!credentials.api_key) throw new Error('api_key required');
-  if (!credentials.site_url) throw new Error('site_url required');
-  return { 'X-OCF-Api-Key': credentials.api_key.trim(), Accept: 'application/json' };
-}
+function trimKey(k) { return (k || '').trim(); }
 
 function apiBase(credentials) {
-  return credentials.site_url.replace(/\/$/, '') + '/wp-json/ocf/v1/api';
+  if (!credentials.site_url) throw new Error('site_url required');
+  return credentials.site_url.trim().replace(/\/$/, '') + '/wp-json/ocf/v1/api';
 }
 
-function wrapError(err, context) {
-  const status = err.response?.status;
-  const detail = err.response?.data?.message || err.response?.data?.error || err.message;
-  if (status === 401) return new Error(`October Forms API key invalid (401)${context ? ` — ${context}` : ''}`);
-  if (status === 403) return new Error(`October Forms API key missing or forbidden (403)${context ? ` — ${context}` : ''}`);
-  if (status === 404) return new Error(`October Forms resource not found (404)${context ? ` — ${context}` : ''}`);
-  const msg = typeof detail === 'string' ? detail : JSON.stringify(detail);
-  return new Error(`October Forms error (${status || 'network'})${context ? ` — ${context}` : ''}: ${msg}`);
+// Authoritative request helper. Tries the X-OCF-Api-Key header first and,
+// if it comes back 401/403, retries with ?api_key= in the query string.
+// Either method is documented as valid by the plugin.
+async function request(credentials, pathname, { params = {}, timeout = 20000 } = {}) {
+  const key = trimKey(credentials.api_key);
+  if (!key) throw new Error('api_key required');
+  const url = `${apiBase(credentials)}${pathname}`;
+  const baseConfig = {
+    timeout,
+    headers: {
+      Accept: 'application/json',
+      'User-Agent': 'OctoberMI/1.0 (+platform.octobercomms.com)',
+    },
+    validateStatus: () => true, // we inspect status ourselves
+  };
+
+  // 1. Header auth
+  let response = await axios.get(url, {
+    ...baseConfig,
+    headers: { ...baseConfig.headers, 'X-OCF-Api-Key': key },
+    params,
+  });
+
+  // 2. Query-string fallback on auth errors
+  if (response.status === 401 || response.status === 403) {
+    response = await axios.get(url, {
+      ...baseConfig,
+      params: { ...params, api_key: key },
+    });
+  }
+
+  if (response.status >= 200 && response.status < 300) return response.data;
+
+  const detail = response.data?.message || response.data?.error?.message || response.data?.error || response.statusText;
+  const msgDetail = typeof detail === 'string' ? detail : JSON.stringify(detail);
+  const err = new Error(`October Forms ${response.status} on ${pathname}: ${msgDetail}`);
+  err.status = response.status;
+  err.upstreamData = response.data;
+  throw err;
 }
 
 async function checkTokenValidity(credentials) {
-  const headers = getHeaders(credentials);
+  // /health is the documented sanity endpoint, but older plugin versions
+  // may not expose it — fall through to /forms if /health 404s. Any other
+  // failure is reported as-is.
   try {
-    await axios.get(`${apiBase(credentials)}/health`, { headers, timeout: 15000 });
+    await request(credentials, '/health', { timeout: 15000 });
     return true;
-  } catch (healthErr) {
-    // /health may not exist on older versions — fall through to /forms
-    try {
-      const { data } = await axios.get(`${apiBase(credentials)}/forms`, { headers, timeout: 15000 });
-      const forms = Array.isArray(data) ? data : (data?.forms || data?.data || []);
-      if (!Array.isArray(forms)) throw new Error('Unexpected response shape from October Forms /forms');
-      return true;
-    } catch (err) {
-      throw wrapError(err, 'check failed');
-    }
+  } catch (err) {
+    if (err.status !== 404) throw err;
+    const data = await request(credentials, '/forms', { timeout: 15000 });
+    const forms = Array.isArray(data) ? data : (data?.forms || data?.data || []);
+    if (!Array.isArray(forms)) throw new Error('Unexpected response shape from October Forms /forms');
+    return true;
   }
 }
 
 // Standard pattern — surfaces forms as "accounts" for the config picker.
 async function listAccounts(credentials) {
-  const headers = getHeaders(credentials);
-  const { data } = await axios.get(`${apiBase(credentials)}/forms`, { headers, timeout: 15000 });
+  const data = await request(credentials, '/forms', { timeout: 15000 });
   const forms = Array.isArray(data) ? data : (data?.forms || data?.data || []);
   return forms.map(f => ({
     value: String(f.id),
@@ -61,31 +88,18 @@ async function listAccounts(credentials) {
 }
 
 async function getStats(credentials, formId, from, to) {
-  const headers = getHeaders(credentials);
-  const { data } = await axios.get(`${apiBase(credentials)}/forms/${encodeURIComponent(formId)}/stats`, {
-    headers, params: { from, to }, timeout: 20000,
-  });
-  return data;
+  return request(credentials, `/forms/${encodeURIComponent(formId)}/stats`, { params: { from, to } });
 }
 
 async function getFunnel(credentials, formId, from, to) {
-  const headers = getHeaders(credentials);
-  const { data } = await axios.get(`${apiBase(credentials)}/forms/${encodeURIComponent(formId)}/funnel`, {
-    headers, params: { from, to }, timeout: 20000,
-  });
-  return data;
+  return request(credentials, `/forms/${encodeURIComponent(formId)}/funnel`, { params: { from, to } });
 }
 
 async function getTimeseries(credentials, formId, from, to) {
-  const headers = getHeaders(credentials);
-  const { data } = await axios.get(`${apiBase(credentials)}/forms/${encodeURIComponent(formId)}/timeseries`, {
-    headers, params: { from, to }, timeout: 20000,
-  });
-  return data;
+  return request(credentials, `/forms/${encodeURIComponent(formId)}/timeseries`, { params: { from, to } });
 }
 
 async function getSubmissions(credentials, formId, params = {}) {
-  const headers = getHeaders(credentials);
   const { from, to, status, limit, offset } = params;
   const query = {};
   if (from) query.from = from;
@@ -93,18 +107,11 @@ async function getSubmissions(credentials, formId, params = {}) {
   if (status) query.status = status;
   if (limit != null) query.limit = Math.min(Number(limit) || 50, 500);
   if (offset != null) query.offset = Number(offset) || 0;
-  const { data } = await axios.get(`${apiBase(credentials)}/forms/${encodeURIComponent(formId)}/submissions`, {
-    headers, params: query, timeout: 30000,
-  });
-  return data;
+  return request(credentials, `/forms/${encodeURIComponent(formId)}/submissions`, { params: query, timeout: 30000 });
 }
 
 async function getSubmission(credentials, submissionId) {
-  const headers = getHeaders(credentials);
-  const { data } = await axios.get(`${apiBase(credentials)}/submissions/${encodeURIComponent(submissionId)}`, {
-    headers, timeout: 20000,
-  });
-  return data;
+  return request(credentials, `/submissions/${encodeURIComponent(submissionId)}`);
 }
 
 // fetchData is called by the report data collector. Uses the configured
@@ -113,7 +120,6 @@ async function getSubmission(credentials, submissionId) {
 // payload than enumerating every submission.
 async function fetchData(credentials, params) {
   const { startDate, endDate, formId } = params;
-  const headers = getHeaders(credentials);
   const result = {
     period: { start: startDate, end: endDate },
     form_id: formId || null,
@@ -125,10 +131,8 @@ async function fetchData(credentials, params) {
   };
 
   if (!formId) {
-    // No form selected yet — list forms so the report at least surfaces
-    // a meaningful "no form configured" diagnostic instead of crashing.
     try {
-      const { data } = await axios.get(`${apiBase(credentials)}/forms`, { headers, timeout: 15000 });
+      const data = await request(credentials, '/forms');
       const forms = Array.isArray(data) ? data : (data?.forms || data?.data || []);
       result.forms_available = forms.map(f => ({ id: f.id, title: f.title }));
       result.fetch_errors.push('No form selected — pick a form in the connector config.');
@@ -138,8 +142,6 @@ async function fetchData(credentials, params) {
     return result;
   }
 
-  // Stats, funnel and timeseries can each fail independently — capture
-  // per-endpoint errors so a partial failure still surfaces what we have.
   try {
     result.stats = await getStats(credentials, formId, startDate, endDate);
     const s = result.stats || {};
