@@ -514,37 +514,59 @@ const MANUAL_PLACEHOLDER = {
   zoho_inventory: 'Organisation ID — find it in your Zoho Inventory URL',
 };
 
+// 2-letter country codes must match as standalone words — substring matching
+// produced false positives like "NO" inside "ANOTHER" → Norway flag.
+// Longer keywords (e.g. NORWAY, AUSTRALIA) keep substring matching since they
+// can't collide with other words.
+const COUNTRY_CODES = {
+  UK: '🇬🇧', GB: '🇬🇧', US: '🇺🇸', USA: '🇺🇸', EU: '🇪🇺',
+  AU: '🇦🇺', CA: '🇨🇦', DE: '🇩🇪', FR: '🇫🇷', IT: '🇮🇹',
+  ES: '🇪🇸', NL: '🇳🇱', SE: '🇸🇪', PL: '🇵🇱', BE: '🇧🇪',
+  IE: '🇮🇪', JP: '🇯🇵', MX: '🇲🇽', BR: '🇧🇷', IN: '🇮🇳',
+  SG: '🇸🇬', AE: '🇦🇪', UAE: '🇦🇪', NZ: '🇳🇿', ZA: '🇿🇦',
+  NO: '🇳🇴', DK: '🇩🇰', FI: '🇫🇮', CH: '🇨🇭', AT: '🇦🇹', PT: '🇵🇹',
+};
+const COUNTRY_KEYWORDS = [
+  ['BRITAIN', '🇬🇧'],
+  ['UNITED STATES', '🇺🇸'],
+  ['EUROPE', '🇪🇺'],
+  ['AUSTRALIA', '🇦🇺'],
+  ['CANADA', '🇨🇦'],
+  ['GERMANY', '🇩🇪'], ['DEUTSCH', '🇩🇪'],
+  ['FRANCE', '🇫🇷'], ['FRENCH', '🇫🇷'],
+  ['ITALY', '🇮🇹'], ['ITALIAN', '🇮🇹'],
+  ['SPAIN', '🇪🇸'], ['SPANISH', '🇪🇸'],
+  ['NETHERLAND', '🇳🇱'], ['DUTCH', '🇳🇱'],
+  ['SWEDEN', '🇸🇪'], ['SWEDISH', '🇸🇪'],
+  ['POLAND', '🇵🇱'], ['POLISH', '🇵🇱'],
+  ['BELGIUM', '🇧🇪'], ['BELGIAN', '🇧🇪'],
+  ['IRELAND', '🇮🇪'], ['IRISH', '🇮🇪'],
+  ['JAPAN', '🇯🇵'], ['JAPANESE', '🇯🇵'],
+  ['MEXICO', '🇲🇽'], ['MEXICAN', '🇲🇽'],
+  ['BRAZIL', '🇧🇷'], ['BRAZILIAN', '🇧🇷'],
+  ['INDIA', '🇮🇳'], ['INDIAN', '🇮🇳'],
+  ['SINGAPORE', '🇸🇬'],
+  ['EMIRATES', '🇦🇪'],
+  ['NEW ZEALAND', '🇳🇿'],
+  ['SOUTH AFRICA', '🇿🇦'],
+  ['NORWAY', '🇳🇴'], ['NORWEGIAN', '🇳🇴'],
+  ['DENMARK', '🇩🇰'], ['DANISH', '🇩🇰'],
+  ['FINLAND', '🇫🇮'], ['FINNISH', '🇫🇮'],
+  ['SWITZERLAND', '🇨🇭'], ['SWISS', '🇨🇭'],
+  ['AUSTRIA', '🇦🇹'], ['AUSTRIAN', '🇦🇹'],
+  ['PORTUGAL', '🇵🇹'], ['PORTUGUESE', '🇵🇹'],
+];
+
 function getCountryFlag(label) {
   if (!label) return '';
   const u = label.toUpperCase();
-  if (u.includes('UK') || u.includes('GB') || u.includes('BRITAIN')) return '🇬🇧';
-  if (u.includes(' US') || u.includes('USA') || u.includes('UNITED STATES') || u.startsWith('US')) return '🇺🇸';
-  if (u.includes('EU') || u.includes('EUROPE')) return '🇪🇺';
-  if (u.includes('AU') || u.includes('AUSTRALIA')) return '🇦🇺';
-  if (u.includes('CA') || u.includes('CANADA')) return '🇨🇦';
-  if (u.includes('DE') || u.includes('GERMANY') || u.includes('DEUTSCH')) return '🇩🇪';
-  if (u.includes('FR') || u.includes('FRANCE') || u.includes('FRENCH')) return '🇫🇷';
-  if (u.includes('IT') || u.includes('ITALY') || u.includes('ITALIAN')) return '🇮🇹';
-  if (u.includes('ES') || u.includes('SPAIN') || u.includes('SPANISH')) return '🇪🇸';
-  if (u.includes('NL') || u.includes('NETHERLANDS') || u.includes('DUTCH')) return '🇳🇱';
-  if (u.includes('SE') || u.includes('SWEDEN') || u.includes('SWEDISH')) return '🇸🇪';
-  if (u.includes('PL') || u.includes('POLAND') || u.includes('POLISH')) return '🇵🇱';
-  if (u.includes('BE') || u.includes('BELGIUM') || u.includes('BELGIAN')) return '🇧🇪';
-  if (u.includes('IE') || u.includes('IRELAND') || u.includes('IRISH')) return '🇮🇪';
-  if (u.includes('JP') || u.includes('JAPAN') || u.includes('JAPANESE')) return '🇯🇵';
-  if (u.includes('MX') || u.includes('MEXICO') || u.includes('MEXICAN')) return '🇲🇽';
-  if (u.includes('BR') || u.includes('BRAZIL') || u.includes('BRAZILIAN')) return '🇧🇷';
-  if (u.includes('IN') || u.includes('INDIA') || u.includes('INDIAN')) return '🇮🇳';
-  if (u.includes('SG') || u.includes('SINGAPORE')) return '🇸🇬';
-  if (u.includes('AE') || u.includes('UAE') || u.includes('EMIRATES')) return '🇦🇪';
-  if (u.includes('NZ') || u.includes('NEW ZEALAND')) return '🇳🇿';
-  if (u.includes('ZA') || u.includes('SOUTH AFRICA')) return '🇿🇦';
-  if (u.includes('NO') || u.includes('NORWAY') || u.includes('NORWEGIAN')) return '🇳🇴';
-  if (u.includes('DK') || u.includes('DENMARK') || u.includes('DANISH')) return '🇩🇰';
-  if (u.includes('FI') || u.includes('FINLAND') || u.includes('FINNISH')) return '🇫🇮';
-  if (u.includes('CH') || u.includes('SWITZERLAND') || u.includes('SWISS')) return '🇨🇭';
-  if (u.includes('AT') || u.includes('AUSTRIA') || u.includes('AUSTRIAN')) return '🇦🇹';
-  if (u.includes('PT') || u.includes('PORTUGAL') || u.includes('PORTUGUESE')) return '🇵🇹';
+  const tokens = u.split(/[^A-Z]+/).filter(Boolean);
+  for (const t of tokens) {
+    if (COUNTRY_CODES[t]) return COUNTRY_CODES[t];
+  }
+  for (const [keyword, flag] of COUNTRY_KEYWORDS) {
+    if (u.includes(keyword)) return flag;
+  }
   return '';
 }
 
