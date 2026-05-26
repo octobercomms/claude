@@ -82,12 +82,24 @@ router.get('/system-status', async (_req, res) => {
 // ── Contacts ───────────────────────────────────────────────────────────────
 
 router.get('/contacts', async (req, res) => {
-  const { client_id } = req.query;
+  const { client_id, contact_type, location, search, exclude_campaign } = req.query;
   if (!client_id) return res.status(400).json({ error: 'client_id required' });
   try {
+    const where = ['client_id = $1'];
+    const params = [client_id];
+    if (contact_type) { params.push(contact_type); where.push(`contact_type = $${params.length}`); }
+    if (location) { params.push(`%${location.toLowerCase()}%`); where.push(`LOWER(COALESCE(location, '')) LIKE $${params.length}`); }
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      where.push(`(LOWER(COALESCE(name, '')) LIKE $${params.length} OR LOWER(COALESCE(email, '')) LIKE $${params.length} OR LOWER(COALESCE(company, '')) LIKE $${params.length})`);
+    }
+    if (exclude_campaign) {
+      params.push(exclude_campaign);
+      where.push(`id NOT IN (SELECT contact_id FROM outreach_campaign_contacts WHERE campaign_id = $${params.length})`);
+    }
     const { rows } = await pool.query(
-      'SELECT * FROM outreach_contacts WHERE client_id = $1 ORDER BY created_at DESC',
-      [client_id]
+      `SELECT * FROM outreach_contacts WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT 500`,
+      params
     );
     res.json(rows);
   } catch (err) {
@@ -327,6 +339,146 @@ router.post('/find/icypeas', async (req, res) => {
     res.json(result);
   } catch (err) {
     res.status(502).json({ error: err.message });
+  }
+});
+
+// ── Wizard: audience refinement, batched contact search, link contacts ─────
+
+// Step 2 — Claude refines the audience into a description, target domains
+// and job titles. Result is cached on the campaign so later steps can use it.
+router.post('/campaigns/:id/refine-audience', async (req, res) => {
+  try {
+    const { rows: camps } = await pool.query('SELECT * FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    const campaign = camps[0];
+
+    const audienceDescription = req.body.audience_description ?? campaign.audience_description ?? '';
+    const extraInstructions = req.body.extra_instructions || '';
+    const excludeSearched = req.body.exclude_searched !== false;
+    const excludedDomains = excludeSearched ? (campaign.searched_domains || []) : [];
+
+    const refined = await outreachAi.refineAudience({
+      campaign, audienceDescription, extraInstructions, excludedDomains,
+    });
+
+    await pool.query(
+      `UPDATE outreach_campaigns
+       SET refined_audience = $1::jsonb, audience_description = $2, updated_at = NOW()
+       WHERE id = $3`,
+      [JSON.stringify(refined), audienceDescription, req.params.id]
+    );
+    res.json(refined);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Step 3 — Search a batch of up to 8 domains via Hunter + Icypeas in parallel,
+// dedupe by email, fall back to Icypeas role-based scan when both return nothing.
+// The searched domain list is appended to the campaign so subsequent batches and
+// Claude refinements can skip them.
+router.post('/campaigns/:id/search-batch', async (req, res) => {
+  const { domains = [], job_titles = [], contacts_per_domain = 25 } = req.body;
+  if (!Array.isArray(domains) || domains.length === 0) {
+    return res.status(400).json({ error: 'domains array required' });
+  }
+  const batch = domains.slice(0, 8).map(d => String(d).trim().toLowerCase()).filter(Boolean);
+  const perDomain = Math.min(Math.max(parseInt(contacts_per_domain, 10) || 25, 1), 100);
+  try {
+    const results = await Promise.all(batch.map(async (domain) => {
+      const [hunterRes, icypeasRes] = await Promise.allSettled([
+        hunter.domainSearch(domain, Math.min(perDomain, 25)),
+        icypeas.findPeople(domain, job_titles, perDomain),
+      ]);
+      const merged = [];
+      if (hunterRes.status === 'fulfilled') merged.push(...(hunterRes.value.contacts || []));
+      if (icypeasRes.status === 'fulfilled') merged.push(...(icypeasRes.value.contacts || []));
+      if (merged.length === 0) {
+        try {
+          const fallback = await icypeas.domainSearch(domain);
+          merged.push(...(fallback.contacts || []));
+        } catch { /* role-based fallback unavailable */ }
+      }
+      return { domain, contacts: merged };
+    }));
+
+    const seen = new Set();
+    const allContacts = [];
+    for (const r of results) {
+      for (const c of r.contacts) {
+        const key = (c.email || '').toLowerCase();
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        allContacts.push(c);
+      }
+    }
+
+    const { rows: cur } = await pool.query(
+      'SELECT searched_domains FROM outreach_campaigns WHERE id = $1', [req.params.id]
+    );
+    const existing = Array.isArray(cur[0]?.searched_domains) ? cur[0].searched_domains : [];
+    const mergedDomains = [...new Set([...existing, ...batch])];
+    await pool.query(
+      'UPDATE outreach_campaigns SET searched_domains = $1::jsonb, updated_at = NOW() WHERE id = $2',
+      [JSON.stringify(mergedDomains), req.params.id]
+    );
+
+    res.json({ searched: batch, contacts: allContacts, total_found: allContacts.length });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Step 3 save — link selected contacts to the campaign. Accepts existing
+// contact IDs and/or freshly-found contact objects to create+link.
+router.post('/campaigns/:id/contacts/add', async (req, res) => {
+  const { contact_ids = [], new_contacts = [] } = req.body;
+  try {
+    const { rows: camp } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!camp.length) return res.status(404).json({ error: 'Campaign not found' });
+    const clientId = camp[0].client_id;
+
+    const ids = [...contact_ids];
+
+    for (const nc of new_contacts) {
+      if (!nc.email) continue;
+      const lower = String(nc.email).toLowerCase();
+      const { rows: existing } = await pool.query(
+        'SELECT id FROM outreach_contacts WHERE client_id = $1 AND LOWER(email) = $2',
+        [clientId, lower]
+      );
+      if (existing.length) { ids.push(existing[0].id); continue; }
+      const combinedName = nc.name || [nc.first_name, nc.last_name].filter(Boolean).join(' ') || null;
+      const { rows } = await pool.query(
+        `INSERT INTO outreach_contacts
+           (client_id, name, first_name, last_name, email, company, role, title,
+            contact_type, location, linkedin_url, source, website)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         RETURNING id`,
+        [
+          clientId, combinedName,
+          nc.first_name || null, nc.last_name || null,
+          lower, nc.company || null,
+          nc.role || nc.title || null, nc.title || null,
+          nc.contact_type || null, nc.location || null,
+          nc.linkedin_url || null, nc.source || 'finder',
+          nc.website || null,
+        ]
+      );
+      ids.push(rows[0].id);
+    }
+
+    let linked = 0;
+    for (const cid of ids) {
+      const r = await pool.query(
+        'INSERT INTO outreach_campaign_contacts (campaign_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, cid]
+      );
+      if (r.rowCount) linked++;
+    }
+    res.json({ added: linked, total: ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 

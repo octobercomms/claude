@@ -46,4 +46,64 @@ async function domainSearch(domain) {
   return { domain, company: domain, contacts, total_found: contacts.length };
 }
 
-module.exports = { domainSearch };
+// Primary find — people at a domain optionally filtered by job titles.
+// Falls back to per-person email-discovery for any lead returned without
+// an email address.
+async function findPeople(domain, jobTitles = [], size = 25) {
+  const apiKey = await getSetting('ICYPEAS_API_KEY');
+  if (!apiKey) throw new Error('Icypeas API key not configured — add it in Settings → October Outreach.');
+  const trimmed = apiKey.trim();
+
+  const query = { currentCompanyWebsite: { include: [domain] } };
+  if (jobTitles.length) query.currentJobTitle = { include: jobTitles };
+
+  let data;
+  try {
+    data = await request(trimmed, '/find-people', { query, pagination: { size } });
+  } catch (err) {
+    // Endpoint may be unavailable for some accounts — fall through with no results.
+    return { domain, contacts: [], total_found: 0, error: err.message };
+  }
+
+  const leads = data.leads || data.results || data.data || [];
+  const contacts = [];
+  for (const lead of leads) {
+    if (typeof lead !== 'object' || !lead) continue;
+    const firstName = lead.firstname || lead.firstName || '';
+    const lastName = lead.lastname || lead.lastName || '';
+    let email = lead.email || lead.workEmail || lead.work_email || '';
+    if (!email && firstName && lastName) {
+      email = await emailDiscovery(trimmed, firstName, lastName, domain);
+    }
+    if (!email) continue;
+    contacts.push({
+      email: email.toLowerCase(),
+      first_name: firstName,
+      last_name: lastName,
+      name: [firstName, lastName].filter(Boolean).join(' ').trim(),
+      company: lead.currentCompany || lead.companyName || domain,
+      role: lead.currentJobTitle || lead.title || '',
+      title: lead.currentJobTitle || lead.title || '',
+      linkedin_url: lead.linkedinUrl || lead.linkedin || '',
+      website: domain,
+      confidence: lead.confidence ?? 70,
+      source: 'icypeas',
+    });
+  }
+  return { domain, contacts, total_found: contacts.length };
+}
+
+// Resolve an email for a known first/last + domain when find-people returns
+// a lead without an address. Returns the email string or '' on failure.
+async function emailDiscovery(apiKey, firstName, lastName, domain) {
+  try {
+    const data = await request(apiKey, '/email-discovery', {
+      firstname: firstName, lastname: lastName, domainOrCompany: domain,
+    });
+    return data?.email || data?.result?.email || data?.data?.email || '';
+  } catch {
+    return '';
+  }
+}
+
+module.exports = { domainSearch, findPeople, emailDiscovery };
