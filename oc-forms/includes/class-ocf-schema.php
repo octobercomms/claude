@@ -92,6 +92,9 @@ class OCF_Schema {
 					'redirect_url' => '',
 				),
 			),
+			'notifications' => array(
+				'cc' => array(),
+			),
 			'steps'    => array(),
 		);
 	}
@@ -218,6 +221,21 @@ class OCF_Schema {
 			'cta_url'      => esc_url_raw( $end['cta_url']              ?? '' ),
 			'redirect_url' => esc_url_raw( $end['redirect_url']         ?? '' ),
 		);
+
+		// Notifications.
+		if ( ! isset( $schema['notifications'] ) || ! is_array( $schema['notifications'] ) ) {
+			$schema['notifications'] = array();
+		}
+		$cc_raw = $schema['notifications']['cc'] ?? array();
+		if ( is_string( $cc_raw ) ) {
+			$cc_raw = preg_split( '/[\s,;]+/', $cc_raw );
+		}
+		$cc_clean = array();
+		foreach ( (array) $cc_raw as $addr ) {
+			$addr = sanitize_email( trim( (string) $addr ) );
+			if ( $addr && is_email( $addr ) ) { $cc_clean[] = $addr; }
+		}
+		$schema['notifications']['cc'] = array_values( array_unique( $cc_clean ) );
 
 		return $schema;
 	}

@@ -45,8 +45,8 @@ class OCF_Admin {
 
 	public static function menu() {
 		add_menu_page(
-			'nvelope Forms',
-			'nvelope Forms',
+			'October Forms',
+			'October Forms',
 			'manage_options',
 			'oc-forms',
 			array( __CLASS__, 'render_forms_list' ),
@@ -86,7 +86,7 @@ class OCF_Admin {
 		) );
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline">nvelope Forms</h1>
+			<h1 class="wp-heading-inline">October Forms</h1>
 			<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=' . OCF_CPT ) ); ?>" class="page-title-action">Add New</a>
 			<hr class="wp-header-end">
 			<table class="wp-list-table widefat fixed striped">

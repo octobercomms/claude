@@ -1,10 +1,10 @@
-# nvelope Forms — External API
+# October Forms — External API
 
 Read-only JSON API for pulling form, submission, and analytics data into the Platform reporting app (or anything else).
 
 ## Auth
 
-Generate an API key in **WP Admin → nvelope Forms → Settings → External API**.
+Generate an API key in **WP Admin → October Forms → Settings → External API**.
 
 Send the key in **either** of:
 - `X-OCF-Api-Key: <key>` request header (preferred)

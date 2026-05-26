@@ -17,6 +17,10 @@
 	schema.spam    = schema.spam    || { turnstile: true, honeypot: true, rate_limit: 5 };
 	schema.endings = schema.endings || { default: {} };
 	schema.settings = schema.settings || {};
+	schema.notifications = schema.notifications || { cc: [] };
+	if (!Array.isArray(schema.notifications.cc)) {
+		schema.notifications.cc = [];
+	}
 
 	var state = {
 		view: 'steps',                // 'steps' | 'theme' | 'brevo' | 'spam' | 'endings'
@@ -73,12 +77,13 @@
 			}, [label]);
 		}
 		return el('div', { class: 'ocf-b-toolbar' }, [
-			tab('steps',   'Steps'),
-			tab('theme',   'Theme'),
-			tab('brevo',   'Brevo'),
-			tab('spam',    'Spam'),
-			tab('endings', 'Ending'),
-			tab('json',    'JSON'),
+			tab('steps',         'Steps'),
+			tab('theme',         'Theme'),
+			tab('brevo',         'Brevo'),
+			tab('notifications', 'Notifications'),
+			tab('spam',          'Spam'),
+			tab('endings',       'Ending'),
+			tab('json',          'JSON'),
 			el('div', { class: 'ocf-b-spacer' }),
 			el('span', { class: 'ocf-b-hint' }, ['Save the post to persist changes.'])
 		]);
@@ -128,12 +133,13 @@
 	function mainArea() {
 		var host = el('div', { class: 'ocf-b-main' });
 		switch (state.view) {
-			case 'steps':   renderStepEditor(host); break;
-			case 'theme':   renderTheme(host); break;
-			case 'brevo':   renderBrevo(host); break;
-			case 'spam':    renderSpam(host); break;
-			case 'endings': renderEndings(host); break;
-			case 'json':    renderJson(host); break;
+			case 'steps':         renderStepEditor(host); break;
+			case 'theme':         renderTheme(host); break;
+			case 'brevo':         renderBrevo(host); break;
+			case 'notifications': renderNotifications(host); break;
+			case 'spam':          renderSpam(host); break;
+			case 'endings':       renderEndings(host); break;
+			case 'json':          renderJson(host); break;
 		}
 		return host;
 	}
@@ -528,7 +534,25 @@
 			el('span', null, ['Submissions per IP per 10 min']),
 			el('input', { type: 'number', min: 1, max: 100, value: s.rate_limit || 5, onInput: function (e) { s.rate_limit = parseInt(e.target.value, 10) || 5; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → nvelope Forms.']));
+		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → October Forms.']));
+	}
+
+	function renderNotifications(host) {
+		var n = schema.notifications;
+		host.appendChild(el('h3', null, ['Notifications']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Each completed submission emails a notification to the address set in Settings → October Forms. Use the field below to CC additional people on the email for this form only.']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['CC recipients (comma-separated email addresses)']),
+			el('input', { type: 'text', class: 'widefat',
+				placeholder: 'partner@example.com, accounts@example.com',
+				value: (n.cc || []).join(', '),
+				onInput: function (e) {
+					n.cc = e.target.value.split(/[\s,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+					syncHiddenInput();
+				}
+			})
+		]));
 	}
 
 	function renderEndings(host) {

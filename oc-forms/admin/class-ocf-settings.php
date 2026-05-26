@@ -15,6 +15,8 @@ class OCF_Settings {
 		register_setting( 'ocf_settings', 'ocf_turnstile_site_key',   array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		register_setting( 'ocf_settings', 'ocf_turnstile_secret_key', array( 'sanitize_callback' => 'sanitize_text_field' ) );
 		register_setting( 'ocf_settings', 'ocf_notify_email',         array( 'sanitize_callback' => 'sanitize_email' ) );
+		register_setting( 'ocf_settings', 'ocf_from_name',            array( 'sanitize_callback' => 'sanitize_text_field' ) );
+		register_setting( 'ocf_settings', 'ocf_from_email',           array( 'sanitize_callback' => 'sanitize_email' ) );
 		register_setting( 'ocf_settings', 'ocf_api_key',              array( 'sanitize_callback' => 'sanitize_text_field' ) );
 
 		add_action( 'admin_post_ocf_regenerate_api_key', array( __CLASS__, 'regenerate_api_key' ) );
@@ -37,6 +39,8 @@ class OCF_Settings {
 		$ts_site     = get_option( 'ocf_turnstile_site_key', '' );
 		$ts_secret   = get_option( 'ocf_turnstile_secret_key', '' );
 		$notify      = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
+		$from_name   = get_option( 'ocf_from_name', get_bloginfo( 'name' ) );
+		$from_email  = get_option( 'ocf_from_email', get_option( 'admin_email' ) );
 		$api_key     = get_option( 'ocf_api_key', '' );
 		$api_base    = rest_url( OCF_Public_API::NAMESPACE_API . '/api/' );
 		?>
@@ -44,7 +48,7 @@ class OCF_Settings {
 			<div class="notice notice-success is-dismissible"><p>API key regenerated. Update your external apps with the new key.</p></div>
 		<?php endif; ?>
 		<div class="wrap">
-			<h1>nvelope Forms — Settings</h1>
+			<h1>October Forms — Settings</h1>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ocf_settings' ); ?>
 				<table class="form-table" role="presentation">
@@ -79,7 +83,20 @@ class OCF_Settings {
 						<th scope="row"><label for="ocf_notify_email">Notification email</label></th>
 						<td>
 							<input type="email" id="ocf_notify_email" name="ocf_notify_email" value="<?php echo esc_attr( $notify ); ?>" class="regular-text">
-							<p class="description">Where new submissions are emailed. Leave blank for the site admin email.</p>
+							<p class="description">Where new submissions are emailed. Leave blank for the site admin email. Per-form CC addresses can be added in each form's <em>Notifications</em> tab.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_from_name">Email from name</label></th>
+						<td>
+							<input type="text" id="ocf_from_name" name="ocf_from_name" value="<?php echo esc_attr( $from_name ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_bloginfo( 'name' ) ); ?>">
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="ocf_from_email">Email from address</label></th>
+						<td>
+							<input type="email" id="ocf_from_email" name="ocf_from_email" value="<?php echo esc_attr( $from_email ); ?>" class="regular-text" placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>">
+							<p class="description">Used as the <code>From:</code> header on lead notification emails. The domain must be verified in your SMTP provider (e.g. Amazon SES) — set up SES via an SMTP plugin such as WP Mail SMTP, then this <code>From</code> will route through it automatically.</p>
 						</td>
 					</tr>
 				</table>

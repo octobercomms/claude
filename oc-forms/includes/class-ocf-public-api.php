@@ -6,7 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Read-only JSON API for external apps (e.g. the Platform reporting app).
  *
- * Auth: a static API key issued in Settings → nvelope Forms, sent as either
+ * Auth: a static API key issued in Settings → October Forms, sent as either
  *   X-OCF-Api-Key: <key>     (header, preferred)
  *   ?api_key=<key>           (query string, easier for curl/testing)
  *
@@ -85,7 +85,7 @@ class OCF_Public_API {
 	public static function check_auth( WP_REST_Request $req ) {
 		$expected = trim( (string) get_option( 'ocf_api_key', '' ) );
 		if ( ! $expected ) {
-			return new WP_Error( 'ocf_no_api_key', 'External API is disabled. Set an API key in Settings → nvelope Forms.', array( 'status' => 403 ) );
+			return new WP_Error( 'ocf_no_api_key', 'External API is disabled. Set an API key in Settings → October Forms.', array( 'status' => 403 ) );
 		}
 		$provided = $req->get_header( 'X-OCF-Api-Key' );
 		if ( ! $provided ) {

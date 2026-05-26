@@ -376,9 +376,20 @@ class OCF_REST_API {
 	private static function notify_admin( $form_id, $row, $answers ) {
 		$to = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
 		if ( ! $to ) { return; }
-		$schema  = OCF_Schema::get( $form_id );
-		$title   = get_the_title( $form_id );
-		$lines   = array( 'New submission: ' . $title, '' );
+		$schema = OCF_Schema::get( $form_id );
+		$title  = get_the_title( $form_id );
+
+		// Lead email used for both the subject and the Reply-To header so a
+		// reply from the inbox goes straight to the lead.
+		$lead_email = '';
+		foreach ( $answers as $v ) {
+			if ( is_string( $v ) && is_email( $v ) ) { $lead_email = $v; break; }
+		}
+		if ( ! $lead_email && ! empty( $row['email'] ) ) {
+			$lead_email = $row['email'];
+		}
+
+		$lines = array( 'New submission: ' . $title, '' );
 		foreach ( $schema['steps'] as $step ) {
 			foreach ( $step['questions'] as $q ) {
 				if ( ! OCF_Schema::type_is_storable( $q['type'] ) ) { continue; }
@@ -389,9 +400,28 @@ class OCF_REST_API {
 				$lines[] = sprintf( '%s: %s', $label, $value );
 			}
 		}
-		$lines[] = '';
-		$lines[] = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id );
 
-		wp_mail( $to, '[' . get_bloginfo( 'name' ) . '] New lead — ' . $title, implode( "\n", $lines ) );
+		$subject = $lead_email
+			? sprintf( '[%s] New lead — %s — %s', get_bloginfo( 'name' ), $title, $lead_email )
+			: sprintf( '[%s] New lead — %s', get_bloginfo( 'name' ), $title );
+
+		$headers = array();
+
+		$from_name  = trim( (string) get_option( 'ocf_from_name', '' ) );
+		$from_email = trim( (string) get_option( 'ocf_from_email', '' ) );
+		if ( $from_email && is_email( $from_email ) ) {
+			$display = $from_name !== '' ? $from_name : get_bloginfo( 'name' );
+			$headers[] = sprintf( 'From: %s <%s>', $display, $from_email );
+		}
+		if ( $lead_email && is_email( $lead_email ) ) {
+			$headers[] = sprintf( 'Reply-To: %s', $lead_email );
+		}
+		foreach ( (array) ( $schema['notifications']['cc'] ?? array() ) as $cc_addr ) {
+			if ( is_email( $cc_addr ) ) {
+				$headers[] = 'Cc: ' . $cc_addr;
+			}
+		}
+
+		wp_mail( $to, $subject, implode( "\n", $lines ), $headers );
 	}
 }

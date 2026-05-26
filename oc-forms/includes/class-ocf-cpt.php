@@ -12,9 +12,9 @@ class OCF_CPT {
 	public static function register() {
 		register_post_type( OCF_CPT, array(
 			'labels'             => array(
-				'name'               => 'nvelope Forms',
+				'name'               => 'October Forms',
 				'singular_name'      => 'Form',
-				'menu_name'          => 'nvelope Forms',
+				'menu_name'          => 'October Forms',
 				'add_new_item'       => 'Add New Form',
 				'edit_item'          => 'Edit Form',
 				'new_item'           => 'New Form',
