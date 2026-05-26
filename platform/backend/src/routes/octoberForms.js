@@ -44,6 +44,18 @@ function handleProxyError(res, err, context) {
   });
 }
 
+// Returns decrypted credentials to the browser so FormsTab can call the OCF
+// API directly — avoids the server IP being blocked by the WordPress host.
+router.get('/connectors/:id/credentials', async (req, res) => {
+  try {
+    const { creds, error, status } = await loadConnector(req.params.id);
+    if (error) return res.status(status).json({ error });
+    res.json({ site_url: creds.site_url, api_key: creds.api_key });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // KPIs for the selected form over a date range
 router.get('/connectors/:id/stats', async (req, res) => {
   try {
