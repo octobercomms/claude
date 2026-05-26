@@ -9,7 +9,7 @@ const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
   'meta_ads','instagram_insights','shopify','woocommerce',
   'klaviyo','brevo','shopify_email','amazon_seller',
-  'zoho_inventory','cin7',
+  'zoho_inventory','cin7','october_forms',
 ];
 
 const CONNECTOR_LABELS = {
@@ -20,6 +20,7 @@ const CONNECTOR_LABELS = {
   brevo: 'Brevo', shopify_email: 'Shopify Email',
   amazon_seller: 'Amazon Seller',
   zoho_inventory: 'Zoho Inventory', cin7: 'Cin7',
+  october_forms: 'October Forms',
 };
 
 const CONNECTOR_GROUPS = [
@@ -28,6 +29,7 @@ const CONNECTOR_GROUPS = [
   { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
   { label: 'Email Marketing', types: ['shopify_email','klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
+  { label: 'Forms', types: ['october_forms'] },
 ];
 
 const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
@@ -1087,6 +1089,10 @@ function getCredentialFields(type) {
     cin7: [
       { key: 'account_id', label: 'Account ID', placeholder: 'Your Cin7 account ID' },
       { key: 'api_key', label: 'Application Key', secret: true, placeholder: 'Cin7 application key' },
+    ],
+    october_forms: [
+      { key: 'site_url', label: 'WordPress Site URL', placeholder: 'https://yoursite.com' },
+      { key: 'api_key', label: 'OCF API Key', secret: true, placeholder: 'October Forms API key' },
     ],
   };
   return fieldMap[type] || [{ key: 'api_key', label: 'API Key', secret: true }];

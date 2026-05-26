@@ -136,6 +136,7 @@ function buildReportSections(collectedData, connectorErrors) {
     amazon_seller: 'Amazon Seller',
     zoho_inventory: 'Zoho Inventory',
     cin7: 'Cin7',
+    october_forms: 'October Forms',
   };
 
   const sections = [];
@@ -306,6 +307,14 @@ function extractKeyMetrics(connectorType, data) {
         { label: 'Revenue', value: formatCurrency(revenue) },
         { label: 'SKUs Tracked', value: stock.length.toLocaleString() },
         { label: 'Out of Stock', value: lowStock.length.toLocaleString() },
+      ];
+    }
+    case 'october_forms': {
+      const s = data.summary || {};
+      return [
+        { label: 'Submissions', value: (s.total_submissions || 0).toLocaleString() },
+        { label: 'Active Forms', value: (s.active_forms || 0).toLocaleString() },
+        { label: 'Total Forms', value: (s.total_forms || 0).toLocaleString() },
       ];
     }
     default:
@@ -514,6 +523,16 @@ function extractTables(connectorType, data) {
           (s.available ?? 0).toLocaleString(),
           (s.onHand ?? 0).toLocaleString(),
         ]),
+      }];
+    }
+    case 'october_forms': {
+      const perForm = (data.summary?.per_form || []).slice(0, 30);
+      if (!perForm.length) return [];
+      return [{
+        heading: 'Submissions by Form',
+        headers: ['Form', 'Submissions'],
+        rows: perForm.map(f => [f.form_title || f.form_id || '—', f.count.toLocaleString()]),
+        highlightFirst: false,
       }];
     }
     default:

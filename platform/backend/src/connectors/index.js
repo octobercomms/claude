@@ -8,6 +8,7 @@ const amazonSeller = require('./amazon');
 const dataForSEO = require('./dataforseo');
 const zohoInventory = require('./zoho_inventory');
 const cin7 = require('./cin7');
+const octoberForms = require('./october_forms');
 
 const connectors = {
   ga4: google,
@@ -25,6 +26,7 @@ const connectors = {
   dataforseo: dataForSEO,
   zoho_inventory: zohoInventory,
   cin7: cin7,
+  october_forms: octoberForms,
 };
 
 module.exports = {

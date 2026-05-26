@@ -78,6 +78,11 @@ const METRIC_CATALOG = {
     revenue: { label: 'Revenue', format: 'currency', get: d => parseFloat(d.summary?.total_revenue || 0) },
     orders:  { label: 'Orders',  format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
   },
+  october_forms: {
+    total_submissions: { label: 'Submissions',   format: 'integer', get: d => parseInt(d.summary?.total_submissions || 0) },
+    active_forms:      { label: 'Active Forms',  format: 'integer', get: d => parseInt(d.summary?.active_forms || 0) },
+    total_forms:       { label: 'Total Forms',   format: 'integer', get: d => parseInt(d.summary?.total_forms || 0) },
+  },
 };
 
 function sumGoogleAds(data, field) {
@@ -324,6 +329,10 @@ function defaultTemplate(reportType, availableTypes = []) {
   if (has('google_search_console') && reportType === 'monthly') {
     sections.push({ id: 'gsc_metrics', title: 'Google Search Console', type: 'metrics_grid', sources: [{ type: 'google_search_console' }], aggregate: 'sum', metrics: ['clicks', 'impressions'] });
     sections.push({ id: 'gsc_table', title: 'Top Organic Queries & Pages', type: 'connector_table', sources: [{ type: 'google_search_console' }] });
+  }
+  if (has('october_forms')) {
+    sections.push({ id: 'forms_metrics', title: 'October Forms', type: 'metrics_grid', sources: [{ type: 'october_forms' }], aggregate: 'sum', metrics: ['total_submissions', 'active_forms'] });
+    sections.push({ id: 'forms_table', title: 'Form Submissions Breakdown', type: 'connector_table', sources: [{ type: 'october_forms' }] });
   }
   if (reportType === 'monthly') {
     sections.push({ id: 'seo_positions', title: 'Positions in Search Results', type: 'position_distribution' });
