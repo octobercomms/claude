@@ -1,6 +1,39 @@
 const Anthropic = require('@anthropic-ai/sdk');
+const axios = require('axios');
 
 const MODEL = 'claude-sonnet-4-6';
+
+// Fetch a domain's homepage, strip the HTML, return a chunk of plain text
+// suitable for stuffing into a prompt. Best-effort — failures return ''.
+async function fetchHomepageText(domain) {
+  if (!domain) return '';
+  const url = /^https?:\/\//i.test(domain) ? domain : `https://${domain.replace(/\/$/, '')}`;
+  try {
+    const { data } = await axios.get(url, {
+      timeout: 12000,
+      maxRedirects: 5,
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OctoberMI/1.0; +https://platform.octobercomms.com)' },
+      validateStatus: () => true,
+    });
+    if (typeof data !== 'string') return '';
+    return data
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+      .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+      .replace(/<!--[\s\S]*?-->/g, ' ')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/&nbsp;|&#160;/gi, ' ')
+      .replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<')
+      .replace(/&gt;/gi, '>')
+      .replace(/&[a-z]+;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .slice(0, 18000);
+  } catch {
+    return '';
+  }
+}
 
 function getClient() {
   return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
@@ -99,23 +132,34 @@ function buildSEOContext(seoData) {
 }
 
 // Research the client's domain and draft an "About this client" paragraph.
-// Uses Claude's server-side web_search tool so the result reflects the live
-// site, not just training data. The frontend opens the draft in a small
-// modal so the account manager can edit before saving.
+// Fetches the homepage server-side (web_search alone returned SERP snippets
+// rather than page content, which made the draft thin and absence-focused),
+// then asks Claude to combine that with its own brand knowledge and an
+// optional web_search to fill gaps. Output is a complete 80–150 word profile.
 async function researchBriefing({ clientName, domain, existingBriefing }) {
+  const homepage = await fetchHomepageText(domain);
+
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1500,
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 4 }],
-    system: 'You are a research analyst writing brief, specific company profiles for a B2B marketing-intelligence platform. Use web search to pull current information from the company\'s own website. No marketing fluff, no superlatives — keep it factual.',
+    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+    system: 'You are a research analyst writing specific, factual company profiles for a B2B marketing-intelligence platform. Profiles must always describe what the business does and who it serves — not just list which marketing channels they use, and not just enumerate what they lack. Avoid superlatives ("leading", "innovative", "premier"). British English.',
     messages: [{
       role: 'user',
-      content: `Research this company and write a one-paragraph briefing for use as ongoing context inside a marketing platform.
+      content: `Write a one-paragraph briefing about this company for use as ongoing context inside a marketing platform.
 
 Company: ${clientName}
 Domain: ${domain}
-${existingBriefing ? `Existing briefing (keep what's already accurate, improve the rest):\n${existingBriefing}\n\n` : ''}
-Cover, where you can find it: what they sell, who they sell to (consumer / trade / both), the countries or regions they operate in, sales channels (DTC, retail, marketplaces, Amazon), and any notable positioning. Keep it factual — if you can't confirm something from the site, leave it out rather than guess.
+${homepage ? `\nHomepage content (plain text extracted from the live site, may be truncated):\n"""\n${homepage}\n"""\n` : '\n(Could not fetch the homepage — work from the brand name, domain, and web_search.)\n'}
+${existingBriefing ? `\nExisting briefing — improve and complete it; keep what's still accurate:\n"""\n${existingBriefing}\n"""\n` : ''}
+Cover **all** of the following — infer from the homepage content and use web_search to fill any gaps:
+1. **What they sell** — specific product or service category (not just "products")
+2. **Who they sell to** — consumer / trade / both; named audience if clear
+3. **Where they operate** — countries or regions; whether they ship internationally
+4. **Sales channels** — DTC website, retail, wholesale, Amazon, marketplaces, distributors
+5. **Notable positioning** — premium / sustainable / award-winning / heritage / etc.
+
+Write a single paragraph of 80–150 words. Lead with what they sell and who they sell to — *not* with what they don't do. Be specific and factual. If a particular point is genuinely unclear from the available content, omit just that point — but you should always be able to say what they sell and where they operate from the homepage.
 
 Respond with just the briefing paragraph. No preamble, no list, no heading.`,
     }],
