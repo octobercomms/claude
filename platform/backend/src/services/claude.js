@@ -124,26 +124,33 @@ async function researchBriefing({ clientName, domain, existingBriefing }) {
     system: 'You are a research analyst writing specific, factual company profiles for a B2B marketing-intelligence platform. Profiles must always describe what the business does and who it serves — not just list which marketing channels they use, and not just enumerate what they lack. Avoid superlatives ("leading", "innovative", "premier"). British English.',
     messages: [{
       role: 'user',
-      content: `Write a one-paragraph briefing about this company for use as ongoing context inside a marketing platform.
+      content: `Write a one-paragraph briefing about this company. Start from scratch — produce a complete, self-contained paragraph that could stand alone with no other context. Never reply with a one-line addendum, a fragment, or a sentence that only adds something to the existing briefing.
 
 Company: ${clientName}
 Domain: ${domain}
 ${homepage ? `\nHomepage content (plain text extracted from the live site, may be truncated):\n"""\n${homepage}\n"""\n` : '\n(Could not fetch the homepage — work from the brand name, domain, and web_search.)\n'}
-${existingBriefing ? `\nExisting briefing — improve and complete it; keep what's still accurate:\n"""\n${existingBriefing}\n"""\n` : ''}
-Cover **all** of the following — infer from the homepage content and use web_search to fill any gaps:
+${existingBriefing ? `\nFor reference only — what the platform previously believed about this client. It may be incomplete or out of date. Do NOT just append to it; do NOT echo it back. Rewrite the whole paragraph from scratch using the homepage content above as your primary source:\n"""\n${existingBriefing}\n"""\n` : ''}
+The paragraph must cover **all** of the following — infer from the homepage content first, use web_search only if a specific point is genuinely missing:
 1. **What they sell** — specific product or service category (not just "products")
 2. **Who they sell to** — consumer / trade / both; named audience if clear
 3. **Where they operate** — countries or regions; whether they ship internationally
 4. **Sales channels** — DTC website, retail, wholesale, Amazon, marketplaces, distributors
 5. **Notable positioning** — premium / sustainable / award-winning / heritage / etc.
 
-Write a single paragraph of 80–150 words. Lead with what they sell and who they sell to — *not* with what they don't do. Be specific and factual. If a particular point is genuinely unclear from the available content, omit just that point — but you should always be able to say what they sell and where they operate from the homepage.
+Write a single paragraph of 80–150 words. Lead with what they sell and who they sell to — *not* with what they don't do. Be specific and factual. If a particular point is genuinely unclear, omit just that point — but always state what they sell and where they operate.
 
-Respond with just the briefing paragraph. No preamble, no list, no heading.`,
+Respond with just the briefing paragraph. No preamble, no list, no heading. Minimum 80 words — never a one-liner or addendum.`,
     }],
   });
-  const textBlocks = message.content.filter(b => b.type === 'text');
-  return textBlocks.length ? textBlocks[textBlocks.length - 1].text.trim() : '';
+  // Claude produces multiple text blocks when web_search runs (a short
+  // planning text before each search, then the final answer). Taking the
+  // LAST block returns whatever Claude wrote last — which can be a stray
+  // sentence if the model finished with an addendum. The substantive
+  // briefing is the longest block.
+  const textBlocks = message.content.filter(b => b.type === 'text' && b.text?.trim());
+  if (!textBlocks.length) return '';
+  const longest = textBlocks.reduce((a, b) => (b.text.length > a.text.length ? b : a));
+  return longest.text.trim();
 }
 
 // Draft a "this month's focus" suggestion from the data we already have:
