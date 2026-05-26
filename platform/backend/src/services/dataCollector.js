@@ -71,6 +71,7 @@ async function collectClientData(clientId, periodStart, periodEnd) {
         organizationId: config.value,   // Zoho Inventory
         brevoListId: config.list_id,        // Brevo — per-client list scope
         brevoAutomation: config.automation, // Brevo — automation label
+        formId: config.value,               // October Forms — selected form ID
       });
 
       results[key] = data;
@@ -136,6 +137,7 @@ function buildReportSections(collectedData, connectorErrors) {
     amazon_seller: 'Amazon Seller',
     zoho_inventory: 'Zoho Inventory',
     cin7: 'Cin7',
+    october_forms: 'October Forms',
   };
 
   const sections = [];
@@ -306,6 +308,16 @@ function extractKeyMetrics(connectorType, data) {
         { label: 'Revenue', value: formatCurrency(revenue) },
         { label: 'SKUs Tracked', value: stock.length.toLocaleString() },
         { label: 'Out of Stock', value: lowStock.length.toLocaleString() },
+      ];
+    }
+    case 'october_forms': {
+      const s = data.summary || {};
+      const pct = v => `${(parseFloat(v || 0) * 100).toFixed(1)}%`;
+      return [
+        { label: 'Views', value: (s.views || 0).toLocaleString() },
+        { label: 'Starts', value: (s.starts || 0).toLocaleString() },
+        { label: 'Completes', value: (s.completes || 0).toLocaleString() },
+        { label: 'Conversion', value: pct(s.overall_conversion) },
       ];
     }
     default:
@@ -514,6 +526,24 @@ function extractTables(connectorType, data) {
           (s.available ?? 0).toLocaleString(),
           (s.onHand ?? 0).toLocaleString(),
         ]),
+      }];
+    }
+    case 'october_forms': {
+      // Funnel steps make a more useful table than re-stating the headline
+      // metrics — they show where visitors drop out.
+      const steps = data.funnel?.steps || [];
+      if (!steps.length) return [];
+      const total = steps[0]?.reached || 1;
+      return [{
+        heading: 'Funnel — Step Drop-off',
+        headers: ['Step', 'Title', 'Reached', '% of start'],
+        rows: steps.map(s => [
+          s.step_index ?? '—',
+          s.title || s.step_id || '—',
+          (s.reached || 0).toLocaleString(),
+          `${((s.reached / total) * 100).toFixed(1)}%`,
+        ]),
+        highlightFirst: false,
       }];
     }
     default:
