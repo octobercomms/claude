@@ -54,6 +54,9 @@ class OO_Admin {
         if ( $screen && strpos( $screen->id, 'oo-campaigns' ) !== false && ( $_GET['action'] ?? '' ) === 'wizard' ) {
             wp_enqueue_script( 'oo-wizard', OO_PLUGIN_URL . 'admin/js/wizard.js', array( 'jquery' ), OO_VERSION, true );
         }
+        if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false && ( $_GET['action'] ?? '' ) === 'finder' ) {
+            wp_enqueue_script( 'oo-contact-finder', OO_PLUGIN_URL . 'admin/js/contact-finder.js', array( 'jquery' ), OO_VERSION, true );
+        }
 
         wp_localize_script( 'oo-app', 'ooData', array(
             'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
@@ -69,10 +72,19 @@ class OO_Admin {
     }
 
     public function page_dashboard() { $this->render( 'dashboard', 'dashboard' ); }
-    public function page_contacts()  { $this->render( 'contacts',  'contacts' ); }
-    public function page_press()     { $this->render( 'press',     'press' ); }
-    public function page_settings()  { $this->render( 'settings',  'settings' ); }
-    public function page_help()      { $this->render( 'help',      'help' ); }
+
+    public function page_contacts() {
+        $action = $_GET['action'] ?? 'list';
+        if ( $action === 'finder' ) {
+            $this->render( 'contact-finder', 'contacts' );
+        } else {
+            $this->render( 'contacts', 'contacts' );
+        }
+    }
+
+    public function page_press()    { $this->render( 'press',    'press' ); }
+    public function page_settings() { $this->render( 'settings', 'settings' ); }
+    public function page_help()     { $this->render( 'help',     'help' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';
@@ -92,6 +104,7 @@ class OO_Admin {
         $settings = get_option( 'oo_settings', array() );
         $fields = array(
             'license_key', 'claude_api_key', 'hunter_api_key', 'icypeas_api_key', 'icypeas_api_secret', 'icypeas_user_id',
+            'serper_api_key',
             'airtable_api_key', 'airtable_base_id',
             'email_provider', 'default_reply_to', 'sending_domain',
             'ses_key', 'ses_secret', 'ses_region',

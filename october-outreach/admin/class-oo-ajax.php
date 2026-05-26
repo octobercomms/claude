@@ -21,6 +21,11 @@ class OO_Ajax {
             'oo_airtable_pull',
             'oo_wizard_filter_contacts',
             'oo_wizard_link_contacts',
+            'oo_wizard_more_domains',
+            'oo_wizard_discover_domains',
+            'oo_verify_emails',
+            'oo_bulk_delete_dead',
+            'oo_enrich_locations',
         );
 
         foreach ( $actions as $action ) {
@@ -521,8 +526,9 @@ class OO_Ajax {
         $this->check_nonce();
         global $wpdb;
 
-        $type     = sanitize_text_field( $_POST['type'] ?? '' );
-        $location = sanitize_text_field( $_POST['location'] ?? '' );
+        $type        = sanitize_text_field( $_POST['type']     ?? '' );
+        $location    = sanitize_text_field( $_POST['location'] ?? '' );
+        $verified    = sanitize_text_field( $_POST['verified'] ?? '' );
         $campaign_id = intval( $_POST['campaign_id'] ?? 0 );
 
         $where = "WHERE status = 'active'";
@@ -536,6 +542,10 @@ class OO_Ajax {
             $where .= " AND location LIKE %s";
             $args[] = '%' . $wpdb->esc_like( $location ) . '%';
         }
+        if ( $verified ) {
+            $where .= " AND verified_status = %s";
+            $args[] = $verified;
+        }
 
         // Exclude contacts already linked to this campaign
         if ( $campaign_id ) {
@@ -543,13 +553,138 @@ class OO_Ajax {
             $args[] = $campaign_id;
         }
 
-        $sql = "SELECT id, first_name, last_name, email, company, type, location FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 300";
+        $sql = "SELECT id, first_name, last_name, email, company, type, location, verified_status FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 300";
 
         $contacts = $args
             ? $wpdb->get_results( $wpdb->prepare( $sql, $args ), ARRAY_A )
             : $wpdb->get_results( $sql, ARRAY_A );
 
         wp_send_json_success( array( 'contacts' => $contacts, 'total' => count( $contacts ) ) );
+    }
+
+    /**
+     * Ask Claude to generate a fresh batch of domains from a different angle.
+     */
+    public function wizard_more_domains() {
+        $this->check_nonce();
+
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) {
+            wp_send_json_error( 'Claude API key not configured.' );
+        }
+
+        $existing = array_map( 'sanitize_text_field', (array) ( $_POST['existing_domains'] ?? array() ) );
+        $structured = array(
+            'location'       => sanitize_text_field( $_POST['aud_location']       ?? '' ),
+            'industry_type'  => sanitize_text_field( $_POST['aud_industry_type']  ?? '' ),
+            'specialisation' => sanitize_text_field( $_POST['aud_specialisation'] ?? '' ),
+            'business_size'  => sanitize_text_field( $_POST['aud_business_size']  ?? '' ),
+        );
+
+        $result = $claude->more_domains(
+            sanitize_text_field( $_POST['campaign_name'] ?? '' ),
+            sanitize_text_field( $_POST['brand']         ?? '' ),
+            sanitize_textarea_field( $_POST['audience']  ?? '' ),
+            $structured,
+            $existing
+        );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+
+        $new_domains = array_values( array_diff(
+            array_filter( array_map( 'sanitize_text_field', $result['domains'] ?? array() ) ),
+            $existing
+        ) );
+
+        wp_send_json_success( array(
+            'domains' => $new_domains,
+            'count'   => count( $new_domains ),
+            'angle'   => sanitize_text_field( $result['angle'] ?? '' ),
+        ) );
+    }
+
+    /**
+     * Discover domains via Serper web search + Claude-suggested directories.
+     */
+    public function wizard_discover_domains() {
+        $this->check_nonce();
+
+        $serper  = new OO_Serper();
+        $claude  = new OO_Claude();
+        $scraper = new OO_Scraper();
+
+        $industry  = sanitize_text_field( $_POST['aud_industry_type']  ?? '' );
+        $location  = sanitize_text_field( $_POST['aud_location']       ?? '' );
+        $spec      = sanitize_text_field( $_POST['aud_specialisation'] ?? '' );
+        $existing  = array_map( 'sanitize_text_field', (array) ( $_POST['existing_domains'] ?? array() ) );
+
+        $all_domains = array();
+        $notes       = array();
+
+        // 1. Serper web search for real businesses
+        if ( $serper->is_configured() ) {
+            $web_domains = $serper->find_business_domains( $industry, $location, $spec, $existing );
+            if ( ! empty( $web_domains ) ) {
+                $all_domains = array_merge( $all_domains, $web_domains );
+                $notes[]     = count( $web_domains ) . ' domains from web search';
+            }
+        } else {
+            $notes[] = 'Serper not configured — add a Serper API key in Settings for web search';
+        }
+
+        // 2. Claude suggests directories for this industry
+        if ( $claude->is_configured() && ( $industry || $spec ) ) {
+            $dirs = $claude->suggest_directories( $industry, $location, $spec );
+            if ( ! is_wp_error( $dirs ) && is_array( $dirs ) ) {
+                $dir_count = 0;
+                foreach ( $dirs as $dir ) {
+                    $dir_domain = sanitize_text_field( $dir['domain'] ?? '' );
+                    $search_path = sanitize_text_field( $dir['search_path'] ?? '' );
+                    if ( ! $dir_domain ) continue;
+
+                    // If Serper available, search within the directory for listing pages
+                    if ( $serper->is_configured() ) {
+                        $pages = $serper->search_within_directory( $dir_domain, $location, $industry );
+                        foreach ( $pages as $page_url ) {
+                            $page_domains = $scraper->scrape_directory_page( $page_url, $dir_domain );
+                            $all_domains  = array_merge( $all_domains, $page_domains );
+                            $dir_count   += count( $page_domains );
+                        }
+                    } elseif ( $search_path ) {
+                        // Scrape the directory's search/listing page directly
+                        $dir_url      = 'https://' . $dir_domain . $search_path;
+                        $page_domains = $scraper->scrape_directory_page( $dir_url, $dir_domain );
+                        $all_domains  = array_merge( $all_domains, $page_domains );
+                        $dir_count   += count( $page_domains );
+                    }
+                }
+                if ( $dir_count > 0 ) {
+                    $notes[] = $dir_count . ' domains from ' . count( $dirs ) . ' industry directories';
+                } else {
+                    $names   = array();
+                    foreach ( $dirs as $d ) { if ( ! empty( $d['name'] ) ) $names[] = $d['name']; }
+                    $notes[] = 'Directories identified (' . implode( ', ', array_slice( $names, 0, 3 ) ) . ') — scraping found no external links (JavaScript-rendered sites)';
+                }
+            }
+        }
+
+        // Deduplicate and remove existing
+        $new_domains = array();
+        $seen        = array_flip( $existing );
+        foreach ( $all_domains as $d ) {
+            $d = strtolower( trim( $d ) );
+            if ( ! $d || isset( $seen[ $d ] ) ) continue;
+            $seen[ $d ]    = true;
+            $new_domains[] = $d;
+        }
+
+        wp_send_json_success( array(
+            'domains' => $new_domains,
+            'count'   => count( $new_domains ),
+            'notes'   => $notes,
+        ) );
     }
 
     public function wizard_link_contacts() {
@@ -577,5 +712,196 @@ class OO_Ajax {
         }
 
         wp_send_json_success( array( 'linked' => $linked ) );
+    }
+
+    /**
+     * Verify a list of email addresses.
+     * Uses MX record check (free) and Hunter.io verifier if configured.
+     */
+    public function verify_emails() {
+        $this->check_nonce();
+
+        $emails = array_map( 'sanitize_email', (array) ( $_POST['emails'] ?? array() ) );
+        $emails = array_filter( $emails );
+
+        if ( empty( $emails ) ) {
+            wp_send_json_error( 'No emails to verify.' );
+        }
+
+        $hunter  = new OO_Hunter();
+        $results = array();
+
+        foreach ( $emails as $email ) {
+            $domain = strtolower( substr( $email, strpos( $email, '@' ) + 1 ) );
+
+            // Free MX record check
+            $has_mx = checkdnsrr( $domain, 'MX' );
+
+            if ( ! $has_mx ) {
+                // No MX = dead domain, skip Hunter call
+                $results[] = array(
+                    'email'  => $email,
+                    'status' => 'dead',
+                    'mx'     => false,
+                    'source' => 'mx-check',
+                );
+                continue;
+            }
+
+            // Hunter verify if configured
+            if ( $hunter->is_configured() ) {
+                $v = $hunter->verify_email( $email );
+                if ( ! is_wp_error( $v ) ) {
+                    $results[] = array(
+                        'email'  => $email,
+                        'status' => $v['status'] ?? 'unknown',
+                        'mx'     => true,
+                        'source' => 'hunter',
+                    );
+                    continue;
+                }
+            }
+
+            // MX passed but no further verification
+            $results[] = array(
+                'email'  => $email,
+                'status' => 'risky',
+                'mx'     => true,
+                'source' => 'mx-check',
+            );
+        }
+
+        // Persist verified_status to existing contacts in the database
+        global $wpdb;
+        $now = current_time( 'mysql' );
+        foreach ( $results as $r ) {
+            $wpdb->update(
+                $wpdb->prefix . 'oo_contacts',
+                array( 'verified_status' => $r['status'], 'verified_at' => $now ),
+                array( 'email' => $r['email'] )
+            );
+        }
+
+        wp_send_json_success( array(
+            'results' => $results,
+            'total'   => count( $results ),
+        ) );
+    }
+
+    /**
+     * Delete all contacts whose verified_status is 'invalid' or 'dead'.
+     */
+    public function bulk_delete_dead() {
+        $this->check_nonce();
+
+        global $wpdb;
+        $deleted = $wpdb->query(
+            "DELETE FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')"
+        );
+
+        wp_send_json_success( array( 'deleted' => intval( $deleted ) ) );
+    }
+
+    /**
+     * Enrich location for contacts with empty location field.
+     * Resolves domain from email → IP → ipapi.co geolocation.
+     * Processes a batch of up to 30 contacts per call.
+     */
+    public function enrich_locations() {
+        $this->check_nonce();
+
+        global $wpdb;
+
+        // If specific IDs passed, use those (manual overwrite mode); otherwise pick empty-location batch
+        $ids = array_filter( array_map( 'intval', (array) ( $_POST['contact_ids'] ?? array() ) ) );
+
+        if ( $ids ) {
+            $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+            $contacts     = $wpdb->get_results(
+                $wpdb->prepare( "SELECT id, email, location FROM {$wpdb->prefix}oo_contacts WHERE id IN ($placeholders)", $ids ),
+                ARRAY_A
+            );
+        } else {
+            $contacts = $wpdb->get_results(
+                "SELECT id, email, location FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL) LIMIT 30",
+                ARRAY_A
+            );
+        }
+
+        if ( empty( $contacts ) ) {
+            wp_send_json_success( array( 'updated' => 0, 'remaining' => 0, 'message' => 'All contacts already have a location.' ) );
+        }
+
+        // Cache per-domain to avoid duplicate API calls in this batch
+        $domain_cache = array();
+        $updated      = 0;
+        $failed       = 0;
+
+        foreach ( $contacts as $contact ) {
+            $email  = $contact['email'];
+            $at_pos = strpos( $email, '@' );
+            if ( $at_pos === false ) { $failed++; continue; }
+
+            $domain = strtolower( substr( $email, $at_pos + 1 ) );
+
+            if ( isset( $domain_cache[ $domain ] ) ) {
+                $location = $domain_cache[ $domain ];
+            } else {
+                $ip = gethostbyname( $domain );
+                if ( $ip === $domain || filter_var( $ip, FILTER_VALIDATE_IP ) === false ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                // ipapi.co — free, no key required, 1000 requests/day
+                $response = wp_remote_get( 'https://ipapi.co/' . $ip . '/json/', array(
+                    'timeout' => 5,
+                    'headers' => array( 'User-Agent' => 'OctoberOutreach/3.2' ),
+                ) );
+
+                if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                $geo = json_decode( wp_remote_retrieve_body( $response ), true );
+
+                // Build "City, Country" — skip CDN/privacy IPs where city is absent
+                $city    = $geo['city']         ?? '';
+                $country = $geo['country_name'] ?? '';
+
+                if ( ! $city && ! $country ) {
+                    $domain_cache[ $domain ] = '';
+                    $failed++;
+                    continue;
+                }
+
+                $location = trim( implode( ', ', array_filter( array( $city, $country ) ) ) );
+                $domain_cache[ $domain ] = $location;
+            }
+
+            if ( $location ) {
+                $wpdb->update(
+                    $wpdb->prefix . 'oo_contacts',
+                    array( 'location' => $location ),
+                    array( 'id' => $contact['id'] )
+                );
+                $updated++;
+            } else {
+                $failed++;
+            }
+        }
+
+        $remaining = (int) $wpdb->get_var(
+            "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)"
+        );
+
+        wp_send_json_success( array(
+            'updated'   => $updated,
+            'failed'    => $failed,
+            'remaining' => $remaining,
+        ) );
     }
 }

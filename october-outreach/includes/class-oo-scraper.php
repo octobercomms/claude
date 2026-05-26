@@ -134,6 +134,62 @@ class OO_Scraper {
     }
 
     /**
+     * Scrape a directory listing page for external firm website links.
+     * Filters out the directory's own domain and known aggregators.
+     * Returns array of domain strings.
+     */
+    public function scrape_directory_page( $url, $directory_domain = '' ) {
+        $response = wp_remote_get( $url, array(
+            'timeout'     => $this->timeout,
+            'redirection' => 5,
+            'user-agent'  => 'Mozilla/5.0 (compatible; OctoberOutreach/1.0)',
+            'sslverify'   => false,
+        ) );
+
+        if ( is_wp_error( $response ) ) return array();
+        $code = wp_remote_retrieve_response_code( $response );
+        if ( $code < 200 || $code >= 400 ) return array();
+
+        $body = wp_remote_retrieve_body( $response );
+
+        // Extract all hrefs
+        preg_match_all( '/href=["\']([^"\']+)["\']/', $body, $matches );
+        $links = $matches[1] ?? array();
+
+        $skip = array(
+            'google.', 'facebook.', 'linkedin.', 'twitter.', 'instagram.',
+            'youtube.', 'pinterest.', 'houzz.', 'yelp.', 'amazon.',
+            'archdaily.', 'dezeen.', 'wikipedia.',
+        );
+
+        $found = array();
+        foreach ( $links as $link ) {
+            // Must be absolute with http
+            if ( strpos( $link, 'http' ) !== 0 ) continue;
+
+            $parsed = wp_parse_url( $link );
+            $host   = strtolower( $parsed['host'] ?? '' );
+            $domain = preg_replace( '/^www\./', '', $host );
+
+            if ( ! $domain ) continue;
+            if ( $directory_domain && strpos( $domain, $directory_domain ) !== false ) continue;
+
+            $bad = false;
+            foreach ( $skip as $s ) {
+                if ( strpos( $domain, $s ) !== false ) { $bad = true; break; }
+            }
+            if ( $bad ) continue;
+
+            // Must look like a real domain (TLD present)
+            if ( ! preg_match( '/\.[a-z]{2,}$/', $domain ) ) continue;
+
+            $found[ $domain ] = true;
+        }
+
+        return array_keys( $found );
+    }
+
+    /**
      * Generate a set of generic pattern-based email guesses for a domain.
      * These are unverified — flagged with confidence 30 and source 'pattern'.
      */

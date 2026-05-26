@@ -34,13 +34,16 @@ class OO_Database {
             status varchar(50) NOT NULL DEFAULT 'active',
             notes text NOT NULL DEFAULT '',
             airtable_id varchar(100) NOT NULL DEFAULT '',
+            verified_status varchar(50) NOT NULL DEFAULT 'unverified',
+            verified_at datetime DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY (id),
             UNIQUE KEY email (email),
             KEY type (type),
             KEY status (status),
-            KEY location (location)
+            KEY location (location),
+            KEY verified_status (verified_status)
         ) $charset;";
 
         $campaigns = "CREATE TABLE {$wpdb->prefix}oo_campaigns (
@@ -143,6 +146,16 @@ class OO_Database {
         dbDelta( $campaign_contacts );
 
         update_option( 'oo_db_version', OO_VERSION );
+    }
+
+    /**
+     * Run on plugins_loaded to add new columns to existing installs.
+     */
+    public static function maybe_update() {
+        if ( get_option( 'oo_db_version' ) === OO_VERSION ) {
+            return;
+        }
+        self::create_tables(); // dbDelta is safe to re-run — adds missing columns
     }
 
     private static function set_defaults() {
