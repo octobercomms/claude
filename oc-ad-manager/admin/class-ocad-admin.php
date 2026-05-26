@@ -20,7 +20,7 @@ class OCAD_Admin {
 	public function register_menus() {
 		add_menu_page(
 			__( 'Ad Manager by October Communications', 'oc-ad-manager' ),
-			__( 'OC Ad Manager', 'oc-ad-manager' ),
+			__( 'Ad Manager', 'oc-ad-manager' ),
 			'manage_options',
 			'oc-ad-manager',
 			array( $this, 'page_dashboard' ),
@@ -45,6 +45,24 @@ class OCAD_Admin {
 			'ocad-add-campaign',
 			array( $this, 'page_campaign_form' )
 		);
+
+		add_submenu_page(
+			'oc-ad-manager',
+			__( 'Campaign Report', 'oc-ad-manager' ),
+			__( 'Campaign Report', 'oc-ad-manager' ),
+			'manage_options',
+			'ocad-report',
+			array( 'OCAD_Report', 'page_report' )
+		);
+
+		add_submenu_page(
+			'oc-ad-manager',
+			__( 'Bookings', 'oc-ad-manager' ),
+			__( 'Bookings', 'oc-ad-manager' ),
+			'manage_options',
+			'ocad-bookings',
+			array( 'OCAD_Bookings', 'page_bookings' )
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -52,13 +70,10 @@ class OCAD_Admin {
 	// -------------------------------------------------------------------------
 
 	public function enqueue_assets( $hook ) {
-		$ocad_hooks = array(
-			'toplevel_page_oc-ad-manager',
-			'ocad-ads_page_ocad-add-campaign',
-			'ocad-ads_page_ocad-settings',
-		);
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : '';
+		$ocad_pages = array( 'oc-ad-manager', 'ocad-add-campaign', 'ocad-settings', 'ocad-report', 'ocad-bookings' );
 
-		if ( ! in_array( $hook, $ocad_hooks, true ) ) {
+		if ( ! in_array( $page, $ocad_pages, true ) ) {
 			return;
 		}
 
@@ -224,6 +239,11 @@ class OCAD_Admin {
 									<?php esc_html_e( 'Edit', 'oc-ad-manager' ); ?>
 								</a>
 
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=ocad-report&campaign_id=' . $campaign->id ) ); ?>"
+								   class="button button-small">
+									<?php esc_html_e( 'Report', 'oc-ad-manager' ); ?>
+								</a>
+
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 									<input type="hidden" name="action" value="ocad_toggle_campaign">
 									<input type="hidden" name="campaign_id" value="<?php echo esc_attr( $campaign->id ); ?>">
@@ -251,11 +271,24 @@ class OCAD_Admin {
 
 			<div class="ocad-shortcode-ref">
 				<h3><?php esc_html_e( 'Shortcode Reference', 'oc-ad-manager' ); ?></h3>
-				<p><?php esc_html_e( 'Use these shortcodes anywhere on your site:', 'oc-ad-manager' ); ?></p>
+				<p><?php esc_html_e( 'Click a shortcode to copy it, then paste directly into Elementor or any text editor:', 'oc-ad-manager' ); ?></p>
 				<ul>
-					<li><code>[oc_ad format="mpu"]</code> — <?php esc_html_e( 'MPU 300×250', 'oc-ad-manager' ); ?></li>
-					<li><code>[oc_ad format="leaderboard"]</code> — <?php esc_html_e( 'Leaderboard 728×90', 'oc-ad-manager' ); ?></li>
-					<li><code>[oc_ad format="skyscraper"]</code> — <?php esc_html_e( 'Skyscraper 160×600', 'oc-ad-manager' ); ?></li>
+					<?php
+					$shortcodes = array(
+						'[oc_ad format="mpu"]'         => 'MPU 300&times;250',
+						'[oc_ad format="leaderboard"]' => 'Leaderboard 728&times;90',
+						'[oc_ad format="skyscraper"]'  => 'Skyscraper 160&times;600',
+					);
+					foreach ( $shortcodes as $sc => $label ) :
+					?>
+					<li>
+						<code class="ocad-copy-shortcode" data-shortcode="<?php echo esc_attr( $sc ); ?>" title="<?php esc_attr_e( 'Click to copy', 'oc-ad-manager' ); ?>">
+							<?php echo esc_html( $sc ); ?>
+						</code>
+						— <?php echo wp_kses_post( $label ); ?>
+						<span class="ocad-copied-msg" style="display:none;color:#16a34a;margin-left:6px;">&#10003; <?php esc_html_e( 'Copied!', 'oc-ad-manager' ); ?></span>
+					</li>
+					<?php endforeach; ?>
 				</ul>
 			</div>
 		</div>

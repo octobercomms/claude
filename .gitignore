@@ -24,3 +24,4 @@ npm-debug.log*
 
 # Runtime artefacts — generated reports, not source
 platform/backend/pdfs/
+*.zip

@@ -48,23 +48,6 @@
 	bindRestrictionToggle( 'ocad_restrict_imp', 'ocad-imp-cap-wrap' );
 	bindRestrictionToggle( 'ocad_restrict_clk', 'ocad-clk-cap-wrap' );
 
-	// ── Partner sites: add / remove rows ─────────────────────────────────────
-	$( document ).on( 'click', '.ocad-add-partner', function ( e ) {
-		e.preventDefault();
-		var $list = $( '.ocad-partner-sites-list' );
-		var idx   = $list.find( 'li' ).length;
-		$list.append(
-			'<li>' +
-			'<input type="url" name="ocad_partner_sites[' + idx + ']" class="regular-text" placeholder="https://partner-site.com">' +
-			'<button type="button" class="button ocad-remove-partner">Remove</button>' +
-			'</li>'
-		);
-	});
-
-	$( document ).on( 'click', '.ocad-remove-partner', function () {
-		$( this ).closest( 'li' ).remove();
-	});
-
 	// ── Mode selector toggle ──────────────────────────────────────────────────
 	function updateModeUI() {
 		var mode = $( 'input[name="ocad_site_mode"]:checked' ).val();
@@ -79,6 +62,18 @@
 
 	$( 'input[name="ocad_site_mode"]' ).on( 'change', updateModeUI );
 	updateModeUI();
+
+	// ── Copy shortcode ────────────────────────────────────────────────────────
+	$( document ).on( 'click', '.ocad-copy-shortcode', function () {
+		var sc  = $( this ).data( 'shortcode' );
+		var $msg = $( this ).siblings( '.ocad-copied-msg' );
+		if ( navigator.clipboard ) {
+			navigator.clipboard.writeText( sc ).then( function () {
+				$msg.show();
+				setTimeout( function () { $msg.hide(); }, 2000 );
+			});
+		}
+	});
 
 	// ── Copy API key ──────────────────────────────────────────────────────────
 	$( document ).on( 'click', '.ocad-copy-key', function () {

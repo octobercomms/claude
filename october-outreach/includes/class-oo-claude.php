@@ -131,8 +131,63 @@ class OO_Claude {
     }
 
     /**
-     * Write a 3-email outreach sequence for a campaign.
+     * Suggest relevant industry directories for a given audience.
+     * Returns array of {name, domain, search_path} objects.
      */
+    public function suggest_directories( $industry_type, $location, $specialisation ) {
+        $subject = trim( $specialisation ?: $industry_type );
+
+        $prompt  = "I need to find real professional firms in this niche:\n";
+        $prompt .= "Industry: {$subject}\n";
+        if ( $location ) $prompt .= "Location: {$location}\n";
+        $prompt .= "\nList up to 6 publicly-accessible online directories, databases, or association member listings where such firms would be listed — ideally with individual firm profile pages and links to their websites.\n";
+        $prompt .= "Prefer directories that are specific to this industry and region if possible.\n\n";
+        $prompt .= "Return as valid JSON array only:\n";
+        $prompt .= '[{"name":"Directory Name","domain":"directory.com","search_path":"/search?q=melbourne"}]';
+        $prompt .= "\nsearch_path should be a path on that domain that lists relevant firms (include any useful query params). Use empty string if none.";
+
+        $messages = array( array( 'role' => 'user', 'content' => $prompt ) );
+        return $this->request_json( $messages, 512 );
+    }
+
+    /**
+     * Generate a fresh batch of domains from a different angle than the first run.
+     */
+    public function more_domains( $campaign_name, $brand, $audience_description, $structured, $exclude_domains ) {
+        $brands      = OO_Database::get_brands();
+        $brand_label = $brands[ $brand ] ?? $brand;
+
+        $system = "You are a B2B research specialist. Only suggest company domains that genuinely exist and are active businesses. Never fabricate domains. Focus on finding companies the user has NOT already found — use different sub-sectors, adjacent disciplines, neighbouring cities, or related associations.";
+
+        $loc   = $structured['location']       ?? '';
+        $itype = $structured['industry_type']  ?? '';
+        $spec  = $structured['specialisation'] ?? '';
+        $size  = $structured['business_size']  ?? '';
+
+        $prompt  = "I'm expanding the contact list for a campaign called \"{$campaign_name}\" by {$brand_label}.\n";
+        $prompt .= "Target audience: {$audience_description}\n";
+        if ( $loc )   $prompt .= "Location: {$loc}\n";
+        if ( $itype ) $prompt .= "Industry: {$itype}\n";
+        if ( $spec )  $prompt .= "Specialisation: {$spec}\n";
+        if ( $size )  $prompt .= "Size: {$size}\n";
+
+        if ( ! empty( $exclude_domains ) ) {
+            $list    = implode( ', ', array_slice( $exclude_domains, 0, 150 ) );
+            $prompt .= "\nThese domains have already been found — DO NOT repeat any of them:\n{$list}\n";
+        }
+
+        $prompt .= "\nFind 30–50 more real company domains I haven't found yet. Try:\n";
+        $prompt .= "- Different sub-specialisations or project types\n";
+        $prompt .= "- Neighbouring cities or regions\n";
+        $prompt .= "- Related but adjacent disciplines\n";
+        $prompt .= "- Smaller or larger firms if appropriate\n\n";
+        $prompt .= "Return as valid JSON only:\n";
+        $prompt .= '{"domains":["domain1.com","domain2.com"],"angle":"brief note on the approach taken"}';
+
+        $messages = array( array( 'role' => 'user', 'content' => $prompt ) );
+        return $this->request_json( $messages, 1024, $system );
+    }
+
     public function write_sequence( $campaign, $audience_description, $sample_contacts = array(), $extra_instructions = '' ) {
         $brands = OO_Database::get_brands();
         $brand_label = $brands[ $campaign->brand ] ?? $campaign->brand;
