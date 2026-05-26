@@ -72,11 +72,16 @@ Write an executive summary for this report. 300-400 words. Use the client's "Abo
   return message.content[0].text;
 }
 
-async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics, rankMovers = [], chatHistory = [] }) {
+async function generateWeeklySummary({ clientName, clientBriefing, week, monthlyFocus, metrics, rankMovers = [], sections = [], chatHistory = [] }) {
   const rankContext = rankMovers.length
     ? `\nRanking movements: ${rankMovers.filter(r => r.change).map(r => `${r.keyword} ${r.change > 0 ? `↑${r.change}` : `↓${Math.abs(r.change)}`} (now ${r.current})`).join(', ')}`
     : '';
   const chatContext = buildChatContext(chatHistory);
+  // List the connectors the account manager enabled for weekly so Claude
+  // knows the scope, and surface any per-section instructions verbatim.
+  const enabledScope = sections.length
+    ? sections.map(s => `${s.connector}${s.store ? ` (${s.store})` : ''}${s.instruction ? ` — instruction: "${s.instruction}"` : ''}`).join('\n')
+    : '(no sections enabled — fall back to the metrics list)';
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 512,
@@ -84,11 +89,19 @@ async function generateWeeklySummary({ clientName, week, monthlyFocus, metrics, 
     messages: [{
       role: 'user',
       content: `Client: ${clientName}
+About the client: ${clientBriefing || '(no briefing set)'}
 Week: ${week}
 Monthly focus context: ${monthlyFocus || 'No specific focus set.'}
-Key metrics this week: ${JSON.stringify(metrics, null, 2)}${rankContext}${chatContext}
 
-Write 2-3 sentences summarising this week's performance. Reference any notable movements and any specific things being tracked in the conversations. Be direct. British English.`,
+Enabled sections for this weekly report (treat these as the ONLY connectors in scope — do NOT mention or summarise anything else, even if you have data for it):
+${enabledScope}
+
+Per-section data:
+${JSON.stringify(sections, null, 2)}
+
+Flat top-line metrics: ${JSON.stringify(metrics, null, 2)}${rankContext}${chatContext}
+
+Write 2-3 sentences summarising this week's performance for the enabled sections only. Reference any notable movements, weight each section per its instruction, and pick up anything specific being tracked in the conversations. Be direct. British English.`,
     }],
   });
   return message.content[0].text;
