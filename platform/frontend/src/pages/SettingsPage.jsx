@@ -30,11 +30,13 @@ const KEY_GROUPS = [
   {
     title: 'Amazon SES',
     category: 'AI & Email',
-    hint: 'Used when EMAIL_PROVIDER is set to "ses". Generate SMTP credentials in the SES console: Verified identities → SMTP settings → Create SMTP credentials.',
+    hint: 'Amazon SES handles report email (SMTP) and outreach (preferred via the SES API). Set the API access keys for outreach — they enable the SESv2 path which is lower latency than SMTP and gives better error responses. Keep the SMTP credentials too for the report transport.',
     keys: [
       { key: 'SES_FROM_EMAIL', label: 'From Email (verified in SES)', placeholder: 'reports@octobercomms.com', type: 'text' },
       { key: 'SES_REGION', label: 'AWS Region', placeholder: 'eu-west-1', type: 'text' },
-      { key: 'SES_SMTP_USER', label: 'SMTP Username', placeholder: 'AKIA…', type: 'text' },
+      { key: 'SES_ACCESS_KEY_ID', label: 'API Access Key ID (preferred for outreach)', placeholder: 'AKIA…', type: 'text' },
+      { key: 'SES_SECRET_ACCESS_KEY', label: 'API Secret Access Key', placeholder: '…', type: 'password' },
+      { key: 'SES_SMTP_USER', label: 'SMTP Username (used by report email)', placeholder: 'AKIA…', type: 'text' },
       { key: 'SES_SMTP_PASS', label: 'SMTP Password', placeholder: '…', type: 'password' },
     ],
   },
@@ -120,12 +122,21 @@ const KEY_GROUPS = [
   {
     title: 'Outreach Reply Inbox',
     category: 'Outreach',
-    hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies and stop follow-ups automatically.',
+    hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies, classify them with Claude, and stop follow-ups automatically.',
     keys: [
       { key: 'OUTREACH_IMAP_HOST', label: 'IMAP Host', placeholder: 'e.g. imap.gmail.com', type: 'text' },
       { key: 'OUTREACH_IMAP_PORT', label: 'IMAP Port', placeholder: '993', type: 'text' },
       { key: 'OUTREACH_IMAP_USER', label: 'IMAP User', placeholder: 'replies@example.com', type: 'text' },
       { key: 'OUTREACH_IMAP_PASSWORD', label: 'IMAP Password', placeholder: 'App password', type: 'password' },
+    ],
+  },
+  {
+    title: 'Outreach Sending Domain',
+    category: 'Outreach',
+    hint: 'Used for SPF / DMARC health checks on the dashboard. A dedicated subdomain (e.g. outreach.yourbrand.com) keeps cold-email reputation separate from your main mail domain. Reply-to is the inbox replies should go to — usually the same as the IMAP user above.',
+    keys: [
+      { key: 'OUTREACH_SENDING_DOMAIN', label: 'Sending Domain', placeholder: 'outreach.yourbrand.com', type: 'text' },
+      { key: 'OUTREACH_DEFAULT_REPLY_TO', label: 'Default Reply-To Address', placeholder: 'replies@yourbrand.com', type: 'text' },
     ],
   },
   {
