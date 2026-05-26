@@ -6,6 +6,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 class OCF_Renderer {
 
 	public static function init() {
+		add_shortcode( 'nvelope_form', array( __CLASS__, 'shortcode' ) );
+		// Back-compat alias in case anything embedded the earlier name.
 		add_shortcode( 'oc_form', array( __CLASS__, 'shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
@@ -22,7 +24,7 @@ class OCF_Renderer {
 
 	public static function register_block() {
 		if ( function_exists( 'register_block_type' ) ) {
-			register_block_type( 'oc/form', array(
+			register_block_type( 'nvelope/form', array(
 				'attributes'      => array(
 					'formId' => array( 'type' => 'integer', 'default' => 0 ),
 				),

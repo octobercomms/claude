@@ -28,7 +28,7 @@ class OCF_Settings {
 		$notify      = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
 		?>
 		<div class="wrap">
-			<h1>October Forms — Settings</h1>
+			<h1>nvelope Forms — Settings</h1>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'ocf_settings' ); ?>
 				<table class="form-table" role="presentation">

@@ -12,8 +12,8 @@ class OCF_Admin {
 
 	public static function menu() {
 		add_menu_page(
-			'October Forms',
-			'October Forms',
+			'nvelope Forms',
+			'nvelope Forms',
 			'manage_options',
 			'oc-forms',
 			array( __CLASS__, 'render_forms_list' ),
@@ -53,7 +53,7 @@ class OCF_Admin {
 		) );
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline">October Forms</h1>
+			<h1 class="wp-heading-inline">nvelope Forms</h1>
 			<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=' . OCF_CPT ) ); ?>" class="page-title-action">Add New</a>
 			<hr class="wp-header-end">
 			<table class="wp-list-table widefat fixed striped">
@@ -75,7 +75,7 @@ class OCF_Admin {
 				?>
 					<tr>
 						<td><strong><a href="<?php echo esc_url( get_edit_post_link( $f->ID ) ); ?>"><?php echo esc_html( $f->post_title ); ?></a></strong></td>
-						<td><code>[oc_form id="<?php echo (int) $f->ID; ?>"]</code></td>
+						<td><code>[nvelope_form id="<?php echo (int) $f->ID; ?>"]</code></td>
 						<td><?php echo esc_html( ucfirst( $f->post_status ) ); ?></td>
 						<td><?php echo (int) $count; ?> complete · <?php echo (int) $partial; ?> partial</td>
 						<td>

@@ -21,7 +21,7 @@ class OCF_Builder {
 
 	public static function render_column( $col, $post_id ) {
 		if ( $col === 'shortcode' ) {
-			echo '<code>[oc_form id="' . (int) $post_id . '"]</code>';
+			echo '<code>[nvelope_form id="' . (int) $post_id . '"]</code>';
 		} elseif ( $col === 'submissions' ) {
 			$c = OCF_Submission::count_for_form( $post_id, 'complete' );
 			$p = OCF_Submission::count_for_form( $post_id, 'partial' );
@@ -36,8 +36,8 @@ class OCF_Builder {
 
 	public static function render_help( $post ) {
 		echo '<p><strong>Shortcode:</strong></p>';
-		echo '<p><code>[oc_form id="' . (int) $post->ID . '"]</code></p>';
-		echo '<p>Or use the <em>OC Form</em> block.</p>';
+		echo '<p><code>[nvelope_form id="' . (int) $post->ID . '"]</code></p>';
+		echo '<p>Or use the <em>nvelope Form</em> block.</p>';
 		echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $post->ID ) ) . '">View submissions →</a></p>';
 	}
 
