@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { api } from '../utils/api';
 
-// Default date range — last 30 days, inclusive of today.
 function defaultRange() {
   const today = new Date();
   const past = new Date(today);
@@ -28,8 +27,23 @@ function secs(v) {
   return `${m}m ${n - m * 60}s`;
 }
 
+// Calls the October Forms API directly from the browser using ?api_key=.
+// This bypasses the platform server so the host's IP restrictions don't apply.
+async function ocfGet(credentials, path, params = {}) {
+  const base = credentials.site_url.trim().replace(/\/$/, '');
+  const qs = new URLSearchParams({ ...params, api_key: credentials.api_key });
+  const url = `${base}/wp-json/ocf/v1/api${path}?${qs}`;
+  const res = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!res.ok) {
+    const body = await res.text();
+    let msg = res.statusText;
+    try { msg = JSON.parse(body)?.message || msg; } catch {}
+    throw new Error(`October Forms ${res.status} on ${path}: ${msg}`);
+  }
+  return res.json();
+}
+
 export default function FormsTab({ clientId, connectors }) {
-  // Pick first active October Forms connector with a form selected.
   const formsConnector = useMemo(() => {
     const candidates = connectors.filter(c => c.connector_type === 'october_forms');
     return candidates.find(c => c.status === 'active' && c.config?.value)
@@ -39,6 +53,7 @@ export default function FormsTab({ clientId, connectors }) {
   }, [connectors]);
 
   const [range, setRange] = useState(defaultRange());
+  const [credentials, setCredentials] = useState(null);
   const [stats, setStats] = useState(null);
   const [funnel, setFunnel] = useState(null);
   const [timeseries, setTimeseries] = useState(null);
@@ -48,20 +63,31 @@ export default function FormsTab({ clientId, connectors }) {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [drilldown, setDrilldown] = useState(null); // submission ID being viewed
+  const [drilldown, setDrilldown] = useState(null);
   const PAGE_SIZE = 50;
 
   const connectorId = formsConnector?.id;
-  const formLabel = formsConnector?.config?.label || formsConnector?.config?.value || null;
+  const formId = formsConnector?.config?.value;
+  const formLabel = formsConnector?.config?.label || formId || null;
 
-  async function loadAll() {
+  // Fetch decrypted credentials from the backend once per connector.
+  useEffect(() => {
     if (!connectorId) return;
+    setCredentials(null);
+    setError(null);
+    api.get(`/october-forms/connectors/${connectorId}/credentials`)
+      .then(setCredentials)
+      .catch(err => setError(`Could not load connector credentials: ${err.message}`));
+  }, [connectorId]);
+
+  async function loadAll(creds = credentials) {
+    if (!creds || !formId) return;
     setLoading(true); setError(null);
     try {
       const [s, f, t] = await Promise.all([
-        api.get(`/october-forms/connectors/${connectorId}/stats?from=${range.from}&to=${range.to}`),
-        api.get(`/october-forms/connectors/${connectorId}/funnel?from=${range.from}&to=${range.to}`),
-        api.get(`/october-forms/connectors/${connectorId}/timeseries?from=${range.from}&to=${range.to}`),
+        ocfGet(creds, `/forms/${encodeURIComponent(formId)}/stats`, { from: range.from, to: range.to }),
+        ocfGet(creds, `/forms/${encodeURIComponent(formId)}/funnel`, { from: range.from, to: range.to }),
+        ocfGet(creds, `/forms/${encodeURIComponent(formId)}/timeseries`, { from: range.from, to: range.to }),
       ]);
       setStats(s); setFunnel(f); setTimeseries(t);
     } catch (err) {
@@ -69,12 +95,12 @@ export default function FormsTab({ clientId, connectors }) {
     } finally { setLoading(false); }
   }
 
-  async function loadSubmissions(p = page) {
-    if (!connectorId) return;
+  async function loadSubmissions(creds = credentials, p = page) {
+    if (!creds || !formId) return;
     try {
-      const qs = new URLSearchParams({ from: range.from, to: range.to, limit: PAGE_SIZE, offset: p * PAGE_SIZE });
-      if (statusFilter) qs.set('status', statusFilter);
-      const data = await api.get(`/october-forms/connectors/${connectorId}/submissions?${qs}`);
+      const params = { from: range.from, to: range.to, limit: PAGE_SIZE, offset: p * PAGE_SIZE };
+      if (statusFilter) params.status = statusFilter;
+      const data = await ocfGet(creds, `/forms/${encodeURIComponent(formId)}/submissions`, params);
       const rows = Array.isArray(data) ? data : (data?.submissions || data?.rows || data?.data || []);
       const total = data?.total ?? (Array.isArray(data) ? data.length : rows.length);
       setSubmissions(rows);
@@ -84,8 +110,20 @@ export default function FormsTab({ clientId, connectors }) {
     }
   }
 
-  useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [connectorId, range.from, range.to]);
-  useEffect(() => { loadSubmissions(0); setPage(0); /* eslint-disable-next-line */ }, [connectorId, range.from, range.to, statusFilter]);
+  useEffect(() => {
+    if (!credentials) return;
+    loadAll(credentials);
+    loadSubmissions(credentials, 0);
+    setPage(0);
+    /* eslint-disable-next-line */
+  }, [credentials, range.from, range.to]);
+
+  useEffect(() => {
+    if (!credentials) return;
+    loadSubmissions(credentials, 0);
+    setPage(0);
+    /* eslint-disable-next-line */
+  }, [statusFilter]);
 
   if (!formsConnector) {
     return (
@@ -98,7 +136,7 @@ export default function FormsTab({ clientId, connectors }) {
     );
   }
 
-  if (!formsConnector.config?.value) {
+  if (!formId) {
     return (
       <div style={cardStyle}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>No form selected</div>
@@ -111,12 +149,12 @@ export default function FormsTab({ clientId, connectors }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Header — form label + date range */}
+      {/* Header */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
-            <div style={{ fontWeight: 700, fontSize: 16 }}>{formLabel || `Form ${formsConnector.config.value}`}</div>
+            <div style={{ fontWeight: 700, fontSize: 16 }}>{formLabel || `Form ${formId}`}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <label style={{ fontSize: 12, color: '#666' }}>From</label>
@@ -178,13 +216,11 @@ export default function FormsTab({ clientId, connectors }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Submissions {submissionsTotal ? `(${submissionsTotal.toLocaleString()})` : ''}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: '6px 10px' }}>
-              <option value="">All statuses</option>
-              <option value="complete">Complete</option>
-              <option value="partial">Partial</option>
-            </select>
-          </div>
+          <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: '6px 10px' }}>
+            <option value="">All statuses</option>
+            <option value="complete">Complete</option>
+            <option value="partial">Partial</option>
+          </select>
         </div>
         {submissions == null ? (
           <div style={{ color: '#888', fontSize: 13 }}>Loading…</div>
@@ -225,8 +261,8 @@ export default function FormsTab({ clientId, connectors }) {
                   Page {page + 1} of {Math.ceil(submissionsTotal / PAGE_SIZE)}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button disabled={page === 0} onClick={() => { setPage(p => p - 1); loadSubmissions(page - 1); }} style={btnSmStyle}>← Prev</button>
-                  <button disabled={(page + 1) * PAGE_SIZE >= submissionsTotal} onClick={() => { setPage(p => p + 1); loadSubmissions(page + 1); }} style={btnSmStyle}>Next →</button>
+                  <button disabled={page === 0} onClick={() => { const p = page - 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>← Prev</button>
+                  <button disabled={(page + 1) * PAGE_SIZE >= submissionsTotal} onClick={() => { const p = page + 1; setPage(p); loadSubmissions(credentials, p); }} style={btnSmStyle}>Next →</button>
                 </div>
               </div>
             )}
@@ -236,7 +272,7 @@ export default function FormsTab({ clientId, connectors }) {
 
       {drilldown && (
         <SubmissionModal
-          connectorId={connectorId}
+          credentials={credentials}
           submissionId={drilldown}
           onClose={() => setDrilldown(null)}
         />
@@ -308,13 +344,14 @@ function Sparkline({ days }) {
   );
 }
 
-function SubmissionModal({ connectorId, submissionId, onClose }) {
+function SubmissionModal({ credentials, submissionId, onClose }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
   useEffect(() => {
-    api.get(`/october-forms/connectors/${connectorId}/submissions/${submissionId}`)
+    if (!credentials) return;
+    ocfGet(credentials, `/submissions/${encodeURIComponent(submissionId)}`)
       .then(setData).catch(e => setErr(e.message));
-  }, [connectorId, submissionId]);
+  }, [credentials, submissionId]);
 
   return (
     <div style={modalOverlay} onClick={onClose}>
