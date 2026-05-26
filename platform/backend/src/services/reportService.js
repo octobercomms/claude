@@ -99,8 +99,9 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
     seoData,
   });
 
-  // Generate PDF
-  const pdfPath = await pdfService.generatePDF(report.id, htmlContent);
+  // Generate PDF — monthly uses puppeteer's footer template so every page
+  // shows "Page X of Y" + the company details automatically.
+  const pdfPath = await pdfService.generatePDF(report.id, htmlContent, { printFooter: true });
 
   // Extract top metrics for email
   const topMetrics = extractTopMetrics(rawData);

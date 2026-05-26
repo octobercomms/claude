@@ -149,6 +149,7 @@ function buildReportSections(collectedData, connectorErrors) {
       data,
       metrics: extractKeyMetrics(type, data),
       tables: extractTables(type, data),
+      charts: extractCharts(type, data),
       unavailable: false,
     });
   }
@@ -188,49 +189,45 @@ function extractKeyMetrics(connectorType, data) {
         acc.spend += parseFloat(r.spend || 0);
         acc.clicks += parseInt(r.clicks || 0);
         acc.impressions += parseInt(r.impressions || 0);
-        acc.conversions += parseFloat(r.actions?.find(a => a.action_type === 'purchase')?.value || 0);
+        // `actions` counts purchases, `action_values` carries the £ value
+        acc.purchases += parseFloat(r.actions?.find(a => a.action_type === 'purchase')?.value || 0);
+        acc.purchaseValue += parseFloat(r.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
         return acc;
-      }, { spend: 0, clicks: 0, impressions: 0, conversions: 0 });
-      const ctr = totals.impressions > 0 ? ((totals.clicks / totals.impressions) * 100).toFixed(2) : '0.00';
+      }, { spend: 0, clicks: 0, impressions: 0, purchases: 0, purchaseValue: 0 });
+      const roas = totals.spend > 0 ? (totals.purchaseValue / totals.spend).toFixed(2) : null;
       return [
         { label: 'Ad Spend', value: formatCurrency(totals.spend) },
-        { label: 'Clicks', value: totals.clicks.toLocaleString() },
-        { label: 'Impressions', value: totals.impressions.toLocaleString() },
-        { label: 'CTR', value: `${ctr}%` },
+        { label: 'Purchase Value', value: formatCurrency(totals.purchaseValue) },
+        { label: 'ROAS', value: roas ? `${roas}×` : '—' },
+        { label: 'Net', value: formatCurrency(totals.purchaseValue - totals.spend) },
       ];
     }
     case 'ga4': {
+      // GA4 main report runs with two dateRanges (current + previous-period),
+      // so we can show period-on-period deltas without fetching twice.
       const dimHeaders = (data.dimensionHeaders || []).map(h => h.name);
       const metHeaders = (data.metricHeaders || []).map(h => h.name);
       const dateRangeIdx = dimHeaders.indexOf('dateRange');
 
-      let sessions = 0, users = 0, conversions = 0, revenue = 0;
-      let bounceSum = 0, durationSum = 0, rowCount = 0;
+      const cur = { sessions: 0, users: 0, conversions: 0, revenue: 0 };
+      const prev = { sessions: 0, users: 0, conversions: 0, revenue: 0 };
 
       for (const row of (data.rows || [])) {
-        // Only include current period rows when dateRange dimension is present
-        if (dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value !== 'date_range_0') continue;
+        const which = dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value === 'date_range_1' ? prev : cur;
         const mv = row.metricValues || [];
         const get = name => parseFloat(mv[metHeaders.indexOf(name)]?.value || 0);
-        sessions += get('sessions');
-        users += get('activeUsers');
-        conversions += get('conversions');
-        revenue += get('totalRevenue');
-        bounceSum += get('bounceRate');
-        durationSum += get('averageSessionDuration');
-        rowCount++;
+        which.sessions += get('sessions');
+        which.users += get('activeUsers');
+        which.conversions += get('conversions');
+        which.revenue += get('totalRevenue');
       }
 
       const metrics = [
-        { label: 'Sessions', value: Math.round(sessions).toLocaleString() },
-        { label: 'Users', value: Math.round(users).toLocaleString() },
-        { label: 'Conversions', value: Math.round(conversions).toLocaleString() },
+        makeMetric('Sessions', cur.sessions, prev.sessions, n => Math.round(n).toLocaleString()),
+        makeMetric('Users', cur.users, prev.users, n => Math.round(n).toLocaleString()),
+        makeMetric('Conversions', cur.conversions, prev.conversions, n => Math.round(n).toLocaleString()),
       ];
-      if (revenue > 0) metrics.push({ label: 'Revenue (GA4)', value: formatCurrency(revenue) });
-      if (rowCount > 0) {
-        const avgDuration = durationSum / rowCount;
-        metrics.push({ label: 'Avg Session', value: `${Math.floor(avgDuration / 60)}m ${Math.round(avgDuration % 60)}s` });
-      }
+      if (cur.revenue > 0) metrics.push(makeMetric('Revenue (GA4)', cur.revenue, prev.revenue, formatCurrency));
       return metrics;
     }
     case 'google_search_console': {
@@ -253,20 +250,21 @@ function extractKeyMetrics(connectorType, data) {
     case 'google_ads': {
       // /search returns {results:[...]}; handle legacy searchStream [{results:[...]},...]
       const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
-      let spend = 0, clicks = 0, impressions = 0, conversions = 0;
+      let spend = 0, clicks = 0, impressions = 0, conversions = 0, convValue = 0;
       for (const result of results) {
         const m = result.metrics || {};
         spend += parseInt(m.costMicros || 0) / 1_000_000;
         clicks += parseInt(m.clicks || 0);
         impressions += parseInt(m.impressions || 0);
         conversions += parseFloat(m.conversions || 0);
+        convValue += parseFloat(m.conversionsValue || 0);
       }
-      const ctr = impressions > 0 ? ((clicks / impressions) * 100).toFixed(2) : '0.00';
+      const roas = spend > 0 ? (convValue / spend).toFixed(2) : null;
       return [
         { label: 'Ad Spend', value: formatCurrency(spend) },
-        { label: 'Clicks', value: clicks.toLocaleString() },
-        { label: 'Conversions', value: Math.round(conversions).toLocaleString() },
-        { label: 'CTR', value: `${ctr}%` },
+        { label: 'Conv. Value', value: formatCurrency(convValue) },
+        { label: 'ROAS', value: roas ? `${roas}×` : '—' },
+        { label: 'Net', value: formatCurrency(convValue - spend) },
       ];
     }
     case 'klaviyo': {
@@ -339,14 +337,19 @@ function extractTables(connectorType, data) {
       if (!campaigns.length) return [];
       return [{
         heading: 'Campaign Performance',
-        headers: ['Campaign', 'Spend', 'Impressions', 'Clicks', 'CTR'],
-        rows: campaigns.map(c => [
-          c.campaign_name,
-          formatCurrency(c.spend),
-          parseInt(c.impressions || 0).toLocaleString(),
-          parseInt(c.clicks || 0).toLocaleString(),
-          `${parseFloat(c.ctr || 0).toFixed(2)}%`,
-        ]),
+        headers: ['Campaign', 'Spend', 'Purchase Value', 'ROAS', 'Net', 'CTR'],
+        rows: campaigns.map(c => {
+          const spend = parseFloat(c.spend || 0);
+          const pv = parseFloat(c.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+          return [
+            c.campaign_name,
+            formatCurrency(spend),
+            formatCurrency(pv),
+            spend > 0 ? `${(pv / spend).toFixed(2)}×` : '—',
+            formatCurrency(pv - spend),
+            `${parseFloat(c.ctr || 0).toFixed(2)}%`,
+          ];
+        }),
       }];
     }
     case 'ga4': {
@@ -383,31 +386,50 @@ function extractTables(connectorType, data) {
       }];
     }
     case 'google_search_console': {
-      // Group by query (first dimension key), top 20 by clicks
-      const rowMap = {};
-      for (const row of (data.rows || [])) {
-        const query = row.keys?.[0] || '';
-        if (!query) continue;
-        if (!rowMap[query]) rowMap[query] = { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0, count: 0 };
-        rowMap[query].clicks += row.clicks || 0;
-        rowMap[query].impressions += row.impressions || 0;
-        rowMap[query].ctrSum += row.ctr || 0;
-        rowMap[query].positionSum += row.position || 0;
-        rowMap[query].count++;
-      }
-      const sorted = Object.entries(rowMap).sort((a, b) => b[1].clicks - a[1].clicks).slice(0, 20);
-      if (!sorted.length) return [];
-      return [{
+      // GSC fetch uses dimensions [query, page, device, country]
+      const aggBy = (idx, limit) => {
+        const map = {};
+        for (const row of (data.rows || [])) {
+          const key = row.keys?.[idx] || '';
+          if (!key) continue;
+          if (!map[key]) map[key] = { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0, count: 0 };
+          map[key].clicks += row.clicks || 0;
+          map[key].impressions += row.impressions || 0;
+          map[key].ctrSum += row.ctr || 0;
+          map[key].positionSum += row.position || 0;
+          map[key].count++;
+        }
+        return Object.entries(map).sort((a, b) => b[1].clicks - a[1].clicks).slice(0, limit);
+      };
+      const queries = aggBy(0, 15);
+      const pages = aggBy(1, 15);
+      const tables = [];
+      if (queries.length) tables.push({
         heading: 'Top Organic Queries',
         headers: ['Query', 'Clicks', 'Impressions', 'CTR', 'Position'],
-        rows: sorted.map(([query, m]) => [
-          query,
+        rows: queries.map(([k, m]) => [
+          k,
           m.clicks.toLocaleString(),
           m.impressions.toLocaleString(),
           `${((m.ctrSum / m.count) * 100).toFixed(2)}%`,
           (m.positionSum / m.count).toFixed(1),
         ]),
-      }];
+      });
+      if (pages.length) tables.push({
+        heading: 'Top Landing Pages',
+        headers: ['Page', 'Clicks', 'Impressions', 'CTR', 'Position'],
+        rows: pages.map(([k, m]) => {
+          const shortPage = k.length > 60 ? '…' + k.slice(-58) : k;
+          return [
+            shortPage,
+            m.clicks.toLocaleString(),
+            m.impressions.toLocaleString(),
+            `${((m.ctrSum / m.count) * 100).toFixed(2)}%`,
+            (m.positionSum / m.count).toFixed(1),
+          ];
+        }),
+      });
+      return tables;
     }
     case 'google_ads': {
       const results = data.results || (Array.isArray(data) ? data.flatMap(b => b.results || []) : []);
@@ -415,22 +437,24 @@ function extractTables(connectorType, data) {
       for (const result of results) {
         const name = result.campaign?.name || 'Unknown';
         const m = result.metrics || {};
-        if (!campaignMap[name]) campaignMap[name] = { spend: 0, clicks: 0, impressions: 0, conversions: 0 };
+        if (!campaignMap[name]) campaignMap[name] = { spend: 0, clicks: 0, impressions: 0, conversions: 0, convValue: 0 };
         campaignMap[name].spend += parseInt(m.costMicros || 0) / 1_000_000;
         campaignMap[name].clicks += parseInt(m.clicks || 0);
         campaignMap[name].impressions += parseInt(m.impressions || 0);
         campaignMap[name].conversions += parseFloat(m.conversions || 0);
+        campaignMap[name].convValue += parseFloat(m.conversionsValue || 0);
       }
       const sorted = Object.entries(campaignMap).sort((a, b) => b[1].spend - a[1].spend).slice(0, 20);
       if (!sorted.length) return [];
       return [{
         heading: 'Campaign Performance',
-        headers: ['Campaign', 'Spend', 'Clicks', 'Conversions', 'CPA'],
+        headers: ['Campaign', 'Spend', 'Conv. Value', 'ROAS', 'Net', 'CPA'],
         rows: sorted.map(([name, m]) => [
           name,
           formatCurrency(m.spend),
-          m.clicks.toLocaleString(),
-          Math.round(m.conversions).toLocaleString(),
+          formatCurrency(m.convValue),
+          m.spend > 0 ? `${(m.convValue / m.spend).toFixed(2)}×` : '—',
+          formatCurrency(m.convValue - m.spend),
           m.conversions > 0 ? formatCurrency(m.spend / m.conversions) : '—',
         ]),
       }];
@@ -497,10 +521,61 @@ function extractTables(connectorType, data) {
   }
 }
 
+// Per-section chart data. Each chart is rendered as inline SVG by pdfService.
+// Only adds charts where we already have the underlying data — no extra fetches.
+function extractCharts(connectorType, data) {
+  if (!data) return [];
+  switch (connectorType) {
+    case 'ga4': {
+      const dimHeaders = (data.dimensionHeaders || []).map(h => h.name);
+      const metHeaders = (data.metricHeaders || []).map(h => h.name);
+      const dateRangeIdx = dimHeaders.indexOf('dateRange');
+      const channelIdx = dimHeaders.indexOf('sessionDefaultChannelGroup');
+      if (channelIdx < 0) return [];
+
+      const channelMap = {};
+      for (const row of (data.rows || [])) {
+        if (dateRangeIdx >= 0 && row.dimensionValues?.[dateRangeIdx]?.value !== 'date_range_0') continue;
+        const channel = row.dimensionValues?.[channelIdx]?.value || 'Unknown';
+        const mv = row.metricValues || [];
+        const sessions = parseFloat(mv[metHeaders.indexOf('sessions')]?.value || 0);
+        channelMap[channel] = (channelMap[channel] || 0) + sessions;
+      }
+      const sorted = Object.entries(channelMap)
+        .filter(([, v]) => v > 0)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 8);
+      if (!sorted.length) return [];
+      return [{
+        title: 'Traffic Sources — Sessions by Channel',
+        type: 'hbar',
+        data: sorted.map(([label, value]) => ({ label, value: Math.round(value) })),
+      }];
+    }
+    default:
+      return [];
+  }
+}
+
 function formatCurrency(val) {
   const n = parseFloat(val || 0);
   if (isNaN(n)) return '£0.00';
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+}
+
+// Build a metric with a period-on-period delta. `previous` is undefined when
+// no comparison is available; the delta string is omitted when prev is zero
+// (can't divide) or when both values are zero.
+function makeMetric(label, current, previous, format) {
+  const m = { label, value: format(current) };
+  if (previous == null) return m;
+  m.previous = format(previous);
+  if (previous > 0) {
+    const pct = ((current - previous) / previous) * 100;
+    m.delta = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+    m.deltaDirection = current > previous ? 'up' : current < previous ? 'down' : 'flat';
+  }
+  return m;
 }
 
 module.exports = { collectClientData, collectSEOData, buildReportSections };
