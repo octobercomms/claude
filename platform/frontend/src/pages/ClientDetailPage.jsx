@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import AIDraftModal from '../components/AIDraftModal';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -40,8 +41,6 @@ export default function ClientDetailPage() {
   const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [parsingSuggestions, setParsingSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = searchParams.get('tab') || 'details';
   function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
@@ -93,16 +92,60 @@ export default function ClientDetailPage() {
     }
   }
 
-  async function handleParseBriefing() {
-    setParsingSuggestions(true);
+  // Replaces the old "Parse with Claude" connector-suggestion flow.
+  // Reads the client's domain, asks Claude (with web search) to draft an
+  // "About this client" paragraph, then shows it in a modal for review.
+  const [briefingDraft, setBriefingDraft] = useState(null);
+  const [focusDraft, setFocusDraft] = useState(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(false);
+  const [loadingFocus, setLoadingFocus] = useState(false);
+
+  async function handleCompleteBriefing() {
+    if (!client?.domain) { toast('Set the client domain first — Claude needs something to research.', 'error'); return; }
+    setLoadingBriefing(true);
     try {
-      const result = await api.post(`/clients/${id}/parse-briefing`);
-      setSuggestions(result);
+      const { briefing } = await api.post(`/clients/${id}/complete-briefing`);
+      setBriefingDraft(briefing || '');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
-      setParsingSuggestions(false);
+      setLoadingBriefing(false);
     }
+  }
+  async function handleAcceptBriefing(text) {
+    try {
+      const updated = await api.put(`/clients/${id}`, { ...client, briefing_field: text });
+      setClient(updated);
+      toast('About this client saved.', 'success');
+      setBriefingDraft(null);
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  async function handleSuggestFocus() {
+    setLoadingFocus(true);
+    try {
+      const { focus } = await api.post(`/clients/${id}/suggest-monthly-focus`);
+      setFocusDraft(focus || '');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setLoadingFocus(false);
+    }
+  }
+  async function handleAcceptFocus(text) {
+    try {
+      const updated = await api.put(`/clients/${id}`, { ...client, monthly_focus: text });
+      setClient(updated);
+      toast('Monthly focus saved.', 'success');
+      setFocusDraft(null);
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
+  function setSectionInstruction(sectionKey, value) {
+    setClient(p => ({
+      ...p,
+      section_instructions: { ...(p.section_instructions || {}), [sectionKey]: value },
+    }));
   }
 
   async function handleCheckConnector(connectorId) {
@@ -237,35 +280,18 @@ export default function ClientDetailPage() {
               Client is active
             </label>
           </Field>
-          <Field label="Briefing Field">
+          <Field label="About this client">
+            <p style={styles.help}>One paragraph describing what the business sells, to whom, where they operate. Used by Claude to give the AI Data Analyst context and to set the tone of report copy. Set once — update only if the business changes.</p>
             <textarea
-              style={{ ...styles.input, minHeight: 100, resize: 'vertical' }}
+              style={{ ...styles.input, minHeight: 110, resize: 'vertical' }}
               value={client.briefing_field || ''}
               onChange={e => setClient(p => ({ ...p, briefing_field: e.target.value }))}
-              placeholder="Describe the client in plain English — platforms, channels, stores..."
+              placeholder="e.g. Premium kitchenware brand selling enamel cookware in the UK, US and EU; D2C via Shopify and trade via separate B2B Shopify stores; also sells on Amazon UK/US/EU."
             />
-            <button type="button" onClick={handleParseBriefing} disabled={parsingSuggestions} style={{ ...styles.btnSm, marginTop: 8 }}>
-              {parsingSuggestions ? 'Parsing…' : '✦ Parse with Claude'}
+            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} style={{ ...styles.btnSm, marginTop: 8 }}>
+              {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
-          </Field>
-          {suggestions && (
-            <div style={styles.suggestions}>
-              <strong style={{ fontSize: 13 }}>Suggested connectors:</strong>
-              <ul style={{ margin: '8px 0 0', paddingLeft: 20, fontSize: 13 }}>
-                {(suggestions.suggested_connectors || []).map((s, i) => (
-                  <li key={i}><strong>{CONNECTOR_LABELS[s.type] || s.type}</strong>{s.store_label ? ` — ${s.store_label}` : ''}: {s.reason}</li>
-                ))}
-              </ul>
-              {suggestions.notes && <p style={{ margin: '8px 0 0', fontSize: 12, color: '#666' }}>{suggestions.notes}</p>}
-            </div>
-          )}
-          <Field label="Monthly Focus">
-            <textarea
-              style={{ ...styles.input, minHeight: 80, resize: 'vertical' }}
-              value={client.monthly_focus || ''}
-              onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
-              placeholder="What's the focus this month? Used by Claude to write executive summaries."
-            />
+            {!client.domain && <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>Set the domain above first</span>}
           </Field>
           <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
         </form>
@@ -430,24 +456,36 @@ export default function ClientDetailPage() {
           </div>
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>This month's focus</div>
+            <p style={styles.help}>Sets the priority for the next report. Drives Claude's executive summary and recommendations. Update before each monthly report runs.</p>
+            <textarea
+              style={{ ...styles.input, minHeight: 80, resize: 'vertical', marginTop: 8 }}
+              value={client.monthly_focus || ''}
+              onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
+              placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue."
+            />
+            <button type="button" onClick={handleSuggestFocus} disabled={loadingFocus} style={{ ...styles.btnSm, marginTop: 8 }}>
+              {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
+            </button>
+          </div>
+
+          <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Sections</div>
-            <p style={{ fontSize: 12, color: '#888', margin: '6px 0 12px' }}>
-              Choose which sections appear in each report type. Unticked sections are skipped.
-            </p>
-            <table style={{ borderCollapse: 'collapse', fontSize: 13 }}>
+            <p style={styles.help}>Tick the report types each section appears in. Optionally write a one-line instruction telling Claude what to emphasise for that section — e.g. <em>"For Shopify, focus on refunds and net revenue."</em></p>
+            <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>
               <thead>
                 <tr>
-                  {['Section', 'Weekly', 'Monthly'].map((h, i) => (
-                    <th key={h} style={{ textAlign: i === 0 ? 'left' : 'center', padding: i === 0 ? '4px 24px 8px 0' : '4px 16px 8px', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                  {['Section', 'Weekly', 'Monthly', 'Instructions for this section (optional)'].map((h, i) => (
+                    <th key={h} style={{ textAlign: i === 0 || i === 3 ? 'left' : 'center', padding: '4px 12px 8px', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {[{ key: 'seo', label: 'SEO Rankings' }, ...[...new Set(connectors.map(c => c.connector_type))].map(t => ({ key: t, label: CONNECTOR_LABELS[t] || t }))].map(({ key, label }) => (
                   <tr key={key}>
-                    <td style={{ padding: '6px 24px 6px 0', borderTop: '1px solid #f5f5f5' }}>{label}</td>
+                    <td style={{ padding: '6px 12px 6px 0', borderTop: '1px solid #f5f5f5', whiteSpace: 'nowrap' }}>{label}</td>
                     {['weekly', 'monthly'].map(period => (
-                      <td key={period} style={{ textAlign: 'center', padding: '6px 16px', borderTop: '1px solid #f5f5f5' }}>
+                      <td key={period} style={{ textAlign: 'center', padding: '6px 12px', borderTop: '1px solid #f5f5f5' }}>
                         <input
                           type="checkbox"
                           checked={client.report_sections?.[key]?.[period] !== false}
@@ -460,6 +498,15 @@ export default function ClientDetailPage() {
                         />
                       </td>
                     ))}
+                    <td style={{ padding: '6px 0 6px 12px', borderTop: '1px solid #f5f5f5', width: '100%' }}>
+                      <input
+                        type="text"
+                        style={{ ...styles.input, fontSize: 12, padding: '5px 8px', width: '100%', boxSizing: 'border-box' }}
+                        placeholder="(no extra instructions)"
+                        value={(client.section_instructions || {})[key] || ''}
+                        onChange={e => setSectionInstruction(key, e.target.value)}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -469,6 +516,25 @@ export default function ClientDetailPage() {
           <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>
         </>
+      )}
+
+      {briefingDraft !== null && (
+        <AIDraftModal
+          title="About this client — Claude's draft"
+          hint="Claude has researched the client's domain and drafted this paragraph. Edit it before saving."
+          draft={briefingDraft}
+          onAccept={handleAcceptBriefing}
+          onClose={() => setBriefingDraft(null)}
+        />
+      )}
+      {focusDraft !== null && (
+        <AIDraftModal
+          title="This month's focus — Claude's suggestion"
+          hint="Drafted from the previous focus, the AI Data Analyst's open investigations, and the latest connector status. Edit to suit, then accept."
+          draft={focusDraft}
+          onAccept={handleAcceptFocus}
+          onClose={() => setFocusDraft(null)}
+        />
       )}
 
       {credModal && (
@@ -1031,7 +1097,7 @@ const styles = {
   btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
   btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnSm: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
-  suggestions: { background: '#f0f7ff', border: '1px solid #90caf9', borderRadius: 4, padding: '12px 16px', fontSize: 13 },
+  help: { fontSize: 12, color: '#666', margin: '4px 0 8px', lineHeight: 1.5 },
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: 'white', borderRadius: 8, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
 };

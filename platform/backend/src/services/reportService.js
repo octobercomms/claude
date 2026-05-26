@@ -64,18 +64,26 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
   // Condense connector data for the AI prompt. The raw API responses (full
   // order lists, GA4 rows, etc.) can run past a million tokens and exceed the
   // model's limit — the section metrics and tables carry what the summary needs.
-  const condensed = sections.map(s => ({
-    connector: s.title,
-    store: s.storeLabel || undefined,
-    unavailable: s.unavailable || undefined,
-    error: s.errorMessage || undefined,
-    metrics: s.metrics,
-    tables: s.tables,
-  }));
+  // We also attach any per-section instruction the account manager has set so
+  // Claude weights that section accordingly.
+  const sectionInstructions = client.section_instructions || {};
+  const condensed = sections.map(s => {
+    const instruction = sectionInstructions[s.type];
+    return {
+      connector: s.title,
+      store: s.storeLabel || undefined,
+      unavailable: s.unavailable || undefined,
+      error: s.errorMessage || undefined,
+      instruction: instruction || undefined,
+      metrics: s.metrics,
+      tables: s.tables,
+    };
+  });
 
   const [executiveSummary, recommendations] = await Promise.all([
     claudeService.generateExecutiveSummary({
       clientName: client.name,
+      clientBriefing: client.briefing_field,
       period,
       monthlyFocus: client.monthly_focus,
       data: condensed,
@@ -83,6 +91,7 @@ async function generateMonthlyReport(report, period, periodStart, periodEnd, sec
       chatHistory,
     }),
     claudeService.generateRecommendations({
+      clientBriefing: client.briefing_field,
       monthlyFocus: client.monthly_focus,
       data: condensed,
       seoData,

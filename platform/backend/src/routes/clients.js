@@ -55,7 +55,7 @@ router.post('/', async (req, res) => {
 
 // Update client
 router.put('/:id', async (req, res) => {
-  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, domain } = req.body;
+  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -66,8 +66,8 @@ router.put('/:id', async (req, res) => {
         name = $1, slug = $2, active = $3,
         briefing_field = $4, monthly_focus = $5,
         report_recipients = $6, report_schedule = $7,
-        report_sections = $8, domain = $9
-       WHERE id = $10 RETURNING *`,
+        report_sections = $8, section_instructions = $9, domain = $10
+       WHERE id = $11 RETURNING *`,
       [
         name ?? c.name,
         slug ?? c.slug,
@@ -77,6 +77,7 @@ router.put('/:id', async (req, res) => {
         JSON.stringify(report_recipients ?? c.report_recipients),
         JSON.stringify(report_schedule ?? c.report_schedule),
         JSON.stringify(report_sections ?? c.report_sections ?? null),
+        JSON.stringify(section_instructions ?? c.section_instructions ?? {}),
         domain ?? c.domain ?? null,
         req.params.id,
       ]
@@ -100,21 +101,60 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Parse briefing with Claude to suggest connectors
-router.post('/:id/parse-briefing', async (req, res) => {
+// Research the client's domain via Claude and draft an "About this client"
+// paragraph. The frontend opens this in a draft-and-accept modal.
+router.post('/:id/complete-briefing', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = rows[0];
+    if (!client.domain) return res.status(400).json({ error: 'Set the client domain first — Claude needs something to research.' });
+
+    const draft = await claudeService.researchBriefing({
+      clientName: client.name,
+      domain: client.domain,
+      existingBriefing: client.briefing_field || null,
+    });
+    res.json({ briefing: draft });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Suggest a draft for this month's report focus. Reads recent context-log
+// items (decisions / open investigations from the AI Data Analyst), the
+// previous month's focus, and a quick summary of connector status, then asks
+// Claude to write a short focus paragraph.
+router.post('/:id/suggest-monthly-focus', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Client not found' });
     const client = rows[0];
 
-    if (!client.briefing_field) {
-      return res.status(400).json({ error: 'No briefing field set' });
-    }
+    const [historyRes, contextRes, connectorsRes] = await Promise.all([
+      pool.query(
+        'SELECT month, year, focus_text FROM monthly_focus_history WHERE client_id = $1 ORDER BY year DESC, month DESC LIMIT 3',
+        [req.params.id]
+      ),
+      pool.query(
+        "SELECT type, content FROM client_context_log WHERE client_id = $1 AND status = 'open' ORDER BY created_at DESC LIMIT 20",
+        [req.params.id]
+      ).catch(() => ({ rows: [] })),
+      pool.query(
+        "SELECT connector_type, store_label, status, error_message FROM connectors WHERE client_id = $1 ORDER BY connector_type",
+        [req.params.id]
+      ),
+    ]);
 
-    const suggestion = await claudeService.parseConnectorBriefing(client.briefing_field);
-    res.json(suggestion);
+    const draft = await claudeService.suggestMonthlyFocus({
+      client,
+      previousFocuses: historyRes.rows,
+      openContextItems: contextRes.rows,
+      connectorStatus: connectorsRes.rows,
+    });
+    res.json({ focus: draft });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(502).json({ error: err.message });
   }
 });
 
