@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { getSetting } = require('../utils/settings');
 const hunter = require('../services/hunter');
 const serper = require('../services/serper');
 const icypeas = require('../services/icypeas');
@@ -20,6 +21,51 @@ router.get('/track/open/:sendId', async (req, res) => {
 });
 
 router.use(authenticate);
+
+// ── Dashboard ──────────────────────────────────────────────────────────────
+
+// Aggregate counts shown on the Outreach dashboard for a client.
+router.get('/stats', async (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM outreach_contacts WHERE client_id = $1 AND status != 'unsubscribed') AS active_contacts,
+         (SELECT COUNT(*)::int FROM outreach_campaigns WHERE client_id = $1 AND status = 'active') AS active_campaigns,
+         (SELECT COUNT(*)::int FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id
+           WHERE c.client_id = $1 AND s.status = 'sent') AS emails_sent,
+         (SELECT COUNT(*)::int FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id
+           WHERE c.client_id = $1 AND s.replied_at IS NOT NULL) AS replies`,
+      [client_id]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Which outreach integrations are configured on the platform.
+router.get('/system-status', async (_req, res) => {
+  const groups = [
+    ['Claude AI', ['CLAUDE_API_KEY']],
+    ['Hunter.io', ['HUNTER_API_KEY']],
+    ['Icypeas', ['ICYPEAS_API_KEY', 'ICYPEAS_API_SECRET', 'ICYPEAS_USER_ID']],
+    ['Serper (Web Search)', ['SERPER_API_KEY']],
+    ['Email Sending (SES)', ['SES_ACCESS_KEY_ID', 'SES_SECRET_ACCESS_KEY']],
+    ['Reply Polling (IMAP)', ['OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD']],
+  ];
+  try {
+    const results = await Promise.all(groups.map(async ([name, keys]) => {
+      const values = await Promise.all(keys.map(getSetting));
+      const configured = values.every(v => v && String(v).trim());
+      return { name, status: configured ? 'connected' : 'missing' };
+    }));
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ── Contacts ───────────────────────────────────────────────────────────────
 
