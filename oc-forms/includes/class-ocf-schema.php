@@ -203,6 +203,22 @@ class OCF_Schema {
 		$schema['spam']['honeypot']   = ! empty( $schema['spam']['honeypot'] );
 		$schema['spam']['rate_limit'] = max( 1, absint( $schema['spam']['rate_limit'] ?? 5 ) );
 
+		// Endings.
+		if ( ! isset( $schema['endings'] ) || ! is_array( $schema['endings'] ) ) {
+			$schema['endings'] = array();
+		}
+		if ( ! isset( $schema['endings']['default'] ) || ! is_array( $schema['endings']['default'] ) ) {
+			$schema['endings']['default'] = array();
+		}
+		$end = $schema['endings']['default'];
+		$schema['endings']['default'] = array(
+			'heading'      => sanitize_text_field( $end['heading']      ?? '' ),
+			'body'         => sanitize_textarea_field( $end['body']     ?? '' ),
+			'cta_label'    => sanitize_text_field( $end['cta_label']    ?? '' ),
+			'cta_url'      => esc_url_raw( $end['cta_url']              ?? '' ),
+			'redirect_url' => esc_url_raw( $end['redirect_url']         ?? '' ),
+		);
+
 		return $schema;
 	}
 
