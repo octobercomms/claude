@@ -41,7 +41,21 @@ function logoImg(height = 55) {
   return `<img src="${uri}" height="${height}" alt="October" style="display:block;">`;
 }
 
-async function generatePDF(reportId, htmlContent) {
+// Footer rendered by puppeteer on every page — gives us automatic page
+// numbering (which would otherwise require manual @page CSS gymnastics).
+function buildPrintFooterTemplate() {
+  return `<div style="width:100%;font-size:6.5pt;color:#808080;text-align:center;font-family:Arial,sans-serif;padding:0 42pt;line-height:1.5;-webkit-print-color-adjust:exact;">
+    <div style="border-top:0.5pt solid #ccc;padding-top:5pt;">
+      Page <span class="pageNumber"></span> of <span class="totalPages"></span>
+      &middot; Private &amp; Confidential &middot; October Communications Ltd.
+    </div>
+    <div>Company No. 8816416 &middot; VAT Registration No. GB 176 6335 82 &middot; Registered in England and Wales</div>
+    <div>85 Great Portland Street, First Floor, London W1W 7LT &middot; www.octobercomms.com</div>
+  </div>`;
+}
+
+async function generatePDF(reportId, htmlContent, options = {}) {
+  const { printFooter = false } = options;
   const browser = await puppeteer.launch({
     headless: 'new',
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
@@ -58,7 +72,12 @@ async function generatePDF(reportId, htmlContent) {
       path: outputPath,
       format: 'A4',
       printBackground: true,
-      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+      displayHeaderFooter: printFooter,
+      headerTemplate: printFooter ? '<div></div>' : undefined,
+      footerTemplate: printFooter ? buildPrintFooterTemplate() : undefined,
+      margin: printFooter
+        ? { top: '0', right: '0', bottom: '19mm', left: '0' }
+        : { top: '0', right: '0', bottom: '0', left: '0' },
     });
 
     return outputPath;
@@ -88,6 +107,10 @@ body {
   position: relative;
 }
 .page:last-child { page-break-after: avoid; }
+/* When generated with puppeteer's displayHeaderFooter, the print engine
+   reserves a strip at the bottom of the physical page for its own footer —
+   so we use a slimmer min-height and bottom padding to fit inside it. */
+.page.with-print-footer { padding-bottom: 12pt; min-height: calc(297mm - 19mm); }
 
 /* ---- Cover ---- */
 .cover { padding: 40pt 42pt 40pt; display: flex; flex-direction: column; width: 210mm; min-height: 297mm; page-break-after: always; }
@@ -144,6 +167,22 @@ tr.alt > td { background: #f7f7f7; }
 .metric-cell:last-child { border-right: none; }
 .metric-cell .val { font-size: 14pt; font-weight: 700; }
 .metric-cell .lbl { font-size: 7pt; color: #808080; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2pt; }
+.metric-cell .delta { font-size: 8pt; font-weight: 600; margin-top: 3pt; }
+.metric-cell .delta.up { color: #2e7d32; }
+.metric-cell .delta.down { color: #c62828; }
+.metric-cell .delta.flat { color: #808080; }
+.metric-cell .delta-prev { font-size: 7pt; color: #808080; margin-top: 1pt; }
+
+/* Charts */
+.chart-block { margin-bottom: 18pt; }
+.chart-block svg { display: block; width: 100%; max-width: 460pt; }
+
+/* Position distribution */
+.pos-dist { display: flex; gap: 0; margin-bottom: 16pt; border: 1pt solid #000; }
+.pos-dist-cell { flex: 1; padding: 6pt 8pt; border-right: 1pt solid #000; text-align: center; }
+.pos-dist-cell:last-child { border-right: none; }
+.pos-dist-cell .val { font-size: 16pt; font-weight: 700; }
+.pos-dist-cell .lbl { font-size: 7pt; color: #808080; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2pt; }
 
 /* Text */
 p { margin-bottom: 8pt; font-size: 8.5pt; line-height: 1.6; }
@@ -222,11 +261,10 @@ function buildMonthlyReportHtml({ client, period, executiveSummary, sections, se
 <body>
 
 <!-- Executive Summary -->
-<div class="page">
+<div class="page with-print-footer">
   ${pageHeader(client.name, period)}
   <div class="section-title">Executive Summary</div>
   ${executiveSummary.split('\n').filter(p => p.trim()).map(p => `<p>${p}</p>`).join('')}
-  ${pageFooter()}
 </div>
 
 <!-- Data Sections (grouped by connector type) -->
@@ -247,11 +285,10 @@ function buildSectionGroupHtml(group, client = {}, period = '') {
   const blocks = group.sections.map(s => buildSectionBlock(s, hasMultipleStores)).join('');
 
   return `
-  <div class="page">
+  <div class="page with-print-footer">
     ${pageHeader(clientName, period)}
     <div class="section-title">${group.title}</div>
     ${blocks}
-    ${pageFooter()}
   </div>`;
 }
 
@@ -273,8 +310,13 @@ function buildSectionBlock(section, showStoreLabel) {
         <div class="metric-cell">
           <div class="val">${m.value}</div>
           <div class="lbl">${m.label}</div>
+          ${m.delta ? `<div class="delta ${m.deltaDirection || ''}">${m.deltaDirection === 'up' ? '↑' : m.deltaDirection === 'down' ? '↓' : ''} ${m.delta}</div>` : ''}
+          ${m.previous ? `<div class="delta-prev">vs ${m.previous}</div>` : ''}
         </div>`).join('')}
     </div>` : '';
+
+  const charts = section.charts || [];
+  const chartsHtml = charts.map(c => buildChartHtml(c)).join('');
 
   const tables = section.tables || [];
   const tablesHtml = tables.map(t => buildTableHtml(t)).join('');
@@ -282,7 +324,50 @@ function buildSectionBlock(section, showStoreLabel) {
   return `
     ${subHeading}
     ${metricsHtml}
+    ${chartsHtml}
     ${tablesHtml}`;
+}
+
+function escapeXml(str) {
+  return String(str ?? '').replace(/[<>&'"]/g, c =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
+}
+
+// Inline SVG horizontal bar chart — no external charting library. Sized to
+// the page content width (about 460pt at A4 with 42pt side padding).
+function buildChartHtml(chart) {
+  if (chart.type !== 'hbar' || !chart.data?.length) return '';
+
+  const total = chart.data.reduce((s, d) => s + (d.value || 0), 0);
+  const max = Math.max(...chart.data.map(d => d.value || 0));
+  if (max <= 0) return '';
+
+  const width = 460;
+  const rowHeight = 18;
+  const labelWidth = 130;
+  const valueWidth = 110;
+  const barAreaWidth = width - labelWidth - valueWidth - 8;
+  const height = chart.data.length * rowHeight + 8;
+
+  const valueX = labelWidth + barAreaWidth + 6;
+  const bars = chart.data.map((d, i) => {
+    const y = i * rowHeight + 4;
+    const bw = (d.value / max) * barAreaWidth;
+    const pct = total > 0 ? ((d.value / total) * 100).toFixed(1) : '0.0';
+    return `
+      <text x="0" y="${y + 11}" font-size="8" fill="#1a1a1a">${escapeXml(d.label)}</text>
+      <rect x="${labelWidth}" y="${y + 3}" width="${bw}" height="${rowHeight - 8}" fill="#E7CD41" />
+      <text x="${valueX}" y="${y + 11}" font-size="8" fill="#1a1a1a">${d.value.toLocaleString()} (${pct}%)</text>
+    `;
+  }).join('');
+
+  return `
+    <div class="chart-block">
+      <div class="sub-title">${escapeXml(chart.title)}</div>
+      <svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMinYMin meet">
+        ${bars}
+      </svg>
+    </div>`;
 }
 
 function buildTableHtml({ heading, headers, rows, highlightFirst = false }) {
@@ -319,9 +404,10 @@ function buildSEOSectionsHtml(seoData, client = {}, period = '') {
     const top10 = [...rankings].sort((a, b) => (a.current_position || 999) - (b.current_position || 999)).slice(0, 10);
 
     parts.push(`
-    <div class="page">
+    <div class="page with-print-footer">
       ${pageHeader(clientName, period)}
       <div class="section-title">Organic Rankings</div>
+      ${buildPositionDistributionHtml(rankings)}
       ${top10.length ? buildTableHtml({
         heading: `Top 10 Ranking Keywords (${rankings.length} tracked total)`,
         headers: ['Keyword', 'Location', 'Position', '30d Ago', 'Best Ever'],
@@ -344,11 +430,38 @@ function buildSEOSectionsHtml(seoData, client = {}, period = '') {
           return [k.keyword, k.current_position, k.position_30d_ago, `↓${change}`];
         }),
       }) : ''}
-      ${pageFooter()}
     </div>`);
   }
 
   return parts.join('');
+}
+
+// Distribution of tracked keywords across SERP position buckets — the
+// standard "Top 3 / 4-10 / 11-20 / 21-50 / 51-100" view rank-tracking
+// platforms (SEMRush, Ahrefs) lead with.
+function buildPositionDistributionHtml(rankings) {
+  const buckets = [
+    { label: 'Top 3', min: 1, max: 3 },
+    { label: '4 — 10', min: 4, max: 10 },
+    { label: '11 — 20', min: 11, max: 20 },
+    { label: '21 — 50', min: 21, max: 50 },
+    { label: '51 — 100', min: 51, max: 100 },
+    { label: '100+', min: 101, max: Infinity },
+  ];
+  const counts = buckets.map(b => rankings.filter(k => {
+    const p = parseInt(k.current_position);
+    return p >= b.min && p <= b.max;
+  }).length);
+
+  return `
+    <div class="sub-title">Positions in Search Results</div>
+    <div class="pos-dist">
+      ${buckets.map((b, i) => `
+        <div class="pos-dist-cell">
+          <div class="val">${counts[i]}</div>
+          <div class="lbl">${b.label}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 function buildWeeklyReportHtml({ client, period, weekLabel, summaryText, metrics = [], rankMovers = [] }) {
