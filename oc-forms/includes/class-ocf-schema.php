@@ -61,7 +61,7 @@ class OCF_Schema {
 				'font'       => 'Inter',
 				'logo'       => '',
 				'radius'     => '8px',
-				'background' => '#f5f5f5',
+				'background' => '#ffffff',
 			),
 			'brevo'    => array(
 				'enabled'              => true,

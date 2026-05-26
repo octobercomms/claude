@@ -51,6 +51,7 @@ class OCF_Renderer {
 		if ( ! empty( $schema['spam']['turnstile'] ) && OCF_Spam::turnstile_site_key() ) {
 			wp_enqueue_script( 'cf-turnstile' );
 		}
+		self::maybe_enqueue_webfont( $schema['theme']['font'] ?? '' );
 
 		$config = array(
 			'formId'       => $form_id,
@@ -74,17 +75,51 @@ class OCF_Renderer {
 	}
 
 	public static function theme_vars( $theme ) {
+		$font = trim( (string) ( $theme['font'] ?? '' ) );
 		$map = array(
-			'--ocf-primary'    => $theme['primary']    ?? '#111',
+			'--ocf-primary'    => $theme['primary']    ?? '#111111',
 			'--ocf-accent'     => $theme['accent']     ?? '#f59e0b',
-			'--ocf-font'       => $theme['font']       ? sprintf( '"%s", system-ui, sans-serif', $theme['font'] ) : 'system-ui, sans-serif',
+			'--ocf-font'       => self::font_stack( $font ),
 			'--ocf-radius'     => $theme['radius']     ?? '8px',
-			'--ocf-background' => $theme['background'] ?? '#f5f5f5',
+			'--ocf-background' => $theme['background'] ?? '#ffffff',
 		);
 		$out = array();
 		foreach ( $map as $k => $v ) {
 			$out[] = $k . ':' . $v;
 		}
 		return implode( ';', $out );
+	}
+
+	/**
+	 * Build a safe CSS font stack from the user-provided font name.
+	 * Empty or a recognised "system" alias collapses to the system stack.
+	 */
+	private static function font_stack( $font ) {
+		$system_fallback = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+		if ( $font === '' || in_array( strtolower( $font ), array( 'system', 'system-ui', 'sans-serif', 'default' ), true ) ) {
+			return $system_fallback;
+		}
+		// Strip risky chars to avoid CSS injection in the inline style attr.
+		$font = preg_replace( '/[^A-Za-z0-9 _-]/', '', $font );
+		if ( $font === '' ) { return $system_fallback; }
+		return sprintf( '"%s", %s', $font, $system_fallback );
+	}
+
+	/**
+	 * Auto-load the font from Google Fonts when it isn't a system stack.
+	 * Most modern brand fonts live there; if a font doesn't exist, the
+	 * stylesheet 404s harmlessly and the form falls back to system fonts.
+	 */
+	private static function maybe_enqueue_webfont( $font ) {
+		$font = trim( (string) $font );
+		if ( $font === '' ) { return; }
+		if ( in_array( strtolower( $font ), array( 'system', 'system-ui', 'sans-serif', 'default', 'arial', 'helvetica', 'georgia', 'times', 'times new roman', 'courier', 'courier new', 'verdana', 'tahoma' ), true ) ) {
+			return;
+		}
+		$clean = preg_replace( '/[^A-Za-z0-9 _-]/', '', $font );
+		if ( $clean === '' ) { return; }
+		$family = str_replace( ' ', '+', $clean );
+		$url    = sprintf( 'https://fonts.googleapis.com/css2?family=%s:wght@400;500;600;700&display=swap', $family );
+		wp_enqueue_style( 'ocf-font-' . sanitize_key( $clean ), $url, array(), null );
 	}
 }

@@ -405,12 +405,12 @@
 				el('input', { type: 'color', value: t[key] || '#000000', onInput: function (e) { t[key] = e.target.value; syncHiddenInput(); } })
 			]);
 		}
-		host.appendChild(color('Primary colour', 'primary'));
-		host.appendChild(color('Accent colour', 'accent'));
-		host.appendChild(color('Background', 'background'));
+		host.appendChild(color('Primary (buttons, selected state)', 'primary'));
+		host.appendChild(color('Accent (progress bar)', 'accent'));
+		host.appendChild(color('Card background', 'background'));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
-			el('span', null, ['Font family']),
-			el('input', { type: 'text', class: 'widefat', value: t.font || 'Inter', onInput: function (e) { t.font = e.target.value; syncHiddenInput(); } })
+			el('span', null, ['Font family (Google Fonts auto-loaded)']),
+			el('input', { type: 'text', class: 'widefat', value: t.font || 'Inter', placeholder: 'e.g. Inter, Roboto, Playfair Display', onInput: function (e) { t.font = e.target.value; syncHiddenInput(); } })
 		]));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Corner radius (e.g. 8px)']),
