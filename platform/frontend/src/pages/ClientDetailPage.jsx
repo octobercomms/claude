@@ -738,10 +738,21 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
   const [saved, setSaved] = React.useState(false);
 
   React.useEffect(() => {
-    api.get(`/connectors/${connector.id}/accounts`)
+    // Fetch credentials from backend, then list forms directly from the browser
+    // (server IP is blocked by the WordPress host, so we bypass the proxy).
+    api.get(`/october-forms/connectors/${connector.id}/credentials`)
+      .then(creds => {
+        const base = creds.site_url.trim().replace(/\/$/, '');
+        const url = `${base}/wp-json/ocf/v1/api/forms?api_key=${encodeURIComponent(creds.api_key)}`;
+        return fetch(url, { headers: { Accept: 'application/json' } });
+      })
+      .then(res => {
+        if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+        return res.json();
+      })
       .then(data => {
-        if (data && data.fetchError) { setFormsError(data.fetchError); setForms([]); }
-        else setForms(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : (data?.forms || data?.data || []);
+        setForms(list.map(f => ({ value: String(f.id), label: f.title || `Form ${f.id}`, status: f.status })));
       })
       .catch(err => { setFormsError(err.message || 'Failed to load forms'); setForms([]); });
   }, [connector.id]);
@@ -996,7 +1007,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       {connector.connector_type === 'brevo' && isActive && (
         <BrevoConfig connector={connector} onConfigSave={onConfigSave} />
       )}
-      {connector.connector_type === 'october_forms' && isActive && (
+      {connector.connector_type === 'october_forms' && (isActive || connector.status === 'error') && (
         <OctoberFormsConfig connector={connector} onConfigSave={onConfigSave} />
       )}
       {isOAuth && isActive && (
