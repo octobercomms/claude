@@ -62,6 +62,16 @@ async function callClaude({ max_tokens, system, user, model = MODEL }) {
 // History is full conversation context (passed in from the frontend); we
 // don't store it server-side, the lock action is what persists.
 async function chatBuildReportTemplate({ client, reportType, availableConnectors, currentTemplate, history }) {
+  const reportTemplate = require('./reportTemplate');
+  // Enumerate exactly which metric keys are valid for each connector type
+  // present on this client. Without this, Claude was proposing ad-hoc keys
+  // (e.g. `conversions` on Shopify, `total_revenue` instead of `revenue`)
+  // and the renderer rendered empty cells or duplicate columns for them.
+  const presentTypes = Array.from(new Set(availableConnectors.map(c => c.type)));
+  const metricCatalogLines = presentTypes
+    .filter(t => reportTemplate.METRIC_CATALOG[t])
+    .map(t => `- ${t}: ${Object.keys(reportTemplate.METRIC_CATALOG[t]).join(', ')}`)
+    .join('\n') || '(no connector catalogs available)';
   const tools = [{
     name: 'propose_template',
     description: 'Surface a draft report template for the account manager to review. Call this whenever the template should change — after answering questions, after the AM asks for an edit, or to propose a starting point. The frontend renders the result as a live preview the AM can lock.',
@@ -103,7 +113,7 @@ async function chatBuildReportTemplate({ client, reportType, availableConnectors
 A template is an ordered list of sections. Each section is one of:
 
 - narrative: { id, title, type: "narrative", sources: ["*"] | [{ type, storeLabel? }], prompt: "<what Claude should write>" }
-- metrics_grid: { id, title, type: "metrics_grid", sources, aggregate: "sum" | "list", metrics: ["revenue", "orders", "aov", "spend", "conv_value", "roas", "net", "sessions", "users", "conversions", "clicks", "impressions"] }
+- metrics_grid: { id, title, type: "metrics_grid", sources, aggregate: "sum" | "list", metrics: [ONLY the keys listed for that source's connector type in the metric catalog below — never invent new ones] }
 - connector_table: { id, title, type: "connector_table", sources }  (renders the connector's built-in detail tables — campaign performance, top orders, top queries, etc.)
 - bar_chart: { id, title, type: "bar_chart", sources: [{ type: "ga4" }], dimension: "channel", metric: "sessions" }
 - position_distribution: { id, title, type: "position_distribution" }  (SEO ranking buckets — Top 3 / 4-10 / 11-20 / 21-50 / 51-100 / 100+)
@@ -121,6 +131,9 @@ About: ${client.briefing_field || '(no briefing set)'}
 
 Connectors currently configured for this client:
 ${availableConnectors.map(c => `- ${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}${c.status !== 'active' ? ` — ${c.status}` : ''}`).join('\n') || '(none yet)'}
+
+Metric catalog (valid keys per connector type — use these exact strings; never invent new ones):
+${metricCatalogLines}
 
 ${currentTemplate
   ? `Current saved template:\n${JSON.stringify(currentTemplate, null, 2)}`
