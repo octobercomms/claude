@@ -124,7 +124,7 @@ export default function ClientSalesTrafficPage() {
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
               style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
             <button onClick={applyCustom}
-              style={{ padding: '6px 12px', borderRadius: 6, border: 'none', background: '#1a1a1a', color: '#fff', fontSize: 13, cursor: 'pointer' }}>Apply</button>
+              style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#E7CD41', color: '#1a1a1a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
           </span>
         )}
         <span style={{ fontSize: 12, color: '#888' }}>{fmtDay(start)} – {fmtDay(end)}</span>

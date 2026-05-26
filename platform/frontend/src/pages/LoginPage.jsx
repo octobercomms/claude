@@ -94,8 +94,8 @@ const styles = {
     fontSize: 14, outline: 'none', fontFamily: 'Brockmann, sans-serif',
   },
   btn: {
-    padding: '12px', background: '#000000', color: 'white', border: 'none',
-    borderRadius: 4, fontSize: 13, fontWeight: 600, cursor: 'pointer', marginTop: 4,
+    padding: '12px', background: '#E7CD41', color: '#1a1a1a', border: 'none',
+    borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4,
     fontFamily: 'Brockmann, sans-serif', letterSpacing: 0.5,
   },
   error: { background: '#fff0f0', color: '#c62828', padding: '10px 12px', borderRadius: 4, fontSize: 13, border: '1px solid #ffcdd2' },

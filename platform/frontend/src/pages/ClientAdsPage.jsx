@@ -543,6 +543,6 @@ const s = {
   toolChip: { fontSize: 10, padding: '2px 7px', background: '#f0f4ff', color: '#3355cc', borderRadius: 10, fontWeight: 500 },
   inputRow: { display: 'flex', gap: 6, paddingTop: 12, borderTop: '1px solid #e8e8e8', marginTop: 'auto' },
   textarea: { flex: 1, padding: '8px 10px', border: '1px solid #e0e0e0', borderRadius: 8, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none' },
-  sendBtn: { padding: '8px 14px', background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600 },
+  sendBtn: { padding: '8px 18px', background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', fontSize: 14, fontWeight: 700 },
   typing: { display: 'inline-flex', gap: 3, alignItems: 'center' },
 };

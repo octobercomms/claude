@@ -104,8 +104,8 @@ export default function ClientsPage() {
 const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   pageTitle: { fontSize: 24, fontWeight: 700, margin: 0 },
-  btn: { background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 4, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnGhost: { background: 'transparent', color: '#666', border: '1px solid #ddd', borderRadius: 4, padding: '9px 16px', fontSize: 13, cursor: 'pointer' },
+  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   newCard: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, padding: 24, marginBottom: 24 },
   form: { display: 'flex', flexDirection: 'column', gap: 16 },
   row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
