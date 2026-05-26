@@ -96,14 +96,25 @@ router.get('/contacts', async (req, res) => {
 });
 
 router.post('/contacts', async (req, res) => {
-  const { client_id, name, email, company, role, website, status, notes } = req.body;
-  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  const b = req.body;
+  if (!b.client_id) return res.status(400).json({ error: 'client_id required' });
   try {
     const { rows } = await pool.query(
-      `INSERT INTO outreach_contacts (client_id, name, email, company, role, website, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [client_id, name || null, email || null, company || null, role || null,
-       website || null, status || 'new', notes || null]
+      `INSERT INTO outreach_contacts
+         (client_id, name, first_name, last_name, email, company, role, title,
+          contact_type, location, linkedin_url, source, website, status, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       RETURNING *`,
+      [
+        b.client_id,
+        b.name || [b.first_name, b.last_name].filter(Boolean).join(' ') || null,
+        b.first_name || null, b.last_name || null,
+        b.email || null, b.company || null,
+        b.role || b.title || null, b.title || null,
+        b.contact_type || null, b.location || null,
+        b.linkedin_url || null, b.source || 'manual',
+        b.website || null, b.status || 'new', b.notes || null,
+      ]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -119,11 +130,23 @@ router.post('/contacts/bulk', async (req, res) => {
   try {
     const inserted = [];
     for (const c of contacts) {
-      if (!c.email && !c.name) continue;
+      if (!c.email && !c.name && !c.first_name) continue;
+      const combinedName = c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || null;
       const { rows } = await pool.query(
-        `INSERT INTO outreach_contacts (client_id, name, email, company, role, website)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-        [client_id, c.name || null, c.email || null, c.company || null, c.role || null, c.website || null]
+        `INSERT INTO outreach_contacts
+           (client_id, name, first_name, last_name, email, company, role, title,
+            contact_type, location, linkedin_url, source, website)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         RETURNING *`,
+        [
+          client_id, combinedName,
+          c.first_name || null, c.last_name || null,
+          c.email || null, c.company || null,
+          c.role || c.title || null, c.title || null,
+          c.contact_type || null, c.location || null,
+          c.linkedin_url || null, c.source || null,
+          c.website || null,
+        ]
       );
       inserted.push(rows[0]);
     }
@@ -141,11 +164,28 @@ router.put('/contacts/:id', async (req, res) => {
     const b = req.body;
     const { rows } = await pool.query(
       `UPDATE outreach_contacts SET
-         name = $1, email = $2, company = $3, role = $4, website = $5,
-         status = $6, notes = $7, updated_at = NOW()
-       WHERE id = $8 RETURNING *`,
-      [b.name ?? c.name, b.email ?? c.email, b.company ?? c.company, b.role ?? c.role,
-       b.website ?? c.website, b.status ?? c.status, b.notes ?? c.notes, req.params.id]
+         name = $1, first_name = $2, last_name = $3, email = $4, company = $5,
+         role = $6, title = $7, contact_type = $8, location = $9,
+         linkedin_url = $10, source = $11, website = $12,
+         status = $13, notes = $14, updated_at = NOW()
+       WHERE id = $15 RETURNING *`,
+      [
+        b.name ?? c.name,
+        b.first_name ?? c.first_name,
+        b.last_name ?? c.last_name,
+        b.email ?? c.email,
+        b.company ?? c.company,
+        b.role ?? c.role,
+        b.title ?? c.title,
+        b.contact_type ?? c.contact_type,
+        b.location ?? c.location,
+        b.linkedin_url ?? c.linkedin_url,
+        b.source ?? c.source,
+        b.website ?? c.website,
+        b.status ?? c.status,
+        b.notes ?? c.notes,
+        req.params.id,
+      ]
     );
     res.json(rows[0]);
   } catch (err) {
@@ -185,15 +225,63 @@ router.get('/campaigns', async (req, res) => {
 });
 
 router.post('/campaigns', async (req, res) => {
-  const { client_id, name, audience_description } = req.body;
-  if (!client_id || !name) return res.status(400).json({ error: 'client_id and name required' });
+  const b = req.body;
+  if (!b.client_id || !b.name) return res.status(400).json({ error: 'client_id and name required' });
   try {
     const { rows } = await pool.query(
-      `INSERT INTO outreach_campaigns (client_id, name, audience_description)
-       VALUES ($1, $2, $3) RETURNING *`,
-      [client_id, name, audience_description || null]
+      `INSERT INTO outreach_campaigns
+         (client_id, name, brand, campaign_type, audience_description,
+          from_name, from_email, reply_to, coupon_code, press_release_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [
+        b.client_id, b.name,
+        b.brand || null, b.campaign_type || 'outreach',
+        b.audience_description || null,
+        b.from_name || null, b.from_email || null, b.reply_to || null,
+        b.coupon_code || null, b.press_release_url || null,
+      ]
     );
     res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Patch any subset of campaign fields — used by the wizard between steps.
+router.put('/campaigns/:id', async (req, res) => {
+  try {
+    const { rows: cur } = await pool.query('SELECT * FROM outreach_campaigns WHERE id = $1', [req.params.id]);
+    if (!cur.length) return res.status(404).json({ error: 'Campaign not found' });
+    const c = cur[0];
+    const b = req.body;
+    const refined = b.refined_audience !== undefined ? JSON.stringify(b.refined_audience) : null;
+    const searched = b.searched_domains !== undefined ? JSON.stringify(b.searched_domains) : null;
+    const { rows } = await pool.query(
+      `UPDATE outreach_campaigns SET
+         name = $1, brand = $2, campaign_type = $3, status = $4,
+         audience_description = $5, from_name = $6, from_email = $7,
+         reply_to = $8, coupon_code = $9, press_release_url = $10,
+         refined_audience = COALESCE($11::jsonb, refined_audience),
+         searched_domains = COALESCE($12::jsonb, searched_domains),
+         updated_at = NOW()
+       WHERE id = $13 RETURNING *`,
+      [
+        b.name ?? c.name,
+        b.brand ?? c.brand,
+        b.campaign_type ?? c.campaign_type,
+        b.status ?? c.status,
+        b.audience_description ?? c.audience_description,
+        b.from_name ?? c.from_name,
+        b.from_email ?? c.from_email,
+        b.reply_to ?? c.reply_to,
+        b.coupon_code ?? c.coupon_code,
+        b.press_release_url ?? c.press_release_url,
+        refined,
+        searched,
+        req.params.id,
+      ]
+    );
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
