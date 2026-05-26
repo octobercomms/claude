@@ -500,5 +500,5 @@ const styles = {
   input: { padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
   eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
   envHint: { fontSize: 10, color: '#aaa' },
-  btn: { background: '#000000', color: 'white', border: 'none', borderRadius: 4, padding: '8px 16px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
+  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
 };

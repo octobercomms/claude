@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Two-column edit modal — Contact Details on the left, More Info on the right,
 // matching the original WordPress plugin layout.
@@ -134,6 +135,6 @@ const styles = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e8e8e8' },
   input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
-  btn: { padding: '9px 18px', fontSize: 13, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' },
-  btnGhost: { padding: '9px 18px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
+  btn: primaryBtn,
+  btnGhost: secondaryBtn,
 };

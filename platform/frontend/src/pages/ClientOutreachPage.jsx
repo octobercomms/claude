@@ -833,8 +833,8 @@ function parseCsv(text) {
 
 const s = {
   card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 16 },
-  btn: { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' },
-  btnGhost: { padding: '7px 14px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
+  btn: { padding: '9px 22px', fontSize: 13, fontWeight: 700, background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' },
+  btnGhost: { padding: '9px 22px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' },
   input: { padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit' },
   tableWrap: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse' },

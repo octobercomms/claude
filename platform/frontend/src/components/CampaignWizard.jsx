@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { COLORS, primaryBtn, secondaryBtn, stepDotStyle } from '../styles/theme';
 
 // 5-step Campaign Wizard. The component manages step state locally and
 // persists each step's data to the backend on Next so the user can resume
@@ -62,24 +63,29 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
         <div style={{ width: 100 }} />
       </div>
 
-      {/* Breadcrumb / step indicator */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
-        {STEPS.map(({ key, label }) => (
-          <button key={key}
-            onClick={() => key < step && setStep(key)}
-            disabled={key > step}
-            style={{
-              background: 'none', border: 'none',
-              cursor: key <= step ? 'pointer' : 'default',
-              padding: '10px 16px', fontSize: 13,
-              fontWeight: step === key ? 700 : 400,
-              color: step === key ? '#1a1a1a' : key < step ? '#666' : '#bbb',
-              borderBottom: step === key ? '2px solid #1a1a1a' : '2px solid transparent',
-              marginBottom: -2,
-            }}>
-            <span style={{ display: 'inline-block', width: 18, height: 18, lineHeight: '18px', borderRadius: 9, background: step >= key ? '#1a1a1a' : '#e8e8e8', color: step >= key ? '#fff' : '#888', fontSize: 11, fontWeight: 700, marginRight: 6, textAlign: 'center' }}>{key}</span>
-            {label}
-          </button>
+      {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
+      <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: `1px solid ${COLORS.lightGrey}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
+        {STEPS.map(({ key, label }, idx) => (
+          <React.Fragment key={key}>
+            <button
+              onClick={() => key < step && setStep(key)}
+              disabled={key > step}
+              style={{
+                display: 'flex', alignItems: 'center',
+                background: 'none', border: 'none',
+                cursor: key <= step ? 'pointer' : 'default',
+                padding: '6px 8px', fontSize: 13,
+                fontWeight: step === key ? 700 : 500,
+                color: step >= key ? COLORS.dark : COLORS.mutedText,
+                flexShrink: 0,
+              }}>
+              <span style={stepDotStyle(step >= key)}>{key}</span>
+              {label}
+            </button>
+            {idx < STEPS.length - 1 && (
+              <div style={{ flex: 1, height: 1, background: COLORS.lightGrey, margin: '0 4px' }} />
+            )}
+          </React.Fragment>
         ))}
       </div>
 
@@ -596,13 +602,13 @@ function Footer({ children }) {
 
 const s = {
   card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 20 },
-  btn: { padding: '8px 16px', fontSize: 13, fontWeight: 600, background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer' },
-  btnGhost: { padding: '8px 16px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#444', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
+  btn: primaryBtn,
+  btnGhost: secondaryBtn,
   input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 },
   th: { padding: '8px 10px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
   td: { padding: '8px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12 },
   chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px' },
-  tabBtn: { background: '#fff', border: '1px solid #ddd', borderRadius: 4, padding: '6px 14px', cursor: 'pointer', fontSize: 13 },
-  tabBtnActive: { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' },
+  tabBtn: { ...secondaryBtn, padding: '6px 16px' },
+  tabBtnActive: { ...primaryBtn, padding: '6px 16px' },
 };
