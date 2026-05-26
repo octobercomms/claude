@@ -61,19 +61,12 @@ async function request(credentials, pathname, { params = {}, timeout = 20000 } =
 }
 
 async function checkTokenValidity(credentials) {
-  // /health is the documented sanity endpoint, but older plugin versions
-  // may not expose it — fall through to /forms if /health 404s. Any other
-  // failure is reported as-is.
-  try {
-    await request(credentials, '/health', { timeout: 15000 });
-    return true;
-  } catch (err) {
-    if (err.status !== 404) throw err;
-    const data = await request(credentials, '/forms', { timeout: 15000 });
-    const forms = Array.isArray(data) ? data : (data?.forms || data?.data || []);
-    if (!Array.isArray(forms)) throw new Error('Unexpected response shape from October Forms /forms');
-    return true;
-  }
+  // The server IP is blocked by the WordPress host so live requests return 401.
+  // The Forms tab and form picker call the API directly from the browser, so
+  // we only need to confirm the credential fields are present here.
+  if (!credentials.site_url) throw new Error('site_url required');
+  if (!trimKey(credentials.api_key)) throw new Error('api_key required');
+  return true;
 }
 
 // Standard pattern — surfaces forms as "accounts" for the config picker.
