@@ -37,6 +37,20 @@ class OCF_REST_API {
 			'permission_callback' => '__return_true',
 			'callback'            => array( __CLASS__, 'submit' ),
 		) );
+		register_rest_route( self::NAMESPACE, '/admin/brevo-attributes', array(
+			'methods'             => 'GET',
+			'permission_callback' => function () { return current_user_can( 'manage_options' ); },
+			'callback'            => array( __CLASS__, 'admin_brevo_attributes' ),
+		) );
+	}
+
+	public static function admin_brevo_attributes( WP_REST_Request $req ) {
+		$force = ! empty( $req->get_param( 'refresh' ) );
+		$attrs = OCF_Brevo::list_attributes( $force );
+		if ( is_wp_error( $attrs ) ) {
+			return new WP_Error( $attrs->get_error_code(), $attrs->get_error_message(), array( 'status' => 502 ) );
+		}
+		return rest_ensure_response( array( 'attributes' => $attrs ) );
 	}
 
 	public static function view( WP_REST_Request $req ) {

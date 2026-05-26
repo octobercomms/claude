@@ -272,13 +272,18 @@ class OCF_Schema {
 			$map = (array) $map;
 		}
 		if ( ! is_array( $map ) ) {
-			return array();
+			return new stdClass();
 		}
 		$clean = array();
 		foreach ( $map as $k => $v ) {
-			$clean[ self::clean_id( $k ) ] = sanitize_text_field( $v );
+			if ( ! is_string( $k ) && ! is_int( $k ) ) { continue; }
+			$ck = self::clean_id( (string) $k );
+			if ( $ck === '' ) { continue; }
+			$clean[ $ck ] = sanitize_text_field( is_scalar( $v ) ? (string) $v : '' );
 		}
-		return $clean;
+		// Force object shape on JSON encode so an empty (or any) map round-trips
+		// as `{}` not `[]` — otherwise JS arrays drop string keys silently.
+		return empty( $clean ) ? new stdClass() : (object) $clean;
 	}
 
 	public static function find_question( $schema, $question_id ) {
