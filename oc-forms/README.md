@@ -15,6 +15,8 @@ nvelope.co runs a separate lead-capture funnel for each client (Forgeworks is on
 - **Brevo integration** — contact upsert with attribute mapping + Track Event (both flows), with retry queue for transient API failures.
 - **Spam protection** — Cloudflare Turnstile, honeypot, per-IP rate limit.
 - **CSV export** of submissions.
+- **Analytics dashboard** per form: views, starts, partial / completed submissions, step funnel, median time on form, daily activity chart.
+- **External JSON API** (read-only, API-key auth) for piping all of this into the Platform reporting app — see [API.md](API.md).
 - **Shortcode** `[nvelope_form id="123"]` and a Gutenberg block.
 
 ## Install
@@ -63,15 +65,18 @@ oc-forms/
 │   ├── class-ocf-cpt.php          registers the form CPT
 │   ├── class-ocf-logic.php        server-side conditional logic eval
 │   ├── class-ocf-submission.php   DB model
+│   ├── class-ocf-analytics.php    view tracking + funnel / timeseries aggregations
 │   ├── class-ocf-brevo.php        Brevo client (contacts + events)
 │   ├── class-ocf-spam.php         Turnstile + honeypot + rate limit
 │   ├── class-ocf-renderer.php     shortcode + block
-│   └── class-ocf-rest-api.php     /start /save /upload /submit
+│   ├── class-ocf-rest-api.php     /view /start /save /upload /submit
+│   └── class-ocf-public-api.php   external read-only JSON API (see API.md)
 ├── admin/
-│   ├── class-ocf-admin.php           top-level menu + list table
-│   ├── class-ocf-settings.php        Brevo + Turnstile keys
-│   ├── class-ocf-builder.php         CPT edit-screen integration
-│   └── class-ocf-submissions-list.php
+│   ├── class-ocf-admin.php             top-level menu + list table
+│   ├── class-ocf-settings.php          Brevo, Turnstile, external API key
+│   ├── class-ocf-builder.php           CPT edit-screen integration
+│   ├── class-ocf-submissions-list.php  per-form submissions + CSV export
+│   └── class-ocf-analytics-page.php    in-WP analytics dashboard
 ├── assets/
 │   ├── js/frontend.js   multi-step form runtime
 │   ├── js/builder.js    visual schema editor

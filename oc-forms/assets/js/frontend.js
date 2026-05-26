@@ -66,16 +66,58 @@
 		});
 	}
 
+	function getOrCreateSession() {
+		try {
+			var s = window.localStorage.getItem('ocf_sess');
+			if (s && /^[A-Za-z0-9_-]{8,64}$/.test(s)) return s;
+		} catch (e) { /* private browsing */ }
+		var rnd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
+		var hash = rnd.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 32);
+		try { window.localStorage.setItem('ocf_sess', hash); } catch (e) {}
+		// Also set as cookie so server-side fallbacks can read it.
+		try {
+			document.cookie = 'ocf_sess=' + hash + '; path=/; max-age=31536000; samesite=lax';
+		} catch (e) {}
+		return hash;
+	}
+
 	function Form(root) {
 		var cfg     = JSON.parse(root.getAttribute('data-ocf-config'));
 		var schema  = cfg.schema;
+		var session = getOrCreateSession();
 		var answers = {};
 		var uploads = {};      // questionId -> [ { id, url, name, size } ]
 		var token   = null;
 		var stepIdx = 0;
+		var maxStepReached = 0;
 		var saveTimer = null;
 		var turnstileToken = '';
 		var turnstileWidget = null;
+
+		// Engagement-time tracking: count seconds while the form tab is active.
+		var startedAt = Date.now();
+		var activeMs  = 0;
+		var lastTick  = Date.now();
+		var isVisible = !document.hidden;
+		document.addEventListener('visibilitychange', function () {
+			if (document.hidden) {
+				if (isVisible) { activeMs += Date.now() - lastTick; }
+				isVisible = false;
+			} else {
+				lastTick  = Date.now();
+				isVisible = true;
+			}
+		});
+		setInterval(function () {
+			if (isVisible) {
+				activeMs += Date.now() - lastTick;
+				lastTick  = Date.now();
+			}
+		}, 5000);
+		function secondsActive() {
+			var ms = activeMs + (isVisible ? (Date.now() - lastTick) : 0);
+			return Math.round(ms / 1000);
+		}
 
 		root.innerHTML = '';
 		var card = el('div', { class: 'ocf-card' });
@@ -92,10 +134,39 @@
 		card.appendChild(foot);
 		root.appendChild(card);
 
+		// Record the page view (deduped server-side per session).
+		api(cfg, 'view', { body: { form_id: cfg.formId, session: session } }).catch(function () {});
+
 		// Start a submission (gets a token + id).
-		api(cfg, 'start', { body: { form_id: cfg.formId } })
+		api(cfg, 'start', { body: { form_id: cfg.formId, session: session } })
 			.then(function (res) { token = res.token; render(); })
 			.catch(function () { stepHost.appendChild(el('div', { class: 'ocf-error' }, ['Could not start form. Refresh to try again.'])); });
+
+		// Final beacon on unload: capture engagement time + step depth for abandoners.
+		function flushBeacon() {
+			if (!token) return;
+			var payload = JSON.stringify({
+				token: token,
+				answers: answers,
+				step_reached: maxStepReached,
+				seconds_active: secondsActive()
+			});
+			try {
+				if (navigator.sendBeacon) {
+					var blob = new Blob([payload], { type: 'application/json' });
+					navigator.sendBeacon(cfg.restUrl + 'save', blob);
+				} else {
+					fetch(cfg.restUrl + 'save', {
+						method: 'POST', keepalive: true,
+						headers: { 'Content-Type': 'application/json', 'X-WP-Nonce': cfg.nonce },
+						credentials: 'same-origin',
+						body: payload
+					});
+				}
+			} catch (e) {}
+		}
+		window.addEventListener('pagehide', flushBeacon);
+		window.addEventListener('beforeunload', flushBeacon);
 
 		function visibleSteps() {
 			return schema.steps.filter(function (s) { return evalLogic(s.show_if, answers); });
@@ -112,7 +183,12 @@
 			if (saveTimer) clearTimeout(saveTimer);
 			saveTimer = setTimeout(function () {
 				if (!token) return;
-				api(cfg, 'save', { body: { token: token, answers: answers } }).catch(function () {});
+				api(cfg, 'save', { body: {
+					token: token,
+					answers: answers,
+					step_reached: maxStepReached,
+					seconds_active: secondsActive()
+				} }).catch(function () {});
 			}, 600);
 		}
 
@@ -149,6 +225,10 @@
 		function renderStep() {
 			var step = currentStep();
 			if (!step) return;
+			if (stepIdx > maxStepReached) {
+				maxStepReached = stepIdx;
+				queueSave();
+			}
 			stepHost.innerHTML = '';
 			foot.innerHTML = '';
 			renderProgress();
@@ -274,6 +354,8 @@
 			api(cfg, 'submit', { body: {
 				token: token,
 				answers: answers,
+				step_reached: maxStepReached,
+				seconds_active: secondsActive(),
 				turnstile_token: turnstileToken,
 				ocf_hp: (root.querySelector('input[name="ocf_hp"]') || {}).value || '',
 				ocf_hp_email: (root.querySelector('input[name="ocf_hp_email"]') || {}).value || ''

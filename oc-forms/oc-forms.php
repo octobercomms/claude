@@ -15,11 +15,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCF_VERSION', '1.0.0' );
+define( 'OCF_VERSION', '1.1.0' );
 define( 'OCF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCF_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCF_CPT', 'ocf_form' );
-define( 'OCF_DB_VERSION', '1.0.0' );
+define( 'OCF_DB_VERSION', '1.1.0' );
 
 require_once OCF_PATH . 'includes/class-ocf-activator.php';
 require_once OCF_PATH . 'includes/class-ocf-schema.php';
@@ -28,14 +28,17 @@ require_once OCF_PATH . 'includes/class-ocf-logic.php';
 require_once OCF_PATH . 'includes/class-ocf-submission.php';
 require_once OCF_PATH . 'includes/class-ocf-brevo.php';
 require_once OCF_PATH . 'includes/class-ocf-spam.php';
+require_once OCF_PATH . 'includes/class-ocf-analytics.php';
 require_once OCF_PATH . 'includes/class-ocf-renderer.php';
 require_once OCF_PATH . 'includes/class-ocf-rest-api.php';
+require_once OCF_PATH . 'includes/class-ocf-public-api.php';
 
 if ( is_admin() ) {
 	require_once OCF_PATH . 'admin/class-ocf-admin.php';
 	require_once OCF_PATH . 'admin/class-ocf-settings.php';
 	require_once OCF_PATH . 'admin/class-ocf-builder.php';
 	require_once OCF_PATH . 'admin/class-ocf-submissions-list.php';
+	require_once OCF_PATH . 'admin/class-ocf-analytics-page.php';
 }
 
 register_activation_hook( __FILE__, array( 'OCF_Activator', 'activate' ) );
@@ -45,6 +48,7 @@ add_action( 'plugins_loaded', function () {
 	OCF_CPT::init();
 	OCF_Renderer::init();
 	OCF_REST_API::init();
+	OCF_Public_API::init();
 	OCF_Spam::init();
 
 	if ( is_admin() ) {
@@ -52,6 +56,7 @@ add_action( 'plugins_loaded', function () {
 		OCF_Settings::init();
 		OCF_Builder::init();
 		OCF_Submissions_List::init();
+		OCF_Analytics_Page::init();
 	}
 
 	// Run any deferred DB upgrade.
