@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
+import ReportPreviewModal from '../components/ReportPreviewModal';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -43,6 +44,7 @@ export default function ClientDetailPage() {
   const [client, setClient] = useState(null);
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
+  const [previewType, setPreviewType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -379,6 +381,8 @@ export default function ClientDetailPage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
             <div style={{ display: 'flex', gap: 8 }}>
+              <button type="button" onClick={() => setPreviewType('weekly')} style={styles.btnSm}>Preview weekly</button>
+              <button type="button" onClick={() => setPreviewType('monthly')} style={styles.btnSm}>Preview monthly</button>
               <button type="button" onClick={() => handleGenerateReport('weekly')} style={styles.btnSm}>Generate weekly</button>
               <button type="button" onClick={() => handleGenerateReport('monthly')} style={styles.btnSm}>Generate monthly</button>
             </div>
@@ -557,6 +561,16 @@ export default function ClientDetailPage() {
           reportType={templateChatType}
           onClose={() => setTemplateChatType(null)}
           onSaved={() => setTemplateChatType(null)}
+        />
+      )}
+
+      {previewType && (
+        <ReportPreviewModal
+          clientId={id}
+          clientName={client?.name || ''}
+          reportType={previewType}
+          onSwitchType={t => setPreviewType(t)}
+          onClose={() => setPreviewType(null)}
         />
       )}
 

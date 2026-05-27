@@ -4,6 +4,11 @@ const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const reportService = require('../services/reportService');
 const users = require('../services/users');
+const dataCollector = require('../services/dataCollector');
+const reportTemplate = require('../services/reportTemplate');
+const templateRenderer = require('../services/templateRenderer');
+const pdfService = require('../services/pdfService');
+const previewCache = require('../services/previewCache');
 
 const router = express.Router();
 
@@ -194,6 +199,116 @@ router.post('/:id/resend', async (req, res) => {
 
     res.json({ message: 'Resend initiated' });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Live preview — runs the same template resolver pipeline as a real
+// report but returns the styled HTML straight back to the caller. Skips
+// PDF generation, DB writes, and email. Caches raw connector data per
+// (client, type, period) for 10 minutes and per-section narratives for
+// 30, so AM iteration on a template renders in seconds rather than the
+// 30-90s a full report takes.
+router.post('/preview', async (req, res) => {
+  const { client_id, report_type, period_start, period_end, force_refresh } = req.body || {};
+  if (!client_id || !report_type) return res.status(400).json({ error: 'client_id and report_type required' });
+  if (!['weekly', 'monthly'].includes(report_type)) return res.status(400).json({ error: 'invalid report_type' });
+  if (!users.canAccessClient(req.visibleClientIds, client_id)) {
+    return res.status(403).json({ error: 'Not authorised for this client' });
+  }
+  try {
+    const periodStart = period_start || getDefaultPeriodStart(report_type);
+    const periodEnd = period_end || getDefaultPeriodEnd(report_type);
+
+    const clientRow = await pool.query('SELECT * FROM clients WHERE id = $1', [client_id]);
+    if (!clientRow.rows.length) return res.status(404).json({ error: 'Client not found' });
+    const client = clientRow.rows[0];
+
+    if (force_refresh) previewCache.invalidateClient(client_id);
+
+    // Raw connector data — cached for 10 min per (client, type, period).
+    const cacheKey = previewCache.rawKey({ clientId: client_id, reportType: report_type, periodStart, periodEnd });
+    let rawEntry = previewCache.getRawData(cacheKey);
+    if (!rawEntry) {
+      const collected = await dataCollector.collectClientData(client_id, periodStart, periodEnd);
+      const seoData = await dataCollector.collectSEOData(client_id).catch(() => ({ rankings: [] }));
+      rawEntry = { value: { data: collected.data, errors: collected.errors, seoData }, at: Date.now() };
+      previewCache.setRawData(cacheKey, rawEntry.value);
+    }
+    const { data: rawData, seoData, errors: dataErrors } = rawEntry.value;
+    const dataHash = previewCache.hashJson(rawData);
+
+    // Template normalisation matches the generateReport path so existing
+    // saved templates with "YoY" in their title get auto-promoted.
+    const templates = client.report_templates || {};
+    const availableTypes = Array.from(new Set(Object.keys(rawData).map(k => k.split(':')[0])));
+    const template = reportTemplate.normaliseTemplate(
+      templates[report_type] || reportTemplate.defaultTemplate(report_type, availableTypes)
+    );
+
+    // YoY data, when any section requests it. Cached on its own key so
+    // the year-ago pull doesn't have to repeat either.
+    let rawDataPrev = null;
+    if (reportTemplate.templateRequiresYoy(template)) {
+      const prevStart = reportTemplate.yoyDate(periodStart);
+      const prevEnd = reportTemplate.yoyDate(periodEnd);
+      const prevKey = previewCache.rawKey({ clientId: client_id, reportType: report_type, periodStart: prevStart, periodEnd: prevEnd });
+      const cachedPrev = previewCache.getRawData(prevKey);
+      if (cachedPrev) {
+        rawDataPrev = cachedPrev.value.data;
+      } else {
+        try {
+          const prev = await dataCollector.collectClientData(client_id, prevStart, prevEnd);
+          previewCache.setRawData(prevKey, { data: prev.data, errors: prev.errors });
+          rawDataPrev = prev.data;
+        } catch (err) {
+          console.error('[preview] yoy collection failed:', err.message);
+        }
+      }
+    }
+
+    // Wrap the narrative cache as a small adapter so templateRenderer
+    // doesn't need to know about the cache layout — it just calls
+    // narrativeCache.keyFor / .get / .set.
+    let narrativeCacheHits = 0, narrativeCacheMisses = 0;
+    const narrativeCache = {
+      keyFor: (section, dataSlice, period) => previewCache.narrativeKey({
+        clientId: client_id,
+        section,
+        period,
+        dataHash: previewCache.hashJson({ slice: dataSlice, period }),
+      }),
+      get: (key) => {
+        const v = previewCache.getNarrative(key);
+        if (v != null) narrativeCacheHits++;
+        else narrativeCacheMisses++;
+        return v;
+      },
+      set: (key, value) => previewCache.setNarrative(key, value),
+    };
+
+    const period = report_type === 'monthly'
+      ? new Date(periodStart).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+      : `${new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+
+    const resolved = await templateRenderer.resolveTemplate({
+      template, client, period, rawData, rawDataPrev, seoData, chatHistory: [], narrativeCache,
+    });
+
+    const html = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });
+
+    res.json({
+      html,
+      period,
+      period_start: periodStart,
+      period_end: periodEnd,
+      data_collected_at: new Date(rawEntry.at).toISOString(),
+      data_errors: dataErrors || {},
+      narrative_cache: { hits: narrativeCacheHits, misses: narrativeCacheMisses },
+      sections: resolved.map(s => ({ id: s.id, type: s.type, title: s.title, cached: !!s.cached })),
+    });
+  } catch (err) {
+    console.error('[preview] failed:', err);
     res.status(500).json({ error: err.message });
   }
 });
