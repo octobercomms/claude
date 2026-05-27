@@ -194,6 +194,51 @@ async function fetchSearchConsoleData(credentials, params) {
   return data;
 }
 
+// Single-dimension Search Analytics query — used by the SEO page tabs so we
+// can show top queries and top pages independently, with their own row
+// limits and sort orders rather than slicing one mixed-dimension response.
+async function fetchSearchAnalytics(credentials, { siteUrl, startDate, endDate, dimensions = ['query'], rowLimit = 50 }) {
+  const creds = await getValidToken(credentials);
+  if (!siteUrl) throw new Error('Search Console site not selected.');
+  const { data } = await axios.post(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+    { startDate, endDate, dimensions, rowLimit },
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+  return (data.rows || []).map(r => {
+    const out = { clicks: r.clicks || 0, impressions: r.impressions || 0, ctr: r.ctr || 0, position: r.position || 0 };
+    dimensions.forEach((d, i) => { out[d] = r.keys?.[i]; });
+    return out;
+  });
+}
+
+// Sitemap inventory from GSC — surfaces last-submitted, last-downloaded,
+// errors and warnings counts so we can flag indexing issues without having
+// to call the heavier URL Inspection API.
+async function fetchSearchConsoleSitemaps(credentials, { siteUrl }) {
+  const creds = await getValidToken(credentials);
+  if (!siteUrl) throw new Error('Search Console site not selected.');
+  const { data } = await axios.get(
+    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`,
+    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+  );
+  return (data.sitemap || []).map(s => ({
+    path: s.path,
+    last_submitted: s.lastSubmitted,
+    last_downloaded: s.lastDownloaded,
+    is_pending: s.isPending,
+    is_sitemaps_index: s.isSitemapsIndex,
+    type: s.type,
+    errors: parseInt(s.errors || 0),
+    warnings: parseInt(s.warnings || 0),
+    contents: (s.contents || []).map(c => ({
+      type: c.type,
+      submitted: parseInt(c.submitted || 0),
+      indexed: parseInt(c.indexed || 0),
+    })),
+  }));
+}
+
 // Google Ads data fetch
 // Cache: customerId -> loginCustomerId that worked, to avoid re-discovery on every call
 const adsLoginCache = new Map();
@@ -462,4 +507,4 @@ function getPreviousPeriodEnd(start, end) {
   return prevEnd.toISOString().split('T')[0];
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily, getAccessReport };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, fetchGA4Daily, fetchSearchAnalytics, fetchSearchConsoleSitemaps, getAccessReport };

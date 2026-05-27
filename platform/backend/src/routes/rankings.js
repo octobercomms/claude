@@ -17,7 +17,10 @@ router.get('/keywords', async (req, res) => {
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1) as previous_position,
         (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
         (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
-        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
+        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked,
+        (SELECT serp_features FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as serp_features,
+        (SELECT present FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_present,
+        (SELECT brand_cited FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_brand_cited
       FROM seo_keywords k WHERE k.active = true
     `;
     const params = [];
@@ -109,14 +112,16 @@ router.delete('/keywords/:id', async (req, res) => {
   }
 });
 
-// Get rank history for a keyword (12 months)
+// Full rank history for a keyword. No date cap — clients want to scroll
+// back years for context. Returns serp_features per row so the timeline
+// can show whether the position was alongside a featured snippet, image
+// pack, etc. at that point in time.
 router.get('/keywords/:id/history', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT checked_at, position, url, source FROM seo_rank_history
+      `SELECT checked_at, position, url, source, serp_features FROM seo_rank_history
        WHERE keyword_id = $1
-         AND checked_at >= CURRENT_DATE - INTERVAL '12 months'
-       ORDER BY checked_at ASC`,
+       ORDER BY checked_at DESC`,
       [req.params.id]
     );
     res.json(rows);
@@ -327,10 +332,11 @@ async function runRankChecks(keywords) {
     try {
       const result = await dataForSEO.checkRank(kw);
       await pool.query(
-        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url)
-         VALUES ($1, CURRENT_DATE, $2, $3)
-         ON CONFLICT (keyword_id, checked_at) DO UPDATE SET position = EXCLUDED.position, url = EXCLUDED.url`,
-        [kw.id, result.position, result.url]
+        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
+         VALUES ($1, CURRENT_DATE, $2, $3, $4)
+         ON CONFLICT (keyword_id, checked_at) DO UPDATE
+           SET position = EXCLUDED.position, url = EXCLUDED.url, serp_features = EXCLUDED.serp_features`,
+        [kw.id, result.position, result.url, JSON.stringify(result.serp_features || [])]
       );
     } catch (err) {
       console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);

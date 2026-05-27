@@ -76,11 +76,19 @@ async function checkRank(keyword) {
   }]);
 
   if (!data.tasks || !data.tasks[0] || data.tasks[0].status_code !== 20000) {
-    return { position: null, url: null };
+    return { position: null, url: null, serp_features: [] };
   }
 
   const results = data.tasks[0].result?.[0]?.items || [];
   const targetUrl = keyword.target_url;
+
+  // Pull every non-organic SERP feature observed for this keyword so the UI
+  // can show what surfaces alongside the blue links — image pack, snippet,
+  // people also ask, knowledge panel, local pack, video, etc. We dedupe by
+  // type because items like sitelinks repeat per result.
+  const serp_features = Array.from(new Set(
+    results.filter(r => r.type && r.type !== 'organic').map(r => r.type)
+  ));
 
   // Find the target URL in results
   if (targetUrl) {
@@ -90,15 +98,83 @@ async function checkRank(keyword) {
       )
     );
     if (match) {
-      return { position: match.rank_absolute, url: match.url };
+      return { position: match.rank_absolute, url: match.url, serp_features };
     }
   }
 
   // Return first organic result position if no target URL
   const firstOrganic = results.find(r => r.type === 'organic');
   return firstOrganic
-    ? { position: firstOrganic.rank_absolute, url: firstOrganic.url }
-    : { position: null, url: null };
+    ? { position: firstOrganic.rank_absolute, url: firstOrganic.url, serp_features }
+    : { position: null, url: null, serp_features };
+}
+
+// One-shot AI Overview lookup for a single keyword. Returns whether AIO
+// appeared, whether the target domain was cited, and a short snippet. Used
+// by the AIO scheduler and the manual "check now" button.
+async function checkAIOverview(keyword, targetDomain) {
+  const client = await getClient();
+  const { data } = await client.post('/serp/google/ai_overview/live/advanced', [{
+    keyword: keyword.keyword,
+    location_code: keyword.location_code || 2826,
+    language_code: 'en',
+  }]);
+  if (!data.tasks?.[0]?.result?.[0]) return { present: false, brand_cited: false, snippet: null };
+  const r = data.tasks[0].result[0];
+  const ai = r.items?.find(i => i.type === 'ai_overview');
+  if (!ai) return { present: false, brand_cited: false, snippet: null };
+  const dom = (targetDomain || '').replace(/^https?:\/\//, '').replace(/^www\./, '').toLowerCase();
+  const cited = !!dom && (
+    ai.text?.toLowerCase().includes(dom) ||
+    (ai.items || []).some(i => i.url?.toLowerCase().includes(dom))
+  );
+  return { present: true, brand_cited: cited, snippet: ai.text?.slice(0, 400) || null };
+}
+
+// Domain Intersection — keywords competitors rank for that the target
+// doesn't. Used by the content-gap section of the SEO/Organic page.
+async function fetchDomainIntersection(targetDomain, competitorDomains, locationCode = 2826) {
+  const client = await getClient();
+  const target = normalizeDomain(targetDomain);
+  const competitors = (competitorDomains || []).map(normalizeDomain).filter(Boolean).slice(0, 5);
+  if (!target || !competitors.length) return [];
+  // The endpoint compares one target vs one competitor at a time; we union
+  // the results from each comparison and dedupe.
+  const gapMap = new Map();
+  for (const competitor of competitors) {
+    try {
+      const { data } = await client.post('/dataforseo_labs/google/domain_intersection/live', [{
+        target1: competitor,
+        target2: target,
+        location_code: locationCode,
+        language_code: 'en',
+        intersections: false,    // only the keywords target2 (our client) does NOT rank for
+        limit: 50,
+        order_by: ['avg_monthly_searches,desc'],
+      }]);
+      const items = data.tasks?.[0]?.result?.[0]?.items || [];
+      for (const item of items) {
+        const kw = item.keyword_data?.keyword;
+        if (!kw) continue;
+        if (!gapMap.has(kw)) {
+          gapMap.set(kw, {
+            keyword: kw,
+            search_volume: item.keyword_data?.keyword_info?.search_volume || null,
+            competition: item.keyword_data?.keyword_info?.competition || null,
+            competitors: [],
+            competitor_positions: {},
+          });
+        }
+        const entry = gapMap.get(kw);
+        if (!entry.competitors.includes(competitor)) entry.competitors.push(competitor);
+        const pos = item.first_domain_serp_element?.rank_absolute;
+        if (pos) entry.competitor_positions[competitor] = pos;
+      }
+    } catch (err) {
+      console.error(`[DataForSEO] Domain intersection ${target} vs ${competitor} failed:`, err.message);
+    }
+  }
+  return Array.from(gapMap.values()).sort((a, b) => (b.search_volume || 0) - (a.search_volume || 0));
 }
 
 // Monthly Google search volume for a batch of keywords (one location).
@@ -273,4 +349,4 @@ async function testCredentials({ login, password } = {}) {
   }
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchData, testCredentials };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchData, testCredentials };

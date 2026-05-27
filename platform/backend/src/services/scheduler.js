@@ -19,9 +19,19 @@ cron.schedule('0 8 1 * *', async () => {
 });
 
 // Daily SEO rank checks: 06:00 AM
-cron.schedule('0 6 * * *', async () => {
-  console.log('[Scheduler] Running daily SEO rank checks...');
+// SEO rank checks: every 3 days at 06:00. Daily was overkill and burned API
+// spend without meaningful detail; every-3-days still surfaces movements in
+// the report period while cutting cost by roughly two thirds.
+cron.schedule('0 6 */3 * *', async () => {
+  console.log('[Scheduler] Running tri-daily SEO rank checks...');
   await runDailyRankChecks();
+});
+
+// AI Overview tracking: weekly on Mondays at 06:30. Pay-per-call and AIO
+// doesn't churn day-to-day, so weekly is enough to spot trend changes.
+cron.schedule('30 6 * * 1', async () => {
+  console.log('[Scheduler] Running weekly AI Overview check...');
+  await runWeeklyAIOChecks();
 });
 
 // Daily connector health check: 07:30 AM
@@ -94,10 +104,11 @@ async function runDailyRankChecks() {
       try {
         const result = await dataForSEO.checkRank(kw);
         await pool.query(
-          `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url)
-           VALUES ($1, CURRENT_DATE, $2, $3)
-           ON CONFLICT (keyword_id, checked_at) DO UPDATE SET position = EXCLUDED.position, url = EXCLUDED.url`,
-          [kw.id, result.position, result.url]
+          `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
+           VALUES ($1, CURRENT_DATE, $2, $3, $4)
+           ON CONFLICT (keyword_id, checked_at) DO UPDATE
+             SET position = EXCLUDED.position, url = EXCLUDED.url, serp_features = EXCLUDED.serp_features`,
+          [kw.id, result.position, result.url, JSON.stringify(result.serp_features || [])]
         );
       } catch (err) {
         console.error(`[SEO] Rank check failed for "${kw.keyword}":`, err.message);
@@ -107,6 +118,38 @@ async function runDailyRankChecks() {
     console.log(`[SEO] Rank checks complete for ${keywords.length} keywords`);
   } catch (err) {
     console.error('[SEO] Fatal error in runDailyRankChecks:', err.message);
+  }
+}
+
+// Walk every active keyword once per week, query AIO for it, store the
+// presence + brand-citation flags. Cheap enough at weekly cadence and
+// gives a real trend rather than a snapshot.
+async function runWeeklyAIOChecks() {
+  try {
+    const { rows: keywords } = await pool.query(
+      `SELECT k.*, c.domain AS client_domain FROM seo_keywords k
+       JOIN clients c ON c.id = k.client_id
+       WHERE k.active = true AND c.active = true`
+    );
+    let ok = 0;
+    for (const kw of keywords) {
+      try {
+        const result = await dataForSEO.checkAIOverview(kw, kw.client_domain);
+        await pool.query(
+          `INSERT INTO aio_history (keyword_id, checked_at, present, brand_cited, snippet)
+           VALUES ($1, CURRENT_DATE, $2, $3, $4)
+           ON CONFLICT (keyword_id, checked_at) DO UPDATE
+             SET present = EXCLUDED.present, brand_cited = EXCLUDED.brand_cited, snippet = EXCLUDED.snippet`,
+          [kw.id, result.present, result.brand_cited, result.snippet]
+        );
+        ok++;
+      } catch (err) {
+        console.error(`[AIO] Check failed for "${kw.keyword}":`, err.message);
+      }
+    }
+    console.log(`[AIO] Weekly checks complete (${ok}/${keywords.length})`);
+  } catch (err) {
+    console.error('[AIO] Fatal error in runWeeklyAIOChecks:', err.message);
   }
 }
 
@@ -268,4 +311,4 @@ async function runOutreachSends() {
   }
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks, runReportReminderCheck, runOutreachSends };
+module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runReportReminderCheck, runOutreachSends };

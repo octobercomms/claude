@@ -58,8 +58,8 @@ export default function Layout() {
                 <div>
                   <NavLink to={`/clients/${clientId}?tab=details`} style={subLinkStyle(!!clientMatch && currentTab === 'details')}>Details</NavLink>
                   <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>AI Data Analyst</NavLink>
-                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>SEO</NavLink>
-                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Ads</NavLink>
+                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
+                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
                   <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Outreach</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=forms`} style={subLinkStyle(!!clientMatch && currentTab === 'forms')}>Forms</NavLink>

@@ -3,6 +3,10 @@ import { useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import {
+  IntentBadge, SerpFeaturePills, KeywordHistoryModal,
+  SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab,
+} from '../components/SeoSuite';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -181,6 +185,8 @@ export default function ClientSEOPage() {
   const [rankMatrixLoading, setRankMatrixLoading] = useState(false);
   const [rankMatrixFetched, setRankMatrixFetched] = useState(false);
   const [bucket, setBucket] = useState('all');
+  const [historyKeyword, setHistoryKeyword] = useState(null);
+  const [classifying, setClassifying] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -243,8 +249,13 @@ export default function ClientSEOPage() {
       <React.Fragment key={kw.id}>
       <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
         <td style={s.td}>
-          <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
+          <div style={{ fontWeight: 600, fontSize: 13 }}>
+            {kw.keyword}
+            <IntentBadge intent={kw.intent} />
+            {kw.aio_present && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: kw.aio_brand_cited ? '#e4f4e8' : '#fef3c7', color: kw.aio_brand_cited ? '#1d7a3a' : '#92400e' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
+          </div>
           {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
+          {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
         </td>
         <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
         <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
@@ -277,6 +288,7 @@ export default function ClientSEOPage() {
         <td style={{ ...s.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
         <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td style={s.td} onClick={e => e.stopPropagation()}>
+          <button onClick={() => setHistoryKeyword(kw)} title="Full position history" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 14, padding: '0 4px' }}>⊞</button>
           <button onClick={() => handleDelete(kw.id)} title="Delete keyword" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
         </td>
       </tr>
@@ -305,6 +317,20 @@ export default function ClientSEOPage() {
     if (!window.confirm('Delete this keyword?')) return;
     await api.delete(`/rankings/keywords/${kwId}`);
     setKeywords(prev => prev.filter(k => k.id !== kwId));
+  }
+
+  async function handleClassifyIntent() {
+    setClassifying(true);
+    try {
+      const res = await api.post(`/seo/clients/${id}/keywords/classify-intent`);
+      toast(`Classified ${res.updated} of ${res.total} keywords.`, 'success');
+      const kws = await api.get(`/rankings/keywords?client_id=${id}`);
+      setKeywords(kws);
+    } catch (err) {
+      toast(`Intent classification failed: ${err.message}`, 'error');
+    } finally {
+      setClassifying(false);
+    }
   }
 
   async function handleCheckAll() {
@@ -475,10 +501,11 @@ export default function ClientSEOPage() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>SEO — {client?.name}</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Organic — {client?.name}</h1>
         {activeTab === 'keywords' && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
+            <button onClick={handleClassifyIntent} style={s.btnGhost} disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
             <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
             <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
             <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
@@ -488,7 +515,15 @@ export default function ClientSEOPage() {
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
-        {[['keywords', 'Keywords'], ['authority', 'Authority'], ['backlinks', 'Backlinks']].map(([key, label]) => (
+        {[
+          ['keywords', 'Keywords'],
+          ['gsc', 'Search Console'],
+          ['aio', 'AI Overviews'],
+          ['gaps', 'Content Gaps'],
+          ['planning', 'Planning'],
+          ['authority', 'Authority'],
+          ['backlinks', 'Backlinks'],
+        ].map(([key, label]) => (
           <button key={key} onClick={() => setActiveTab(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
             fontWeight: activeTab === key ? 700 : 400, color: activeTab === key ? '#1a1a1a' : '#888',
@@ -497,6 +532,19 @@ export default function ClientSEOPage() {
           }}>{label}</button>
         ))}
       </div>
+
+      {historyKeyword && (
+        <KeywordHistoryModal
+          keywordId={historyKeyword.id}
+          keyword={historyKeyword.keyword}
+          onClose={() => setHistoryKeyword(null)}
+        />
+      )}
+
+      {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
+      {activeTab === 'aio' && <AIOverviewsTab clientId={id} />}
+      {activeTab === 'gaps' && <ContentGapsTab clientId={id} />}
+      {activeTab === 'planning' && <PlanningTab clientId={id} />}
 
       {activeTab === 'keywords' && <>
       {/* Rankings summary */}
