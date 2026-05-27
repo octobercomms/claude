@@ -1,7 +1,7 @@
 const express = require('express');
-const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { authenticate } = require('../middleware/auth');
+const users = require('../services/users');
 
 const router = express.Router();
 
@@ -11,27 +11,14 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ error: 'Username and password required' });
   }
 
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
+  const user = await users.findByUsername(username);
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
 
-  if (username !== adminUsername) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
-
-  // Support both plain text (dev) and bcrypt hashed passwords
-  let valid = false;
-  if (adminPassword.startsWith('$2')) {
-    valid = await bcrypt.compare(password, adminPassword);
-  } else {
-    valid = password === adminPassword;
-  }
-
-  if (!valid) {
-    return res.status(401).json({ error: 'Invalid credentials' });
-  }
+  const valid = await users.verifyPassword(user, password);
+  if (!valid) return res.status(401).json({ error: 'Invalid credentials' });
 
   const token = jwt.sign(
-    { username, role: 'admin' },
+    { id: user.id, username: user.username, role: user.role },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
@@ -41,7 +28,7 @@ router.post('/login', async (req, res) => {
 
 router.post('/refresh', authenticate, (req, res) => {
   const token = jwt.sign(
-    { username: req.user.username, role: 'admin' },
+    { id: req.user.id, username: req.user.username, role: req.user.role },
     process.env.JWT_SECRET,
     { expiresIn: '24h' }
   );
@@ -49,7 +36,7 @@ router.post('/refresh', authenticate, (req, res) => {
 });
 
 router.get('/me', authenticate, (req, res) => {
-  res.json({ username: req.user.username, role: req.user.role });
+  res.json({ id: req.user.id, username: req.user.username, role: req.user.role });
 });
 
 module.exports = router;

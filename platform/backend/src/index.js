@@ -41,6 +41,7 @@ const authLimiter = rateLimit({
 
 // Routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/connectors', require('./routes/connectors'));
 app.use('/api/reports', require('./routes/reports'));
@@ -60,11 +61,12 @@ app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// Start server, load DB settings in background
+// Start server, load DB settings + sync env admin in background
 require('./services/scheduler');
 const server = app.listen(PORT, () => {
   console.log(`October Marketing Intelligence backend running on port ${PORT}`);
   loadSettingsFromDb();
+  require('./services/users').syncAdminFromEnv().catch(err => console.error('Admin sync failed:', err.message));
 });
 
 module.exports = server;

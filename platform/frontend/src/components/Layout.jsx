@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-route
 import { useAuth } from '../context/AuthContext';
 
 export default function Layout() {
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const clientMatch = useMatch('/clients/:id');
@@ -69,9 +69,10 @@ export default function Layout() {
               )}
             </li>
           ))}
-          {[
+          {(user?.role === 'admin' ? [
             { to: '/settings', label: 'Settings' },
-          ].map(item => (
+            { to: '/manage', label: 'Manage' },
+          ] : []).map(item => (
             <li key={item.to}>
               <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
             </li>
