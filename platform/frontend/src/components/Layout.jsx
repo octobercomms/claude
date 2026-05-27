@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../utils/api';
+import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 export default function Layout() {
   const { logout, user } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const clientMatch = useMatch('/clients/:id');
@@ -79,14 +82,84 @@ export default function Layout() {
           ))}
         </ul>
 
-        <button onClick={handleLogout} style={styles.logoutBtn}>Sign out</button>
+        <div style={styles.footerBlock}>
+          <div style={styles.userLine}>
+            Signed in as <strong>{user?.username || '…'}</strong>
+          </div>
+          <button onClick={() => setShowPassword(true)} style={styles.footerBtn}>Change password</button>
+          <button onClick={handleLogout} style={styles.footerBtn}>Sign out</button>
+        </div>
       </nav>
       <main className="app-main">
         <Outlet />
       </main>
+      {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
     </div>
   );
 }
+
+function ChangePasswordModal({ onClose }) {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+  const [done, setDone] = useState(false);
+
+  async function save() {
+    setError(null);
+    if (next.length < 8) return setError('New password must be at least 8 characters.');
+    if (next !== confirm) return setError('New password and confirmation don\'t match.');
+    setSaving(true);
+    try {
+      await api.post('/auth/change-password', { current_password: current, new_password: next });
+      setDone(true);
+      setTimeout(onClose, 1200);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Change password</h2>
+        {done ? (
+          <div style={{ padding: '10px 0', color: '#2e7d32' }}>Password updated.</div>
+        ) : (
+          <>
+            <label style={modalStyles.label}>Current password</label>
+            <input type="password" autoFocus value={current} onChange={e => setCurrent(e.target.value)} style={modalStyles.input} />
+            <label style={modalStyles.label}>New password</label>
+            <input type="password" value={next} onChange={e => setNext(e.target.value)} style={modalStyles.input} />
+            <label style={modalStyles.label}>Confirm new password</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') save(); }}
+              style={modalStyles.input} />
+            {error && <div style={modalStyles.error}>{error}</div>}
+            <div style={modalStyles.footer}>
+              <button type="button" style={secondaryBtn} onClick={onClose}>Cancel</button>
+              <button type="button" style={primaryBtn} onClick={save} disabled={saving || !current || !next || !confirm}>
+                {saving ? 'Saving…' : 'Update password'}
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+const modalStyles = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '80px 20px', zIndex: 1100 },
+  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
+  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
+};
 
 const styles = {
   shell: { display: 'flex', minHeight: '100vh', background: '#f5f5f5' },
@@ -99,6 +172,13 @@ const styles = {
   logo: { width: '50%', height: 'auto', display: 'block' },
   brandSub: { fontSize: 18, color: '#ffffff', marginTop: 20, letterSpacing: 0.3, fontWeight: 400 },
   navList: { listStyle: 'none', padding: '12px 0', margin: 0, flex: 1 },
+  footerBlock: { padding: '0 16px 20px', borderTop: '1px solid #1a1a1a', paddingTop: 14 },
+  userLine: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 10, letterSpacing: 0.2 },
+  footerBtn: {
+    width: '100%', marginBottom: 6, padding: '8px 12px', background: 'transparent',
+    border: '1px solid #333', color: 'white', borderRadius: 4,
+    cursor: 'pointer', fontSize: 12,
+  },
   logoutBtn: {
     margin: '0 16px 20px', padding: '8px 12px', background: 'transparent',
     border: '1px solid #333', color: 'white', borderRadius: 4,

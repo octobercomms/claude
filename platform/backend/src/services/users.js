@@ -96,22 +96,44 @@ function canAccessClient(visibleIds, clientId) {
   return Array.isArray(visibleIds) && visibleIds.includes(clientId);
 }
 
-// Called from index.js on boot — keeps the env admin in sync with the DB
-// so the legacy ADMIN_USERNAME/ADMIN_PASSWORD env vars remain the source of
-// truth for the primary admin. Idempotent.
-async function syncAdminFromEnv() {
+// Called from index.js on boot. Seeds an admin user from
+// ADMIN_USERNAME / ADMIN_PASSWORD only when the users table has no admin
+// yet — useful for first boot, harmless on subsequent restarts.
+//
+// The previous behaviour was an upsert on every boot, which clobbered any
+// password change made through the UI and caused real lockouts when env
+// drifted. The new behaviour leaves existing admins alone; the operator
+// manages their password via /api/auth/change-password instead.
+async function seedAdminIfMissing() {
   const username = process.env.ADMIN_USERNAME;
   const password = process.env.ADMIN_PASSWORD;
   if (!username || !password) return;
+  const { rows } = await pool.query("SELECT 1 FROM users WHERE role = 'admin' LIMIT 1");
+  if (rows.length) return;
   const hash = password.startsWith('$2') ? password : await bcrypt.hash(password, BCRYPT_ROUNDS);
   await pool.query(`
     INSERT INTO users (username, password_hash, role)
     VALUES ($1, $2, 'admin')
-    ON CONFLICT (username) DO UPDATE SET password_hash = EXCLUDED.password_hash, role = 'admin'
+    ON CONFLICT (username) DO NOTHING
   `, [username, hash]);
+}
+
+// Change a user's own password — verifies the current password before
+// applying the update. Used by /api/auth/change-password.
+async function changePassword(userId, currentPassword, newPassword) {
+  const user = await findById(userId);
+  if (!user) throw Object.assign(new Error('User not found'), { status: 404 });
+  const ok = await verifyPassword(user, currentPassword);
+  if (!ok) throw Object.assign(new Error('Current password is incorrect'), { status: 401 });
+  if (!newPassword || newPassword.length < 8) {
+    throw Object.assign(new Error('New password must be at least 8 characters'), { status: 400 });
+  }
+  const hash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
+  await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hash, userId]);
 }
 
 module.exports = {
   findByUsername, findById, listAll, create, update, remove,
-  verifyPassword, getVisibleClientIds, canAccessClient, syncAdminFromEnv,
+  verifyPassword, changePassword, getVisibleClientIds, canAccessClient,
+  seedAdminIfMissing,
 };

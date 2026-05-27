@@ -67,7 +67,7 @@ require('./services/scheduler');
 const server = app.listen(PORT, () => {
   console.log(`October Marketing Intelligence backend running on port ${PORT}`);
   loadSettingsFromDb();
-  require('./services/users').syncAdminFromEnv().catch(err => console.error('Admin sync failed:', err.message));
+  require('./services/users').seedAdminIfMissing().catch(err => console.error('Admin seed failed:', err.message));
 });
 
 module.exports = server;
