@@ -39,4 +39,20 @@ router.get('/me', authenticate, (req, res) => {
   res.json({ id: req.user.id, username: req.user.username, role: req.user.role });
 });
 
+// Self-service password change for the authenticated user. Requires
+// current password, enforces a minimum length on the new one, then
+// re-hashes and stores. Any role can use this for their own account.
+router.post('/change-password', authenticate, async (req, res) => {
+  const { current_password, new_password } = req.body || {};
+  if (!current_password || !new_password) {
+    return res.status(400).json({ error: 'current_password and new_password required' });
+  }
+  try {
+    await users.changePassword(req.user.id, current_password, new_password);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

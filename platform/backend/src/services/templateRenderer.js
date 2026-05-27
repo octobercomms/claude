@@ -13,11 +13,11 @@ const tpl = require('./reportTemplate');
 
 const SYSTEM_PROMPT = 'You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.';
 
-async function resolveTemplate({ template, client, period, rawData, rawDataPrev, seoData, chatHistory = [] }) {
+async function resolveTemplate({ template, client, period, rawData, rawDataPrev, seoData, chatHistory = [], narrativeCache }) {
   const resolved = [];
   for (const section of template.sections) {
     try {
-      const r = await resolveSection(section, { client, period, rawData, rawDataPrev, seoData, chatHistory });
+      const r = await resolveSection(section, { client, period, rawData, rawDataPrev, seoData, chatHistory, narrativeCache });
       if (r) resolved.push(r);
     } catch (err) {
       console.error(`[templateRenderer] section "${section.id}" failed:`, err.message);
@@ -111,7 +111,7 @@ async function resolveSection(section, ctx) {
   }
 }
 
-async function resolveNarrative(section, { client, period, rawData, seoData, chatHistory }) {
+async function resolveNarrative(section, { client, period, rawData, seoData, chatHistory, narrativeCache }) {
   // Slice the data down to just what this section references; passing the
   // whole rawData blows up token budgets and dilutes Claude's focus.
   const matches = tpl.matchSources(rawData, section.sources || ['*']);
@@ -139,12 +139,24 @@ ${section.prompt || 'Summarise the data above in 2-3 sentences.'}
 
 Respond with just the paragraph(s). No preamble, no heading.`;
 
+  // Preview path: re-use a previously generated paragraph when the inputs
+  // that affect it (prompt, sources, data slice, period) haven't changed.
+  // The full report path passes no narrativeCache and always re-prompts.
+  let cacheKey = null;
+  if (narrativeCache) {
+    cacheKey = narrativeCache.keyFor(section, condensed, period);
+    const cached = narrativeCache.get(cacheKey);
+    if (cached) return { id: section.id, type: 'narrative', title: section.title, text: cached, cached: true };
+  }
+
   const msg = await claudeService.callClaude({
     max_tokens: section.id === 'exec_summary' ? 1024 : 512,
     system: SYSTEM_PROMPT,
     user: userPrompt,
   });
-  return { id: section.id, type: 'narrative', title: section.title, text: msg.trim() };
+  const text = msg.trim();
+  if (cacheKey && narrativeCache) narrativeCache.set(cacheKey, text);
+  return { id: section.id, type: 'narrative', title: section.title, text };
 }
 
 function previewMetrics(match) {
