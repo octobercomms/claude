@@ -6,6 +6,7 @@
 const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const claudeService = require('../services/claude');
 const dataForSEO = require('../connectors/dataforseo');
 const google = require('../connectors/google');
@@ -13,6 +14,10 @@ const { decrypt } = require('../utils/encryption');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+// Most endpoints take :clientId; PUT /keywords/:id/intent looks up its
+// own client_id inside the handler so it can check there.
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 // ─── INTENT CLASSIFICATION ────────────────────────────────────────────────
 // Tags every active keyword for a client with Informational / Navigational
@@ -77,10 +82,13 @@ router.put('/keywords/:id/intent', async (req, res) => {
   const allowed = ['Informational', 'Navigational', 'Commercial', 'Transactional'];
   if (intent && !allowed.includes(intent)) return res.status(400).json({ error: 'invalid intent' });
   try {
+    const { rows } = await pool.query('SELECT client_id FROM seo_keywords WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Keyword not found' });
+    assertClientAccess(req, rows[0].client_id);
     await pool.query('UPDATE seo_keywords SET intent = $1 WHERE id = $2', [intent || null, req.params.id]);
     res.json({ ok: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

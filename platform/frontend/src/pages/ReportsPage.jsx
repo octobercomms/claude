@@ -59,8 +59,13 @@ export default function ReportsPage() {
     }
   }
 
-  function handlePreview(reportId) {
-    window.open(`/api/reports/${reportId}/html`, '_blank');
+  async function handlePreview(reportId) {
+    try {
+      const { url } = await api.get(`/reports/${reportId}/preview-url`);
+      window.open(url, '_blank');
+    } catch (err) {
+      alert(`Could not open preview: ${err.message}`);
+    }
   }
 
   const filtered = reports.filter(r => {

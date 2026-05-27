@@ -1,12 +1,18 @@
 const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+// All chat endpoints take :clientId as the first URL segment; the param
+// middleware blocks viewers from peeking at another tenant's chat history
+// or pushing messages into one.
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOOL_ROUNDS = 6;

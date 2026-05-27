@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess, checkClientIdFromBodyOrQuery, assertClientAccess } = require('../middleware/clientAccess');
 const { getSetting } = require('../utils/settings');
 const hunter = require('../services/hunter');
 const serper = require('../services/serper');
@@ -20,7 +21,36 @@ router.get('/track/open/:sendId', async (req, res) => {
   res.send(TRACK_PIXEL);
 });
 
+const users = require('../services/users');
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+// Most outreach endpoints take client_id via query or body; this catches
+// both. URL endpoints that take :clientId are covered by
+// requireClientAccess; endpoints that take :id (contact / campaign /
+// send UUID) are resolved through the router.param hook below.
+router.use(checkClientIdFromBodyOrQuery);
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+// :id can be a contact, campaign, or send UUID depending on the path —
+// look it up and refuse if it belongs to another tenant.
+router.param('id', async (req, res, next, id) => {
+  try {
+    const path = req.path;
+    let q;
+    if (path.startsWith('/contacts/')) q = 'SELECT client_id FROM outreach_contacts WHERE id = $1';
+    else if (path.startsWith('/campaigns/')) q = 'SELECT client_id FROM outreach_campaigns WHERE id = $1';
+    else if (path.startsWith('/sends/')) q = `SELECT c.client_id FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id WHERE s.id = $1`;
+    if (q) {
+      const { rows } = await pool.query(q, [id]);
+      if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+        return res.status(403).json({ error: 'Not authorised for this client' });
+      }
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // ── Deliverability ─────────────────────────────────────────────────────────
 

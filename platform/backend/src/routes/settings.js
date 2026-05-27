@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { requireAdmin } = require('../middleware/clientAccess');
 const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
 const dataforseo = require('../connectors/dataforseo');
@@ -31,6 +32,10 @@ const SETTINGS_KEYS = [
 ];
 
 router.use(authenticate);
+// Every endpoint in this router exposes or mutates platform-wide secrets
+// (API keys, OAuth client secrets, SMTP credentials, account password
+// hashes). Viewers must never reach any of these.
+router.use(requireAdmin);
 
 // GET masked settings (•••• if set)
 router.get('/platform-keys', async (req, res) => {

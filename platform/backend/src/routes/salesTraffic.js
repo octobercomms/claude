@@ -2,11 +2,14 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
 const google = require('../connectors/google');
 
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 // Aggregated GA4 + ecommerce data for the client Sales & Traffic dashboard.
 router.get('/:clientId', async (req, res) => {

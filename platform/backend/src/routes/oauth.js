@@ -8,15 +8,62 @@ const metaConnector = require('../connectors/meta');
 const zohoInventoryConnector = require('../connectors/zoho_inventory');
 const amazonConnector = require('../connectors/amazon');
 const shopifyConnector = require('../connectors/shopify');
+const { authenticate } = require('../middleware/auth');
+const users = require('../services/users');
 
 const router = express.Router();
+
+// OAuth state is HMAC-signed so an attacker can't forge ?client_id=<victim>
+// into a /start URL or replay an old one. Signature binds the payload to
+// JWT_SECRET; callbacks verify it before trusting the client_id (and
+// connector_id) inside.
+function signOAuthState(payload) {
+  const body = Buffer.from(JSON.stringify({ ...payload, ts: Math.floor(Date.now() / 1000) })).toString('base64url');
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(body).digest('base64url');
+  return `${body}.${sig}`;
+}
+function verifyOAuthState(state) {
+  if (!state || typeof state !== 'string') return null;
+  const dot = state.lastIndexOf('.');
+  if (dot < 0) return null;
+  const body = state.slice(0, dot);
+  const sig = state.slice(dot + 1);
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(body).digest('base64url');
+  try {
+    if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return null;
+  } catch { return null; }
+  let payload;
+  try { payload = JSON.parse(Buffer.from(body, 'base64url').toString()); }
+  catch { return null; }
+  // 30-minute lifetime — bounds replay risk.
+  if (!payload.ts || Math.floor(Date.now() / 1000) - payload.ts > 1800) return null;
+  return payload;
+}
+
+// Visibility check before initiating any OAuth — caller must be allowed
+// to attach connectors to the targeted client.
+async function gateOAuthStart(req, res, next) {
+  const clientId = req.query.client_id;
+  if (!clientId) return res.status(400).send('client_id required');
+  try {
+    const visible = await users.getVisibleClientIds(req.user);
+    if (!users.canAccessClient(visible, clientId)) {
+      return res.status(403).send('Not authorised for this client');
+    }
+    next();
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+}
+router.use(['/google/start', '/meta/start', '/shopify/start', '/zoho/start', '/amazon/start', '/meta/reauth'],
+  authenticate, gateOAuthStart);
 
 // ─── Google OAuth ───────────────────────────────────────────────
 
 router.get('/google/start', (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
-  const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
+  const state = signOAuthState({ client_id });
   const url = googleConnector.getAuthUrl(state);
   res.redirect(url);
 });
@@ -26,7 +73,7 @@ router.get('/google/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
     const tokens = await googleConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
@@ -62,7 +109,7 @@ router.get('/google/callback', async (req, res) => {
 router.get('/meta/start', async (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
-  const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
+  const state = signOAuthState({ client_id });
   try {
     const url = await metaConnector.getAuthUrl(state);
     res.redirect(url);
@@ -76,7 +123,7 @@ router.get('/meta/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
     const tokens = await metaConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
@@ -127,7 +174,7 @@ router.get('/shopify/start', async (req, res) => {
   if (!shopifyClientId) return res.status(500).send('No Shopify API Key configured — set one in platform Settings or enter per-client app credentials in the connector modal.');
 
   const shopDomain = shop.includes('.') ? shop : `${shop}.myshopify.com`;
-  const state = Buffer.from(JSON.stringify({ client_id, connector_id, shop: shopDomain })).toString('base64url');
+  const state = signOAuthState({ client_id, connector_id, shop: shopDomain });
 
   const url = `https://${shopDomain}/admin/oauth/authorize?client_id=${shopifyClientId}&scope=${SHOPIFY_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
   res.redirect(url);
@@ -138,7 +185,7 @@ router.get('/shopify/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id, connector_id } = JSON.parse(Buffer.from(state, 'base64url').toString());
+    const { client_id, connector_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
 
     // Load existing connector credentials — per-connector app credentials take
     // precedence over global platform settings, and we preserve them when
@@ -188,7 +235,7 @@ router.get('/shopify/callback', async (req, res) => {
 router.get('/zoho/start', (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
-  const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
+  const state = signOAuthState({ client_id });
   const url = zohoInventoryConnector.getAuthUrl(state);
   res.redirect(url);
 });
@@ -198,7 +245,7 @@ router.get('/zoho/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
     // Zoho returns the issuing data centre as `accounts-server` — the code
     // is only redeemable there.
     const tokens = await zohoInventoryConnector.exchangeCode(code, req.query['accounts-server']);
@@ -223,7 +270,7 @@ router.get('/amazon/start', (req, res) => {
   const { client_id, connector_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
   if (!process.env.AMAZON_CLIENT_ID) return res.status(400).send('AMAZON_CLIENT_ID not configured in Settings');
-  const state = Buffer.from(JSON.stringify({ client_id, connector_id })).toString('base64');
+  const state = signOAuthState({ client_id, connector_id });
   const url = amazonConnector.getAuthUrl(state);
   res.redirect(url);
 });
@@ -233,7 +280,7 @@ router.get('/amazon/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
   if (!spapi_oauth_code) return res.send(oauthPopupHtml('error', 'No OAuth code received from Amazon'));
   try {
-    const { client_id, connector_id } = JSON.parse(Buffer.from(state, 'base64').toString());
+    const { client_id, connector_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
     const tokens = await amazonConnector.exchangeCode(spapi_oauth_code);
     const creds = encrypt({ ...tokens, seller_id: selling_partner_id });
 
@@ -276,7 +323,7 @@ router.get('/amazon/callback', async (req, res) => {
 router.get('/meta/reauth', async (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');
-  const state = Buffer.from(JSON.stringify({ client_id })).toString('base64');
+  const state = signOAuthState({ client_id });
   try {
     const url = await metaConnector.getAuthUrl(state);
     res.redirect(url);
@@ -285,19 +332,37 @@ router.get('/meta/reauth', async (req, res) => {
   }
 });
 
+// HTML escape that covers all attribute and body contexts.
+function htmlEscape(s) {
+  return String(s ?? '').replace(/[&<>"'/]/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '/': '&#47;' }[c]));
+}
+
 function oauthPopupHtml(status, message, provider = 'unknown') {
   const isSuccess = status === 'success';
-  const safeMessage = String(message).replace(/'/g, "\\'").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const bodyMessage = htmlEscape(message);
+  // For the script context, encode the entire postMessage payload as JSON
+  // and embed it inside a JSON-safe string. Avoids the prior approach which
+  // built the object literal by string concatenation and was vulnerable to
+  // breakout via quotes / </script> in the message.
+  const payload = isSuccess
+    ? { type: 'oauth_success', provider }
+    : { type: 'oauth_error', error: String(message) };
+  // Encode as JSON then escape </script> sequences which could otherwise
+  // terminate the script tag mid-string.
+  const safePayload = JSON.stringify(payload).replace(/</g, '\\u003c');
+  const targetOrigin = (process.env.PLATFORM_URL || '').replace(/\/$/, '') || '*';
+  const safeOrigin = JSON.stringify(targetOrigin);
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
 <body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:${isSuccess ? '#f0fdf4' : '#fff0f0'}">
   <div style="text-align:center;padding:40px">
     <div style="font-size:48px;margin-bottom:16px">${isSuccess ? '✓' : '✗'}</div>
     <h2 style="margin:0 0 8px;color:${isSuccess ? '#2e7d32' : '#c62828'}">${isSuccess ? 'Connected' : 'Error'}</h2>
-    <p style="color:#666;margin:0 0 24px">${safeMessage}</p>
+    <p style="color:#666;margin:0 0 24px">${bodyMessage}</p>
     <button onclick="window.close()" style="background:#000;color:#fff;border:none;padding:10px 24px;border-radius:4px;cursor:pointer;font-size:14px">Close Window</button>
   </div>
   <script>
-    try { window.opener.postMessage({type:'${isSuccess ? 'oauth_success' : 'oauth_error'}',${isSuccess ? `provider:'${provider}'` : `error:'${safeMessage}'`}},'*'); } catch(e){}
+    try { window.opener.postMessage(${safePayload}, ${safeOrigin}); } catch(e){}
     setTimeout(function(){ window.close(); }, 800);
   </script>
 </body></html>`;

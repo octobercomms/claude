@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const reportService = require('../services/reportService');
@@ -6,17 +7,55 @@ const users = require('../services/users');
 
 const router = express.Router();
 
-// HTML preview — no auth required (opens directly in browser tab)
+// Short-lived signed token for opening a report HTML in a new tab. We can't
+// send a Bearer header through window.open, so the frontend asks for a
+// signed URL via the authenticated /preview-url endpoint and then opens
+// /:id/html?token=<sig>. The signature binds the report id and an expiry
+// so the URL can't be reused or modified.
+function signReportToken(reportId, expiresAtSec) {
+  const payload = `${reportId}.${expiresAtSec}`;
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex');
+  return `${expiresAtSec}.${sig}`;
+}
+function verifyReportToken(reportId, token) {
+  if (!token || typeof token !== 'string') return false;
+  const [expStr, sig] = token.split('.');
+  if (!expStr || !sig) return false;
+  const exp = parseInt(expStr, 10);
+  if (!exp || exp < Math.floor(Date.now() / 1000)) return false;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${reportId}.${exp}`).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'));
+  } catch { return false; }
+}
+
+// HTML preview — accepts EITHER a short-lived signed token (for
+// window.open) OR a Bearer JWT (for direct API callers). Without one of
+// these, the report is not served.
 router.get('/:id/html', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT html_content FROM reports WHERE id = $1',
+      'SELECT client_id, html_content FROM reports WHERE id = $1',
       [req.params.id]
     );
     if (!rows.length) return res.status(404).send('Report not found');
-    if (!rows[0].html_content) return res.status(404).send('HTML not available');
-    res.type('html').send(rows[0].html_content);
+    const row = rows[0];
+
+    let authorised = false;
+    if (req.query.token && verifyReportToken(req.params.id, req.query.token)) {
+      authorised = true;
+    } else {
+      // Fall through to Bearer auth + visibility check
+      await new Promise((resolve, reject) => authenticate(req, res, err => err ? reject(err) : resolve()));
+      if (res.headersSent) return;
+      const visible = await users.getVisibleClientIds(req.user);
+      authorised = users.canAccessClient(visible, row.client_id);
+    }
+    if (!authorised) return res.status(403).send('Not authorised for this report');
+    if (!row.html_content) return res.status(404).send('HTML not available');
+    res.type('html').send(row.html_content);
   } catch (err) {
+    if (res.headersSent) return;
     res.status(500).send(err.message);
   }
 });
@@ -30,6 +69,22 @@ router.use(async (req, res, next) => {
     next();
   } catch (err) {
     next(err);
+  }
+});
+
+// Mint a short-lived signed URL for opening the HTML in a new tab.
+router.get('/:id/preview-url', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM reports WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this report' });
+    }
+    const expiresAt = Math.floor(Date.now() / 1000) + 300;     // 5 minutes
+    const token = signReportToken(req.params.id, expiresAt);
+    res.json({ url: `/api/reports/${req.params.id}/html?token=${encodeURIComponent(token)}`, expires_at: expiresAt });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
