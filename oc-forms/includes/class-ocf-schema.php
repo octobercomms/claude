@@ -61,7 +61,7 @@ class OCF_Schema {
 				'font'       => 'Inter',
 				'logo'       => '',
 				'radius'     => '8px',
-				'background' => '#f5f5f5',
+				'background' => '#ffffff',
 			),
 			'brevo'    => array(
 				'enabled'              => true,
@@ -85,11 +85,15 @@ class OCF_Schema {
 			),
 			'endings'  => array(
 				'default' => array(
-					'heading'   => 'Thanks — we got it.',
-					'body'      => 'We will be in touch shortly.',
-					'cta_label' => '',
-					'cta_url'   => '',
+					'heading'      => 'Thanks — we got it.',
+					'body'         => 'We will be in touch shortly.',
+					'cta_label'    => '',
+					'cta_url'      => '',
+					'redirect_url' => '',
 				),
+			),
+			'notifications' => array(
+				'cc' => array(),
 			),
 			'steps'    => array(),
 		);
@@ -130,10 +134,12 @@ class OCF_Schema {
 				continue;
 			}
 			$step_clean = array(
-				'id'        => self::clean_id( $step['id'] ?? '' ),
-				'title'     => sanitize_text_field( $step['title'] ?? '' ),
-				'show_if'   => self::sanitize_logic( $step['show_if'] ?? array() ),
-				'questions' => array(),
+				'id'         => self::clean_id( $step['id'] ?? '' ),
+				'title'      => sanitize_text_field( $step['title'] ?? '' ),
+				'show_title' => ! empty( $step['show_title'] ),
+				'skippable'  => ! empty( $step['skippable'] ),
+				'show_if'    => self::sanitize_logic( $step['show_if'] ?? array() ),
+				'questions'  => array(),
 			);
 			foreach ( (array) ( $step['questions'] ?? array() ) as $q ) {
 				if ( ! is_array( $q ) || empty( $q['type'] ) ) {
@@ -200,6 +206,37 @@ class OCF_Schema {
 		$schema['spam']['honeypot']   = ! empty( $schema['spam']['honeypot'] );
 		$schema['spam']['rate_limit'] = max( 1, absint( $schema['spam']['rate_limit'] ?? 5 ) );
 
+		// Endings.
+		if ( ! isset( $schema['endings'] ) || ! is_array( $schema['endings'] ) ) {
+			$schema['endings'] = array();
+		}
+		if ( ! isset( $schema['endings']['default'] ) || ! is_array( $schema['endings']['default'] ) ) {
+			$schema['endings']['default'] = array();
+		}
+		$end = $schema['endings']['default'];
+		$schema['endings']['default'] = array(
+			'heading'      => sanitize_text_field( $end['heading']      ?? '' ),
+			'body'         => sanitize_textarea_field( $end['body']     ?? '' ),
+			'cta_label'    => sanitize_text_field( $end['cta_label']    ?? '' ),
+			'cta_url'      => esc_url_raw( $end['cta_url']              ?? '' ),
+			'redirect_url' => esc_url_raw( $end['redirect_url']         ?? '' ),
+		);
+
+		// Notifications.
+		if ( ! isset( $schema['notifications'] ) || ! is_array( $schema['notifications'] ) ) {
+			$schema['notifications'] = array();
+		}
+		$cc_raw = $schema['notifications']['cc'] ?? array();
+		if ( is_string( $cc_raw ) ) {
+			$cc_raw = preg_split( '/[\s,;]+/', $cc_raw );
+		}
+		$cc_clean = array();
+		foreach ( (array) $cc_raw as $addr ) {
+			$addr = sanitize_email( trim( (string) $addr ) );
+			if ( $addr && is_email( $addr ) ) { $cc_clean[] = $addr; }
+		}
+		$schema['notifications']['cc'] = array_values( array_unique( $cc_clean ) );
+
 		return $schema;
 	}
 
@@ -235,13 +272,18 @@ class OCF_Schema {
 			$map = (array) $map;
 		}
 		if ( ! is_array( $map ) ) {
-			return array();
+			return new stdClass();
 		}
 		$clean = array();
 		foreach ( $map as $k => $v ) {
-			$clean[ self::clean_id( $k ) ] = sanitize_text_field( $v );
+			if ( ! is_string( $k ) && ! is_int( $k ) ) { continue; }
+			$ck = self::clean_id( (string) $k );
+			if ( $ck === '' ) { continue; }
+			$clean[ $ck ] = sanitize_text_field( is_scalar( $v ) ? (string) $v : '' );
 		}
-		return $clean;
+		// Force object shape on JSON encode so an empty (or any) map round-trips
+		// as `{}` not `[]` — otherwise JS arrays drop string keys silently.
+		return empty( $clean ) ? new stdClass() : (object) $clean;
 	}
 
 	public static function find_question( $schema, $question_id ) {

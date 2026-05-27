@@ -1,21 +1,21 @@
 <?php
 /**
- * Plugin Name: nvelope Forms
- * Plugin URI: https://nvelope.co
- * Description: Multi-step lead generation forms for nvelope.co — image-card pickers, conditional logic, file uploads, partial submission capture, per-client theming, Brevo integration. Self-hosted replacement for Fillout and Gravity Forms.
- * Version: 1.0.0
+ * Plugin Name: October Forms
+ * Plugin URI: https://octobercomms.com
+ * Description: Multi-step lead generation forms — image-card pickers, conditional logic, file uploads, partial submission capture, per-client theming, Brevo integration. Self-hosted replacement for Fillout and Gravity Forms.
+ * Version: 1.1.17
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: nvelope-forms
+ * Text Domain: october-forms
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCF_VERSION', '1.1.0' );
+define( 'OCF_VERSION', '1.1.11' );
 define( 'OCF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCF_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCF_CPT', 'ocf_form' );
@@ -32,6 +32,8 @@ require_once OCF_PATH . 'includes/class-ocf-analytics.php';
 require_once OCF_PATH . 'includes/class-ocf-renderer.php';
 require_once OCF_PATH . 'includes/class-ocf-rest-api.php';
 require_once OCF_PATH . 'includes/class-ocf-public-api.php';
+require_once OCF_PATH . 'includes/class-ocf-compat.php';
+require_once OCF_PATH . 'includes/class-ocf-mail.php';
 
 if ( is_admin() ) {
 	require_once OCF_PATH . 'admin/class-ocf-admin.php';
@@ -50,6 +52,8 @@ add_action( 'plugins_loaded', function () {
 	OCF_REST_API::init();
 	OCF_Public_API::init();
 	OCF_Spam::init();
+	OCF_Compat::init();
+	OCF_Mail::init();
 
 	if ( is_admin() ) {
 		OCF_Admin::init();

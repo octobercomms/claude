@@ -8,12 +8,50 @@ class OCF_Admin {
 	public static function init() {
 		add_action( 'admin_menu', array( __CLASS__, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
+		add_filter( 'post_row_actions', array( __CLASS__, 'row_actions' ), 10, 2 );
+	}
+
+	public static function row_actions( $actions, $post ) {
+		if ( $post->post_type !== OCF_CPT ) { return $actions; }
+		$url = self::duplicate_url( $post->ID );
+		$actions['ocf_duplicate'] = '<a href="' . esc_url( $url ) . '">Duplicate</a>';
+		return $actions;
+	}
+
+	public static function duplicate_url( $post_id ) {
+		return wp_nonce_url(
+			admin_url( 'admin.php?page=oc-forms&ocf_action=duplicate_form&form_id=' . (int) $post_id ),
+			'ocf_duplicate_form_' . (int) $post_id
+		);
+	}
+
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function duplicate_form_inline( $source_id ) {
+		if ( ! $source_id || ! OCF_CPT::exists( $source_id ) ) { wp_die( 'Form not found' ); }
+
+		$source = get_post( $source_id );
+		$new_id = wp_insert_post( array(
+			'post_type'   => OCF_CPT,
+			'post_status' => 'draft',
+			'post_title'  => $source->post_title . ' (copy)',
+			'post_author' => get_current_user_id(),
+		) );
+		if ( is_wp_error( $new_id ) || ! $new_id ) {
+			wp_die( 'Could not duplicate the form.' );
+		}
+		$schema = get_post_meta( $source_id, OCF_Schema::META_KEY, true );
+		if ( $schema ) {
+			update_post_meta( $new_id, OCF_Schema::META_KEY, wp_slash( $schema ) );
+		}
+		OCF_Settings::redirect( get_edit_post_link( $new_id, '' ) );
 	}
 
 	public static function menu() {
 		add_menu_page(
-			'nvelope Forms',
-			'nvelope Forms',
+			'October Forms',
+			'October Forms',
 			'manage_options',
 			'oc-forms',
 			array( __CLASS__, 'render_forms_list' ),
@@ -53,7 +91,7 @@ class OCF_Admin {
 		) );
 		?>
 		<div class="wrap">
-			<h1 class="wp-heading-inline">nvelope Forms</h1>
+			<h1 class="wp-heading-inline">October Forms</h1>
 			<a href="<?php echo esc_url( admin_url( 'post-new.php?post_type=' . OCF_CPT ) ); ?>" class="page-title-action">Add New</a>
 			<hr class="wp-header-end">
 			<table class="wp-list-table widefat fixed striped">
@@ -81,6 +119,7 @@ class OCF_Admin {
 						<td>
 							<a class="button" href="<?php echo esc_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $f->ID ) ); ?>">Submissions</a>
 							<a class="button" href="<?php echo esc_url( get_edit_post_link( $f->ID ) ); ?>">Edit</a>
+							<a class="button" href="<?php echo esc_url( self::duplicate_url( $f->ID ) ); ?>">Duplicate</a>
 						</td>
 					</tr>
 				<?php endforeach; endif; ?>

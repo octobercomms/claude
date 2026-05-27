@@ -37,6 +37,20 @@ class OCF_REST_API {
 			'permission_callback' => '__return_true',
 			'callback'            => array( __CLASS__, 'submit' ),
 		) );
+		register_rest_route( self::NAMESPACE, '/admin/brevo-attributes', array(
+			'methods'             => 'GET',
+			'permission_callback' => function () { return current_user_can( 'manage_options' ); },
+			'callback'            => array( __CLASS__, 'admin_brevo_attributes' ),
+		) );
+	}
+
+	public static function admin_brevo_attributes( WP_REST_Request $req ) {
+		$force = ! empty( $req->get_param( 'refresh' ) );
+		$attrs = OCF_Brevo::list_attributes( $force );
+		if ( is_wp_error( $attrs ) ) {
+			return new WP_Error( $attrs->get_error_code(), $attrs->get_error_message(), array( 'status' => 502 ) );
+		}
+		return rest_ensure_response( array( 'attributes' => $attrs ) );
 	}
 
 	public static function view( WP_REST_Request $req ) {
@@ -168,7 +182,12 @@ class OCF_REST_API {
 			return new WP_Error( 'ocf_invalid_token', 'Invalid submission token', array( 'status' => 400 ) );
 		}
 		if ( $row['status'] === 'complete' ) {
-			return rest_ensure_response( array( 'ok' => true, 'already_complete' => true ) );
+			$schema_complete = OCF_Schema::get( (int) $row['form_id'] );
+			return rest_ensure_response( array(
+				'ok'               => true,
+				'already_complete' => true,
+				'ending'           => self::shape_ending( $schema_complete['endings']['default'] ?? array() ),
+			) );
 		}
 		$form_id = (int) $row['form_id'];
 		$schema  = OCF_Schema::get( $form_id );
@@ -214,28 +233,47 @@ class OCF_REST_API {
 		// Final progression update before marking complete.
 		$step_reached   = max( 0, (int) $req->get_param( 'step_reached' ) );
 		$seconds_active = max( 0, min( 86400, (int) $req->get_param( 'seconds_active' ) ) );
-		OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+		try {
+			OCF_Analytics::update_progress( (int) $row['id'], $step_reached, $seconds_active );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: analytics update_progress threw: ' . $e->getMessage() );
+		}
 
 		OCF_Submission::mark_complete( (int) $row['id'] );
 
-		do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );
+		// Side-effects below MUST NOT 500 the response — the submission is
+		// already saved and the user needs the ending screen / redirect.
+		try {
+			do_action( 'ocf_after_submit', (int) $row['id'], $form_id, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: ocf_after_submit hook threw: ' . $e->getMessage() );
+		}
+		try {
+			OCF_Brevo::dispatch( (int) $row['id'], $form_id, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: Brevo dispatch threw: ' . $e->getMessage() );
+		}
+		try {
+			self::notify_admin( $form_id, $row, $answers );
+		} catch ( \Throwable $e ) {
+			error_log( 'OCF: notify_admin threw: ' . $e->getMessage() );
+		}
 
-		// Brevo dispatch (sync best-effort; the row gets retried by cron on failure).
-		OCF_Brevo::dispatch( (int) $row['id'], $form_id, $answers );
-
-		// Site-wide notification email.
-		self::notify_admin( $form_id, $row, $answers );
-
-		$ending = $schema['endings']['default'] ?? array();
 		return rest_ensure_response( array(
 			'ok'     => true,
-			'ending' => array(
-				'heading'   => $ending['heading'] ?? 'Thanks!',
-				'body'      => $ending['body'] ?? '',
-				'cta_label' => $ending['cta_label'] ?? '',
-				'cta_url'   => $ending['cta_url'] ?? '',
-			),
+			'ending' => self::shape_ending( $schema['endings']['default'] ?? array() ),
 		) );
+	}
+
+	private static function shape_ending( $ending ) {
+		$ending = is_array( $ending ) ? $ending : array();
+		return array(
+			'heading'      => $ending['heading']      ?? 'Thanks!',
+			'body'         => $ending['body']         ?? '',
+			'cta_label'    => $ending['cta_label']    ?? '',
+			'cta_url'      => $ending['cta_url']      ?? '',
+			'redirect_url' => $ending['redirect_url'] ?? '',
+		);
 	}
 
 	private static function sanitize_answers( $raw, $form_id ) {
@@ -352,9 +390,20 @@ class OCF_REST_API {
 	private static function notify_admin( $form_id, $row, $answers ) {
 		$to = get_option( 'ocf_notify_email', get_option( 'admin_email' ) );
 		if ( ! $to ) { return; }
-		$schema  = OCF_Schema::get( $form_id );
-		$title   = get_the_title( $form_id );
-		$lines   = array( 'New submission: ' . $title, '' );
+		$schema = OCF_Schema::get( $form_id );
+		$title  = get_the_title( $form_id );
+
+		// Lead email used for both the subject and the Reply-To header so a
+		// reply from the inbox goes straight to the lead.
+		$lead_email = '';
+		foreach ( $answers as $v ) {
+			if ( is_string( $v ) && is_email( $v ) ) { $lead_email = $v; break; }
+		}
+		if ( ! $lead_email && ! empty( $row['email'] ) ) {
+			$lead_email = $row['email'];
+		}
+
+		$lines = array( 'New submission: ' . $title, '' );
 		foreach ( $schema['steps'] as $step ) {
 			foreach ( $step['questions'] as $q ) {
 				if ( ! OCF_Schema::type_is_storable( $q['type'] ) ) { continue; }
@@ -365,9 +414,28 @@ class OCF_REST_API {
 				$lines[] = sprintf( '%s: %s', $label, $value );
 			}
 		}
-		$lines[] = '';
-		$lines[] = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id );
 
-		wp_mail( $to, '[' . get_bloginfo( 'name' ) . '] New lead — ' . $title, implode( "\n", $lines ) );
+		$subject = $lead_email
+			? sprintf( '[%s] New lead — %s — %s', get_bloginfo( 'name' ), $title, $lead_email )
+			: sprintf( '[%s] New lead — %s', get_bloginfo( 'name' ), $title );
+
+		$headers = array();
+
+		$from_name  = trim( (string) get_option( 'ocf_from_name', '' ) );
+		$from_email = trim( (string) get_option( 'ocf_from_email', '' ) );
+		if ( $from_email && is_email( $from_email ) ) {
+			$display = $from_name !== '' ? $from_name : get_bloginfo( 'name' );
+			$headers[] = sprintf( 'From: %s <%s>', $display, $from_email );
+		}
+		if ( $lead_email && is_email( $lead_email ) ) {
+			$headers[] = sprintf( 'Reply-To: %s', $lead_email );
+		}
+		foreach ( (array) ( $schema['notifications']['cc'] ?? array() ) as $cc_addr ) {
+			if ( is_email( $cc_addr ) ) {
+				$headers[] = 'Cc: ' . $cc_addr;
+			}
+		}
+
+		wp_mail( $to, $subject, implode( "\n", $lines ), $headers );
 	}
 }

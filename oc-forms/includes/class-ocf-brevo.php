@@ -27,6 +27,46 @@ class OCF_Brevo {
 	}
 
 	/**
+	 * Pull the list of contact attributes from the configured Brevo account.
+	 * Returns array of { name, category, type } on success, or WP_Error.
+	 * Cached for 15 minutes via transient.
+	 */
+	public static function list_attributes( $force_refresh = false ) {
+		if ( ! self::is_configured() ) {
+			return new WP_Error( 'ocf_no_brevo_key', 'Brevo API key not configured' );
+		}
+		$cache_key = 'ocf_brevo_attrs';
+		if ( ! $force_refresh ) {
+			$cached = get_transient( $cache_key );
+			if ( is_array( $cached ) ) { return $cached; }
+		}
+		$res = wp_remote_get( self::API_BASE . '/contacts/attributes', array(
+			'timeout' => 10,
+			'headers' => array(
+				'api-key' => self::api_key(),
+				'accept'  => 'application/json',
+			),
+		) );
+		if ( is_wp_error( $res ) ) { return $res; }
+		$code = (int) wp_remote_retrieve_response_code( $res );
+		if ( $code < 200 || $code >= 300 ) {
+			return new WP_Error( 'ocf_brevo_http_' . $code, 'Brevo returned HTTP ' . $code );
+		}
+		$body = json_decode( wp_remote_retrieve_body( $res ), true );
+		$attrs = array();
+		foreach ( (array) ( $body['attributes'] ?? array() ) as $a ) {
+			if ( empty( $a['name'] ) ) { continue; }
+			$attrs[] = array(
+				'name'     => (string) $a['name'],
+				'category' => (string) ( $a['category'] ?? '' ),
+				'type'     => (string) ( $a['type'] ?? '' ),
+			);
+		}
+		set_transient( $cache_key, $attrs, 15 * MINUTE_IN_SECONDS );
+		return $attrs;
+	}
+
+	/**
 	 * Upsert a contact and optionally add to list(s).
 	 *
 	 * @return array{ok:bool, status:int, body:mixed}

@@ -166,4 +166,36 @@ class OCF_Submission {
 			$limit
 		), ARRAY_A );
 	}
+
+	/**
+	 * Delete a submission and everything attached to it: uploaded files
+	 * on disk, upload rows, queued/retried events, and the submission
+	 * row itself. Returns true if the submission row existed.
+	 */
+	public static function delete( $submission_id ) {
+		global $wpdb;
+		$submission_id = (int) $submission_id;
+		if ( ! $submission_id ) { return false; }
+		$row = self::find( $submission_id );
+		if ( ! $row ) { return false; }
+
+		// Delete each uploaded file from disk.
+		$uploads = self::uploads_for( $submission_id );
+		foreach ( $uploads as $u ) {
+			if ( ! empty( $u['path'] ) && file_exists( $u['path'] ) ) {
+				@unlink( $u['path'] );
+			}
+		}
+		// Best-effort: remove the per-submission upload folder.
+		$upload = wp_upload_dir();
+		$dir    = trailingslashit( $upload['basedir'] ) . 'ocf/' . (int) $row['form_id'] . '/' . $submission_id;
+		if ( is_dir( $dir ) ) {
+			@rmdir( $dir );
+		}
+
+		$wpdb->delete( self::uploads_table(), array( 'submission_id' => $submission_id ) );
+		$wpdb->delete( self::events_table(),  array( 'submission_id' => $submission_id ) );
+		$wpdb->delete( self::table(),         array( 'id'            => $submission_id ) );
+		return true;
+	}
 }

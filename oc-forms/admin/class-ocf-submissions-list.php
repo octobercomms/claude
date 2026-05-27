@@ -9,6 +9,33 @@ class OCF_Submissions_List {
 		add_action( 'admin_init', array( __CLASS__, 'maybe_export' ) );
 	}
 
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function bulk_delete_inline() {
+		$form_id = absint( $_POST['form_id'] ?? 0 );
+		$ids     = array_map( 'absint', (array) ( $_POST['submission_ids'] ?? array() ) );
+		$ids     = array_values( array_filter( $ids ) );
+
+		$deleted = 0;
+		foreach ( $ids as $id ) {
+			if ( OCF_Submission::delete( $id ) ) { $deleted++; }
+		}
+
+		OCF_Settings::redirect( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted ) );
+	}
+
+	/**
+	 * Called from OCF_Settings::dispatch_actions(). Auth + nonce already verified.
+	 */
+	public static function single_delete_inline( $id ) {
+		$row     = OCF_Submission::find( $id );
+		$form_id = $row ? (int) $row['form_id'] : 0;
+		$deleted = OCF_Submission::delete( $id ) ? 1 : 0;
+
+		OCF_Settings::redirect( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&deleted=' . $deleted ) );
+	}
+
 	public static function maybe_export() {
 		if ( ( $_GET['page'] ?? '' ) !== 'oc-forms-submissions' ) { return; }
 		if ( ( $_GET['action'] ?? '' ) !== 'export' ) { return; }
@@ -83,30 +110,84 @@ class OCF_Submissions_List {
 			return;
 		}
 
-		$schema = OCF_Schema::get( $form_id );
-		$rows   = OCF_Submission::list_for_form( $form_id, array( 'limit' => 100 ) );
+		$schema     = OCF_Schema::get( $form_id );
+		$rows       = OCF_Submission::list_for_form( $form_id, array( 'limit' => 100 ) );
 		$export_url = wp_nonce_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&action=export' ), 'ocf_export' );
+
+		$deleted = isset( $_GET['deleted'] ) ? absint( $_GET['deleted'] ) : 0;
+		if ( $deleted > 0 ) {
+			echo '<div class="notice notice-success is-dismissible"><p>' . sprintf( _n( '%d submission deleted.', '%d submissions deleted.', $deleted ), $deleted ) . '</p></div>';
+		}
+
 		echo '<p><a class="button" href="' . esc_url( $export_url ) . '">Export CSV</a></p>';
 
+		// POSTs back to the same admin page; dispatcher in OCF_Settings catches ocf_action.
+		$action_url = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id );
+		echo '<form method="post" action="' . esc_url( $action_url ) . '" onsubmit="return ocfConfirmBulk(this);">';
+		echo '<input type="hidden" name="ocf_action" value="bulk_delete_submissions">';
+		echo '<input type="hidden" name="form_id" value="' . (int) $form_id . '">';
+		wp_nonce_field( 'ocf_bulk_delete_submissions' );
+
+		echo '<div class="tablenav top">';
+		echo '<div class="alignleft actions bulkactions">';
+		echo '<select name="bulk_action"><option value="">Bulk actions</option><option value="delete">Delete</option></select> ';
+		echo '<button type="submit" class="button action">Apply</button>';
+		echo '</div></div>';
+
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>';
-		echo '<th>ID</th><th>Status</th><th>Email</th><th>Created</th><th>Completed</th><th></th>';
+		echo '<td class="manage-column column-cb check-column"><label class="screen-reader-text" for="ocf-cb-select-all">Select all</label><input id="ocf-cb-select-all" type="checkbox"></td>';
+		echo '<th>ID</th><th>Status</th><th>Email</th><th>Step</th><th>Time</th><th>Created</th><th>Completed</th><th></th>';
 		echo '</tr></thead><tbody>';
 		if ( empty( $rows ) ) {
-			echo '<tr><td colspan="6">No submissions yet.</td></tr>';
+			echo '<tr><td colspan="9">No submissions yet.</td></tr>';
 		}
 		foreach ( $rows as $r ) {
-			$view = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&view=' . $r['id'] );
+			$view        = admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&view=' . $r['id'] );
+			$delete_url  = wp_nonce_url(
+				admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $form_id . '&ocf_action=delete_submission&id=' . (int) $r['id'] ),
+				'ocf_delete_submission_' . (int) $r['id']
+			);
+			$secs = (int) ( $r['seconds_active'] ?? 0 );
+			$time = $secs >= 60 ? floor( $secs / 60 ) . 'm ' . ( $secs % 60 ) . 's' : $secs . 's';
 			printf(
-				'<tr><td>%d</td><td>%s</td><td>%s</td><td>%s</td><td>%s</td><td><a class="button" href="%s">View</a></td></tr>',
+				'<tr>'
+				. '<th scope="row" class="check-column"><input type="checkbox" name="submission_ids[]" value="%1$d"></th>'
+				. '<td>%1$d</td><td>%2$s</td><td>%3$s</td><td>%4$d</td><td>%5$s</td><td>%6$s</td><td>%7$s</td>'
+				. '<td><a class="button" href="%8$s">View</a> <a class="button button-link-delete" href="%9$s" onclick="return confirm(\'Delete submission #%1$d?\');" style="color:#d63638;">Delete</a></td>'
+				. '</tr>',
 				(int) $r['id'],
 				esc_html( $r['status'] ),
 				esc_html( $r['email'] ),
+				(int) ( $r['step_reached'] ?? 0 ),
+				esc_html( $time ),
 				esc_html( $r['created_at'] ),
 				esc_html( $r['completed_at'] ?: '—' ),
-				esc_url( $view )
+				esc_url( $view ),
+				esc_url( $delete_url )
 			);
 		}
-		echo '</tbody></table></div>';
+		echo '</tbody></table>';
+		echo '</form>';
+
+		// Minimal JS: select-all + confirm bulk delete.
+		echo '<script>
+			(function () {
+				var all = document.getElementById("ocf-cb-select-all");
+				if (all) {
+					all.addEventListener("change", function () {
+						document.querySelectorAll("input[name=\'submission_ids[]\']").forEach(function (cb) { cb.checked = all.checked; });
+					});
+				}
+				window.ocfConfirmBulk = function (form) {
+					var act = form.bulk_action && form.bulk_action.value;
+					if (act !== "delete") { alert("Pick a bulk action."); return false; }
+					var checked = form.querySelectorAll("input[name=\'submission_ids[]\']:checked").length;
+					if (!checked) { alert("Select at least one submission."); return false; }
+					return confirm("Delete " + checked + " submission(s)? This also removes uploaded files.");
+				};
+			})();
+		</script>';
+		echo '</div>';
 	}
 
 	private static function render_single( $sub_id ) {
@@ -142,6 +223,13 @@ class OCF_Submissions_List {
 			}
 		}
 		echo '</tbody></table>';
-		echo '<p><a class="button" href="' . esc_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $sub['form_id'] ) ) . '">← Back to list</a></p>';
+		$delete_url = wp_nonce_url(
+			admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . (int) $sub['form_id'] . '&ocf_action=delete_submission&id=' . (int) $sub['id'] ),
+			'ocf_delete_submission_' . (int) $sub['id']
+		);
+		echo '<p>';
+		echo '<a class="button" href="' . esc_url( admin_url( 'admin.php?page=oc-forms-submissions&form_id=' . $sub['form_id'] ) ) . '">← Back to list</a> ';
+		echo '<a class="button" href="' . esc_url( $delete_url ) . '" onclick="return confirm(\'Delete this submission and its uploaded files?\');" style="color:#d63638;">Delete</a>';
+		echo '</p>';
 	}
 }

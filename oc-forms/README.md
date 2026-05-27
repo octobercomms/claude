@@ -1,4 +1,4 @@
-# nvelope Forms
+# October Forms
 
 The WordPress plugin behind [nvelope.co](https://nvelope.co) — a self-hosted, multi-client lead-generation form system. Replaces Fillout and Gravity Forms.
 
@@ -22,9 +22,9 @@ nvelope.co runs a separate lead-capture funnel for each client (Forgeworks is on
 ## Install
 
 1. Copy the `oc-forms/` directory into `wp-content/plugins/`.
-2. Activate "nvelope Forms" in Plugins.
-3. **Settings → nvelope Forms**: paste your Brevo API key (and optionally the Marketing Automation key for `trackEvent`, plus Cloudflare Turnstile keys).
-4. **nvelope Forms → Add New**: build a form from scratch in the visual builder, or open the **JSON** tab and paste in `seeds/forgeworks.json` to bootstrap from the existing Forgeworks Fillout form as a starting point.
+2. Activate "October Forms" in Plugins.
+3. **Settings → October Forms**: paste your Brevo API key (and optionally the Marketing Automation key for `trackEvent`, plus Cloudflare Turnstile keys).
+4. **October Forms → Add New**: build a form from scratch in the visual builder, or open the **JSON** tab and paste in `seeds/forgeworks.json` to bootstrap from the existing Forgeworks Fillout form as a starting point.
 5. Embed: `[nvelope_form id="<post_id>"]` on the client's landing page.
 
 ## Per-client setup
@@ -87,4 +87,4 @@ oc-forms/
     └── forgeworks.json   importable schema for the Forgeworks form
 ```
 
-The internal `OCF_` / `oc-forms` / `ocf-*` prefixes throughout the code are a historical artefact (October Comms Forms) and have no user-visible effect. The plugin presents to admins and visitors as **nvelope Forms**.
+The internal `OCF_` / `oc-forms` / `ocf-*` prefixes throughout the code are a historical artefact (October Comms Forms) and have no user-visible effect. The plugin presents to admins and visitors as **October Forms**.

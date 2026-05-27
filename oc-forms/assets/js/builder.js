@@ -10,13 +10,55 @@
 	var schema = config.schema;
 	var types  = config.types;
 
-	// Make sure steps array exists.
+	// Normalise containers that PHP json_encode might emit as `[]` instead of
+	// `{}` when empty — JSON.stringify drops string keys from arrays, so an
+	// unfixed array map silently swallows every mapping the user adds.
+	function asPlainObject(v) {
+		if (v == null || Array.isArray(v)) return {};
+		if (typeof v === 'object') return v;
+		return {};
+	}
+
 	schema.steps   = schema.steps   || [];
 	schema.theme   = schema.theme   || {};
 	schema.brevo   = schema.brevo   || { list_ids: [], attribute_map: {}, event_properties_map: {} };
+	schema.brevo.attribute_map        = asPlainObject(schema.brevo.attribute_map);
+	schema.brevo.event_properties_map = asPlainObject(schema.brevo.event_properties_map);
 	schema.spam    = schema.spam    || { turnstile: true, honeypot: true, rate_limit: 5 };
 	schema.endings = schema.endings || { default: {} };
 	schema.settings = schema.settings || {};
+	schema.notifications = schema.notifications || { cc: [] };
+	if (!Array.isArray(schema.notifications.cc)) {
+		schema.notifications.cc = [];
+	}
+
+	// Brevo attribute autocomplete — fetched once from the admin API, cached
+	// for the lifetime of this page. When it arrives we re-render the brevo
+	// tab so the new datalist options are live.
+	var brevoAttrs = [];
+	var brevoAttrsLoading = false;
+	var brevoAttrsError = '';
+	function loadBrevoAttributes(force) {
+		if (brevoAttrsLoading) return;
+		brevoAttrsLoading = true;
+		fetch(config.restUrl + 'admin/brevo-attributes' + (force ? '?refresh=1' : ''), {
+			headers: { 'X-WP-Nonce': (window.wpApiSettings && wpApiSettings.nonce) || config.nonce || '' },
+			credentials: 'same-origin'
+		}).then(function (r) {
+			return r.json().then(function (j) {
+				if (!r.ok) { throw new Error((j && j.message) || ('HTTP ' + r.status)); }
+				return j;
+			});
+		}).then(function (j) {
+			brevoAttrs = (j && j.attributes) || [];
+			brevoAttrsError = '';
+		}).catch(function (e) {
+			brevoAttrsError = (e && e.message) || 'Could not load Brevo attributes';
+		}).finally(function () {
+			brevoAttrsLoading = false;
+			if (state.view === 'brevo') render();
+		});
+	}
 
 	var state = {
 		view: 'steps',                // 'steps' | 'theme' | 'brevo' | 'spam' | 'endings'
@@ -73,12 +115,13 @@
 			}, [label]);
 		}
 		return el('div', { class: 'ocf-b-toolbar' }, [
-			tab('steps',   'Steps'),
-			tab('theme',   'Theme'),
-			tab('brevo',   'Brevo'),
-			tab('spam',    'Spam'),
-			tab('endings', 'Ending'),
-			tab('json',    'JSON'),
+			tab('steps',         'Steps'),
+			tab('theme',         'Theme'),
+			tab('brevo',         'Brevo'),
+			tab('notifications', 'Notifications'),
+			tab('spam',          'Spam'),
+			tab('endings',       'Ending'),
+			tab('json',          'JSON'),
 			el('div', { class: 'ocf-b-spacer' }),
 			el('span', { class: 'ocf-b-hint' }, ['Save the post to persist changes.'])
 		]);
@@ -128,12 +171,13 @@
 	function mainArea() {
 		var host = el('div', { class: 'ocf-b-main' });
 		switch (state.view) {
-			case 'steps':   renderStepEditor(host); break;
-			case 'theme':   renderTheme(host); break;
-			case 'brevo':   renderBrevo(host); break;
-			case 'spam':    renderSpam(host); break;
-			case 'endings': renderEndings(host); break;
-			case 'json':    renderJson(host); break;
+			case 'steps':         renderStepEditor(host); break;
+			case 'theme':         renderTheme(host); break;
+			case 'brevo':         renderBrevo(host); break;
+			case 'notifications': renderNotifications(host); break;
+			case 'spam':          renderSpam(host); break;
+			case 'endings':       renderEndings(host); break;
+			case 'json':          renderJson(host); break;
 		}
 		return host;
 	}
@@ -197,7 +241,8 @@
 		Object.keys(types).forEach(function (t) {
 			palette.appendChild(el('button', { type: 'button', class: 'button',
 				onClick: function () {
-					var q = { id: uid('q_'), type: t, label: types[t].label, required: false };
+					// Leave the label blank — only show one if the user fills it in.
+					var q = { id: uid('q_'), type: t, label: '', required: false };
 					if (t === 'choice' || t === 'multi_choice' || t === 'image_cards' || t === 'image_cards_multi' || t === 'dropdown') {
 						q.options = [
 							{ label: 'Option A', value: 'a', image: '' },
@@ -226,6 +271,15 @@
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Step ID']),
 			el('input', { type: 'text', class: 'widefat', value: step.id, onInput: function (e) { step.id = sanitizeId(e.target.value); syncHiddenInput(); } })
+		]));
+		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
+			el('input', { type: 'checkbox', checked: step.show_title ? 'checked' : null, onChange: function (e) { step.show_title = e.target.checked; syncHiddenInput(); } }),
+			el('span', null, ['Show step title as heading on the form'])
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['By default the step title is an internal label for the builder only.']));
+		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
+			el('input', { type: 'checkbox', checked: step.skippable ? 'checked' : null, onChange: function (e) { step.skippable = e.target.checked; syncHiddenInput(); } }),
+			el('span', null, ['Show "Skip" button on this step'])
 		]));
 		host.appendChild(logicEditor('Show step if…', step.show_if || [], function (rules) { step.show_if = rules; syncHiddenInput(); }));
 	}
@@ -274,10 +328,6 @@
 		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
 			el('input', { type: 'checkbox', checked: q.required ? 'checked' : null, onChange: function (e) { q.required = e.target.checked; syncHiddenInput(); } }),
 			el('span', null, ['Required'])
-		]));
-		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
-			el('input', { type: 'checkbox', checked: q.skippable ? 'checked' : null, onChange: function (e) { q.skippable = e.target.checked; syncHiddenInput(); } }),
-			el('span', null, ['Show "Skip" button'])
 		]));
 
 		// Options
@@ -400,12 +450,12 @@
 				el('input', { type: 'color', value: t[key] || '#000000', onInput: function (e) { t[key] = e.target.value; syncHiddenInput(); } })
 			]);
 		}
-		host.appendChild(color('Primary colour', 'primary'));
-		host.appendChild(color('Accent colour', 'accent'));
-		host.appendChild(color('Background', 'background'));
+		host.appendChild(color('Primary (buttons, selected state)', 'primary'));
+		host.appendChild(color('Accent (progress bar)', 'accent'));
+		host.appendChild(color('Card background', 'background'));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
-			el('span', null, ['Font family']),
-			el('input', { type: 'text', class: 'widefat', value: t.font || 'Inter', onInput: function (e) { t.font = e.target.value; syncHiddenInput(); } })
+			el('span', null, ['Font family (Google Fonts auto-loaded)']),
+			el('input', { type: 'text', class: 'widefat', value: t.font || 'Inter', placeholder: 'e.g. Inter, Roboto, Playfair Display', onInput: function (e) { t.font = e.target.value; syncHiddenInput(); } })
 		]));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Corner radius (e.g. 8px)']),
@@ -433,8 +483,13 @@
 
 	function renderBrevo(host) {
 		var b = schema.brevo;
-		b.attribute_map = b.attribute_map || {};
-		b.event_properties_map = b.event_properties_map || {};
+		b.attribute_map        = asPlainObject(b.attribute_map);
+		b.event_properties_map = asPlainObject(b.event_properties_map);
+
+		// Kick off (or refresh) the Brevo attribute fetch on first render.
+		if (!brevoAttrs.length && !brevoAttrsLoading && !brevoAttrsError) {
+			loadBrevoAttributes(false);
+		}
 
 		host.appendChild(el('h3', null, ['Brevo integration']));
 		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
@@ -446,9 +501,36 @@
 			el('input', { type: 'text', class: 'widefat', value: (b.list_ids || []).join(','), onInput: function (e) { b.list_ids = e.target.value.split(',').map(function (s) { return parseInt(s.trim(), 10); }).filter(function (n) { return !isNaN(n); }); syncHiddenInput(); } })
 		]));
 
+		// Single datalist shared across both map editors on this tab.
+		var datalistId = 'ocf-brevo-attrs';
+		host.appendChild((function () {
+			var dl = el('datalist', { id: datalistId });
+			brevoAttrs.forEach(function (a) { dl.appendChild(el('option', { value: a.name })); });
+			return dl;
+		})());
+
 		host.appendChild(el('h4', null, ['Attribute mapping (contact)']));
-		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Map each question to a Brevo contact attribute name (e.g. FIRSTNAME, BUDGET).']));
-		mapEditor(host, b.attribute_map, function () { syncHiddenInput(); });
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, [
+			brevoAttrsLoading ? 'Loading Brevo attributes…'
+				: brevoAttrsError ? ('Could not load Brevo attributes: ' + brevoAttrsError + '. Check your API key in Settings.')
+				: brevoAttrs.length ? ('Map each question to a Brevo contact attribute. ' + brevoAttrs.length + ' available — type or pick from the dropdown.')
+				: 'Map each question to a Brevo contact attribute name (e.g. FIRSTNAME, BUDGET).'
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint', style: { background: '#fffbeb', border: '1px solid #fde68a', padding: '8px 10px', borderRadius: '4px' } }, [
+			(function () {
+				var hasEmail = schema.steps.some(function (st) { return (st.questions || []).some(function (q) { return q.type === 'email'; }); });
+				if (hasEmail) {
+					return 'Your Email question is automatically used as the Brevo contact identifier — you do not need to map it here. Map other questions (name, phone, project type, etc.) to their Brevo attributes below.';
+				}
+				return 'Tip: any question of type Email is auto-detected and used as the Brevo contact identifier. Add one to your form so submissions land as real Brevo contacts.';
+			})()
+		]));
+		if (brevoAttrs.length || brevoAttrsError) {
+			host.appendChild(el('p', null, [
+				el('button', { type: 'button', class: 'button button-small', onClick: function () { brevoAttrs = []; brevoAttrsError = ''; loadBrevoAttributes(true); } }, ['Refresh attribute list'])
+			]));
+		}
+		mapEditor(host, b.attribute_map, function () { syncHiddenInput(); }, datalistId);
 
 		host.appendChild(el('h4', null, ['Track event']));
 		host.appendChild(el('label', { class: 'ocf-b-field ocf-b-field-inline' }, [
@@ -463,11 +545,18 @@
 		mapEditor(host, b.event_properties_map, function () { syncHiddenInput(); });
 	}
 
-	function mapEditor(host, map, onChange) {
+	function mapEditor(host, map, onChange, datalistId) {
 		var list = el('div', { class: 'ocf-b-map' });
 		function rebuild() {
 			list.innerHTML = '';
 			Object.keys(map).forEach(function (qid) {
+				var input = el('input', {
+					type: 'text',
+					placeholder: 'BREVO_ATTRIBUTE',
+					value: map[qid] || '',
+					list: datalistId || null,
+					onInput: function (e) { map[qid] = e.target.value; onChange(); }
+				});
 				var row = el('div', { class: 'ocf-b-map-row' }, [
 					(function () {
 						var s = el('select', { onChange: function (e) {
@@ -475,6 +564,7 @@
 							var attr = map[qid];
 							delete map[qid];
 							map[nv] = attr;
+							qid = nv; // keep this row's closure in sync
 							onChange();
 							rebuild();
 						} });
@@ -488,7 +578,7 @@
 						});
 						return s;
 					})(),
-					el('input', { type: 'text', placeholder: 'BREVO_ATTRIBUTE', value: map[qid] || '', onInput: function (e) { map[qid] = e.target.value; onChange(); } }),
+					input,
 					el('button', { type: 'button', class: 'ocf-b-del', onClick: function () { delete map[qid]; rebuild(); onChange(); } }, ['×'])
 				]);
 				list.appendChild(row);
@@ -522,12 +612,38 @@
 			el('span', null, ['Submissions per IP per 10 min']),
 			el('input', { type: 'number', min: 1, max: 100, value: s.rate_limit || 5, onInput: function (e) { s.rate_limit = parseInt(e.target.value, 10) || 5; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → nvelope Forms.']));
+		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → October Forms.']));
+	}
+
+	function renderNotifications(host) {
+		var n = schema.notifications;
+		host.appendChild(el('h3', null, ['Notifications']));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['Each completed submission emails a notification to the address set in Settings → October Forms. Use the field below to CC additional people on the email for this form only.']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['CC recipients (comma-separated email addresses)']),
+			el('input', { type: 'text', class: 'widefat',
+				placeholder: 'partner@example.com, accounts@example.com',
+				value: (n.cc || []).join(', '),
+				onInput: function (e) {
+					n.cc = e.target.value.split(/[\s,;]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+					syncHiddenInput();
+				}
+			})
+		]));
 	}
 
 	function renderEndings(host) {
 		var e = schema.endings.default = schema.endings.default || {};
-		host.appendChild(el('h3', null, ['Ending screen']));
+		host.appendChild(el('h3', null, ['On submit']));
+
+		host.appendChild(el('label', { class: 'ocf-b-field' }, [
+			el('span', null, ['Redirect to URL after submit (optional)']),
+			el('input', { type: 'url', class: 'widefat', placeholder: 'https://nvelope.co/thank-you', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
+		]));
+		host.appendChild(el('p', { class: 'ocf-b-hint' }, ['If set, the visitor is redirected here once the form is submitted. The ending screen below is ignored.']));
+
+		host.appendChild(el('h4', null, ['Ending screen (used when no redirect is set)']));
 		host.appendChild(el('label', { class: 'ocf-b-field' }, [
 			el('span', null, ['Heading']),
 			el('input', { type: 'text', class: 'widefat', value: e.heading || '', onInput: function (ev) { e.heading = ev.target.value; syncHiddenInput(); } })
