@@ -2,11 +2,29 @@ const express = require('express');
 const axios = require('axios');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess, checkClientIdFromBodyOrQuery } = require('../middleware/clientAccess');
 const { encrypt, decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
+const users = require('../services/users');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+router.use(checkClientIdFromBodyOrQuery);
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+// :id can be a connector UUID — verify the caller can see its client.
+router.param('id', async (req, res, next, id) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM connectors WHERE id = $1', [id]);
+    if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this client' });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Known provider limits for connectors without programmatic scope introspection.
 const KNOWN_LIMITATIONS = {
@@ -35,15 +53,31 @@ router.get('/client/:clientId', async (req, res) => {
 // Get all connectors with status summary
 router.get('/status', async (req, res) => {
   try {
-    const { rows } = await pool.query(`
-      SELECT c.id, c.client_id, cl.name as client_name, c.connector_type, c.store_label,
-             c.status, c.last_checked, c.error_message
-      FROM connectors c
-      JOIN clients cl ON cl.id = c.client_id
-      WHERE cl.active = true
-      ORDER BY cl.name, c.connector_type
-    `);
-    res.json(rows);
+    // Filter by the caller's visible clients — admins see everything,
+    // viewers see only their assigned clients.
+    let result;
+    if (req.visibleClientIds === null) {
+      result = await pool.query(`
+        SELECT c.id, c.client_id, cl.name as client_name, c.connector_type, c.store_label,
+               c.status, c.last_checked, c.error_message
+        FROM connectors c
+        JOIN clients cl ON cl.id = c.client_id
+        WHERE cl.active = true
+        ORDER BY cl.name, c.connector_type
+      `);
+    } else if (!req.visibleClientIds.length) {
+      result = { rows: [] };
+    } else {
+      result = await pool.query(`
+        SELECT c.id, c.client_id, cl.name as client_name, c.connector_type, c.store_label,
+               c.status, c.last_checked, c.error_message
+        FROM connectors c
+        JOIN clients cl ON cl.id = c.client_id
+        WHERE cl.active = true AND c.client_id = ANY($1)
+        ORDER BY cl.name, c.connector_type
+      `, [req.visibleClientIds]);
+    }
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

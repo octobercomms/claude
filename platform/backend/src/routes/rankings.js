@@ -1,15 +1,23 @@
 const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const dataForSEO = require('../connectors/dataforseo');
 
 const router = express.Router();
 router.use(authenticate);
+router.use(loadVisibleClientIds);
+// All routes that take :clientId in the URL are auto-checked here.
+// Routes that take :id (keyword UUID) or client_id via query/body look up
+// the owning client and call assertClientAccess inside the handler.
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 // List keywords for a client
 router.get('/keywords', async (req, res) => {
   try {
     const { client_id, tag } = req.query;
+    if (client_id) assertClientAccess(req, client_id);
+    else if (req.visibleClientIds !== null) return res.status(400).json({ error: 'client_id required' });
     let query = `
       SELECT k.*,
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as current_position,
@@ -17,7 +25,10 @@ router.get('/keywords', async (req, res) => {
         (SELECT position FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1 OFFSET 1) as previous_position,
         (SELECT MIN(position) FROM seo_rank_history WHERE keyword_id = k.id AND position IS NOT NULL) as best_position,
         (SELECT url FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as ranking_url,
-        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked
+        (SELECT checked_at FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as last_checked,
+        (SELECT serp_features FROM seo_rank_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as serp_features,
+        (SELECT present FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_present,
+        (SELECT brand_cited FROM aio_history WHERE keyword_id = k.id ORDER BY checked_at DESC LIMIT 1) as aio_brand_cited
       FROM seo_keywords k WHERE k.active = true
     `;
     const params = [];
@@ -37,6 +48,7 @@ router.post('/keywords', async (req, res) => {
   const { client_id, keyword, target_url, device, tag, location_code, location_name } = req.body;
   if (!client_id || !keyword) return res.status(400).json({ error: 'client_id and keyword required' });
   try {
+    assertClientAccess(req, client_id);
     const { rows } = await pool.query(
       `INSERT INTO seo_keywords (client_id, keyword, target_url, device, tag, location_code, location_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
@@ -56,6 +68,7 @@ router.post('/keywords/bulk', async (req, res) => {
     return res.status(400).json({ error: 'client_id and keywords array required' });
   }
   try {
+    assertClientAccess(req, client_id);
     const inserted = [];
     for (const kw of keywords) {
       if (!kw.keyword) continue;
@@ -81,6 +94,7 @@ router.put('/keywords/:id', async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM seo_keywords WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Keyword not found' });
     const k = rows[0];
+    assertClientAccess(req, k.client_id);
 
     const { rows: updated } = await pool.query(
       `UPDATE seo_keywords SET
@@ -102,26 +116,34 @@ router.put('/keywords/:id', async (req, res) => {
 // Delete keyword
 router.delete('/keywords/:id', async (req, res) => {
   try {
+    const { rows } = await pool.query('SELECT client_id FROM seo_keywords WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(204).end();
+    assertClientAccess(req, rows[0].client_id);
     await pool.query('DELETE FROM seo_keywords WHERE id = $1', [req.params.id]);
     res.status(204).end();
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
-// Get rank history for a keyword (12 months)
+// Full rank history for a keyword. No date cap — clients want to scroll
+// back years for context. Returns serp_features per row so the timeline
+// can show whether the position was alongside a featured snippet, image
+// pack, etc. at that point in time.
 router.get('/keywords/:id/history', async (req, res) => {
   try {
+    const owner = await pool.query('SELECT client_id FROM seo_keywords WHERE id = $1', [req.params.id]);
+    if (!owner.rows.length) return res.status(404).json({ error: 'Keyword not found' });
+    assertClientAccess(req, owner.rows[0].client_id);
     const { rows } = await pool.query(
-      `SELECT checked_at, position, url, source FROM seo_rank_history
+      `SELECT checked_at, position, url, source, serp_features FROM seo_rank_history
        WHERE keyword_id = $1
-         AND checked_at >= CURRENT_DATE - INTERVAL '12 months'
-       ORDER BY checked_at ASC`,
+       ORDER BY checked_at DESC`,
       [req.params.id]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 
@@ -327,10 +349,11 @@ async function runRankChecks(keywords) {
     try {
       const result = await dataForSEO.checkRank(kw);
       await pool.query(
-        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url)
-         VALUES ($1, CURRENT_DATE, $2, $3)
-         ON CONFLICT (keyword_id, checked_at) DO UPDATE SET position = EXCLUDED.position, url = EXCLUDED.url`,
-        [kw.id, result.position, result.url]
+        `INSERT INTO seo_rank_history (keyword_id, checked_at, position, url, serp_features)
+         VALUES ($1, CURRENT_DATE, $2, $3, $4)
+         ON CONFLICT (keyword_id, checked_at) DO UPDATE
+           SET position = EXCLUDED.position, url = EXCLUDED.url, serp_features = EXCLUDED.serp_features`,
+        [kw.id, result.position, result.url, JSON.stringify(result.serp_features || [])]
       );
     } catch (err) {
       console.error(`Rank check failed for keyword ${kw.keyword}:`, err.message);

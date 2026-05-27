@@ -43,11 +43,29 @@ async function generateReport(reportId) {
     const client = clientRow.rows[0];
     const templates = client.report_templates || {};
     const availableTypes = Array.from(new Set(Object.keys(collectedData.data).map(k => k.split(':')[0])));
-    const template = templates[report.report_type] || reportTemplate.defaultTemplate(report.report_type, availableTypes);
+    const rawTemplate = templates[report.report_type] || reportTemplate.defaultTemplate(report.report_type, availableTypes);
+    // Auto-promote legacy sections that title themselves "YoY" into a proper
+    // compare:"yoy" so existing templates work without re-prompting.
+    const template = reportTemplate.normaliseTemplate(rawTemplate);
+
+    // If any section in the template asks for year-over-year, run a second
+    // collection pass for the same dates one year earlier. We don't always do
+    // this because doubling connector traffic isn't cheap.
+    let rawDataPrev = null;
+    if (reportTemplate.templateRequiresYoy(template)) {
+      const yoyStart = reportTemplate.yoyDate(periodStart);
+      const yoyEnd = reportTemplate.yoyDate(periodEnd);
+      try {
+        const prev = await dataCollector.collectClientData(report.client_id, yoyStart, yoyEnd);
+        rawDataPrev = prev.data;
+      } catch (err) {
+        console.error('[Report] Year-ago collection failed:', err.message);
+      }
+    }
 
     await generateTemplatedReport({
       report, client, period, periodStart, periodEnd, template,
-      rawData: collectedData.data, seoData, chatHistory,
+      rawData: collectedData.data, rawDataPrev, seoData, chatHistory,
     });
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
@@ -62,9 +80,9 @@ async function generateReport(reportId) {
 // Template-driven report generation. Resolves the template's sections into
 // concrete data (narrative paragraphs via Claude, metrics grids, tables,
 // charts), builds the PDF, stores + emails it.
-async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, seoData, chatHistory }) {
+async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, rawDataPrev, seoData, chatHistory }) {
   const resolved = await templateRenderer.resolveTemplate({
-    template, client, period, rawData, seoData, chatHistory,
+    template, client, period, rawData, rawDataPrev, seoData, chatHistory,
   });
 
   const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });

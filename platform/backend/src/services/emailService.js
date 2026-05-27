@@ -135,7 +135,7 @@ function renderEmailSection(s) {
     }
     case 'metrics_grid': {
       if (s.layout === 'table' && s.rows?.length) {
-        return wrap(buildMetricsTableEmail(s.metricLabels || [], s.rows));
+        return wrap(buildMetricsTableEmail(s.metricLabels || [], s.rows, s.compare));
       }
       const cells = s.cells || [];
       if (!cells.length) return '';
@@ -145,11 +145,22 @@ function renderEmailSection(s) {
       for (let i = 0; i < cells.length; i += PER_ROW) rows.push(cells.slice(i, i + PER_ROW));
       const rowsHtml = rows.map(row => {
         const padCount = PER_ROW - row.length;
-        const tds = row.map(c => `
+        const tds = row.map(c => {
+          const deltaColour = c.deltaDirection === 'up' ? '#2e7d32' : c.deltaDirection === 'down' ? '#c62828' : '#808080';
+          const arrow = c.deltaDirection === 'up' ? '↑' : c.deltaDirection === 'down' ? '↓' : '';
+          const deltaHtml = c.delta
+            ? `<div style="font-size:11px;color:${deltaColour};font-weight:600;margin-top:4px;">${arrow} ${escapeHtml(c.delta)}</div>`
+            : '';
+          const prevHtml = c.previous
+            ? `<div style="font-size:10px;color:#808080;margin-top:2px;">vs ${escapeHtml(c.previous)}</div>`
+            : '';
+          return `
           <td width="${Math.floor(100 / PER_ROW)}%" style="padding:10px 12px;border:1px solid #000;vertical-align:top;">
             <div style="font-size:18px;font-weight:700;color:#000;line-height:1.2;">${escapeHtml(c.value)}</div>
             <div style="font-size:9px;color:#808080;text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;">${escapeHtml(c.label)}</div>
-          </td>`).join('');
+            ${deltaHtml}${prevHtml}
+          </td>`;
+        }).join('');
         const padding = padCount > 0
           ? Array(padCount).fill(`<td style="border:1px solid #000;background:#fafafa;"></td>`).join('')
           : '';
@@ -190,11 +201,22 @@ function buildTableEmail({ heading, headers = [], rows = [], highlightFirst = fa
   return `${headingHtml}<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">${head}<tbody>${body}</tbody></table>`;
 }
 
-function buildMetricsTableEmail(metricLabels, rows) {
+function buildMetricsTableEmail(metricLabels, rows, compare) {
+  const cellHtml = (v) => {
+    if (v == null) return '<td style="padding:5px 8px;border:0.5px solid #eee;text-align:right;font-size:12px;">—</td>';
+    if (typeof v === 'string' || typeof v === 'number') return `<td style="padding:5px 8px;border:0.5px solid #eee;text-align:right;font-size:12px;">${escapeHtml(v)}</td>`;
+    const deltaColour = v.deltaDirection === 'up' ? '#2e7d32' : v.deltaDirection === 'down' ? '#c62828' : '#808080';
+    const arrow = v.deltaDirection === 'up' ? '↑' : v.deltaDirection === 'down' ? '↓' : '';
+    const deltaHtml = v.delta ? `<span style="color:${deltaColour};font-weight:600;">${arrow} ${escapeHtml(v.delta)}</span>` : '';
+    const prevHtml = v.previous
+      ? `<div style="font-size:10px;color:#808080;margin-top:2px;">vs ${escapeHtml(v.previous)} ${deltaHtml}</div>`
+      : '';
+    return `<td style="padding:5px 8px;border:0.5px solid #eee;text-align:right;font-size:12px;"><div>${escapeHtml(v.current)}</div>${prevHtml}</td>`;
+  };
   const head = `<thead><tr><th style="background:#f3f3f3;font-weight:700;padding:6px 8px;border:0.5px solid #ccc;font-size:11px;text-align:left;"></th>${metricLabels.map(l => `<th style="background:#f3f3f3;font-weight:700;padding:6px 8px;border:0.5px solid #ccc;font-size:11px;text-align:right;">${escapeHtml(l)}</th>`).join('')}</tr></thead>`;
   const body = rows.map((r, i) => `<tr style="${i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
     <td style="padding:5px 8px;border:0.5px solid #eee;font-weight:700;font-size:12px;">${escapeHtml(r.source)}</td>
-    ${(r.values || []).map(v => `<td style="padding:5px 8px;border:0.5px solid #eee;text-align:right;font-size:12px;">${escapeHtml(v)}</td>`).join('')}
+    ${(r.values || []).map(cellHtml).join('')}
   </tr>`).join('');
   return `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">${head}<tbody>${body}</tbody></table>`;
 }

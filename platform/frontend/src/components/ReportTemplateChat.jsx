@@ -201,6 +201,7 @@ function TemplatePreview({ template }) {
           )}
           {s.metrics && <div style={{ color: '#666' }}>metrics: {s.metrics.join(', ')}{s.aggregate ? ` (${s.aggregate})` : ''}</div>}
           {s.dimension && <div style={{ color: '#666' }}>dimension: {s.dimension} / {s.metric}</div>}
+          {s.compare === 'yoy' && <div style={{ color: '#2e7d32', marginTop: 2, fontWeight: 600 }}>compare: year-on-year</div>}
           {s.prompt && <div style={{ color: '#666', marginTop: 4, fontStyle: 'italic' }}>"{s.prompt}"</div>}
         </div>
       ))}

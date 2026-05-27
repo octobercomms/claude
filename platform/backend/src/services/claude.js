@@ -97,6 +97,7 @@ async function chatBuildReportTemplate({ client, reportType, availableConnectors
                     metrics: { type: 'array', items: { type: 'string' } },
                     dimension: { type: 'string' },
                     metric: { type: 'string' },
+                    compare: { type: 'string', enum: ['yoy'], description: 'Set to "yoy" on a metrics_grid section to show this period vs the same period one year ago, with delta %. Costs an extra fetch from every source in the section, so use it only when the AM asks for year-on-year — not by default.' },
                   },
                   required: ['id', 'title', 'type'],
                 },
@@ -126,10 +127,12 @@ async function chatBuildReportTemplate({ client, reportType, availableConnectors
 A template is an ordered list of sections. Each section is one of:
 
 - narrative: { id, title, type: "narrative", sources: ["*"] | [{ type, storeLabel? }], prompt: "<what Claude should write>" }
-- metrics_grid: { id, title, type: "metrics_grid", sources, aggregate: "sum" | "list", metrics: [ONLY the keys listed for that source's connector type in the metric catalog below — never invent new ones] }
+- metrics_grid: { id, title, type: "metrics_grid", sources, aggregate: "sum" | "list", metrics: [ONLY the keys listed for that source's connector type in the metric catalog below — never invent new ones], compare?: "yoy" }
 - connector_table: { id, title, type: "connector_table", sources }  (renders the connector's built-in detail tables — campaign performance, top orders, top queries, etc.)
 - bar_chart: { id, title, type: "bar_chart", sources: [{ type: "ga4" }], dimension: "channel", metric: "sessions" }
 - position_distribution: { id, title, type: "position_distribution" }  (SEO ranking buckets — Top 3 / 4-10 / 11-20 / 21-50 / 51-100 / 100+)
+
+YoY comparisons: a metrics_grid can include compare: "yoy" to show the same period one year earlier with a delta %. Use it whenever the AM mentions "YoY", "year-on-year", "vs last year", or has a section titled with those words. Only metrics_grid supports comparison — not tables or charts.
 
 Source spec: ["*"] means "everything available". An entry like { type: "shopify" } matches all Shopify connectors regardless of store; { type: "shopify", storeLabel: "UK B2C" } matches that specific store.
 

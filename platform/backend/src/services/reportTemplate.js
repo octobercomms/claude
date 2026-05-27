@@ -167,11 +167,12 @@ function matchSources(rawData, sources) {
 // "table" layout is chosen when the AM asked for a multi-source LIST mode
 // (e.g. all Shopify stores, each with its own row). A 3-store × 3-metric
 // table is far more legible than 9 chunked cells.
-function resolveMetricsGrid(section, rawData) {
+function resolveMetricsGrid(section, rawData, rawDataPrev) {
   const matches = matchSources(rawData, section.sources);
   if (!matches.length) return { layout: 'cells', cells: [] };
 
   const metricKeys = section.metrics || [];
+  const compareYoy = section.compare === 'yoy' && rawDataPrev;
 
   // Multi-source list mode → render as a table.
   if (section.aggregate === 'list' && matches.length > 1 && metricKeys.length >= 1) {
@@ -194,14 +195,19 @@ function resolveMetricsGrid(section, rawData) {
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
       const sourceLabel = m.storeLabel || m.type;
+      const prevData = compareYoy ? rawDataPrev[m.key] : null;
       const values = metricKeys.map(mk => {
         const def = catalog[mk];
         if (!def) return '—';
-        return formatValue(def.get(m.data), def.format);
+        const curRaw = def.get(m.data);
+        const cur = formatValue(curRaw, def.format);
+        if (!compareYoy || !prevData) return cur;
+        const prevRaw = def.get(prevData);
+        return withComparison(cur, curRaw, prevRaw, def.format);
       });
       rows.push({ source: sourceLabel, values });
     }
-    return { layout: 'table', metricLabels, rows };
+    return { layout: 'table', metricLabels, rows, compare: compareYoy ? 'yoy' : null };
   }
 
   // Single source OR list with one metric → flat cell row.
@@ -210,18 +216,39 @@ function resolveMetricsGrid(section, rawData) {
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
       const tag = m.storeLabel ? `${m.storeLabel} — ` : '';
+      const prevData = compareYoy ? rawDataPrev[m.key] : null;
       for (const mk of metricKeys) {
         const def = catalog[mk];
         if (!def) continue;
-        cells.push({ label: `${tag}${def.label}`, value: formatValue(def.get(m.data), def.format) });
+        const curRaw = def.get(m.data);
+        const cell = { label: `${tag}${def.label}`, value: formatValue(curRaw, def.format) };
+        if (compareYoy && prevData) attachComparison(cell, curRaw, def.get(prevData), def.format);
+        cells.push(cell);
       }
     }
-    return { layout: 'cells', cells };
+    return { layout: 'cells', cells, compare: compareYoy ? 'yoy' : null };
   }
 
   // aggregate === 'sum' (default multi-source) — combine across sources, with
   // AOV recomputed from total revenue / total orders and ROAS from value /
   // spend (an average of averages would be misleading).
+  const totals = sumAcrossSources(matches, metricKeys);
+  const prevTotals = compareYoy ? sumAcrossSources(matchSourcesFromPrev(matches, rawDataPrev), metricKeys) : null;
+  const cells = [];
+  for (const mk of metricKeys) {
+    if (totals[mk] == null) continue;
+    const fmt = totals[`__format_${mk}`] || 'integer';
+    const cell = { label: totals[`__label_${mk}`] || mk, value: formatValue(totals[mk], fmt) };
+    if (prevTotals && prevTotals[mk] != null) attachComparison(cell, totals[mk], prevTotals[mk], fmt);
+    cells.push(cell);
+  }
+  return { layout: 'cells', cells, compare: compareYoy ? 'yoy' : null };
+}
+
+// Combine current-period source data into one set of totals keyed by metric.
+// AOV / ROAS are recomputed at the end from the summed inputs so an average
+// of averages doesn't sneak in.
+function sumAcrossSources(matches, metricKeys) {
   const totals = {};
   for (const m of matches) {
     const catalog = METRIC_CATALOG[m.type] || {};
@@ -244,12 +271,43 @@ function resolveMetricsGrid(section, rawData) {
     totals.__format_roas = 'multiple';
     totals.__label_roas = 'ROAS';
   }
-  const cells = [];
-  for (const mk of metricKeys) {
-    if (totals[mk] == null) continue;
-    cells.push({ label: totals[`__label_${mk}`] || mk, value: formatValue(totals[mk], totals[`__format_${mk}`] || 'integer') });
+  return totals;
+}
+
+// Re-construct the matches array against the year-ago raw data, using the
+// same connector keys. Connectors that don't have year-ago data are skipped.
+function matchSourcesFromPrev(matches, rawDataPrev) {
+  return matches
+    .filter(m => rawDataPrev[m.key])
+    .map(m => ({ ...m, data: rawDataPrev[m.key] }));
+}
+
+function attachComparison(cell, currentRaw, previousRaw, format) {
+  cell.previous = formatValue(previousRaw, format);
+  if (previousRaw && previousRaw > 0) {
+    const pct = ((currentRaw - previousRaw) / previousRaw) * 100;
+    cell.delta = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`;
+    cell.deltaDirection = currentRaw > previousRaw ? 'up' : currentRaw < previousRaw ? 'down' : 'flat';
   }
-  return { layout: 'cells', cells };
+}
+
+// For the table layout, embed the previous value + delta directly into the
+// rendered string so the existing table renderer doesn't need a structural
+// change. Looks like "£24,674\n£18,210 (+35.5%)" once rendered with a
+// line-break.
+function withComparison(cur, currentRaw, previousRaw, format) {
+  const prev = formatValue(previousRaw, format);
+  if (!previousRaw || previousRaw <= 0) {
+    return { current: cur, previous: prev };
+  }
+  const pct = ((currentRaw - previousRaw) / previousRaw) * 100;
+  const direction = currentRaw > previousRaw ? 'up' : currentRaw < previousRaw ? 'down' : 'flat';
+  return {
+    current: cur,
+    previous: prev,
+    delta: `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%`,
+    deltaDirection: direction,
+  };
 }
 
 // ─── CONNECTOR_TABLE RESOLUTION ───────────────────────────────────────────
@@ -354,8 +412,45 @@ function validate(template) {
     ids.add(s.id);
     if (!s.type) return `section[${i}].type is required`;
     if (!['narrative', 'metrics_grid', 'connector_table', 'bar_chart', 'position_distribution'].includes(s.type)) return `section[${i}].type "${s.type}" is invalid`;
+    if (s.compare != null && !['yoy'].includes(s.compare)) return `section[${i}].compare "${s.compare}" is invalid — only "yoy" is supported`;
   }
   return null;
+}
+
+// Compute the same-period one year earlier, expressed as YYYY-MM-DD.
+// Feb 29 rolls to Feb 28 when the prior year isn't a leap year.
+function yoyDate(yyyymmdd) {
+  const [y, m, d] = yyyymmdd.split('-').map(Number);
+  const prevYear = y - 1;
+  if (m === 2 && d === 29) {
+    const isLeap = (prevYear % 4 === 0 && prevYear % 100 !== 0) || prevYear % 400 === 0;
+    if (!isLeap) return `${prevYear}-02-28`;
+  }
+  return `${prevYear}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+}
+
+// True when at least one section in the template asks for year-over-year
+// comparison. Used by reportService to decide whether to issue a second
+// (year-ago) data collection pass.
+function templateRequiresYoy(template) {
+  return !!(template?.sections || []).some(s => s.compare === 'yoy');
+}
+
+// Older templates were authored before `compare` existed and just put
+// "YoY"/"year-on-year" in the section title. Treat those as compare:"yoy"
+// at load time so existing saved templates render comparisons without
+// requiring the AM to re-prompt every client.
+const YOY_TITLE_RE = /\b(yoy|year[-\s]on[-\s]year|year[-\s]over[-\s]year|vs\.?\s*last\s*year)\b/i;
+function normaliseTemplate(template) {
+  if (!template?.sections) return template;
+  return {
+    ...template,
+    sections: template.sections.map(s => {
+      if (s.type !== 'metrics_grid' || s.compare) return s;
+      if (s.title && YOY_TITLE_RE.test(s.title)) return { ...s, compare: 'yoy' };
+      return s;
+    }),
+  };
 }
 
 module.exports = {
@@ -367,4 +462,7 @@ module.exports = {
   defaultTemplate,
   validate,
   formatValue,
+  yoyDate,
+  templateRequiresYoy,
+  normaliseTemplate,
 };
