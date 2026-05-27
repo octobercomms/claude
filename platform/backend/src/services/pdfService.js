@@ -631,7 +631,7 @@ function renderResolvedSection(s) {
     }
     case 'metrics_grid': {
       if (s.layout === 'table' && s.rows?.length) {
-        return `${open}${title}${insight}${buildMetricsTableHtml(s.metricLabels || [], s.rows)}${close}`;
+        return `${open}${title}${insight}${buildMetricsTableHtml(s.metricLabels || [], s.rows, s.compare)}${close}`;
       }
       const cells = s.cells || [];
       if (!cells.length) return '';
@@ -640,7 +640,13 @@ function renderResolvedSection(s) {
       const PER_ROW = 4;
       const rows = [];
       for (let i = 0; i < cells.length; i += PER_ROW) rows.push(cells.slice(i, i + PER_ROW));
-      const rowsHtml = rows.map(row => `<div class="metrics-row">${row.map(c => `<div class="metric-cell"><div class="val">${escapeXml(c.value)}</div><div class="lbl">${escapeXml(c.label)}</div></div>`).join('')}</div>`).join('');
+      const rowsHtml = rows.map(row => `<div class="metrics-row">${row.map(c => {
+        const delta = c.delta
+          ? `<div class="delta ${c.deltaDirection || ''}">${c.deltaDirection === 'up' ? '↑' : c.deltaDirection === 'down' ? '↓' : ''} ${escapeXml(c.delta)}</div>`
+          : '';
+        const prev = c.previous ? `<div class="delta-prev">vs ${escapeXml(c.previous)}</div>` : '';
+        return `<div class="metric-cell"><div class="val">${escapeXml(c.value)}</div><div class="lbl">${escapeXml(c.label)}</div>${delta}${prev}</div>`;
+      }).join('')}</div>`).join('');
       return `${open}${title}${insight}${rowsHtml}${close}`;
     }
     case 'tables': {
@@ -665,14 +671,30 @@ function renderResolvedSection(s) {
 
 // Multi-source list rendering: rows = stores / accounts, cols = metrics.
 // Replaces the old "chunk 9 cells into rows of 4" approach which mixed
-// stores across rows and made the breakdown unreadable.
-function buildMetricsTableHtml(metricLabels, rows) {
+// stores across rows and made the breakdown unreadable. When `compare` is
+// "yoy", each value cell is a { current, previous, delta } object — render
+// current on top, previous + delta % beneath in muted text.
+function buildMetricsTableHtml(metricLabels, rows, compare) {
+  const cellHtml = (v) => {
+    if (v == null) return '<td style="text-align:right;">—</td>';
+    if (typeof v === 'string' || typeof v === 'number') return `<td style="text-align:right;">${escapeXml(v)}</td>`;
+    // YoY object cell
+    const deltaColour = v.deltaDirection === 'up' ? '#2e7d32' : v.deltaDirection === 'down' ? '#c62828' : '#808080';
+    const arrow = v.deltaDirection === 'up' ? '↑' : v.deltaDirection === 'down' ? '↓' : '';
+    const deltaHtml = v.delta
+      ? `<span style="color:${deltaColour};font-weight:600;">${arrow} ${escapeXml(v.delta)}</span>`
+      : '';
+    const prevHtml = v.previous
+      ? `<div style="font-size:8pt;color:#808080;margin-top:2pt;">vs ${escapeXml(v.previous)} ${deltaHtml}</div>`
+      : '';
+    return `<td style="text-align:right;"><div>${escapeXml(v.current)}</div>${prevHtml}</td>`;
+  };
   return `
     <table class="w-full metrics-table">
       <thead><tr><th></th>${metricLabels.map(l => `<th style="text-align:right;">${escapeXml(l)}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((r, i) => `<tr${i % 2 === 1 ? ' class="alt"' : ''}>
         <td style="font-weight:700;">${escapeXml(r.source)}</td>
-        ${(r.values || []).map(v => `<td style="text-align:right;">${escapeXml(v)}</td>`).join('')}
+        ${(r.values || []).map(cellHtml).join('')}
       </tr>`).join('')}</tbody>
     </table>`;
 }
