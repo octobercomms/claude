@@ -2,20 +2,49 @@ const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const claudeService = require('../services/claude');
+const users = require('../services/users');
 
 const router = express.Router();
 router.use(authenticate);
 
+// Load the caller's client visibility once per request. Admins get null
+// (sentinel for "all clients"); viewers get the array of UUIDs assigned to
+// them via the user_clients join table.
+router.use(async (req, res, next) => {
+  try {
+    req.visibleClientIds = await users.getVisibleClientIds(req.user);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Block any request that targets a client outside the caller's scope.
+router.param('id', (req, res, next, id) => {
+  if (!users.canAccessClient(req.visibleClientIds, id)) {
+    return res.status(403).json({ error: 'Not authorised for this client' });
+  }
+  next();
+});
+
 // Nested resource — per-client report template (Claude-designed, locked by AM).
 router.use('/:id/report-template', require('./reportTemplates'));
 
-// List all clients
+// List all clients (filtered by the caller's visibility)
 router.get('/', async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      'SELECT * FROM clients ORDER BY name ASC'
-    );
-    res.json(rows);
+    let result;
+    if (req.visibleClientIds === null) {
+      result = await pool.query('SELECT * FROM clients ORDER BY name ASC');
+    } else if (req.visibleClientIds.length === 0) {
+      result = { rows: [] };
+    } else {
+      result = await pool.query(
+        'SELECT * FROM clients WHERE id = ANY($1) ORDER BY name ASC',
+        [req.visibleClientIds]
+      );
+    }
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -35,8 +64,13 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Create client
-router.post('/', async (req, res) => {
+// Create client (admins only — viewers can't add clients to the org)
+function adminOnly(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  next();
+}
+
+router.post('/', adminOnly, async (req, res) => {
   const { name, slug, briefing_field, monthly_focus, report_recipients, report_schedule } = req.body;
   if (!name || !slug) return res.status(400).json({ error: 'name and slug required' });
   try {
@@ -192,8 +226,8 @@ router.patch('/:id/ads-margin', async (req, res) => {
   }
 });
 
-// Delete client
-router.delete('/:id', async (req, res) => {
+// Delete client (admin only — viewers must never be able to delete)
+router.delete('/:id', adminOnly, async (req, res) => {
   try {
     await pool.query('DELETE FROM clients WHERE id = $1', [req.params.id]);
     res.status(204).end();

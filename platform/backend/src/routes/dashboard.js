@@ -1,12 +1,22 @@
 const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
+const users = require('../services/users');
 
 const router = express.Router();
 router.use(authenticate);
 
 router.get('/', async (req, res) => {
   try {
+    // Visibility — admins see all, viewers see only assigned clients
+    const visibleIds = await users.getVisibleClientIds(req.user);
+    if (visibleIds && !visibleIds.length) {
+      return res.json({ clients: [], alerts: { expired_meta_tokens: [] }, upcoming_reports: [], recent_reports: [] });
+    }
+    const filterSql = visibleIds === null ? '' : ' AND c.id = ANY($1)';
+    const filterSqlReports = visibleIds === null ? '' : ' AND cl.id = ANY($1)';
+    const filterParams = visibleIds === null ? [] : [visibleIds];
+
     // Client summary with connector status and last report
     const { rows: clients } = await pool.query(`
       SELECT
@@ -27,9 +37,9 @@ router.get('/', async (req, res) => {
           FROM connectors conn WHERE conn.client_id = c.id
         ) as connectors
       FROM clients c
-      WHERE c.active = true
+      WHERE c.active = true${filterSql}
       ORDER BY c.name
-    `);
+    `, filterParams);
 
     // Expired Meta tokens
     const { rows: expiredMeta } = await pool.query(`
@@ -38,8 +48,8 @@ router.get('/', async (req, res) => {
       JOIN clients cl ON cl.id = conn.client_id
       WHERE conn.connector_type IN ('meta_ads', 'instagram_insights')
         AND conn.status IN ('expired', 'error')
-        AND cl.active = true
-    `);
+        AND cl.active = true${filterSqlReports}
+    `, filterParams);
 
     // Upcoming reports (next 7 days)
     const upcoming = clients.map(client => {
@@ -54,9 +64,10 @@ router.get('/', async (req, res) => {
              r.created_at, r.sent_at, r.period_start, r.period_end
       FROM reports r
       JOIN clients cl ON cl.id = r.client_id
+      WHERE 1=1${filterSqlReports}
       ORDER BY r.created_at DESC
       LIMIT 10
-    `);
+    `, filterParams);
 
     res.json({
       clients,

@@ -16,6 +16,7 @@ import ClientAdsPage from './pages/ClientAdsPage';
 import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import SettingsPage from './pages/SettingsPage';
+import ManageUsersPage from './pages/ManageUsersPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="manage" element={<ManageUsersPage />} />
           </Route>
         </Routes>
       </BrowserRouter>

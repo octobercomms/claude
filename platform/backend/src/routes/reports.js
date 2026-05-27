@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const reportService = require('../services/reportService');
+const users = require('../services/users');
 
 const router = express.Router();
 
@@ -22,10 +23,23 @@ router.get('/:id/html', async (req, res) => {
 
 router.use(authenticate);
 
-// List reports
+// Load the caller's client visibility (admin → null sentinel = all).
+router.use(async (req, res, next) => {
+  try {
+    req.visibleClientIds = await users.getVisibleClientIds(req.user);
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
+// List reports — scoped to the caller's visible clients
 router.get('/', async (req, res) => {
   try {
     const { client_id, status, limit = 50, offset = 0 } = req.query;
+    if (client_id && !users.canAccessClient(req.visibleClientIds, client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this client' });
+    }
     let query = `
       SELECT r.*, c.name as client_name
       FROM reports r
@@ -34,6 +48,11 @@ router.get('/', async (req, res) => {
     `;
     const params = [];
     if (client_id) { params.push(client_id); query += ` AND r.client_id = $${params.length}`; }
+    if (req.visibleClientIds !== null) {
+      if (!req.visibleClientIds.length) return res.json([]);
+      params.push(req.visibleClientIds);
+      query += ` AND r.client_id = ANY($${params.length})`;
+    }
     if (status) { params.push(status); query += ` AND r.status = $${params.length}`; }
     params.push(limit, offset);
     query += ` ORDER BY r.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}`;
@@ -45,7 +64,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get single report
+// Get single report — checked against caller's visibility
 router.get('/:id', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -53,6 +72,9 @@ router.get('/:id', async (req, res) => {
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this report' });
+    }
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
