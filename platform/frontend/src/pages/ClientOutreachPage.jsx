@@ -4,6 +4,8 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
+import PressCampaignWizard from '../components/PressCampaignWizard';
+import PressCampaignDetail from '../components/PressCampaignDetail';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -140,6 +142,7 @@ export default function ClientOutreachPage() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
   const [showAddCampaign, setShowAddCampaign] = useState(false);
+  const [showPressWizard, setShowPressWizard] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
   const [findDomain, setFindDomain] = useState('');
@@ -376,7 +379,6 @@ export default function ClientOutreachPage() {
           ['dashboard', 'Dashboard'],
           ['campaigns', campaigns.length ? `Campaigns (${campaigns.length})` : 'Campaigns'],
           ['contacts', contacts.length ? `Contacts (${contacts.length})` : 'Contacts'],
-          ['press', 'Press'],
           ['sending', 'Sending'],
           ['help', 'Help'],
         ].map(([key, label]) => (
@@ -615,8 +617,6 @@ export default function ClientOutreachPage() {
         </div>
       )}
 
-      {tab === 'press' && <PressPanel clientId={id} contacts={contacts} />}
-
       {tab === 'help' && <HelpPanel dnsCheck={dnsCheck} />}
 
       {editingContact && (
@@ -627,18 +627,43 @@ export default function ClientOutreachPage() {
         />
       )}
 
-      {tab === 'campaigns' && wizardCampaignId && (
-        <CampaignWizard
+      {tab === 'campaigns' && wizardCampaignId && (() => {
+        const c = campaigns.find(x => x.id === wizardCampaignId);
+        if (c?.kind === 'press_release' || c?.campaign_type === 'press_release') {
+          return (
+            <PressCampaignDetail
+              clientId={id} campaignId={wizardCampaignId} contacts={contacts}
+              onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
+            />
+          );
+        }
+        return (
+          <CampaignWizard
+            clientId={id} campaignId={wizardCampaignId}
+            onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
+            onCampaignChange={refreshCampaigns}
+          />
+        );
+      })()}
+
+      {tab === 'campaigns' && showPressWizard && (
+        <PressCampaignWizard
           clientId={id}
-          campaignId={wizardCampaignId}
-          onExit={() => { setWizardCampaignId(null); refreshCampaigns(); }}
-          onCampaignChange={refreshCampaigns}
+          onClose={() => setShowPressWizard(false)}
+          onCreated={(release) => {
+            setShowPressWizard(false);
+            refreshCampaigns();
+            if (release?.campaign_id) setWizardCampaignId(release.campaign_id);
+          }}
         />
       )}
 
       {tab === 'campaigns' && !wizardCampaignId && (
         <div>
-          <button onClick={startNewCampaign} style={s.btn}>+ New campaign</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={startNewCampaign} style={s.btn}>+ New campaign</button>
+            <button onClick={() => setShowPressWizard(true)} style={s.btnGhost}>+ New press release</button>
+          </div>
           <div style={{ ...s.tableWrap, marginTop: 12 }}>
             <table style={s.table}>
               <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
@@ -652,7 +677,7 @@ export default function ClientOutreachPage() {
                       {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
                     <td style={s.td}>{c.brand || '—'}</td>
-                    <td style={s.td}>{c.campaign_type === 'press_release' ? 'Press' : 'Outreach'}</td>
+                    <td style={s.td}>{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span style={{ ...s.chip, background: '#fffceb', color: '#5d4000', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
                     <td style={s.td}><span style={s.chip}>{c.status}</span></td>
                     <td style={s.td}>{c.contact_count || 0}</td>
                     <td style={s.td}>{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
