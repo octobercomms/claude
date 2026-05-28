@@ -80,4 +80,4 @@ async function testCredentials() {
   }
 }
 
-module.exports = { generateVoiceover, listVoices, testCredentials, AUDIO_ROOT };
+module.exports = { generateVoiceover, listVoices, testCredentials };
