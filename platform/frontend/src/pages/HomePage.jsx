@@ -35,7 +35,9 @@ export default function HomePage() {
       {/* Brand strip — top */}
       <header style={styles.topBar}>
         <div style={styles.topBarInner}>
-          <span style={styles.brandTag}>october communications</span>
+          <Link to="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+            <img src="/logo-black.gif" alt="October Communications" style={{ height: 32, display: 'block' }} />
+          </Link>
           <nav style={{ display: 'flex', gap: 18, fontSize: 13 }}>
             <a href="#what" style={styles.topLink}>what it does</a>
             <a href="#how" style={styles.topLink}>how it works</a>
@@ -87,7 +89,7 @@ export default function HomePage() {
               one platform.<br/>
               <span style={{ color: YELLOW }}>every client.</span>
             </h2>
-            <a href="#waitlist" style={styles.pillSmall}>book a call</a>
+            <a href="#waitlist" style={styles.pillSmall}>join waitlist</a>
             <div style={{ marginTop: 14 }}>
               <a href="#pricing" style={{ ...styles.topLink, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ color: YELLOW, fontWeight: 700 }}>↗</span> pricing
@@ -120,28 +122,6 @@ export default function HomePage() {
       {/* Triangles pattern break */}
       <TrianglesBreak />
 
-      {/* Testimonial-ish — what people say */}
-      <section style={styles.quoteBlock}>
-        <div style={styles.quoteInner}>
-          <div style={styles.quoteCard}>
-            <div style={styles.caseBadge}>case</div>
-            <p style={styles.quoteText}>
-              "we worked closely with october communications on reporting, ai analysis, ecommerce and seo —
-              and saw a great return on the investment. we highly recommend october."
-            </p>
-          </div>
-          <div style={styles.quoteCard}>
-            <p style={styles.quoteText}>
-              "the team are great professionals to collaborate with — they are responsive, creative
-              and always open to exploring together new ideas, and take constructive feedback on board."
-            </p>
-            <div style={{ marginTop: 24, fontSize: 12, color: MUTED, letterSpacing: 0.5 }}>
-              scenario / architecture
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* How it works */}
       <section id="how" style={styles.copyBlock}>
         <div style={styles.howInner}>
@@ -159,22 +139,20 @@ export default function HomePage() {
       {/* Stars / sparkle pattern break */}
       <SparkleBreak />
 
-      {/* Capability grid */}
-      <section style={styles.copyBlock}>
-        <div style={styles.copyInner}>
-          <div style={{ width: '100%' }}>
-            <h2 style={styles.h2}>
-              what it actually does.
-            </h2>
-            <div style={styles.capGrid}>
-              {CAPABILITIES.map(c => (
-                <div key={c.title} style={styles.capCard}>
-                  <div style={styles.capDot} />
-                  <div style={styles.capTitle}>{c.title}</div>
-                  <div style={styles.capDesc}>{c.desc}</div>
-                </div>
-              ))}
-            </div>
+      {/* Capability grid — full width edge-to-edge */}
+      <section style={styles.fullBlock}>
+        <div style={styles.fullInner}>
+          <h2 style={{ ...styles.h2, padding: '0 32px', marginBottom: 36 }}>
+            what it actually does.
+          </h2>
+          <div style={styles.capGridFull}>
+            {CAPABILITIES.map(c => (
+              <div key={c.title} style={styles.capCard}>
+                <div style={styles.capDot} />
+                <div style={styles.capTitle}>{c.title}</div>
+                <div style={styles.capDesc}>{c.desc}</div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -209,53 +187,47 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Big yellow dots composition */}
-      <DotsBreak />
+      {/* Animated October logo — the brand mark on yellow */}
+      <LogoBreak />
 
-      {/* Integrations */}
-      <section style={styles.copyBlock}>
-        <div style={styles.copyInner}>
-          <div style={{ width: '100%' }}>
-            <h2 style={styles.h2}>connects to what you already use.</h2>
-            <div style={styles.integGrid}>
-              {INTEGRATIONS.map(name => (
-                <div key={name} style={styles.integCell}>{name}</div>
-              ))}
-            </div>
+      {/* Integrations — full width edge-to-edge */}
+      <section style={styles.fullBlock}>
+        <div style={styles.fullInner}>
+          <h2 style={{ ...styles.h2, padding: '0 32px', marginBottom: 36 }}>connects to what you already use.</h2>
+          <div style={styles.integGridFull}>
+            {INTEGRATIONS.map(name => (
+              <div key={name} style={styles.integCell}>{name}</div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" style={styles.copyBlock}>
-        <div style={styles.copyInner}>
-          <div style={{ width: '100%' }}>
-            <h2 style={styles.h2}>
-              pricing.
-              <span style={{ color: YELLOW, fontSize: 22, fontWeight: 400, marginLeft: 18, letterSpacing: 0 }}>
-                no setup fees. cancel anytime.
-              </span>
-            </h2>
-            <div style={styles.priceGrid}>
-              {PLANS.map(p => (
-                <div key={p.name} style={{
-                  ...styles.priceCard,
-                  ...(p.highlight ? styles.priceCardHi : {}),
-                }}>
-                  {p.highlight && <div style={styles.priceFlag}>most popular</div>}
-                  <div style={styles.priceName}>{p.name}</div>
-                  <div style={styles.priceFig}>
-                    <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
-                    <span style={{ fontSize: 16, color: MUTED, marginLeft: 4 }}>{p.period}</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
-                  <ul style={styles.priceList}>
-                    {p.features.map(f => <li key={f} style={styles.priceFeat}><span style={{ color: YELLOW }}>↗</span> {f}</li>)}
-                  </ul>
-                  <a href="#waitlist" style={p.highlight ? styles.pillPrimary : styles.pillGhost}>{p.cta} ↗</a>
+      {/* Pricing — full width edge-to-edge */}
+      <section id="pricing" style={styles.fullBlock}>
+        <div style={styles.fullInner}>
+          <h2 style={{ ...styles.h2, padding: '0 32px', marginBottom: 8 }}>pricing.</h2>
+          <div style={{ ...styles.body, padding: '0 32px', marginBottom: 32, color: YELLOW }}>
+            no setup fees. cancel anytime.
+          </div>
+          <div style={styles.priceGridFull}>
+            {PLANS.map(p => (
+              <div key={p.name} style={{
+                ...styles.priceCard,
+                ...(p.highlight ? styles.priceCardHi : {}),
+              }}>
+                {p.highlight && <div style={styles.priceFlag}>most popular</div>}
+                <div style={styles.priceName}>{p.name}</div>
+                <div style={styles.priceFig}>
+                  <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
+                  <span style={{ fontSize: 16, color: MUTED, marginLeft: 4 }}>{p.period}</span>
                 </div>
-              ))}
-            </div>
+                <div style={{ fontSize: 13, color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
+                <ul style={styles.priceList}>
+                  {p.features.map(f => <li key={f} style={styles.priceFeat}><span style={{ color: YELLOW }}>↗</span> {f}</li>)}
+                </ul>
+                <a href="#waitlist" style={p.highlight ? styles.pillPrimary : styles.pillGhost}>{p.cta} ↗</a>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -289,6 +261,7 @@ export default function HomePage() {
       {/* Footer */}
       <footer style={styles.footer}>
         <div style={styles.footerInner}>
+          <img src="/logo-black.gif" alt="October Communications" style={{ height: 40, display: 'block', marginBottom: 26 }} />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 12, color: MUTED }}>
             <div>october communications · octobercomms.com</div>
             <a href="#what" style={{ color: MUTED, textDecoration: 'none' }}>what it does</a>
@@ -378,26 +351,13 @@ function SparkleBreak() {
   );
 }
 
-function DotsBreak() {
-  // Composition of overlapping yellow circles — references the big
-  // "1101" graphic from the site.
-  const dots = [
-    { cx: 18, cy: 50, r: 36 },
-    { cx: 38, cy: 50, r: 36 },
-    { cx: 58, cy: 50, r: 36 },
-    { cx: 78, cy: 50, r: 36 },
-  ];
+function LogoBreak() {
+  // The animated October mark on its native black background — uploaded
+  // by the brand team and served from /public. Acts as the visual
+  // crescendo between the AI showcase and the integrations strip.
   return (
-    <div style={{ background: BLACK, lineHeight: 0, padding: '20px 0' }}>
-      <svg viewBox="0 0 100 100" style={{ width: '100%', height: 220, display: 'block' }} preserveAspectRatio="none">
-        {dots.map((d, i) => (
-          <circle key={i} cx={d.cx} cy={d.cy} r={d.r} fill={YELLOW} />
-        ))}
-        {/* Centres cut out for the inner ring effect */}
-        {dots.map((d, i) => (
-          <circle key={`c${i}`} cx={d.cx} cy={d.cy} r={d.r * 0.55} fill={BLACK} />
-        ))}
-      </svg>
+    <div style={{ background: BLACK, lineHeight: 0, padding: '60px 32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <img src="/logo-black.gif" alt="October" style={{ maxWidth: 420, width: '60%', display: 'block' }} />
     </div>
   );
 }
@@ -480,6 +440,17 @@ const styles = {
 
   copyBlock: { background: BLACK, padding: '90px 32px' },
   copyInner: { maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 48 },
+
+  // Full-width section variant — used for the capability grid,
+  // integrations, and pricing. The headline keeps a comfortable inner
+  // padding but the grid below spans the entire viewport edge-to-edge,
+  // which echoes the octobercomms.com case-study and credibility
+  // blocks at the bottom of their homepage.
+  fullBlock: { background: BLACK, padding: '90px 0' },
+  fullInner: { width: '100%', margin: 0 },
+  capGridFull: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 1, background: 'rgba(255,255,255,0.08)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
+  integGridFull: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1, background: 'rgba(255,255,255,0.08)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
+  priceGridFull: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 1, background: 'rgba(255,255,255,0.08)', borderTop: '1px solid rgba(255,255,255,0.08)', borderBottom: '1px solid rgba(255,255,255,0.08)' },
   colSmall: { },
   colMid: { },
   h2: { fontSize: 'clamp(32px, 4.4vw, 58px)', fontWeight: 800, margin: '0 0 24px', letterSpacing: -1.8, lineHeight: 1.05 },
@@ -511,8 +482,8 @@ const styles = {
   integCell: { background: BLACK, padding: '20px 18px', fontSize: 13, color: WHITE, fontWeight: 500 },
 
   priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 22, marginTop: 28 },
-  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 32, position: 'relative' },
-  priceCardHi: { borderColor: YELLOW, background: '#0f0f0f' },
+  priceCard: { background: BLACK, padding: 38, position: 'relative' },
+  priceCardHi: { background: '#111', boxShadow: `inset 0 0 0 2px ${YELLOW}` },
   priceFlag: { position: 'absolute', top: -10, left: 24, background: YELLOW, color: BLACK, fontSize: 10, fontWeight: 800, padding: '3px 12px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
   priceName: { fontSize: 13, fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
   priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 6 },
