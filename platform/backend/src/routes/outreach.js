@@ -426,6 +426,140 @@ router.get('/tags', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Ask Claude to look at the tag catalogue and propose cleanups. Returns
+// a list of operation objects — the UI lets the AM tick which ones to
+// apply, then sends them back to /tags/apply-plan. Visibility is honoured
+// so a viewer's plan only mentions tags they can see.
+router.post('/tags/analyze', async (req, res) => {
+  try {
+    const tagTidy = require('../services/tagTidy');
+    const result = await tagTidy.analyseTags(req.visibleClientIds);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Apply a list of tag-cleanup operations (from /tags/analyze or hand-
+// crafted by the AM). Walks each op and reuses the existing rename/delete
+// machinery, plus an inline "add a parent tag to every contact tagged
+// with the child" path for add_parent ops. Returns a per-op report so
+// the UI can show "renamed 142, merged 3, parented 280, …".
+router.post('/tags/apply-plan', async (req, res) => {
+  const ops = Array.isArray(req.body?.operations) ? req.body.operations : [];
+  if (!ops.length) return res.status(400).json({ error: 'operations[] required' });
+  const results = [];
+  try {
+    for (const op of ops) {
+      if (op.type === 'rename') {
+        const r = await renameTag(req, op.from, op.to);
+        results.push({ op, ...r });
+      } else if (op.type === 'merge') {
+        // A merge is just N renames into the same target. Each one
+        // contributes its contacts to the combined total.
+        let total = 0;
+        for (const from of op.from || []) {
+          const r = await renameTag(req, from, op.into);
+          total += r.updated || 0;
+        }
+        results.push({ op, updated: total });
+      } else if (op.type === 'delete') {
+        const r = await deleteTagEverywhere(req, op.tag);
+        results.push({ op, ...r });
+      } else if (op.type === 'add_parent') {
+        const r = await addParentTag(req, op.child, op.parent);
+        results.push({ op, ...r });
+      } else {
+        results.push({ op, skipped: true, reason: `unknown op type ${op.type}` });
+      }
+    }
+    res.json({ results });
+  } catch (err) {
+    res.status(500).json({ error: err.message, results });
+  }
+});
+
+async function renameTag(req, fromRaw, toRaw) {
+  const from = String(fromRaw || '').trim();
+  const to = String(toRaw || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (!from || !to || from === to) return { updated: 0, to };
+  const params = [from, to];
+  let scope = `WHERE tags && ARRAY[$1]::text[]`;
+  if (req.visibleClientIds !== null) {
+    params.push(req.visibleClientIds);
+    scope += ` AND (
+      client_id = ANY($3::uuid[])
+      OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                  WHERE m.contact_id = outreach_contacts.id
+                    AND m.client_id = ANY($3::uuid[]))
+    )`;
+  }
+  const { rowCount } = await pool.query(
+    `UPDATE outreach_contacts
+        SET tags = ARRAY(
+          SELECT DISTINCT CASE WHEN t = $1 THEN $2 ELSE t END
+            FROM unnest(tags) t
+        ),
+            updated_at = NOW()
+      ${scope}`,
+    params
+  );
+  return { updated: rowCount, to };
+}
+
+async function deleteTagEverywhere(req, tagRaw) {
+  const tag = String(tagRaw || '').trim();
+  if (!tag) return { updated: 0 };
+  const params = [tag];
+  let scope = `WHERE tags && ARRAY[$1]::text[]`;
+  if (req.visibleClientIds !== null) {
+    params.push(req.visibleClientIds);
+    scope += ` AND (
+      client_id = ANY($2::uuid[])
+      OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                  WHERE m.contact_id = outreach_contacts.id
+                    AND m.client_id = ANY($2::uuid[]))
+    )`;
+  }
+  const { rowCount } = await pool.query(
+    `UPDATE outreach_contacts
+        SET tags = ARRAY(SELECT t FROM unnest(tags) t WHERE t <> $1),
+            updated_at = NOW()
+      ${scope}`,
+    params
+  );
+  return { updated: rowCount };
+}
+
+async function addParentTag(req, childRaw, parentRaw) {
+  const child = String(childRaw || '').trim();
+  const parent = String(parentRaw || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (!child || !parent || child === parent) return { updated: 0, parent };
+  const params = [child, parent];
+  let scope = `WHERE tags && ARRAY[$1]::text[]`;
+  if (req.visibleClientIds !== null) {
+    params.push(req.visibleClientIds);
+    scope += ` AND (
+      client_id = ANY($3::uuid[])
+      OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                  WHERE m.contact_id = outreach_contacts.id
+                    AND m.client_id = ANY($3::uuid[]))
+    )`;
+  }
+  // Add the parent tag to every contact that has the child, deduping
+  // with DISTINCT so a contact that already had both stays clean.
+  const { rowCount } = await pool.query(
+    `UPDATE outreach_contacts
+        SET tags = ARRAY(
+          SELECT DISTINCT unnest(COALESCE(tags, ARRAY[]::text[]) || ARRAY[$2]::text[])
+        ),
+            updated_at = NOW()
+      ${scope}`,
+    params
+  );
+  return { updated: rowCount, parent };
+}
+
 // Delete a tag everywhere it's used. Strips the tag string from every
 // matching contact's tags[] (in the caller's visibility scope) without
 // touching the contacts themselves. Use this to clean up rubbish that

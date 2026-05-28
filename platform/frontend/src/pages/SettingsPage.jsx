@@ -1179,6 +1179,10 @@ function TagsManager() {
   const [err, setErr] = useState(null);
   const [info, setInfo] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [plan, setPlan] = useState(null);            // { operations: [], tagCount }
+  const [selectedOps, setSelectedOps] = useState(() => new Set());
+  const [applying, setApplying] = useState(false);
 
   async function reload() {
     try {
@@ -1198,6 +1202,38 @@ function TagsManager() {
       await reload();
     } catch (e) { setErr(e.message); }
     finally { setBusy(false); }
+  }
+
+  async function tidyWithClaude() {
+    setAnalyzing(true); setErr(null); setInfo(null); setPlan(null); setSelectedOps(new Set());
+    try {
+      const r = await api.post('/outreach/tags/analyze', {});
+      setPlan(r);
+      // Pre-tick everything Claude suggested — the AM can untick anything
+      // they disagree with. Safer than ticking nothing (would be missed).
+      setSelectedOps(new Set((r.operations || []).map((_, i) => i)));
+      if (!(r.operations || []).length) setInfo('Claude has no cleanup suggestions — the catalogue looks tidy.');
+    } catch (e) { setErr(e.message); }
+    finally { setAnalyzing(false); }
+  }
+
+  async function applyPlan() {
+    if (!plan || !selectedOps.size) return;
+    const ops = plan.operations.filter((_, i) => selectedOps.has(i));
+    if (!confirm(`Apply ${ops.length} cleanup operation${ops.length === 1 ? '' : 's'}? This rewrites tags on contacts and can't be undone in one click.`)) return;
+    setApplying(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/apply-plan', { operations: ops });
+      const totals = (r.results || []).reduce((acc, x) => {
+        acc[x.op.type] = (acc[x.op.type] || 0) + (x.updated || 0);
+        return acc;
+      }, {});
+      const summary = Object.entries(totals).map(([k, v]) => `${k}: ${v.toLocaleString()}`).join(' · ');
+      setInfo(`Applied ${ops.length} operation${ops.length === 1 ? '' : 's'}. ${summary}`);
+      setPlan(null); setSelectedOps(new Set());
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setApplying(false); }
   }
 
   async function deleteTag(tag, count) {
@@ -1221,12 +1257,70 @@ function TagsManager() {
   return (
     <div>
       <Card>
-        <CardTitle>Tags</CardTitle>
-        <p style={styles.hint}>
-          Every tag in the workspace. Rename merges contacts already on the new name; delete strips
-          the tag from every contact (the contacts themselves stay). Use this to clean up junk from
-          old CSV imports.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <CardTitle>Tags</CardTitle>
+            <p style={styles.hint}>
+              Every tag in the workspace. Rename merges contacts already on the new name; delete strips
+              the tag from every contact (the contacts themselves stay). Use this to clean up junk from
+              old CSV imports.
+            </p>
+          </div>
+          <button onClick={tidyWithClaude} disabled={analyzing || applying} style={styles.btn}
+            title="Send the tag list to Claude and get cleanup suggestions">
+            {analyzing ? 'Analysing…' : '✨ Tidy with Claude'}
+          </button>
+        </div>
+
+        {plan && plan.operations && plan.operations.length > 0 && (
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 6, background: '#fffdf2' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
+              </div>
+              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
+            </div>
+            <p style={{ ...styles.hint, marginBottom: 12 }}>
+              Untick anything you disagree with, then apply. Each operation rewrites tags on contacts and can't be undone in one click.
+            </p>
+            <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
+              {plan.operations.map((op, i) => {
+                const ticked = selectedOps.has(i);
+                return (
+                  <label key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '10px 0', borderBottom: '1px solid #f0eccd', cursor: 'pointer',
+                  }}>
+                    <input type="checkbox" checked={ticked} onChange={() => {
+                      setSelectedOps(prev => {
+                        const n = new Set(prev);
+                        if (n.has(i)) n.delete(i); else n.add(i);
+                        return n;
+                      });
+                    }} style={{ marginTop: 3 }} />
+                    <div style={{ flex: 1, fontSize: 12 }}>
+                      <div style={{ marginBottom: 3 }}>
+                        <span style={{ ...styles.tagChip, padding: '1px 8px', fontSize: 10, marginRight: 6 }}>{op.type}</span>
+                        <OpSummary op={op} />
+                      </div>
+                      {op.why && <div style={{ color: '#888', fontStyle: 'italic' }}>{op.why}</div>}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} style={styles.ghostBtn}>Tick all</button>
+              <button onClick={() => setSelectedOps(new Set())} style={styles.ghostBtn}>Untick all</button>
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: '#666' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
+              <button onClick={applyPlan} disabled={!selectedOps.size || applying}
+                style={!selectedOps.size || applying ? { ...styles.btn, opacity: 0.5 } : styles.btn}>
+                {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
           <input
@@ -1285,6 +1379,17 @@ function TagsManager() {
       </Card>
     </div>
   );
+}
+
+// Human-readable summary of a single tag-tidy operation. Rendered
+// alongside the checkbox in the plan panel.
+function OpSummary({ op }) {
+  const chip = (txt) => <code style={{ background: '#f0eccd', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{txt}</code>;
+  if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
+  if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
+  if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
+  if (op.type === 'add_parent') return <span>Add parent {chip(op.parent)} to every contact tagged {chip(op.child)}</span>;
+  return <span>{op.type}</span>;
 }
 
 const styles = {
