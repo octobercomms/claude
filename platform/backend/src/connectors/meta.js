@@ -136,6 +136,64 @@ async function fetchInstagramData(credentials, params) {
   return insights;
 }
 
+// Single-media insights — used by the Social performance loop to track a
+// published post's engagement over time. Available metrics vary by media
+// type, so we request a broad union and discard the ones the API rejects.
+async function fetchInstagramMediaInsights(credentials, mediaId) {
+  // Two metric sets: feed/carousel and reels. We try the richer reel set
+  // first; the API returns a generic error if a metric doesn't apply, so
+  // we fall back on whichever subset the API accepts.
+  const tryMetrics = async (metricList) => {
+    const { data } = await axios.get(`${BASE_URL}/${mediaId}/insights`, {
+      params: { access_token: credentials.access_token, metric: metricList.join(',') },
+    });
+    const out = {};
+    for (const entry of (data.data || [])) {
+      const v = entry.values?.[0]?.value;
+      out[entry.name] = typeof v === 'number' ? v : v;
+    }
+    return out;
+  };
+
+  try {
+    return await tryMetrics(['plays', 'reach', 'likes', 'comments', 'saved', 'shares', 'total_interactions', 'ig_reels_video_view_total_time']);
+  } catch {
+    return await tryMetrics(['impressions', 'reach', 'likes', 'comments', 'saved', 'shares']);
+  }
+}
+
+// IG / TT URLs encode the media id in a base64-ish shortcode. Decoding
+// is well-known but undocumented. Used so the AM can paste an Instagram
+// post URL and we resolve the media id without round-tripping the API.
+function shortcodeToMediaId(shortcode) {
+  const ALPHA = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  if (!shortcode || !/^[A-Za-z0-9_-]+$/.test(shortcode)) return null;
+  let id = 0n;
+  for (const ch of shortcode) {
+    const idx = ALPHA.indexOf(ch);
+    if (idx < 0) return null;
+    id = id * 64n + BigInt(idx);
+  }
+  return id.toString();
+}
+
+function parseSocialUrl(url) {
+  if (!url) return null;
+  // Instagram: https://www.instagram.com/p/<code>/, /reel/<code>/, /tv/<code>/
+  const igMatch = url.match(/instagram\.com\/(?:p|reel|reels|tv)\/([A-Za-z0-9_-]+)/i);
+  if (igMatch) {
+    const mediaId = shortcodeToMediaId(igMatch[1]);
+    return mediaId ? { platform: 'instagram', external_id: mediaId, shortcode: igMatch[1] } : null;
+  }
+  // TikTok: https://www.tiktok.com/@user/video/<numeric_id>
+  const ttMatch = url.match(/tiktok\.com\/@[^/]+\/video\/(\d+)/i);
+  if (ttMatch) return { platform: 'tiktok', external_id: ttMatch[1] };
+  // LinkedIn URN is in the URL too sometimes
+  const liMatch = url.match(/linkedin\.com\/.*?(?:activity|posts)[:-](\d+)/i);
+  if (liMatch) return { platform: 'linkedin', external_id: liMatch[1] };
+  return null;
+}
+
 async function listAdAccounts(credentials) {
   const { data } = await axios.get(`${BASE_URL}/me/adaccounts`, {
     params: { access_token: credentials.access_token, fields: 'id,name,account_id', limit: 100 },
@@ -209,4 +267,4 @@ async function getAccessReport(credentials) {
   };
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, getAccessReport };
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights, parseSocialUrl, shortcodeToMediaId };

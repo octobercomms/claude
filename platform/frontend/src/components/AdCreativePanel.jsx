@@ -103,6 +103,26 @@ export default function AdCreativePanel({ clientId, clientName }) {
     }
   }
 
+  // Adobe Photoshop generative resize — take one image we already have
+  // and ask Adobe to produce versions in every other aspect ratio. The
+  // result returns as new image rows on the same creative.
+  async function fanOutImage(imageId, creativeId) {
+    try {
+      const { generated } = await api.post(`/ad-creatives/images/${imageId}/fan-out`, {
+        aspect_ratios: ['1:1', '4:5', '9:16', '16:9'],
+      });
+      const added = generated.filter(g => !g.error && g.id);
+      setCreatives(prev => prev.map(c => c.id === creativeId
+        ? { ...c, images: [...(c.images || []), ...added] }
+        : c));
+      const errs = generated.filter(g => g.error);
+      if (errs.length) toast(`Some sizes failed: ${errs.map(e => `${e.aspect_ratio}: ${e.error}`).join('; ')}`, 'error');
+      else toast(`Fanned out to ${added.length} new sizes via Adobe.`, 'success');
+    } catch (e) {
+      toast(`Fan-out failed: ${e.message}`, 'error');
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
@@ -159,6 +179,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
                 onDelete={() => deleteCreative(c.id)}
                 onRender={(payload) => renderImages(c.id, payload)}
                 onDeleteImage={(imgId) => deleteImage(imgId, c.id)}
+                onFanOut={(imgId) => fanOutImage(imgId, c.id)}
               />
             ))}
           </div>
@@ -229,7 +250,7 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
   );
 }
 
-function CreativeCard({ creative, onDelete, onRender, onDeleteImage }) {
+function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut }) {
   const [showRender, setShowRender] = useState(false);
   const [provider, setProvider] = useState('replicate');
   const [aspects, setAspects] = useState(new Set(['1:1']));
@@ -290,15 +311,9 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage }) {
       )}
 
       {(creative.images || []).length > 0 && (
-        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'flex-end' }}>
           {creative.images.map(img => (
-            <div key={img.id} style={{ position: 'relative' }}>
-              <a href={img.url} target="_blank" rel="noreferrer">
-                <img src={img.url} alt="" style={{ ...styles.thumb, ...aspectStyle(img.aspect_ratio) }} />
-              </a>
-              <div style={styles.thumbBadge}>{img.aspect_ratio}</div>
-              <button onClick={() => onDeleteImage(img.id)} style={styles.thumbX}>×</button>
-            </div>
+            <ImageThumb key={img.id} img={img} onDelete={() => onDeleteImage(img.id)} onFanOut={onFanOut} />
           ))}
         </div>
       )}
@@ -313,7 +328,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage }) {
         <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
           <div style={styles.field}>PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            {['replicate', 'ideogram'].map(p => (
+            {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
             ))}
           </div>
@@ -330,6 +345,23 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage }) {
             {rendering ? 'Rendering…' : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`}
           </button>
         </div>
+      )}
+    </div>
+  );
+}
+
+function ImageThumb({ img, onDelete, onFanOut }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div style={{ position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+      <a href={img.url} target="_blank" rel="noreferrer">
+        <img src={img.url} alt="" style={{ ...styles.thumb, ...aspectStyle(img.aspect_ratio) }} />
+      </a>
+      <div style={styles.thumbBadge}>{img.aspect_ratio}</div>
+      <button onClick={onDelete} style={styles.thumbX}>×</button>
+      {hovered && onFanOut && (
+        <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
+          style={styles.fanOutBtn}>↔</button>
       )}
     </div>
   );
@@ -353,6 +385,7 @@ const styles = {
   thumb: { objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' },
   thumbBadge: { position: 'absolute', bottom: 2, left: 2, padding: '1px 6px', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, borderRadius: 3, fontWeight: 700, letterSpacing: 0.4 },
   thumbX: { position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#c62828' },
+  fanOutBtn: { position: 'absolute', bottom: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: '#1a1a1a', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#fff', fontWeight: 700 },
   providerOn: { padding: '5px 12px', fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700 },
   providerOff: { padding: '5px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
 };

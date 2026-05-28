@@ -27,6 +27,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Adobe (Firefly + Photoshop)',
+    category: 'AI & Email',
+    hint: 'Third image option, commercially-safe training data — good for regulated clients. Photoshop generative resize fans one image out to every aspect ratio. Set up a Firefly Services project at developer.adobe.com → Console.',
+    keys: [
+      { key: 'ADOBE_CLIENT_ID', label: 'Adobe Client ID', placeholder: '…', type: 'text' },
+      { key: 'ADOBE_CLIENT_SECRET', label: 'Adobe Client Secret', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
     title: 'Email Provider',
     category: 'AI & Email',
     hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',
