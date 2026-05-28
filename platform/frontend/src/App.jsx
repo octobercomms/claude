@@ -20,7 +20,6 @@ import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
 import SettingsPage from './pages/SettingsPage';
-import ManageUsersPage from './pages/ManageUsersPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -58,7 +57,9 @@ export default function App() {
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />
-            <Route path="manage" element={<ManageUsersPage />} />
+            {/* Manage was a separate top-level page; now it's a Settings tab.
+                Keep the old URL working so bookmarks redirect cleanly. */}
+            <Route path="manage" element={<Navigate to="/settings?tab=users" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

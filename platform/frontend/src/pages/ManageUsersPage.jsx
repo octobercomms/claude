@@ -5,7 +5,11 @@ import { useAuth } from '../context/AuthContext';
 
 // Admin-only user management. Lists all users; supports add, password reset,
 // per-user client visibility assignment, and delete.
-export default function ManageUsersPage() {
+//
+// `embedded` true means we're being rendered inside the Settings page as a
+// tab — drop the h1 and outer max-width wrapper so the Settings shell owns
+// the page chrome.
+export default function ManageUsersPage({ embedded = false } = {}) {
   const { user } = useAuth();
   const [users, setUsers] = useState([]);
   const [clients, setClients] = useState([]);
@@ -45,9 +49,10 @@ export default function ManageUsersPage() {
   }
 
   return (
-    <div style={{ maxWidth: 980 }}>
+    <div style={embedded ? undefined : { maxWidth: 980 }}>
       <div style={styles.header}>
-        <h1 style={styles.title}>Manage users</h1>
+        {!embedded && <h1 style={styles.title}>Manage users</h1>}
+        {embedded && <div style={{ fontSize: 16, fontWeight: 700 }}>Users &amp; access</div>}
         <button type="button" style={primaryBtn} onClick={() => setShowCreate(true)}>+ Add user</button>
       </div>
       <p style={styles.hint}>
