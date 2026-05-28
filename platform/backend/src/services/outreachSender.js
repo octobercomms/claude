@@ -138,9 +138,20 @@ function buildSmtpTransport() {
   return require('../routes/settings').buildTransporter();
 }
 
-async function deliver({ from, to, replyTo, subject, text, html, headers }) {
-  const sesId = await sendViaSESv2({ from, to, replyTo, subject, text, html, headers });
-  if (sesId) return { providerMessageId: sesId, provider: 'ses-api' };
+async function deliver({ from, to, replyTo, subject, text, html, headers, contactId }) {
+  try {
+    const sesId = await sendViaSESv2({ from, to, replyTo, subject, text, html, headers });
+    if (sesId) return { providerMessageId: sesId, provider: 'ses-api' };
+  } catch (sesErr) {
+    // SES synchronously rejected the send. If the error names a dead /
+    // blacklisted recipient, mark the contact bounced so subsequent
+    // sequences and campaigns won't drop fresh sends into the queue.
+    const bounceHandler = require('./bounceHandler');
+    if (contactId && bounceHandler.looksLikeSyncHardBounce(sesErr.message)) {
+      await bounceHandler.markBounced(contactId, `SES sync · ${sesErr.message}`).catch(() => {});
+    }
+    throw sesErr;
+  }
   const info = await buildSmtpTransport().sendMail({ from, to, replyTo, subject, text, html, headers });
   return { providerMessageId: info.messageId, provider: 'smtp' };
 }
@@ -169,7 +180,7 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   const text = fillTemplate(step.body, contact);
   const html = htmlBody(text, send.id, contact.id, clientId);
   const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
-  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
+  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
 }
 
 async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex, clientId }) {
@@ -215,7 +226,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     html = htmlBody(text, sendId, contact.id, clientId);
   }
   const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
-  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
+  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
 }
 
 async function sendTest(campaign, step, sending, toAddress) {

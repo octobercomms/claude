@@ -72,7 +72,12 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         </div>
 
         {tab === 'activity' ? (
-          <ActivityPanel activity={activity} err={activityErr} />
+          <ActivityPanel
+            contact={contact}
+            activity={activity}
+            err={activityErr}
+            onReloadActivity={() => setActivity(null)}
+          />
         ) : (
         <div style={styles.grid}>
           <Section title="Contact Details">
@@ -136,14 +141,16 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
 // Mautic-style engagement timeline. Loads sends + opens + clicks + replies
 // for this contact and renders them top-down newest-first with a stat row
 // across the top.
-function ActivityPanel({ activity, err }) {
+function ActivityPanel({ contact, activity, err, onReloadActivity }) {
+  const toast = useToast();
+  const [working, setWorking] = useState(null);
   if (err) {
     return <div style={{ padding: 20, color: '#c62828', fontSize: 13 }}>Couldn't load activity: {err}</div>;
   }
   if (!activity) {
     return <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading…</div>;
   }
-  const { events, totals, memberships } = activity;
+  const { events, totals, memberships, bounce } = activity;
   const fmtTime = (t) => {
     if (!t) return '';
     const d = new Date(t);
@@ -151,6 +158,27 @@ function ActivityPanel({ activity, err }) {
   };
   const clientNameById = Object.fromEntries((memberships || []).map(m => [m.client_id, m.client_name]));
   const unsubByClient = (memberships || []).filter(m => m.unsubscribed_at);
+
+  async function resubscribe(clientId) {
+    setWorking(`resub-${clientId}`);
+    try {
+      await api.post(`/outreach/clients/${clientId}/contacts/${contact.id}/resubscribe`, {});
+      toast(`Re-subscribed to ${clientNameById[clientId] || 'client'}`, 'success');
+      onReloadActivity();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setWorking(null); }
+  }
+
+  async function clearBounce() {
+    if (!confirm('Mark this address as healthy again? Only do this if you have a working email for them — sending to a still-bouncing address will hurt your sender reputation.')) return;
+    setWorking('bounce');
+    try {
+      await api.post(`/outreach/contacts/${contact.id}/clear-bounce`, {});
+      toast('Bounce cleared — contact is sendable again', 'success');
+      onReloadActivity();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setWorking(null); }
+  }
 
   return (
     <div>
@@ -161,9 +189,32 @@ function ActivityPanel({ activity, err }) {
         <Stat label="Replied" value={totals.replied} />
       </div>
 
+      {bounce && (
+        <div style={{ background: '#fdecea', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: '#9c2a2a', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+          <div>
+            <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
+            {bounce.reason && <div style={{ fontSize: 11, color: '#7a3636', marginTop: 4 }}>{bounce.reason}</div>}
+            <div style={{ fontSize: 11, color: '#7a3636', marginTop: 4 }}>
+              This contact is suppressed across every client until cleared.
+            </div>
+          </div>
+          <button onClick={clearBounce} disabled={working === 'bounce'} style={resubBtn}>
+            {working === 'bounce' ? 'Clearing…' : 'Clear bounce'}
+          </button>
+        </div>
+      )}
+
       {!!unsubByClient.length && (
-        <div style={{ background: '#fff8e1', border: '1px solid #f0d260', padding: '8px 12px', borderRadius: 4, fontSize: 12, color: '#5d4000', marginBottom: 14 }}>
-          Unsubscribed from {unsubByClient.map(m => m.client_name).join(', ')}
+        <div style={{ background: '#fff8e1', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: '#5d4000', marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>Unsubscribed</div>
+          {unsubByClient.map(m => (
+            <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #f0d260', marginTop: 4 }}>
+              <span>{m.client_name} <span style={{ color: '#8a6800', marginLeft: 6 }}>· {fmtTime(m.unsubscribed_at)}</span></span>
+              <button onClick={() => resubscribe(m.client_id)} disabled={working === `resub-${m.client_id}`} style={resubBtn}>
+                {working === `resub-${m.client_id}` ? 'Re-subscribing…' : 'Re-subscribe'}
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
@@ -230,6 +281,7 @@ const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1
 const statBox = { padding: '12px 14px', background: '#fafafa', border: '1px solid #eee', borderRadius: 6, textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
 const iconBadge = { width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
+const resubBtn = { background: '#fff', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (

@@ -314,6 +314,7 @@ async function runOutreachSends() {
     `SELECT s.id AS send_id, s.contact_id, s.campaign_id,
             seq.subject, seq.body,
             con.id AS con_id, con.name, con.email, con.company,
+            con.bounced_at, con.status AS contact_status,
             cam.client_id,
             cl.outreach_sending,
             m.unsubscribed_at
@@ -332,6 +333,13 @@ async function runOutreachSends() {
   );
 
   for (const row of due) {
+    // Stop the sequence if the contact has been globally hard-bounced
+    // since the queue was built — the email address is dead, every
+    // future send to it would just deepen the bounce.
+    if (row.bounced_at || row.contact_status === 'bounced') {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
     // Stop the sequence if the contact has already replied to this campaign,
     // or has unsubscribed from this specific client since the queue was built.
     if (row.unsubscribed_at) {
@@ -353,14 +361,19 @@ async function runOutreachSends() {
     );
     if (claim.rowCount === 0) continue;
     try {
-      await outreachSender.sendOutreachEmail({
+      const result = await outreachSender.sendOutreachEmail({
         send: { id: row.send_id, campaign_id: row.campaign_id },
         contact: { id: row.con_id, name: row.name, email: row.email, company: row.company },
         step: { subject: row.subject, body: row.body },
         sending: row.outreach_sending,
         clientId: row.client_id,
       });
-      await pool.query("UPDATE outreach_sends SET status = 'sent', sent_at = NOW() WHERE id = $1", [row.send_id]);
+      // Stash the SES message id so the SNS bounce webhook can map an
+      // async bounce notification back to the originating send + contact.
+      await pool.query(
+        "UPDATE outreach_sends SET status = 'sent', sent_at = NOW(), provider_message_id = $2 WHERE id = $1",
+        [row.send_id, result?.providerMessageId || null]
+      );
     } catch (err) {
       console.error(`Outreach send ${row.send_id} failed:`, err.message);
       await pool.query("UPDATE outreach_sends SET status = 'failed' WHERE id = $1", [row.send_id]);

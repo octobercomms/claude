@@ -418,6 +418,45 @@ router.post('/clients/:clientId/contacts/attach', async (req, res) => {
   }
 });
 
+// Clear a per-client unsubscribe. Used when a journalist asks "actually,
+// keep me on the list" or when the AM realises a wrong contact was
+// auto-unsubscribed by a reply classifier false positive. Only touches
+// the one client's membership row; other clients are unaffected.
+router.post('/clients/:clientId/contacts/:contactId/resubscribe', async (req, res) => {
+  try {
+    const { clientId, contactId } = req.params;
+    await pool.query(
+      `UPDATE outreach_contact_clients
+          SET unsubscribed_at = NULL
+        WHERE contact_id = $1 AND client_id = $2`,
+      [contactId, clientId]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Clear a hard bounce on a contact. Use when the AM has confirmed the
+// address is actually fine (the bounce was a temporary mail-server
+// hiccup, or they got a new working address). Doesn't touch the
+// per-client unsubscribe state.
+router.post('/contacts/:id/clear-bounce', async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE outreach_contacts
+          SET bounced_at = NULL, bounce_reason = NULL,
+              status = CASE WHEN status = 'bounced' THEN 'active' ELSE status END,
+              updated_at = NOW()
+        WHERE id = $1`,
+      [req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Detach a contact from a specific client without deleting the library row.
 // The contact keeps existing for other clients; only this client's
 // membership row + any pending sends for this client's campaigns go away.
@@ -653,9 +692,19 @@ router.get('/contacts/:id/activity', async (req, res) => {
       [id]
     );
 
+    const { rows: contactRows } = await pool.query(
+      `SELECT bounced_at, bounce_reason, status FROM outreach_contacts WHERE id = $1`,
+      [id]
+    );
+    const contact = contactRows[0] || {};
+
     res.json({
       events,
       memberships: memberships.rows,
+      bounce: contact.bounced_at
+        ? { bounced_at: contact.bounced_at, reason: contact.bounce_reason }
+        : null,
+      contact_status: contact.status || null,
       totals: {
         sent: sends.filter(s => s.sent_at).length,
         opened: sends.filter(s => s.opened_at).length,
@@ -1084,12 +1133,14 @@ router.post('/campaigns/:id/launch', async (req, res) => {
     if (!steps.length) return res.status(400).json({ error: 'Generate an email sequence before launching.' });
 
     // Pull only contacts attached to this client AND not unsubscribed from
-    // them (the unsubscribe lives on the membership row, not the contact).
+    // them (the unsubscribe lives on the membership row, not the contact)
+    // AND not globally hard-bounced.
     const { rows: contacts } = await pool.query(
       `SELECT c.* FROM outreach_contacts c
          JOIN outreach_contact_clients m ON m.contact_id = c.id
         WHERE m.client_id = $1
           AND m.unsubscribed_at IS NULL
+          AND c.bounced_at IS NULL
           AND c.email IS NOT NULL AND c.email <> ''`,
       [campaign.client_id]
     );
