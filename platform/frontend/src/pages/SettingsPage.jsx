@@ -752,6 +752,7 @@ function ContactsLibrary() {
   const [attachOpen, setAttachOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [openContact, setOpenContact] = useState(null);
+  const [tidyOpen, setTidyOpen] = useState(false);
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [tagSearch, setTagSearch] = useState('');
@@ -935,6 +936,13 @@ function ContactsLibrary() {
           onSaved={async () => { await reload(); }}
         />
       )}
+      <ContactTidyModal
+        open={tidyOpen}
+        onClose={() => setTidyOpen(false)}
+        filterBody={filterBody()}
+        totalInFilter={total}
+        onApplied={async () => { await reload(); }}
+      />
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
@@ -945,7 +953,13 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setTidyOpen(true)} style={styles.ghostBtn}
+              title="Ask Claude to spot fixes on the contacts matching the current filter">
+              ✨ Tidy with Claude
+            </button>
+            <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
@@ -1380,6 +1394,215 @@ function TagsManager() {
     </div>
   );
 }
+
+// Claude-driven contact data cleanup. Takes the current Contacts
+// library filter, sends matching contacts to Claude in batches, then
+// lets the AM tick which per-field fixes to apply. Each accepted fix
+// writes an audit row so the change history is visible later from
+// the contact's Edit modal.
+function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied }) {
+  const [phase, setPhase] = useState('idle'); // idle | analysing | review | applying | done
+  const [result, setResult] = useState(null); // { suggestions, analysed, capped }
+  const [selected, setSelected] = useState(new Set());
+  const [err, setErr] = useState(null);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  useEffect(() => {
+    if (!open) {
+      setPhase('idle'); setResult(null); setSelected(new Set());
+      setErr(null); setAppliedCount(0);
+    }
+  }, [open]);
+
+  async function runAnalyse() {
+    setPhase('analysing'); setErr(null);
+    try {
+      const r = await api.post('/outreach/contacts/analyze-tidy', { ...filterBody, limit: 500 });
+      setResult(r);
+      // Pre-tick everything Claude found — the AM unticks anything they disagree with.
+      setSelected(new Set((r.suggestions || []).map((_, i) => i)));
+      setPhase('review');
+    } catch (e) { setErr(e.message); setPhase('idle'); }
+  }
+
+  async function apply() {
+    if (!result || !selected.size) return;
+    const accepted = result.suggestions.filter((_, i) => selected.has(i));
+    setPhase('applying'); setErr(null);
+    try {
+      const r = await api.post('/outreach/contacts/apply-tidy', { suggestions: accepted });
+      setAppliedCount(r.applied || 0);
+      setPhase('done');
+      onApplied?.();
+    } catch (e) { setErr(e.message); setPhase('review'); }
+  }
+
+  if (!open) return null;
+
+  // Group suggestions by contact so the AM can see "this row needs 3 fixes"
+  // rather than 3 unrelated lines.
+  const grouped = result ? groupByContact(result.suggestions) : [];
+
+  return (
+    <div style={tidyStyles.overlay} onClick={onClose}>
+      <div style={tidyStyles.modal} onClick={e => e.stopPropagation()}>
+        <div style={tidyStyles.header}>
+          <div>
+            <div style={tidyStyles.eyebrow}>Tidy with Claude</div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Contact data cleanup</h2>
+          </div>
+          <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
+        </div>
+
+        {err && <div style={tidyStyles.err}>{err}</div>}
+
+        {phase === 'idle' && (
+          <div>
+            <p style={tidyStyles.hint}>
+              Claude will look at the contacts matching your current filter and propose fixes:
+              capitalisation, missing company derived from email domain, lowercase emails, URL
+              schemes, name splits, and similar. You review each suggestion before anything
+              changes — every applied change writes an audit row so you can see what happened
+              later.
+            </p>
+            <div style={tidyStyles.summary}>
+              <div><strong>{Math.min(500, totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed (max 500 per run)</div>
+              {totalInFilter > 500 && (
+                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                  Your filter matches {totalInFilter.toLocaleString()} — narrow the filter, run multiple times, or accept that this batch covers only the 500 most recent.
+                </div>
+              )}
+            </div>
+            <div style={tidyStyles.footer}>
+              <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
+              <div style={{ flex: 1 }} />
+              <button onClick={runAnalyse} style={tidyStyles.btn}>Start analysis</button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'analysing' && (
+          <div style={{ padding: 30, textAlign: 'center', color: '#666' }}>
+            <div style={{ fontSize: 13, marginBottom: 8 }}>Claude is reading the contacts in batches of 40…</div>
+            <div style={{ fontSize: 11, color: '#888' }}>Can take 30–90 seconds for 500 contacts.</div>
+          </div>
+        )}
+
+        {phase === 'review' && result && (
+          <div>
+            <div style={tidyStyles.summary}>
+              <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> contact{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
+              {result.capped && (
+                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                  Hit the 500-contact cap — re-run with a narrower filter to cover the rest.
+                </div>
+              )}
+            </div>
+            {!result.suggestions.length ? (
+              <div style={{ padding: 20, color: '#888', fontSize: 13, textAlign: 'center' }}>
+                Nothing to clean up — the records in this filter look healthy.
+              </div>
+            ) : (
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 0 }}>
+                {grouped.map(g => (
+                  <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
+                    <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 700, marginBottom: 6 }}>
+                      {g.label}
+                    </div>
+                    {g.suggestions.map(({ idx, s }) => {
+                      const ticked = selected.has(idx);
+                      return (
+                        <label key={idx} style={{ display: 'flex', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12 }}>
+                          <input type="checkbox" checked={ticked} onChange={() => {
+                            setSelected(prev => {
+                              const n = new Set(prev);
+                              if (n.has(idx)) n.delete(idx); else n.add(idx);
+                              return n;
+                            });
+                          }} style={{ marginTop: 3 }} />
+                          <div style={{ flex: 1 }}>
+                            <div>
+                              <code style={tidyStyles.fieldChip}>{s.field}</code>{' '}
+                              <span style={{ color: '#999' }}>{s.before ? `"${s.before}"` : <em>empty</em>}</span>
+                              {' → '}
+                              <span style={{ color: '#1b5e20', fontWeight: 700 }}>"{s.new_value}"</span>
+                            </div>
+                            {s.why && <div style={{ color: '#888', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={tidyStyles.footer}>
+              {!!result.suggestions.length && (
+                <>
+                  <button onClick={() => setSelected(new Set(result.suggestions.map((_, i) => i)))} style={tidyStyles.ghostBtn}>Tick all</button>
+                  <button onClick={() => setSelected(new Set())} style={tidyStyles.ghostBtn}>Untick all</button>
+                </>
+              )}
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: '#666' }}>{selected.size} of {result.suggestions.length} ticked</span>
+              <button onClick={apply} disabled={!selected.size}
+                style={!selected.size ? { ...tidyStyles.btn, opacity: 0.5 } : tidyStyles.btn}>
+                Apply {selected.size} change{selected.size === 1 ? '' : 's'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'applying' && (
+          <div style={{ padding: 30, textAlign: 'center', color: '#666', fontSize: 13 }}>Applying…</div>
+        )}
+
+        {phase === 'done' && (
+          <div>
+            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 6, color: '#1b5e20', fontSize: 13 }}>
+              ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
+            </div>
+            <div style={tidyStyles.footer}>
+              <div style={{ flex: 1 }} />
+              <button onClick={onClose} style={tidyStyles.btn}>Done</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Build a per-contact view of a flat suggestions list. Preserves the
+// original index so checkbox state stays in sync with the source array.
+function groupByContact(suggestions) {
+  const byId = new Map();
+  suggestions.forEach((s, idx) => {
+    if (!byId.has(s.id)) byId.set(s.id, { id: s.id, label: contactLabel(s), suggestions: [] });
+    byId.get(s.id).suggestions.push({ idx, s });
+  });
+  return Array.from(byId.values());
+}
+function contactLabel(s) {
+  // Use whichever identifying field appears first in the bundle's
+  // metadata so the AM can recognise the row at a glance.
+  return s.contact_email || s.contact_name || `Contact ${s.id.slice(0, 8)}…`;
+}
+
+const tidyStyles = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
+  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
+  hint: { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 },
+  summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 14, fontSize: 13, marginTop: 12 },
+  footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
+  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
+  fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
+};
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
