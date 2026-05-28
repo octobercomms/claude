@@ -13,6 +13,7 @@ const elevenlabs = require('../connectors/elevenlabs');
 const crypto = require('crypto');
 const meta = require('../connectors/meta');
 const productionBrief = require('../services/productionBrief');
+const remotionRender = require('../services/remotionRender');
 
 function signBriefToken(postId, expiresAtSec) {
   const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${postId}.${expiresAtSec}`).digest('hex');
@@ -292,6 +293,50 @@ router.get('/posts/:id/brief', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Post not found' });
     res.json({ markdown: productionBrief.buildBriefMarkdown(rows[0]) });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── REMOTION RENDER (A / C / G) ──────────────────────────────────────────
+// Walks the storyboard, picks every frame tagged A, C or G, renders each
+// via Remotion using the client's brand colour. Result lands as
+// social_post_media rows with kind='motion' + provider='remotion' so the
+// card shows the MP4s inline alongside any UGC video or voiceover.
+router.post('/posts/:id/render-templates', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+
+    const targets = (post.storyboard || []).filter(f => ['A', 'C', 'G'].includes(f.style));
+    if (!targets.length) return res.status(400).json({ error: 'No A/C/G frames in this post — only reels with the Video Style System grammar can auto-render.' });
+
+    const { rows: brandAssets } = await pool.query(
+      'SELECT id, kind, metadata FROM brand_assets WHERE client_id = $1',
+      [post.client_id]
+    );
+
+    const rendered = [];
+    for (const frame of targets) {
+      try {
+        const result = await remotionRender.renderFrameForPost(post, frame, brandAssets);
+        const { rows: row } = await pool.query(
+          `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+           VALUES ($1, 'motion', 'remotion', $2, $3, $4) RETURNING *`,
+          [
+            post.id, result.url, result.duration_sec,
+            JSON.stringify({ style: frame.style, frame: frame.frame, on_screen_text: frame.on_screen_text }),
+          ]
+        );
+        rendered.push(row[0]);
+      } catch (err) {
+        console.error(`[remotion] frame ${frame.frame} (${frame.style}) failed:`, err.message);
+        rendered.push({ style: frame.style, frame: frame.frame, error: err.message });
+      }
+    }
+    res.status(201).json({ rendered });
+  } catch (err) {
+    console.error('[remotion] render-templates failed:', err);
+    res.status(502).json({ error: err.message });
+  }
 });
 
 router.get('/posts/:id/brief-url', async (req, res) => {
