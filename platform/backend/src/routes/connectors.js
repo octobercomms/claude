@@ -379,14 +379,28 @@ router.get('/client/:clientId/ads-data', async (req, res) => {
   }
 
   try {
+    // Try any connector that still has stored credentials — don't filter on
+    // status='active'. A connector marked 'error' from a previous transient
+    // failure (token expired between scheduled fetches, network blip) might
+    // still work fine now, and skipping it makes Google Ads silently invisible
+    // on the Paid page. Per-row errors are surfaced to the caller below.
     const [googleRows, metaRows] = await Promise.all([
-      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'google_ads' AND status = 'active'", [req.params.clientId]),
-      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'meta_ads' AND status = 'active'", [req.params.clientId]),
+      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'google_ads' AND status <> 'disconnected'", [req.params.clientId]),
+      pool.query("SELECT * FROM connectors WHERE client_id = $1 AND connector_type = 'meta_ads' AND status <> 'disconnected'", [req.params.clientId]),
     ]);
 
     const mapRows = (rows) => Promise.all(rows.map(async row => {
       try {
         const raw = await fetchOne(row);
+        // A successful fetch means the connector is healthy — clear any
+        // stale error state so the badge in Setup → Connectors reflects
+        // reality without the AM having to click Diagnose by hand.
+        if (row.status !== 'active') {
+          await pool.query(
+            "UPDATE connectors SET status = 'active', error_message = NULL, last_checked = NOW() WHERE id = $1",
+            [row.id]
+          ).catch(() => {});
+        }
         return { connector_id: row.id, store_label: row.store_label, data: raw };
       } catch (err) {
         return { connector_id: row.id, store_label: row.store_label, error: err.message };
