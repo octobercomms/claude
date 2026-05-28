@@ -16,6 +16,7 @@ import ClientAdsPage from './pages/ClientAdsPage';
 import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
+import ClientBrandPage from './pages/ClientBrandPage';
 import SettingsPage from './pages/SettingsPage';
 import ManageUsersPage from './pages/ManageUsersPage';
 
@@ -49,6 +50,7 @@ export default function App() {
             <Route path="clients/:id/outreach" element={<ClientOutreachPage />} />
             <Route path="clients/:id/sales-traffic" element={<ClientSalesTrafficPage />} />
             <Route path="clients/:id/social" element={<ClientSocialPage />} />
+            <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="settings" element={<SettingsPage />} />

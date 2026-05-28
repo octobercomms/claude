@@ -48,6 +48,8 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/rankings', require('./routes/rankings'));
 app.use('/api/seo', require('./routes/seoSuite'));
 app.use('/api/social', require('./routes/social'));
+app.use('/api/brand', require('./routes/brandAssets'));
+app.use('/api/ad-creatives', require('./routes/adCreatives'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/chat', require('./routes/chat'));

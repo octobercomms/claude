@@ -1,0 +1,260 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api } from '../utils/api';
+import { useToast } from '../context/ToastContext';
+import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
+
+const KINDS = [
+  { value: 'logo',          label: 'Logo',         description: 'PNG, SVG, JPEG. Used as overlay reference and watermark.' },
+  { value: 'product_image', label: 'Product image', description: 'Hero shots, lifestyle photography — used as visual reference for generation.' },
+  { value: 'font',          label: 'Font',         description: 'WOFF, WOFF2, TTF. For Photoshop API overlays (Phase 2).' },
+  { value: 'guideline',     label: 'Guideline',    description: 'Free-form brand-voice / do/don\'t notes — passed to Claude.' },
+  { value: 'palette',       label: 'Palette',      description: 'Hex codes — passed to image generators as the brand colour reference.' },
+];
+
+export default function ClientBrandPage() {
+  const { id } = useParams();
+  const toast = useToast();
+  const [client, setClient] = useState(null);
+  const [assets, setAssets] = useState([]);
+  const [filter, setFilter] = useState('all');
+  const [uploadingKind, setUploadingKind] = useState(null);
+  const [showPaletteForm, setShowPaletteForm] = useState(false);
+  const [showGuidelineForm, setShowGuidelineForm] = useState(false);
+  const fileInputRef = useRef();
+
+  async function refresh() {
+    const [c, a] = await Promise.all([
+      api.get(`/clients/${id}`),
+      api.get(`/brand/clients/${id}/assets`),
+    ]);
+    setClient(c);
+    setAssets(a);
+  }
+  useEffect(() => { refresh(); /* eslint-disable-line */ }, [id]);
+
+  async function handleFileUpload(file, kind, name) {
+    if (!file) return;
+    setUploadingKind(kind);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('kind', kind);
+      if (name) fd.append('name', name);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/brand/clients/${id}/assets`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      toast('Asset uploaded.', 'success');
+      refresh();
+    } catch (e) {
+      toast(`Upload failed: ${e.message}`, 'error');
+    } finally {
+      setUploadingKind(null);
+    }
+  }
+
+  async function deleteAsset(asset) {
+    if (!confirm(`Delete "${asset.name}"?`)) return;
+    try {
+      await api.delete(`/brand/assets/${asset.id}`);
+      refresh();
+    } catch (e) {
+      toast(`Delete failed: ${e.message}`, 'error');
+    }
+  }
+
+  const filtered = assets.filter(a => filter === 'all' ? true : a.kind === filter);
+  const byKind = (k) => assets.filter(a => a.kind === k);
+
+  return (
+    <div>
+      <div style={{ marginBottom: 22 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Brand — {client?.name || ''}</h1>
+        <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', maxWidth: 740, lineHeight: 1.5 }}>
+          Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
+          Both the Social and Ad Creative generators pull these as reference so output stays on-brand
+          rather than AI-generic.
+        </p>
+      </div>
+
+      {/* Filter chips */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>All ({assets.length})</FilterChip>
+        {KINDS.map(k => (
+          <FilterChip key={k.value} active={filter === k.value} onClick={() => setFilter(k.value)}>
+            {k.label} ({byKind(k.value).length})
+          </FilterChip>
+        ))}
+      </div>
+
+      {/* Upload buttons */}
+      <div style={styles.uploadBar}>
+        <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/*" />
+        <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/*" />
+        <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
+        <button style={secondaryBtn} onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
+        <button style={secondaryBtn} onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
+      </div>
+
+      {showPaletteForm && (
+        <PaletteForm clientId={id} onClose={() => setShowPaletteForm(false)} onSaved={() => { setShowPaletteForm(false); refresh(); }} />
+      )}
+      {showGuidelineForm && (
+        <GuidelineForm clientId={id} onClose={() => setShowGuidelineForm(false)} onSaved={() => { setShowGuidelineForm(false); refresh(); }} />
+      )}
+
+      {!filtered.length && (
+        <div style={{ color: '#888', padding: 30, textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
+          No assets yet — upload a logo or product image to get started.
+        </div>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
+        {filtered.map(a => (
+          <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function FilterChip({ active, onClick, children }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '5px 12px', fontSize: 12, border: '1px solid ' + (active ? '#1a1a1a' : '#ddd'),
+      background: active ? '#1a1a1a' : '#fff', color: active ? '#fff' : '#555',
+      cursor: 'pointer', borderRadius: 999, fontWeight: active ? 700 : 500,
+    }}>{children}</button>
+  );
+}
+
+function UploadButton({ label, onPick, accept, disabled }) {
+  const ref = useRef();
+  return (
+    <>
+      <button style={secondaryBtn} onClick={() => ref.current?.click()} disabled={disabled}>
+        {disabled ? 'Uploading…' : label}
+      </button>
+      <input ref={ref} type="file" accept={accept} style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) onPick(f); e.target.value = ''; }} />
+    </>
+  );
+}
+
+function AssetCard({ asset, onDelete }) {
+  const isImage = (asset.metadata?.mimetype || '').startsWith('image/') || asset.kind === 'logo' || asset.kind === 'product_image';
+  const isPalette = asset.kind === 'palette';
+  const isGuideline = asset.kind === 'guideline';
+  return (
+    <div style={styles.assetCard}>
+      <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
+        {isImage && asset.url && (
+          <img src={asset.url} alt={asset.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+        )}
+        {isPalette && (
+          <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+            {(asset.metadata?.colors || []).slice(0, 6).map((c, i) => (
+              <div key={i} style={{ flex: 1, background: c }} title={c} />
+            ))}
+          </div>
+        )}
+        {isGuideline && (
+          <div style={{ padding: 12, fontSize: 11, color: '#666', textAlign: 'left', overflow: 'hidden', maxHeight: '100%' }}>
+            {(asset.metadata?.body || '').slice(0, 180)}…
+          </div>
+        )}
+        {!isImage && !isPalette && !isGuideline && (
+          <span style={{ fontSize: 11, color: '#888', fontFamily: 'monospace' }}>{asset.kind}</span>
+        )}
+      </div>
+      <div style={{ padding: '10px 12px' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
+        <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
+        <button onClick={onDelete} style={{ ...dangerBtn, padding: '3px 10px', fontSize: 11, marginTop: 8 }}>Delete</button>
+      </div>
+    </div>
+  );
+}
+
+function PaletteForm({ clientId, onClose, onSaved }) {
+  const [name, setName] = useState('');
+  const [colors, setColors] = useState(['#000000', '#ffffff', '#E7CD41']);
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    setSaving(true);
+    try {
+      await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'palette', name: name || 'Brand palette', metadata: { colors } });
+      onSaved();
+    } catch (e) { alert(e.message); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>Add palette</h2>
+        <label style={modalStyles.label}>Name</label>
+        <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Primary palette" />
+        <label style={modalStyles.label}>Hex codes</label>
+        {colors.map((c, i) => (
+          <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+            <input type="color" value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={{ width: 40, height: 32 }} />
+            <input value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={modalStyles.input} />
+            <button onClick={() => setColors(colors.filter((_, j) => j !== i))} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}>×</button>
+          </div>
+        ))}
+        <button onClick={() => setColors([...colors, '#cccccc'])} style={{ ...secondaryBtn, padding: '4px 12px', fontSize: 12, marginTop: 4 }}>+ Add colour</button>
+        <div style={modalStyles.footer}>
+          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
+          <button style={primaryBtn} onClick={save} disabled={saving || !colors.length}>{saving ? 'Saving…' : 'Save palette'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuidelineForm({ clientId, onClose, onSaved }) {
+  const [name, setName] = useState('');
+  const [body, setBody] = useState('');
+  const [saving, setSaving] = useState(false);
+  async function save() {
+    if (!body.trim()) return;
+    setSaving(true);
+    try {
+      await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'guideline', name: name || 'Brand voice', metadata: { body } });
+      onSaved();
+    } catch (e) { alert(e.message); }
+    finally { setSaving(false); }
+  }
+  return (
+    <div style={modalStyles.overlay} onClick={onClose}>
+      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
+        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>Add brand guideline</h2>
+        <label style={modalStyles.label}>Name</label>
+        <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Voice & tone" />
+        <label style={modalStyles.label}>Notes</label>
+        <textarea style={{ ...modalStyles.input, minHeight: 140, resize: 'vertical', fontFamily: 'inherit' }} value={body} onChange={e => setBody(e.target.value)}
+          placeholder="Brand voice, do's and don'ts, key messaging pillars, terminology to use or avoid…" />
+        <div style={modalStyles.footer}>
+          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
+          <button style={primaryBtn} onClick={save} disabled={saving || !body.trim()}>{saving ? 'Saving…' : 'Save guideline'}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  uploadBar: { display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap', padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 },
+  assetCard: { background: '#fff', border: '1px solid #eee', borderRadius: 6, overflow: 'hidden' },
+};
+const modalStyles = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
+  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
+};

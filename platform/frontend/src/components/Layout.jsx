@@ -16,7 +16,8 @@ export default function Layout() {
   const clientOutreachMatch = useMatch('/clients/:id/outreach');
   const clientSalesMatch = useMatch('/clients/:id/sales-traffic');
   const clientSocialMatch = useMatch('/clients/:id/social');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id;
+  const clientBrandMatch = useMatch('/clients/:id/brand');
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
@@ -65,6 +66,7 @@ export default function Layout() {
                   <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
                   <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
                   <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Social</NavLink>
+                  <NavLink to={`/clients/${clientId}/brand`} style={({ isActive }) => subLinkStyle(isActive)}>Brand</NavLink>
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
                   <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Outreach</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=forms`} style={subLinkStyle(!!clientMatch && currentTab === 'forms')}>Forms</NavLink>
