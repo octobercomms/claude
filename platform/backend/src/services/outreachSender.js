@@ -87,9 +87,66 @@ async function deliver({ from, to, replyTo, subject, text, html }) {
 async function sendOutreachEmail({ send, contact, step, sending }) {
   if (!contact.email) throw new Error('Contact has no email address.');
   const { from, replyTo } = await senderFields(sending);
+
+  // Press-release path — step.body uses a sentinel ("__press_release__"
+  // or "__press_followup_N__") and the real content lives on the
+  // press_release_emails row keyed to this contact + the release the
+  // campaign was built for. Reduces double-up of body storage between
+  // outreach_sequences and the press cache.
+  const pressMatch = /^__press_(release|followup_(\d+))__$/.exec(step.body || '');
+  if (pressMatch) {
+    const { from: pressFrom, replyTo: pressReplyTo } = { from, replyTo };
+    return await sendPress({
+      campaignId: send.campaign_id, contact, sendId: send.id,
+      from: pressFrom, replyTo: pressReplyTo,
+      kind: pressMatch[1] === 'release' ? 'release' : 'followup',
+      followupIndex: pressMatch[2] ? parseInt(pressMatch[2], 10) : 0,
+    });
+  }
+
   const subject = fillTemplate(step.subject, contact);
   const text = fillTemplate(step.body, contact);
   const html = htmlBody(text, send.id);
+  return deliver({ from, to: contact.email, replyTo, subject, text, html });
+}
+
+async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex }) {
+  // Resolve the press release this campaign is attached to. One
+  // press release per campaign by construction in press.js.
+  const pool = require('../db');
+  const { rows: relRows } = await pool.query(
+    'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1',
+    [campaignId]
+  );
+  if (!relRows.length) throw new Error('Press release for this campaign not found');
+  const release = relRows[0];
+  const { rows: emailRows } = await pool.query(
+    'SELECT * FROM press_release_emails WHERE press_release_id = $1 AND contact_id = $2',
+    [release.id, contact.id]
+  );
+  if (!emailRows.length) throw new Error('No cached press email for this contact');
+  const cached = emailRows[0];
+
+  // Lazy require so the outreach sender doesn't depend on cheerio /
+  // pressRelease at module load time on installs that aren't using
+  // the press feature.
+  const pressRelease = require('./pressRelease');
+
+  let subject, html, text;
+  if (kind === 'release') {
+    subject = release.title;
+    const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
+    const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
+    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name });
+    text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
+  } else {
+    const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
+    const idx = Math.max(0, Math.min(followupIndex - 1, followUps.length - 1));
+    const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
+    subject = fu.subject || `Re: ${release.title}`;
+    text = fu.body || '';
+    html = htmlBody(text, sendId);
+  }
   return deliver({ from, to: contact.email, replyTo, subject, text, html });
 }
 
