@@ -103,6 +103,7 @@ app.use('/api/chat', require('./routes/chat'));
 app.use('/api/outreach', require('./routes/outreach'));
 app.use('/api/press', require('./routes/press'));
 app.use('/api/sales-traffic', require('./routes/salesTraffic'));
+app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/auth', require('./routes/oauth'));

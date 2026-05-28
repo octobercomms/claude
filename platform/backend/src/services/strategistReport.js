@@ -1,0 +1,247 @@
+// Internal Strategist reports — Manus-style ad performance analyses.
+//
+// Pulls Meta Ads + Google Ads data for the last N days (default 7) and
+// the matching previous period for week-over-week comparison, plus the
+// most recent prior Strategist report so Claude can write a true "since
+// the last report" narrative. Output is markdown intended for AM eyes
+// only — never sent to a client.
+
+const Anthropic = require('@anthropic-ai/sdk');
+const pool = require('../db');
+const dataCollector = require('./dataCollector');
+
+const MODEL = 'claude-sonnet-4-6';
+const SYSTEM_PROMPT = `You are an internal performance marketing strategist writing a private briefing note for an account manager at October Communications, a UK marketing agency. The reader is the AM — not the client. Write like a senior strategist talking to a colleague: confident, specific, commercially literate, British English. No hype, no filler, no generic advice. Recommendations must be specific enough to act on tomorrow ("pause ad X in ad set Y because…"), not generic ("consider improving creative"). If the data is thin or the period is too short to draw conclusions, say so plainly.`;
+
+function ymd(d) { return d.toISOString().slice(0, 10); }
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setUTCDate(x.getUTCDate() + n);
+  return x;
+}
+
+// Reduce a meta_ads connector payload to per-campaign rows so we can
+// feed Claude a concise structured table rather than a 5k-line JSON dump.
+function summariseMeta(payload) {
+  const rows = payload?.data || [];
+  return rows.map(r => {
+    const spend = parseFloat(r.spend || 0);
+    const purchases = parseFloat(r.actions?.find(a => a.action_type === 'purchase')?.value || 0);
+    const purchaseValue = parseFloat(r.action_values?.find(a => a.action_type === 'purchase')?.value || 0);
+    const addToCart = parseFloat(r.actions?.find(a => a.action_type === 'add_to_cart')?.value || 0);
+    const initiateCheckout = parseFloat(r.actions?.find(a => a.action_type === 'initiate_checkout')?.value || 0);
+    const linkClicks = parseFloat(r.actions?.find(a => a.action_type === 'link_click')?.value || 0);
+    return {
+      campaign: r.campaign_name,
+      objective: r.objective,
+      spend,
+      impressions: parseInt(r.impressions || 0, 10),
+      reach: parseInt(r.reach || 0, 10),
+      clicks: parseInt(r.clicks || 0, 10),
+      link_clicks: linkClicks,
+      ctr: parseFloat(r.ctr || 0),
+      cpc: parseFloat(r.cpc || 0),
+      cpm: parseFloat(r.cpm || 0),
+      frequency: parseFloat(r.frequency || 0),
+      add_to_cart: addToCart,
+      initiate_checkout: initiateCheckout,
+      purchases,
+      purchase_value: purchaseValue,
+      roas: spend > 0 ? purchaseValue / spend : null,
+    };
+  });
+}
+
+function summariseGoogle(payload) {
+  const results = payload?.results || (Array.isArray(payload) ? payload.flatMap(b => b.results || []) : []);
+  const map = {};
+  for (const r of results) {
+    const name = r.campaign?.name || 'Unknown';
+    const m = r.metrics || {};
+    if (!map[name]) {
+      map[name] = {
+        campaign: name,
+        spend: 0, impressions: 0, clicks: 0,
+        conversions: 0, conversion_value: 0,
+      };
+    }
+    map[name].spend += parseInt(m.costMicros || 0, 10) / 1_000_000;
+    map[name].impressions += parseInt(m.impressions || 0, 10);
+    map[name].clicks += parseInt(m.clicks || 0, 10);
+    map[name].conversions += parseFloat(m.conversions || 0);
+    map[name].conversion_value += parseFloat(m.conversionsValue || 0);
+  }
+  return Object.values(map).map(r => ({
+    ...r,
+    ctr: r.impressions > 0 ? (r.clicks / r.impressions) * 100 : 0,
+    cpc: r.clicks > 0 ? r.spend / r.clicks : 0,
+    cpa: r.conversions > 0 ? r.spend / r.conversions : null,
+    roas: r.spend > 0 ? r.conversion_value / r.spend : null,
+  }));
+}
+
+function totalsMeta(rows) {
+  return rows.reduce((a, r) => ({
+    spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
+    clicks: a.clicks + r.clicks, link_clicks: a.link_clicks + r.link_clicks,
+    add_to_cart: a.add_to_cart + r.add_to_cart,
+    initiate_checkout: a.initiate_checkout + r.initiate_checkout,
+    purchases: a.purchases + r.purchases, purchase_value: a.purchase_value + r.purchase_value,
+  }), { spend: 0, impressions: 0, clicks: 0, link_clicks: 0, add_to_cart: 0, initiate_checkout: 0, purchases: 0, purchase_value: 0 });
+}
+
+function totalsGoogle(rows) {
+  return rows.reduce((a, r) => ({
+    spend: a.spend + r.spend, impressions: a.impressions + r.impressions,
+    clicks: a.clicks + r.clicks,
+    conversions: a.conversions + r.conversions,
+    conversion_value: a.conversion_value + r.conversion_value,
+  }), { spend: 0, impressions: 0, clicks: 0, conversions: 0, conversion_value: 0 });
+}
+
+// Pull a snapshot of Meta + Google ads data for [start, end] and reduce
+// it to per-campaign + totals JSON that's safe to feed into a prompt.
+async function snapshot(clientId, start, end) {
+  const collected = await dataCollector.collectClientData(clientId, ymd(start), ymd(end));
+  const data = collected.data || {};
+  const meta = data.meta_ads ? summariseMeta(data.meta_ads) : [];
+  const google = data.google_ads ? summariseGoogle(data.google_ads) : [];
+  return {
+    period_start: ymd(start),
+    period_end: ymd(end),
+    meta: { campaigns: meta, totals: totalsMeta(meta) },
+    google: { campaigns: google, totals: totalsGoogle(google) },
+    errors: collected.errors || {},
+  };
+}
+
+function buildPrompt({ client, current, previous, previousReport }) {
+  const hasMeta = current.meta.campaigns.length > 0;
+  const hasGoogle = current.google.campaigns.length > 0;
+  const platforms = [hasMeta && 'Meta Ads', hasGoogle && 'Google Ads'].filter(Boolean).join(' and ') || 'Meta Ads + Google Ads';
+
+  return `You are writing an internal Strategist report for **${client.name}** covering ${current.period_start} to ${current.period_end} (${platforms}).
+
+# Audience
+- Reader: account manager at October Communications. Knows the client well, knows ads platforms.
+- Tone: senior strategist, peer-to-peer. No client-facing softening. British English. No emojis.
+- Goal: tell the AM exactly what to do Monday morning.
+
+# Output shape
+Write a markdown document with these sections, in this order. Skip a section only if there is genuinely no data for it.
+
+1. **Executive Summary** — 1 paragraph. Total spend, headline result (ROAS, purchases, conversions). One sentence on the single biggest issue and the single biggest opportunity.
+2. **Campaign Overview** — markdown table of headline metrics (Total spend, Impressions, Reach, Frequency, CPM, CTR, CPC, Add to cart, Initiate checkout, Purchases / Conversions, Cost per purchase / CPA, ROAS). Include benchmark column for retail/ecommerce where you have a defensible benchmark.
+3. **Platform breakdown** — one subsection per platform (Meta / Google) if both are running. Per-campaign table with the campaign name, spend, key actions, ROAS or CPA. Identify the converter(s) and the budget drains by name.
+4. **What changed since the last report** — only if a previous report is provided. Diff: spend delta, new converters, new drains, ad sets that have wound down. Reference the previous report's date.
+5. **Recommendations** — numbered list, **ordered by expected impact**. Each item names the specific campaign / ad set / creative, says what to do, and why (the data evidence). Be willing to recommend "pause this specific ad in this specific ad set" not just "review creatives".
+6. **Summary Scorecard** — markdown table with rows for each area (Top-of-funnel, each major creative, landing page, pixel/conversion tracking, budget) with a Status column (Healthy / Strong / Weak / Broken / Mixed) and a Priority Action column. One row per item.
+
+# Constraints
+- Cite specific numbers from the data (spend, CPC, ROAS). Do not invent.
+- If the data is too thin (< £100 spend, < 1 full week, no purchases at all) say so plainly and recommend "give it more time / more budget / more data" rather than over-interpreting.
+- Don't refuse to make recommendations because data is imperfect. Make the best recommendation you can given the data.
+- Do not include a header or sign-off line — the UI adds its own.
+
+# Current period snapshot
+\`\`\`json
+${JSON.stringify(current, null, 2)}
+\`\`\`
+
+# Previous period snapshot (same length, immediately preceding)
+\`\`\`json
+${JSON.stringify(previous, null, 2)}
+\`\`\`
+
+${previousReport ? `# Previous Strategist report (for "since last report" diff)
+Generated on ${new Date(previousReport.generated_at).toISOString().slice(0,10)} for ${previousReport.period_start} to ${previousReport.period_end}.
+
+\`\`\`markdown
+${previousReport.markdown}
+\`\`\`
+` : '# No previous Strategist report on file — this is the first.'}`;
+}
+
+async function callClaude({ system, user, max_tokens = 8000 }) {
+  const client = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const message = await client.messages.create({
+    model: MODEL,
+    max_tokens,
+    system,
+    messages: [{ role: 'user', content: user }],
+  });
+  const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
+  return blocks.map(b => b.text).join('\n').trim();
+}
+
+// Public — generate a Strategist report for the given client. Synchronous;
+// callers should expect ~30-60s while Claude writes the document.
+async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
+  const { rows } = await pool.query('SELECT * FROM clients WHERE id = $1', [clientId]);
+  if (!rows.length) throw new Error('Client not found');
+  const client = rows[0];
+
+  const end = new Date();
+  end.setUTCHours(23, 59, 59, 0);
+  const start = addDays(end, -(periodDays - 1));
+  start.setUTCHours(0, 0, 0, 0);
+  const prevEnd = addDays(start, -1);
+  const prevStart = addDays(prevEnd, -(periodDays - 1));
+
+  const placeholder = await pool.query(
+    `INSERT INTO strategist_reports (client_id, period_start, period_end, status, trigger)
+     VALUES ($1, $2, $3, 'generating', $4) RETURNING id`,
+    [clientId, ymd(start), ymd(end), trigger]
+  );
+  const reportId = placeholder.rows[0].id;
+
+  try {
+    const [current, previous] = await Promise.all([
+      snapshot(clientId, start, end),
+      snapshot(clientId, prevStart, prevEnd),
+    ]);
+
+    // No ads data at all — short-circuit with a useful note instead of
+    // calling Claude on an empty payload.
+    if (!current.meta.campaigns.length && !current.google.campaigns.length) {
+      const msg = `_No Meta Ads or Google Ads data for ${ymd(start)} – ${ymd(end)}._\n\nEither no campaigns ran in this window or the connectors aren't authorised for this client. Check the Connectors tab.`;
+      await pool.query(
+        `UPDATE strategist_reports
+            SET status = 'completed', markdown = $1, data_snapshot = $2
+          WHERE id = $3`,
+        [msg, { current, previous }, reportId]
+      );
+      return reportId;
+    }
+
+    const { rows: priorRows } = await pool.query(
+      `SELECT id, period_start, period_end, generated_at, markdown
+         FROM strategist_reports
+        WHERE client_id = $1 AND status = 'completed' AND id <> $2
+        ORDER BY generated_at DESC LIMIT 1`,
+      [clientId, reportId]
+    );
+    const previousReport = priorRows[0] || null;
+
+    const prompt = buildPrompt({ client, current, previous, previousReport });
+    const markdown = await callClaude({ system: SYSTEM_PROMPT, user: prompt });
+
+    await pool.query(
+      `UPDATE strategist_reports
+          SET status = 'completed', markdown = $1, data_snapshot = $2
+        WHERE id = $3`,
+      [markdown, { current, previous }, reportId]
+    );
+    return reportId;
+  } catch (err) {
+    await pool.query(
+      `UPDATE strategist_reports
+          SET status = 'failed', error_message = $1
+        WHERE id = $2`,
+      [err.message.slice(0, 2000), reportId]
+    ).catch(() => {});
+    throw err;
+  }
+}
+
+module.exports = { generate };
