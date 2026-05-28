@@ -6,6 +6,7 @@ import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
 import ReportPreviewModal from '../components/ReportPreviewModal';
+import ClientBrandPage from './ClientBrandPage';
 
 const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
@@ -279,6 +280,25 @@ export default function ClientDetailPage() {
           {client.active ? 'Active' : 'Inactive'}
         </span>
       </div>
+
+      {['details', 'brand', 'connectors'].includes(tab) && (
+        <div>
+          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>Setup</div>
+          <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
+            {[['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
+              <button key={key} onClick={() => setSearchParams({ tab: key })} style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
+                fontWeight: tab === key ? 700 : 400, color: tab === key ? '#1a1a1a' : '#888',
+                borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent', marginBottom: -2,
+              }}>{label}</button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'brand' && (
+        <ClientBrandPage />
+      )}
 
       {tab === 'details' && (
         <form onSubmit={handleSave} style={styles.card}>

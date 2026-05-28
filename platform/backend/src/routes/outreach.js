@@ -154,7 +154,7 @@ router.get('/system-status', async (_req, res) => {
 // ── Contacts ───────────────────────────────────────────────────────────────
 
 router.get('/contacts', async (req, res) => {
-  const { client_id, contact_type, location, search, exclude_campaign } = req.query;
+  const { client_id, contact_type, location, search, exclude_campaign, tag, tags_all, tags_any } = req.query;
   if (!client_id) return res.status(400).json({ error: 'client_id required' });
   try {
     const where = ['client_id = $1'];
@@ -165,6 +165,10 @@ router.get('/contacts', async (req, res) => {
       params.push(`%${search.toLowerCase()}%`);
       where.push(`(LOWER(COALESCE(name, '')) LIKE $${params.length} OR LOWER(COALESCE(email, '')) LIKE $${params.length} OR LOWER(COALESCE(company, '')) LIKE $${params.length})`);
     }
+    // Tag filters: ?tag=foo (single), ?tags_any=foo,bar (OR), ?tags_all=foo,bar (AND).
+    if (tag) { params.push([tag]); where.push(`tags && $${params.length}::text[]`); }
+    if (tags_any) { params.push(String(tags_any).split(',').map(t => t.trim()).filter(Boolean)); where.push(`tags && $${params.length}::text[]`); }
+    if (tags_all) { params.push(String(tags_all).split(',').map(t => t.trim()).filter(Boolean)); where.push(`tags @> $${params.length}::text[]`); }
     if (exclude_campaign) {
       params.push(exclude_campaign);
       where.push(`id NOT IN (SELECT contact_id FROM outreach_campaign_contacts WHERE campaign_id = $${params.length})`);
@@ -179,15 +183,33 @@ router.get('/contacts', async (req, res) => {
   }
 });
 
+// Distinct tag list with usage counts — drives the chip picker in the
+// contact and press flows so the AM sees what tags already exist.
+router.get('/tags', async (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  try {
+    const { rows } = await pool.query(
+      `SELECT t AS tag, COUNT(*)::int AS count
+         FROM outreach_contacts, UNNEST(tags) t
+        WHERE client_id = $1 AND status <> 'unsubscribed'
+        GROUP BY t ORDER BY count DESC, t ASC`,
+      [client_id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.post('/contacts', async (req, res) => {
   const b = req.body;
   if (!b.client_id) return res.status(400).json({ error: 'client_id required' });
   try {
+    const tags = normaliseTags(b.tags);
     const { rows } = await pool.query(
       `INSERT INTO outreach_contacts
          (client_id, name, first_name, last_name, email, company, role, title,
-          contact_type, location, linkedin_url, source, website, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+          contact_type, location, linkedin_url, source, website, status, notes, tags)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
         b.client_id,
@@ -198,6 +220,7 @@ router.post('/contacts', async (req, res) => {
         b.contact_type || null, b.location || null,
         b.linkedin_url || null, b.source || 'manual',
         b.website || null, b.status || 'new', b.notes || null,
+        tags,
       ]
     );
     res.status(201).json(rows[0]);
@@ -205,6 +228,20 @@ router.post('/contacts', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Normalise a list of free-typed tags: lowercase, slug-ish, dedupe.
+// Letters / digits / hyphens / spaces preserved; spaces flatten to
+// hyphens so "Topic Architecture" → "topic-architecture".
+function normaliseTags(input) {
+  if (!Array.isArray(input)) return [];
+  const out = new Set();
+  for (const raw of input) {
+    if (raw == null) continue;
+    const t = String(raw).trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-').slice(0, 50);
+    if (t) out.add(t);
+  }
+  return Array.from(out);
+}
 
 router.post('/contacts/bulk', async (req, res) => {
   const { client_id, contacts } = req.body;
@@ -246,13 +283,14 @@ router.put('/contacts/:id', async (req, res) => {
     if (!cur.length) return res.status(404).json({ error: 'Contact not found' });
     const c = cur[0];
     const b = req.body;
+    const newTags = b.tags === undefined ? c.tags : normaliseTags(b.tags);
     const { rows } = await pool.query(
       `UPDATE outreach_contacts SET
          name = $1, first_name = $2, last_name = $3, email = $4, company = $5,
          role = $6, title = $7, contact_type = $8, location = $9,
          linkedin_url = $10, source = $11, website = $12,
-         status = $13, notes = $14, updated_at = NOW()
-       WHERE id = $15 RETURNING *`,
+         status = $13, notes = $14, tags = $15, updated_at = NOW()
+       WHERE id = $16 RETURNING *`,
       [
         b.name ?? c.name,
         b.first_name ?? c.first_name,
@@ -268,6 +306,7 @@ router.put('/contacts/:id', async (req, res) => {
         b.website ?? c.website,
         b.status ?? c.status,
         b.notes ?? c.notes,
+        newTags,
         req.params.id,
       ]
     );

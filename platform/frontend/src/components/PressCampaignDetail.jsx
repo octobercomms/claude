@@ -16,6 +16,8 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [selected, setSelected] = useState(() => new Set());
   const [sending, setSending] = useState(false);
   const [filter, setFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState(new Set());
+  const [allTags, setAllTags] = useState([]);
 
   useEffect(() => {
     setLoadError(null);
@@ -23,6 +25,18 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
       .then(setRelease)
       .catch(e => setLoadError(e.message));
   }, [campaignId]);
+
+  useEffect(() => {
+    api.get(`/outreach/tags?client_id=${clientId}`).then(setAllTags).catch(() => setAllTags([]));
+  }, [clientId]);
+
+  function toggleTagFilter(tag) {
+    setTagFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(tag)) next.delete(tag); else next.add(tag);
+      return next;
+    });
+  }
 
   function toggle(id) {
     setSelected(prev => {
@@ -61,11 +75,18 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   }
 
   const filteredContacts = (contacts || []).filter(c => {
+    if (tagFilter.size) {
+      const cTags = new Set(c.tags || []);
+      let hit = false;
+      for (const t of tagFilter) if (cTags.has(t)) { hit = true; break; }
+      if (!hit) return false;
+    }
     if (!filter) return true;
     const f = filter.toLowerCase();
     return (c.name || '').toLowerCase().includes(f)
         || (c.company || '').toLowerCase().includes(f)
-        || (c.contact_type || '').toLowerCase().includes(f);
+        || (c.contact_type || '').toLowerCase().includes(f)
+        || (c.tags || []).some(t => t.toLowerCase().includes(f));
   });
   const grouped = {};
   for (const c of filteredContacts) {
