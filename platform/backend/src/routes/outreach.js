@@ -261,8 +261,9 @@ router.get('/contacts/library', async (req, res) => {
     const where = [];
     const params = [];
     // Scope to clients the user can see (or library-only contacts with no
-    // attachments). Admins with visibleClientIds === 'all' see everything.
-    if (req.visibleClientIds !== 'all') {
+    // attachments). Admins are signalled by visibleClientIds === null and
+    // see everything — match users.canAccessClient's sentinel exactly.
+    if (req.visibleClientIds !== null) {
       params.push(req.visibleClientIds);
       where.push(`(
         c.client_id = ANY($${params.length}::uuid[])
@@ -339,10 +340,11 @@ router.get('/tags', async (req, res) => {
         [client_id]
       ));
     } else {
-      // Workspace tags scoped to clients the caller can see.
+      // Workspace tags scoped to clients the caller can see. Admins have
+      // visibleClientIds === null and see every contact's tags.
       const params = [];
       let scope = '';
-      if (req.visibleClientIds !== 'all') {
+      if (req.visibleClientIds !== null) {
         params.push(req.visibleClientIds);
         scope = `WHERE c.client_id = ANY($1::uuid[])
                  OR EXISTS (SELECT 1 FROM outreach_contact_clients m
@@ -637,7 +639,9 @@ router.put('/contacts/:id', async (req, res) => {
 router.get('/contacts/:id/activity', async (req, res) => {
   const id = req.params.id;
   try {
-    const adminAll = req.visibleClientIds === 'all';
+    // Admins (visibleClientIds === null) see every campaign; viewers see
+    // only the campaigns of clients they're assigned to.
+    const adminAll = req.visibleClientIds === null;
     const params = [id];
     const clientScope = adminAll ? '' : (() => {
       params.push(req.visibleClientIds);
