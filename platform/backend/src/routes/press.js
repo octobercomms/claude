@@ -44,33 +44,79 @@ router.post('/parse', async (req, res) => {
   }
 });
 
-// Persist a release row. Body is the parsed shape returned from /parse,
-// optionally edited by the AM in the preview UI.
+// Create both a press_release row AND its backing campaign in one shot.
+// The campaign is what the AM sees in the Campaigns tab; the
+// press_release row holds the parsed content. Status defaults to
+// 'draft' so the release appears in the list but isn't sent yet.
 router.post('/clients/:clientId/releases', async (req, res) => {
   const { source_url, title, dateline, body_html, images, contact_block, boilerplate, embargo_at, fetched_at } = req.body || {};
   if (!title || !body_html) return res.status(400).json({ error: 'title and body_html required' });
+  const dbClient = await pool.connect();
   try {
-    const { rows } = await pool.query(
+    await dbClient.query('BEGIN');
+    const { rows: campaignRows } = await dbClient.query(
+      `INSERT INTO outreach_campaigns (client_id, name, kind, status, audience_description)
+       VALUES ($1, $2, 'press_release', 'draft', $3) RETURNING *`,
+      [req.params.clientId, `Press: ${title}`.slice(0, 250), 'Press release distribution']
+    );
+    const campaign = campaignRows[0];
+
+    const { rows } = await dbClient.query(
       `INSERT INTO outreach_press_releases
-         (client_id, title, body, summary, source_url, dateline, body_html, images, contact_block, boilerplate, embargo_at, fetched_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         (client_id, title, body, summary, source_url, dateline, body_html, images, contact_block, boilerplate, embargo_at, fetched_at, campaign_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        RETURNING *`,
       [
-        req.params.clientId,
-        title,
-        body_html.replace(/<[^>]+>/g, ' '),     // plain-text body for legacy column
+        req.params.clientId, title,
+        body_html.replace(/<[^>]+>/g, ' '),
         (body_html.replace(/<[^>]+>/g, ' ').slice(0, 280)),
-        source_url || null,
-        dateline || null,
-        body_html,
+        source_url || null, dateline || null, body_html,
         JSON.stringify(images || []),
-        contact_block || null,
-        boilerplate || null,
-        embargo_at || null,
-        fetched_at || new Date().toISOString(),
+        contact_block || null, boilerplate || null,
+        embargo_at || null, fetched_at || new Date().toISOString(),
+        campaign.id,
       ]
     );
-    res.status(201).json(rows[0]);
+
+    // Standard four-step sequence (release + 3 follow-ups). Sequence
+    // body uses sentinels — the sender substitutes Claude's cached
+    // pitch / follow-up at send time, keyed by recipient.
+    const offsets = [0, 5, 10, 16];
+    for (let i = 0; i < offsets.length; i++) {
+      await dbClient.query(
+        `INSERT INTO outreach_sequences (campaign_id, step_number, subject, body, delay_days)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [campaign.id, i + 1,
+         i === 0 ? title : `Follow-up ${i}: ${title}`.slice(0, 250),
+         i === 0 ? '__press_release__' : `__press_followup_${i}__`,
+         offsets[i]]
+      );
+    }
+    await dbClient.query('COMMIT');
+    res.status(201).json({ ...rows[0], campaign_id: campaign.id });
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    dbClient.release();
+  }
+});
+
+// Resolve a press release by its backing campaign id — used by the
+// Campaigns tab when the AM clicks a press_release campaign.
+router.get('/campaigns/:id/release', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT pr.* FROM outreach_press_releases pr
+       JOIN outreach_campaigns c ON c.id = pr.campaign_id
+       WHERE pr.campaign_id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found for this campaign' });
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this client' });
+    }
+    res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -143,33 +189,11 @@ router.post('/releases/:id/send', async (req, res) => {
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
     const release = relRows[0];
 
-    // Create or reuse a campaign for this release so follow-ups attach
-    // to one consistent thread the scheduler can chase.
-    let campaignId = release.campaign_id;
-    if (!campaignId) {
-      const { rows: cRows } = await pool.query(
-        `INSERT INTO outreach_campaigns (client_id, name, status, audience_description)
-         VALUES ($1, $2, 'active', $3) RETURNING *`,
-        [release.client_id, `Press: ${release.title}`.slice(0, 250), 'Press release sends']
-      );
-      campaignId = cRows[0].id;
-      await pool.query('UPDATE outreach_press_releases SET campaign_id = $1 WHERE id = $2', [campaignId, req.params.id]);
-
-      // Step 1 is the release itself; steps 2-4 are the chase emails.
-      // Step bodies are filled in per-contact at send time (Claude
-      // already wrote them and they sit in press_release_emails).
-      const offsets = [0, 5, 10, 16];
-      for (let i = 0; i < offsets.length; i++) {
-        await pool.query(
-          `INSERT INTO outreach_sequences (campaign_id, step_number, subject, body, delay_days)
-           VALUES ($1, $2, $3, $4, $5)`,
-          [campaignId, i + 1,
-           i === 0 ? release.title : `Follow-up ${i}: ${release.title}`.slice(0, 250),
-           i === 0 ? '__press_release__' : `__press_followup_${i}__`,
-           offsets[i]]
-        );
-      }
-    }
+    // The campaign and its sequences already exist — created at release
+    // save time. Just flip it to active on the first send.
+    const campaignId = release.campaign_id;
+    if (!campaignId) return res.status(400).json({ error: 'Release has no campaign — re-save the release.' });
+    await pool.query("UPDATE outreach_campaigns SET status = 'active', launched_at = COALESCE(launched_at, NOW()) WHERE id = $1", [campaignId]);
 
     const { rows: seqRows } = await pool.query(
       'SELECT * FROM outreach_sequences WHERE campaign_id = $1 ORDER BY step_number ASC',
