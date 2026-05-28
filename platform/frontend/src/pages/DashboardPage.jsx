@@ -99,7 +99,7 @@ function ClientCard({ client }) {
           </div>
         )}
       </div>
-      <Link to={`/clients/${client.id}`} style={styles.cardLink}>Manage client →</Link>
+      <Link to={`/clients/${client.id}/sales-traffic`} style={styles.cardLink}>Manage client →</Link>
     </div>
   );
 }

@@ -90,7 +90,7 @@ export default function ClientsPage() {
                   </span>
                 </td>
                 <td style={{ ...styles.td, textAlign: 'right' }}>
-                  <Link to={`/clients/${c.id}`} style={styles.linkBtn}>Manage →</Link>
+                  <Link to={`/clients/${c.id}/sales-traffic`} style={styles.linkBtn}>Manage →</Link>
                 </td>
               </tr>
             ))}
