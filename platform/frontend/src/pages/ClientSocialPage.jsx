@@ -74,6 +74,23 @@ export default function ClientSocialPage() {
     }
   }
 
+  // Render every A / C / G frame in the storyboard via Remotion. Each
+  // resolved frame writes a new social_post_media row of kind='motion';
+  // we merge them into the per-post media map so the inline players
+  // appear without a full refresh.
+  async function renderTemplates(postId) {
+    try {
+      const { rendered } = await api.post(`/social/posts/${postId}/render-templates`, {});
+      const success = rendered.filter(r => r.id);
+      const errors = rendered.filter(r => r.error);
+      setMediaByPost(prev => ({ ...prev, [postId]: [...(prev[postId] || []), ...success] }));
+      if (success.length) toast(`Rendered ${success.length} A/C/G clip${success.length === 1 ? '' : 's'} via Remotion.`, 'success');
+      if (errors.length) toast(`Some renders failed: ${errors.map(e => `${e.style}: ${e.error}`).join('; ')}`, 'error');
+    } catch (e) {
+      toast(`Template render failed: ${e.message}`, 'error');
+    }
+  }
+
   async function deleteMedia(mediaId, postId) {
     try {
       await api.delete(`/social/media/${mediaId}`);
@@ -247,6 +264,7 @@ export default function ClientSocialPage() {
                 onDelete={() => deletePost(p.id)}
                 onPublish={(url) => publishPost(p.id, url)}
                 onRefreshInsights={() => refreshInsights(p.id)}
+                onRenderTemplates={() => renderTemplates(p.id)}
                 onGenerateMedia={(kind) => generateMedia(p.id, kind)}
                 onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
             ))}
@@ -399,7 +417,7 @@ function ShareLinkBanner({ url, onDismiss }) {
   );
 }
 
-function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onDeleteMedia }) {
+function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onRenderTemplates, onDeleteMedia }) {
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -524,6 +542,14 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
           {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
         </button>
+        {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
+          <button onClick={async () => {
+            setRenderingMedia('templates');
+            try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
+          }} disabled={renderingMedia === 'templates'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+            {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
+          </button>
+        )}
         {post.status !== 'published' && (
           <button onClick={() => setShowPublish(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
             {showPublish ? 'Cancel' : 'Mark published'}
