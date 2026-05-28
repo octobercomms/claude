@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
-import { parseCsv } from '../utils/csv';
+import ImportWizard from '../components/ImportWizard';
+import EditContactModal from '../components/EditContactModal';
 
 const KEY_GROUPS = [
   {
@@ -745,13 +746,14 @@ function ContactsLibrary() {
   const [info, setInfo] = useState(null);
   const [attachOpen, setAttachOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
-  const [importAttach, setImportAttach] = useState(() => new Set());
-  const [importing, setImporting] = useState(false);
-  const fileRef = useRef(null);
+  const [openContact, setOpenContact] = useState(null);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
 
   useEffect(() => {
     Promise.all([
-      api.get('/outreach/contacts/library'),
+      api.get('/outreach/contacts/library?include_totals=1'),
       api.get('/clients'),
       api.get('/outreach/tags'),
     ]).then(([rs, cs, ts]) => {
@@ -762,9 +764,11 @@ function ContactsLibrary() {
   }, []);
 
   async function reload() {
-    const fresh = await api.get('/outreach/contacts/library');
+    const fresh = await api.get('/outreach/contacts/library?include_totals=1');
     setRows(fresh);
     setSelected(new Set());
+    // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
+    api.get('/outreach/tags').then(setTags).catch(() => {});
   }
 
   function toggleTag(t) {
@@ -811,6 +815,37 @@ function ContactsLibrary() {
     }
   }
 
+  async function destroyOne(contactId) {
+    if (!confirm('Delete this contact from the library entirely? This removes them from every client they were attached to.')) return;
+    try {
+      await api.delete(`/outreach/contacts/${contactId}`);
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  function addBulkTag(t) {
+    const norm = String(t || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!norm) return;
+    setBulkTagsToAdd(prev => new Set([...prev, norm]));
+    setBulkTagInput('');
+  }
+
+  async function applyBulkTags() {
+    if (!selected.size || !bulkTagsToAdd.size) return;
+    try {
+      await api.post('/outreach/contacts/bulk-tags', {
+        ids: Array.from(selected),
+        add: Array.from(bulkTagsToAdd),
+      });
+      setBulkTagsOpen(false);
+      setBulkTagsToAdd(new Set());
+      await reload();
+      setInfo(`Tagged ${selected.size} contact${selected.size === 1 ? '' : 's'}.`);
+    } catch (e) { setErr(e.message); }
+  }
+
   const clientNameById = Object.fromEntries(clients.map(c => [c.id, c.name]));
 
   const filtered = rows ? rows.filter(r => {
@@ -827,6 +862,21 @@ function ContactsLibrary() {
 
   return (
     <div>
+      <ImportWizard
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        allowClients
+        onImported={async () => {
+          await reload();
+        }}
+      />
+      {openContact && (
+        <EditContactModal
+          contact={openContact}
+          onClose={() => setOpenContact(null)}
+          onSaved={async () => { await reload(); }}
+        />
+      )}
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
@@ -837,83 +887,8 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <button onClick={() => setImportOpen(o => !o)} style={styles.btn}>
-            {importOpen ? 'Close importer' : '↑ Import CSV'}
-          </button>
+          <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
         </div>
-
-        {importOpen && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Import contacts from CSV</div>
-            <p style={{ ...styles.hint, marginBottom: 10 }}>
-              First row should be headers. <code>email</code> is required; <code>first_name</code>,
-              <code>last_name</code>, <code>name</code>, <code>company</code>/<code>outlet</code>,
-              <code>contact_type</code>/<code>beat</code>, <code>title</code>, <code>location</code>,
-              <code>linkedin_url</code>, <code>notes</code> and <code>tags</code> (comma/semicolon-
-              separated) are recognised. Existing emails are kept (tags merged) — re-importing
-              the same CSV is safe.
-            </p>
-
-            <div style={{ marginTop: 8 }}>
-              <div style={{ ...styles.label, marginBottom: 6 }}>Also attach imported contacts to (optional):</div>
-              {clients.length === 0 && <div style={{ fontSize: 12, color: '#888' }}>No clients to choose — contacts will land in the library only.</div>}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {clients.map(c => {
-                  const on = importAttach.has(c.id);
-                  return (
-                    <button key={c.id}
-                      onClick={() => setImportAttach(prev => {
-                        const next = new Set(prev);
-                        if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
-                        return next;
-                      })}
-                      style={on ? styles.tagChipOn : styles.tagChip}>
-                      {on ? '✓ ' : ''}{c.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
-              <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }}
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  e.target.value = '';
-                  if (!file) return;
-                  setImporting(true);
-                  setErr(null); setInfo(null);
-                  try {
-                    const text = await file.text();
-                    const parsed = parseCsv(text);
-                    if (!parsed.length) { setErr('No usable rows found in the CSV (every row needs an email).'); setImporting(false); return; }
-                    const res = await api.post('/outreach/contacts/bulk', {
-                      contacts: parsed,
-                      attach_clients: Array.from(importAttach),
-                    });
-                    const attachedBit = importAttach.size
-                      ? `, attached to ${importAttach.size} client${importAttach.size === 1 ? '' : 's'}`
-                      : '';
-                    setInfo(`Imported ${res.inserted} new contact${res.inserted === 1 ? '' : 's'}, merged tags into ${res.reused} existing${attachedBit}.`);
-                    setImportOpen(false);
-                    setImportAttach(new Set());
-                    await reload();
-                  } catch (ex) {
-                    setErr(ex.message);
-                  } finally {
-                    setImporting(false);
-                  }
-                }} />
-              <button onClick={() => fileRef.current?.click()} disabled={importing}
-                style={importing ? { ...styles.btn, opacity: 0.6 } : styles.btn}>
-                {importing ? 'Importing…' : 'Choose CSV file'}
-              </button>
-              {importAttach.size > 0 && (
-                <span style={{ fontSize: 12, color: '#666' }}>Will attach to {importAttach.size} client{importAttach.size === 1 ? '' : 's'}</span>
-              )}
-            </div>
-          </div>
-        )}
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
           <input
@@ -945,9 +920,12 @@ function ContactsLibrary() {
 
         {filtered && !!filtered.length && (
           <div style={{ marginTop: 14, overflowX: 'auto' }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12, color: '#666' }}>{selected.size} selected of {filtered.length}</span>
               <div style={{ flex: 1 }} />
+              <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} style={styles.ghostBtn}>
+                + Add tags
+              </button>
               <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} style={styles.btn}>
                 Add to client…
               </button>
@@ -955,6 +933,43 @@ function ContactsLibrary() {
                 Delete from library
               </button>
             </div>
+
+            {bulkTagsOpen && (
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                  Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                  {Array.from(bulkTagsToAdd).map(t => (
+                    <span key={t} style={styles.tagChipOn} onClick={() => setBulkTagsToAdd(prev => { const n = new Set(prev); n.delete(t); return n; })}>{t} ×</span>
+                  ))}
+                  <input
+                    value={bulkTagInput}
+                    onChange={e => setBulkTagInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addBulkTag(bulkTagInput); } }}
+                    placeholder="type a tag and press Enter"
+                    style={{ ...styles.input, flex: '1 1 200px', minWidth: 160 }}
+                  />
+                </div>
+                {!!tags.length && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                    {tags.slice(0, 16).filter(t => !bulkTagsToAdd.has(t.tag)).map(t => (
+                      <button key={t.tag} onClick={() => addBulkTag(t.tag)} style={styles.tagChip}>
+                        {t.tag} <span style={{ opacity: 0.5 }}>· {t.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} style={styles.btn}>
+                    Apply to {selected.size}
+                  </button>
+                  <button onClick={() => { setBulkTagsOpen(false); setBulkTagsToAdd(new Set()); }} style={styles.ghostBtn}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
 
             {attachOpen && (
               <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
@@ -981,34 +996,59 @@ function ContactsLibrary() {
                   <th style={styles.th}>Beat</th>
                   <th style={styles.th}>Tags</th>
                   <th style={styles.th}>Attached to</th>
+                  <th style={styles.th}>Engagement</th>
+                  <th style={{ ...styles.th, width: 28 }}></th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(r => (
-                  <tr key={r.id}>
-                    <td style={styles.td}>
-                      <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
-                    </td>
-                    <td style={styles.td}><strong>{r.name || '(unnamed)'}</strong></td>
-                    <td style={styles.td}><span style={{ color: '#666' }}>{r.email || '—'}</span></td>
-                    <td style={styles.td}>{r.company || '—'}</td>
-                    <td style={styles.td}><span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span></td>
-                    <td style={styles.td}>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
-                        {(r.tags || []).map(t => (
-                          <span key={t} style={{ ...styles.tagChip, cursor: 'default', padding: '1px 7px', fontSize: 10 }}>{t}</span>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={styles.td}>
-                      <div style={{ fontSize: 11, color: '#666' }}>
-                        {(r.client_ids || []).length
-                          ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
-                          : <span style={{ color: '#bbb' }}>library only</span>}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(r => {
+                  const totalsTip = r.total_sent != null
+                    ? `Sent ${r.total_sent} · Opened ${r.total_opened || 0} · Clicked ${r.total_clicked || 0} · Replied ${r.total_replied || 0}` +
+                      (r.last_sent_at ? ` · Last sent ${new Date(r.last_sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : '')
+                    : '';
+                  return (
+                    <tr key={r.id} style={{ cursor: 'pointer' }}>
+                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                        <strong style={{ color: '#1a1a1a' }}>{r.name || '(unnamed)'}</strong>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <span style={{ color: '#666' }}>{r.email || '—'}</span>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {(r.tags || []).map(t => (
+                            <span key={t} style={{ ...styles.tagChip, cursor: 'default', padding: '1px 7px', fontSize: 10 }}>{t}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <div style={{ fontSize: 11, color: '#666' }}>
+                          {(r.client_ids || []).length
+                            ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
+                            : <span style={{ color: '#bbb' }}>library only</span>}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                        <div style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
+                          {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: '#bbb' }}>—</span>}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => destroyOne(r.id)} title="Delete from library"
+                          style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

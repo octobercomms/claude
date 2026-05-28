@@ -6,7 +6,8 @@ import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
-import { parseCsv, csvEscape } from '../utils/csv';
+import ImportWizard from '../components/ImportWizard';
+import { csvEscape } from '../utils/csv';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -147,6 +148,7 @@ export default function ClientOutreachPage() {
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [findDomain, setFindDomain] = useState('');
   const [finding, setFinding] = useState(false);
   const [foundContacts, setFoundContacts] = useState([]);
@@ -343,25 +345,6 @@ export default function ClientOutreachPage() {
     document.body.removeChild(a); URL.revokeObjectURL(url);
   }
 
-  async function handleCsvImport(e) {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = parseCsv(text);
-      if (parsed.length === 0) { toast('No usable rows found in CSV (every row needs an email).', 'error'); return; }
-      const res = await api.post('/outreach/contacts/bulk', { client_id: id, contacts: parsed });
-      // Reload from server — bulk now dedupes against the library so the
-      // returned rows may already be in our local list.
-      const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
-      setContacts(fresh);
-      const msg = res.reused
-        ? `Imported ${res.inserted} new, attached ${res.reused} existing from library`
-        : `Imported ${res.inserted} of ${parsed.length} contact${parsed.length === 1 ? '' : 's'}`;
-      toast(msg, 'success');
-    } catch (err) { toast(err.message, 'error'); }
-  }
 
   function onContactUpdated(updated) {
     setContacts(p => p.map(c => c.id === updated.id ? updated : c));
@@ -568,10 +551,7 @@ export default function ClientOutreachPage() {
 
           {/* Secondary toolbar: CSV import/export + bulk actions */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-            <label style={{ ...s.btnGhost, display: 'inline-flex', alignItems: 'center', gap: 4, cursor: 'pointer', margin: 0 }}>
-              ↑ Import CSV
-              <input type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleCsvImport} />
-            </label>
+            <button onClick={() => setShowImport(true)} style={s.btnGhost}>↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} style={s.btnGhost}>↓ Export CSV</button>
             {selectedContacts.size > 0 && (
               <button onClick={handleBulkDelete} style={{ ...s.btnGhost, color: '#c62828', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
@@ -644,6 +624,19 @@ export default function ClientOutreachPage() {
           onSaved={onContactUpdated}
         />
       )}
+
+      <ImportWizard
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        clientIdForAttach={id}
+        onImported={async () => {
+          try {
+            const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
+            setContacts(fresh);
+          } catch (err) { toast(err.message, 'error'); }
+        }}
+      />
+
 
       {tab === 'campaigns' && wizardCampaignId && (() => {
         const c = campaigns.find(x => x.id === wizardCampaignId);

@@ -256,7 +256,7 @@ router.get('/contacts', async (req, res) => {
 // Used by the Settings → Contacts library tab and the per-client "Add from
 // library" picker.
 router.get('/contacts/library', async (req, res) => {
-  const { contact_type, search, tag, tags_all, tags_any, attached_to, not_attached_to } = req.query;
+  const { contact_type, search, tag, tags_all, tags_any, attached_to, not_attached_to, include_totals } = req.query;
   try {
     const where = [];
     const params = [];
@@ -289,13 +289,25 @@ router.get('/contacts/library', async (req, res) => {
       where.push(`NOT EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    // Engagement totals are computed via correlated counts so the hover
+    // tooltip + sortable columns work without a second roundtrip. Keep
+    // opt-in via ?include_totals=1 so the cheap multi-select picker
+    // ("Add from library") doesn't pay for them.
+    const totalsCols = include_totals === '1' || include_totals === 'true'
+      ? `,
+              (SELECT COUNT(*)::int FROM outreach_sends s WHERE s.contact_id = c.id AND s.sent_at IS NOT NULL) AS total_sent,
+              (SELECT COUNT(*)::int FROM outreach_sends s WHERE s.contact_id = c.id AND s.opened_at IS NOT NULL) AS total_opened,
+              (SELECT COUNT(*)::int FROM outreach_sends s WHERE s.contact_id = c.id AND s.replied_at IS NOT NULL) AS total_replied,
+              (SELECT COUNT(*)::int FROM outreach_clicks ck JOIN outreach_sends s ON s.id = ck.send_id WHERE s.contact_id = c.id) AS total_clicked,
+              (SELECT MAX(s.sent_at) FROM outreach_sends s WHERE s.contact_id = c.id) AS last_sent_at`
+      : '';
     const { rows } = await pool.query(
       `SELECT c.*,
               ARRAY(
                 SELECT m.client_id FROM outreach_contact_clients m
                  WHERE m.contact_id = c.id
                  ORDER BY m.added_at
-              ) AS client_ids
+              ) AS client_ids${totalsCols}
          FROM outreach_contacts c
          ${whereSql}
          ORDER BY c.created_at DESC
@@ -712,6 +724,55 @@ router.get('/contacts/:id/activity', async (req, res) => {
         replied: sends.filter(s => s.replied_at).length,
       },
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk-edit tags across many contacts. Used by the library's Bulk tag
+// editor — select a bunch of journalists, add "fashion-press" + "uk" to
+// all of them, or strip an outdated tag. Both add and remove are
+// optional and run independently so the AM can do one or both in a
+// single call.
+router.post('/contacts/bulk-tags', async (req, res) => {
+  const { ids, add = [], remove = [] } = req.body || {};
+  if (!Array.isArray(ids) || !ids.length) {
+    return res.status(400).json({ error: 'ids[] required' });
+  }
+  const addTags = normaliseTags(add);
+  const removeTags = normaliseTags(remove);
+  if (!addTags.length && !removeTags.length) {
+    return res.status(400).json({ error: 'At least one tag to add or remove is required' });
+  }
+  try {
+    // Postgres array_cat + array(SELECT DISTINCT) gives us a dedupe in
+    // one statement; subtract via a SELECT … WHERE NOT IN.
+    let updated = 0;
+    if (addTags.length) {
+      const r = await pool.query(
+        `UPDATE outreach_contacts
+            SET tags = (
+              SELECT ARRAY(SELECT DISTINCT unnest(COALESCE(tags, ARRAY[]::text[]) || $2::text[]))
+            ),
+            updated_at = NOW()
+          WHERE id = ANY($1::uuid[])`,
+        [ids, addTags]
+      );
+      updated = Math.max(updated, r.rowCount);
+    }
+    if (removeTags.length) {
+      const r = await pool.query(
+        `UPDATE outreach_contacts
+            SET tags = (
+              SELECT COALESCE(ARRAY(SELECT t FROM unnest(tags) t WHERE t <> ALL($2::text[])), ARRAY[]::text[])
+            ),
+            updated_at = NOW()
+          WHERE id = ANY($1::uuid[])`,
+        [ids, removeTags]
+      );
+      updated = Math.max(updated, r.rowCount);
+    }
+    res.json({ updated, added: addTags, removed: removeTags });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
