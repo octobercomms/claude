@@ -32,7 +32,20 @@ Your job is to translate the brand's brief and the current topical signals into 
  - Include a frame-by-frame storyboard if the post is a Reel or Story (3-9 frames; each frame gets a shot description, on-screen text if any, and a voiceover or caption line).
  - For static posts and carousels, the storyboard is just the slides/panels.
 
-British English. No emojis unless the brief explicitly says the brand uses them. No hashtag walls (max 8 hashtags, mix of broad + niche).`;
+# Reel storyboards — Video Style System
+When the post is a reel, the storyboard must follow October's seven-style grammar so the same template handles every video. Tag each frame with a style code A-G:
+
+ A · Text hook on black, 2-4s. ALWAYS the first frame of every reel. No filming — pure text overlay. Bold white or yellow on black. The provocative opener the viewer reads before they see a face.
+ B · Talking head anchor, 10-45s. The host (AM or client) at a fixed desk/studio setup, front camera, RØDE mic. This is the anchor — other styles cut away from B and back to B. Aim for 2-3 B frames per reel, each 10-15s. Voiceover IS the dialogue.
+ C · Word card, 1-2s. One word or a 3-word phrase on plain white or black. Hard cut. Punctuation between B sections — use 2-3 times per reel max. No filming.
+ D · Screen reveal, 4-8s. Once per reel max. Close-up of a laptop screen — analytics, a landing page, a dashboard. Voiceover continues from B.
+ E · B-roll voiceover, 5-12s. Used when content references the built environment, product, or client's project work. No talking to camera; voiceover runs over the footage. For agency posts that's London streets; for clients it's their projects/sites — far stronger and the main reason this style varies most by client.
+ F · Prop close-up, 3-6s. Hands holding a physical object — notebook, printed brief, drawing, sample. Warm desk light, voiceover continues. Avoids stock-photo feel.
+ G · Kinetic CTA on black, 3-5s. ALWAYS the last frame of every reel. URL or CTA in animated text. Brand-consistent — same font/motion across every video.
+
+Sequence rule: A opens every reel, G closes every reel. Between them, cycle B with cutaways (C/D/E/F) so the viewer never sees more than ~15s of the same shot. Typical 60s reel: A → B → C → B → E → B → F → G. Don't pad — if a point only needs 3 B sections, ship 3.
+
+For non-reel formats (carousels, static posts), omit style codes; the storyboard is just slides/panels.`;
 
 const POSTS_TOOL = {
   name: 'propose_posts',
@@ -61,9 +74,11 @@ const POSTS_TOOL = {
                 type: 'object',
                 properties: {
                   frame: { type: 'number' },
+                  style: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E', 'F', 'G'], description: 'For reels only — the Video Style System code. A=text hook, B=talking head, C=word card, D=screen reveal, E=b-roll voiceover, F=prop close-up, G=kinetic CTA. Omit for non-reel formats.' },
                   shot: { type: 'string', description: 'What the camera sees in this frame.' },
                   on_screen_text: { type: 'string' },
                   voiceover: { type: 'string' },
+                  duration_sec: { type: 'number', description: 'Target duration. A: 2-4, B: 10-15, C: 1-2, D: 4-8, E: 5-12, F: 3-6, G: 3-5.' },
                 },
                 required: ['frame', 'shot'],
               },
@@ -99,6 +114,17 @@ async function generateBatch({ clientId, brief, platforms }) {
   // client's own data, not a generic trend.
   const winners = await getRecentWinners(clientId, { days: 90, limit: 5 });
 
+  // Brand asset banks — Claude needs to know what b-roll clips and prop
+  // images already exist for this client so it can pick from them in
+  // E/F frames rather than inventing footage that doesn't exist.
+  const { rows: assets } = await pool.query(
+    `SELECT id, kind, name FROM brand_assets WHERE client_id = $1
+     AND kind IN ('b_roll_clip', 'prop_image') ORDER BY kind, created_at DESC LIMIT 100`,
+    [clientId]
+  );
+  const bRollBank = assets.filter(a => a.kind === 'b_roll_clip');
+  const propBank = assets.filter(a => a.kind === 'prop_image');
+
   const competitorList = (c.social_competitors || []).filter(Boolean);
   const platformList = Array.isArray(platforms) && platforms.length ? platforms : ['instagram', 'tiktok'];
 
@@ -113,6 +139,10 @@ Platforms in scope: ${platformList.join(', ')}
 Competitor handles (use as style/voice reference if helpful): ${competitorList.length ? competitorList.join(', ') : '(none configured)'}
 
 ${trends ? `Currently rising signals (Google Trends, last 30 days, UK): ${trends.rising.map(r => r.label).filter(Boolean).join(', ') || '(no rising queries)'}` : '(no trend signal available — proceed without)'}
+
+Brand asset banks available for E/F frames (refer to a clip or prop by name in your "shot" field so the AM knows which existing asset to use, rather than inventing new footage):
+ - B-roll bank (Style E): ${bRollBank.length ? bRollBank.map(a => a.name).join(', ') : '(no clips uploaded yet — describe what they should film)'}
+ - Prop library (Style F): ${propBank.length ? propBank.map(a => a.name).join(', ') : '(no props uploaded yet — describe what they should photograph)'}
 
 ${winners.length
   ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`

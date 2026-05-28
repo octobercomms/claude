@@ -7,9 +7,11 @@ import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 const KINDS = [
   { value: 'logo',          label: 'Logo',         description: 'PNG, SVG, JPEG. Used as overlay reference and watermark.' },
   { value: 'product_image', label: 'Product image', description: 'Hero shots, lifestyle photography — used as visual reference for generation.' },
-  { value: 'font',          label: 'Font',         description: 'WOFF, WOFF2, TTF. For Photoshop API overlays (Phase 2).' },
+  { value: 'font',          label: 'Font',         description: 'WOFF, WOFF2, TTF. For Photoshop API overlays.' },
   { value: 'guideline',     label: 'Guideline',    description: 'Free-form brand-voice / do/don\'t notes — passed to Claude.' },
   { value: 'palette',       label: 'Palette',      description: 'Hex codes — passed to image generators as the brand colour reference.' },
+  { value: 'b_roll_clip',   label: 'B-roll clip',  description: 'Short video clips (MP4/MOV) for Style E — buildings, project sites, walking shots. Bulk upload supported.' },
+  { value: 'prop_image',    label: 'Prop image',   description: 'Photos for Style F — drawings, notebooks, material samples, hands holding objects. Bulk upload supported.' },
 ];
 
 export default function ClientBrandPage() {
@@ -57,6 +59,32 @@ export default function ClientBrandPage() {
     }
   }
 
+  // Bulk upload — used for the B-roll and prop banks where the AM may
+  // be uploading 30+ files at once. Multipart with multiple files.
+  async function handleBulkUpload(files, kind) {
+    if (!files?.length) return;
+    setUploadingKind(kind);
+    try {
+      const fd = new FormData();
+      fd.append('kind', kind);
+      for (const f of files) fd.append('files', f);
+      const token = localStorage.getItem('token');
+      const res = await fetch(`/api/brand/clients/${id}/assets/bulk`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
+      const result = await res.json();
+      toast(`Uploaded ${result.inserted?.length || 0} files.`, 'success');
+      refresh();
+    } catch (e) {
+      toast(`Bulk upload failed: ${e.message}`, 'error');
+    } finally {
+      setUploadingKind(null);
+    }
+  }
+
   async function deleteAsset(asset) {
     if (!confirm(`Delete "${asset.name}"?`)) return;
     try {
@@ -96,6 +124,8 @@ export default function ClientBrandPage() {
         <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/*" />
         <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/*" />
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
+        <BulkUploadButton label="+ Bulk upload B-roll" disabled={uploadingKind === 'b_roll_clip'} onPick={files => handleBulkUpload(files, 'b_roll_clip')} accept="video/*" />
+        <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/*" />
         <button style={secondaryBtn} onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
         <button style={secondaryBtn} onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
       </div>
@@ -145,13 +175,35 @@ function UploadButton({ label, onPick, accept, disabled }) {
   );
 }
 
+function BulkUploadButton({ label, onPick, accept, disabled }) {
+  const ref = useRef();
+  return (
+    <>
+      <button style={secondaryBtn} onClick={() => ref.current?.click()} disabled={disabled}>
+        {disabled ? 'Uploading…' : label}
+      </button>
+      <input ref={ref} type="file" accept={accept} multiple style={{ display: 'none' }}
+        onChange={e => {
+          const files = Array.from(e.target.files || []);
+          if (files.length) onPick(files);
+          e.target.value = '';
+        }} />
+    </>
+  );
+}
+
 function AssetCard({ asset, onDelete }) {
-  const isImage = (asset.metadata?.mimetype || '').startsWith('image/') || asset.kind === 'logo' || asset.kind === 'product_image';
+  const mimetype = asset.metadata?.mimetype || '';
+  const isVideo = mimetype.startsWith('video/') || asset.kind === 'b_roll_clip';
+  const isImage = !isVideo && (mimetype.startsWith('image/') || asset.kind === 'logo' || asset.kind === 'product_image' || asset.kind === 'prop_image');
   const isPalette = asset.kind === 'palette';
   const isGuideline = asset.kind === 'guideline';
   return (
     <div style={styles.assetCard}>
       <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
+        {isVideo && asset.url && (
+          <video src={asset.url} muted preload="metadata" style={{ maxHeight: '100%', maxWidth: '100%' }} onMouseEnter={e => e.target.play()} onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }} />
+        )}
         {isImage && asset.url && (
           <img src={asset.url} alt={asset.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
         )}
@@ -167,7 +219,7 @@ function AssetCard({ asset, onDelete }) {
             {(asset.metadata?.body || '').slice(0, 180)}…
           </div>
         )}
-        {!isImage && !isPalette && !isGuideline && (
+        {!isImage && !isVideo && !isPalette && !isGuideline && (
           <span style={{ fontSize: 11, color: '#888', fontFamily: 'monospace' }}>{asset.kind}</span>
         )}
       </div>

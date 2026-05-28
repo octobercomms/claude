@@ -355,6 +355,35 @@ function WinnersPanel({ winners }) {
   );
 }
 
+// Inline badge for each storyboard frame's style code (A-G).
+// Colour-coded so the AM can scan a 9-frame storyboard at a glance and
+// confirm it follows the A → B → C → B → … → G grammar.
+const STYLE_COLOURS = {
+  A: { bg: '#1a1a1a', fg: '#fff',    label: 'Hook' },
+  B: { bg: '#fff4d6', fg: '#8a6500', label: 'Talk' },
+  C: { bg: '#eee',    fg: '#444',    label: 'Word' },
+  D: { bg: '#eef2ff', fg: '#3949ab', label: 'Screen' },
+  E: { bg: '#e4f4e8', fg: '#1d7a3a', label: 'B-roll' },
+  F: { bg: '#f4eafd', fg: '#5e2d8c', label: 'Prop' },
+  G: { bg: '#E7CD41', fg: '#1a1a1a', label: 'CTA' },
+};
+
+function StyleBadge({ code, duration }) {
+  const c = STYLE_COLOURS[code] || { bg: '#eee', fg: '#666', label: code };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        width: 22, height: 22, borderRadius: 11, background: c.bg, color: c.fg,
+        fontSize: 11, fontWeight: 700,
+      }}>{code}</span>
+      <span style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+        {c.label}{duration ? ` · ${duration}s` : ''}
+      </span>
+    </span>
+  );
+}
+
 function ShareLinkBanner({ url, onDismiss }) {
   const [copied, setCopied] = useState(false);
   return (
@@ -478,6 +507,14 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <button onClick={() => setOpen(o => !o)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
           {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
         </button>
+        <button onClick={async () => {
+          try {
+            const { url } = await api.get(`/social/posts/${post.id}/brief-url`);
+            window.open(url, '_blank');
+          } catch (e) { alert(`Could not open brief: ${e.message}`); }
+        }} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+          Production brief
+        </button>
         <button onClick={() => setShowImg(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
           {showImg ? 'Cancel image' : 'Generate image'}
         </button>
@@ -518,6 +555,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
+                <th style={styles.thSm}>Style</th>
                 <th style={styles.thSm}>#</th>
                 <th style={styles.thSm}>Shot</th>
                 <th style={styles.thSm}>On-screen</th>
@@ -527,6 +565,9 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             <tbody>
               {(post.storyboard || []).map((f, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
+                  <td style={styles.tdSm}>
+                    {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: '#bbb' }}>—</span>}
+                  </td>
                   <td style={styles.tdSm}>{f.frame ?? i + 1}</td>
                   <td style={styles.tdSm}>{f.shot}</td>
                   <td style={styles.tdSm}>{f.on_screen_text || ''}</td>

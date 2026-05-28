@@ -10,10 +10,48 @@ const ideogram = require('../connectors/ideogram');
 const adobe = require('../connectors/adobe');
 const arcads = require('../connectors/arcads');
 const elevenlabs = require('../connectors/elevenlabs');
+const crypto = require('crypto');
 const meta = require('../connectors/meta');
+const productionBrief = require('../services/productionBrief');
+
+function signBriefToken(postId, expiresAtSec) {
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${postId}.${expiresAtSec}`).digest('hex');
+  return `${expiresAtSec}.${sig}`;
+}
+function verifyBriefToken(postId, token) {
+  if (!token || typeof token !== 'string') return false;
+  const [expStr, sig] = token.split('.');
+  if (!expStr || !sig) return false;
+  const exp = parseInt(expStr, 10);
+  if (!exp || exp < Math.floor(Date.now() / 1000)) return false;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${postId}.${exp}`).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'));
+  } catch { return false; }
+}
 const users = require('../services/users');
 
 const router = express.Router();
+
+// Public-style printable brief — accepts a short-lived signed token via
+// query string so window.open works from the AM's browser. Lives above
+// router.use(authenticate) so the route handler runs without a Bearer
+// header.
+router.get('/brief/:id.html', async (req, res) => {
+  try {
+    if (!verifyBriefToken(req.params.id, req.query.token)) {
+      return res.status(403).send('Invalid or expired token');
+    }
+    const { rows } = await pool.query(
+      `SELECT p.*, c.name AS client_name FROM social_posts p JOIN clients c ON c.id = p.client_id WHERE p.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).send('Post not found');
+    const html = productionBrief.buildBriefHtml(rows[0], { name: rows[0].client_name });
+    res.type('html').send(html);
+  } catch (err) { res.status(500).send(err.message); }
+});
+
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
@@ -243,6 +281,28 @@ function defaultScriptFromStoryboard(post) {
   const frames = post.storyboard || [];
   return frames.map(f => f.voiceover).filter(Boolean).join(' ');
 }
+
+// ─── PRODUCTION BRIEF ─────────────────────────────────────────────────────
+// Per-post shot list for filming, following October's Video Style System.
+// Two formats from the same source: markdown for the API + HTML for a
+// printable page the AM opens in a new tab.
+router.get('/posts/:id/brief', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    res.json({ markdown: productionBrief.buildBriefMarkdown(rows[0]) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/posts/:id/brief-url', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const expiresAt = Math.floor(Date.now() / 1000) + 300;     // 5 minutes
+    const token = signBriefToken(req.params.id, expiresAt);
+    res.json({ url: `/api/social/brief/${req.params.id}.html?token=${encodeURIComponent(token)}`, expires_at: expiresAt });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 // ─── PUBLISH + PERFORMANCE LOOP ───────────────────────────────────────────
 //
