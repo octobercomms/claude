@@ -13,6 +13,7 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const dataForSEO = require('../connectors/dataforseo');
+const apify = require('../connectors/apify');
 const meta = require('../connectors/meta');
 const { decrypt } = require('../utils/encryption');
 
@@ -68,6 +69,7 @@ const POSTS_TOOL = {
             caption: { type: 'string' },
             hashtags: { type: 'array', items: { type: 'string' }, maxItems: 8 },
             visual_concept: { type: 'string', description: 'One-paragraph visual direction — composition, palette, mood, key references.' },
+            suggested_sound: { type: 'string', description: 'For reels only — the title of a TikTok sound from the trending list provided, if one fits. Leave empty otherwise.' },
             storyboard: {
               type: 'array',
               items: {
@@ -125,6 +127,12 @@ async function generateBatch({ clientId, brief, platforms }) {
   const bRollBank = assets.filter(a => a.kind === 'b_roll_clip');
   const propBank = assets.filter(a => a.kind === 'prop_image');
 
+  // Trending TikTok sounds — pulled from the most recent cached snapshot
+  // (refreshed via /refresh-trending-sounds). Surfacing the top ~10 in
+  // the prompt lets Claude suggest sounds that pair with the storyboard
+  // rather than the AM hunting for music after the fact.
+  const trendingSounds = await getRecentTrendingSounds(clientId, { limit: 10 });
+
   const competitorList = (c.social_competitors || []).filter(Boolean);
   const platformList = Array.isArray(platforms) && platforms.length ? platforms : ['instagram', 'tiktok'];
 
@@ -143,6 +151,10 @@ ${trends ? `Currently rising signals (Google Trends, last 30 days, UK): ${trends
 Brand asset banks available for E/F frames (refer to a clip or prop by name in your "shot" field so the AM knows which existing asset to use, rather than inventing new footage):
  - B-roll bank (Style E): ${bRollBank.length ? bRollBank.map(a => a.name).join(', ') : '(no clips uploaded yet — describe what they should film)'}
  - Prop library (Style F): ${propBank.length ? propBank.map(a => a.name).join(', ') : '(no props uploaded yet — describe what they should photograph)'}
+
+${trendingSounds.length
+  ? `Trending TikTok sounds right now (suggest a suggested_sound on reel posts where it fits — pick one by name from this list, don't invent):\n${trendingSounds.map((s, i) => `${i + 1}. "${s.title}" by ${s.author || 'unknown'}${s.use_count ? ` (used in ${s.use_count.toLocaleString()} videos)` : ''}`).join('\n')}`
+  : '(no trending sounds cached — the AM can click Refresh Trending Sounds on the Social tab to pull a fresh set)'}
 
 ${winners.length
   ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
@@ -181,10 +193,17 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
     const inserted = [];
     for (let i = 0; i < posts.length; i++) {
       const p = posts[i];
+      // suggested_sound piggy-backs on the visual_concept blob because
+      // the platform doesn't have a dedicated column for it — keeps the
+      // schema small and lets the storyboard renderer pick it up from
+      // one field whether it's a recommendation or a manual override.
+      const visualWithSound = p.suggested_sound
+        ? `${p.visual_concept || ''}\n\nSuggested sound: ${p.suggested_sound}`.trim()
+        : p.visual_concept;
       const { rows: postRows } = await dbClient.query(
         `INSERT INTO social_posts
-          (batch_id, client_id, position, kind, platform, hook, caption, hashtags, visual_concept, storyboard, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+          (batch_id, client_id, position, kind, platform, hook, caption, hashtags, visual_concept, storyboard, notes, framework)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
          RETURNING *`,
         [
           batch.id, clientId, i,
@@ -193,9 +212,10 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
           p.hook || null,
           p.caption || null,
           p.hashtags || [],
-          p.visual_concept || null,
+          visualWithSound || null,
           JSON.stringify(p.storyboard || []),
           [p.framework, p.framework_rationale].filter(Boolean).join(' — ') || null,
+          p.framework || null,
         ]
       );
       inserted.push(postRows[0]);
@@ -309,4 +329,77 @@ async function refreshEngagement(post) {
   return { ok: true, insights };
 }
 
-module.exports = { generateBatch, getRecentWinners, refreshEngagement, loadMetaCredentials };
+// Return the latest cached set of trending sounds for a client. Falls
+// back to global cache (client_id IS NULL) when no client-specific
+// snapshot exists, then to an empty list. Cached for 7 days — older
+// snapshots are ignored.
+async function getRecentTrendingSounds(clientId, { limit = 25 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT sounds FROM trending_sounds_snapshots
+     WHERE (client_id = $1 OR client_id IS NULL)
+       AND fetched_at >= NOW() - INTERVAL '7 days'
+     ORDER BY client_id NULLS LAST, fetched_at DESC
+     LIMIT 1`,
+    [clientId]
+  );
+  const all = rows[0]?.sounds || [];
+  return Array.isArray(all) ? all.slice(0, limit) : [];
+}
+
+// Pull a fresh trending-sounds snapshot from Apify and persist it.
+// Apify charges per actor run, so callers should debounce: this is
+// intentionally on-demand rather than a per-request fetch.
+async function refreshTrendingSounds({ clientId, region = 'GB', limit = 25 } = {}) {
+  const sounds = await apify.fetchTrendingSounds({ region, limit });
+  await pool.query(
+    `INSERT INTO trending_sounds_snapshots (client_id, region, sounds, source)
+     VALUES ($1, $2, $3, 'apify')`,
+    [clientId || null, region, JSON.stringify(sounds)]
+  );
+  return sounds;
+}
+
+// Engagement breakdown by framework. Joins the latest engagement
+// snapshot per published post against social_posts.framework and
+// computes an average engagement rate. Drives the Winners panel
+// chips so the AM can see "PAS is averaging 8.2% — keep using it"
+// without doing the maths.
+async function getFrameworkBreakdown(clientId, { days = 90 } = {}) {
+  const { rows } = await pool.query(
+    `WITH latest AS (
+       SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves, e.views
+       FROM social_post_engagement e
+       JOIN social_posts p ON p.id = e.post_id
+       WHERE p.client_id = $1
+         AND p.published_at IS NOT NULL
+         AND p.published_at >= NOW() - ($2::int || ' days')::interval
+       ORDER BY e.post_id, e.fetched_at DESC
+     )
+     SELECT p.framework, p.id,
+            COALESCE(l.reach, l.impressions, l.views, 0) AS reach,
+            COALESCE(l.likes, 0) + COALESCE(l.comments, 0)
+              + COALESCE(l.shares, 0) + COALESCE(l.saves, 0) AS interactions
+     FROM latest l JOIN social_posts p ON p.id = l.post_id`,
+    [clientId, days]
+  );
+  const byFramework = {};
+  for (const r of rows) {
+    const fw = r.framework || '(unspecified)';
+    const bucket = byFramework[fw] = byFramework[fw] || { framework: fw, posts: 0, rate_sum: 0 };
+    bucket.posts++;
+    if (r.reach > 0) bucket.rate_sum += (r.interactions / r.reach);
+  }
+  return Object.values(byFramework)
+    .map(b => ({
+      framework: b.framework,
+      posts: b.posts,
+      avg_engagement_rate: b.posts ? Math.round((b.rate_sum / b.posts) * 1000) / 10 : 0,
+    }))
+    .sort((a, b) => b.avg_engagement_rate - a.avg_engagement_rate);
+}
+
+module.exports = {
+  generateBatch, getRecentWinners, refreshEngagement, loadMetaCredentials,
+  getRecentTrendingSounds, refreshTrendingSounds, getFrameworkBreakdown,
+};
