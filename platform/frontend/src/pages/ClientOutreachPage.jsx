@@ -629,7 +629,12 @@ export default function ClientOutreachPage() {
 
       {tab === 'campaigns' && wizardCampaignId && (() => {
         const c = campaigns.find(x => x.id === wizardCampaignId);
-        if (c?.kind === 'press_release' || c?.campaign_type === 'press_release') {
+        // Only the new `kind` column triggers the press view. The legacy
+        // `campaign_type` field was used in older flows and many of those
+        // campaigns never had an actual press_release row created — so
+        // honouring it here used to send the AM into a permanent
+        // "Loading release..." state.
+        if (c?.kind === 'press_release') {
           return (
             <PressCampaignDetail
               clientId={id} campaignId={wizardCampaignId} contacts={contacts}
