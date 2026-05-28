@@ -1,7 +1,19 @@
-// Composes and sends October Outreach emails. Prefers Amazon SES v2 over the
-// SES SMTP transport when API credentials are set — the SES API is lower
-// latency, gives richer error responses, and matches the product brief.
+// Composes and sends October Email (cold outreach + press release)
+// emails. Prefers Amazon SES v2 over the SES SMTP transport when API
+// credentials are set — the SES API is lower latency, gives richer
+// error responses, and supports the custom headers we need for the
+// one-click unsubscribe Gmail and Yahoo now require for senders.
+const crypto = require('crypto');
 const { getSetting } = require('../utils/settings');
+
+// HMAC-signed unsubscribe URL. Stateless — no token to store per
+// contact, the signature verifies on-the-fly in the public route.
+function unsubscribeUrl(contactId) {
+  const base = (process.env.PLATFORM_URL || '').replace(/\/$/, '');
+  if (!base || !process.env.JWT_SECRET) return null;
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`unsub:${contactId}`).digest('hex').slice(0, 32);
+  return `${base}/api/unsubscribe?c=${encodeURIComponent(contactId)}&s=${sig}`;
+}
 
 function fillTemplate(text, contact) {
   const first = (contact.first_name || contact.name || '').trim().split(/\s+/)[0] || 'there';
@@ -28,12 +40,33 @@ async function senderFields(sending) {
   };
 }
 
-function htmlBody(textBody, trackingSendId) {
+function htmlBody(textBody, trackingSendId, contactId) {
   let html = String(textBody || '').replace(/\n/g, '<br>');
+  const unsub = contactId ? unsubscribeUrl(contactId) : null;
+  if (unsub) {
+    html += `<div style="margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;line-height:1.5;">` +
+      `If this isn't relevant to your beat, no hard feelings — ` +
+      `<a href="${unsub}" style="color:#888;">unsubscribe</a> and I won't email you about future releases.` +
+      `</div>`;
+  }
   if (trackingSendId && process.env.PLATFORM_URL) {
     html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${trackingSendId}" width="1" height="1" alt="" style="display:none">`;
   }
   return html;
+}
+
+// List-Unsubscribe headers — required by Gmail / Yahoo for bulk senders.
+// `mailto:` + `https` lets clients pick the safer one; List-Unsubscribe-Post
+// signals we honour the RFC 8058 one-click flow.
+function listUnsubscribeHeaders(contactId, fromEmail) {
+  const unsub = unsubscribeUrl(contactId);
+  if (!unsub) return {};
+  const mailto = fromEmail ? `mailto:${fromEmail}?subject=unsubscribe` : null;
+  const list = mailto ? `<${mailto}>, <${unsub}>` : `<${unsub}>`;
+  return {
+    'List-Unsubscribe': list,
+    'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+  };
 }
 
 // SESv2 API path. Used when both AWS access keys are configured.
@@ -51,7 +84,7 @@ async function getSesClient() {
   return client;
 }
 
-async function sendViaSESv2({ from, to, replyTo, subject, text, html }) {
+async function sendViaSESv2({ from, to, replyTo, subject, text, html, headers }) {
   const client = await getSesClient();
   if (!client) return null;
   const { SendEmailCommand } = require('@aws-sdk/client-sesv2');
@@ -66,6 +99,9 @@ async function sendViaSESv2({ from, to, replyTo, subject, text, html }) {
           Text: { Data: text, Charset: 'UTF-8' },
           Html: { Data: html, Charset: 'UTF-8' },
         },
+        Headers: headers && Object.keys(headers).length
+          ? Object.entries(headers).map(([Name, Value]) => ({ Name, Value }))
+          : undefined,
       },
     },
   });
@@ -77,10 +113,10 @@ function buildSmtpTransport() {
   return require('../routes/settings').buildTransporter();
 }
 
-async function deliver({ from, to, replyTo, subject, text, html }) {
-  const sesId = await sendViaSESv2({ from, to, replyTo, subject, text, html });
+async function deliver({ from, to, replyTo, subject, text, html, headers }) {
+  const sesId = await sendViaSESv2({ from, to, replyTo, subject, text, html, headers });
   if (sesId) return { providerMessageId: sesId, provider: 'ses-api' };
-  const info = await buildSmtpTransport().sendMail({ from, to, replyTo, subject, text, html });
+  const info = await buildSmtpTransport().sendMail({ from, to, replyTo, subject, text, html, headers });
   return { providerMessageId: info.messageId, provider: 'smtp' };
 }
 
@@ -106,8 +142,9 @@ async function sendOutreachEmail({ send, contact, step, sending }) {
 
   const subject = fillTemplate(step.subject, contact);
   const text = fillTemplate(step.body, contact);
-  const html = htmlBody(text, send.id);
-  return deliver({ from, to: contact.email, replyTo, subject, text, html });
+  const html = htmlBody(text, send.id, contact.id);
+  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from);
+  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
 }
 
 async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex }) {
@@ -137,7 +174,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     subject = release.title;
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
-    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name });
+    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name, contactId: contact.id });
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
   } else {
     const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
@@ -145,9 +182,10 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
     subject = fu.subject || `Re: ${release.title}`;
     text = fu.body || '';
-    html = htmlBody(text, sendId);
+    html = htmlBody(text, sendId, contact.id);
   }
-  return deliver({ from, to: contact.email, replyTo, subject, text, html });
+  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from);
+  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
 }
 
 async function sendTest(campaign, step, sending, toAddress) {
@@ -158,4 +196,4 @@ async function sendTest(campaign, step, sending, toAddress) {
   return deliver({ from, to: toAddress, replyTo, subject, text, html: htmlBody(text) });
 }
 
-module.exports = { sendOutreachEmail, sendTest, fillTemplate };
+module.exports = { sendOutreachEmail, sendTest, fillTemplate, unsubscribeUrl };

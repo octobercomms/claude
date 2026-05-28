@@ -82,6 +82,10 @@ app.use('/auth', globalLimiter);
 const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 
 // Routes
+// Public unsubscribe — no auth, signature-validated. Mounted before
+// the rate-limited auth route so it never blocks unsubscribes.
+app.use('/api/unsubscribe', require('./routes/unsubscribe'));
+
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
