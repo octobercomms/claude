@@ -7,6 +7,7 @@ const outreachSender = require('./outreachSender');
 const outreachReplies = require('./outreachReplies');
 const social = require('./social');
 const usageTracking = require('./usageTracking');
+const strategistReport = require('./strategistReport');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -279,6 +280,33 @@ cron.schedule('*/3 * * * *', async () => {
 cron.schedule('*/15 * * * *', async () => {
   try { await outreachReplies.pollReplies(); }
   catch (err) { console.error('Outreach reply poll failed:', err.message); }
+});
+
+// Strategist — auto-generate a 7-day ads briefing for every active
+// client every Monday at 07:00 so the AM walks into a punchlist.
+// Each client runs serially to avoid bursting the Claude API rate limit.
+cron.schedule('0 7 * * 1', async () => {
+  try {
+    const { rows: clients } = await pool.query(
+      `SELECT id, name FROM clients
+        WHERE active = true
+          AND EXISTS (
+            SELECT 1 FROM connectors c
+             WHERE c.client_id = clients.id
+               AND c.status = 'active'
+               AND c.connector_type IN ('meta_ads', 'google_ads')
+          )`
+    );
+    for (const cl of clients) {
+      try {
+        await strategistReport.generate({ clientId: cl.id, periodDays: 7, trigger: 'weekly' });
+      } catch (err) {
+        console.error(`[strategist] weekly generation failed for ${cl.name}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error('[strategist] weekly job failed:', err.message);
+  }
 });
 
 async function runOutreachSends() {
