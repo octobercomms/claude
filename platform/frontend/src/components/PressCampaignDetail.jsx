@@ -10,6 +10,7 @@ import { primaryBtn, secondaryBtn, dangerBtn } from '../styles/theme';
 export default function PressCampaignDetail({ clientId, campaignId, contacts, onExit }) {
   const toast = useToast();
   const [release, setRelease] = useState(null);
+  const [loadError, setLoadError] = useState(null);
   const [previewing, setPreviewing] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
@@ -17,10 +18,11 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
+    setLoadError(null);
     api.get(`/press/campaigns/${campaignId}/release`)
       .then(setRelease)
-      .catch(e => toast(`Could not load release: ${e.message}`, 'error'));
-  }, [campaignId, toast]);
+      .catch(e => setLoadError(e.message));
+  }, [campaignId]);
 
   function toggle(id) {
     setSelected(prev => {
@@ -72,6 +74,23 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   }
   const groupKeys = Object.keys(grouped).sort();
 
+  if (loadError) {
+    return (
+      <div>
+        <button onClick={onExit} style={{ ...secondaryBtn, padding: '5px 14px', fontSize: 12, marginBottom: 14 }}>← Back to campaigns</button>
+        <div style={{ padding: 20, background: '#fff8e1', border: '1px solid #f0d260', borderRadius: 4, color: '#5d4000' }}>
+          <div style={{ fontWeight: 700, marginBottom: 6 }}>This campaign isn't linked to a press release</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5 }}>
+            It's tagged as a press campaign but has no parsed release attached — usually because it was created
+            before the press flow existed, or the release was deleted. You can either delete this campaign and start
+            a new one via <strong>+ New press release</strong>, or open it via the standard outreach wizard if it's
+            still useful as a cold campaign.
+          </div>
+          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>Server said: {loadError}</div>
+        </div>
+      </div>
+    );
+  }
   if (!release) return <div style={{ color: '#888', padding: 20 }}>Loading release…</div>;
 
   return (
