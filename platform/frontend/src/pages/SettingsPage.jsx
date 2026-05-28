@@ -751,24 +751,85 @@ function ContactsLibrary() {
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
 
+  // Filter state lives in the URL params we send to the server — with
+  // 21k+ contacts in the library the old client-side filter was lying
+  // (it only filtered the first 1000 returned). Now the server applies
+  // search + tags and returns both the page (capped at 1000) and the
+  // unbounded match count so the "delete all matching" button is
+  // honest about how much it's about to wipe.
+  const [total, setTotal] = useState(0);
+
+  function buildFilterParams() {
+    const p = new URLSearchParams();
+    p.set('include_totals', '1');
+    p.set('include_count', '1');
+    if (search.trim()) p.set('search', search.trim());
+    if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
+    return p;
+  }
+
+  // Filter parts sent to the server for the by-filter delete — same
+  // shape as the list endpoint expects.
+  function filterBody() {
+    const o = {};
+    if (search.trim()) o.search = search.trim();
+    if (activeTags.size) o.tags_all = Array.from(activeTags);
+    return o;
+  }
+
   useEffect(() => {
     Promise.all([
-      api.get('/outreach/contacts/library?include_totals=1'),
       api.get('/clients'),
       api.get('/outreach/tags'),
-    ]).then(([rs, cs, ts]) => {
-      setRows(rs);
+    ]).then(([cs, ts]) => {
       setClients(cs);
       setTags(ts);
     }).catch(e => setErr(e.message));
   }, []);
 
+  // Refetch the list when filter changes, debounced.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.get(`/outreach/contacts/library?${buildFilterParams().toString()}`);
+        setRows(res.rows || []);
+        setTotal(res.total ?? (res.rows?.length || 0));
+        setSelected(new Set());
+      } catch (e) { setErr(e.message); }
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, activeTags]);
+
   async function reload() {
-    const fresh = await api.get('/outreach/contacts/library?include_totals=1');
-    setRows(fresh);
-    setSelected(new Set());
-    // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
-    api.get('/outreach/tags').then(setTags).catch(() => {});
+    try {
+      const res = await api.get(`/outreach/contacts/library?${buildFilterParams().toString()}`);
+      setRows(res.rows || []);
+      setTotal(res.total ?? (res.rows?.length || 0));
+      setSelected(new Set());
+      // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
+      api.get('/outreach/tags').then(setTags).catch(() => {});
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function destroyAllMatching() {
+    if (!total) return;
+    const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
+      (activeTags.size ? ` tagged ${Array.from(activeTags).join(' + ')}` : '') ||
+      'in the entire library';
+    if (!confirm(`Delete all ${total.toLocaleString()} contacts ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
+    if (total > 100) {
+      const typed = prompt(`This will delete ${total.toLocaleString()} contacts. Type DELETE to confirm.`);
+      if (typed !== 'DELETE') return;
+    }
+    try {
+      const res = await api.post('/outreach/contacts/library/delete-by-filter', {
+        ...filterBody(),
+        expected_count: total,
+      });
+      setInfo(`Deleted ${res.deleted.toLocaleString()} contact${res.deleted === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
   }
 
   function toggleTag(t) {
@@ -847,18 +908,8 @@ function ContactsLibrary() {
   }
 
   const clientNameById = Object.fromEntries(clients.map(c => [c.id, c.name]));
-
-  const filtered = rows ? rows.filter(r => {
-    if (activeTags.size) {
-      const have = new Set(r.tags || []);
-      for (const t of activeTags) if (!have.has(t)) return false;
-    }
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (r.name || '').toLowerCase().includes(s)
-        || (r.email || '').toLowerCase().includes(s)
-        || (r.company || '').toLowerCase().includes(s);
-  }) : null;
+  // Server already applied search + tags filters; just use the rows we got.
+  const filtered = rows;
 
   return (
     <div>
@@ -914,14 +965,21 @@ function ContactsLibrary() {
         {!filtered && <div style={{ marginTop: 16, color: '#888' }}>Loading…</div>}
         {filtered && !filtered.length && (
           <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
-            No contacts match. Add some from a client's Contacts tab — they'll show up here automatically.
+            {search.trim() || activeTags.size
+              ? 'No contacts match this filter.'
+              : `No contacts yet. Use ↑ Import CSV above, or add some from a client's Contacts tab — they'll show up here automatically.`}
           </div>
         )}
 
         {filtered && !!filtered.length && (
           <div style={{ marginTop: 14, overflowX: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: '#666' }}>{selected.size} selected of {filtered.length}</span>
+              <span style={{ fontSize: 12, color: '#666' }}>
+                {selected.size} selected
+                {total > filtered.length
+                  ? <> · Showing <strong>{filtered.length.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong> matching</>
+                  : <> of <strong>{filtered.length.toLocaleString()}</strong></>}
+              </span>
               <div style={{ flex: 1 }} />
               <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} style={styles.ghostBtn}>
                 + Add tags
@@ -930,8 +988,14 @@ function ContactsLibrary() {
                 Add to client…
               </button>
               <button onClick={destroyContacts} disabled={!selected.size} style={styles.dangerBtn}>
-                Delete from library
+                Delete selected
               </button>
+              {total > 0 && (
+                <button onClick={destroyAllMatching} style={styles.dangerBtn}
+                  title={total > filtered.length ? `Delete all ${total.toLocaleString()} matching, not just the ${filtered.length.toLocaleString()} on screen` : ''}>
+                  Delete all {total.toLocaleString()} matching
+                </button>
+              )}
             </div>
 
             {bulkTagsOpen && (
