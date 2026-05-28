@@ -79,13 +79,25 @@ router.get('/platform-keys/values', async (req, res) => {
   }
 });
 
-// POST save settings
+// POST save settings. A key present in the request body with an empty
+// string value is treated as an explicit clear (delete the row + drop
+// the process.env entry) — that's how the Settings UI flags a field the
+// AM has wiped. A masked '••••••••' placeholder means "unchanged, leave
+// the stored value alone".
 router.post('/platform-keys', async (req, res) => {
   try {
     const updates = [];
+    const cleared = [];
     for (const key of SETTINGS_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(req.body, key)) continue;
       const val = req.body[key];
-      if (!val || val === '••••••••') continue;
+      if (val === '••••••••') continue;
+      if (val === '' || val === null) {
+        await db.query('DELETE FROM platform_settings WHERE key = $1', [key]);
+        delete process.env[key];
+        cleared.push(key);
+        continue;
+      }
       const encrypted = encrypt(val);
       await db.query(
         `INSERT INTO platform_settings (key, value, updated_at)
@@ -96,7 +108,7 @@ router.post('/platform-keys', async (req, res) => {
       process.env[key] = val;
       updates.push(key);
     }
-    res.json({ updated: updates });
+    res.json({ updated: updates, cleared });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

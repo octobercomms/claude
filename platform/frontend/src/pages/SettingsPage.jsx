@@ -271,8 +271,16 @@ export default function SettingsPage() {
     window.history.replaceState(null, '', url.toString());
   }
 
+  // initialValues captures what came back from GET /platform-keys so the
+  // save handler can tell "this field was already empty" from "this field
+  // was just cleared by the AM" and only post the latter as a delete.
+  const [initialValues, setInitialValues] = useState({});
+
   useEffect(() => {
-    api.get('/settings/platform-keys').then(data => setValues(data));
+    api.get('/settings/platform-keys').then(data => {
+      setValues(data);
+      setInitialValues(data);
+    });
     api.get('/settings/account').then(data => setAccount(prev => ({ ...prev, username: data.username || '' }))).catch(() => {});
   }, []);
 
@@ -298,17 +306,24 @@ export default function SettingsPage() {
     setSectionResult(null);
     try {
       const body = {};
+      let changed = 0;
       for (const k of group.keys) {
-        const v = values[k.key];
-        if (v && v !== '••••••••') body[k.key] = v;
+        const cur = (values[k.key] == null ? '' : values[k.key]);
+        const init = (initialValues[k.key] == null ? '' : initialValues[k.key]);
+        if (cur === init) continue;        // untouched
+        if (cur === '••••••••') continue;  // still masked; nothing to send
+        // Send the new value (or '' meaning "clear it"); backend handles both.
+        body[k.key] = cur;
+        changed++;
       }
-      if (Object.keys(body).length === 0) {
-        setSectionResult({ title: group.title, ok: false, message: 'Enter a value first' });
+      if (changed === 0) {
+        setSectionResult({ title: group.title, ok: false, message: 'No changes to save' });
         return;
       }
       await api.post('/settings/platform-keys', body);
       const fresh = await api.get('/settings/platform-keys');
       setValues(fresh);
+      setInitialValues(fresh);
       setVisibleKeys({});
       setSectionResult({ title: group.title, ok: true, message: 'Saved' });
       setTimeout(() => setSectionResult(r => (r && r.title === group.title ? null : r)), 4000);
