@@ -429,6 +429,33 @@ router.get('/clients/:clientId/winners', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.get('/clients/:clientId/framework-breakdown', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    const breakdown = await social.getFrameworkBreakdown(req.params.clientId, { days });
+    res.json(breakdown);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Trending TikTok sounds — list latest cached + on-demand refresh.
+router.get('/clients/:clientId/trending-sounds', async (req, res) => {
+  try {
+    const sounds = await social.getRecentTrendingSounds(req.params.clientId, { limit: 25 });
+    res.json({ sounds });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/trending-sounds/refresh', async (req, res) => {
+  try {
+    const region = (req.body?.region || 'GB').toUpperCase();
+    const sounds = await social.refreshTrendingSounds({ clientId: req.params.clientId, region });
+    res.json({ sounds, fetched_at: new Date().toISOString() });
+  } catch (err) {
+    console.error('[social] trending-sounds refresh failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Drop an image from a post (e.g. user didn't like a generation).
 router.delete('/posts/:id/image', async (req, res) => {
   const { url } = req.body || {};

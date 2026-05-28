@@ -53,6 +53,14 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Apify (TikTok trending sounds)',
+    category: 'AI & Email',
+    hint: 'Powers the "Refresh trending sounds" action on the Social tab. ~$0.25 per scrape; cached for 7 days so weekly refreshes are plenty.',
+    keys: [
+      { key: 'APIFY_API_TOKEN', label: 'Apify API Token', placeholder: 'apify_api_…', type: 'password' },
+    ],
+  },
+  {
     title: 'Email Provider',
     category: 'AI & Email',
     hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',

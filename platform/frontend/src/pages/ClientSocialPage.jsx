@@ -24,19 +24,26 @@ export default function ClientSocialPage() {
   const [engagement, setEngagement] = useState({});
   const [mediaByPost, setMediaByPost] = useState({});
   const [shareUrl, setShareUrl] = useState(null);
+  const [frameworkBreakdown, setFrameworkBreakdown] = useState([]);
+  const [trendingSounds, setTrendingSounds] = useState([]);
+  const [refreshingSounds, setRefreshingSounds] = useState(false);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
       api.get(`/social/clients/${id}/winners?days=90&limit=5`).catch(() => []),
       api.get(`/social/clients/${id}/engagement`).catch(() => []),
+      api.get(`/social/clients/${id}/framework-breakdown?days=90`).catch(() => []),
+      api.get(`/social/clients/${id}/trending-sounds`).catch(() => ({ sounds: [] })),
     ]);
     setClient(c);
     setBatches(bs);
     setCompetitors(comp.competitors || []);
     setWinners(ws || []);
+    setFrameworkBreakdown(fb || []);
+    setTrendingSounds(ts.sounds || []);
     const eMap = {};
     for (const e of (eng || [])) eMap[e.post_id] = e;
     setEngagement(eMap);
@@ -97,6 +104,19 @@ export default function ClientSocialPage() {
       setMediaByPost(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(m => m.id !== mediaId) }));
     } catch (e) {
       toast(`Could not delete: ${e.message}`, 'error');
+    }
+  }
+
+  async function refreshTrendingSounds() {
+    setRefreshingSounds(true);
+    try {
+      const r = await api.post(`/social/clients/${id}/trending-sounds/refresh`, { region: 'GB' });
+      setTrendingSounds(r.sounds || []);
+      toast(`Pulled ${r.sounds?.length || 0} trending sounds.`, 'success');
+    } catch (e) {
+      toast(`Could not refresh sounds: ${e.message}`, 'error');
+    } finally {
+      setRefreshingSounds(false);
     }
   }
 
@@ -224,7 +244,9 @@ export default function ClientSocialPage() {
 
       <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
 
-      <WinnersPanel winners={winners} />
+      <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
+
+      <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} />
 
       {shareUrl && (
         <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
@@ -351,13 +373,60 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmi
   );
 }
 
-function WinnersPanel({ winners }) {
-  if (!winners?.length) return null;
+function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
+  const [open, setOpen] = React.useState(false);
+  const visible = open ? sounds : sounds.slice(0, 5);
+  return (
+    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Trending TikTok sounds
+        </span>
+        <span style={{ fontSize: 11, color: '#999' }}>
+          {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
+        </span>
+        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', borderRadius: 999, cursor: 'pointer' }}>
+          {refreshing ? 'Pulling…' : 'Refresh'}
+        </button>
+        {sounds.length > 5 && (
+          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>
+            {open ? 'collapse' : `show all ${sounds.length}`}
+          </button>
+        )}
+      </div>
+      {!!visible.length && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {visible.map((s, i) => (
+            <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
+              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '1px solid #e8e8e8', borderRadius: 999, color: '#1a1a1a', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              title={`${s.title} — ${s.author || 'unknown'}`}>
+              <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+              {s.use_count && <span style={{ color: '#888', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
+            </a>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WinnersPanel({ winners, frameworkBreakdown }) {
+  if (!winners?.length && !frameworkBreakdown?.length) return null;
   return (
     <div style={{ background: '#fffceb', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: '#7a5a00', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
         Top performers — last 90 days
       </div>
+      {frameworkBreakdown?.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+          {frameworkBreakdown.map(b => (
+            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: '#fff', border: '1px solid #f0d260', borderRadius: 999, color: '#5d4000' }}>
+              <strong>{b.framework}</strong>: {b.avg_engagement_rate}% engagement
+              <span style={{ color: '#999', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
+            </span>
+          ))}
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {winners.map(w => (
           <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: '#fff', border: '1px solid #f0e0a0', borderRadius: 4, textDecoration: 'none', color: 'inherit' }}>
