@@ -84,12 +84,32 @@ async function pollReplies() {
                   [result.classification, result.summary, rows.map(r => r.id)]
                 );
                 if (SUPPRESSING.has(result.classification)) {
-                  await pool.query(
-                    `UPDATE outreach_contacts
-                       SET status = $1, updated_at = NOW()
-                     WHERE id = $2`,
-                    [result.classification === 'unsubscribe' ? 'unsubscribed' : 'do_not_contact', rows[0].contact_id]
+                  // Per-client suppression — only mark this contact as
+                  // unsubscribed for the client whose campaign they
+                  // replied to. Other clients' lists are untouched.
+                  const { rows: campRows } = await pool.query(
+                    'SELECT client_id FROM outreach_campaigns WHERE id = $1',
+                    [rows[0].campaign_id]
                   );
+                  const clientId = campRows[0]?.client_id;
+                  if (clientId) {
+                    await pool.query(
+                      `INSERT INTO outreach_contact_clients (contact_id, client_id, unsubscribed_at)
+                         VALUES ($1, $2, NOW())
+                       ON CONFLICT (contact_id, client_id)
+                         DO UPDATE SET unsubscribed_at = COALESCE(outreach_contact_clients.unsubscribed_at, NOW())`,
+                      [rows[0].contact_id, clientId]
+                    );
+                  }
+                  if (result.classification === 'not_relevant') {
+                    // Global do-not-contact for "wrong fit entirely" replies —
+                    // unsubscribe is per-client but a definitive "not relevant"
+                    // should suppress them everywhere as well.
+                    await pool.query(
+                      `UPDATE outreach_contacts SET status = 'do_not_contact', updated_at = NOW() WHERE id = $1`,
+                      [rows[0].contact_id]
+                    );
+                  }
                 }
               }
             } catch (classifyErr) {

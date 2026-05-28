@@ -8,11 +8,16 @@ const { getSetting } = require('../utils/settings');
 
 // HMAC-signed unsubscribe URL. Stateless — no token to store per
 // contact, the signature verifies on-the-fly in the public route.
-function unsubscribeUrl(contactId) {
+// clientId is encoded so the unsubscribe only affects that client's
+// membership row, not the journalist's other client relationships.
+function unsubscribeUrl(contactId, clientId) {
   const base = (process.env.PLATFORM_URL || '').replace(/\/$/, '');
   if (!base || !process.env.JWT_SECRET) return null;
-  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`unsub:${contactId}`).digest('hex').slice(0, 32);
-  return `${base}/api/unsubscribe?c=${encodeURIComponent(contactId)}&s=${sig}`;
+  const payload = clientId ? `unsub:${contactId}:${clientId}` : `unsub:${contactId}`;
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 32);
+  const params = new URLSearchParams({ c: contactId, s: sig });
+  if (clientId) params.set('cl', clientId);
+  return `${base}/api/unsubscribe?${params.toString()}`;
 }
 
 function fillTemplate(text, contact) {
@@ -40,9 +45,9 @@ async function senderFields(sending) {
   };
 }
 
-function htmlBody(textBody, trackingSendId, contactId) {
+function htmlBody(textBody, trackingSendId, contactId, clientId) {
   let html = String(textBody || '').replace(/\n/g, '<br>');
-  const unsub = contactId ? unsubscribeUrl(contactId) : null;
+  const unsub = contactId ? unsubscribeUrl(contactId, clientId) : null;
   if (unsub) {
     html += `<div style="margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;line-height:1.5;">` +
       `If this isn't relevant to your beat, no hard feelings — ` +
@@ -58,8 +63,8 @@ function htmlBody(textBody, trackingSendId, contactId) {
 // List-Unsubscribe headers — required by Gmail / Yahoo for bulk senders.
 // `mailto:` + `https` lets clients pick the safer one; List-Unsubscribe-Post
 // signals we honour the RFC 8058 one-click flow.
-function listUnsubscribeHeaders(contactId, fromEmail) {
-  const unsub = unsubscribeUrl(contactId);
+function listUnsubscribeHeaders(contactId, fromEmail, clientId) {
+  const unsub = unsubscribeUrl(contactId, clientId);
   if (!unsub) return {};
   const mailto = fromEmail ? `mailto:${fromEmail}?subject=unsubscribe` : null;
   const list = mailto ? `<${mailto}>, <${unsub}>` : `<${unsub}>`;
@@ -120,7 +125,7 @@ async function deliver({ from, to, replyTo, subject, text, html, headers }) {
   return { providerMessageId: info.messageId, provider: 'smtp' };
 }
 
-async function sendOutreachEmail({ send, contact, step, sending }) {
+async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   if (!contact.email) throw new Error('Contact has no email address.');
   const { from, replyTo } = await senderFields(sending);
 
@@ -134,7 +139,7 @@ async function sendOutreachEmail({ send, contact, step, sending }) {
     const { from: pressFrom, replyTo: pressReplyTo } = { from, replyTo };
     return await sendPress({
       campaignId: send.campaign_id, contact, sendId: send.id,
-      from: pressFrom, replyTo: pressReplyTo,
+      from: pressFrom, replyTo: pressReplyTo, clientId,
       kind: pressMatch[1] === 'release' ? 'release' : 'followup',
       followupIndex: pressMatch[2] ? parseInt(pressMatch[2], 10) : 0,
     });
@@ -142,12 +147,12 @@ async function sendOutreachEmail({ send, contact, step, sending }) {
 
   const subject = fillTemplate(step.subject, contact);
   const text = fillTemplate(step.body, contact);
-  const html = htmlBody(text, send.id, contact.id);
-  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from);
+  const html = htmlBody(text, send.id, contact.id, clientId);
+  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
   return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
 }
 
-async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex }) {
+async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex, clientId }) {
   // Resolve the press release this campaign is attached to. One
   // press release per campaign by construction in press.js.
   const pool = require('../db');
@@ -174,7 +179,7 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     subject = release.title;
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
-    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name, contactId: contact.id });
+    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name, contactId: contact.id, clientId });
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
   } else {
     const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];
@@ -182,9 +187,9 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     const fu = followUps[idx] || { subject: `Re: ${release.title}`, body: '' };
     subject = fu.subject || `Re: ${release.title}`;
     text = fu.body || '';
-    html = htmlBody(text, sendId, contact.id);
+    html = htmlBody(text, sendId, contact.id, clientId);
   }
-  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from);
+  const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
   return deliver({ from, to: contact.email, replyTo, subject, text, html, headers });
 }
 
