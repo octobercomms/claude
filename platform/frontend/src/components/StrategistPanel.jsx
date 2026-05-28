@@ -52,6 +52,23 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
     }
   }
 
+  async function savePdf() {
+    if (!selected || selected.status !== 'completed') return;
+    try {
+      const res = await api.raw(`/strategist/reports/${selected.id}/pdf`);
+      if (!res.ok) throw new Error(`PDF download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `strategist-${selected.period_end}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
   async function destroy(id, e) {
     e.stopPropagation();
     if (!confirm('Delete this Strategist report? This cannot be undone.')) return;
@@ -131,11 +148,18 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
               </div>
             )}
             {selected && selected.status === 'completed' && (
-              <div style={styles.md}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                  {selected.markdown || ''}
-                </ReactMarkdown>
-              </div>
+              <>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                  <button onClick={savePdf} style={styles.ghostBtn} title="Save a PDF copy with the standard report header + footer">
+                    ↓ Save PDF
+                  </button>
+                </div>
+                <div style={styles.md}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {selected.markdown || ''}
+                  </ReactMarkdown>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -183,6 +207,7 @@ const styles = {
   h2: { margin: 0, fontSize: 22, fontWeight: 700 },
   lede: { margin: '6px 0 0', fontSize: 13, color: '#666', maxWidth: 620, lineHeight: 1.5 },
   btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
+  ghostBtn: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
   select: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer' },
   empty: { padding: 30, color: '#666', background: '#fafafa', border: '1px solid #eee', borderRadius: 8, fontSize: 14, lineHeight: 1.6, textAlign: 'center' },
   grid: { display: 'grid', gridTemplateColumns: '240px 1fr', gap: 18, alignItems: 'start' },

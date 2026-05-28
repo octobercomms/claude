@@ -699,4 +699,46 @@ function buildMetricsTableHtml(metricLabels, rows, compare) {
     </table>`;
 }
 
-module.exports = { generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml };
+// Internal Strategist briefing PDF — same masthead and footer treatment
+// as the client-facing weekly/monthly reports, but body content is just
+// the rendered markdown from the strategist service. Lives in this file
+// so the page CSS / header / footer helpers stay in one place.
+function buildStrategistReportHtml({ clientName, period, markdownHtml, footerLines }) {
+  return `<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><style>
+${getPageCSS()}
+.strategist-body { font-size: 9.5pt; line-height: 1.55; color: #1a1a1a; }
+.strategist-body h1 { font-size: 18pt; font-weight: 700; margin: 14pt 0 8pt; }
+.strategist-body h2 { font-size: 13pt; font-weight: 700; margin: 16pt 0 6pt; padding-bottom: 4pt; border-bottom: 0.5pt solid #cccccc; }
+.strategist-body h3 { font-size: 11pt; font-weight: 700; margin: 12pt 0 4pt; color: #1a1a1a; }
+.strategist-body p { margin: 0 0 8pt; }
+.strategist-body ul, .strategist-body ol { margin: 0 0 8pt 16pt; padding: 0; }
+.strategist-body li { margin-bottom: 4pt; }
+.strategist-body strong { font-weight: 700; }
+.strategist-body table { width: 100%; border-collapse: collapse; margin: 4pt 0 12pt; font-size: 8.5pt; }
+.strategist-body th { text-align: left; padding: 4pt 6pt; border-bottom: 1pt solid #1a1a1a; font-weight: 700; }
+.strategist-body td { padding: 3pt 6pt; border-bottom: 0.5pt solid #e8e8e8; vertical-align: top; }
+.strategist-body hr { border: none; border-top: 0.5pt solid #cccccc; margin: 14pt 0; }
+.strategist-body code { background: #f5f5f5; padding: 0 3pt; border-radius: 2pt; font-size: 8pt; }
+.eyebrow { font-size: 7.5pt; color: #808080; letter-spacing: 1.5pt; text-transform: uppercase; font-weight: 700; margin-bottom: 4pt; }
+</style></head>
+<body>
+  <div class="page with-print-footer">
+    <div class="eyebrow">Strategist briefing &middot; Internal &middot; ${escapeForTemplate(period)}</div>
+    <h1 style="font-size:20pt;font-weight:700;margin:0 0 18pt;">${escapeForTemplate(clientName)}</h1>
+    <div class="strategist-body">
+      ${markdownHtml}
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+module.exports = {
+  generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml,
+  buildStrategistReportHtml,
+  // Exposed for callers that need to build bespoke PDFs (Strategist) using
+  // the same fonts / page chrome as the standard reports.
+  buildFontCSS, buildPrintHeaderTemplate, buildPrintFooterTemplate, getPageCSS,
+};
