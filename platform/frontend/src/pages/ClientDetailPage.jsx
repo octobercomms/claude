@@ -1008,7 +1008,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                   : `✓ Account: ${diagnoseResult.token_info.email || 'unknown'} (expires ${diagnoseResult.token_info.expires_in})`}
               </div>
               {diagnoseResult.token_info.note && (
-                <div style={{ color: '#e65100' }}>{diagnoseResult.token_info.note}</div>
+                <div style={{ color: diagnoseResult.token_info.note_kind === 'error' ? '#c62828' : '#888', fontSize: 11, marginTop: 4 }}>
+                  {diagnoseResult.token_info.note}
+                </div>
               )}
             </div>
           )}
