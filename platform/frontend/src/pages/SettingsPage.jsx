@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
+import ManageUsersPage from './ManageUsersPage';
 
 const KEY_GROUPS = [
   {
@@ -396,6 +397,7 @@ export default function SettingsPage() {
         {[
           { key: 'general', label: 'General' },
           { key: 'contacts', label: 'Contacts library' },
+          { key: 'users', label: 'Users & access' },
         ].map(t => (
           <button key={t.key} onClick={() => switchTab(t.key)}
             style={tab === t.key ? styles.tabBtnActive : styles.tabBtn}>
@@ -405,7 +407,8 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'contacts' && <ContactsLibrary />}
-      {tab !== 'contacts' && (<>
+      {tab === 'users' && <ManageUsersPage embedded />}
+      {tab !== 'contacts' && tab !== 'users' && (<>
       <CostsPanel />
 
       {/* Always-visible essentials: platform info + account */}
@@ -948,13 +951,47 @@ function ContactsLibrary() {
             style={{ ...styles.input, flex: '1 1 220px' }}
           />
           {!!tags.length && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-              {tags.slice(0, 18).map(t => (
-                <button key={t.tag} onClick={() => toggleTag(t.tag)}
-                  style={activeTags.has(t.tag) ? styles.tagChipOn : styles.tagChip}>
-                  {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
-                </button>
-              ))}
+            // Show every tag — was capped at 18 which silently hid the
+            // long tail. With hundreds of tags this can get visually
+            // busy, so cap the height + scroll. Each chip has a ✎ to
+            // rename the tag everywhere it's used.
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 120, overflowY: 'auto', flex: '1 1 100%' }}>
+              {tags.map(t => {
+                const on = activeTags.has(t.tag);
+                return (
+                  <span key={t.tag} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 2,
+                    ...(on ? styles.tagChipOn : styles.tagChip),
+                    padding: '2px 4px 2px 9px',
+                  }}>
+                    <span onClick={() => toggleTag(t.tag)} style={{ cursor: 'pointer' }}>
+                      {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
+                    </span>
+                    <button
+                      onClick={async () => {
+                        const next = prompt(`Rename "${t.tag}" everywhere it's used to:`, t.tag);
+                        if (!next || next.trim().toLowerCase() === t.tag) return;
+                        try {
+                          const r = await api.post('/outreach/tags/rename', { from: t.tag, to: next });
+                          setInfo(`Renamed "${t.tag}" → "${r.to}" on ${r.updated} contact${r.updated === 1 ? '' : 's'}.`);
+                          setActiveTags(prev => {
+                            const n = new Set(prev);
+                            if (n.has(t.tag)) { n.delete(t.tag); n.add(r.to); }
+                            return n;
+                          });
+                          await reload();
+                        } catch (e) { setErr(e.message); }
+                      }}
+                      title="Rename this tag everywhere"
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        color: on ? '#fff' : '#888', fontSize: 11, padding: '0 4px',
+                        lineHeight: 1, opacity: 0.75,
+                      }}
+                    >✎</button>
+                  </span>
+                );
+              })}
             </div>
           )}
         </div>

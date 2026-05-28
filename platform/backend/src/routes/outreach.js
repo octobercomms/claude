@@ -426,6 +426,42 @@ router.get('/tags', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Rename a tag everywhere it's used. The new name is normalised (lowercase,
+// hyphens for spaces, alphanumerics only) so it matches what the create/edit
+// flows produce. If a contact already had both the old AND new names, the
+// duplicate is collapsed. Visibility scope: same as the list — admins update
+// every matching contact, viewers only update contacts they can see.
+router.post('/tags/rename', async (req, res) => {
+  const from = String(req.body?.from || '').trim();
+  const toRaw = String(req.body?.to || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+  if (!from || !toRaw) return res.status(400).json({ error: 'from and to are required' });
+  if (from === toRaw) return res.json({ updated: 0, to: toRaw });
+  try {
+    const params = [from, toRaw];
+    let scope = `WHERE tags && ARRAY[$1]::text[]`;
+    if (req.visibleClientIds !== null) {
+      params.push(req.visibleClientIds);
+      scope += ` AND (
+        client_id = ANY($3::uuid[])
+        OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                    WHERE m.contact_id = outreach_contacts.id
+                      AND m.client_id = ANY($3::uuid[]))
+      )`;
+    }
+    const { rowCount } = await pool.query(
+      `UPDATE outreach_contacts
+          SET tags = ARRAY(
+            SELECT DISTINCT CASE WHEN t = $1 THEN $2 ELSE t END
+              FROM unnest(tags) t
+          ),
+              updated_at = NOW()
+        ${scope}`,
+      params
+    );
+    res.json({ updated: rowCount, to: toRaw });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Create a contact. If client_id is provided, the contact is added to the
 // library AND immediately attached to that client (the common path — the
 // AM is in a client's Contacts tab). Pass attach_clients=[ids] to attach to

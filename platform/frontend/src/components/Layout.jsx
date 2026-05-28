@@ -56,7 +56,6 @@ export default function Layout() {
           {[
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/clients', label: 'Clients' },
-            { to: '/guide', label: 'Guide' },
           ].map(item => (
             <li key={item.to}>
               <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
@@ -75,14 +74,16 @@ export default function Layout() {
               )}
             </li>
           ))}
-          {(user?.role === 'admin' ? [
-            { to: '/settings', label: 'Settings' },
-            { to: '/manage', label: 'Manage' },
-          ] : []).map(item => (
-            <li key={item.to}>
-              <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
+          {/* Admin-only: Settings (with Users tab); Guide goes below so it
+              sits at the bottom of the rail for everyone. */}
+          {user?.role === 'admin' && (
+            <li>
+              <NavLink to="/settings" style={({ isActive }) => linkStyle(isActive)}>Settings</NavLink>
             </li>
-          ))}
+          )}
+          <li>
+            <NavLink to="/guide" style={({ isActive }) => linkStyle(isActive)}>Guide</NavLink>
+          </li>
         </ul>
 
         <div style={styles.footerBlock}>
