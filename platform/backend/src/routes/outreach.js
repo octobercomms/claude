@@ -25,6 +25,40 @@ router.get('/track/open/:sendId', pixelLimiter, async (req, res) => {
   res.send(TRACK_PIXEL);
 });
 
+// Public — click tracking. The sender rewrites every <a href> in outbound
+// emails to point here; we log + 302 to the original URL. base64url-encoded
+// destination so awkward query strings survive the round trip. Rate-limited
+// per-IP for the same reasons as the open pixel.
+const clickLimiter = rateLimit({ windowMs: 60 * 1000, max: 240, skipSuccessfulRequests: false });
+router.get('/track/click/:sendId', clickLimiter, async (req, res) => {
+  const raw = String(req.query.u || '');
+  let url = '';
+  try {
+    // base64url → utf8
+    const norm = raw.replace(/-/g, '+').replace(/_/g, '/');
+    url = Buffer.from(norm, 'base64').toString('utf8');
+  } catch { /* fall through to safety redirect */ }
+  // Only allow http(s) destinations — never let an attacker forge a
+  // tracking link that 302s to javascript: or data:.
+  if (!/^https?:\/\//i.test(url)) {
+    return res.redirect(302, process.env.PLATFORM_URL || '/');
+  }
+  try {
+    await pool.query(
+      `INSERT INTO outreach_clicks (send_id, url, user_agent, ip)
+       VALUES ($1, $2, $3, $4)`,
+      [req.params.sendId, url, (req.get('user-agent') || '').slice(0, 500), (req.ip || '').slice(0, 64)]
+    );
+    // A click also implies an open — handy when the recipient's client
+    // blocks remote images but they followed a link anyway.
+    await pool.query(
+      'UPDATE outreach_sends SET opened_at = COALESCE(opened_at, NOW()) WHERE id = $1',
+      [req.params.sendId]
+    );
+  } catch { /* always redirect regardless */ }
+  res.redirect(302, url);
+});
+
 const users = require('../services/users');
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -538,6 +572,97 @@ router.put('/contacts/:id', async (req, res) => {
       ]
     );
     res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Per-contact engagement timeline — Mautic-style activity log. Returns
+// every send + open + click + reply we have for this contact, in time
+// order, scoped to clients the caller can see (the router.param hook
+// already gates the contact itself; this just filters the campaigns).
+// Includes the contact's attached clients so the UI can show "stopped
+// emailing for client X" alongside the timeline.
+router.get('/contacts/:id/activity', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const adminAll = req.visibleClientIds === 'all';
+    const params = [id];
+    const clientScope = adminAll ? '' : (() => {
+      params.push(req.visibleClientIds);
+      return `AND cam.client_id = ANY($${params.length}::uuid[])`;
+    })();
+
+    const { rows: sends } = await pool.query(
+      `SELECT s.id, s.campaign_id, s.sequence_id, s.status,
+              s.scheduled_at, s.sent_at, s.opened_at,
+              s.replied_at, s.reply_classification, s.reply_summary,
+              cam.client_id, cam.name AS campaign_name, cam.kind AS campaign_kind,
+              seq.step_number, seq.subject
+         FROM outreach_sends s
+         JOIN outreach_campaigns cam ON cam.id = s.campaign_id
+         LEFT JOIN outreach_sequences seq ON seq.id = s.sequence_id
+        WHERE s.contact_id = $1 ${clientScope}
+        ORDER BY COALESCE(s.sent_at, s.scheduled_at) DESC
+        LIMIT 500`,
+      params
+    );
+
+    const sendIds = sends.map(s => s.id);
+    let clicks = [];
+    if (sendIds.length) {
+      const { rows } = await pool.query(
+        `SELECT id, send_id, url, clicked_at
+           FROM outreach_clicks
+          WHERE send_id = ANY($1::uuid[])
+          ORDER BY clicked_at DESC
+          LIMIT 500`,
+        [sendIds]
+      );
+      clicks = rows;
+    }
+
+    // Flatten into one event stream the UI can render top-down.
+    const events = [];
+    const labelFor = (row) => row.campaign_kind === 'press_release' && row.step_number === 1
+      ? `Press release · ${row.campaign_name}`
+      : row.campaign_kind === 'press_release'
+        ? `Press follow-up #${(row.step_number || 1) - 1} · ${row.campaign_name}`
+        : row.subject
+          ? `${row.subject} · ${row.campaign_name}`
+          : row.campaign_name;
+    for (const s of sends) {
+      if (s.sent_at) events.push({ type: 'sent', at: s.sent_at, send_id: s.id, campaign_id: s.campaign_id, client_id: s.client_id, label: labelFor(s) });
+      if (s.opened_at) events.push({ type: 'opened', at: s.opened_at, send_id: s.id, campaign_id: s.campaign_id, client_id: s.client_id, label: labelFor(s) });
+      if (s.replied_at) events.push({ type: 'replied', at: s.replied_at, send_id: s.id, campaign_id: s.campaign_id, client_id: s.client_id, label: labelFor(s), classification: s.reply_classification, summary: s.reply_summary });
+    }
+    for (const c of clicks) {
+      const parent = sends.find(s => s.id === c.send_id);
+      events.push({ type: 'clicked', at: c.clicked_at, send_id: c.send_id, campaign_id: parent?.campaign_id, client_id: parent?.client_id, label: parent ? labelFor(parent) : 'link', url: c.url });
+    }
+    events.sort((a, b) => new Date(b.at) - new Date(a.at));
+
+    // Per-client memberships (unsubscribed_at lives here now) so the
+    // timeline header can flag "unsubscribed from LOLO on Sept 17".
+    const memberships = await pool.query(
+      `SELECT m.client_id, m.unsubscribed_at, m.added_at, cl.name AS client_name
+         FROM outreach_contact_clients m
+         JOIN clients cl ON cl.id = m.client_id
+        WHERE m.contact_id = $1
+        ORDER BY m.added_at`,
+      [id]
+    );
+
+    res.json({
+      events,
+      memberships: memberships.rows,
+      totals: {
+        sent: sends.filter(s => s.sent_at).length,
+        opened: sends.filter(s => s.opened_at).length,
+        clicked: clicks.length,
+        replied: sends.filter(s => s.replied_at).length,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
