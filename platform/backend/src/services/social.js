@@ -13,6 +13,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const dataForSEO = require('../connectors/dataforseo');
+const meta = require('../connectors/meta');
+const { decrypt } = require('../utils/encryption');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -91,6 +93,12 @@ async function generateBatch({ clientId, brief, platforms }) {
     console.warn('[social] trends fetch failed (non-fatal):', err.message);
   }
 
+  // Performance loop — what's actually worked for this client in the last
+  // 90 days. The top 5 by engagement rate go into the prompt as concrete
+  // exemplars to model. Closes the "scientifically backed" loop with the
+  // client's own data, not a generic trend.
+  const winners = await getRecentWinners(clientId, { days: 90, limit: 5 });
+
   const competitorList = (c.social_competitors || []).filter(Boolean);
   const platformList = Array.isArray(platforms) && platforms.length ? platforms : ['instagram', 'tiktok'];
 
@@ -105,6 +113,10 @@ Platforms in scope: ${platformList.join(', ')}
 Competitor handles (use as style/voice reference if helpful): ${competitorList.length ? competitorList.join(', ') : '(none configured)'}
 
 ${trends ? `Currently rising signals (Google Trends, last 30 days, UK): ${trends.rising.map(r => r.label).filter(Boolean).join(', ') || '(no rising queries)'}` : '(no trend signal available — proceed without)'}
+
+${winners.length
+  ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
+  : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
 Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English.`;
 
@@ -194,4 +206,77 @@ const STOP = new Set([
   'monthly','focus','none','marketing','agency','team','really','want','need',
 ]);
 
-module.exports = { generateBatch };
+// Pull the latest engagement snapshot for every published post for a
+// client, score by an engagement-rate proxy (likes + comments + shares +
+// saves) / reach, and return the top N. Used both by generateBatch (as
+// prompt grounding) and by the Winners panel on the Social tab.
+async function getRecentWinners(clientId, { days = 90, limit = 5 } = {}) {
+  const { rows } = await pool.query(
+    `WITH latest AS (
+       SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves, e.views, e.fetched_at
+       FROM social_post_engagement e
+       JOIN social_posts p ON p.id = e.post_id
+       WHERE p.client_id = $1
+         AND p.published_at IS NOT NULL
+         AND p.published_at >= NOW() - ($2::int || ' days')::interval
+       ORDER BY e.post_id, e.fetched_at DESC
+     )
+     SELECT p.id, p.platform, p.kind, p.hook, p.caption, p.published_url, p.published_at,
+            l.reach, l.impressions, l.likes, l.comments, l.shares, l.saves, l.views
+     FROM latest l JOIN social_posts p ON p.id = l.post_id`,
+    [clientId, days]
+  );
+  return rows
+    .map(r => {
+      const reachLike = r.reach || r.impressions || r.views || 0;
+      const interactions = (r.likes || 0) + (r.comments || 0) + (r.shares || 0) + (r.saves || 0);
+      const rate = reachLike > 0 ? Math.round((interactions / reachLike) * 1000) / 10 : 0;
+      return { ...r, engagement_rate: rate };
+    })
+    .sort((a, b) => b.engagement_rate - a.engagement_rate)
+    .slice(0, limit);
+}
+
+// Look up the active Meta connector for a client and return decrypted
+// creds, or null if there isn't one configured. Used by the engagement-
+// refresh path so we don't have to repeat the wiring per route.
+async function loadMetaCredentials(clientId) {
+  const { rows } = await pool.query(
+    `SELECT credentials FROM connectors
+     WHERE client_id = $1 AND connector_type IN ('meta_ads', 'instagram_insights') AND status = 'active'
+     LIMIT 1`,
+    [clientId]
+  );
+  if (!rows.length) return null;
+  return decrypt(rows[0].credentials);
+}
+
+// Pull a fresh engagement snapshot for a single post. IG only for now —
+// returns null + a reason for any other platform.
+async function refreshEngagement(post) {
+  if (!post.external_id || post.external_platform !== 'instagram') {
+    return { skipped: true, reason: 'Only Instagram engagement is auto-fetched. Paste platform numbers manually for other networks.' };
+  }
+  const creds = await loadMetaCredentials(post.client_id);
+  if (!creds) return { skipped: true, reason: 'No active Meta connector for this client.' };
+  const insights = await meta.fetchInstagramMediaInsights(creds, post.external_id);
+  const reach = insights.reach ?? null;
+  const impressions = insights.impressions ?? null;
+  const views = insights.plays ?? insights.video_views ?? null;
+  const likes = insights.likes ?? null;
+  const comments = insights.comments ?? null;
+  const shares = insights.shares ?? null;
+  const saves = insights.saved ?? null;
+  const watch = insights.ig_reels_video_view_total_time ?? null;
+  await pool.query(
+    `INSERT INTO social_post_engagement
+       (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (post_id, fetched_at) DO NOTHING`,
+    [post.id, impressions, reach, views, likes, comments, shares, saves, watch, JSON.stringify(insights)]
+  );
+  return { ok: true, insights };
+}
+
+module.exports = { generateBatch, getRecentWinners, refreshEngagement, loadMetaCredentials };

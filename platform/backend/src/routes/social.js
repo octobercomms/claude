@@ -7,6 +7,8 @@ const {
 const social = require('../services/social');
 const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
+const adobe = require('../connectors/adobe');
+const meta = require('../connectors/meta');
 const users = require('../services/users');
 
 const router = express.Router();
@@ -137,6 +139,8 @@ router.post('/posts/:id/image', async (req, res) => {
     let result;
     if (provider === 'ideogram') {
       result = await ideogram.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed });
+    } else if (provider === 'adobe') {
+      result = await adobe.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed, reference_image });
     } else {
       result = await replicate.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed, reference_image });
     }
@@ -150,6 +154,86 @@ router.post('/posts/:id/image', async (req, res) => {
     console.error('[social] image generate failed:', err);
     res.status(502).json({ error: err.message });
   }
+});
+
+// ─── PUBLISH + PERFORMANCE LOOP ───────────────────────────────────────────
+//
+// Mark a draft post as published. The AM pastes the live Instagram /
+// TikTok / LinkedIn URL; we parse the platform-side id and fetch a
+// first engagement snapshot so the loop kicks in immediately.
+router.post('/posts/:id/publish', async (req, res) => {
+  const { published_url } = req.body || {};
+  if (!published_url) return res.status(400).json({ error: 'published_url required' });
+  try {
+    const parsed = meta.parseSocialUrl(published_url);
+    if (!parsed) return res.status(400).json({ error: 'Could not recognise that URL. Supported: Instagram, TikTok, LinkedIn.' });
+    const { rows: existing } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!existing.length) return res.status(404).json({ error: 'Post not found' });
+
+    const { rows } = await pool.query(
+      `UPDATE social_posts SET
+         status = 'published',
+         published_url = $1,
+         external_id = $2,
+         external_platform = $3,
+         published_at = COALESCE(published_at, NOW())
+       WHERE id = $4 RETURNING *`,
+      [published_url, parsed.external_id, parsed.platform, req.params.id]
+    );
+    const post = rows[0];
+
+    // Best-effort first snapshot — never block the response on it.
+    let firstSnapshot = null;
+    try {
+      const result = await social.refreshEngagement(post);
+      firstSnapshot = result;
+    } catch (err) {
+      firstSnapshot = { skipped: true, reason: err.message };
+    }
+    res.json({ post, parsed, snapshot: firstSnapshot });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Pull a fresh engagement snapshot for a single post on demand.
+router.post('/posts/:id/refresh-insights', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const result = await social.refreshEngagement(rows[0]);
+    if (result.skipped) return res.status(400).json({ error: result.reason });
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Latest engagement snapshot per published post for a client. Used by the
+// Winners panel + by the post cards to render their numbers.
+router.get('/clients/:clientId/engagement', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.fetched_at, e.impressions, e.reach, e.views,
+         e.likes, e.comments, e.shares, e.saves, e.watch_time_sec
+       FROM social_post_engagement e
+       JOIN social_posts p ON p.id = e.post_id
+       WHERE p.client_id = $1
+       ORDER BY e.post_id, e.fetched_at DESC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/winners', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const winners = await social.getRecentWinners(req.params.clientId, { days, limit });
+    res.json(winners);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Drop an image from a post (e.g. user didn't like a generation).
