@@ -376,6 +376,7 @@ export default function ClientOutreachPage() {
           ['dashboard', 'Dashboard'],
           ['campaigns', campaigns.length ? `Campaigns (${campaigns.length})` : 'Campaigns'],
           ['contacts', contacts.length ? `Contacts (${contacts.length})` : 'Contacts'],
+          ['press', 'Press'],
           ['sending', 'Sending'],
           ['help', 'Help'],
         ].map(([key, label]) => (
@@ -613,6 +614,8 @@ export default function ClientOutreachPage() {
           </p>
         </div>
       )}
+
+      {tab === 'press' && <PressPanel clientId={id} contacts={contacts} />}
 
       {tab === 'help' && <HelpPanel dnsCheck={dnsCheck} />}
 
