@@ -251,45 +251,62 @@ router.get('/contacts', async (req, res) => {
   }
 });
 
+// Shared filter builder for the workspace-wide library — the list
+// endpoint, the count and the "delete all matching" endpoint all use
+// the same set of querystring params so AMs can preview exactly what's
+// about to be deleted.
+function buildLibraryFilter(req, q) {
+  const where = [];
+  const params = [];
+  if (req.visibleClientIds !== null) {
+    params.push(req.visibleClientIds);
+    where.push(`(
+      c.client_id = ANY($${params.length}::uuid[])
+      OR EXISTS (
+        SELECT 1 FROM outreach_contact_clients m
+         WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[])
+      )
+    )`);
+  }
+  if (q.contact_type) { params.push(q.contact_type); where.push(`c.contact_type = $${params.length}`); }
+  if (q.search) {
+    params.push(`%${String(q.search).toLowerCase()}%`);
+    where.push(`(LOWER(COALESCE(c.name, '')) LIKE $${params.length} OR LOWER(COALESCE(c.email, '')) LIKE $${params.length} OR LOWER(COALESCE(c.company, '')) LIKE $${params.length})`);
+  }
+  if (q.tag) { params.push([q.tag]); where.push(`c.tags && $${params.length}::text[]`); }
+  if (q.tags_any) {
+    const arr = Array.isArray(q.tags_any) ? q.tags_any : String(q.tags_any).split(',').map(t => t.trim()).filter(Boolean);
+    params.push(arr); where.push(`c.tags && $${params.length}::text[]`);
+  }
+  if (q.tags_all) {
+    const arr = Array.isArray(q.tags_all) ? q.tags_all : String(q.tags_all).split(',').map(t => t.trim()).filter(Boolean);
+    params.push(arr); where.push(`c.tags @> $${params.length}::text[]`);
+  }
+  if (q.attached_to) {
+    params.push(q.attached_to);
+    where.push(`EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
+  }
+  if (q.not_attached_to) {
+    params.push(q.not_attached_to);
+    where.push(`NOT EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
+  }
+  return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
+
 // Workspace-wide library. Lists every contact across all clients the caller
 // can see, with the list of clients each contact is currently attached to.
 // Used by the Settings → Contacts library tab and the per-client "Add from
 // library" picker.
+//
+// Response shape:
+//   default: array of rows (backwards-compat for the picker)
+//   ?include_count=1: { rows, total } — total is the unbounded match
+//      count, useful when the list is capped (1000) but the user might
+//      want to "delete all 21,000".
 router.get('/contacts/library', async (req, res) => {
-  const { contact_type, search, tag, tags_all, tags_any, attached_to, not_attached_to, include_totals } = req.query;
+  const { include_totals, include_count } = req.query;
   try {
-    const where = [];
-    const params = [];
-    // Scope to clients the user can see (or library-only contacts with no
-    // attachments). Admins are signalled by visibleClientIds === null and
-    // see everything — match users.canAccessClient's sentinel exactly.
-    if (req.visibleClientIds !== null) {
-      params.push(req.visibleClientIds);
-      where.push(`(
-        c.client_id = ANY($${params.length}::uuid[])
-        OR EXISTS (
-          SELECT 1 FROM outreach_contact_clients m
-           WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[])
-        )
-      )`);
-    }
-    if (contact_type) { params.push(contact_type); where.push(`c.contact_type = $${params.length}`); }
-    if (search) {
-      params.push(`%${search.toLowerCase()}%`);
-      where.push(`(LOWER(COALESCE(c.name, '')) LIKE $${params.length} OR LOWER(COALESCE(c.email, '')) LIKE $${params.length} OR LOWER(COALESCE(c.company, '')) LIKE $${params.length})`);
-    }
-    if (tag) { params.push([tag]); where.push(`c.tags && $${params.length}::text[]`); }
-    if (tags_any) { params.push(String(tags_any).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags && $${params.length}::text[]`); }
-    if (tags_all) { params.push(String(tags_all).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags @> $${params.length}::text[]`); }
-    if (attached_to) {
-      params.push(attached_to);
-      where.push(`EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
-    }
-    if (not_attached_to) {
-      params.push(not_attached_to);
-      where.push(`NOT EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
-    }
-    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const { whereSql, params } = buildLibraryFilter(req, req.query);
     // Engagement totals are computed via correlated counts so the hover
     // tooltip + sortable columns work without a second roundtrip. Keep
     // opt-in via ?include_totals=1 so the cheap multi-select picker
@@ -315,7 +332,53 @@ router.get('/contacts/library', async (req, res) => {
          LIMIT 1000`,
       params
     );
+    if (include_count === '1' || include_count === 'true') {
+      const { rows: countRows } = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM outreach_contacts c ${whereSql}`,
+        params
+      );
+      return res.json({ rows, total: countRows[0]?.total ?? rows.length });
+    }
     res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// "Delete everything matching this filter" — bypasses the 1000-row
+// list cap so AMs cleaning up a 21k-row library don't have to do it in
+// chunks. Accepts the same filter params as GET /contacts/library plus
+// `expected_count` (a guard against an unintended sweep — must match
+// the server's count to within ±2 to proceed). Visibility scope is
+// always applied so a non-admin can't nuke contacts they can't see.
+router.post('/contacts/library/delete-by-filter', async (req, res) => {
+  const body = req.body || {};
+  try {
+    const { whereSql, params } = buildLibraryFilter(req, body);
+    const { rows: countRows } = await pool.query(
+      `SELECT COUNT(*)::int AS total FROM outreach_contacts c ${whereSql}`,
+      params
+    );
+    const total = countRows[0]?.total ?? 0;
+    if (body.expected_count != null && Math.abs(Number(body.expected_count) - total) > 2) {
+      return res.status(409).json({
+        error: `Count mismatch — expected ${body.expected_count}, would delete ${total}`,
+        total,
+      });
+    }
+    if (!total) return res.json({ deleted: 0, total: 0 });
+    // Same approach as POST /contacts/bulk-delete: a single DELETE on
+    // outreach_contacts; FK cascades handle memberships and sends.
+    const { rows: idRows } = await pool.query(
+      `SELECT c.id FROM outreach_contacts c ${whereSql}`,
+      params
+    );
+    const ids = idRows.map(r => r.id);
+    const { rowCount } = await pool.query(
+      'DELETE FROM outreach_contacts WHERE id = ANY($1::uuid[])',
+      [ids]
+    );
+    res.json({ deleted: rowCount, total });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
