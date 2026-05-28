@@ -14,7 +14,7 @@ const SETTINGS_KEYS = [
   'META_APP_ID', 'META_APP_SECRET', 'META_REDIRECT_URI',
   'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REDIRECT_URI',
   'ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REDIRECT_URI',
-  'CLAUDE_API_KEY',
+  'CLAUDE_API_KEY', 'ANTHROPIC_ADMIN_KEY',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ADOBE_CLIENT_ID', 'ADOBE_CLIENT_SECRET',
@@ -218,6 +218,42 @@ function buildTransporter() {
     auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD },
   });
 }
+
+// ─── USAGE / COSTS ────────────────────────────────────────────────────────
+const usageTracking = require('../services/usageTracking');
+
+router.get('/usage', async (req, res) => {
+  try {
+    res.json(await usageTracking.currentSnapshots());
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/usage/refresh', async (req, res) => {
+  try {
+    const results = await usageTracking.runAllPollers();
+    res.json({ refreshed: results.length, snapshots: await usageTracking.currentSnapshots() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Per-provider snapshot history — used by the future charting view; for
+// now the panel just shows current numbers. Keeping the route lets
+// the frontend trend-chart drop in later without a backend change.
+router.get('/usage/history', async (req, res) => {
+  const { provider, days = 90 } = req.query;
+  try {
+    const params = [days];
+    let where = `snapshot_at >= NOW() - ($1::int || ' days')::interval`;
+    if (provider) { params.push(provider); where += ` AND provider = $${params.length}`; }
+    const { rows } = await db.query(
+      `SELECT provider, snapshot_at, cost_this_period, balance_remaining, units_used, units_limit, status
+       FROM usage_snapshots
+       WHERE ${where}
+       ORDER BY snapshot_at ASC`,
+      params
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 module.exports = router;
 module.exports.buildTransporter = buildTransporter;

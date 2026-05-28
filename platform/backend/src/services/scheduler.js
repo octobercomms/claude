@@ -6,6 +6,7 @@ const emailService = require('./emailService');
 const outreachSender = require('./outreachSender');
 const outreachReplies = require('./outreachReplies');
 const social = require('./social');
+const usageTracking = require('./usageTracking');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -33,6 +34,15 @@ cron.schedule('0 6 */3 * *', async () => {
 cron.schedule('30 6 * * 1', async () => {
   console.log('[Scheduler] Running weekly AI Overview check...');
   await runWeeklyAIOChecks();
+});
+
+// Usage snapshots: 02:00 daily. Polls each pay-per-use provider's
+// balance/usage endpoint and writes a row to usage_snapshots so the
+// Settings "Costs this month" panel has fresh numbers.
+cron.schedule('0 2 * * *', async () => {
+  console.log('[Scheduler] Polling provider usage…');
+  try { await usageTracking.runAllPollers(); }
+  catch (err) { console.error('[Usage] poll failed:', err.message); }
 });
 
 // Social engagement refresh: 07:00 daily. Pulls a fresh snapshot for
