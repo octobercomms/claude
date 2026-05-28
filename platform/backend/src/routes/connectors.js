@@ -256,6 +256,7 @@ router.get('/:id/diagnose', async (req, res) => {
 
     if (isGoogle) {
       // Google: check OAuth token info
+      let tokenOk = false;
       try {
         const tokenInfoRes = await axios.get(
           `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${creds.access_token}`
@@ -265,6 +266,7 @@ router.get('/:id/diagnose', async (req, res) => {
           scopes: tokenInfoRes.data.scope,
           expires_in: tokenInfoRes.data.exp ? `${Math.round((tokenInfoRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
         };
+        tokenOk = true;
       } catch (tokenErr) {
         result.token_info = { error: tokenErr.response?.data || tokenErr.message };
         try {
@@ -284,10 +286,23 @@ router.get('/:id/diagnose', async (req, res) => {
           await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [
             JSON.stringify(encrypt(refreshed)), row.id,
           ]);
+          tokenOk = true;
         } catch {
           result.token_info.note = 'Token is expired and refresh failed — re-authorise this connector.';
           result.token_info.note_kind = 'error';
         }
+      }
+
+      // Clear stale status/error_message rows when the diagnostic confirms
+      // the connector is now healthy. Without this, a transient failure from
+      // a previous fetch leaves the badge stuck on "error" forever, even
+      // though the next diagnose run shows everything fine.
+      if (tokenOk) {
+        await pool.query(
+          'UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2',
+          ['active', row.id]
+        );
+        result.status = 'active';
       }
 
       if (row.connector_type === 'ga4') {
