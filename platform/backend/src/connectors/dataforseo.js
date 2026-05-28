@@ -349,4 +349,35 @@ async function testCredentials({ login, password } = {}) {
   }
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchData, testCredentials };
+// Google Trends — pay-per-call, ~$0.005. Used by the Social ideation flow
+// to ground Claude's post suggestions in topics that are currently moving
+// rather than evergreen brand-speak.
+async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'past_30_days' } = {}) {
+  const client = await getClient();
+  const kw = (keywords || []).filter(Boolean).slice(0, 5);
+  if (!kw.length) return null;
+  const { data } = await client.post('/keywords_data/google_trends/explore/live', [{
+    keywords: kw,
+    location_code: locationCode,
+    language_code: 'en',
+    time_range: timeRange,
+    item_types: ['google_trends_graph', 'google_trends_topics_list', 'google_trends_queries_list'],
+  }]);
+  const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  // Compress to just the moving signals — top 8 rising queries / topics
+  // is plenty for the Claude prompt.
+  const rising = [];
+  for (const it of items) {
+    for (const e of (it.data || [])) {
+      if (e.topic_type === 'RISING' || e.entity_type === 'RISING') {
+        rising.push({ kind: it.type, label: e.query || e.title?.text, value: e.value });
+      }
+    }
+  }
+  return {
+    keywords: kw,
+    rising: rising.slice(0, 8),
+  };
+}
+
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials };

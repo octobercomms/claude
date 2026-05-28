@@ -47,6 +47,7 @@ app.use('/api/connectors', require('./routes/connectors'));
 app.use('/api/reports', require('./routes/reports'));
 app.use('/api/rankings', require('./routes/rankings'));
 app.use('/api/seo', require('./routes/seoSuite'));
+app.use('/api/social', require('./routes/social'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/chat', require('./routes/chat'));

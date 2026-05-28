@@ -11,6 +11,22 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Replicate (Flux 1.1 Pro)',
+    category: 'AI & Email',
+    hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',
+    keys: [
+      { key: 'REPLICATE_API_TOKEN', label: 'Replicate API Token', placeholder: 'r8_…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Ideogram',
+    category: 'AI & Email',
+    hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
+    keys: [
+      { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
     title: 'Email Provider',
     category: 'AI & Email',
     hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',
