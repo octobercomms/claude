@@ -9,6 +9,7 @@ const { loadVisibleClientIds, requireClientAccess } = require('../middleware/cli
 const adCreative = require('../services/adCreative');
 const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
+const adobe = require('../connectors/adobe');
 const users = require('../services/users');
 
 const router = express.Router();
@@ -142,7 +143,7 @@ router.post('/creatives/:id/images', async (req, res) => {
       style_brief ? `Style: ${style_brief}` : '',
     ].filter(Boolean).join('\n');
 
-    const generator = provider === 'ideogram' ? ideogram : replicate;
+    const generator = provider === 'ideogram' ? ideogram : provider === 'adobe' ? adobe : replicate;
     const generated = [];
     for (const aspect of aspect_ratios) {
       try {
@@ -163,6 +164,46 @@ router.post('/creatives/:id/images', async (req, res) => {
     console.error('[ad-creative] image generate failed:', err);
     res.status(502).json({ error: err.message });
   }
+});
+
+// Photoshop generative resize — take one existing image on this creative
+// and fan it out to a list of target aspect ratios in one click. Saves
+// having to re-prompt the image generator just to get a different shape
+// of the same composition.
+router.post('/images/:id/fan-out', authenticate, loadVisibleClientIds, async (req, res) => {
+  const { aspect_ratios = ['1:1', '4:5', '9:16', '16:9'] } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `SELECT i.*, c.client_id, c.id AS creative_id FROM ad_creative_images i
+       JOIN ad_creatives c ON c.id = i.creative_id
+       WHERE i.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Image not found' });
+    const src = rows[0];
+    if (!users.canAccessClient(req.visibleClientIds, src.client_id)) {
+      return res.status(403).json({ error: 'Not authorised' });
+    }
+    const sizeMap = { '1:1': [1024, 1024], '4:5': [1024, 1280], '9:16': [1024, 1820], '16:9': [1792, 1024] };
+    const generated = [];
+    for (const aspect of aspect_ratios) {
+      if (aspect === src.aspect_ratio) continue;
+      const [w, h] = sizeMap[aspect] || sizeMap['1:1'];
+      try {
+        const result = await adobe.generativeResize({ image_url: src.url, width: w, height: h });
+        const { rows: row } = await pool.query(
+          `INSERT INTO ad_creative_images (creative_id, provider, aspect_ratio, url, prompt)
+           VALUES ($1, 'adobe-resize', $2, $3, $4) RETURNING *`,
+          [src.creative_id, aspect, result.url, `Generative resize from ${src.aspect_ratio} source`]
+        );
+        generated.push(row[0]);
+      } catch (err) {
+        console.error(`[ad-creative] fan-out ${aspect} failed:`, err.message);
+        generated.push({ aspect_ratio: aspect, error: err.message });
+      }
+    }
+    res.status(201).json({ source_image_id: src.id, generated });
+  } catch (err) { res.status(502).json({ error: err.message }); }
 });
 
 router.delete('/images/:id', authenticate, loadVisibleClientIds, async (req, res) => {

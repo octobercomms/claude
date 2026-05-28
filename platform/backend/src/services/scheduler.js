@@ -5,6 +5,8 @@ const dataForSEO = require('../connectors/dataforseo');
 const emailService = require('./emailService');
 const outreachSender = require('./outreachSender');
 const outreachReplies = require('./outreachReplies');
+const social = require('./social');
+const usageTracking = require('./usageTracking');
 
 // Weekly reports: every Monday at 10:00 AM
 cron.schedule('0 10 * * 1', async () => {
@@ -32,6 +34,23 @@ cron.schedule('0 6 */3 * *', async () => {
 cron.schedule('30 6 * * 1', async () => {
   console.log('[Scheduler] Running weekly AI Overview check...');
   await runWeeklyAIOChecks();
+});
+
+// Usage snapshots: 02:00 daily. Polls each pay-per-use provider's
+// balance/usage endpoint and writes a row to usage_snapshots so the
+// Settings "Costs this month" panel has fresh numbers.
+cron.schedule('0 2 * * *', async () => {
+  console.log('[Scheduler] Polling provider usage…');
+  try { await usageTracking.runAllPollers(); }
+  catch (err) { console.error('[Usage] poll failed:', err.message); }
+});
+
+// Social engagement refresh: 07:00 daily. Pulls a fresh snapshot for
+// every published post < 30 days old so the Winners panel and the
+// "what's worked" prompt input stay current without per-request lag.
+cron.schedule('0 7 * * *', async () => {
+  console.log('[Scheduler] Refreshing social engagement…');
+  await runSocialEngagementRefresh();
 });
 
 // Daily connector health check: 07:30 AM
@@ -311,4 +330,26 @@ async function runOutreachSends() {
   }
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runReportReminderCheck, runOutreachSends };
+async function runSocialEngagementRefresh() {
+  try {
+    const { rows: posts } = await pool.query(
+      `SELECT * FROM social_posts
+       WHERE status = 'published' AND published_at IS NOT NULL
+         AND published_at >= NOW() - INTERVAL '30 days'`
+    );
+    let ok = 0, skipped = 0;
+    for (const post of posts) {
+      try {
+        const r = await social.refreshEngagement(post);
+        if (r.ok) ok++; else skipped++;
+      } catch (err) {
+        console.error(`[Social] engagement refresh failed for post ${post.id}:`, err.message);
+      }
+    }
+    console.log(`[Social] engagement refresh complete (${ok} updated, ${skipped} skipped, ${posts.length} total)`);
+  } catch (err) {
+    console.error('[Social] runSocialEngagementRefresh fatal:', err.message);
+  }
+}
+
+module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runSocialEngagementRefresh, runReportReminderCheck, runOutreachSends };

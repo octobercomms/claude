@@ -5,9 +5,10 @@ const KEY_GROUPS = [
   {
     title: 'Claude AI',
     category: 'AI & Email',
-    hint: 'Used for generating executive summaries and recommendations in reports.',
+    hint: 'Used for generating executive summaries, social posts, ad creative and report narratives. The Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API; without it, Anthropic spend is tracked via your dashboard.',
     keys: [
       { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
+      { key: 'ANTHROPIC_ADMIN_KEY', label: 'Anthropic Admin Key (optional — for cost tracking)', placeholder: 'sk-ant-admin-…', type: 'password' },
     ],
   },
   {
@@ -24,6 +25,31 @@ const KEY_GROUPS = [
     hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
     keys: [
       { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Adobe (Firefly + Photoshop)',
+    category: 'AI & Email',
+    hint: 'Third image option, commercially-safe training data — good for regulated clients. Photoshop generative resize fans one image out to every aspect ratio. Set up a Firefly Services project at developer.adobe.com → Console.',
+    keys: [
+      { key: 'ADOBE_CLIENT_ID', label: 'Adobe Client ID', placeholder: '…', type: 'text' },
+      { key: 'ADOBE_CLIENT_SECRET', label: 'Adobe Client Secret', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Arcads (UGC video)',
+    category: 'AI & Email',
+    hint: 'UGC-style talking-head video from a script. ~$2 per video. Used per-post on the Social tab — the storyboard\'s voiceover lines become the script by default.',
+    keys: [
+      { key: 'ARCADS_API_KEY', label: 'Arcads API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'ElevenLabs (voiceover)',
+    category: 'AI & Email',
+    hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
+    keys: [
+      { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', placeholder: '…', type: 'password' },
     ],
   },
   {
@@ -333,6 +359,8 @@ export default function SettingsPage() {
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>Settings</h1>
 
+      <CostsPanel />
+
       {/* Always-visible essentials: platform info + account */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start', marginBottom: 16 }}>
         <Card>
@@ -529,6 +557,108 @@ function ScopesBlock({ scopes }) {
       </div>
     </div>
   );
+}
+
+function CostsPanel() {
+  const [rows, setRows] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function load() {
+    try { setRows(await api.get('/settings/usage')); }
+    catch (e) { setErr(e.message); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function refresh() {
+    setRefreshing(true);
+    setErr(null);
+    try {
+      const { snapshots } = await api.post('/settings/usage/refresh', {});
+      setRows(snapshots);
+    } catch (e) { setErr(e.message); }
+    finally { setRefreshing(false); }
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <div>
+          <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
+          <p style={styles.hint}>Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
+        </div>
+        <button onClick={refresh} disabled={refreshing} style={{ ...styles.btn, padding: '6px 14px' }}>
+          {refreshing ? 'Polling…' : 'Refresh now'}
+        </button>
+      </div>
+      {err && <div style={{ color: '#c62828', fontSize: 12, marginBottom: 8 }}>{err}</div>}
+      {!rows && <div style={{ color: '#888', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {rows && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+          {rows.map(r => <ProviderCard key={r.name} entry={r} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderCard({ entry }) {
+  const s = entry.snapshot;
+  let body, statusColour = '#888';
+  if (!s) {
+    body = <div style={{ fontSize: 12, color: '#999' }}>No data yet — click Refresh.</div>;
+  } else if (s.status === 'no_credentials') {
+    body = <div style={{ fontSize: 12, color: '#bbb' }}>Not configured</div>;
+  } else if (s.status === 'error') {
+    body = <div style={{ fontSize: 12, color: '#c62828' }}>{s.error_message || 'Error'}</div>;
+    statusColour = '#c62828';
+  } else {
+    body = (
+      <div>
+        {s.cost_this_period != null && (
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+            {fmtCurrency(s.cost_this_period, s.currency)}
+            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>this month</span>
+          </div>
+        )}
+        {s.cost_this_period == null && s.balance_remaining != null && (
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+            {fmtCurrency(s.balance_remaining, s.currency)}
+            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+          </div>
+        )}
+        {s.units_used != null && (
+          <div style={{ fontSize: 13, color: '#333', marginTop: 2 }}>
+            {s.units_used.toLocaleString()}{s.units_limit ? ` / ${s.units_limit.toLocaleString()}` : ''}{' '}
+            <span style={{ color: '#888' }}>{s.unit_label || ''}</span>
+          </div>
+        )}
+        {(s.cost_this_period == null && s.balance_remaining == null && s.units_used == null) && (
+          <div style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>
+            {s.raw?.note || 'Configured — no balance API.'}
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: '#aaa', marginTop: 6 }}>
+          {s.snapshot_at ? `Updated ${new Date(s.snapshot_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+        </div>
+      </div>
+    );
+    statusColour = '#1d7a3a';
+  }
+  return (
+    <div style={{ border: '1px solid #eee', borderRadius: 4, padding: 12, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
+      <div style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
+      {body}
+    </div>
+  );
+}
+
+function fmtCurrency(value, currency) {
+  if (value == null) return '—';
+  const c = currency || 'USD';
+  try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: c, maximumFractionDigits: 2 }).format(value); }
+  catch { return `${c} ${value.toFixed(2)}`; }
 }
 
 function Card({ children }) {

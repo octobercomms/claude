@@ -17,6 +17,7 @@ import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
 import ClientBrandPage from './pages/ClientBrandPage';
+import ApprovePage from './pages/ApprovePage';
 import SettingsPage from './pages/SettingsPage';
 import ManageUsersPage from './pages/ManageUsersPage';
 
@@ -40,6 +41,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/approve/:token" element={<ApprovePage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="clients" element={<ClientsPage />} />

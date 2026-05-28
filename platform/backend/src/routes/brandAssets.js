@@ -55,12 +55,13 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 20 * 1024 * 1024 },     // 20MB
+  limits: { fileSize: 100 * 1024 * 1024 },    // 100MB — B-roll clips are bigger
   fileFilter: (req, file, cb) => {
     const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml',
+                     'video/mp4', 'video/quicktime', 'video/webm',
                      'font/woff', 'font/woff2', 'font/ttf', 'application/font-woff',
                      'application/octet-stream', 'application/pdf'];
-    if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/')) cb(null, true);
+    if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
     else cb(new Error(`Unsupported file type: ${file.mimetype}`));
   },
 });
@@ -75,7 +76,8 @@ router.get('/clients/:clientId/assets', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// File-uploaded assets (logo / product_image / font / guideline doc).
+// File-uploaded assets (logo / product_image / font / guideline doc /
+// b_roll_clip / prop_image). Single-file path.
 router.post('/clients/:clientId/assets', upload.single('file'), async (req, res) => {
   try {
     const { kind, name } = req.body;
@@ -93,6 +95,32 @@ router.post('/clients/:clientId/assets', upload.single('file'), async (req, res)
       ]
     );
     res.status(201).json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk upload — for B-roll banks and prop libraries where the AM uploads
+// 30+ files in one go. Same multer pipeline but processes the array.
+router.post('/clients/:clientId/assets/bulk', upload.array('files', 50), async (req, res) => {
+  try {
+    const { kind } = req.body;
+    if (!kind) return res.status(400).json({ error: 'kind required' });
+    if (!req.files?.length) return res.status(400).json({ error: 'files required' });
+    const inserted = [];
+    for (const file of req.files) {
+      const url = `/api/brand/file/${req.params.clientId}/${file.filename}`;
+      const { rows } = await pool.query(
+        `INSERT INTO brand_assets (client_id, kind, name, url, metadata)
+         VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+        [
+          req.params.clientId, kind, file.originalname, url,
+          JSON.stringify({ size: file.size, mimetype: file.mimetype, originalname: file.originalname }),
+        ]
+      );
+      inserted.push(rows[0]);
+    }
+    res.status(201).json({ inserted });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

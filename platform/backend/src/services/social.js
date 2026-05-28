@@ -13,6 +13,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const dataForSEO = require('../connectors/dataforseo');
+const meta = require('../connectors/meta');
+const { decrypt } = require('../utils/encryption');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -30,7 +32,20 @@ Your job is to translate the brand's brief and the current topical signals into 
  - Include a frame-by-frame storyboard if the post is a Reel or Story (3-9 frames; each frame gets a shot description, on-screen text if any, and a voiceover or caption line).
  - For static posts and carousels, the storyboard is just the slides/panels.
 
-British English. No emojis unless the brief explicitly says the brand uses them. No hashtag walls (max 8 hashtags, mix of broad + niche).`;
+# Reel storyboards — Video Style System
+When the post is a reel, the storyboard must follow October's seven-style grammar so the same template handles every video. Tag each frame with a style code A-G:
+
+ A · Text hook on black, 2-4s. ALWAYS the first frame of every reel. No filming — pure text overlay. Bold white or yellow on black. The provocative opener the viewer reads before they see a face.
+ B · Talking head anchor, 10-45s. The host (AM or client) at a fixed desk/studio setup, front camera, RØDE mic. This is the anchor — other styles cut away from B and back to B. Aim for 2-3 B frames per reel, each 10-15s. Voiceover IS the dialogue.
+ C · Word card, 1-2s. One word or a 3-word phrase on plain white or black. Hard cut. Punctuation between B sections — use 2-3 times per reel max. No filming.
+ D · Screen reveal, 4-8s. Once per reel max. Close-up of a laptop screen — analytics, a landing page, a dashboard. Voiceover continues from B.
+ E · B-roll voiceover, 5-12s. Used when content references the built environment, product, or client's project work. No talking to camera; voiceover runs over the footage. For agency posts that's London streets; for clients it's their projects/sites — far stronger and the main reason this style varies most by client.
+ F · Prop close-up, 3-6s. Hands holding a physical object — notebook, printed brief, drawing, sample. Warm desk light, voiceover continues. Avoids stock-photo feel.
+ G · Kinetic CTA on black, 3-5s. ALWAYS the last frame of every reel. URL or CTA in animated text. Brand-consistent — same font/motion across every video.
+
+Sequence rule: A opens every reel, G closes every reel. Between them, cycle B with cutaways (C/D/E/F) so the viewer never sees more than ~15s of the same shot. Typical 60s reel: A → B → C → B → E → B → F → G. Don't pad — if a point only needs 3 B sections, ship 3.
+
+For non-reel formats (carousels, static posts), omit style codes; the storyboard is just slides/panels.`;
 
 const POSTS_TOOL = {
   name: 'propose_posts',
@@ -59,9 +74,11 @@ const POSTS_TOOL = {
                 type: 'object',
                 properties: {
                   frame: { type: 'number' },
+                  style: { type: 'string', enum: ['A', 'B', 'C', 'D', 'E', 'F', 'G'], description: 'For reels only — the Video Style System code. A=text hook, B=talking head, C=word card, D=screen reveal, E=b-roll voiceover, F=prop close-up, G=kinetic CTA. Omit for non-reel formats.' },
                   shot: { type: 'string', description: 'What the camera sees in this frame.' },
                   on_screen_text: { type: 'string' },
                   voiceover: { type: 'string' },
+                  duration_sec: { type: 'number', description: 'Target duration. A: 2-4, B: 10-15, C: 1-2, D: 4-8, E: 5-12, F: 3-6, G: 3-5.' },
                 },
                 required: ['frame', 'shot'],
               },
@@ -91,6 +108,23 @@ async function generateBatch({ clientId, brief, platforms }) {
     console.warn('[social] trends fetch failed (non-fatal):', err.message);
   }
 
+  // Performance loop — what's actually worked for this client in the last
+  // 90 days. The top 5 by engagement rate go into the prompt as concrete
+  // exemplars to model. Closes the "scientifically backed" loop with the
+  // client's own data, not a generic trend.
+  const winners = await getRecentWinners(clientId, { days: 90, limit: 5 });
+
+  // Brand asset banks — Claude needs to know what b-roll clips and prop
+  // images already exist for this client so it can pick from them in
+  // E/F frames rather than inventing footage that doesn't exist.
+  const { rows: assets } = await pool.query(
+    `SELECT id, kind, name FROM brand_assets WHERE client_id = $1
+     AND kind IN ('b_roll_clip', 'prop_image') ORDER BY kind, created_at DESC LIMIT 100`,
+    [clientId]
+  );
+  const bRollBank = assets.filter(a => a.kind === 'b_roll_clip');
+  const propBank = assets.filter(a => a.kind === 'prop_image');
+
   const competitorList = (c.social_competitors || []).filter(Boolean);
   const platformList = Array.isArray(platforms) && platforms.length ? platforms : ['instagram', 'tiktok'];
 
@@ -105,6 +139,14 @@ Platforms in scope: ${platformList.join(', ')}
 Competitor handles (use as style/voice reference if helpful): ${competitorList.length ? competitorList.join(', ') : '(none configured)'}
 
 ${trends ? `Currently rising signals (Google Trends, last 30 days, UK): ${trends.rising.map(r => r.label).filter(Boolean).join(', ') || '(no rising queries)'}` : '(no trend signal available — proceed without)'}
+
+Brand asset banks available for E/F frames (refer to a clip or prop by name in your "shot" field so the AM knows which existing asset to use, rather than inventing new footage):
+ - B-roll bank (Style E): ${bRollBank.length ? bRollBank.map(a => a.name).join(', ') : '(no clips uploaded yet — describe what they should film)'}
+ - Prop library (Style F): ${propBank.length ? propBank.map(a => a.name).join(', ') : '(no props uploaded yet — describe what they should photograph)'}
+
+${winners.length
+  ? `Posts that have actually performed well for THIS brand in the last 90 days (model the new batch on what's already engaging this audience — don't copy verbatim, lift the angle and structure):\n${winners.map((w, i) => `${i + 1}. [${w.platform} · ${w.kind} · ${w.engagement_rate}% engagement] hook: "${w.hook || '(none)'}" — caption opener: "${(w.caption || '').slice(0, 120)}…"`).join('\n')}`
+  : 'No published-post engagement data yet — design on brand + brief + trends alone. After the AM publishes a few of these and marks them published, future batches will draw on what worked.'}
 
 Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + carousel so the AM can choose; if the brief asks for one kind specifically, follow that. Use British English.`;
 
@@ -194,4 +236,77 @@ const STOP = new Set([
   'monthly','focus','none','marketing','agency','team','really','want','need',
 ]);
 
-module.exports = { generateBatch };
+// Pull the latest engagement snapshot for every published post for a
+// client, score by an engagement-rate proxy (likes + comments + shares +
+// saves) / reach, and return the top N. Used both by generateBatch (as
+// prompt grounding) and by the Winners panel on the Social tab.
+async function getRecentWinners(clientId, { days = 90, limit = 5 } = {}) {
+  const { rows } = await pool.query(
+    `WITH latest AS (
+       SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves, e.views, e.fetched_at
+       FROM social_post_engagement e
+       JOIN social_posts p ON p.id = e.post_id
+       WHERE p.client_id = $1
+         AND p.published_at IS NOT NULL
+         AND p.published_at >= NOW() - ($2::int || ' days')::interval
+       ORDER BY e.post_id, e.fetched_at DESC
+     )
+     SELECT p.id, p.platform, p.kind, p.hook, p.caption, p.published_url, p.published_at,
+            l.reach, l.impressions, l.likes, l.comments, l.shares, l.saves, l.views
+     FROM latest l JOIN social_posts p ON p.id = l.post_id`,
+    [clientId, days]
+  );
+  return rows
+    .map(r => {
+      const reachLike = r.reach || r.impressions || r.views || 0;
+      const interactions = (r.likes || 0) + (r.comments || 0) + (r.shares || 0) + (r.saves || 0);
+      const rate = reachLike > 0 ? Math.round((interactions / reachLike) * 1000) / 10 : 0;
+      return { ...r, engagement_rate: rate };
+    })
+    .sort((a, b) => b.engagement_rate - a.engagement_rate)
+    .slice(0, limit);
+}
+
+// Look up the active Meta connector for a client and return decrypted
+// creds, or null if there isn't one configured. Used by the engagement-
+// refresh path so we don't have to repeat the wiring per route.
+async function loadMetaCredentials(clientId) {
+  const { rows } = await pool.query(
+    `SELECT credentials FROM connectors
+     WHERE client_id = $1 AND connector_type IN ('meta_ads', 'instagram_insights') AND status = 'active'
+     LIMIT 1`,
+    [clientId]
+  );
+  if (!rows.length) return null;
+  return decrypt(rows[0].credentials);
+}
+
+// Pull a fresh engagement snapshot for a single post. IG only for now —
+// returns null + a reason for any other platform.
+async function refreshEngagement(post) {
+  if (!post.external_id || post.external_platform !== 'instagram') {
+    return { skipped: true, reason: 'Only Instagram engagement is auto-fetched. Paste platform numbers manually for other networks.' };
+  }
+  const creds = await loadMetaCredentials(post.client_id);
+  if (!creds) return { skipped: true, reason: 'No active Meta connector for this client.' };
+  const insights = await meta.fetchInstagramMediaInsights(creds, post.external_id);
+  const reach = insights.reach ?? null;
+  const impressions = insights.impressions ?? null;
+  const views = insights.plays ?? insights.video_views ?? null;
+  const likes = insights.likes ?? null;
+  const comments = insights.comments ?? null;
+  const shares = insights.shares ?? null;
+  const saves = insights.saved ?? null;
+  const watch = insights.ig_reels_video_view_total_time ?? null;
+  await pool.query(
+    `INSERT INTO social_post_engagement
+       (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ON CONFLICT (post_id, fetched_at) DO NOTHING`,
+    [post.id, impressions, reach, views, likes, comments, shares, saves, watch, JSON.stringify(insights)]
+  );
+  return { ok: true, insights };
+}
+
+module.exports = { generateBatch, getRecentWinners, refreshEngagement, loadMetaCredentials };

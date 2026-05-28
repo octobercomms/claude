@@ -7,9 +7,51 @@ const {
 const social = require('../services/social');
 const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
+const adobe = require('../connectors/adobe');
+const arcads = require('../connectors/arcads');
+const elevenlabs = require('../connectors/elevenlabs');
+const crypto = require('crypto');
+const meta = require('../connectors/meta');
+const productionBrief = require('../services/productionBrief');
+
+function signBriefToken(postId, expiresAtSec) {
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${postId}.${expiresAtSec}`).digest('hex');
+  return `${expiresAtSec}.${sig}`;
+}
+function verifyBriefToken(postId, token) {
+  if (!token || typeof token !== 'string') return false;
+  const [expStr, sig] = token.split('.');
+  if (!expStr || !sig) return false;
+  const exp = parseInt(expStr, 10);
+  if (!exp || exp < Math.floor(Date.now() / 1000)) return false;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`${postId}.${exp}`).digest('hex');
+  try {
+    return crypto.timingSafeEqual(Buffer.from(expected, 'hex'), Buffer.from(sig, 'hex'));
+  } catch { return false; }
+}
 const users = require('../services/users');
 
 const router = express.Router();
+
+// Public-style printable brief — accepts a short-lived signed token via
+// query string so window.open works from the AM's browser. Lives above
+// router.use(authenticate) so the route handler runs without a Bearer
+// header.
+router.get('/brief/:id.html', async (req, res) => {
+  try {
+    if (!verifyBriefToken(req.params.id, req.query.token)) {
+      return res.status(403).send('Invalid or expired token');
+    }
+    const { rows } = await pool.query(
+      `SELECT p.*, c.name AS client_name FROM social_posts p JOIN clients c ON c.id = p.client_id WHERE p.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).send('Post not found');
+    const html = productionBrief.buildBriefHtml(rows[0], { name: rows[0].client_name });
+    res.type('html').send(html);
+  } catch (err) { res.status(500).send(err.message); }
+});
+
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
@@ -137,6 +179,8 @@ router.post('/posts/:id/image', async (req, res) => {
     let result;
     if (provider === 'ideogram') {
       result = await ideogram.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed });
+    } else if (provider === 'adobe') {
+      result = await adobe.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed, reference_image });
     } else {
       result = await replicate.generate({ prompt, aspect_ratio: aspect_ratio || '1:1', seed, reference_image });
     }
@@ -150,6 +194,194 @@ router.post('/posts/:id/image', async (req, res) => {
     console.error('[social] image generate failed:', err);
     res.status(502).json({ error: err.message });
   }
+});
+
+// ─── VIDEO + AUDIO ────────────────────────────────────────────────────────
+//
+// Per-post UGC video via Arcads. The script defaults to the storyboard's
+// voiceover lines concatenated; the AM can override. Long-running — we
+// keep the request open and let the page show a spinner.
+router.post('/posts/:id/video', async (req, res) => {
+  const { script, actor_id, aspect_ratio } = req.body || {};
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+    const finalScript = script || defaultScriptFromStoryboard(post) || post.caption;
+    if (!finalScript) return res.status(400).json({ error: 'No script — either pass one or fill out the storyboard.' });
+
+    const result = await arcads.generateVideo({
+      script: finalScript, actor_id,
+      aspect_ratio: aspect_ratio || (post.kind === 'reel' || post.kind === 'story' ? '9:16' : '1:1'),
+    });
+    const { rows: row } = await pool.query(
+      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+       VALUES ($1, 'video', 'arcads', $2, $3, $4) RETURNING *`,
+      [post.id, result.url, result.duration_sec, JSON.stringify({ actor_id: result.actor_id, job_id: result.job_id, script: finalScript })]
+    );
+    res.status(201).json({ media: row[0] });
+  } catch (err) {
+    console.error('[social] arcads video failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Per-post voiceover via ElevenLabs. Same defaulting logic as video.
+router.post('/posts/:id/voiceover', async (req, res) => {
+  const { script, voice_id } = req.body || {};
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+    const finalScript = script || defaultScriptFromStoryboard(post) || post.caption;
+    if (!finalScript) return res.status(400).json({ error: 'No script — either pass one or fill out the storyboard.' });
+
+    const result = await elevenlabs.generateVoiceover({ text: finalScript, voice_id, client_id: post.client_id });
+    const { rows: row } = await pool.query(
+      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+       VALUES ($1, 'audio', 'elevenlabs', $2, $3, $4) RETURNING *`,
+      [post.id, result.url, result.duration_sec, JSON.stringify({ voice_id: result.voice_id, script: finalScript })]
+    );
+    res.status(201).json({ media: row[0] });
+  } catch (err) {
+    console.error('[social] elevenlabs voiceover failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Return all media (video + audio) for a post — used by the card to render
+// the players inline.
+router.get('/posts/:id/media', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM social_post_media WHERE post_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/media/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT m.*, p.client_id FROM social_post_media m
+       JOIN social_posts p ON p.id = m.post_id WHERE m.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(204).end();
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised' });
+    }
+    await pool.query('DELETE FROM social_post_media WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+function defaultScriptFromStoryboard(post) {
+  const frames = post.storyboard || [];
+  return frames.map(f => f.voiceover).filter(Boolean).join(' ');
+}
+
+// ─── PRODUCTION BRIEF ─────────────────────────────────────────────────────
+// Per-post shot list for filming, following October's Video Style System.
+// Two formats from the same source: markdown for the API + HTML for a
+// printable page the AM opens in a new tab.
+router.get('/posts/:id/brief', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    res.json({ markdown: productionBrief.buildBriefMarkdown(rows[0]) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/posts/:id/brief-url', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const expiresAt = Math.floor(Date.now() / 1000) + 300;     // 5 minutes
+    const token = signBriefToken(req.params.id, expiresAt);
+    res.json({ url: `/api/social/brief/${req.params.id}.html?token=${encodeURIComponent(token)}`, expires_at: expiresAt });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── PUBLISH + PERFORMANCE LOOP ───────────────────────────────────────────
+//
+// Mark a draft post as published. The AM pastes the live Instagram /
+// TikTok / LinkedIn URL; we parse the platform-side id and fetch a
+// first engagement snapshot so the loop kicks in immediately.
+router.post('/posts/:id/publish', async (req, res) => {
+  const { published_url } = req.body || {};
+  if (!published_url) return res.status(400).json({ error: 'published_url required' });
+  try {
+    const parsed = meta.parseSocialUrl(published_url);
+    if (!parsed) return res.status(400).json({ error: 'Could not recognise that URL. Supported: Instagram, TikTok, LinkedIn.' });
+    const { rows: existing } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!existing.length) return res.status(404).json({ error: 'Post not found' });
+
+    const { rows } = await pool.query(
+      `UPDATE social_posts SET
+         status = 'published',
+         published_url = $1,
+         external_id = $2,
+         external_platform = $3,
+         published_at = COALESCE(published_at, NOW())
+       WHERE id = $4 RETURNING *`,
+      [published_url, parsed.external_id, parsed.platform, req.params.id]
+    );
+    const post = rows[0];
+
+    // Best-effort first snapshot — never block the response on it.
+    let firstSnapshot = null;
+    try {
+      const result = await social.refreshEngagement(post);
+      firstSnapshot = result;
+    } catch (err) {
+      firstSnapshot = { skipped: true, reason: err.message };
+    }
+    res.json({ post, parsed, snapshot: firstSnapshot });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Pull a fresh engagement snapshot for a single post on demand.
+router.post('/posts/:id/refresh-insights', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const result = await social.refreshEngagement(rows[0]);
+    if (result.skipped) return res.status(400).json({ error: result.reason });
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Latest engagement snapshot per published post for a client. Used by the
+// Winners panel + by the post cards to render their numbers.
+router.get('/clients/:clientId/engagement', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.fetched_at, e.impressions, e.reach, e.views,
+         e.likes, e.comments, e.shares, e.saves, e.watch_time_sec
+       FROM social_post_engagement e
+       JOIN social_posts p ON p.id = e.post_id
+       WHERE p.client_id = $1
+       ORDER BY e.post_id, e.fetched_at DESC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/winners', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 90, 365);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const winners = await social.getRecentWinners(req.params.clientId, { days, limit });
+    res.json(winners);
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Drop an image from a post (e.g. user didn't like a generation).
