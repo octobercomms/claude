@@ -12,6 +12,8 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
     "@aws-sdk/client-sesv2": "^3.1053.0",
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
     "axios": "^1.7.9",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -27,6 +29,9 @@
     "nodemailer": "^6.9.16",
     "pg": "^8.13.1",
     "puppeteer": "^22.15.0",
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0",
+    "remotion": "^4.0.0",
     "uuid": "^11.0.5"
   },
   "devDependencies": {
