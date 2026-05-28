@@ -139,9 +139,15 @@ export default function ClientAdsPage() {
   const metaEntries = (adsData?.meta_ads || []).map(parseMetaAds);
   const hasGoogle = googleEntries.filter(g => !g.error).length > 0;
   const hasMeta = metaEntries.filter(m => !m.error).length > 0;
-  const noConnectors = !loading && !hasGoogle && !hasMeta;
+  // Show the tab even when every account returned an error, so the AM can
+  // see the underlying API message instead of the whole platform silently
+  // disappearing. Without this you have to open DevTools → Network just to
+  // find out a developer token is missing or a customer ID is wrong.
+  const showGoogleTab = hasGoogle || googleEntries.length > 0;
+  const showMetaTab = hasMeta || metaEntries.length > 0;
+  const noConnectors = !loading && !googleEntries.length && !metaEntries.length;
 
-  const tabs = [...(hasGoogle ? ['google'] : []), ...(hasMeta ? ['meta'] : [])];
+  const tabs = [...(showGoogleTab ? ['google'] : []), ...(showMetaTab ? ['meta'] : [])];
   const [adsTab, setAdsTab] = useState('google');
   const activeAdsTab = tabs.includes(adsTab) ? adsTab : (tabs[0] || 'google');
 
@@ -196,14 +202,14 @@ export default function ClientAdsPage() {
 
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>
-          {hasGoogle && (
+          {showGoogleTab && (
             <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'google' ? '2px solid #4285f4' : '2px solid transparent', marginBottom: -2 }}>
-              Google Ads
+              Google Ads {!hasGoogle && <span style={{ color: '#c62828', fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
-          {hasMeta && (
+          {showMetaTab && (
             <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'meta' ? '2px solid #1877f2' : '2px solid transparent', marginBottom: -2 }}>
-              Meta Ads
+              Meta Ads {!hasMeta && <span style={{ color: '#c62828', fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
         </div>
@@ -220,7 +226,7 @@ export default function ClientAdsPage() {
         </div>
       ) : (
         <>
-          {activeAdsTab === 'google' && hasGoogle && (
+          {activeAdsTab === 'google' && showGoogleTab && (
             <div>
               {googleEntries.filter(g => !g.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
@@ -285,7 +291,7 @@ export default function ClientAdsPage() {
             </div>
           )}
 
-          {activeAdsTab === 'meta' && hasMeta && (
+          {activeAdsTab === 'meta' && showMetaTab && (
             <div>
               {metaEntries.filter(m => !m.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
