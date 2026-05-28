@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
@@ -10,9 +11,12 @@ const icypeas = require('../services/icypeas');
 const outreachAi = require('../services/outreachAi');
 const outreachSender = require('../services/outreachSender');
 
-// Public — open-tracking pixel, loaded directly by recipients' email clients.
+// Public — open-tracking pixel, loaded directly by recipients' email
+// clients. Per-IP rate-limited so the endpoint can't be brute-forced
+// against UUIDs to mark sends as opened en masse.
+const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, skipSuccessfulRequests: false });
 const TRACK_PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
-router.get('/track/open/:sendId', async (req, res) => {
+router.get('/track/open/:sendId', pixelLimiter, async (req, res) => {
   try {
     await pool.query('UPDATE outreach_sends SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL', [req.params.sendId]);
   } catch { /* always return the pixel */ }
@@ -59,10 +63,15 @@ router.param('id', async (req, res, next, id) => {
 // Status panel can flag a misconfigured sender before campaigns go out.
 router.get('/dns-check', async (req, res) => {
   let domain = (req.query.domain || '').trim().toLowerCase();
-  if (!domain) {
-    domain = (await getSetting('OUTREACH_SENDING_DOMAIN'))
-      || ((await getSetting('SES_FROM_EMAIL')) || '').split('@')[1]
-      || '';
+  // Whitelist the domain to the configured sending domain (or the
+  // SES_FROM_EMAIL host). Without this any authenticated user could
+  // turn the endpoint into a DNS recon probe for arbitrary domains.
+  const configured = ((await getSetting('OUTREACH_SENDING_DOMAIN'))
+    || ((await getSetting('SES_FROM_EMAIL')) || '').split('@')[1]
+    || '').toLowerCase();
+  if (!domain) domain = configured;
+  else if (configured && domain !== configured) {
+    return res.status(403).json({ error: 'dns-check only inspects the configured outreach sending domain' });
   }
   if (!domain) return res.json({ domain: null, spf: 'missing', dmarc: 'missing' });
 

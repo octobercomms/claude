@@ -6,7 +6,21 @@ const KEY_LENGTH = 32;
 function getKey() {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) throw new Error('ENCRYPTION_KEY not set');
-  return Buffer.from(key, 'hex').slice(0, KEY_LENGTH);
+  // Must be a 64-char hex string (32 bytes). Anything else — wrong length
+  // or non-hex characters — would silently truncate via Buffer.from('hex')
+  // and leave AES-256 running with an effectively-empty key, which is
+  // catastrophic. Fail loudly at first encrypt/decrypt instead.
+  if (!/^[0-9a-fA-F]{64}$/.test(key)) {
+    throw new Error('ENCRYPTION_KEY must be a 64-character hex string (32 bytes). Generate one with: openssl rand -hex 32');
+  }
+  return Buffer.from(key, 'hex');
+}
+
+// Boot-time validator — called from index.js once at startup so an
+// operator running with a broken key sees the error immediately rather
+// than the first time a connector is decrypted.
+function assertKeyValid() {
+  getKey();   // throws if invalid
 }
 
 function encrypt(text) {
@@ -36,4 +50,4 @@ function decrypt(encryptedObj) {
   return JSON.parse(decrypted.toString('utf8'));
 }
 
-module.exports = { encrypt, decrypt };
+module.exports = { encrypt, decrypt, assertKeyValid };

@@ -1,7 +1,7 @@
 const bcrypt = require('bcryptjs');
 const pool = require('../db');
 
-const BCRYPT_ROUNDS = 10;
+const BCRYPT_ROUNDS = 12;
 
 async function findByUsername(username) {
   const { rows } = await pool.query('SELECT * FROM users WHERE username = $1', [username]);

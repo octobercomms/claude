@@ -555,11 +555,16 @@ function checkMetricAnomaly(anomalies, source, metric, curr, prev, thresholdPct,
 }
 
 async function toolGetContextLog(clientId, status = 'open') {
-  const whereStatus = status === 'all' ? '' : `AND status = '${status === 'resolved' ? 'resolved' : 'open'}'`;
+  // Parameterise so the status filter can never be a SQL-injection sink
+  // — input comes from Claude tool args via the LLM, so it's not
+  // trusted even if validated upstream.
+  const normalized = ['resolved', 'open'].includes(status) ? status : null;
   const { rows } = await pool.query(
     `SELECT id, type, content, status, created_at, resolved_at
-     FROM client_context_log WHERE client_id = $1 ${whereStatus} ORDER BY created_at DESC`,
-    [clientId]
+     FROM client_context_log
+     WHERE client_id = $1 AND ($2::text IS NULL OR status = $2)
+     ORDER BY created_at DESC`,
+    [clientId, normalized]
   );
   return rows;
 }
