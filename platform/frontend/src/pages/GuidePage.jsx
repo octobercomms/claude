@@ -305,7 +305,7 @@ export default function GuidePage() {
     });
   }
   return (
-    <div style={{ maxWidth: 920 }}>
+    <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Guide</h1>
       <p style={{ fontSize: 13, color: '#666', margin: '6px 0 22px', lineHeight: 1.6 }}>
         How each part of the platform works. Click a section to expand. Skim, or jump straight to the page you need help with.
