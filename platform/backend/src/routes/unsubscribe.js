@@ -2,6 +2,11 @@
 // signature itself is the credential. Lives at /api/unsubscribe and is
 // mounted before any auth middleware so journalists can hit it directly
 // from the email footer or via Gmail's one-click List-Unsubscribe-Post.
+//
+// Unsubscribe is per-client: a journalist who unsubscribes from LOLO's
+// emails stays subscribed to Universal's. The link encodes both the
+// contact_id and the client_id; we only mark the matching membership row.
+// Legacy links without a client_id fall back to marking every membership.
 
 const express = require('express');
 const crypto = require('crypto');
@@ -9,22 +14,48 @@ const pool = require('../db');
 
 const router = express.Router();
 
-function verifySig(contactId, sig) {
+function sign(payload) {
+  return crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 32);
+}
+
+function verifySig(contactId, clientId, sig) {
   if (!contactId || !sig || !process.env.JWT_SECRET) return false;
-  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`unsub:${contactId}`).digest('hex').slice(0, 32);
+  const payload = clientId ? `unsub:${contactId}:${clientId}` : `unsub:${contactId}`;
+  const expected = sign(payload);
   try { return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig)); }
   catch { return false; }
 }
 
-async function markUnsubscribed(contactId) {
+async function markUnsubscribed(contactId, clientId) {
+  if (clientId) {
+    // Per-client unsubscribe — flip the membership timestamp and cancel
+    // only the pending sends queued for this client's campaigns.
+    await pool.query(
+      `INSERT INTO outreach_contact_clients (contact_id, client_id, unsubscribed_at)
+         VALUES ($1, $2, NOW())
+       ON CONFLICT (contact_id, client_id)
+         DO UPDATE SET unsubscribed_at = COALESCE(outreach_contact_clients.unsubscribed_at, NOW())`,
+      [contactId, clientId]
+    );
+    await pool.query(
+      `UPDATE outreach_sends s SET status = 'cancelled'
+         FROM outreach_campaigns c
+        WHERE s.campaign_id = c.id
+          AND c.client_id = $1
+          AND s.contact_id = $2
+          AND s.status = 'pending'`,
+      [clientId, contactId]
+    );
+    return;
+  }
+  // Legacy link (no client_id encoded) — unsubscribe from every client
+  // the contact is attached to and cancel all pending sends globally.
   await pool.query(
-    `UPDATE outreach_contacts
-       SET status = 'unsubscribed', unsubscribed_at = COALESCE(unsubscribed_at, NOW())
-     WHERE id = $1`,
+    `UPDATE outreach_contact_clients
+        SET unsubscribed_at = COALESCE(unsubscribed_at, NOW())
+      WHERE contact_id = $1`,
     [contactId]
   );
-  // Cancel any pending sends to this contact so they don't receive the
-  // queued follow-ups after clicking unsubscribe.
   await pool.query(
     `UPDATE outreach_sends SET status = 'cancelled'
      WHERE contact_id = $1 AND status = 'pending'`,
@@ -34,18 +65,18 @@ async function markUnsubscribed(contactId) {
 
 // GET — public landing page. Lightweight HTML, no dependencies.
 router.get('/', async (req, res) => {
-  const { c, s } = req.query;
-  if (!verifySig(c, s)) {
+  const { c, s, cl } = req.query;
+  if (!verifySig(c, cl, s)) {
     return res.status(400).type('html').send(page('Invalid link',
       'This unsubscribe link is not valid or has been tampered with. If you wanted to unsubscribe, please reply to the email you received and we\'ll remove you manually.'));
   }
   try {
-    const { rows } = await pool.query('SELECT email, status FROM outreach_contacts WHERE id = $1', [c]);
+    const { rows } = await pool.query('SELECT email FROM outreach_contacts WHERE id = $1', [c]);
     if (!rows.length) {
       return res.status(404).type('html').send(page('Contact not found',
         'We couldn\'t find this contact in our records — it may have already been removed.'));
     }
-    await markUnsubscribed(c);
+    await markUnsubscribed(c, cl);
     res.type('html').send(page('You\'ve been unsubscribed',
       `<strong>${escapeHtml(rows[0].email)}</strong> has been removed from our list. You won't receive any further emails about press releases or campaigns from October Communications. If this was a mistake or you change your mind, just reply to a past email — we'll re-add you.`));
   } catch (err) {
@@ -57,10 +88,10 @@ router.get('/', async (req, res) => {
 // POST — Gmail / Yahoo one-click (RFC 8058). Same logic, just no
 // rendered page; respond 200 to signal success.
 router.post('/', async (req, res) => {
-  const { c, s } = req.query;
-  if (!verifySig(c, s)) return res.status(400).end();
+  const { c, s, cl } = req.query;
+  if (!verifySig(c, cl, s)) return res.status(400).end();
   try {
-    await markUnsubscribed(c);
+    await markUnsubscribed(c, cl);
     res.status(200).end();
   } catch (err) {
     res.status(500).end();

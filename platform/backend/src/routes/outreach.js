@@ -36,16 +36,38 @@ router.use(checkClientIdFromBodyOrQuery);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
 // :id can be a contact, campaign, or send UUID depending on the path —
-// look it up and refuse if it belongs to another tenant.
+// look it up and refuse if it belongs to another tenant. Contacts now
+// live in a workspace-wide library, so we check that at least one of
+// their attached clients is visible to the caller (or the contact has
+// no attachments yet, e.g. a freshly created library row).
 router.param('id', async (req, res, next, id) => {
   try {
     const path = req.path;
-    let q;
-    if (path.startsWith('/contacts/')) q = 'SELECT client_id FROM outreach_contacts WHERE id = $1';
-    else if (path.startsWith('/campaigns/')) q = 'SELECT client_id FROM outreach_campaigns WHERE id = $1';
-    else if (path.startsWith('/sends/')) q = `SELECT c.client_id FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id WHERE s.id = $1`;
-    if (q) {
-      const { rows } = await pool.query(q, [id]);
+    if (path.startsWith('/contacts/')) {
+      const { rows } = await pool.query(
+        `SELECT ARRAY(
+           SELECT client_id FROM outreach_contact_clients WHERE contact_id = $1
+         ) AS client_ids,
+         (SELECT client_id FROM outreach_contacts WHERE id = $1) AS origin_client_id`,
+        [id]
+      );
+      if (rows.length) {
+        const all = [...(rows[0].client_ids || [])];
+        if (rows[0].origin_client_id) all.push(rows[0].origin_client_id);
+        if (all.length && !all.some(cid => users.canAccessClient(req.visibleClientIds, cid))) {
+          return res.status(403).json({ error: 'Not authorised for this contact' });
+        }
+      }
+    } else if (path.startsWith('/campaigns/')) {
+      const { rows } = await pool.query('SELECT client_id FROM outreach_campaigns WHERE id = $1', [id]);
+      if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+        return res.status(403).json({ error: 'Not authorised for this client' });
+      }
+    } else if (path.startsWith('/sends/')) {
+      const { rows } = await pool.query(
+        `SELECT c.client_id FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id WHERE s.id = $1`,
+        [id]
+      );
       if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
         return res.status(403).json({ error: 'Not authorised for this client' });
       }
@@ -103,7 +125,8 @@ router.get('/stats', async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT
-         (SELECT COUNT(*)::int FROM outreach_contacts WHERE client_id = $1 AND status != 'unsubscribed') AS active_contacts,
+         (SELECT COUNT(*)::int FROM outreach_contact_clients
+            WHERE client_id = $1 AND unsubscribed_at IS NULL) AS active_contacts,
          (SELECT COUNT(*)::int FROM outreach_campaigns WHERE client_id = $1 AND status = 'active') AS active_campaigns,
          (SELECT COUNT(*)::int FROM outreach_sends s JOIN outreach_campaigns c ON c.id = s.campaign_id
            WHERE c.client_id = $1 AND s.status = 'sent') AS emails_sent,
@@ -153,28 +176,39 @@ router.get('/system-status', async (_req, res) => {
 
 // ── Contacts ───────────────────────────────────────────────────────────────
 
+// Per-client contact list. Joins through outreach_contact_clients so this
+// only returns contacts the AM has explicitly attached to the client.
 router.get('/contacts', async (req, res) => {
   const { client_id, contact_type, location, search, exclude_campaign, tag, tags_all, tags_any } = req.query;
   if (!client_id) return res.status(400).json({ error: 'client_id required' });
   try {
-    const where = ['client_id = $1'];
+    const where = ['m.client_id = $1'];
     const params = [client_id];
-    if (contact_type) { params.push(contact_type); where.push(`contact_type = $${params.length}`); }
-    if (location) { params.push(`%${location.toLowerCase()}%`); where.push(`LOWER(COALESCE(location, '')) LIKE $${params.length}`); }
+    if (contact_type) { params.push(contact_type); where.push(`c.contact_type = $${params.length}`); }
+    if (location) { params.push(`%${location.toLowerCase()}%`); where.push(`LOWER(COALESCE(c.location, '')) LIKE $${params.length}`); }
     if (search) {
       params.push(`%${search.toLowerCase()}%`);
-      where.push(`(LOWER(COALESCE(name, '')) LIKE $${params.length} OR LOWER(COALESCE(email, '')) LIKE $${params.length} OR LOWER(COALESCE(company, '')) LIKE $${params.length})`);
+      where.push(`(LOWER(COALESCE(c.name, '')) LIKE $${params.length} OR LOWER(COALESCE(c.email, '')) LIKE $${params.length} OR LOWER(COALESCE(c.company, '')) LIKE $${params.length})`);
     }
     // Tag filters: ?tag=foo (single), ?tags_any=foo,bar (OR), ?tags_all=foo,bar (AND).
-    if (tag) { params.push([tag]); where.push(`tags && $${params.length}::text[]`); }
-    if (tags_any) { params.push(String(tags_any).split(',').map(t => t.trim()).filter(Boolean)); where.push(`tags && $${params.length}::text[]`); }
-    if (tags_all) { params.push(String(tags_all).split(',').map(t => t.trim()).filter(Boolean)); where.push(`tags @> $${params.length}::text[]`); }
+    if (tag) { params.push([tag]); where.push(`c.tags && $${params.length}::text[]`); }
+    if (tags_any) { params.push(String(tags_any).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags && $${params.length}::text[]`); }
+    if (tags_all) { params.push(String(tags_all).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags @> $${params.length}::text[]`); }
     if (exclude_campaign) {
       params.push(exclude_campaign);
-      where.push(`id NOT IN (SELECT contact_id FROM outreach_campaign_contacts WHERE campaign_id = $${params.length})`);
+      where.push(`c.id NOT IN (SELECT contact_id FROM outreach_campaign_contacts WHERE campaign_id = $${params.length})`);
     }
+    // Surface unsubscribe state from the membership row (not the contact);
+    // a journalist who unsubscribed from another client should look active here.
     const { rows } = await pool.query(
-      `SELECT * FROM outreach_contacts WHERE ${where.join(' AND ')} ORDER BY created_at DESC LIMIT 500`,
+      `SELECT c.*, m.unsubscribed_at AS membership_unsubscribed_at, m.notes AS membership_notes,
+              m.added_at AS attached_at,
+              CASE WHEN m.unsubscribed_at IS NOT NULL THEN 'unsubscribed' ELSE c.status END AS status
+         FROM outreach_contacts c
+         JOIN outreach_contact_clients m ON m.contact_id = c.id
+        WHERE ${where.join(' AND ')}
+        ORDER BY c.created_at DESC
+        LIMIT 500`,
       params
     );
     res.json(rows);
@@ -183,26 +217,111 @@ router.get('/contacts', async (req, res) => {
   }
 });
 
-// Distinct tag list with usage counts — drives the chip picker in the
-// contact and press flows so the AM sees what tags already exist.
+// Workspace-wide library. Lists every contact across all clients the caller
+// can see, with the list of clients each contact is currently attached to.
+// Used by the Settings → Contacts library tab and the per-client "Add from
+// library" picker.
+router.get('/contacts/library', async (req, res) => {
+  const { contact_type, search, tag, tags_all, tags_any, attached_to, not_attached_to } = req.query;
+  try {
+    const where = [];
+    const params = [];
+    // Scope to clients the user can see (or library-only contacts with no
+    // attachments). Admins with visibleClientIds === 'all' see everything.
+    if (req.visibleClientIds !== 'all') {
+      params.push(req.visibleClientIds);
+      where.push(`(
+        c.client_id = ANY($${params.length}::uuid[])
+        OR EXISTS (
+          SELECT 1 FROM outreach_contact_clients m
+           WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[])
+        )
+      )`);
+    }
+    if (contact_type) { params.push(contact_type); where.push(`c.contact_type = $${params.length}`); }
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      where.push(`(LOWER(COALESCE(c.name, '')) LIKE $${params.length} OR LOWER(COALESCE(c.email, '')) LIKE $${params.length} OR LOWER(COALESCE(c.company, '')) LIKE $${params.length})`);
+    }
+    if (tag) { params.push([tag]); where.push(`c.tags && $${params.length}::text[]`); }
+    if (tags_any) { params.push(String(tags_any).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags && $${params.length}::text[]`); }
+    if (tags_all) { params.push(String(tags_all).split(',').map(t => t.trim()).filter(Boolean)); where.push(`c.tags @> $${params.length}::text[]`); }
+    if (attached_to) {
+      params.push(attached_to);
+      where.push(`EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
+    }
+    if (not_attached_to) {
+      params.push(not_attached_to);
+      where.push(`NOT EXISTS (SELECT 1 FROM outreach_contact_clients m WHERE m.contact_id = c.id AND m.client_id = $${params.length})`);
+    }
+    const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+    const { rows } = await pool.query(
+      `SELECT c.*,
+              ARRAY(
+                SELECT m.client_id FROM outreach_contact_clients m
+                 WHERE m.contact_id = c.id
+                 ORDER BY m.added_at
+              ) AS client_ids
+         FROM outreach_contacts c
+         ${whereSql}
+         ORDER BY c.created_at DESC
+         LIMIT 1000`,
+      params
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Distinct tag list with usage counts. If ?client_id is given, scopes to
+// contacts attached to that client; without it, returns workspace-wide
+// counts (the library view). Drives the chip picker in contact and press
+// flows so the AM sees what tags already exist.
 router.get('/tags', async (req, res) => {
   const { client_id } = req.query;
-  if (!client_id) return res.status(400).json({ error: 'client_id required' });
   try {
-    const { rows } = await pool.query(
-      `SELECT t AS tag, COUNT(*)::int AS count
-         FROM outreach_contacts, UNNEST(tags) t
-        WHERE client_id = $1 AND status <> 'unsubscribed'
-        GROUP BY t ORDER BY count DESC, t ASC`,
-      [client_id]
-    );
+    let rows;
+    if (client_id) {
+      ({ rows } = await pool.query(
+        `SELECT t AS tag, COUNT(*)::int AS count
+           FROM outreach_contacts c
+           JOIN outreach_contact_clients m ON m.contact_id = c.id
+           CROSS JOIN LATERAL UNNEST(c.tags) t
+          WHERE m.client_id = $1 AND m.unsubscribed_at IS NULL
+          GROUP BY t ORDER BY count DESC, t ASC`,
+        [client_id]
+      ));
+    } else {
+      // Workspace tags scoped to clients the caller can see.
+      const params = [];
+      let scope = '';
+      if (req.visibleClientIds !== 'all') {
+        params.push(req.visibleClientIds);
+        scope = `WHERE c.client_id = ANY($1::uuid[])
+                 OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                              WHERE m.contact_id = c.id AND m.client_id = ANY($1::uuid[]))`;
+      }
+      ({ rows } = await pool.query(
+        `SELECT t AS tag, COUNT(*)::int AS count
+           FROM outreach_contacts c
+           CROSS JOIN LATERAL UNNEST(c.tags) t
+           ${scope}
+          GROUP BY t ORDER BY count DESC, t ASC`,
+        params
+      ));
+    }
     res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Create a contact. If client_id is provided, the contact is added to the
+// library AND immediately attached to that client (the common path — the
+// AM is in a client's Contacts tab). Pass attach_clients=[ids] to attach to
+// multiple clients in one go; or omit client_id entirely to add to the
+// library without attaching anywhere.
 router.post('/contacts', async (req, res) => {
   const b = req.body;
-  if (!b.client_id) return res.status(400).json({ error: 'client_id required' });
   try {
     const tags = normaliseTags(b.tags);
     const { rows } = await pool.query(
@@ -212,7 +331,7 @@ router.post('/contacts', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING *`,
       [
-        b.client_id,
+        b.client_id || null,
         b.name || [b.first_name, b.last_name].filter(Boolean).join(' ') || null,
         b.first_name || null, b.last_name || null,
         b.email || null, b.company || null,
@@ -223,7 +342,68 @@ router.post('/contacts', async (req, res) => {
         tags,
       ]
     );
-    res.status(201).json(rows[0]);
+    const contact = rows[0];
+    const attachIds = new Set([
+      ...(b.client_id ? [b.client_id] : []),
+      ...(Array.isArray(b.attach_clients) ? b.attach_clients.filter(Boolean) : []),
+    ]);
+    for (const cid of attachIds) {
+      await pool.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [contact.id, cid]
+      );
+    }
+    res.status(201).json(contact);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Bulk attach existing library contacts to a client. Used by the per-client
+// "Add from library" picker. Pre-existing memberships are no-ops thanks to
+// the (contact_id, client_id) primary key.
+router.post('/clients/:clientId/contacts/attach', async (req, res) => {
+  const { contact_ids } = req.body || {};
+  if (!Array.isArray(contact_ids) || !contact_ids.length) {
+    return res.status(400).json({ error: 'contact_ids array required' });
+  }
+  try {
+    let attached = 0;
+    for (const cid of contact_ids) {
+      const r = await pool.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [cid, req.params.clientId]
+      );
+      if (r.rowCount) attached++;
+    }
+    res.json({ attached, total: contact_ids.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Detach a contact from a specific client without deleting the library row.
+// The contact keeps existing for other clients; only this client's
+// membership row + any pending sends for this client's campaigns go away.
+router.delete('/clients/:clientId/contacts/:contactId', async (req, res) => {
+  try {
+    const { clientId, contactId } = req.params;
+    await pool.query(
+      `UPDATE outreach_sends s SET status = 'cancelled'
+         FROM outreach_campaigns c
+        WHERE s.campaign_id = c.id
+          AND c.client_id = $1
+          AND s.contact_id = $2
+          AND s.status = 'pending'`,
+      [clientId, contactId]
+    );
+    await pool.query(
+      'DELETE FROM outreach_contact_clients WHERE contact_id = $1 AND client_id = $2',
+      [contactId, clientId]
+    );
+    res.status(204).end();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -243,10 +423,13 @@ function normaliseTags(input) {
   return Array.from(out);
 }
 
+// Bulk CSV/JSON import. client_id is optional — when supplied each new
+// contact is also attached to that client. Without it the contacts land
+// in the library only and can be attached later via Settings → Contacts.
 router.post('/contacts/bulk', async (req, res) => {
   const { client_id, contacts } = req.body;
-  if (!client_id || !Array.isArray(contacts)) {
-    return res.status(400).json({ error: 'client_id and contacts array required' });
+  if (!Array.isArray(contacts)) {
+    return res.status(400).json({ error: 'contacts array required' });
   }
   try {
     const inserted = [];
@@ -256,19 +439,27 @@ router.post('/contacts/bulk', async (req, res) => {
       const { rows } = await pool.query(
         `INSERT INTO outreach_contacts
            (client_id, name, first_name, last_name, email, company, role, title,
-            contact_type, location, linkedin_url, source, website)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            contact_type, location, linkedin_url, source, website, tags)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
          RETURNING *`,
         [
-          client_id, combinedName,
+          client_id || null, combinedName,
           c.first_name || null, c.last_name || null,
           c.email || null, c.company || null,
           c.role || c.title || null, c.title || null,
           c.contact_type || null, c.location || null,
           c.linkedin_url || null, c.source || null,
           c.website || null,
+          normaliseTags(c.tags),
         ]
       );
+      if (client_id) {
+        await pool.query(
+          `INSERT INTO outreach_contact_clients (contact_id, client_id)
+           VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [rows[0].id, client_id]
+        );
+      }
       inserted.push(rows[0]);
     }
     res.json({ inserted: inserted.length, contacts: inserted });
@@ -316,6 +507,9 @@ router.put('/contacts/:id', async (req, res) => {
   }
 });
 
+// Global delete — removes the contact from the library entirely. Use
+// DELETE /clients/:clientId/contacts/:contactId instead to only detach
+// from one client. Only callable from the library view.
 router.delete('/contacts/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM outreach_contacts WHERE id = $1', [req.params.id]);
@@ -325,16 +519,34 @@ router.delete('/contacts/:id', async (req, res) => {
   }
 });
 
-// Bulk delete — used by the Contacts page bulk-select toolbar.
+// Bulk detach (from a client) or bulk destroy (workspace-wide). The per-
+// client Contacts page calls this with client_id to detach; the library
+// page calls it without client_id to wipe contacts entirely.
 router.post('/contacts/bulk-delete', async (req, res) => {
   const { client_id, ids } = req.body;
-  if (!client_id || !Array.isArray(ids) || ids.length === 0) {
-    return res.status(400).json({ error: 'client_id and ids[] required' });
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: 'ids[] required' });
   }
   try {
+    if (client_id) {
+      await pool.query(
+        `UPDATE outreach_sends s SET status = 'cancelled'
+           FROM outreach_campaigns c
+          WHERE s.campaign_id = c.id
+            AND c.client_id = $1
+            AND s.contact_id = ANY($2::uuid[])
+            AND s.status = 'pending'`,
+        [client_id, ids]
+      );
+      const { rowCount } = await pool.query(
+        'DELETE FROM outreach_contact_clients WHERE client_id = $1 AND contact_id = ANY($2::uuid[])',
+        [client_id, ids]
+      );
+      return res.json({ detached: rowCount });
+    }
     const { rowCount } = await pool.query(
-      'DELETE FROM outreach_contacts WHERE client_id = $1 AND id = ANY($2::uuid[])',
-      [client_id, ids]
+      'DELETE FROM outreach_contacts WHERE id = ANY($1::uuid[])',
+      [ids]
     );
     res.json({ deleted: rowCount });
   } catch (err) {
@@ -571,29 +783,42 @@ router.post('/campaigns/:id/contacts/add', async (req, res) => {
     for (const nc of new_contacts) {
       if (!nc.email) continue;
       const lower = String(nc.email).toLowerCase();
+      // Library is workspace-wide — dedupe across the whole library, not
+      // just within this client. Attach the found contact to the campaign's
+      // client if it isn't already.
       const { rows: existing } = await pool.query(
-        'SELECT id FROM outreach_contacts WHERE client_id = $1 AND LOWER(email) = $2',
-        [clientId, lower]
+        'SELECT id FROM outreach_contacts WHERE LOWER(email) = $1 LIMIT 1',
+        [lower]
       );
-      if (existing.length) { ids.push(existing[0].id); continue; }
-      const combinedName = nc.name || [nc.first_name, nc.last_name].filter(Boolean).join(' ') || null;
-      const { rows } = await pool.query(
-        `INSERT INTO outreach_contacts
-           (client_id, name, first_name, last_name, email, company, role, title,
-            contact_type, location, linkedin_url, source, website)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-         RETURNING id`,
-        [
-          clientId, combinedName,
-          nc.first_name || null, nc.last_name || null,
-          lower, nc.company || null,
-          nc.role || nc.title || null, nc.title || null,
-          nc.contact_type || null, nc.location || null,
-          nc.linkedin_url || null, nc.source || 'finder',
-          nc.website || null,
-        ]
+      let contactId;
+      if (existing.length) {
+        contactId = existing[0].id;
+      } else {
+        const combinedName = nc.name || [nc.first_name, nc.last_name].filter(Boolean).join(' ') || null;
+        const { rows } = await pool.query(
+          `INSERT INTO outreach_contacts
+             (client_id, name, first_name, last_name, email, company, role, title,
+              contact_type, location, linkedin_url, source, website)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+           RETURNING id`,
+          [
+            clientId, combinedName,
+            nc.first_name || null, nc.last_name || null,
+            lower, nc.company || null,
+            nc.role || nc.title || null, nc.title || null,
+            nc.contact_type || null, nc.location || null,
+            nc.linkedin_url || null, nc.source || 'finder',
+            nc.website || null,
+          ]
+        );
+        contactId = rows[0].id;
+      }
+      await pool.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [contactId, clientId]
       );
-      ids.push(rows[0].id);
+      ids.push(contactId);
     }
 
     let linked = 0;
@@ -697,8 +922,14 @@ router.post('/campaigns/:id/launch', async (req, res) => {
     );
     if (!steps.length) return res.status(400).json({ error: 'Generate an email sequence before launching.' });
 
+    // Pull only contacts attached to this client AND not unsubscribed from
+    // them (the unsubscribe lives on the membership row, not the contact).
     const { rows: contacts } = await pool.query(
-      "SELECT * FROM outreach_contacts WHERE client_id = $1 AND email IS NOT NULL AND email <> ''",
+      `SELECT c.* FROM outreach_contacts c
+         JOIN outreach_contact_clients m ON m.contact_id = c.id
+        WHERE m.client_id = $1
+          AND m.unsubscribed_at IS NULL
+          AND c.email IS NOT NULL AND c.email <> ''`,
       [campaign.client_id]
     );
     if (!contacts.length) return res.status(400).json({ error: 'No contacts with an email address to send to.' });

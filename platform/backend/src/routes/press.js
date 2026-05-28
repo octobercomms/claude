@@ -153,11 +153,11 @@ router.post('/releases/:id/preview', async (req, res) => {
   try {
     const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contact_id]);
     if (!contactRows.length) return res.status(404).json({ error: 'Contact not found' });
-    assertClientAccess(req, contactRows[0].client_id);
 
     const { rows: relRows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
     if (!relRows.length) return res.status(404).json({ error: 'Press release not found' });
     const release = relRows[0];
+    assertClientAccess(req, release.client_id);
 
     const cached = await pressRelease.getOrGenerateEmails({
       pressReleaseId: req.params.id, contactId: contact_id, force: !!force,
@@ -167,7 +167,7 @@ router.post('/releases/:id/preview', async (req, res) => {
     // surface it as hero_image so buildEmailHtml can render it.
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: req.user.username === 'daniel' ? 'Daniel Nelson' : req.user.username, first_name: (req.user.username || 'Daniel').split(' ')[0], company: 'October Communications' };
-    const html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contactRows[0].name });
+    const html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contactRows[0].name, contactId: contact_id, clientId: release.client_id });
     res.json({
       html, pitch: cached.intro, follow_ups: cached.follow_ups, generated_at: cached.generated_at,
       contact: contactRows[0],
@@ -203,7 +203,16 @@ router.post('/releases/:id/send', async (req, res) => {
     let queued = 0;
     for (const contactId of contact_ids) {
       const { rows: contactRows } = await pool.query('SELECT * FROM outreach_contacts WHERE id = $1', [contactId]);
-      if (!contactRows.length || contactRows[0].client_id !== release.client_id) continue;
+      if (!contactRows.length) continue;
+
+      // Contacts are workspace-wide now — make sure this one is attached
+      // to the release's client (the AM explicitly picked them, so trust
+      // the intent) so the unsubscribe + per-client lists stay consistent.
+      await pool.query(
+        `INSERT INTO outreach_contact_clients (contact_id, client_id)
+         VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [contactId, release.client_id]
+      );
 
       // Make sure intro + follow-ups are cached (cheap if they already are).
       await pressRelease.getOrGenerateEmails({

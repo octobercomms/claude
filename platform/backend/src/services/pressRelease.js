@@ -179,7 +179,7 @@ function splitOnBoilerplate(html) {
 // HTML shell for the personal pitch email. Deliberately plain — looks
 // like an email an AM would write, not a marketing campaign. Two
 // images max (hero + one inline), the release link, an AM sign-off.
-function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, contactId }) {
+function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, contactId, clientId }) {
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pitchHtml = (pitch || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
@@ -203,7 +203,7 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
   if (contactId) {
     try {
       const { unsubscribeUrl } = require('./outreachSender');
-      const link = unsubscribeUrl(contactId);
+      const link = unsubscribeUrl(contactId, clientId);
       if (link) {
         unsubFooter = `<div style="margin-top:32px;padding-top:14px;border-top:1px solid #eee;font-size:11px;color:#888;line-height:1.5;">` +
           `If this isn't relevant to your beat, no hard feelings — ` +

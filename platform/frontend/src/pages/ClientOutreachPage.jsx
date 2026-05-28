@@ -145,6 +145,7 @@ export default function ClientOutreachPage() {
   const [showPressWizard, setShowPressWizard] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
   const [findDomain, setFindDomain] = useState('');
   const [finding, setFinding] = useState(false);
   const [foundContacts, setFoundContacts] = useState([]);
@@ -194,9 +195,9 @@ export default function ClientOutreachPage() {
   }
 
   async function deleteContact(cid) {
-    if (!window.confirm('Delete this contact?')) return;
+    if (!window.confirm('Remove this contact from this client? The contact stays in the workspace library and is unaffected for any other client they’re attached to.')) return;
     try {
-      await api.delete(`/outreach/contacts/${cid}`);
+      await api.delete(`/outreach/clients/${id}/contacts/${cid}`);
       setContacts(p => p.filter(x => x.id !== cid));
     } catch (err) { toast(err.message, 'error'); }
   }
@@ -474,8 +475,18 @@ export default function ClientOutreachPage() {
         <div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setShowAddContact(v => !v)} style={s.btn}>{showAddContact ? 'Cancel' : '+ Add contact'}</button>
+            <button onClick={() => setShowLibrary(v => !v)} style={s.btnGhost}>{showLibrary ? 'Close library' : '+ Add from library'}</button>
             <button onClick={() => setShowFinder(v => !v)} style={s.btnGhost}>{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
           </div>
+          {showLibrary && (
+            <LibraryPicker clientId={id} onAttached={async () => {
+              setShowLibrary(false);
+              try {
+                const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
+                setContacts(fresh);
+              } catch (err) { toast(err.message, 'error'); }
+            }} />
+          )}
           {showFinder && (
             <div style={{ ...s.card, marginTop: 12 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find companies by audience (Serper)</div>
@@ -876,3 +887,127 @@ const s = {
   chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px', textTransform: 'capitalize' },
   del: { background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' },
 };
+
+// Picker that lists workspace contacts not already attached to this client,
+// filterable by tag, with multi-select + attach.
+function LibraryPicker({ clientId, onAttached }) {
+  const [rows, setRows] = useState(null);
+  const [tags, setTags] = useState([]);
+  const [search, setSearch] = useState('');
+  const [activeTags, setActiveTags] = useState(() => new Set());
+  const [selected, setSelected] = useState(() => new Set());
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.get(`/outreach/contacts/library?not_attached_to=${clientId}`),
+      api.get('/outreach/tags'),
+    ]).then(([rs, ts]) => { setRows(rs); setTags(ts); })
+      .catch(e => setErr(e.message));
+  }, [clientId]);
+
+  function toggleTag(t) {
+    setActiveTags(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }
+  function toggleRow(idV) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(idV)) next.delete(idV); else next.add(idV);
+      return next;
+    });
+  }
+
+  const filtered = rows ? rows.filter(r => {
+    if (activeTags.size) {
+      const have = new Set(r.tags || []);
+      for (const t of activeTags) if (!have.has(t)) return false;
+    }
+    if (!search) return true;
+    const sLower = search.toLowerCase();
+    return (r.name || '').toLowerCase().includes(sLower)
+        || (r.email || '').toLowerCase().includes(sLower)
+        || (r.company || '').toLowerCase().includes(sLower);
+  }) : null;
+
+  async function attach() {
+    if (!selected.size) return;
+    setBusy(true);
+    try {
+      await api.post(`/outreach/clients/${clientId}/contacts/attach`, { contact_ids: Array.from(selected) });
+      onAttached();
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div style={{ ...s.card, marginTop: 12 }}>
+      <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Add from library</div>
+      <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+        Pick contacts from the workspace library to attach to this client. They keep existing for
+        every other client they’re already on — adding here doesn’t remove them from anywhere.
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <input value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name, email or outlet…" style={{ ...s.input, flex: '1 1 200px' }} />
+      </div>
+      {!!tags.length && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
+          {tags.slice(0, 20).map(t => (
+            <button key={t.tag} onClick={() => toggleTag(t.tag)}
+              style={{
+                padding: '3px 9px', borderRadius: 999, fontSize: 11,
+                border: '1px solid ' + (activeTags.has(t.tag) ? '#1a1a1a' : '#ddd'),
+                background: activeTags.has(t.tag) ? '#1a1a1a' : '#fff',
+                color: activeTags.has(t.tag) ? '#fff' : '#444',
+                cursor: 'pointer',
+              }}>
+              {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {err && <div style={{ padding: 8, background: '#fdecea', color: '#c62828', fontSize: 12, borderRadius: 4 }}>{err}</div>}
+      {!filtered && <div style={{ color: '#888', fontSize: 13 }}>Loading…</div>}
+      {filtered && !filtered.length && (
+        <div style={{ color: '#888', fontSize: 13 }}>
+          No contacts in the library aren't already attached. Add some via Settings → Contacts library.
+        </div>
+      )}
+
+      {filtered && !!filtered.length && (
+        <>
+          <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+            {filtered.map(r => (
+              <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
+                <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{r.name || '(unnamed)'} {r.company && <span style={{ color: '#888', fontWeight: 400 }}>· {r.company}</span>}</div>
+                  <div style={{ fontSize: 11, color: '#999' }}>{r.email}</div>
+                </div>
+                {(r.tags || []).slice(0, 4).map(t => (
+                  <span key={t} style={{ fontSize: 10, background: '#f1f1f1', borderRadius: 3, padding: '1px 6px', color: '#444' }}>{t}</span>
+                ))}
+              </label>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
+            <div style={{ fontSize: 12, color: '#666' }}>{selected.size} selected</div>
+            <button onClick={attach} disabled={!selected.size || busy} style={s.btn}>
+              {busy ? 'Attaching…' : `Add ${selected.size || ''} to this client`}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

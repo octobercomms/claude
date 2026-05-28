@@ -261,6 +261,14 @@ export default function SettingsPage() {
   const [testingDfs, setTestingDfs] = useState(false);
   const [dfsTestMsg, setDfsTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'general');
+
+  function switchTab(next) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', next);
+    window.history.replaceState(null, '', url.toString());
+  }
 
   useEffect(() => {
     api.get('/settings/platform-keys').then(data => setValues(data));
@@ -365,8 +373,22 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 20 }}>Settings</h1>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Settings</h1>
 
+      <div style={styles.tabStrip}>
+        {[
+          { key: 'general', label: 'General' },
+          { key: 'contacts', label: 'Contacts library' },
+        ].map(t => (
+          <button key={t.key} onClick={() => switchTab(t.key)}
+            style={tab === t.key ? styles.tabBtnActive : styles.tabBtn}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'contacts' && <ContactsLibrary />}
+      {tab !== 'contacts' && (<>
       <CostsPanel />
 
       {/* Always-visible essentials: platform info + account */}
@@ -532,6 +554,7 @@ export default function SettingsPage() {
           })}
         </div>
       </form>
+      </>)}
     </div>
   );
 }
@@ -692,6 +715,207 @@ function InfoRow({ label, value }) {
   );
 }
 
+// Workspace-wide contact library. The same contact (one row here) can be
+// attached to many clients via outreach_contact_clients; this view shows
+// every contact with the count + names of the clients they're attached to.
+function ContactsLibrary() {
+  const [rows, setRows] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [tags, setTags] = useState([]);
+  const [search, setSearch] = useState('');
+  const [activeTags, setActiveTags] = useState(() => new Set());
+  const [selected, setSelected] = useState(() => new Set());
+  const [err, setErr] = useState(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/outreach/contacts/library'),
+      api.get('/clients'),
+      api.get('/outreach/tags'),
+    ]).then(([rs, cs, ts]) => {
+      setRows(rs);
+      setClients(cs);
+      setTags(ts);
+    }).catch(e => setErr(e.message));
+  }, []);
+
+  async function reload() {
+    const fresh = await api.get('/outreach/contacts/library');
+    setRows(fresh);
+    setSelected(new Set());
+  }
+
+  function toggleTag(t) {
+    setActiveTags(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }
+
+  function toggleRow(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (!filtered) return;
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(r => r.id)));
+  }
+
+  async function attachTo(clientId) {
+    if (!selected.size) return;
+    try {
+      await api.post(`/outreach/clients/${clientId}/contacts/attach`, { contact_ids: Array.from(selected) });
+      setAttachOpen(false);
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  async function destroyContacts() {
+    if (!selected.size) return;
+    if (!confirm(`Delete ${selected.size} contact${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
+    try {
+      await api.post('/outreach/contacts/bulk-delete', { ids: Array.from(selected) });
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  const clientNameById = Object.fromEntries(clients.map(c => [c.id, c.name]));
+
+  const filtered = rows ? rows.filter(r => {
+    if (activeTags.size) {
+      const have = new Set(r.tags || []);
+      for (const t of activeTags) if (!have.has(t)) return false;
+    }
+    if (!search) return true;
+    const s = search.toLowerCase();
+    return (r.name || '').toLowerCase().includes(s)
+        || (r.email || '').toLowerCase().includes(s)
+        || (r.company || '').toLowerCase().includes(s);
+  }) : null;
+
+  return (
+    <div>
+      <Card>
+        <CardTitle>Contacts library</CardTitle>
+        <p style={styles.hint}>
+          One workspace-wide list of contacts. Each contact can be attached to as many clients
+          as you like — a journalist who unsubscribes from one client's emails stays subscribed
+          to the others.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
+          <input
+            placeholder="Search by name, email or outlet…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ ...styles.input, flex: '1 1 220px' }}
+          />
+          {!!tags.length && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {tags.slice(0, 18).map(t => (
+                <button key={t.tag} onClick={() => toggleTag(t.tag)}
+                  style={activeTags.has(t.tag) ? styles.tagChipOn : styles.tagChip}>
+                  {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+
+        {!filtered && <div style={{ marginTop: 16, color: '#888' }}>Loading…</div>}
+        {filtered && !filtered.length && (
+          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+            No contacts match. Add some from a client's Contacts tab — they'll show up here automatically.
+          </div>
+        )}
+
+        {filtered && !!filtered.length && (
+          <div style={{ marginTop: 14, overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: '#666' }}>{selected.size} selected of {filtered.length}</span>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} style={styles.btn}>
+                Add to client…
+              </button>
+              <button onClick={destroyContacts} disabled={!selected.size} style={styles.dangerBtn}>
+                Delete from library
+              </button>
+            </div>
+
+            {attachOpen && (
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {clients.map(c => (
+                    <button key={c.id} onClick={() => attachTo(c.id)} style={styles.ghostBtn}>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ ...styles.th, width: 28 }}>
+                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
+                  </th>
+                  <th style={styles.th}>Name</th>
+                  <th style={styles.th}>Email</th>
+                  <th style={styles.th}>Outlet / company</th>
+                  <th style={styles.th}>Beat</th>
+                  <th style={styles.th}>Tags</th>
+                  <th style={styles.th}>Attached to</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(r => (
+                  <tr key={r.id}>
+                    <td style={styles.td}>
+                      <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
+                    </td>
+                    <td style={styles.td}><strong>{r.name || '(unnamed)'}</strong></td>
+                    <td style={styles.td}><span style={{ color: '#666' }}>{r.email || '—'}</span></td>
+                    <td style={styles.td}>{r.company || '—'}</td>
+                    <td style={styles.td}><span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span></td>
+                    <td style={styles.td}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                        {(r.tags || []).map(t => (
+                          <span key={t} style={{ ...styles.tagChip, cursor: 'default', padding: '1px 7px', fontSize: 10 }}>{t}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td style={styles.td}>
+                      <div style={{ fontSize: 11, color: '#666' }}>
+                        {(r.client_ids || []).length
+                          ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
+                          : <span style={{ color: '#bbb' }}>library only</span>}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
 const styles = {
   card: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 8, padding: '18px 20px' },
   cardTitle: { fontSize: 14, fontWeight: 700, margin: '0 0 10px', color: '#1a1a1a' },
@@ -724,4 +948,13 @@ const styles = {
   scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
   scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
   scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
+  tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20, flexWrap: 'wrap' },
+  tabBtn: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontFamily: 'Brockmann, sans-serif', fontWeight: 500 },
+  tabBtnActive: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontFamily: 'Brockmann, sans-serif', fontWeight: 700 },
+  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  tagChipOn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  th: { textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 10px', borderBottom: '1px solid #e8e8e8' },
+  td: { fontSize: 13, padding: '10px 10px', borderBottom: '1px solid #f4f4f4', verticalAlign: 'top' },
+  ghostBtn: { background: '#fff', border: '1px solid #ddd', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
+  dangerBtn: { background: '#fff', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
 };

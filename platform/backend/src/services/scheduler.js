@@ -285,13 +285,17 @@ async function runOutreachSends() {
   const { rows: due } = await pool.query(
     `SELECT s.id AS send_id, s.contact_id, s.campaign_id,
             seq.subject, seq.body,
-            con.name, con.email, con.company,
-            cl.outreach_sending
+            con.id AS con_id, con.name, con.email, con.company,
+            cam.client_id,
+            cl.outreach_sending,
+            m.unsubscribed_at
        FROM outreach_sends s
        JOIN outreach_sequences seq ON seq.id = s.sequence_id
        JOIN outreach_contacts con ON con.id = s.contact_id
        JOIN outreach_campaigns cam ON cam.id = s.campaign_id
        JOIN clients cl ON cl.id = cam.client_id
+       LEFT JOIN outreach_contact_clients m
+         ON m.contact_id = s.contact_id AND m.client_id = cam.client_id
       WHERE s.status = 'pending'
         AND s.scheduled_at <= NOW()
         AND cam.status = 'active'
@@ -300,7 +304,12 @@ async function runOutreachSends() {
   );
 
   for (const row of due) {
-    // Stop the sequence if the contact has already replied to this campaign.
+    // Stop the sequence if the contact has already replied to this campaign,
+    // or has unsubscribed from this specific client since the queue was built.
+    if (row.unsubscribed_at) {
+      await pool.query("UPDATE outreach_sends SET status = 'cancelled' WHERE id = $1", [row.send_id]);
+      continue;
+    }
     const { rows: replied } = await pool.query(
       'SELECT 1 FROM outreach_sends WHERE campaign_id = $1 AND contact_id = $2 AND replied_at IS NOT NULL LIMIT 1',
       [row.campaign_id, row.contact_id]
@@ -317,10 +326,11 @@ async function runOutreachSends() {
     if (claim.rowCount === 0) continue;
     try {
       await outreachSender.sendOutreachEmail({
-        send: { id: row.send_id },
-        contact: { name: row.name, email: row.email, company: row.company },
+        send: { id: row.send_id, campaign_id: row.campaign_id },
+        contact: { id: row.con_id, name: row.name, email: row.email, company: row.company },
         step: { subject: row.subject, body: row.body },
         sending: row.outreach_sending,
+        clientId: row.client_id,
       });
       await pool.query("UPDATE outreach_sends SET status = 'sent', sent_at = NOW() WHERE id = $1", [row.send_id]);
     } catch (err) {
