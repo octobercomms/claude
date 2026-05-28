@@ -6,6 +6,7 @@ import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
+import { parseCsv, csvEscape } from '../utils/csv';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -351,8 +352,14 @@ export default function ClientOutreachPage() {
       const parsed = parseCsv(text);
       if (parsed.length === 0) { toast('No usable rows found in CSV (every row needs an email).', 'error'); return; }
       const res = await api.post('/outreach/contacts/bulk', { client_id: id, contacts: parsed });
-      setContacts(p => [...res.contacts, ...p]);
-      toast(`Imported ${res.inserted} of ${parsed.length} contact${parsed.length === 1 ? '' : 's'}`, 'success');
+      // Reload from server — bulk now dedupes against the library so the
+      // returned rows may already be in our local list.
+      const fresh = await api.get(`/outreach/contacts?client_id=${id}`);
+      setContacts(fresh);
+      const msg = res.reused
+        ? `Imported ${res.inserted} new, attached ${res.reused} existing from library`
+        : `Imported ${res.inserted} of ${parsed.length} contact${parsed.length === 1 ? '' : 's'}`;
+      toast(msg, 'success');
     } catch (err) { toast(err.message, 'error'); }
   }
 
@@ -812,69 +819,6 @@ function HelpCard({ title, children }) {
 
 // Escape a single value for CSV — double-quote and escape inner quotes if the
 // value contains anything CSV-sensitive.
-function csvEscape(v) {
-  const s = String(v ?? '');
-  if (/["\n\r,]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
-  return s;
-}
-
-// Simple CSV parser. Handles quoted fields with embedded commas / newlines /
-// escaped quotes. Maps a flexible set of header aliases to our canonical
-// contact fields per the product brief.
-function parseCsv(text) {
-  const rows = [];
-  let row = [], field = '', inQuote = false;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (inQuote) {
-      if (ch === '"' && text[i + 1] === '"') { field += '"'; i++; }
-      else if (ch === '"') inQuote = false;
-      else field += ch;
-    } else {
-      if (ch === '"') inQuote = true;
-      else if (ch === ',') { row.push(field); field = ''; }
-      else if (ch === '\n' || ch === '\r') {
-        if (ch === '\r' && text[i + 1] === '\n') i++;
-        row.push(field); field = '';
-        if (row.length > 1 || row[0] !== '') rows.push(row);
-        row = [];
-      } else field += ch;
-    }
-  }
-  if (field || row.length) { row.push(field); rows.push(row); }
-  if (!rows.length) return [];
-  const ALIASES = {
-    first: 'first_name', firstname: 'first_name', first_name: 'first_name',
-    last: 'last_name', lastname: 'last_name', last_name: 'last_name',
-    full_name: 'name', name: 'name',
-    email_address: 'email', email: 'email', e_mail: 'email',
-    company_name: 'company', practice: 'company', company: 'company', organisation: 'company', organization: 'company',
-    type: 'contact_type', contact_type: 'contact_type',
-    role: 'title', position: 'title', job_title: 'title', title: 'title',
-    city: 'location', location: 'location', address: 'location',
-    linkedin: 'linkedin_url', linkedin_url: 'linkedin_url',
-    notes: 'notes', note: 'notes',
-    source: 'source',
-  };
-  const headers = rows[0].map(h => {
-    const k = h.trim().toLowerCase().replace(/[\s-]+/g, '_');
-    return ALIASES[k] || k;
-  });
-  const out = [];
-  for (let r = 1; r < rows.length; r++) {
-    const cells = rows[r];
-    if (!cells.length || cells.every(c => !c.trim())) continue;
-    const o = {};
-    headers.forEach((h, i) => {
-      const val = (cells[i] || '').trim();
-      if (val) o[h] = val;
-    });
-    if (!o.email) continue;
-    out.push(o);
-  }
-  return out;
-}
-
 const s = {
   card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 16 },
   btn: { padding: '9px 22px', fontSize: 13, fontWeight: 700, background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' },
