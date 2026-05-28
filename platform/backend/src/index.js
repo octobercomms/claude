@@ -5,7 +5,13 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 const db = require('./db');
-const { decrypt } = require('./utils/encryption');
+const { decrypt, assertKeyValid } = require('./utils/encryption');
+
+// Validate ENCRYPTION_KEY at boot so an operator running with a non-hex
+// value sees the error immediately rather than the first time a
+// connector is decrypted.
+try { assertKeyValid(); }
+catch (err) { console.error('FATAL:', err.message); process.exit(1); }
 
 async function loadSettingsFromDb() {
   try {
@@ -23,12 +29,32 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security middleware
-app.use(helmet({ contentSecurityPolicy: false }));
+// CSP is set permissively — the platform serves API JSON and an SPA
+// from one domain, but the report HTML route renders Claude-authored
+// content into an iframe. Loose default-src + inline style/script is
+// pragmatic here; tighten later if we restructure report rendering.
+app.use(helmet({
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      'default-src': ["'self'"],
+      'script-src': ["'self'", "'unsafe-inline'"],
+      'style-src': ["'self'", "'unsafe-inline'"],
+      'img-src': ["'self'", 'data:', 'https:'],
+      'media-src': ["'self'", 'https:', 'data:', 'blob:'],
+      'connect-src': ["'self'", 'https:'],
+      'frame-src': ["'self'", 'https:'],
+      'object-src': ["'none'"],
+    },
+  },
+}));
 app.use(cors({
+  // Bearer-only auth — credentials:true was harmless but suggested a
+  // misunderstanding; drop it now so it doesn't become risky if cookie
+  // auth ever lands.
   origin: process.env.NODE_ENV === 'production'
     ? process.env.PLATFORM_URL
     : ['http://localhost:3000', 'http://localhost:5173'],
-  credentials: true,
 }));
 app.use(express.json({ limit: '10mb' }));
 
@@ -38,6 +64,22 @@ const authLimiter = rateLimit({
   max: 20,
   message: { error: 'Too many login attempts. Try again in 15 minutes.' },
 });
+
+// Global per-IP cap to make UUID brute-forcing of public endpoints
+// (report HTML, approval links, open-tracking pixel) non-trivial and
+// to cap accidental loops in client code. Generous limit so normal
+// dashboard use never trips it.
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  message: { error: 'Too many requests. Slow down and try again shortly.' },
+});
+app.use('/api', globalLimiter);
+app.use('/auth', globalLimiter);
+
+// Tighter per-IP cap on the unauthenticated open-tracking pixel — it's
+// the easiest endpoint to brute-force send-ids against.
+const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 
 // Routes
 app.use('/api/auth', authLimiter, require('./routes/auth'));

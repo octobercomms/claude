@@ -13,6 +13,18 @@ const users = require('../services/users');
 
 const router = express.Router();
 
+// Safe summary of an Axios / generic error for logs. axios.error.toJSON()
+// includes request body + headers — that's where the OAuth client_secret
+// and code land on token-exchange failures. We never want those in
+// stdout / journalctl / forwarded log pipelines.
+function safeErrSummary(err) {
+  return {
+    message: err.message,
+    status: err.response?.status || null,
+    upstream_status: err.response?.data?.error || err.response?.data?.error_description || null,
+  };
+}
+
 // OAuth state is HMAC-signed so an attacker can't forge ?client_id=<victim>
 // into a /start URL or replay an old one. Signature binds the payload to
 // JWT_SECRET; callbacks verify it before trusting the client_id (and
@@ -99,7 +111,7 @@ router.get('/google/callback', async (req, res) => {
 
     res.send(oauthPopupHtml('success', 'Google connected successfully.', 'google'));
   } catch (err) {
-    console.error('Google OAuth callback error:', err);
+    console.error('Google OAuth callback error:', safeErrSummary(err));
     res.send(oauthPopupHtml('error', err.message));
   }
 });
@@ -147,7 +159,7 @@ router.get('/meta/callback', async (req, res) => {
 
     res.send(oauthPopupHtml('success', 'Meta connected successfully.', 'meta'));
   } catch (err) {
-    console.error('Meta OAuth callback error:', err);
+    console.error('Meta OAuth callback error:', safeErrSummary(err));
     res.send(oauthPopupHtml('error', err.message));
   }
 });
@@ -259,7 +271,7 @@ router.get('/zoho/callback', async (req, res) => {
 
     res.send(oauthPopupHtml('success', 'Zoho Inventory connected successfully.', 'zoho'));
   } catch (err) {
-    console.error('Zoho OAuth callback error:', err);
+    console.error('Zoho OAuth callback error:', safeErrSummary(err));
     res.send(oauthPopupHtml('error', err.message));
   }
 });
@@ -312,7 +324,7 @@ router.get('/amazon/callback', async (req, res) => {
     );
     res.send(oauthPopupHtml('success', `Amazon Seller ${selling_partner_id || ''} connected successfully.`, 'amazon'));
   } catch (err) {
-    console.error('Amazon OAuth callback error:', err);
+    console.error('Amazon OAuth callback error:', safeErrSummary(err));
     res.send(oauthPopupHtml('error', err.message));
   }
 });
