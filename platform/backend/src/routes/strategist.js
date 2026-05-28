@@ -1,9 +1,12 @@
 const express = require('express');
+const fs = require('fs');
+const { marked } = require('marked');
 const router = express.Router();
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
 const strategistReport = require('../services/strategistReport');
+const pdfService = require('../services/pdfService');
 
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -62,6 +65,42 @@ router.post('/reports/:id/read', async (req, res) => {
       [req.params.id]
     );
     res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// PDF rendering — same masthead + footer chrome as the client-facing
+// reports, but body is the Strategist's markdown. Streams the file inline
+// so the browser previews it; the AM can hit ⌘S to keep a copy.
+router.get('/reports/:id/pdf', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT r.*, cl.name AS client_name FROM strategist_reports r JOIN clients cl ON cl.id = r.client_id WHERE r.id = $1`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    const report = rows[0];
+    assertClientAccess(req, report.client_id);
+    if (report.status !== 'completed' || !report.markdown) {
+      return res.status(400).json({ error: 'Report not ready' });
+    }
+
+    const period = `${new Date(report.period_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – ${new Date(report.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    const markdownHtml = marked.parse(report.markdown, { gfm: true, breaks: false });
+    const html = pdfService.buildStrategistReportHtml({
+      clientName: report.client_name,
+      period,
+      markdownHtml,
+    });
+    const footerLines = [
+      'Internal · Strategist briefing for the AM — not for client distribution.',
+      process.env.REPORT_FOOTER_LINE_2,
+      process.env.REPORT_FOOTER_LINE_3,
+    ].filter(Boolean);
+    const pdfPath = await pdfService.generatePDF(`strategist-${report.id}`, html, { printFooter: true, footerLines });
+
+    const safeClient = String(report.client_name || 'client').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="strategist-${safeClient}-${report.period_end}.pdf"`);
+    fs.createReadStream(pdfPath).pipe(res);
   } catch (err) {
     res.status(err.status || 500).json({ error: err.message });
   }
