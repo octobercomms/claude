@@ -426,6 +426,36 @@ router.get('/tags', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Delete a tag everywhere it's used. Strips the tag string from every
+// matching contact's tags[] (in the caller's visibility scope) without
+// touching the contacts themselves. Use this to clean up rubbish that
+// came in from a CSV import.
+router.post('/tags/delete', async (req, res) => {
+  const tag = String(req.body?.tag || '').trim();
+  if (!tag) return res.status(400).json({ error: 'tag is required' });
+  try {
+    const params = [tag];
+    let scope = `WHERE tags && ARRAY[$1]::text[]`;
+    if (req.visibleClientIds !== null) {
+      params.push(req.visibleClientIds);
+      scope += ` AND (
+        client_id = ANY($2::uuid[])
+        OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                    WHERE m.contact_id = outreach_contacts.id
+                      AND m.client_id = ANY($2::uuid[]))
+      )`;
+    }
+    const { rowCount } = await pool.query(
+      `UPDATE outreach_contacts
+          SET tags = ARRAY(SELECT t FROM unnest(tags) t WHERE t <> $1),
+              updated_at = NOW()
+        ${scope}`,
+      params
+    );
+    res.json({ updated: rowCount, tag });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Rename a tag everywhere it's used. The new name is normalised (lowercase,
 // hyphens for spaces, alphanumerics only) so it matches what the create/edit
 // flows produce. If a contact already had both the old AND new names, the

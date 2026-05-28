@@ -397,6 +397,7 @@ export default function SettingsPage() {
         {[
           { key: 'general', label: 'General' },
           { key: 'contacts', label: 'Contacts library' },
+          { key: 'tags', label: 'Tags' },
           { key: 'users', label: 'Users & access' },
         ].map(t => (
           <button key={t.key} onClick={() => switchTab(t.key)}
@@ -407,8 +408,9 @@ export default function SettingsPage() {
       </div>
 
       {tab === 'contacts' && <ContactsLibrary />}
+      {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
-      {tab !== 'contacts' && tab !== 'users' && (<>
+      {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && (<>
       <CostsPanel />
 
       {/* Always-visible essentials: platform info + account */}
@@ -752,6 +754,8 @@ function ContactsLibrary() {
   const [openContact, setOpenContact] = useState(null);
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState('');
+  const [tagSearch, setTagSearch] = useState('');
+  const [tagsExpanded, setTagsExpanded] = useState(false);
   const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
 
   // Filter state lives in the URL params we send to the server — with
@@ -950,50 +954,55 @@ function ContactsLibrary() {
             value={search} onChange={e => setSearch(e.target.value)}
             style={{ ...styles.input, flex: '1 1 220px' }}
           />
-          {!!tags.length && (
-            // Show every tag — was capped at 18 which silently hid the
-            // long tail. With hundreds of tags this can get visually
-            // busy, so cap the height + scroll. Each chip has a ✎ to
-            // rename the tag everywhere it's used.
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, maxHeight: 120, overflowY: 'auto', flex: '1 1 100%' }}>
-              {tags.map(t => {
-                const on = activeTags.has(t.tag);
-                return (
-                  <span key={t.tag} style={{
-                    display: 'inline-flex', alignItems: 'center', gap: 2,
-                    ...(on ? styles.tagChipOn : styles.tagChip),
-                    padding: '2px 4px 2px 9px',
-                  }}>
-                    <span onClick={() => toggleTag(t.tag)} style={{ cursor: 'pointer' }}>
-                      {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
-                    </span>
-                    <button
-                      onClick={async () => {
-                        const next = prompt(`Rename "${t.tag}" everywhere it's used to:`, t.tag);
-                        if (!next || next.trim().toLowerCase() === t.tag) return;
-                        try {
-                          const r = await api.post('/outreach/tags/rename', { from: t.tag, to: next });
-                          setInfo(`Renamed "${t.tag}" → "${r.to}" on ${r.updated} contact${r.updated === 1 ? '' : 's'}.`);
-                          setActiveTags(prev => {
-                            const n = new Set(prev);
-                            if (n.has(t.tag)) { n.delete(t.tag); n.add(r.to); }
-                            return n;
-                          });
-                          await reload();
-                        } catch (e) { setErr(e.message); }
-                      }}
-                      title="Rename this tag everywhere"
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: on ? '#fff' : '#888', fontSize: 11, padding: '0 4px',
-                        lineHeight: 1, opacity: 0.75,
-                      }}
-                    >✎</button>
-                  </span>
-                );
-              })}
-            </div>
-          )}
+          {!!tags.length && (() => {
+            // Filter by the tag-search input (substring, case-insensitive)
+            // then collapse to a short default unless expanded. Manage all
+            // tags from the Tags tab — this strip is just for filtering.
+            const q = tagSearch.trim().toLowerCase();
+            const filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
+            const COLLAPSED = 20;
+            const showAll = tagsExpanded || filtered.length <= COLLAPSED;
+            const visible = showAll ? filtered : filtered.slice(0, COLLAPSED);
+            const hiddenCount = filtered.length - visible.length;
+            return (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 100%' }}>
+                <input
+                  placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
+                  value={tagSearch}
+                  onChange={e => setTagSearch(e.target.value)}
+                  style={{ ...styles.input, padding: '5px 9px', fontSize: 12, width: 200, flex: '0 0 200px' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+                  {visible.map(t => {
+                    const on = activeTags.has(t.tag);
+                    return (
+                      <span key={t.tag} style={on ? styles.tagChipOn : styles.tagChip}
+                        onClick={() => toggleTag(t.tag)}>
+                        {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
+                      </span>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <button onClick={() => setTagsExpanded(true)} style={{
+                      ...styles.tagChip, fontWeight: 700, color: '#1a1a1a',
+                    }}>
+                      + {hiddenCount} more
+                    </button>
+                  )}
+                  {tagsExpanded && filtered.length > COLLAPSED && (
+                    <button onClick={() => setTagsExpanded(false)} style={{
+                      ...styles.tagChip, fontWeight: 700, color: '#666',
+                    }}>
+                      show less
+                    </button>
+                  )}
+                  {!filtered.length && (
+                    <span style={{ fontSize: 11, color: '#888', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
         {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
@@ -1150,6 +1159,125 @@ function ContactsLibrary() {
                     </tr>
                   );
                 })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// Tag manager — lists every tag in the workspace with its contact count,
+// and lets the AM rename or delete tags one at a time. Use this to clean
+// up the long tail of imported-but-unwanted tags. Operations are scoped
+// to the caller's visibility on the backend.
+function TagsManager() {
+  const [tags, setTags] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('count'); // 'count' | 'name'
+  const [err, setErr] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function reload() {
+    try {
+      const t = await api.get('/outreach/tags');
+      setTags(t);
+    } catch (e) { setErr(e.message); }
+  }
+  useEffect(() => { reload(); }, []);
+
+  async function renameTag(tag) {
+    const next = prompt(`Rename "${tag}" everywhere it's used to:`, tag);
+    if (!next || next.trim().toLowerCase() === tag) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/rename', { from: tag, to: next });
+      setInfo(`Renamed "${tag}" → "${r.to}" on ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function deleteTag(tag, count) {
+    if (!confirm(`Remove the tag "${tag}" from ${count.toLocaleString()} contact${count === 1 ? '' : 's'}? The contacts themselves stay; only the tag is stripped.`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/delete', { tag });
+      setInfo(`Removed "${tag}" from ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+
+  if (!tags) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>;
+
+  const q = search.trim().toLowerCase();
+  let filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
+  if (sort === 'name') filtered = [...filtered].sort((a, b) => a.tag.localeCompare(b.tag));
+  else filtered = [...filtered].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+
+  return (
+    <div>
+      <Card>
+        <CardTitle>Tags</CardTitle>
+        <p style={styles.hint}>
+          Every tag in the workspace. Rename merges contacts already on the new name; delete strips
+          the tag from every contact (the contacts themselves stay). Use this to clean up junk from
+          old CSV imports.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          <input
+            placeholder={`Search ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ ...styles.input, flex: '1 1 240px' }}
+          />
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#666' }}>
+            Sort:
+            <button onClick={() => setSort('count')} style={sort === 'count' ? styles.tagChipOn : styles.tagChip}>by count</button>
+            <button onClick={() => setSort('name')} style={sort === 'name' ? styles.tagChipOn : styles.tagChip}>A → Z</button>
+          </div>
+        </div>
+
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
+
+        {!filtered.length ? (
+          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+            {q ? `No tags match "${search}".` : 'No tags yet.'}
+          </div>
+        ) : (
+          <div style={{ marginTop: 14, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Tag</th>
+                  <th style={{ ...styles.th, width: 120, textAlign: 'right' }}>Contacts</th>
+                  <th style={{ ...styles.th, width: 200, textAlign: 'right' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(t => (
+                  <tr key={t.tag}>
+                    <td style={styles.td}>
+                      <span style={{ ...styles.tagChip, cursor: 'default', padding: '2px 9px' }}>{t.tag}</span>
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right', color: '#666', fontVariantNumeric: 'tabular-nums' }}>
+                      {t.count.toLocaleString()}
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => renameTag(t.tag)} disabled={busy} style={styles.ghostBtn}>
+                        Rename
+                      </button>
+                      <button onClick={() => deleteTag(t.tag, t.count)} disabled={busy}
+                        style={{ ...styles.dangerBtn, marginLeft: 6 }}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
