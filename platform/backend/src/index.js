@@ -85,6 +85,8 @@ const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 // Public unsubscribe — no auth, signature-validated. Mounted before
 // the rate-limited auth route so it never blocks unsubscribes.
 app.use('/api/unsubscribe', require('./routes/unsubscribe'));
+// SES bounce/complaint webhook — mounted before auth so SNS can POST to it.
+app.use('/api/ses', require('./routes/sesWebhook'));
 
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
