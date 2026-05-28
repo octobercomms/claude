@@ -15,6 +15,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
   const [assets, setAssets] = useState([]);
   const [showBrief, setShowBrief] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [shareUrl, setShareUrl] = useState(null);
 
   async function refresh() {
     const [bs, as] = await Promise.all([
@@ -106,6 +107,21 @@ export default function AdCreativePanel({ clientId, clientName }) {
   // Adobe Photoshop generative resize — take one image we already have
   // and ask Adobe to produce versions in every other aspect ratio. The
   // result returns as new image rows on the same creative.
+  async function shareBatchForApproval() {
+    if (!activeBatchId) return;
+    try {
+      const { public_url } = await api.post(`/approvals/clients/${clientId}/links`, {
+        scope: 'ad_creative_batch',
+        scope_id: activeBatchId,
+        title: `Ad creative — ${clientName} ${new Date().toLocaleDateString('en-GB')}`,
+        expires_days: 14,
+      });
+      setShareUrl(public_url);
+    } catch (e) {
+      toast(`Could not generate link: ${e.message}`, 'error');
+    }
+  }
+
   async function fanOutImage(imageId, creativeId) {
     try {
       const { generated } = await api.post(`/ad-creatives/images/${imageId}/fan-out`, {
@@ -134,10 +150,26 @@ export default function AdCreativePanel({ clientId, clientName }) {
             across any aspect ratios you need — 1:1, 4:5, 9:16, 16:9.
           </p>
         </div>
-        <button style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
-          {generating ? 'Generating…' : 'Generate ad concepts'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {activeBatchId && (
+            <button style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
+          )}
+          <button style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
+            {generating ? 'Generating…' : 'Generate ad concepts'}
+          </button>
+        </div>
       </div>
+
+      {shareUrl && (
+        <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <strong style={{ fontSize: 12, color: '#1d7a3a' }}>Approval link ready —</strong>
+          <input value={shareUrl} readOnly onFocus={e => e.target.select()}
+            style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: '#fff', fontFamily: 'monospace' }} />
+          <button onClick={() => navigator.clipboard.writeText(shareUrl)}
+            style={{ padding: '4px 12px', fontSize: 11, background: '#1d7a3a', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Copy</button>
+          <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1d7a3a' }}>×</button>
+        </div>
+      )}
 
       {!assets.length && (
         <div style={{ background: '#fffceb', border: '1px solid #f0d260', padding: 12, borderRadius: 6, fontSize: 12, color: '#5d4000', marginBottom: 16 }}>

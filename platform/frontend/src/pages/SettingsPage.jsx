@@ -36,6 +36,22 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Arcads (UGC video)',
+    category: 'AI & Email',
+    hint: 'UGC-style talking-head video from a script. ~$2 per video. Used per-post on the Social tab — the storyboard\'s voiceover lines become the script by default.',
+    keys: [
+      { key: 'ARCADS_API_KEY', label: 'Arcads API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'ElevenLabs (voiceover)',
+    category: 'AI & Email',
+    hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
+    keys: [
+      { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
     title: 'Email Provider',
     category: 'AI & Email',
     hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',

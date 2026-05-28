@@ -22,6 +22,8 @@ export default function ClientSocialPage() {
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [winners, setWinners] = useState([]);
   const [engagement, setEngagement] = useState({});
+  const [mediaByPost, setMediaByPost] = useState({});
+  const [shareUrl, setShareUrl] = useState(null);
 
   async function loadAll() {
     const [c, bs, comp, ws, eng] = await Promise.all([
@@ -50,6 +52,50 @@ export default function ClientSocialPage() {
     setActiveBatchId(batchId);
     const p = await api.get(`/social/clients/${id}/posts?batch_id=${batchId}`);
     setPosts(p);
+    // Lazy-load media for the visible posts.
+    const map = {};
+    for (const post of p) {
+      try {
+        const mediaRows = await api.get(`/social/posts/${post.id}/media`);
+        if (mediaRows.length) map[post.id] = mediaRows;
+      } catch {}
+    }
+    setMediaByPost(map);
+  }
+
+  async function generateMedia(postId, kind) {
+    try {
+      const path = kind === 'video' ? 'video' : 'voiceover';
+      const { media } = await api.post(`/social/posts/${postId}/${path}`, {});
+      setMediaByPost(prev => ({ ...prev, [postId]: [...(prev[postId] || []), media] }));
+      toast(`${kind === 'video' ? 'UGC video' : 'Voiceover'} ready.`, 'success');
+    } catch (e) {
+      toast(`${kind} failed: ${e.message}`, 'error');
+    }
+  }
+
+  async function deleteMedia(mediaId, postId) {
+    try {
+      await api.delete(`/social/media/${mediaId}`);
+      setMediaByPost(prev => ({ ...prev, [postId]: (prev[postId] || []).filter(m => m.id !== mediaId) }));
+    } catch (e) {
+      toast(`Could not delete: ${e.message}`, 'error');
+    }
+  }
+
+  async function shareBatchForApproval() {
+    if (!activeBatchId) return;
+    try {
+      const { public_url } = await api.post(`/approvals/clients/${id}/links`, {
+        scope: 'social_batch',
+        scope_id: activeBatchId,
+        title: `Social batch — ${client?.name || ''} ${new Date().toLocaleDateString('en-GB')}`,
+        expires_days: 14,
+      });
+      setShareUrl(public_url);
+    } catch (e) {
+      toast(`Could not generate link: ${e.message}`, 'error');
+    }
   }
 
   async function generate() {
@@ -149,14 +195,23 @@ export default function ClientSocialPage() {
             an image generator beside any post to render the visual.
           </p>
         </div>
-        <button type="button" style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
-          {generating ? 'Generating…' : 'Generate 9 posts'}
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {activeBatchId && (
+            <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
+          )}
+          <button type="button" style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
+            {generating ? 'Generating…' : 'Generate 9 posts'}
+          </button>
+        </div>
       </div>
 
       <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
 
       <WinnersPanel winners={winners} />
+
+      {shareUrl && (
+        <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
+      )}
 
       {showBrief && (
         <BriefModal
@@ -187,11 +242,13 @@ export default function ClientSocialPage() {
           {!posts.length && <div style={{ color: '#888', padding: 20 }}>Pick a batch on the left, or generate a new one.</div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
             {posts.map(p => (
-              <PostCard key={p.id} post={p} engagement={engagement[p.id]}
+              <PostCard key={p.id} post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
                 onChange={patch => updatePost(p.id, patch)}
                 onDelete={() => deletePost(p.id)}
                 onPublish={(url) => publishPost(p.id, url)}
-                onRefreshInsights={() => refreshInsights(p.id)} />
+                onRefreshInsights={() => refreshInsights(p.id)}
+                onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+                onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
             ))}
           </div>
         </div>
@@ -298,7 +355,22 @@ function WinnersPanel({ winners }) {
   );
 }
 
-function PostCard({ post, engagement, onChange, onDelete, onPublish, onRefreshInsights }) {
+function ShareLinkBanner({ url, onDismiss }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+      <strong style={{ fontSize: 12, color: '#1d7a3a' }}>Approval link ready —</strong>
+      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: '#fff', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
+      <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        style={{ padding: '4px 12px', fontSize: 11, background: '#1d7a3a', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+        {copied ? 'Copied' : 'Copy'}
+      </button>
+      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1d7a3a' }}>×</button>
+    </div>
+  );
+}
+
+function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRefreshInsights, onGenerateMedia, onDeleteMedia }) {
   const [open, setOpen] = useState(false);
   const [showImg, setShowImg] = useState(false);
   const [imgPrompt, setImgPrompt] = useState('');
@@ -309,6 +381,15 @@ function PostCard({ post, engagement, onChange, onDelete, onPublish, onRefreshIn
   const [err, setErr] = useState(null);
   const [showPublish, setShowPublish] = useState(false);
   const [publishUrl, setPublishUrl] = useState('');
+  const [renderingMedia, setRenderingMedia] = useState(null);
+
+  async function handleGenerateMedia(kind) {
+    setRenderingMedia(kind);
+    try { await onGenerateMedia(kind); }
+    finally { setRenderingMedia(null); }
+  }
+  const videos = (media || []).filter(m => m.kind === 'video');
+  const audios = (media || []).filter(m => m.kind === 'audio');
 
   async function generateImage() {
     setGenerating(true);
@@ -376,12 +457,35 @@ function PostCard({ post, engagement, onChange, onDelete, onPublish, onRefreshIn
         </div>
       )}
 
+      {(videos.length > 0 || audios.length > 0) && (
+        <div style={{ marginTop: 10, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {videos.map(v => (
+            <div key={v.id} style={{ position: 'relative' }}>
+              <video src={v.url} controls style={{ width: 180, borderRadius: 4, background: '#000' }} />
+              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+            </div>
+          ))}
+          {audios.map(a => (
+            <div key={a.id} style={{ position: 'relative', width: 220 }}>
+              <audio src={a.url} controls style={{ width: '100%' }} />
+              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <button onClick={() => setOpen(o => !o)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
           {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
         </button>
         <button onClick={() => setShowImg(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
           {showImg ? 'Cancel image' : 'Generate image'}
+        </button>
+        <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+          {renderingMedia === 'voiceover' ? 'Rendering…' : 'Generate voiceover'}
+        </button>
+        <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+          {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
         </button>
         {post.status !== 'published' && (
           <button onClick={() => setShowPublish(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>

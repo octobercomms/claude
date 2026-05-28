@@ -8,6 +8,8 @@ const social = require('../services/social');
 const replicate = require('../connectors/replicate');
 const ideogram = require('../connectors/ideogram');
 const adobe = require('../connectors/adobe');
+const arcads = require('../connectors/arcads');
+const elevenlabs = require('../connectors/elevenlabs');
 const meta = require('../connectors/meta');
 const users = require('../services/users');
 
@@ -155,6 +157,92 @@ router.post('/posts/:id/image', async (req, res) => {
     res.status(502).json({ error: err.message });
   }
 });
+
+// ─── VIDEO + AUDIO ────────────────────────────────────────────────────────
+//
+// Per-post UGC video via Arcads. The script defaults to the storyboard's
+// voiceover lines concatenated; the AM can override. Long-running — we
+// keep the request open and let the page show a spinner.
+router.post('/posts/:id/video', async (req, res) => {
+  const { script, actor_id, aspect_ratio } = req.body || {};
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+    const finalScript = script || defaultScriptFromStoryboard(post) || post.caption;
+    if (!finalScript) return res.status(400).json({ error: 'No script — either pass one or fill out the storyboard.' });
+
+    const result = await arcads.generateVideo({
+      script: finalScript, actor_id,
+      aspect_ratio: aspect_ratio || (post.kind === 'reel' || post.kind === 'story' ? '9:16' : '1:1'),
+    });
+    const { rows: row } = await pool.query(
+      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+       VALUES ($1, 'video', 'arcads', $2, $3, $4) RETURNING *`,
+      [post.id, result.url, result.duration_sec, JSON.stringify({ actor_id: result.actor_id, job_id: result.job_id, script: finalScript })]
+    );
+    res.status(201).json({ media: row[0] });
+  } catch (err) {
+    console.error('[social] arcads video failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Per-post voiceover via ElevenLabs. Same defaulting logic as video.
+router.post('/posts/:id/voiceover', async (req, res) => {
+  const { script, voice_id } = req.body || {};
+  try {
+    const { rows } = await pool.query('SELECT * FROM social_posts WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Post not found' });
+    const post = rows[0];
+    const finalScript = script || defaultScriptFromStoryboard(post) || post.caption;
+    if (!finalScript) return res.status(400).json({ error: 'No script — either pass one or fill out the storyboard.' });
+
+    const result = await elevenlabs.generateVoiceover({ text: finalScript, voice_id, client_id: post.client_id });
+    const { rows: row } = await pool.query(
+      `INSERT INTO social_post_media (post_id, kind, provider, url, duration_sec, metadata)
+       VALUES ($1, 'audio', 'elevenlabs', $2, $3, $4) RETURNING *`,
+      [post.id, result.url, result.duration_sec, JSON.stringify({ voice_id: result.voice_id, script: finalScript })]
+    );
+    res.status(201).json({ media: row[0] });
+  } catch (err) {
+    console.error('[social] elevenlabs voiceover failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Return all media (video + audio) for a post — used by the card to render
+// the players inline.
+router.get('/posts/:id/media', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM social_post_media WHERE post_id = $1 ORDER BY created_at ASC',
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/media/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT m.*, p.client_id FROM social_post_media m
+       JOIN social_posts p ON p.id = m.post_id WHERE m.id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(204).end();
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised' });
+    }
+    await pool.query('DELETE FROM social_post_media WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+function defaultScriptFromStoryboard(post) {
+  const frames = post.storyboard || [];
+  return frames.map(f => f.voiceover).filter(Boolean).join(' ');
+}
 
 // ─── PUBLISH + PERFORMANCE LOOP ───────────────────────────────────────────
 //
