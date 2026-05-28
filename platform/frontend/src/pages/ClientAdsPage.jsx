@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import AdCreativePanel from '../components/AdCreativePanel';
 import { useParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -16,6 +17,7 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
+  const [tab, setTab] = useState('performance');
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -153,6 +155,18 @@ export default function ClientAdsPage() {
 
   return (
     <div>
+      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
+        {[['performance', 'Performance'], ['creative', 'Creative']].map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
+            fontWeight: tab === k ? 700 : 400, color: tab === k ? '#1a1a1a' : '#888',
+            borderBottom: tab === k ? '2px solid #1a1a1a' : '2px solid transparent', marginBottom: -2,
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
+      {tab !== 'creative' && <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Ads Performance — {client?.name}</h1>
@@ -328,6 +342,7 @@ export default function ClientAdsPage() {
           )}
         </>
       )}
+      </>}
     </div>
   );
 }
