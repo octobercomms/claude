@@ -273,18 +273,20 @@ router.get('/:id/diagnose', async (req, res) => {
           const retryRes = await axios.get(
             `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${refreshed.access_token}`
           );
+          // Refresh succeeded — Google rotates access tokens every 60 minutes,
+          // this is the normal path. No note: nothing for the AM to action.
           result.token_info = {
             email: retryRes.data.email,
             scopes: retryRes.data.scope,
             expires_in: retryRes.data.exp ? `${Math.round((retryRes.data.exp * 1000 - Date.now()) / 60000)}m` : 'unknown',
-            note: 'Token was expired and has been refreshed',
           };
           const { encrypt } = require('../utils/encryption');
           await pool.query('UPDATE connectors SET credentials = $1 WHERE id = $2', [
             JSON.stringify(encrypt(refreshed)), row.id,
           ]);
         } catch {
-          result.token_info.note = 'Token is expired — re-authorise this connector';
+          result.token_info.note = 'Token is expired and refresh failed — re-authorise this connector.';
+          result.token_info.note_kind = 'error';
         }
       }
 
