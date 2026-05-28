@@ -384,6 +384,60 @@ router.post('/contacts/library/delete-by-filter', async (req, res) => {
   }
 });
 
+// Ask Claude to look at a slice of contacts and propose field-level
+// cleanups (capitalisation, missing company from email domain, URL
+// scheme, etc). Accepts the same search/tags filter as the library
+// list so the AM can run it on a subset (or all 500, the hard cap).
+router.post('/contacts/analyze-tidy', async (req, res) => {
+  try {
+    const contactTidy = require('../services/contactTidy');
+    const result = await contactTidy.analyseContacts({
+      visibleClientIds: req.visibleClientIds,
+      filterBody: req.body || {},
+      limit: Number(req.body?.limit) || contactTidy.MAX_CONTACTS,
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Apply a set of accepted suggestions from /analyze-tidy. Writes an
+// audit row per field change so the AM has a paper trail.
+router.post('/contacts/apply-tidy', async (req, res) => {
+  try {
+    const contactTidy = require('../services/contactTidy');
+    const result = await contactTidy.applyTidy({
+      user: req.user,
+      visibleClientIds: req.visibleClientIds,
+      suggestions: req.body?.suggestions || [],
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Audit history for one contact — what changed, when, by whom,
+// and (for AI changes) the rationale. Powers the new "History" tab
+// on the contact edit modal.
+router.get('/contacts/:id/audit', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT a.*, u.username AS applied_by_username
+         FROM outreach_contact_audit a
+         LEFT JOIN users u ON u.id = a.applied_by
+        WHERE a.contact_id = $1
+        ORDER BY a.applied_at DESC
+        LIMIT 200`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Distinct tag list with usage counts. If ?client_id is given, scopes to
 // contacts attached to that client; without it, returns workspace-wide
 // counts (the library view). Drives the chip picker in contact and press
