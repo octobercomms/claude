@@ -1,379 +1,526 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 
+// Sister-site treatment to octobercomms.com — black-dominated layout,
+// single yellow accent, geometric patterns between content sections,
+// lowercase typography. All emojis stripped out so the design reads as
+// a deliberate family member rather than a generic SaaS landing page.
+
 const YELLOW = '#E7CD41';
-const DARK = '#0f0f0f';
-const GREY = '#6b7280';
-const LIGHT_BG = '#f9fafb';
-const BORDER = '#e5e7eb';
-
-const integrations = [
-  { name: 'Google Analytics 4', icon: '📊' },
-  { name: 'Google Ads', icon: '🎯' },
-  { name: 'Google Search Console', icon: '🔍' },
-  { name: 'Google Merchant Center', icon: '🛍️' },
-  { name: 'Meta Ads', icon: '📱' },
-  { name: 'Instagram', icon: '📸' },
-  { name: 'Shopify', icon: '🛒' },
-  { name: 'Shopify Email', icon: '📧' },
-  { name: 'Klaviyo', icon: '💌' },
-  { name: 'Brevo', icon: '✉️' },
-  { name: 'Zoho Inventory', icon: '📦' },
-  { name: 'Cin7', icon: '🏭' },
-];
-
-const features = [
-  {
-    icon: '🤖',
-    title: 'AI Report Chat',
-    desc: "Ask Claude anything about your client's performance. Get instant answers from live connector data — no spreadsheets, no waiting.",
-  },
-  {
-    icon: '📡',
-    title: '20+ Integrations',
-    desc: 'Connect Google, Meta, Shopify, Klaviyo, inventory systems and more. All data in one place, always fresh.',
-  },
-  {
-    icon: '📋',
-    title: 'Automated Reports',
-    desc: 'Weekly and monthly reports generated and emailed automatically. Branded, data-driven, ready to send.',
-  },
-  {
-    icon: '🔎',
-    title: 'SEO Rank Tracking',
-    desc: 'Track keyword positions daily across all your clients. Spot gains and losses before anyone else does.',
-  },
-  {
-    icon: '📈',
-    title: 'Ads Performance',
-    desc: 'Unified view of Google Ads and Meta Ads. Spend, revenue, ROAS — with an AI advisor to suggest improvements.',
-  },
-  {
-    icon: '⚡',
-    title: 'Anomaly Detection',
-    desc: 'Claude monitors your data and flags unusual changes in traffic, spend, or conversions before they become problems.',
-  },
-  {
-    icon: '🏢',
-    title: 'Multi-Client Management',
-    desc: 'Built for agencies. Manage unlimited clients, each with their own connectors, reports, and chat history.',
-  },
-  {
-    icon: '📦',
-    title: 'Inventory Insights',
-    desc: 'Pull stock levels and sales orders from Zoho Inventory or Cin7 directly into your reports.',
-  },
-];
-
-const plans = [
-  {
-    name: 'Starter',
-    price: '£149',
-    period: '/mo',
-    desc: 'For small agencies or in-house teams getting started.',
-    features: [
-      'Up to 3 clients',
-      '10 integrations per client',
-      'AI Report Chat',
-      'Automated weekly reports',
-      'SEO rank tracking (100 keywords)',
-      'Email support',
-    ],
-    cta: 'Join waitlist',
-    highlight: false,
-  },
-  {
-    name: 'Agency',
-    price: '£349',
-    period: '/mo',
-    desc: 'The full platform for growing agencies.',
-    features: [
-      'Unlimited clients',
-      'All 20+ integrations',
-      'AI Report Chat + Ads Advisor',
-      'Weekly & monthly automated reports',
-      'SEO rank tracking (unlimited)',
-      'Anomaly detection & alerts',
-      'Priority support',
-    ],
-    cta: 'Join waitlist',
-    highlight: true,
-  },
-  {
-    name: 'Enterprise',
-    price: 'Custom',
-    period: '',
-    desc: 'For large agencies and in-house marketing teams.',
-    features: [
-      'Everything in Agency',
-      'White-label reports',
-      'Custom integrations',
-      'Dedicated onboarding',
-      'SLA & uptime guarantee',
-      'Team access & permissions',
-    ],
-    cta: 'Get in touch',
-    highlight: false,
-  },
-];
+const BLACK = '#0d0d0d';
+const WHITE = '#ffffff';
+const MUTED = 'rgba(255,255,255,0.55)';
+const FONT = `'Helvetica Neue', Helvetica, Arial, sans-serif`;
 
 export default function HomePage() {
-  const [waitlistEmail, setWaitlistEmail] = useState('');
-  const [waitlistDone, setWaitlistDone] = useState(false);
+  const [email, setEmail] = useState('');
+  const [done, setDone] = useState(false);
 
-  async function handleWaitlist(e) {
+  async function submit(e) {
     e.preventDefault();
-    if (!waitlistEmail) return;
+    if (!email) return;
     try {
       await fetch('/api/waitlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: waitlistEmail }),
+        body: JSON.stringify({ email }),
       });
-    } catch {
-      // Still confirm to the visitor — don't block on a notification failure.
-    }
-    setWaitlistDone(true);
+    } catch { /* don't block on notification failure */ }
+    setDone(true);
   }
 
   return (
-    <div className="home" style={{ fontFamily: 'Inter, system-ui, sans-serif', color: DARK, lineHeight: 1.6 }}>
+    <div style={{ fontFamily: FONT, color: WHITE, background: BLACK, lineHeight: 1.5 }}>
 
-      {/* Nav */}
-      <nav style={{ position: 'sticky', top: 0, zIndex: 100, background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)', borderBottom: `1px solid ${BORDER}`, padding: '0 40px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/logo-yellow.gif" alt="October" style={{ height: 28 }} />
-          <span className="home-brandtext" style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.3 }}>Marketing Intelligence</span>
+      {/* Brand strip — top */}
+      <header style={styles.topBar}>
+        <div style={styles.topBarInner}>
+          <span style={styles.brandTag}>october communications</span>
+          <nav style={{ display: 'flex', gap: 18, fontSize: 13 }}>
+            <a href="#what" style={styles.topLink}>what it does</a>
+            <a href="#how" style={styles.topLink}>how it works</a>
+            <a href="#pricing" style={styles.topLink}>pricing</a>
+            <Link to="/login" style={{ ...styles.topLink, color: YELLOW, fontWeight: 700 }}>log in ↗</Link>
+          </nav>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          <a className="home-navlink" href="#features" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Features</a>
-          <a className="home-navlink" href="#integrations" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Integrations</a>
-          <a className="home-navlink" href="#pricing" style={{ fontSize: 14, color: GREY, textDecoration: 'none' }}>Pricing</a>
-          <Link to="/login" style={{ fontSize: 14, color: DARK, textDecoration: 'none', fontWeight: 600, padding: '8px 18px', border: `1.5px solid ${DARK}`, borderRadius: 8 }}>
-            Log in
-          </Link>
-        </div>
-      </nav>
+      </header>
 
       {/* Hero */}
-      <section style={{ background: DARK, color: '#fff', padding: '100px 40px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 780, margin: '0 auto' }}>
-          <div style={{ display: 'inline-block', background: YELLOW, color: DARK, fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, marginBottom: 24, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-            Built for marketing agencies
-          </div>
-          <h1 style={{ fontSize: 'clamp(36px, 6vw, 68px)', fontWeight: 800, margin: '0 0 24px', lineHeight: 1.1, letterSpacing: -1.5 }}>
-            One platform.<br />
-            <span style={{ color: YELLOW }}>All your client data.</span>
+      <section style={styles.hero}>
+        <div style={styles.heroInner}>
+          <div style={styles.eyebrow}>marketing intelligence</div>
+          <h1 style={styles.h1}>
+            every client's data,<br/>
+            <span style={{ color: YELLOW }}>in one place,</span><br/>
+            with claude on top.
           </h1>
-          <p style={{ fontSize: 20, color: 'rgba(255,255,255,0.7)', maxWidth: 580, margin: '0 auto 40px', lineHeight: 1.6 }}>
-            Bring your ecommerce, sales, email, SEO and outreach into one place, and use AI to analyse the data.
+          <p style={styles.heroLede}>
+            a platform built by october communications for ambitious marketing teams.
+            ecommerce, sales, email, seo, ads and outreach — pulled live from the tools you already use,
+            then turned into reports, social, ad creative and answers you can actually use.
           </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <a href="#pricing" style={{ background: YELLOW, color: DARK, padding: '14px 32px', borderRadius: 10, fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>
-              Join the waitlist
-            </a>
-            <a href="#features" style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', padding: '14px 32px', borderRadius: 10, fontWeight: 600, fontSize: 16, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.2)' }}>
-              See what it does →
-            </a>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 36 }}>
+            <a href="#waitlist" style={styles.pillPrimary}>join the waitlist ↗</a>
+            <a href="#what" style={styles.pillGhost}>see what it does</a>
           </div>
         </div>
       </section>
 
-      {/* Social proof strip */}
-      <div style={{ background: '#f3f4f6', borderBottom: `1px solid ${BORDER}`, padding: '16px 40px', textAlign: 'center', fontSize: 13, color: GREY }}>
-        Trusted by marketing agencies · Connects to the tools you already use · Reports your clients actually read
-      </div>
+      {/* Yellow pattern break — checkerboard */}
+      <CheckerboardBreak />
 
-      {/* How it works */}
-      <section id="how-it-works" style={{ background: '#fff', padding: '100px 40px' }}>
-        <div style={{ maxWidth: 1140, margin: '0 auto' }}>
-          <div style={{ textAlign: 'center', marginBottom: 56 }}>
-            <h2 style={{ fontSize: 'clamp(28px, 4vw, 42px)', fontWeight: 800, margin: '0 0 12px', letterSpacing: -1 }}>One pipeline. Every client.</h2>
-            <p style={{ fontSize: 18, color: GREY, maxWidth: 540, margin: '0 auto' }}>
-              Connect your tools once. October ingests and standardises the data, then turns it into reports, dashboards and answers.
-            </p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ flex: '1 1 260px', maxWidth: 320, background: LIGHT_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: GREY, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Your data sources</div>
-              {['Paid media — Google, Meta, Amazon', 'Analytics — GA4 & Search Console', 'Ecommerce — Shopify & WooCommerce', 'Email — Klaviyo & Brevo', 'SEO — rank & backlink tracking', 'CRM & inventory'].map(t => (
-                <div key={t} style={{ padding: '9px 0', fontSize: 14, color: DARK, borderTop: `1px solid ${BORDER}` }}>{t}</div>
-              ))}
-            </div>
-            <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
-            <div style={{ flex: '1 1 320px', maxWidth: 380, background: DARK, color: '#fff', borderRadius: 16, padding: 28, boxShadow: '0 18px 44px rgba(0,0,0,0.22)' }}>
-              <div style={{ fontSize: 13, fontWeight: 800, color: YELLOW, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8, textAlign: 'center' }}>October Marketing Intelligence</div>
-              {['Connect & sync — 20+ connectors', 'AI-written client reports', 'SEO rank tracking', 'AI Data Analyst — chat with your data', 'Sales & Traffic dashboards', 'AI outreach campaigns'].map(t => (
-                <div key={t} style={{ display: 'flex', gap: 10, alignItems: 'baseline', padding: '9px 0', fontSize: 14, borderTop: '1px solid rgba(255,255,255,0.12)' }}>
-                  <span style={{ color: YELLOW }}>✦</span><span>{t}</span>
-                </div>
-              ))}
-            </div>
-            <div style={{ fontSize: 24, color: DARK, fontWeight: 700 }}>→</div>
-            <div style={{ flex: '1 1 260px', maxWidth: 320, background: LIGHT_BG, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 24 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: GREY, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>What you get</div>
-              {['Client-ready PDF reports', 'Live dashboards', 'Instant answers from your data', 'Automated outreach', 'Everything in one login'].map(t => (
-                <div key={t} style={{ padding: '9px 0', fontSize: 14, color: DARK, borderTop: `1px solid ${BORDER}` }}>{t}</div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" style={{ padding: '100px 40px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <h2 style={{ fontSize: 40, fontWeight: 800, margin: '0 0 16px', letterSpacing: -1 }}>Everything in one place</h2>
-          <p style={{ fontSize: 18, color: GREY, maxWidth: 520, margin: '0 auto' }}>No more tab-switching. No more manual exports. Your whole reporting workflow, automated.</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 24 }}>
-          {features.map((f, i) => (
-            <div key={i} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 12, padding: '28px 24px', transition: 'box-shadow 0.2s' }}>
-              <div style={{ fontSize: 32, marginBottom: 12 }}>{f.icon}</div>
-              <h3 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 8px' }}>{f.title}</h3>
-              <p style={{ fontSize: 14, color: GREY, margin: 0, lineHeight: 1.6 }}>{f.desc}</p>
-            </div>
+      {/* Audience nav strip */}
+      <section style={styles.audienceStrip}>
+        <div style={styles.audienceInner}>
+          <span style={styles.audienceArrow}>↗</span>
+          {['agencies', 'in-house teams', 'consultancies', 'studios', 'founders'].map(a => (
+            <span key={a} style={styles.audienceChip}>{a}</span>
           ))}
         </div>
       </section>
 
-      {/* AI Chat highlight */}
-      <section style={{ background: DARK, color: '#fff', padding: '100px 40px' }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center' }}>
-          <div>
-            <div style={{ color: YELLOW, fontWeight: 700, fontSize: 13, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>AI Report Chat</div>
-            <h2 style={{ fontSize: 38, fontWeight: 800, margin: '0 0 20px', letterSpacing: -1, lineHeight: 1.15 }}>Talk to your clients&apos; data</h2>
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', marginBottom: 24, lineHeight: 1.7 }}>
-              Ask Claude anything: "Why did traffic drop last week?", "Which campaigns have the best ROAS?", "Summarise this month's performance for the board meeting."
+      {/* What it does — three columns of copy on black */}
+      <section id="what" style={styles.copyBlock}>
+        <div style={styles.copyInner}>
+          <div style={styles.colSmall}>
+            <h2 style={styles.h2}>
+              one platform.<br/>
+              <span style={{ color: YELLOW }}>every client.</span>
+            </h2>
+            <a href="#waitlist" style={styles.pillSmall}>book a call</a>
+            <div style={{ marginTop: 14 }}>
+              <a href="#pricing" style={{ ...styles.topLink, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ color: YELLOW, fontWeight: 700 }}>↗</span> pricing
+              </a>
+            </div>
+          </div>
+          <div style={styles.colMid}>
+            <p style={styles.body}>
+              we are the only platform that connects your client's data sources, runs ai-grounded analysis,
+              and turns the output into reports, social, ad creative and outreach — all in one login.
             </p>
-            <p style={{ fontSize: 17, color: 'rgba(255,255,255,0.7)', lineHeight: 1.7 }}>
-              Claude reads live data from all connected sources, spots anomalies, and helps you build reports in seconds — not hours.
+            <p style={styles.body}>
+              the work that took your team a week now takes an afternoon. the analysis that needed a senior analyst
+              now happens in plain english. and the strategy that hid behind dashboards now sits in one tab.
             </p>
           </div>
-          <div style={{ background: '#1a1a1a', borderRadius: 16, padding: 24, border: '1px solid rgba(255,255,255,0.1)', fontFamily: 'monospace', fontSize: 13 }}>
+          <div style={styles.colMid}>
+            <p style={styles.body}>
+              we are deeply passionate about marketing operations and their potential to transform agencies.
+              we don't pretend to replace strategy — we replace the work that gets in the way of it.
+            </p>
+            <p style={styles.body}>
+              every connector, every model, every prompt is built to give creative directors, account managers
+              and founders back the time they should be spending on the work that actually moves the needle.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Triangles pattern break */}
+      <TrianglesBreak />
+
+      {/* Testimonial-ish — what people say */}
+      <section style={styles.quoteBlock}>
+        <div style={styles.quoteInner}>
+          <div style={styles.quoteCard}>
+            <div style={styles.caseBadge}>case</div>
+            <p style={styles.quoteText}>
+              "we worked closely with october communications on reporting, ai analysis, ecommerce and seo —
+              and saw a great return on the investment. we highly recommend october."
+            </p>
+          </div>
+          <div style={styles.quoteCard}>
+            <p style={styles.quoteText}>
+              "the team are great professionals to collaborate with — they are responsive, creative
+              and always open to exploring together new ideas, and take constructive feedback on board."
+            </p>
+            <div style={{ marginTop: 24, fontSize: 12, color: MUTED, letterSpacing: 0.5 }}>
+              scenario / architecture
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how" style={styles.copyBlock}>
+        <div style={styles.howInner}>
+          <h2 style={{ ...styles.h2, marginBottom: 32 }}>
+            three things, in sequence.
+          </h2>
+          <div style={styles.howGrid}>
+            <HowStep n="01" title="connect" body="oauth or paste an api key. one click to wire up google, meta, shopify, klaviyo, brevo, amazon, zoho — and a dozen more. one connection unlocks every tool inside that family." />
+            <HowStep n="02" title="ask" body="the ai data analyst answers questions in plain english. 'why did traffic drop last week?' 'which campaign is dropping in roas?' 'summarise this month for the board.' real numbers, cited." />
+            <HowStep n="03" title="ship" body="reports written by claude and sent by the platform. social posts with full storyboards. ad creative across every aspect ratio. cold outreach with auto-classified replies. one login, every deliverable." />
+          </div>
+        </div>
+      </section>
+
+      {/* Stars / sparkle pattern break */}
+      <SparkleBreak />
+
+      {/* Capability grid */}
+      <section style={styles.copyBlock}>
+        <div style={styles.copyInner}>
+          <div style={{ width: '100%' }}>
+            <h2 style={styles.h2}>
+              what it actually does.
+            </h2>
+            <div style={styles.capGrid}>
+              {CAPABILITIES.map(c => (
+                <div key={c.title} style={styles.capCard}>
+                  <div style={styles.capDot} />
+                  <div style={styles.capTitle}>{c.title}</div>
+                  <div style={styles.capDesc}>{c.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* AI chat showcase — black on black with yellow accent */}
+      <section style={{ ...styles.copyBlock, paddingTop: 60 }}>
+        <div style={styles.aiInner}>
+          <div style={styles.colSmall}>
+            <div style={styles.eyebrow}>ai data analyst</div>
+            <h2 style={styles.h2}>
+              talk to the<br/>
+              <span style={{ color: YELLOW }}>numbers.</span>
+            </h2>
+            <p style={styles.body}>
+              every connector you wire up becomes a tool claude can read.
+              ask a question in plain english, get a cited answer in seconds.
+            </p>
+          </div>
+          <div style={styles.chatPanel}>
             {[
-              { role: 'user', text: 'How did Shopify perform last month?' },
-              { role: 'ai', text: '📊 Revenue was £42,180 across 318 orders (AOV £132.65). Up 18% vs prior period. Top-performing product: Cast Iron Skillet. Conversion rate held at 3.2%. One anomaly: traffic from paid search dropped 22% week 3 — worth investigating Google Ads.' },
-              { role: 'user', text: 'What should we do about the paid search drop?' },
-              { role: 'ai', text: '🎯 Google Ads data shows spend was flat but impressions fell. Likely cause: Quality Score drop or increased competition on brand terms. Recommend auditing negative keywords and checking for bid strategy changes around that date.' },
+              { role: 'you', text: 'how did shopify perform last month?' },
+              { role: 'claude', text: 'revenue was £42,180 across 318 orders (aov £132.65). up 18% vs prior period. top product: cast iron skillet. conversion held at 3.2%. one anomaly — paid search traffic dropped 22% in week 3, worth investigating google ads.' },
+              { role: 'you', text: 'what should we do about it?' },
+              { role: 'claude', text: 'google ads spend was flat but impressions fell. likely quality score drop or competition on brand terms. audit negatives, check bid-strategy changes around 14th.' },
             ].map((m, i) => (
-              <div key={i} style={{ marginBottom: 16, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: m.role === 'user' ? YELLOW : '#a3e635', whiteSpace: 'nowrap', marginTop: 2 }}>
-                  {m.role === 'user' ? 'YOU' : 'CLAUDE'}
-                </span>
-                <span style={{ color: m.role === 'user' ? '#e5e7eb' : 'rgba(255,255,255,0.75)', lineHeight: 1.5, fontFamily: 'Inter, sans-serif' }}>{m.text}</span>
+              <div key={i} style={{ marginBottom: 14, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: m.role === 'you' ? YELLOW : '#a3e635', textTransform: 'uppercase', letterSpacing: 0.5, minWidth: 50 }}>{m.role}</span>
+                <span style={{ color: m.role === 'you' ? '#e5e7eb' : MUTED, fontSize: 13, lineHeight: 1.55 }}>{m.text}</span>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Big yellow dots composition */}
+      <DotsBreak />
+
       {/* Integrations */}
-      <section id="integrations" style={{ padding: '100px 40px', background: LIGHT_BG }}>
-        <div style={{ maxWidth: 1000, margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{ fontSize: 40, fontWeight: 800, margin: '0 0 16px', letterSpacing: -1 }}>Connects to everything</h2>
-          <p style={{ fontSize: 18, color: GREY, marginBottom: 56 }}>OAuth and API key integrations — no developers needed.</p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 16 }}>
-            {integrations.map((int, i) => (
-              <div key={i} style={{ background: '#fff', border: `1px solid ${BORDER}`, borderRadius: 10, padding: '20px 16px', textAlign: 'center' }}>
-                <div style={{ fontSize: 28, marginBottom: 8 }}>{int.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: DARK }}>{int.name}</div>
-              </div>
-            ))}
+      <section style={styles.copyBlock}>
+        <div style={styles.copyInner}>
+          <div style={{ width: '100%' }}>
+            <h2 style={styles.h2}>connects to what you already use.</h2>
+            <div style={styles.integGrid}>
+              {INTEGRATIONS.map(name => (
+                <div key={name} style={styles.integCell}>{name}</div>
+              ))}
+            </div>
           </div>
-          <p style={{ marginTop: 32, fontSize: 14, color: GREY }}>More integrations added regularly. Don&apos;t see yours? <a href="mailto:hello@octobercomms.com" style={{ color: DARK, fontWeight: 600 }}>Let us know.</a></p>
         </div>
       </section>
 
       {/* Pricing */}
-      <section id="pricing" style={{ padding: '100px 40px', maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 60 }}>
-          <h2 style={{ fontSize: 40, fontWeight: 800, margin: '0 0 16px', letterSpacing: -1 }}>Simple, transparent pricing</h2>
-          <p style={{ fontSize: 18, color: GREY }}>No setup fees. Cancel anytime. Launching soon — join the waitlist for early access.</p>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 24 }}>
-          {plans.map((plan, i) => (
-            <div key={i} style={{
-              background: plan.highlight ? DARK : '#fff',
-              border: plan.highlight ? `2px solid ${YELLOW}` : `1px solid ${BORDER}`,
-              borderRadius: 16, padding: '36px 32px',
-              color: plan.highlight ? '#fff' : DARK,
-              position: 'relative',
-            }}>
-              {plan.highlight && (
-                <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: YELLOW, color: DARK, fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
-                  Most popular
+      <section id="pricing" style={styles.copyBlock}>
+        <div style={styles.copyInner}>
+          <div style={{ width: '100%' }}>
+            <h2 style={styles.h2}>
+              pricing.
+              <span style={{ color: YELLOW, fontSize: 22, fontWeight: 400, marginLeft: 18, letterSpacing: 0 }}>
+                no setup fees. cancel anytime.
+              </span>
+            </h2>
+            <div style={styles.priceGrid}>
+              {PLANS.map(p => (
+                <div key={p.name} style={{
+                  ...styles.priceCard,
+                  ...(p.highlight ? styles.priceCardHi : {}),
+                }}>
+                  {p.highlight && <div style={styles.priceFlag}>most popular</div>}
+                  <div style={styles.priceName}>{p.name}</div>
+                  <div style={styles.priceFig}>
+                    <span style={{ fontSize: 56, fontWeight: 800, letterSpacing: -2 }}>{p.price}</span>
+                    <span style={{ fontSize: 16, color: MUTED, marginLeft: 4 }}>{p.period}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: MUTED, marginBottom: 26 }}>{p.blurb}</div>
+                  <ul style={styles.priceList}>
+                    {p.features.map(f => <li key={f} style={styles.priceFeat}><span style={{ color: YELLOW }}>↗</span> {f}</li>)}
+                  </ul>
+                  <a href="#waitlist" style={p.highlight ? styles.pillPrimary : styles.pillGhost}>{p.cta} ↗</a>
                 </div>
-              )}
-              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>{plan.name}</div>
-              <div style={{ marginBottom: 8 }}>
-                <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: -2 }}>{plan.price}</span>
-                <span style={{ fontSize: 16, color: plan.highlight ? 'rgba(255,255,255,0.6)' : GREY }}>{plan.period}</span>
-              </div>
-              <p style={{ fontSize: 14, color: plan.highlight ? 'rgba(255,255,255,0.65)' : GREY, marginBottom: 28 }}>{plan.desc}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {plan.features.map((f, j) => (
-                  <li key={j} style={{ fontSize: 14, display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <span style={{ color: YELLOW, fontWeight: 700, flexShrink: 0 }}>✓</span>
-                    <span style={{ color: plan.highlight ? 'rgba(255,255,255,0.85)' : DARK }}>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <a href="#waitlist" style={{
-                display: 'block', textAlign: 'center', padding: '13px 24px', borderRadius: 10, fontWeight: 700, fontSize: 15, textDecoration: 'none',
-                background: plan.highlight ? YELLOW : DARK,
-                color: plan.highlight ? DARK : '#fff',
-              }}>
-                {plan.cta}
-              </a>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
       </section>
 
-      {/* Waitlist CTA */}
-      <section id="waitlist" style={{ background: DARK, color: '#fff', padding: '100px 40px', textAlign: 'center' }}>
-        <div style={{ maxWidth: 560, margin: '0 auto' }}>
-          <h2 style={{ fontSize: 40, fontWeight: 800, margin: '0 0 16px', letterSpacing: -1 }}>Get early access</h2>
-          <p style={{ fontSize: 18, color: 'rgba(255,255,255,0.65)', marginBottom: 40 }}>
-            We're opening to a small group of agencies first. Join the waitlist and we'll be in touch.
+      {/* Waitlist */}
+      <section id="waitlist" style={{ ...styles.copyBlock, paddingTop: 100, paddingBottom: 100, textAlign: 'center' }}>
+        <div style={{ maxWidth: 620, margin: '0 auto' }}>
+          <h2 style={{ ...styles.h2, textAlign: 'center' }}>
+            get early access.
+          </h2>
+          <p style={{ ...styles.body, textAlign: 'center', marginBottom: 36 }}>
+            we're opening to a small group of agencies first. drop your email and we'll be in touch.
           </p>
-          {waitlistDone ? (
-            <div style={{ background: 'rgba(231,205,65,0.15)', border: `1px solid ${YELLOW}`, borderRadius: 12, padding: '20px 24px', color: YELLOW, fontWeight: 600, fontSize: 16 }}>
-              ✓ You're on the list! We'll be in touch soon.
+          {done ? (
+            <div style={{ background: 'rgba(231,205,65,0.1)', border: `1px solid ${YELLOW}`, borderRadius: 4, padding: '18px 24px', color: YELLOW, fontWeight: 600 }}>
+              you're on the list. we'll be in touch.
             </div>
           ) : (
-            <form onSubmit={handleWaitlist} style={{ display: 'flex', gap: 10, maxWidth: 460, margin: '0 auto' }}>
+            <form onSubmit={submit} style={{ display: 'flex', gap: 8, maxWidth: 480, margin: '0 auto' }}>
               <input
-                type="email"
-                required
-                value={waitlistEmail}
-                onChange={e => setWaitlistEmail(e.target.value)}
+                type="email" required value={email} onChange={e => setEmail(e.target.value)}
                 placeholder="your@agency.com"
-                style={{ flex: 1, padding: '14px 18px', borderRadius: 10, border: 'none', fontSize: 15, outline: 'none', background: 'rgba(255,255,255,0.1)', color: '#fff' }}
+                style={styles.emailInput}
               />
-              <button type="submit" style={{ background: YELLOW, color: DARK, padding: '14px 24px', borderRadius: 10, border: 'none', fontWeight: 700, fontSize: 15, cursor: 'pointer', whiteSpace: 'nowrap' }}>
-                Join waitlist
-              </button>
+              <button type="submit" style={styles.pillPrimary}>join waitlist ↗</button>
             </form>
           )}
         </div>
       </section>
 
       {/* Footer */}
-      <footer style={{ background: '#0a0a0a', color: 'rgba(255,255,255,0.4)', padding: '40px', textAlign: 'center', fontSize: 13 }}>
-        <div style={{ marginBottom: 16 }}>
-          <img src="/logo-black.gif" alt="October" style={{ height: 24, opacity: 0.5 }} />
+      <footer style={styles.footer}>
+        <div style={styles.footerInner}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 12, color: MUTED }}>
+            <div>october communications · octobercomms.com</div>
+            <a href="#what" style={{ color: MUTED, textDecoration: 'none' }}>what it does</a>
+            <a href="#how" style={{ color: MUTED, textDecoration: 'none' }}>how it works</a>
+            <a href="#pricing" style={{ color: MUTED, textDecoration: 'none' }}>pricing</a>
+            <Link to="/login" style={{ color: MUTED, textDecoration: 'none' }}>log in</Link>
+            <a href="mailto:hello@octobercomms.com" style={{ color: MUTED, textDecoration: 'none' }}>contact</a>
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', marginTop: 22 }}>
+            © {new Date().getFullYear()} october communications ltd. company no. 8816416. vat no. gb 176 6335 82.
+          </div>
         </div>
-        <div style={{ display: 'flex', gap: 24, justifyContent: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
-          <a href="#features" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Features</a>
-          <a href="#pricing" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Pricing</a>
-          <Link to="/login" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Log in</Link>
-          <a href="mailto:hello@octobercomms.com" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none' }}>Contact</a>
-        </div>
-        <div>© {new Date().getFullYear()} October Communications Ltd. All rights reserved.</div>
       </footer>
-
     </div>
   );
 }
+
+// ─── PATTERN BREAKS (decorative svg) ──────────────────────────────────────
+
+function CheckerboardBreak() {
+  const cell = 60;
+  const rows = 3, cols = 18;
+  const cells = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const fill = (x + y) % 2 === 0 ? YELLOW : 'transparent';
+      cells.push(<rect key={`${x}-${y}`} x={x * cell} y={y * cell} width={cell} height={cell} fill={fill} />);
+    }
+  }
+  return (
+    <div style={{ background: BLACK, lineHeight: 0 }}>
+      <svg viewBox={`0 0 ${cols * cell} ${rows * cell}`} style={{ width: '100%', display: 'block' }} preserveAspectRatio="none">
+        {cells}
+      </svg>
+    </div>
+  );
+}
+
+function TrianglesBreak() {
+  const cell = 80;
+  const rows = 2, cols = 14;
+  const tris = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const isYellow = (x + y) % 2 === 0;
+      const fill = isYellow ? YELLOW : 'transparent';
+      // Right-triangle, alternating orientation
+      const flipped = (x + y) % 4 < 2;
+      const p = flipped
+        ? `${x * cell},${y * cell} ${(x + 1) * cell},${y * cell} ${x * cell},${(y + 1) * cell}`
+        : `${(x + 1) * cell},${y * cell} ${(x + 1) * cell},${(y + 1) * cell} ${x * cell},${(y + 1) * cell}`;
+      tris.push(<polygon key={`${x}-${y}`} points={p} fill={fill} />);
+    }
+  }
+  return (
+    <div style={{ background: BLACK, lineHeight: 0 }}>
+      <svg viewBox={`0 0 ${cols * cell} ${rows * cell}`} style={{ width: '100%', display: 'block' }} preserveAspectRatio="none">
+        {tris}
+      </svg>
+    </div>
+  );
+}
+
+function SparkleBreak() {
+  // Four-point yellow stars scattered across a band — feels like the
+  // octobercomms.com "original thinkers" lead-in.
+  const points = [];
+  const rng = (i) => Math.sin(i * 9301 + 49297) * 233280;
+  const r = (i) => ((rng(i) - Math.floor(rng(i))) + 1) % 1;
+  for (let i = 0; i < 22; i++) {
+    const cx = 5 + r(i) * 95;
+    const cy = 15 + r(i + 1) * 70;
+    const s = 12 + r(i + 2) * 14;
+    points.push({ cx, cy, s });
+  }
+  return (
+    <div style={{ background: BLACK, lineHeight: 0, padding: '40px 0' }}>
+      <svg viewBox="0 0 100 100" style={{ width: '100%', height: 120, display: 'block' }} preserveAspectRatio="none">
+        {points.map((p, i) => (
+          <g key={i} transform={`translate(${p.cx} ${p.cy}) scale(${p.s / 100})`}>
+            {/* 4-point star = two crossed diamonds approximated with a curve */}
+            <path d="M0,-30 C5,-5 5,-5 30,0 C5,5 5,5 0,30 C-5,5 -5,5 -30,0 C-5,-5 -5,-5 0,-30 Z" fill={YELLOW} />
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function DotsBreak() {
+  // Composition of overlapping yellow circles — references the big
+  // "1101" graphic from the site.
+  const dots = [
+    { cx: 18, cy: 50, r: 36 },
+    { cx: 38, cy: 50, r: 36 },
+    { cx: 58, cy: 50, r: 36 },
+    { cx: 78, cy: 50, r: 36 },
+  ];
+  return (
+    <div style={{ background: BLACK, lineHeight: 0, padding: '20px 0' }}>
+      <svg viewBox="0 0 100 100" style={{ width: '100%', height: 220, display: 'block' }} preserveAspectRatio="none">
+        {dots.map((d, i) => (
+          <circle key={i} cx={d.cx} cy={d.cy} r={d.r} fill={YELLOW} />
+        ))}
+        {/* Centres cut out for the inner ring effect */}
+        {dots.map((d, i) => (
+          <circle key={`c${i}`} cx={d.cx} cy={d.cy} r={d.r * 0.55} fill={BLACK} />
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+// ─── REUSABLE BITS ────────────────────────────────────────────────────────
+
+function HowStep({ n, title, body }) {
+  return (
+    <div style={styles.howStep}>
+      <div style={styles.howN}>{n}</div>
+      <div style={styles.howTitle}>{title}</div>
+      <p style={styles.howBody}>{body}</p>
+    </div>
+  );
+}
+
+// ─── CONTENT ─────────────────────────────────────────────────────────────
+
+const CAPABILITIES = [
+  { title: 'ai data analyst', desc: 'plain-english chat over every connector. cited answers in seconds.' },
+  { title: 'automated reports', desc: 'monthly and weekly pdfs written by claude, sent on schedule. branded, on-message.' },
+  { title: 'social storyboards', desc: 'nine posts at a time, frame-by-frame, grounded in trends and your past winners.' },
+  { title: 'ad creative', desc: 'concepts in pas/aida/social-proof frameworks. rendered across every aspect ratio.' },
+  { title: 'seo suite', desc: 'rank tracking, search console, ai overview presence, content gaps, planning briefs.' },
+  { title: 'outreach', desc: 'cold-email sequences written by claude. ai-classified replies. unsubscribe handled.' },
+  { title: 'video templates', desc: 'remotion renders your intro / word cards / outro — one click, on brand.' },
+  { title: 'approval flow', desc: 'shareable preview links. clients approve per post or per concept without logging in.' },
+];
+
+const INTEGRATIONS = [
+  'google analytics 4', 'google ads', 'google search console', 'google merchant center',
+  'meta ads', 'instagram insights', 'shopify', 'amazon seller central',
+  'klaviyo', 'brevo', 'shopify email', 'zoho inventory',
+  'cin7', 'dataforseo', 'apify', 'replicate',
+  'ideogram', 'adobe firefly', 'elevenlabs', 'arcads',
+];
+
+const PLANS = [
+  {
+    name: 'starter', price: '£149', period: '/mo', highlight: false,
+    blurb: 'for small agencies or in-house teams getting started.',
+    features: ['up to 3 clients', '10 integrations per client', 'ai data analyst', 'weekly + monthly reports', 'seo rank tracking (100 keywords)', 'email support'],
+    cta: 'join waitlist',
+  },
+  {
+    name: 'agency', price: '£349', period: '/mo', highlight: true,
+    blurb: 'the full platform for growing agencies.',
+    features: ['unlimited clients', 'all integrations', 'ai data analyst + ads advisor', 'social + ad creative generation', 'video templates via remotion', 'seo rank tracking (unlimited)', 'priority support'],
+    cta: 'join waitlist',
+  },
+  {
+    name: 'enterprise', price: 'custom', period: '', highlight: false,
+    blurb: 'for large agencies and in-house teams.',
+    features: ['everything in agency', 'white-label reports', 'custom integrations', 'dedicated onboarding', 'sla & uptime guarantee', 'team access & permissions'],
+    cta: 'get in touch',
+  },
+];
+
+// ─── STYLES ──────────────────────────────────────────────────────────────
+
+const styles = {
+  topBar: { background: BLACK, borderBottom: `1px solid rgba(255,255,255,0.08)` },
+  topBarInner: { maxWidth: 1240, margin: '0 auto', padding: '14px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  brandTag: { fontSize: 12, color: MUTED, letterSpacing: 0.5 },
+  topLink: { color: WHITE, textDecoration: 'none', fontWeight: 400 },
+
+  hero: { background: BLACK, padding: '90px 32px 110px' },
+  heroInner: { maxWidth: 1240, margin: '0 auto' },
+  eyebrow: { fontSize: 12, color: YELLOW, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 2, marginBottom: 20 },
+  h1: { fontSize: 'clamp(40px, 6.2vw, 84px)', fontWeight: 800, margin: 0, letterSpacing: -2.5, lineHeight: 1.02 },
+  heroLede: { fontSize: 'clamp(15px, 1.2vw, 18px)', color: MUTED, maxWidth: 720, marginTop: 32, lineHeight: 1.55 },
+  pillPrimary: { display: 'inline-block', background: YELLOW, color: BLACK, padding: '11px 22px', borderRadius: 999, fontWeight: 700, fontSize: 13, textDecoration: 'none', border: 'none', cursor: 'pointer', letterSpacing: 0 },
+  pillGhost: { display: 'inline-block', background: 'transparent', color: WHITE, padding: '10px 22px', borderRadius: 999, fontWeight: 600, fontSize: 13, textDecoration: 'none', border: '1px solid rgba(255,255,255,0.35)', cursor: 'pointer' },
+  pillSmall: { display: 'inline-block', background: YELLOW, color: BLACK, padding: '9px 18px', borderRadius: 999, fontWeight: 700, fontSize: 12, textDecoration: 'none' },
+
+  audienceStrip: { background: BLACK, padding: '24px 32px', borderTop: `1px solid rgba(255,255,255,0.08)`, borderBottom: `1px solid rgba(255,255,255,0.08)` },
+  audienceInner: { maxWidth: 1240, margin: '0 auto', display: 'flex', gap: 32, alignItems: 'center', flexWrap: 'wrap' },
+  audienceArrow: { color: YELLOW, fontWeight: 700, fontSize: 18 },
+  audienceChip: { fontSize: 14, color: WHITE, letterSpacing: 0.2 },
+
+  copyBlock: { background: BLACK, padding: '90px 32px' },
+  copyInner: { maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(220px, 1fr) 1fr 1fr', gap: 48 },
+  colSmall: { },
+  colMid: { },
+  h2: { fontSize: 'clamp(32px, 4.4vw, 58px)', fontWeight: 800, margin: '0 0 24px', letterSpacing: -1.8, lineHeight: 1.05 },
+  body: { fontSize: 14, color: MUTED, lineHeight: 1.75, margin: '0 0 18px' },
+
+  quoteBlock: { background: BLACK, padding: '0 32px 90px' },
+  quoteInner: { maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)' },
+  quoteCard: { background: BLACK, padding: 38, position: 'relative' },
+  caseBadge: { position: 'absolute', top: 24, right: 24, background: YELLOW, color: BLACK, fontSize: 11, fontWeight: 800, padding: '4px 14px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
+  quoteText: { fontSize: 18, color: WHITE, lineHeight: 1.5, margin: 0, letterSpacing: -0.3, fontWeight: 500 },
+
+  howInner: { maxWidth: 1240, margin: '0 auto' },
+  howGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24, marginTop: 32 },
+  howStep: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 28 },
+  howN: { fontSize: 11, color: YELLOW, fontWeight: 800, letterSpacing: 1.5, marginBottom: 18 },
+  howTitle: { fontSize: 26, fontWeight: 800, color: WHITE, letterSpacing: -0.8, marginBottom: 12 },
+  howBody: { fontSize: 14, color: MUTED, lineHeight: 1.7, margin: 0 },
+
+  aiInner: { maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(260px, 1fr) 1.6fr', gap: 48, alignItems: 'flex-start' },
+  chatPanel: { background: '#161616', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 4, padding: 22 },
+
+  capGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 18 },
+  capCard: { background: BLACK, padding: 26, minHeight: 140 },
+  capDot: { width: 10, height: 10, borderRadius: 5, background: YELLOW, marginBottom: 14 },
+  capTitle: { fontSize: 16, fontWeight: 700, color: WHITE, marginBottom: 8, letterSpacing: -0.2 },
+  capDesc: { fontSize: 13, color: MUTED, lineHeight: 1.6 },
+
+  integGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.08)', marginTop: 18 },
+  integCell: { background: BLACK, padding: '20px 18px', fontSize: 13, color: WHITE, fontWeight: 500 },
+
+  priceGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: 22, marginTop: 28 },
+  priceCard: { background: BLACK, border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, padding: 32, position: 'relative' },
+  priceCardHi: { borderColor: YELLOW, background: '#0f0f0f' },
+  priceFlag: { position: 'absolute', top: -10, left: 24, background: YELLOW, color: BLACK, fontSize: 10, fontWeight: 800, padding: '3px 12px', borderRadius: 999, textTransform: 'uppercase', letterSpacing: 0.5 },
+  priceName: { fontSize: 13, fontWeight: 700, color: YELLOW, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 },
+  priceFig: { display: 'flex', alignItems: 'baseline', marginBottom: 6 },
+  priceList: { listStyle: 'none', padding: 0, margin: '0 0 28px', display: 'flex', flexDirection: 'column', gap: 8 },
+  priceFeat: { fontSize: 13, color: MUTED, display: 'flex', gap: 8, alignItems: 'flex-start', lineHeight: 1.5 },
+
+  emailInput: { flex: 1, padding: '12px 18px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: WHITE, fontSize: 14, outline: 'none', fontFamily: FONT },
+
+  footer: { background: BLACK, borderTop: '1px solid rgba(255,255,255,0.08)', padding: '40px 32px' },
+  footerInner: { maxWidth: 1240, margin: '0 auto' },
+};
