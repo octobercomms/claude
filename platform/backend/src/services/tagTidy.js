@@ -1,6 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { getSetting } = require('../utils/settings');
-const { pool } = require('../db');
+const pool = require('../db');
 
 const MODEL = 'claude-sonnet-4-6';
 
