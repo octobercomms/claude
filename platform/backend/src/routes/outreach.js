@@ -423,46 +423,82 @@ function normaliseTags(input) {
   return Array.from(out);
 }
 
-// Bulk CSV/JSON import. client_id is optional — when supplied each new
-// contact is also attached to that client. Without it the contacts land
-// in the library only and can be attached later via Settings → Contacts.
+// Bulk CSV/JSON import. Dedupes by email across the workspace library so
+// re-importing the same CSV doesn't create duplicates — for matching emails
+// the existing library row is kept and its tags are merged with the
+// imported tags. client_id is optional and attaches the resulting (new or
+// existing) contacts to that one client. attach_clients[] does the same
+// for many clients at once and is used by the Settings → Contacts library
+// importer with the "Also attach to:" multi-select.
 router.post('/contacts/bulk', async (req, res) => {
-  const { client_id, contacts } = req.body;
+  const { client_id, contacts, attach_clients } = req.body;
   if (!Array.isArray(contacts)) {
     return res.status(400).json({ error: 'contacts array required' });
   }
+  const targetClients = new Set([
+    ...(client_id ? [client_id] : []),
+    ...(Array.isArray(attach_clients) ? attach_clients.filter(Boolean) : []),
+  ]);
   try {
-    const inserted = [];
+    const upserted = [];
+    let inserted = 0;
+    let reused = 0;
     for (const c of contacts) {
       if (!c.email && !c.name && !c.first_name) continue;
+      const tags = normaliseTags(c.tags);
       const combinedName = c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || null;
-      const { rows } = await pool.query(
-        `INSERT INTO outreach_contacts
-           (client_id, name, first_name, last_name, email, company, role, title,
-            contact_type, location, linkedin_url, source, website, tags)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-         RETURNING *`,
-        [
-          client_id || null, combinedName,
-          c.first_name || null, c.last_name || null,
-          c.email || null, c.company || null,
-          c.role || c.title || null, c.title || null,
-          c.contact_type || null, c.location || null,
-          c.linkedin_url || null, c.source || null,
-          c.website || null,
-          normaliseTags(c.tags),
-        ]
-      );
-      if (client_id) {
+      const emailLower = c.email ? String(c.email).toLowerCase() : null;
+      let row = null;
+      if (emailLower) {
+        const { rows: existing } = await pool.query(
+          'SELECT * FROM outreach_contacts WHERE LOWER(email) = $1 LIMIT 1',
+          [emailLower]
+        );
+        if (existing.length) {
+          row = existing[0];
+          // Merge new tags in; keep existing fields intact rather than
+          // letting a sparse CSV stomp over richer library data.
+          if (tags.length) {
+            const merged = Array.from(new Set([...(row.tags || []), ...tags]));
+            const upd = await pool.query(
+              'UPDATE outreach_contacts SET tags = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
+              [merged, row.id]
+            );
+            row = upd.rows[0];
+          }
+          reused++;
+        }
+      }
+      if (!row) {
+        const { rows } = await pool.query(
+          `INSERT INTO outreach_contacts
+             (client_id, name, first_name, last_name, email, company, role, title,
+              contact_type, location, linkedin_url, source, website, tags)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           RETURNING *`,
+          [
+            client_id || null, combinedName,
+            c.first_name || null, c.last_name || null,
+            c.email || null, c.company || null,
+            c.role || c.title || null, c.title || null,
+            c.contact_type || null, c.location || null,
+            c.linkedin_url || null, c.source || null,
+            c.website || null, tags,
+          ]
+        );
+        row = rows[0];
+        inserted++;
+      }
+      for (const cid of targetClients) {
         await pool.query(
           `INSERT INTO outreach_contact_clients (contact_id, client_id)
            VALUES ($1, $2) ON CONFLICT DO NOTHING`,
-          [rows[0].id, client_id]
+          [row.id, cid]
         );
       }
-      inserted.push(rows[0]);
+      upserted.push(row);
     }
-    res.json({ inserted: inserted.length, contacts: inserted });
+    res.json({ inserted, reused, total: upserted.length, contacts: upserted });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

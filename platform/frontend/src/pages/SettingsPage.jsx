@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../utils/api';
+import { parseCsv } from '../utils/csv';
 
 const KEY_GROUPS = [
   {
@@ -726,7 +727,12 @@ function ContactsLibrary() {
   const [activeTags, setActiveTags] = useState(() => new Set());
   const [selected, setSelected] = useState(() => new Set());
   const [err, setErr] = useState(null);
+  const [info, setInfo] = useState(null);
   const [attachOpen, setAttachOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importAttach, setImportAttach] = useState(() => new Set());
+  const [importing, setImporting] = useState(false);
+  const fileRef = useRef(null);
 
   useEffect(() => {
     Promise.all([
@@ -807,12 +813,92 @@ function ContactsLibrary() {
   return (
     <div>
       <Card>
-        <CardTitle>Contacts library</CardTitle>
-        <p style={styles.hint}>
-          One workspace-wide list of contacts. Each contact can be attached to as many clients
-          as you like — a journalist who unsubscribes from one client's emails stays subscribed
-          to the others.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <CardTitle>Contacts library</CardTitle>
+            <p style={styles.hint}>
+              One workspace-wide list of contacts. Each contact can be attached to as many clients
+              as you like — a journalist who unsubscribes from one client's emails stays subscribed
+              to the others.
+            </p>
+          </div>
+          <button onClick={() => setImportOpen(o => !o)} style={styles.btn}>
+            {importOpen ? 'Close importer' : '↑ Import CSV'}
+          </button>
+        </div>
+
+        {importOpen && (
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>Import contacts from CSV</div>
+            <p style={{ ...styles.hint, marginBottom: 10 }}>
+              First row should be headers. <code>email</code> is required; <code>first_name</code>,
+              <code>last_name</code>, <code>name</code>, <code>company</code>/<code>outlet</code>,
+              <code>contact_type</code>/<code>beat</code>, <code>title</code>, <code>location</code>,
+              <code>linkedin_url</code>, <code>notes</code> and <code>tags</code> (comma/semicolon-
+              separated) are recognised. Existing emails are kept (tags merged) — re-importing
+              the same CSV is safe.
+            </p>
+
+            <div style={{ marginTop: 8 }}>
+              <div style={{ ...styles.label, marginBottom: 6 }}>Also attach imported contacts to (optional):</div>
+              {clients.length === 0 && <div style={{ fontSize: 12, color: '#888' }}>No clients to choose — contacts will land in the library only.</div>}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {clients.map(c => {
+                  const on = importAttach.has(c.id);
+                  return (
+                    <button key={c.id}
+                      onClick={() => setImportAttach(prev => {
+                        const next = new Set(prev);
+                        if (next.has(c.id)) next.delete(c.id); else next.add(c.id);
+                        return next;
+                      })}
+                      style={on ? styles.tagChipOn : styles.tagChip}>
+                      {on ? '✓ ' : ''}{c.name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }}
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = '';
+                  if (!file) return;
+                  setImporting(true);
+                  setErr(null); setInfo(null);
+                  try {
+                    const text = await file.text();
+                    const parsed = parseCsv(text);
+                    if (!parsed.length) { setErr('No usable rows found in the CSV (every row needs an email).'); setImporting(false); return; }
+                    const res = await api.post('/outreach/contacts/bulk', {
+                      contacts: parsed,
+                      attach_clients: Array.from(importAttach),
+                    });
+                    const attachedBit = importAttach.size
+                      ? `, attached to ${importAttach.size} client${importAttach.size === 1 ? '' : 's'}`
+                      : '';
+                    setInfo(`Imported ${res.inserted} new contact${res.inserted === 1 ? '' : 's'}, merged tags into ${res.reused} existing${attachedBit}.`);
+                    setImportOpen(false);
+                    setImportAttach(new Set());
+                    await reload();
+                  } catch (ex) {
+                    setErr(ex.message);
+                  } finally {
+                    setImporting(false);
+                  }
+                }} />
+              <button onClick={() => fileRef.current?.click()} disabled={importing}
+                style={importing ? { ...styles.btn, opacity: 0.6 } : styles.btn}>
+                {importing ? 'Importing…' : 'Choose CSV file'}
+              </button>
+              {importAttach.size > 0 && (
+                <span style={{ fontSize: 12, color: '#666' }}>Will attach to {importAttach.size} client{importAttach.size === 1 ? '' : 's'}</span>
+              )}
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
           <input
@@ -833,6 +919,7 @@ function ContactsLibrary() {
         </div>
 
         {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
 
         {!filtered && <div style={{ marginTop: 16, color: '#888' }}>Loading…</div>}
         {filtered && !filtered.length && (
