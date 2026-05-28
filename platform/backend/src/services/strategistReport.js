@@ -101,16 +101,34 @@ function totalsGoogle(rows) {
 
 // Pull a snapshot of Meta + Google ads data for [start, end] and reduce
 // it to per-campaign + totals JSON that's safe to feed into a prompt.
+// dataCollector keys results by `${connector_type}` OR
+// `${connector_type}:${store_label}` when the connector has an account
+// label (most clients with multiple ad accounts do), so we have to scan
+// every key that starts with the connector type rather than indexing by
+// the bare name.
 async function snapshot(clientId, start, end) {
   const collected = await dataCollector.collectClientData(clientId, ymd(start), ymd(end));
   const data = collected.data || {};
-  const meta = data.meta_ads ? summariseMeta(data.meta_ads) : [];
-  const google = data.google_ads ? summariseGoogle(data.google_ads) : [];
+  const collect = (prefix) => Object.entries(data)
+    .filter(([k]) => k === prefix || k.startsWith(prefix + ':'))
+    .map(([k, v]) => ({ label: k.includes(':') ? k.slice(prefix.length + 1) : null, payload: v }));
+
+  const metaAccounts = collect('meta_ads').map(({ label, payload }) => ({
+    account: label,
+    campaigns: summariseMeta(payload),
+  }));
+  const googleAccounts = collect('google_ads').map(({ label, payload }) => ({
+    account: label,
+    campaigns: summariseGoogle(payload),
+  }));
+  const metaAllCampaigns = metaAccounts.flatMap(a => a.campaigns.map(c => ({ ...c, account: a.account })));
+  const googleAllCampaigns = googleAccounts.flatMap(a => a.campaigns.map(c => ({ ...c, account: a.account })));
+
   return {
     period_start: ymd(start),
     period_end: ymd(end),
-    meta: { campaigns: meta, totals: totalsMeta(meta) },
-    google: { campaigns: google, totals: totalsGoogle(google) },
+    meta: { accounts: metaAccounts, campaigns: metaAllCampaigns, totals: totalsMeta(metaAllCampaigns) },
+    google: { accounts: googleAccounts, campaigns: googleAllCampaigns, totals: totalsGoogle(googleAllCampaigns) },
     errors: collected.errors || {},
   };
 }
@@ -204,7 +222,14 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
     // No ads data at all — short-circuit with a useful note instead of
     // calling Claude on an empty payload.
     if (!current.meta.campaigns.length && !current.google.campaigns.length) {
-      const msg = `_No Meta Ads or Google Ads data for ${ymd(start)} – ${ymd(end)}._\n\nEither no campaigns ran in this window or the connectors aren't authorised for this client. Check the Connectors tab.`;
+      const errLines = Object.entries(current.errors || {})
+        .filter(([k]) => k.startsWith('meta_ads') || k.startsWith('google_ads'))
+        .map(([k, v]) => `- **${k}**: ${v}`)
+        .join('\n');
+      const msg = `_No Meta Ads or Google Ads data for ${ymd(start)} – ${ymd(end)}._\n\n` +
+        (errLines
+          ? `One or more ads connectors returned an error:\n\n${errLines}\n\nFix them on the Setup → Connectors tab and try again.`
+          : `Either no campaigns ran in this window or the connectors aren't authorised for this client. Check the Setup → Connectors tab.`);
       await pool.query(
         `UPDATE strategist_reports
             SET status = 'completed', markdown = $1, data_snapshot = $2
