@@ -70,7 +70,10 @@ async function analyseTags(visibleClientIds) {
 
   const resp = await client.messages.create({
     model: MODEL,
-    max_tokens: 4096,
+    // 876 tags → hundreds of suggested ops can blow the old 4096 cap and
+    // truncate the JSON mid-array. 16k gives us plenty of headroom and the
+    // recover-from-truncation pass below mops up anything that still spills.
+    max_tokens: 16384,
     system,
     messages: [{ role: 'user', content: prompt }],
   });
@@ -80,9 +83,55 @@ async function analyseTags(visibleClientIds) {
   if (!match) throw new Error('Claude did not return a usable cleanup plan.');
   let parsed;
   try { parsed = JSON.parse(match[0]); }
-  catch (e) { throw new Error(`Could not parse Claude's response: ${e.message}`); }
+  catch (e) {
+    // Truncated mid-array — try to salvage every fully-formed operation
+    // object we can find before giving up. Better to show 80% of a useful
+    // plan than throw the whole thing away.
+    parsed = { operations: salvagePartialOps(match[0]) };
+    if (!parsed.operations.length) {
+      throw new Error(`Could not parse Claude's response and nothing recoverable: ${e.message}`);
+    }
+  }
   const ops = Array.isArray(parsed.operations) ? parsed.operations.filter(validateOp) : [];
   return { operations: ops, tagCount: tags.length };
+}
+
+// Walk the response text and pull out every fully-balanced { … } object
+// inside the operations array. Used when the response was truncated by
+// max_tokens — JSON.parse fails on the partial trailing item, but every
+// earlier item is intact, so we can still surface them.
+function salvagePartialOps(text) {
+  const start = text.indexOf('"operations"');
+  if (start === -1) return [];
+  const arrayStart = text.indexOf('[', start);
+  if (arrayStart === -1) return [];
+  const ops = [];
+  let depth = 0;
+  let objectStart = -1;
+  let inString = false;
+  let escape = false;
+  for (let i = arrayStart + 1; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) { escape = false; continue; }
+      if (ch === '\\') { escape = true; continue; }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '{') { if (depth === 0) objectStart = i; depth++; continue; }
+    if (ch === '}') {
+      depth--;
+      if (depth === 0 && objectStart !== -1) {
+        const chunk = text.slice(objectStart, i + 1);
+        try { ops.push(JSON.parse(chunk)); } catch { /* skip malformed */ }
+        objectStart = -1;
+      }
+      continue;
+    }
+    if (ch === ']' && depth === 0) break;
+  }
+  return ops;
 }
 
 // Light schema validation — we trust Claude's structure but skip anything
