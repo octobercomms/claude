@@ -45,6 +45,25 @@ async function senderFields(sending) {
   };
 }
 
+// Rewrite every <a href="http(s)://…"> to go through our click tracker.
+// Skips the unsubscribe link (we don't want clicking unsubscribe to count
+// as engagement) and any mailto: / tel: / anchor links. base64url-encodes
+// the destination so query strings and slashes survive the round trip.
+function rewriteLinksForTracking(html, sendId) {
+  const base = (process.env.PLATFORM_URL || '').replace(/\/$/, '');
+  if (!base || !sendId) return html;
+  return String(html).replace(/<a\s+([^>]*?)href=(['"])(https?:\/\/[^'"]+)\2([^>]*)>/gi,
+    (match, before, quote, url, after) => {
+      // Don't rewrite links that go back to us — unsubscribe + the
+      // open pixel + the click tracker itself shouldn't be tracked.
+      if (url.startsWith(base + '/api/')) return match;
+      const encoded = Buffer.from(url, 'utf8').toString('base64')
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      const tracked = `${base}/api/outreach/track/click/${encodeURIComponent(sendId)}?u=${encoded}`;
+      return `<a ${before}href=${quote}${tracked}${quote}${after}>`;
+    });
+}
+
 function htmlBody(textBody, trackingSendId, contactId, clientId) {
   let html = String(textBody || '').replace(/\n/g, '<br>');
   const unsub = contactId ? unsubscribeUrl(contactId, clientId) : null;
@@ -54,6 +73,7 @@ function htmlBody(textBody, trackingSendId, contactId, clientId) {
       `<a href="${unsub}" style="color:#888;">unsubscribe</a> and I won't email you about future releases.` +
       `</div>`;
   }
+  if (trackingSendId) html = rewriteLinksForTracking(html, trackingSendId);
   if (trackingSendId && process.env.PLATFORM_URL) {
     html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${trackingSendId}" width="1" height="1" alt="" style="display:none">`;
   }
@@ -180,6 +200,11 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
     html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name, contactId: contact.id, clientId });
+    html = rewriteLinksForTracking(html, sendId);
+    // Append the open pixel — buildEmailHtml doesn't know about send_id.
+    if (sendId && process.env.PLATFORM_URL) {
+      html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}" width="1" height="1" alt="" style="display:none">`;
+    }
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
   } else {
     const followUps = Array.isArray(cached.follow_ups) ? cached.follow_ups : [];

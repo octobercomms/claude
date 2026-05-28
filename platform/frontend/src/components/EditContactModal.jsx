@@ -23,6 +23,16 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
     notes: contact.notes || '',
   }));
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState('details');
+  const [activity, setActivity] = useState(null);
+  const [activityErr, setActivityErr] = useState(null);
+
+  useEffect(() => {
+    if (tab !== 'activity' || activity) return;
+    api.get(`/outreach/contacts/${contact.id}/activity`)
+      .then(setActivity)
+      .catch(e => setActivityErr(e.message));
+  }, [tab, contact.id, activity]);
 
   function update(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
@@ -50,10 +60,20 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
     <div style={styles.overlay} onClick={onClose}>
       <form onClick={e => e.stopPropagation()} onSubmit={save} style={styles.modal}>
         <div style={styles.header}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Edit Contact</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
           <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
 
+        <div style={styles.tabStrip}>
+          <button type="button" onClick={() => setTab('details')}
+            style={tab === 'details' ? styles.tabBtnActive : styles.tabBtn}>Details</button>
+          <button type="button" onClick={() => setTab('activity')}
+            style={tab === 'activity' ? styles.tabBtnActive : styles.tabBtn}>Activity</button>
+        </div>
+
+        {tab === 'activity' ? (
+          <ActivityPanel activity={activity} err={activityErr} />
+        ) : (
         <div style={styles.grid}>
           <Section title="Contact Details">
             <Field label="First Name">
@@ -100,15 +120,116 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
             </Field>
           </Section>
         </div>
+        )}
 
         <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={styles.btnGhost}>Cancel</button>
-          <button type="submit" disabled={saving} style={styles.btn}>{saving ? 'Saving…' : 'Save Contact'}</button>
+          <button type="button" onClick={onClose} style={styles.btnGhost}>{tab === 'activity' ? 'Close' : 'Cancel'}</button>
+          {tab !== 'activity' && (
+            <button type="submit" disabled={saving} style={styles.btn}>{saving ? 'Saving…' : 'Save Contact'}</button>
+          )}
         </div>
       </form>
     </div>
   );
 }
+
+// Mautic-style engagement timeline. Loads sends + opens + clicks + replies
+// for this contact and renders them top-down newest-first with a stat row
+// across the top.
+function ActivityPanel({ activity, err }) {
+  if (err) {
+    return <div style={{ padding: 20, color: '#c62828', fontSize: 13 }}>Couldn't load activity: {err}</div>;
+  }
+  if (!activity) {
+    return <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading…</div>;
+  }
+  const { events, totals, memberships } = activity;
+  const fmtTime = (t) => {
+    if (!t) return '';
+    const d = new Date(t);
+    return d.toLocaleString(undefined, { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  };
+  const clientNameById = Object.fromEntries((memberships || []).map(m => [m.client_id, m.client_name]));
+  const unsubByClient = (memberships || []).filter(m => m.unsubscribed_at);
+
+  return (
+    <div>
+      <div style={statRow}>
+        <Stat label="Sent" value={totals.sent} />
+        <Stat label="Opened" value={totals.opened} />
+        <Stat label="Clicked" value={totals.clicked} />
+        <Stat label="Replied" value={totals.replied} />
+      </div>
+
+      {!!unsubByClient.length && (
+        <div style={{ background: '#fff8e1', border: '1px solid #f0d260', padding: '8px 12px', borderRadius: 4, fontSize: 12, color: '#5d4000', marginBottom: 14 }}>
+          Unsubscribed from {unsubByClient.map(m => m.client_name).join(', ')}
+        </div>
+      )}
+
+      {!events.length && (
+        <div style={{ padding: 20, color: '#888', fontSize: 13, textAlign: 'center' }}>
+          No emails sent to this contact yet.
+        </div>
+      )}
+
+      {!!events.length && (
+        <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+          {events.map((e, i) => (
+            <div key={i} style={eventRow}>
+              <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {labelFor(e)}
+                </div>
+                <div style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {e.label}
+                  {e.client_id && <span style={{ marginLeft: 8 }}>· {clientNameById[e.client_id] || ''}</span>}
+                  {e.type === 'clicked' && e.url && <span style={{ marginLeft: 8 }}>→ {shorten(e.url)}</span>}
+                  {e.type === 'replied' && e.classification && <span style={{ marginLeft: 8 }}>· {e.classification.replace(/_/g, ' ')}</span>}
+                </div>
+                {e.type === 'replied' && e.summary && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
+                )}
+              </div>
+              <div style={{ fontSize: 11, color: '#999', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }) {
+  return (
+    <div style={statBox}>
+      <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>{value}</div>
+      <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function iconFor(t) {
+  return { sent: '✉', opened: '👁', clicked: '🔗', replied: '↩' }[t] || '·';
+}
+function badgeColor(t) {
+  return { sent: '#e8eef6', opened: '#e7f4ea', clicked: '#fff4e0', replied: '#f6e8f6' }[t] || '#f0f0f0';
+}
+function labelFor(e) {
+  return { sent: 'Email sent', opened: 'Email opened', clicked: 'Link clicked', replied: 'Reply received' }[e.type] || e.type;
+}
+function shorten(u) {
+  try {
+    const url = new URL(u);
+    return (url.host + url.pathname).slice(0, 60);
+  } catch { return String(u).slice(0, 60); }
+}
+
+const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
+const statBox = { padding: '12px 14px', background: '#fafafa', border: '1px solid #eee', borderRadius: 6, textAlign: 'center' };
+const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
+const iconBadge = { width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
 
 function Section({ title, children }) {
   return (
@@ -137,4 +258,7 @@ const styles = {
   input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   btn: primaryBtn,
   btnGhost: secondaryBtn,
+  tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20 },
+  tabBtn: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontWeight: 500 },
+  tabBtnActive: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontWeight: 700 },
 };
