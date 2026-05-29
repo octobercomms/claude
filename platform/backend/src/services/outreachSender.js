@@ -255,4 +255,14 @@ async function sendTest(campaign, step, sending, toAddress) {
   return deliver({ from, to: toAddress, replyTo, subject, text, html: htmlBody(text) });
 }
 
-module.exports = { sendOutreachEmail, sendTest, fillTemplate, unsubscribeUrl };
+// Build the HTML+text exactly as the sender would for this step + sample
+// contact, but without delivering. Used by the wizard's "Preview as
+// contact" button so the AM can sanity-check a step's substitutions,
+// tracking pixel and unsub footer before launching.
+function previewStep(step, sample) {
+  const subject = fillTemplate(step.subject || '', sample);
+  const text = fillTemplate(step.body || '', sample);
+  return { subject, text, html: htmlBody(text) };
+}
+
+module.exports = { sendOutreachEmail, sendTest, previewStep, fillTemplate, unsubscribeUrl };

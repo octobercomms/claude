@@ -27,10 +27,22 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
     api.get(`/outreach/campaigns?client_id=${clientId}`)
       .then(rows => {
         const found = rows.find(c => c.id === campaignId);
-        if (found) setCampaign(found);
+        if (found) {
+          setCampaign(found);
+          // Resume at the furthest step the AM reached. wizard_step is
+          // a monotonic high-water mark persisted by persistAndNext —
+          // for fresh campaigns it stays 1; reopening a draft jumps
+          // straight back to step N instead of forcing a click-through.
+          if (found.wizard_step && found.wizard_step > 1) setStep(found.wizard_step);
+        }
       })
       .catch(err => toast(err.message, 'error'));
   }, [campaignId, clientId]);
+
+  // High-water mark of how far the AM has progressed. Drives breadcrumb
+  // enabled state so they can jump back and forth across every step
+  // they've already saved.
+  const maxReached = Math.max(step, campaign?.wizard_step || 1);
 
   function updateCampaign(patch) {
     setCampaign(prev => ({ ...prev, ...patch }));
@@ -40,10 +52,14 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
     if (!campaign) return;
     setBusy(true);
     try {
-      const updated = await api.put(`/outreach/campaigns/${campaign.id}`, patch);
+      const next = Math.min(step + 1, 5);
+      const updated = await api.put(`/outreach/campaigns/${campaign.id}`, {
+        ...patch,
+        wizard_step: next,
+      });
       setCampaign(updated);
       if (onCampaignChange) onCampaignChange();
-      setStep(s => Math.min(s + 1, 5));
+      setStep(next);
     } catch (err) {
       toast(err.message, 'error');
     } finally {
@@ -65,28 +81,34 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
 
       {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
       <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: `1px solid ${COLORS.lightGrey}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
-        {STEPS.map(({ key, label }, idx) => (
-          <React.Fragment key={key}>
-            <button
-              onClick={() => key < step && setStep(key)}
-              disabled={key > step}
-              style={{
-                display: 'flex', alignItems: 'center',
-                background: 'none', border: 'none',
-                cursor: key <= step ? 'pointer' : 'default',
-                padding: '6px 8px', fontSize: 13,
-                fontWeight: step === key ? 700 : 500,
-                color: step >= key ? COLORS.dark : COLORS.mutedText,
-                flexShrink: 0,
-              }}>
-              <span style={stepDotStyle(step >= key)}>{key}</span>
-              {label}
-            </button>
-            {idx < STEPS.length - 1 && (
-              <div style={{ flex: 1, height: 1, background: COLORS.lightGrey, margin: '0 4px' }} />
-            )}
-          </React.Fragment>
-        ))}
+        {STEPS.map(({ key, label }, idx) => {
+          // Click freely up to the high-water mark — both back and
+          // forward — so reopening a draft doesn't force re-entering
+          // earlier steps.
+          const reachable = key <= maxReached;
+          return (
+            <React.Fragment key={key}>
+              <button
+                onClick={() => reachable && setStep(key)}
+                disabled={!reachable}
+                style={{
+                  display: 'flex', alignItems: 'center',
+                  background: 'none', border: 'none',
+                  cursor: reachable ? 'pointer' : 'default',
+                  padding: '6px 8px', fontSize: 13,
+                  fontWeight: step === key ? 700 : 500,
+                  color: reachable ? COLORS.dark : COLORS.mutedText,
+                  flexShrink: 0,
+                }}>
+                <span style={stepDotStyle(reachable)}>{key}</span>
+                {label}
+              </button>
+              {idx < STEPS.length - 1 && (
+                <div style={{ flex: 1, height: 1, background: COLORS.lightGrey, margin: '0 4px' }} />
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {step === 1 && <StepCampaignDetails campaign={campaign} updateCampaign={updateCampaign} busy={busy} onNext={() => persistAndNext({
@@ -403,6 +425,40 @@ function StepEmails({ campaign, onBack, onNext }) {
   const [steps, setSteps] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [savingStep, setSavingStep] = useState(null);
+  const [previewStep, setPreviewStep] = useState(null);    // { stepId, ... }
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [testingStep, setTestingStep] = useState(null);
+
+  async function openPreview(stp) {
+    setPreviewLoading(true);
+    setPreviewStep({ stepId: stp.id, step_number: stp.step_number });
+    try {
+      // Auto-save the in-memory edits first so the preview reflects
+      // whatever the AM has typed, not the last persisted version.
+      await api.put(`/outreach/sequences/${stp.id}`, {
+        subject: stp.subject, body: stp.body, delay_days: stp.delay_days,
+      });
+      const r = await api.post(`/outreach/sequences/${stp.id}/preview`, {});
+      setPreviewStep(p => ({ ...p, ...r }));
+    } catch (err) {
+      toast(err.message, 'error');
+      setPreviewStep(null);
+    } finally { setPreviewLoading(false); }
+  }
+
+  async function sendTest(stp) {
+    const to = window.prompt(`Send a test of step ${stp.step_number} to which email?`);
+    if (!to) return;
+    setTestingStep(stp.id);
+    try {
+      await api.put(`/outreach/sequences/${stp.id}`, {
+        subject: stp.subject, body: stp.body, delay_days: stp.delay_days,
+      });
+      await api.post(`/outreach/sequences/${stp.id}/test`, { to });
+      toast(`Test sent to ${to}`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setTestingStep(null); }
+  }
 
   useEffect(() => {
     api.get(`/outreach/campaigns/${campaign.id}/sequences`).then(setSteps).catch(() => setSteps([]));
@@ -455,18 +511,62 @@ function StepEmails({ campaign, onBack, onNext }) {
           <textarea style={{ ...s.input, width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
             value={stp.body || ''} placeholder="Email body — use {{first_name}}, {{company}}"
             onChange={e => updateStep(stp.id, 'body', e.target.value)} />
-          <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} style={{ ...s.btn, marginTop: 8 }}>
-            {savingStep === stp.id ? 'Saving…' : 'Save step'}
-          </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
+            <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} style={s.btn}>
+              {savingStep === stp.id ? 'Saving…' : 'Save step'}
+            </button>
+            <button onClick={() => openPreview(stp)} style={s.btnGhost} title="See how this step looks to a recipient">
+              Preview as contact
+            </button>
+            <button onClick={() => sendTest(stp)} disabled={testingStep === stp.id} style={s.btnGhost}
+              title="Send a [TEST]-prefixed copy of this step to an email of your choice">
+              {testingStep === stp.id ? 'Sending…' : 'Send test to me'}
+            </button>
+          </div>
         </div>
       ))}
       <Footer>
         <button onClick={onBack} style={s.btnGhost}>← Back</button>
         <button onClick={onNext} disabled={!steps || steps.length === 0} style={s.btn}>Next: Launch →</button>
       </Footer>
+
+      {previewStep && (
+        <div style={previewOverlay} onClick={() => setPreviewStep(null)}>
+          <div style={previewModal} onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <div>
+                <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
+                  Step {previewStep.step_number} preview
+                </div>
+                {previewStep.sample && (
+                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                    As if sent to: <strong>{previewStep.sample.name || previewStep.sample.email}</strong>
+                    {previewStep.sample.company && <> · {previewStep.sample.company}</>}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => setPreviewStep(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
+            </div>
+            {previewLoading || !previewStep.html ? (
+              <div style={{ padding: 30, textAlign: 'center', color: '#888' }}>Rendering…</div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 4 }}>Subject</div>
+                <div style={{ padding: '8px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
+                  {previewStep.subject || <em style={{ color: '#bbb' }}>(empty)</em>}
+                </div>
+                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '1px solid #eee', borderRadius: 4, background: '#fff' }} sandbox="" />
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+const previewOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
+const previewModal = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 
 // ─── Step 5 ─────────────────────────────────────────────────────────────────
 function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
