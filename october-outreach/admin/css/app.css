@@ -292,6 +292,7 @@
 .oo-row-actions a { font-size: 12.5px; color: var(--oo-accent); text-decoration: none; }
 .oo-row-actions a:hover { text-decoration: underline; }
 .oo-row-actions .oo-delete-btn { background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--oo-red); padding: 0; }
+.oo-row-actions .oo-action-btn { background: none; border: none; cursor: pointer; font-size: 12.5px; color: var(--oo-accent); padding: 0; }
 
 /* ── Empty state ── */
 .oo-empty-state {

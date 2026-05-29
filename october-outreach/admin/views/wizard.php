@@ -2,6 +2,10 @@
 
 OO_License::require_license();
 
+if ( isset( $_GET['duplicated'] ) ) {
+    echo '<div class="oo-notice oo-notice-success">Campaign duplicated — update the details below and save.</div>';
+}
+
 global $wpdb;
 $campaign_id = intval( $_GET['id'] ?? 0 );
 $campaign    = null;

@@ -16,6 +16,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_bulk_delete_contacts', array( $this, 'bulk_delete_contacts' ) );
         add_action( 'admin_post_oo_save_campaign', array( $this, 'save_campaign' ) );
         add_action( 'admin_post_oo_delete_campaign', array( $this, 'delete_campaign' ) );
+        add_action( 'admin_post_oo_duplicate_campaign', array( $this, 'duplicate_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
         add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
         add_action( 'admin_post_oo_import_contacts', array( $this, 'import_contacts_csv' ) );
@@ -379,6 +380,57 @@ class OO_Admin {
 
         fclose( $handle );
         wp_redirect( admin_url( 'admin.php?page=oo-contacts&imported=' . $inserted . '&skipped=' . $skipped ) );
+        exit;
+    }
+
+    public function duplicate_campaign() {
+        check_admin_referer( 'oo_duplicate_campaign' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $id = intval( $_POST['campaign_id'] ?? 0 );
+        if ( ! $id ) wp_redirect( admin_url( 'admin.php?page=oo-campaigns' ) );
+
+        $original = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_campaigns WHERE id = %d", $id
+        ) );
+        if ( ! $original ) wp_redirect( admin_url( 'admin.php?page=oo-campaigns' ) );
+
+        // Insert copy of campaign as a fresh draft
+        $wpdb->insert( $wpdb->prefix . 'oo_campaigns', array(
+            'name'                 => 'Copy of ' . $original->name,
+            'brand'                => $original->brand,
+            'type'                 => $original->type,
+            'status'               => 'draft',
+            'from_name'            => $original->from_name,
+            'from_email'           => $original->from_email,
+            'reply_to'             => $original->reply_to,
+            'sending_domain'       => $original->sending_domain,
+            'audience_description' => $original->audience_description,
+            'audience_filters'     => $original->audience_filters,
+            'claude_prompt'        => $original->claude_prompt,
+            'coupon_url'           => $original->coupon_url,
+            'coupon_field'         => $original->coupon_field,
+            'press_release_url'    => $original->press_release_url,
+        ) );
+        $new_id = $wpdb->insert_id;
+
+        // Copy email sequences
+        $sequences = $wpdb->get_results( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_sequences WHERE campaign_id = %d ORDER BY step_number ASC", $id
+        ) );
+        foreach ( $sequences as $seq ) {
+            $wpdb->insert( $wpdb->prefix . 'oo_sequences', array(
+                'campaign_id' => $new_id,
+                'step_number' => $seq->step_number,
+                'subject'     => $seq->subject,
+                'body'        => $seq->body,
+                'delay_days'  => $seq->delay_days,
+                'status'      => $seq->status,
+            ) );
+        }
+
+        wp_redirect( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $new_id . '&duplicated=1' ) );
         exit;
     }
 
