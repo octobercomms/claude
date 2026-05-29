@@ -375,7 +375,13 @@ class OO_Ajax {
             wp_send_json_error( 'Claude API key not configured.' );
         }
 
-        $sequence = $claude->write_sequence( $campaign, $audience, $sample_contacts, $campaign->claude_prompt );
+        // For press release campaigns, fetch and pass the press release content to Claude
+        $press_content = '';
+        if ( ( $campaign->type ?? '' ) === 'press_release' && ! empty( $campaign->press_release_url ) ) {
+            $press_content = $claude->fetch_press_release_content( $campaign->press_release_url );
+        }
+
+        $sequence = $claude->write_sequence( $campaign, $audience, $sample_contacts, $campaign->claude_prompt, $press_content );
 
         if ( is_wp_error( $sequence ) ) {
             wp_send_json_error( $sequence->get_error_message() );

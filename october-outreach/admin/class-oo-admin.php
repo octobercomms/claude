@@ -117,6 +117,9 @@ class OO_Admin {
                 $settings[ $field ] = sanitize_text_field( $_POST[ $field ] );
             }
         }
+        // Checkboxes — unchecked fields are absent from POST
+        $settings['enable_outreach']       = isset( $_POST['enable_outreach'] ) ? '1' : '0';
+        $settings['enable_press_releases'] = isset( $_POST['enable_press_releases'] ) ? '1' : '0';
         update_option( 'oo_settings', $settings );
         wp_redirect( admin_url( 'admin.php?page=oo-settings&saved=1' ) );
         exit;

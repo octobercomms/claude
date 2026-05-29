@@ -188,7 +188,27 @@ class OO_Claude {
         return $this->request_json( $messages, 1024, $system );
     }
 
-    public function write_sequence( $campaign, $audience_description, $sample_contacts = array(), $extra_instructions = '' ) {
+    /**
+     * Fetch and extract plain text from a press release URL.
+     * Returns up to 3000 chars of stripped content, or empty string on failure.
+     */
+    public function fetch_press_release_content( $url ) {
+        if ( ! $url || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+            return '';
+        }
+        $response = wp_remote_get( $url, array( 'timeout' => 15, 'redirection' => 5 ) );
+        if ( is_wp_error( $response ) ) {
+            return '';
+        }
+        $body = wp_remote_retrieve_body( $response );
+        // Remove scripts, styles, nav, header, footer before stripping tags
+        $body = preg_replace( '/<(script|style|nav|header|footer)[^>]*>[\s\S]*?<\/\1>/i', ' ', $body );
+        $text = wp_strip_all_tags( $body );
+        $text = preg_replace( '/\s+/', ' ', $text );
+        return mb_substr( trim( $text ), 0, 3000 );
+    }
+
+    public function write_sequence( $campaign, $audience_description, $sample_contacts = array(), $extra_instructions = '', $press_release_content = '' ) {
         $brands = OO_Database::get_brands();
         $brand_label = $brands[ $campaign->brand ] ?? $campaign->brand;
 
@@ -212,6 +232,9 @@ class OO_Claude {
         }
         if ( $extra_instructions ) {
             $prompt .= "Instructions: {$extra_instructions}\n";
+        }
+        if ( $press_release_content ) {
+            $prompt .= "\nPress release content (use this to make the emails specific and relevant):\n---\n" . $press_release_content . "\n---\n";
         }
         $prompt .= "\nEmail 1: Initial outreach (day 0)\n";
         $prompt .= "Email 2: Follow-up if no reply (day 4) — different angle, shorter\n";
