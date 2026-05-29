@@ -176,10 +176,13 @@ function splitOnBoilerplate(html) {
   };
 }
 
-// HTML shell for the personal pitch email. Deliberately plain — looks
-// like an email an AM would write, not a marketing campaign. Two
-// images max (hero + one inline), the release link, an AM sign-off.
-function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, contactId, clientId }) {
+// HTML shell for the personal pitch email. When `embedFull` is true
+// (the default, set per-release on the campaign) we render the full
+// release body — title, paragraphs, inline images — under the personal
+// pitch, so the journalist can read the whole thing without leaving
+// the email. When false, we fall back to the original short shape
+// (pitch + link + hero).
+function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = true, embedFull = true, contactId, clientId }) {
   const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const pitchHtml = (pitch || '').split('\n').map(p => p.trim()).filter(Boolean)
     .map(p => `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:#1a1a1a;">${escapeHtml(p)}</p>`)
@@ -188,6 +191,23 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     ? `<div style="margin:18px 0 6px;"><img src="${escapeHtml(release.hero_image)}" alt="${escapeHtml(release.title)}" style="display:block;width:100%;max-width:560px;height:auto;border:0;border-radius:2px;" /></div>`
     : '';
   const releaseLink = `<p style="margin:18px 0 0;font-size:15px;line-height:1.6;color:#1a1a1a;"><strong>Press release</strong> 👉 <a href="${escapeHtml(release.source_url)}" style="color:#1a1a1a;">${escapeHtml(release.source_url)}</a></p>`;
+
+  // Embedded-release block — divider, headline as a heading, hero, then
+  // the cleaned body HTML (which already preserves paragraphs, lists,
+  // inline images). cleanBodyHtml + the parser pass keep this safe to
+  // splice into the email shell without re-sanitising.
+  const embeddedBody = (embedFull && release.body_html) ? `
+    <div style="margin:22px 0 8px;border-top:1px solid #e6e6e6;padding-top:22px;">
+      ${release.title ? `<h2 style="margin:0 0 14px;font-size:20px;line-height:1.3;color:#1a1a1a;font-weight:700;">${escapeHtml(release.title)}</h2>` : ''}
+      ${hero}
+      <div style="font-size:15px;line-height:1.65;color:#1a1a1a;">
+        ${release.body_html}
+      </div>
+      ${release.boilerplate ? `<div style="margin-top:18px;padding-top:14px;border-top:1px solid #f0f0f0;font-size:12px;line-height:1.5;color:#666;">${release.boilerplate}</div>` : ''}
+    </div>
+    <p style="margin:18px 0 0;font-size:13px;color:#666;line-height:1.5;">View the original release: <a href="${escapeHtml(release.source_url)}" style="color:#1a4f9c;">${escapeHtml(release.source_url)}</a></p>
+  ` : '';
+
   const signature = sender ? `
     <p style="margin:24px 0 0;font-size:15px;color:#1a1a1a;">${escapeHtml(sender.first_name || sender.name || 'Daniel')}</p>
     <p style="margin:14px 0 0;font-size:13px;color:#666;line-height:1.5;">
@@ -213,6 +233,12 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
     } catch {}
   }
 
+  // Layout: pitch first, then either the embedded release or the
+  // legacy link+hero pair, then signature + unsub.
+  const releaseSection = embedFull && release.body_html
+    ? embeddedBody
+    : `${releaseLink}${hero}`;
+
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><title>${escapeHtml(release.title)}</title></head>
 <body style="margin:0;padding:0;background:#ffffff;font-family:Helvetica,Arial,sans-serif;color:#1a1a1a;">
@@ -222,8 +248,7 @@ function buildEmailHtml({ release, pitch, sender, recipientName, includeHero = t
         <tr><td>
           ${greeting}
           ${pitchHtml}
-          ${releaseLink}
-          ${hero}
+          ${releaseSection}
           ${signature}
           ${unsubFooter}
         </td></tr>

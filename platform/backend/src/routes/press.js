@@ -106,10 +106,16 @@ router.post('/clients/:clientId/releases', async (req, res) => {
 // Campaigns tab when the AM clicks a press_release campaign.
 router.get('/campaigns/:id/release', async (req, res) => {
   try {
+    // Include the step-1 subject so the campaign detail UI can render it
+    // in an editable input. Defaults to release.title at creation time.
     const { rows } = await pool.query(
-      `SELECT pr.* FROM outreach_press_releases pr
-       JOIN outreach_campaigns c ON c.id = pr.campaign_id
-       WHERE pr.campaign_id = $1`,
+      `SELECT pr.*, (
+         SELECT subject FROM outreach_sequences
+          WHERE campaign_id = pr.campaign_id AND step_number = 1
+        ) AS subject
+         FROM outreach_press_releases pr
+         JOIN outreach_campaigns c ON c.id = pr.campaign_id
+        WHERE pr.campaign_id = $1`,
       [req.params.id]
     );
     if (!rows.length) return res.status(404).json({ error: 'Press release not found for this campaign' });
@@ -167,7 +173,15 @@ router.post('/releases/:id/preview', async (req, res) => {
     // surface it as hero_image so buildEmailHtml can render it.
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: req.user.username === 'daniel' ? 'Daniel Nelson' : req.user.username, first_name: (req.user.username || 'Daniel').split(' ')[0], company: 'October Communications' };
-    const html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contactRows[0].name, contactId: contact_id, clientId: release.client_id });
+    const html = pressRelease.buildEmailHtml({
+      release: releaseWithHero,
+      pitch: cached.intro,
+      sender,
+      recipientName: contactRows[0].name,
+      embedFull: release.embed_full_release !== false,
+      contactId: contact_id,
+      clientId: release.client_id,
+    });
     res.json({
       html, pitch: cached.intro, follow_ups: cached.follow_ups, generated_at: cached.generated_at,
       contact: contactRows[0],
@@ -175,6 +189,47 @@ router.post('/releases/:id/preview', async (req, res) => {
   } catch (err) {
     console.error('[press] preview failed:', err.message);
     res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
+// Update editable bits of a press campaign — currently the step-1
+// subject line (defaults to the release title but the AM can override)
+// and the embed_full_release toggle.
+router.patch('/releases/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM outreach_press_releases WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
+    const release = rows[0];
+    assertClientAccess(req, release.client_id);
+
+    const updates = [];
+    const params = [];
+    if (typeof req.body?.embed_full_release === 'boolean') {
+      params.push(req.body.embed_full_release);
+      updates.push(`embed_full_release = $${params.length}`);
+    }
+    if (updates.length) {
+      params.push(req.params.id);
+      await pool.query(`UPDATE outreach_press_releases SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
+    }
+
+    // Subject is on the sequence row, not the release row.
+    if (typeof req.body?.subject === 'string' && req.body.subject.trim()) {
+      await pool.query(
+        `UPDATE outreach_sequences SET subject = $1
+          WHERE campaign_id = $2 AND step_number = 1`,
+        [req.body.subject.trim().slice(0, 250), release.campaign_id]
+      );
+    }
+
+    const { rows: out } = await pool.query(
+      `SELECT r.*, (SELECT subject FROM outreach_sequences WHERE campaign_id = r.campaign_id AND step_number = 1) AS subject
+         FROM outreach_press_releases r WHERE r.id = $1`,
+      [req.params.id]
+    );
+    res.json(out[0]);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
   }
 });
 

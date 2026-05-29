@@ -163,12 +163,55 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
         <div>
           <div style={styles.h3}>Preview {previewData?.contact ? `· ${previewData.contact.name || previewData.contact.email}` : ''}</div>
+
+          {/* Editable first-email subject + embed toggle. Persists via
+              PATCH /press/releases/:id; re-previews so the change is
+              visible in the iframe immediately. */}
+          {release && (
+            <div style={{ marginBottom: 12, padding: 12, border: '1px solid #eee', borderRadius: 6, background: '#fafafa' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                First email — subject
+              </div>
+              <input
+                value={release.subject ?? release.title ?? ''}
+                onChange={e => setRelease(r => ({ ...r, subject: e.target.value }))}
+                onBlur={async (e) => {
+                  const next = e.target.value.trim();
+                  if (!next || next === (release.subject ?? release.title)) return;
+                  try {
+                    await api.patch(`/press/releases/${release.id}`, { subject: next });
+                    if (previewing) preview(previewing, true);
+                  } catch (err) { toast(err.message, 'error'); }
+                }}
+                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' }}
+              />
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: '#444', cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={release.embed_full_release !== false}
+                  onChange={async e => {
+                    const next = e.target.checked;
+                    setRelease(r => ({ ...r, embed_full_release: next }));
+                    try {
+                      await api.patch(`/press/releases/${release.id}`, { embed_full_release: next });
+                      if (previewing) preview(previewing, true);
+                    } catch (err) { toast(err.message, 'error'); }
+                  }}
+                />
+                <span>
+                  <strong>Embed the full release in the first email.</strong>{' '}
+                  <span style={{ color: '#888' }}>Off = pitch + link only (the old behaviour).</span>
+                </span>
+              </label>
+            </div>
+          )}
+
           {!previewing && <div style={{ color: '#888', fontSize: 12, padding: 14, border: '1px dashed #ddd', borderRadius: 4 }}>Click <strong>preview</strong> on a journalist to see the personalised pitch + follow-ups Claude would send them.</div>}
           {previewing && !previewData && <div style={{ color: '#888', padding: 14 }}>Generating pitch + follow-ups…</div>}
           {previewData && (
             <div>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={styles.label}>Initial pitch · short personal email with the release link</div>
+                <div style={styles.label}>Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>regenerate</button>
               </div>
               <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '1px solid #eee', borderRadius: 4, background: '#fff' }} sandbox="" />
