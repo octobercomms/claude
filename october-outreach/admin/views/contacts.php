@@ -42,6 +42,8 @@ if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
         </div>
         <div class="oo-card">
             <h2 class="oo-card-title">More Info</h2>
+            <div class="oo-field"><label class="oo-label">Job Title / Role</label><input type="text" name="title" class="oo-input" value="<?php echo esc_attr( $contact->title ?? '' ); ?>" placeholder="e.g. Senior Editor"></div>
+            <div class="oo-field"><label class="oo-label">Website</label><input type="url" name="website" class="oo-input" value="<?php echo esc_attr( $contact->website ?? '' ); ?>" placeholder="https://publication.com"></div>
             <div class="oo-field"><label class="oo-label">Location</label><input type="text" name="location" class="oo-input" value="<?php echo esc_attr( $contact->location ?? '' ); ?>" placeholder="e.g. London, UK"></div>
             <div class="oo-field"><label class="oo-label">LinkedIn URL</label><input type="url" name="linkedin_url" class="oo-input" value="<?php echo esc_attr( $contact->linkedin_url ?? '' ); ?>"></div>
             <div class="oo-field"><label class="oo-label">Source</label><input type="text" name="source" class="oo-input" value="<?php echo esc_attr( $contact->source ?? '' ); ?>" placeholder="Hunter.io, Manual, Import..."></div>
@@ -54,6 +56,22 @@ if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
                 </select>
             </div>
             <div class="oo-field"><label class="oo-label">Notes</label><textarea name="notes" class="oo-textarea"><?php echo esc_textarea( $contact->notes ?? '' ); ?></textarea></div>
+            <div class="oo-field">
+                <label class="oo-label">Tags <span class="oo-muted" style="font-weight:400">— comma-separated labels, e.g. architecture,uk,tier-1</span></label>
+                <?php
+                $existing_tags = array_filter( explode( ',', $contact->tags ?? '' ) );
+                ?>
+                <div class="oo-tag-list" id="oo-tag-list">
+                    <?php foreach ( $existing_tags as $tag ) : ?>
+                    <span class="oo-tag"><?php echo esc_html( $tag ); ?><button type="button" class="oo-tag-remove" aria-label="Remove">×</button></span>
+                    <?php endforeach; ?>
+                </div>
+                <div class="oo-tag-add">
+                    <input type="text" id="oo-tag-input" class="oo-input" placeholder="Add tag…" style="max-width:220px">
+                    <button type="button" class="oo-btn oo-btn-secondary" id="oo-tag-add-btn">Add</button>
+                </div>
+                <input type="hidden" name="tags" id="oo-tags-hidden" value="<?php echo esc_attr( implode( ',', $existing_tags ) ); ?>">
+            </div>
         </div>
     </div>
 
@@ -62,6 +80,47 @@ if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts' ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-lg">Cancel</a>
     </div>
 </form>
+<script>
+(function() {
+    var list   = document.getElementById('oo-tag-list');
+    var input  = document.getElementById('oo-tag-input');
+    var hidden = document.getElementById('oo-tags-hidden');
+    var addBtn = document.getElementById('oo-tag-add-btn');
+    if (!list || !input || !hidden) return;
+
+    function getTags() {
+        return hidden.value ? hidden.value.split(',').filter(Boolean) : [];
+    }
+    function saveTags(tags) {
+        hidden.value = tags.join(',');
+    }
+    function addTag(val) {
+        var tag = val.toLowerCase().trim().replace(/\s+/g, '-');
+        if (!tag) return;
+        var tags = getTags();
+        if (tags.indexOf(tag) !== -1) return;
+        tags.push(tag);
+        saveTags(tags);
+        var span = document.createElement('span');
+        span.className = 'oo-tag';
+        span.innerHTML = tag + '<button type="button" class="oo-tag-remove" aria-label="Remove">×</button>';
+        span.querySelector('.oo-tag-remove').addEventListener('click', function() { removeTag(tag, span); });
+        list.appendChild(span);
+    }
+    function removeTag(tag, span) {
+        saveTags(getTags().filter(function(t) { return t !== tag; }));
+        span.remove();
+    }
+    list.querySelectorAll('.oo-tag-remove').forEach(function(btn) {
+        var tag = btn.parentElement.textContent.trim().replace('×','').trim();
+        btn.addEventListener('click', function() { removeTag(tag, btn.parentElement); });
+    });
+    addBtn.addEventListener('click', function() { addTag(input.value); input.value = ''; input.focus(); });
+    input.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input.value); input.value = ''; }
+    });
+})();
+</script>
 
 <?php else : ?>
 
@@ -184,7 +243,7 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
         <table class="oo-table">
             <thead><tr>
                 <th style="width:36px"><input type="checkbox" id="oo-select-all" title="Select all"></th>
-                <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Location</th><th>Status</th><th>Verified</th><th>Added</th><th>Actions</th>
+                <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Tags</th><th>Location</th><th>Status</th><th>Added</th><th>Actions</th>
             </tr></thead>
             <tbody>
             <?php
@@ -204,10 +263,15 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
                 <td><strong><?php echo esc_html( trim( $c->first_name . ' ' . $c->last_name ) ?: '—' ); ?></strong></td>
                 <td><?php echo esc_html( $c->email ); ?></td>
                 <td><?php echo esc_html( $c->company ?: '—' ); ?></td>
-                <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ); ?></td>
+                <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ?: '—' ); ?></td>
+                <td>
+                    <?php if ( ! empty( $c->tags ) ) :
+                        foreach ( explode( ',', $c->tags ) as $tag ) : ?>
+                    <span class="oo-badge oo-badge-blue" style="margin:1px 2px;font-size:10.5px"><?php echo esc_html( $tag ); ?></span>
+                    <?php endforeach; endif; ?>
+                </td>
                 <td class="oo-muted"><?php echo esc_html( $c->location ?: '—' ); ?></td>
                 <td><span class="oo-badge oo-badge-<?php echo $c->status === 'active' ? 'green' : 'grey'; ?>"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $c->status ) ) ); ?></span></td>
-                <td><span class="oo-badge oo-badge-<?php echo esc_attr( $vb[0] ); ?>"><?php echo esc_html( $vb[1] ); ?></span></td>
                 <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
                 <td>
                     <div class="oo-row-actions">

@@ -62,6 +62,10 @@ class OO_Admin {
             'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
             'nonce'        => wp_create_nonce( 'oo_nonce' ),
             'campaignsUrl' => admin_url( 'admin.php?page=oo-campaigns' ),
+            'modules'      => array(
+                'enableOutreach' => ( get_option( 'oo_settings', array() )['enable_outreach']       ?? '1' ) === '1',
+                'enablePress'    => ( get_option( 'oo_settings', array() )['enable_press_releases'] ?? '1' ) === '1',
+            ),
         ) );
     }
 
@@ -130,14 +134,24 @@ class OO_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
 
         global $wpdb;
+        // Normalise tags: lowercase, trim, dedupe, comma-join
+        $raw_tags = sanitize_text_field( $_POST['tags'] ?? '' );
+        $tags     = array_unique( array_filter( array_map(
+            fn( $t ) => strtolower( trim( $t ) ),
+            preg_split( '/[\s,;]+/', $raw_tags )
+        ) ) );
+
         $data = array(
             'first_name'   => sanitize_text_field( $_POST['first_name'] ?? '' ),
             'last_name'    => sanitize_text_field( $_POST['last_name'] ?? '' ),
             'email'        => sanitize_email( $_POST['email'] ?? '' ),
             'company'      => sanitize_text_field( $_POST['company'] ?? '' ),
             'type'         => sanitize_text_field( $_POST['type'] ?? '' ),
+            'title'        => sanitize_text_field( $_POST['title'] ?? '' ),
+            'website'      => esc_url_raw( $_POST['website'] ?? '' ),
             'location'     => sanitize_text_field( $_POST['location'] ?? '' ),
             'linkedin_url' => esc_url_raw( $_POST['linkedin_url'] ?? '' ),
+            'tags'         => implode( ',', $tags ),
             'source'       => sanitize_text_field( $_POST['source'] ?? '' ),
             'status'       => sanitize_text_field( $_POST['status'] ?? 'active' ),
             'notes'        => sanitize_textarea_field( $_POST['notes'] ?? '' ),
@@ -230,15 +244,15 @@ class OO_Admin {
             header( 'Content-Disposition: attachment; filename="contacts-import-template.csv"' );
             header( 'Pragma: no-cache' );
             $out = fopen( 'php://output', 'w' );
-            fputcsv( $out, array( 'first_name', 'last_name', 'email', 'company', 'type', 'title', 'location', 'linkedin_url', 'notes' ) );
-            fputcsv( $out, array( 'Jane', 'Smith', 'jane@example.com', 'Example Studio', 'architect', 'Principal Architect', 'London, UK', 'https://linkedin.com/in/janesmith', '' ) );
+            fputcsv( $out, array( 'first_name', 'last_name', 'email', 'company', 'type', 'title', 'website', 'location', 'linkedin_url', 'tags', 'notes' ) );
+            fputcsv( $out, array( 'Jane', 'Smith', 'jane@example.com', 'Example Studio', 'journalist', 'Senior Editor', 'https://publication.com', 'London, UK', 'https://linkedin.com/in/janesmith', 'architecture,design,sustainability', '' ) );
             fclose( $out );
             exit;
         }
 
         global $wpdb;
         $contacts = $wpdb->get_results(
-            "SELECT first_name, last_name, email, company, type, location, status, source, notes, created_at
+            "SELECT first_name, last_name, email, company, type, title, website, location, linkedin_url, tags, status, source, notes, created_at
              FROM {$wpdb->prefix}oo_contacts ORDER BY created_at DESC",
             ARRAY_A
         );
@@ -248,7 +262,7 @@ class OO_Admin {
         header( 'Pragma: no-cache' );
 
         $out = fopen( 'php://output', 'w' );
-        fputcsv( $out, array( 'First Name', 'Last Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Source', 'Notes', 'Added' ) );
+        fputcsv( $out, array( 'First Name', 'Last Name', 'Email', 'Company', 'Type', 'Title', 'Website', 'Location', 'LinkedIn', 'Tags', 'Status', 'Source', 'Notes', 'Added' ) );
         foreach ( $contacts as $row ) {
             fputcsv( $out, $row );
         }
@@ -288,11 +302,13 @@ class OO_Admin {
             'first_name'   => array( 'first_name', 'firstname', 'first' ),
             'last_name'    => array( 'last_name', 'lastname', 'last', 'surname' ),
             'email'        => array( 'email', 'email_address', 'emailaddress' ),
-            'company'      => array( 'company', 'company_name', 'organisation', 'organization', 'practice', 'firm' ),
-            'type'         => array( 'type', 'contact_type' ),
+            'company'      => array( 'company', 'company_name', 'organisation', 'organization', 'practice', 'firm', 'publication', 'outlet' ),
+            'type'         => array( 'type', 'contact_type', 'beat', 'category' ),
             'title'        => array( 'title', 'job_title', 'jobtitle', 'position', 'role' ),
-            'location'     => array( 'location', 'city', 'region' ),
+            'website'      => array( 'website', 'site', 'url', 'web' ),
+            'location'     => array( 'location', 'city', 'region', 'country' ),
             'linkedin_url' => array( 'linkedin_url', 'linkedin', 'linkedin_profile' ),
+            'tags'         => array( 'tags', 'tag', 'topics', 'beats', 'segments', 'lists' ),
             'notes'        => array( 'notes', 'note', 'comments' ),
         );
 
@@ -335,6 +351,13 @@ class OO_Admin {
             $type = $get( 'type' );
             if ( ! in_array( $type, $valid_types, true ) ) $type = '';
 
+            // Normalise tags from CSV: split on comma/semicolon, lowercase, dedupe
+            $raw_tags_csv = $get( 'tags' );
+            $tag_arr      = array_unique( array_filter( array_map(
+                fn( $t ) => strtolower( trim( $t ) ),
+                preg_split( '/[\s,;]+/', $raw_tags_csv )
+            ) ) );
+
             $wpdb->insert( $table, array(
                 'first_name'   => $get( 'first_name' ),
                 'last_name'    => $get( 'last_name' ),
@@ -342,8 +365,10 @@ class OO_Admin {
                 'company'      => $get( 'company' ),
                 'type'         => $type,
                 'title'        => $get( 'title' ),
+                'website'      => esc_url_raw( $get( 'website' ) ),
                 'location'     => $get( 'location' ),
                 'linkedin_url' => esc_url_raw( $get( 'linkedin_url' ) ),
+                'tags'         => implode( ',', $tag_arr ),
                 'notes'        => $get( 'notes' ),
                 'source'       => 'CSV Import',
                 'status'       => 'active',
