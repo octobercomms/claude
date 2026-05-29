@@ -3,6 +3,36 @@ import { useParams } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import { useAuth } from '../context/AuthContext';
+
+// Banner shown above the SEO tab listing the data sources that are
+// gated until DataForSEO drops the $100/mo Backlinks + LLM Mentions
+// commitment on 1 July 2026. Hides itself once that date is past.
+function DfsAvailabilityBanner() {
+  const { user } = useAuth();
+  const avail = user?.dataforseo_availability;
+  if (!avail || avail.unlocked) return null;
+  const when = new Date(avail.enabled_from).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  return (
+    <div style={{
+      marginBottom: 16, padding: '12px 16px', background: '#fffdf2',
+      border: '1px solid #ddd6a8', borderRadius: 6, fontSize: 13, color: '#5a4a00',
+    }}>
+      <div style={{ fontWeight: 700, marginBottom: 4 }}>
+        Coming {when} — DataForSEO Backlinks &amp; LLM Mentions
+      </div>
+      <div style={{ lineHeight: 1.5 }}>
+        These data sources need a paid commitment with DataForSEO that we don't currently hold.
+        On {when} both APIs move to pay-as-you-go and the platform will start pulling them
+        automatically. Until then the following won't appear:
+      </div>
+      <ul style={{ margin: '6px 0 0 18px', padding: 0, lineHeight: 1.55 }}>
+        {avail.gated_features.map(f => <li key={f}>{f}</li>)}
+      </ul>
+    </div>
+  );
+}
+
 import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
   SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab,
@@ -500,6 +530,7 @@ export default function ClientSEOPage() {
 
   return (
     <div>
+      <DfsAvailabilityBanner />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Organic — {client?.name}</h1>
         {activeTab === 'keywords' && (

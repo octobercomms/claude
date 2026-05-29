@@ -42,6 +42,14 @@ async function getClient() {
     auth: { username: creds.username, password: creds.password },
     headers: { 'Content-Type': 'application/json' },
   });
+  // Gate gated endpoints (Backlinks + LLM Mentions) before they hit the
+  // wire. DataForSEO would return a billing error otherwise; this gives
+  // a clear "available on 1 July 2026" message instead.
+  const { assertUnlocked } = require('../services/dfsAvailability');
+  client.interceptors.request.use((cfg) => {
+    assertUnlocked(cfg.url || '');
+    return cfg;
+  });
   client.interceptors.response.use(
     res => res,
     err => {
