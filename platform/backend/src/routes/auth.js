@@ -36,7 +36,16 @@ router.post('/refresh', authenticate, (req, res) => {
 });
 
 router.get('/me', authenticate, (req, res) => {
-  res.json({ id: req.user.id, username: req.user.username, role: req.user.role });
+  // dataforseo_availability lets the frontend render the "becomes
+  // available on 1 July 2026" banner without having to know the
+  // cutover date itself.
+  const { availabilityForClient } = require('../services/dfsAvailability');
+  res.json({
+    id: req.user.id,
+    username: req.user.username,
+    role: req.user.role,
+    dataforseo_availability: availabilityForClient(),
+  });
 });
 
 // Self-service password change for the authenticated user. Requires
