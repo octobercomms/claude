@@ -20,6 +20,29 @@ $brands   = OO_Database::get_brands();
 $types    = OO_Database::get_campaign_types();
 $settings = get_option( 'oo_settings', array() );
 
+// Load existing sequences and contact count so JS can pre-populate step 3
+$existing_sequences = array();
+$contact_count      = 0;
+if ( $campaign_id ) {
+    $seq_rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT step_number, subject, body, delay_days FROM {$wpdb->prefix}oo_sequences
+         WHERE campaign_id = %d AND status = 'active' ORDER BY step_number ASC",
+        $campaign_id
+    ) );
+    foreach ( $seq_rows as $row ) {
+        $existing_sequences[] = array(
+            'step'       => intval( $row->step_number ),
+            'subject'    => $row->subject,
+            'body'       => $row->body,
+            'delay_days' => intval( $row->delay_days ),
+        );
+    }
+    $contact_count = (int) $wpdb->get_var( $wpdb->prepare(
+        "SELECT COUNT(*) FROM {$wpdb->prefix}oo_campaign_contacts WHERE campaign_id = %d",
+        $campaign_id
+    ) );
+}
+
 // Module visibility
 $enable_outreach       = ( $settings['enable_outreach']       ?? '1' ) === '1';
 $enable_press          = ( $settings['enable_press_releases'] ?? '1' ) === '1';
@@ -247,3 +270,10 @@ $show_press_card_init  = ( $single_module && $forced_type === 'press_release' ) 
     </div>
 
 </div><!-- #oo-wizard -->
+
+<script>
+window.ooWizardInit = {
+    sequences:    <?php echo wp_json_encode( $existing_sequences ); ?>,
+    contactCount: <?php echo (int) $contact_count; ?>,
+};
+</script>

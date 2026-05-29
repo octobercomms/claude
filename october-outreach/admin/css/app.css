@@ -362,6 +362,8 @@
 
 .oo-wizard-step.active .oo-step-num    { background: var(--oo-accent); color: #fff; }
 .oo-wizard-step.completed .oo-step-num { background: var(--oo-green); color: #fff; }
+#oo-wizard.navigable .oo-wizard-step   { cursor: pointer; }
+#oo-wizard.navigable .oo-wizard-step:hover .oo-step-num { filter: brightness(1.15); }
 
 .oo-step-label { font-size: 13px; font-weight: 500; white-space: nowrap; }
 .oo-wizard-divider { flex: 1; height: 1px; background: var(--oo-border); margin: 0 10px; }
