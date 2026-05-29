@@ -236,6 +236,19 @@ export default function ClientOutreachPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
+  async function duplicateCampaign(c) {
+    // Clones the campaign as a draft with the same sequence + audience.
+    // Recipients, sends and cached AI emails are intentionally NOT
+    // copied — the AM picks fresh contacts and Claude regenerates per-
+    // recipient pitches so edits to the duplicate take effect.
+    try {
+      const dup = await api.post(`/outreach/campaigns/${c.id}/duplicate`, {});
+      setCampaigns(p => [{ ...dup, contact_count: 0 }, ...p]);
+      setWizardCampaignId(dup.id);
+      toast(`Duplicated as "${dup.name}"`, 'success');
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
   function refreshCampaigns() {
     api.get(`/outreach/campaigns?client_id=${id}`).then(setCampaigns).catch(() => {});
   }
@@ -700,6 +713,10 @@ export default function ClientOutreachPage() {
                     <td style={s.td}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
                     <td style={s.td}>
                       <button onClick={() => setWizardCampaignId(c.id)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>Open wizard</button>
+                      <button onClick={() => duplicateCampaign(c)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12, marginLeft: 4 }}
+                        title="Make a draft copy of this campaign with the same sequence + audience">
+                        Duplicate
+                      </button>
                       <button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button>
                     </td>
                   </tr>

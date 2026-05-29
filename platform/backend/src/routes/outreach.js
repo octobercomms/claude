@@ -1240,6 +1240,94 @@ router.post('/campaigns', async (req, res) => {
   }
 });
 
+// Clone an existing campaign into a new draft. Copies the campaign row
+// (fresh id, "(copy)" appended to the name, status reset to draft) plus
+// every sequence step. For press campaigns we also copy the
+// outreach_press_releases row so the parsed release, hero image and
+// embed_full_release toggle carry over — Claude's per-recipient cached
+// emails do NOT (they're regenerated on first preview/send so the new
+// campaign's tweaks take effect). Recipients, sends and stats are
+// intentionally left empty — the AM picks fresh contacts for the
+// duplicate.
+router.post('/campaigns/:id/duplicate', async (req, res) => {
+  const dbClient = await pool.connect();
+  try {
+    await dbClient.query('BEGIN');
+    const { rows: src } = await dbClient.query(
+      'SELECT * FROM outreach_campaigns WHERE id = $1',
+      [req.params.id]
+    );
+    if (!src.length) {
+      await dbClient.query('ROLLBACK');
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    const c = src[0];
+    assertClientAccess(req, c.client_id);
+
+    const newName = (req.body?.name && String(req.body.name).trim())
+      || `${c.name} (copy)`.slice(0, 250);
+
+    const { rows: dup } = await dbClient.query(
+      `INSERT INTO outreach_campaigns
+         (client_id, name, brand, campaign_type, kind, audience_description,
+          audience_filters, refined_audience, searched_domains,
+          from_name, from_email, reply_to, coupon_code, press_release_url,
+          claude_prompt, status)
+       SELECT client_id, $1, brand, campaign_type, kind, audience_description,
+              audience_filters, refined_audience, searched_domains,
+              from_name, from_email, reply_to, coupon_code, press_release_url,
+              claude_prompt, 'draft'
+         FROM outreach_campaigns WHERE id = $2
+         RETURNING *`,
+      [newName, c.id]
+    );
+    const newCampaign = dup[0];
+
+    // Sequences — copy step_number / subject / body / delay_days. For
+    // press campaigns the body holds the __press_release__ sentinel
+    // which the sender resolves against outreach_press_releases.
+    await dbClient.query(
+      `INSERT INTO outreach_sequences (campaign_id, step_number, subject, body, delay_days)
+       SELECT $1, step_number, subject, body, delay_days
+         FROM outreach_sequences WHERE campaign_id = $2`,
+      [newCampaign.id, c.id]
+    );
+
+    // Press release row — if there is one, copy it across so the
+    // duplicated press campaign loads the same parsed body, hero,
+    // boilerplate and embed_full_release toggle.
+    const { rows: pr } = await dbClient.query(
+      'SELECT * FROM outreach_press_releases WHERE campaign_id = $1 LIMIT 1',
+      [c.id]
+    );
+    if (pr.length) {
+      const r = pr[0];
+      // hero_image is derived from images[0].src at render time, not a
+      // stored column — copy `images` and the rest stays consistent.
+      await dbClient.query(
+        `INSERT INTO outreach_press_releases
+           (client_id, campaign_id, source_url, title, body_html,
+            images, contact_block, boilerplate, embargo_at, fetched_at,
+            embed_full_release)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [
+          r.client_id, newCampaign.id, r.source_url, r.title, r.body_html,
+          r.images, r.contact_block, r.boilerplate, r.embargo_at, r.fetched_at,
+          r.embed_full_release,
+        ]
+      );
+    }
+
+    await dbClient.query('COMMIT');
+    res.status(201).json({ ...newCampaign, contact_count: 0, sent_count: 0 });
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    res.status(err.status || 500).json({ error: err.message });
+  } finally {
+    dbClient.release();
+  }
+});
+
 // Patch any subset of campaign fields — used by the wizard between steps.
 router.put('/campaigns/:id', async (req, res) => {
   try {
