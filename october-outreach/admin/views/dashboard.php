@@ -75,21 +75,27 @@ $settings        = get_option( 'oo_settings', array() );
             <?php
             $sending_domain = trim( $settings['sending_domain'] ?? '' );
             if ( $sending_domain ) :
-                // SPF: TXT record on the domain containing "v=spf1"
-                $spf   = false;
-                $txts  = @dns_get_record( $sending_domain, DNS_TXT );
-                if ( is_array( $txts ) ) {
-                    foreach ( $txts as $r ) {
-                        if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=spf1' ) !== false ) { $spf = true; break; }
+                $dns_cache_key = 'oo_dns_' . md5( $sending_domain );
+                $dns_cache     = get_transient( $dns_cache_key );
+                if ( false === $dns_cache ) {
+                    $spf  = false;
+                    $txts = @dns_get_record( $sending_domain, DNS_TXT );
+                    if ( is_array( $txts ) ) {
+                        foreach ( $txts as $r ) {
+                            if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=spf1' ) !== false ) { $spf = true; break; }
+                        }
                     }
-                }
-                // DMARC: TXT record at _dmarc.domain
-                $dmarc     = false;
-                $dmarc_rec = @dns_get_record( '_dmarc.' . $sending_domain, DNS_TXT );
-                if ( is_array( $dmarc_rec ) ) {
-                    foreach ( $dmarc_rec as $r ) {
-                        if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=DMARC1' ) !== false ) { $dmarc = true; break; }
+                    $dmarc     = false;
+                    $dmarc_rec = @dns_get_record( '_dmarc.' . $sending_domain, DNS_TXT );
+                    if ( is_array( $dmarc_rec ) ) {
+                        foreach ( $dmarc_rec as $r ) {
+                            if ( isset( $r['txt'] ) && strpos( $r['txt'], 'v=DMARC1' ) !== false ) { $dmarc = true; break; }
+                        }
                     }
+                    set_transient( $dns_cache_key, array( 'spf' => $spf, 'dmarc' => $dmarc ), 6 * HOUR_IN_SECONDS );
+                } else {
+                    $spf   = $dns_cache['spf'];
+                    $dmarc = $dns_cache['dmarc'];
                 }
                 $help_url = esc_url( admin_url( 'admin.php?page=oo-help#email-auth' ) );
             ?>
