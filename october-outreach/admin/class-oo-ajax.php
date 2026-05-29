@@ -375,13 +375,32 @@ class OO_Ajax {
             wp_send_json_error( 'Claude API key not configured.' );
         }
 
-        // For press release campaigns, fetch and pass the press release content to Claude
-        $press_content = '';
+        // Press release campaigns: embed the full release HTML in email 1
         if ( ( $campaign->type ?? '' ) === 'press_release' && ! empty( $campaign->press_release_url ) ) {
-            $press_content = $claude->fetch_press_release_content( $campaign->press_release_url );
-        }
 
-        $sequence = $claude->write_sequence( $campaign, $audience, $sample_contacts, $campaign->claude_prompt, $press_content );
+            // Fetch styled HTML (for the email body) and plain text (for Claude context)
+            $press_html    = $claude->extract_press_release_html( $campaign->press_release_url );
+            $press_summary = $claude->fetch_press_release_content( $campaign->press_release_url );
+
+            $result = $claude->write_press_sequence( $campaign, $press_summary, $campaign->claude_prompt );
+            if ( is_wp_error( $result ) ) {
+                wp_send_json_error( $result->get_error_message() );
+            }
+
+            // Assemble email 1: intro paragraph + horizontal rule + full press release HTML
+            $email1_body = '<p>' . nl2br( esc_html( $result['step1_intro'] ?? '' ) ) . '</p>'
+                . '<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">'
+                . ( $press_html ?: '<p><em>Press release content could not be fetched — please paste it in manually.</em></p>' );
+
+            $sequence = array(
+                array( 'step' => 1, 'subject' => $result['step1_subject'] ?? $campaign->name, 'body' => $email1_body, 'delay_days' => 0 ),
+                array( 'step' => 2, 'subject' => $result['step2']['subject'] ?? 'Following up', 'body' => $result['step2']['body'] ?? '', 'delay_days' => 3 ),
+                array( 'step' => 3, 'subject' => $result['step3']['subject'] ?? 'Last note', 'body' => $result['step3']['body'] ?? '', 'delay_days' => 7 ),
+            );
+
+        } else {
+            $sequence = $claude->write_sequence( $campaign, $audience, $sample_contacts, $campaign->claude_prompt );
+        }
 
         if ( is_wp_error( $sequence ) ) {
             wp_send_json_error( $sequence->get_error_message() );

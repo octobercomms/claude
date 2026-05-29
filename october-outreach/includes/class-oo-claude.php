@@ -189,23 +189,129 @@ class OO_Claude {
     }
 
     /**
-     * Fetch and extract plain text from a press release URL.
-     * Returns up to 3000 chars of stripped content, or empty string on failure.
+     * Fetch a press release URL and return clean article HTML.
+     * Tries article > main > .entry-content > .post-content selectors.
+     * Converts relative image/link URLs to absolute so they render in emails.
+     */
+    public function extract_press_release_html( $url ) {
+        if ( ! $url || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+            return '';
+        }
+
+        $response = wp_remote_get( $url, array( 'timeout' => 15, 'redirection' => 5 ) );
+        if ( is_wp_error( $response ) ) return '';
+        $html = wp_remote_retrieve_body( $response );
+        if ( ! $html ) return '';
+
+        $parsed   = wp_parse_url( $url );
+        $base_url = $parsed['scheme'] . '://' . $parsed['host'];
+
+        libxml_use_internal_errors( true );
+        $dom = new DOMDocument( '1.0', 'UTF-8' );
+        $dom->loadHTML( mb_convert_encoding( $html, 'HTML-ENTITIES', 'UTF-8' ), LIBXML_NOWARNING | LIBXML_NOERROR );
+        libxml_clear_errors();
+
+        // Strip chrome elements
+        foreach ( array( 'script', 'style', 'nav', 'header', 'footer', 'aside', 'form', 'iframe', 'noscript' ) as $tag ) {
+            $nodes = $dom->getElementsByTagName( $tag );
+            while ( $nodes->length > 0 ) {
+                $nodes->item(0)->parentNode->removeChild( $nodes->item(0) );
+            }
+        }
+
+        $xpath = new DOMXPath( $dom );
+        $content_node = null;
+        foreach ( array(
+            '//article',
+            '//main',
+            '//*[contains(@class,"entry-content")]',
+            '//*[contains(@class,"post-content")]',
+            '//*[contains(@class,"wp-block-post-content")]',
+            '//*[contains(@class,"press-release")]',
+            '//*[contains(@class,"page-content")]',
+            '//body',
+        ) as $selector ) {
+            $nodes = $xpath->query( $selector );
+            if ( $nodes && $nodes->length > 0 ) {
+                $content_node = $nodes->item(0);
+                break;
+            }
+        }
+        if ( ! $content_node ) return '';
+
+        $inner_html = '';
+        foreach ( $content_node->childNodes as $child ) {
+            $inner_html .= $dom->saveHTML( $child );
+        }
+
+        // Make relative src/href absolute
+        $inner_html = preg_replace_callback(
+            '/\b(src|href)=(["\'])(?!https?:\/\/|\/\/|data:|mailto:)([^"\']+)\2/i',
+            function ( $m ) use ( $base_url ) {
+                $path = $m[3][0] === '/' ? $base_url . $m[3] : $base_url . '/' . $m[3];
+                return $m[1] . '=' . $m[2] . esc_attr( $path ) . $m[2];
+            },
+            $inner_html
+        );
+
+        // Sanitise — allow full post HTML including images
+        $allowed = wp_kses_allowed_html( 'post' );
+        $allowed['img']        = array_merge( $allowed['img'] ?? array(), array( 'src' => true, 'alt' => true, 'width' => true, 'height' => true, 'style' => true, 'class' => true ) );
+        $allowed['figure']     = array( 'class' => true, 'style' => true );
+        $allowed['figcaption'] = array( 'class' => true, 'style' => true );
+        $allowed['picture']    = array();
+        $allowed['source']     = array( 'srcset' => true, 'media' => true, 'type' => true );
+
+        return wp_kses( $inner_html, $allowed );
+    }
+
+    /**
+     * Fetch plain text from a press release URL (used as Claude context summary).
      */
     public function fetch_press_release_content( $url ) {
         if ( ! $url || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
             return '';
         }
         $response = wp_remote_get( $url, array( 'timeout' => 15, 'redirection' => 5 ) );
-        if ( is_wp_error( $response ) ) {
-            return '';
-        }
+        if ( is_wp_error( $response ) ) return '';
         $body = wp_remote_retrieve_body( $response );
-        // Remove scripts, styles, nav, header, footer before stripping tags
         $body = preg_replace( '/<(script|style|nav|header|footer)[^>]*>[\s\S]*?<\/\1>/i', ' ', $body );
         $text = wp_strip_all_tags( $body );
         $text = preg_replace( '/\s+/', ' ', $text );
         return mb_substr( trim( $text ), 0, 3000 );
+    }
+
+    /**
+     * Write the intro paragraph + subject for a press release email 1,
+     * plus follow-up emails 2 and 3.
+     * Email 1 body = returned intro + <hr> + extracted press release HTML (assembled by caller).
+     */
+    public function write_press_sequence( $campaign, $press_text_summary = '', $extra_instructions = '' ) {
+        $brands      = OO_Database::get_brands();
+        $brand_label = $brands[ $campaign->brand ] ?? $campaign->brand;
+
+        $system = "You are an expert PR writer crafting journalist pitch emails. Lead with the news angle — not pleasantries. Keep intros under 80 words. Never use 'I hope this finds you well' or similar filler.";
+
+        $prompt  = "Write a 3-step press release pitch sequence for journalist outreach.\n\n";
+        $prompt .= "Campaign: {$campaign->name}\n";
+        $prompt .= "Brand: {$brand_label}\n";
+        $prompt .= "From: {$campaign->from_name}\n";
+        if ( $extra_instructions ) {
+            $prompt .= "Instructions: {$extra_instructions}\n";
+        }
+        if ( $press_text_summary ) {
+            $prompt .= "\nPress release summary (for context — the full release is embedded in email 1 below the intro):\n{$press_text_summary}\n";
+        }
+        $prompt .= "\nI need:\n";
+        $prompt .= "1. subject line for email 1\n";
+        $prompt .= "2. short intro paragraph for email 1 (2-3 sentences, under 80 words) — greet the journalist, state the key news angle, say the full release is below. Use {{first_name}}.\n";
+        $prompt .= "3. subject + body for email 2: brief follow-up (day 3) referencing the release — one short paragraph\n";
+        $prompt .= "4. subject + body for email 3: final nudge (day 7) — very short, low-pressure\n\n";
+        $prompt .= "Use {{first_name}} as the journalist name placeholder.\n";
+        $prompt .= 'Respond as valid JSON only: {"step1_subject":"...","step1_intro":"...","step2":{"subject":"...","body":"..."},"step3":{"subject":"...","body":"..."}}';
+
+        $messages = array( array( 'role' => 'user', 'content' => $prompt ) );
+        return $this->request_json( $messages, 1024, $system );
     }
 
     public function write_sequence( $campaign, $audience_description, $sample_contacts = array(), $extra_instructions = '', $press_release_content = '' ) {
