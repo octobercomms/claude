@@ -820,6 +820,26 @@ function ContactsLibrary() {
     } catch (e) { setErr(e.message); }
   }
 
+  async function exportCsv() {
+    // Stream the export via the existing api.raw helper so the Bearer
+    // token rides along; convert to a Blob and trigger a download.
+    // Server-side endpoint walks every match (no 1000-row cap) so the
+    // CSV reflects the filtered total, not just what's on screen.
+    try {
+      const qs = buildFilterParams();
+      qs.delete('include_totals'); qs.delete('include_count');
+      const res = await api.raw(`/outreach/contacts/library/export.csv?${qs.toString()}`);
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contacts-library-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (e) { setErr(e.message); }
+  }
+
   async function destroyAllMatching() {
     if (!total) return;
     const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
@@ -957,6 +977,10 @@ function ContactsLibrary() {
             <button onClick={() => setTidyOpen(true)} style={styles.ghostBtn}
               title="Ask Claude to spot fixes on the contacts matching the current filter">
               ✨ Tidy with Claude
+            </button>
+            <button onClick={exportCsv} disabled={!total} style={styles.ghostBtn}
+              title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
+              ↓ Export CSV
             </button>
             <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
           </div>
