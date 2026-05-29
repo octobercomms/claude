@@ -384,6 +384,55 @@ router.post('/contacts/library/delete-by-filter', async (req, res) => {
   }
 });
 
+// CSV export of the library, honouring the same filter the AM sees on
+// screen. Bypasses the 1000-row list cap so a 21k library exports in
+// one file. Visibility scope is applied so a viewer only gets contacts
+// they can see.
+router.get('/contacts/library/export.csv', async (req, res) => {
+  try {
+    const { whereSql, params } = buildLibraryFilter(req, req.query);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    const filename = `contacts-library-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    const headers = [
+      'first_name', 'last_name', 'name', 'email', 'company', 'contact_type',
+      'title', 'role', 'location', 'linkedin_url', 'website', 'source',
+      'status', 'tags', 'notes', 'created_at',
+    ];
+    res.write(headers.join(',') + '\n');
+
+    // 21k contacts × ~16 columns sits comfortably in one SELECT. We write
+    // the response row-by-row so a big export doesn't buffer the whole
+    // body server-side.
+    const { rows } = await pool.query(
+      `SELECT ${headers.map(h => `c.${h}`).join(', ')}
+         FROM outreach_contacts c
+         ${whereSql}
+         ORDER BY c.created_at DESC`,
+      params
+    );
+    for (const row of rows) {
+      res.write(headers.map(h => csvEscape(formatCell(row[h]))).join(',') + '\n');
+    }
+    res.end();
+  } catch (err) {
+    if (res.headersSent) return res.end();
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function csvEscape(v) {
+  const s = v == null ? '' : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function formatCell(v) {
+  if (v == null) return '';
+  if (Array.isArray(v)) return v.join('; ');
+  if (v instanceof Date) return v.toISOString();
+  return String(v);
+}
+
 // Ask Claude to look at a slice of contacts and propose field-level
 // cleanups (capitalisation, missing company from email domain, URL
 // scheme, etc). Accepts the same search/tags filter as the library
