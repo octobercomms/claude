@@ -18,6 +18,9 @@ $colours = array( 'draft' => 'grey', 'active' => 'green', 'paused' => 'orange', 
 <?php if ( isset( $_GET['deleted'] ) ) : ?>
 <div class="oo-notice oo-notice-success">Campaign deleted.</div>
 <?php endif; ?>
+<?php if ( isset( $_GET['duplicated'] ) ) : ?>
+<div class="oo-notice oo-notice-success">Campaign duplicated.</div>
+<?php endif; ?>
 
 <?php $campaigns = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}oo_campaigns ORDER BY created_at DESC" ); ?>
 
@@ -49,6 +52,12 @@ $colours = array( 'draft' => 'grey', 'active' => 'green', 'paused' => 'orange', 
             <td>
                 <div class="oo-row-actions">
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $c->id ) ); ?>">Open Wizard</a>
+                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+                        <?php wp_nonce_field( 'oo_duplicate_campaign' ); ?>
+                        <input type="hidden" name="action" value="oo_duplicate_campaign">
+                        <input type="hidden" name="campaign_id" value="<?php echo esc_attr( $c->id ); ?>">
+                        <button type="submit" class="oo-action-btn">Duplicate</button>
+                    </form>
                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this campaign?')">
                         <?php wp_nonce_field( 'oo_delete_campaign' ); ?>
                         <input type="hidden" name="action" value="oo_delete_campaign">

@@ -15,6 +15,8 @@
             this.campaignId = parseInt( $('#oo-wizard').data('campaign-id') ) || 0;
             this.applyModules();
             this.bindEvents();
+            this.loadExistingData();
+            this.initPreviewModal();
         },
 
         applyModules: function () {
@@ -29,6 +31,29 @@
             if ( $sel.length && $sel[0].tagName === 'SELECT' ) {
                 $sel.closest('.oo-field').hide();
                 $sel.replaceWith( '<input type="hidden" id="w_type" value="' + forcedType + '">' );
+            }
+        },
+
+        // Pre-load sequences and contact count for existing campaigns,
+        // and make the step nav directly clickable.
+        loadExistingData: function () {
+            var init = window.ooWizardInit || {};
+
+            if ( init.sequences && init.sequences.length ) {
+                this.data.sequence = init.sequences;
+                this.renderEmailSequence( init.sequences );
+                $('#oo-emails-result').show();
+            }
+
+            this.data.savedContacts = parseInt( init.contactCount ) || 0;
+
+            // Allow clicking any step tab when editing an existing campaign
+            if ( this.campaignId ) {
+                $('#oo-wizard').addClass('navigable');
+                $('.oo-wizard-nav .oo-wizard-step').on('click', function () {
+                    var step = parseInt( $(this).data('step') );
+                    if ( step ) wizard.goToStep( step );
+                });
             }
         },
 
@@ -56,6 +81,10 @@
             $('#oo-step3-back').on('click', function () { wizard.goToStep(2); });
             $('#oo-generate-emails').on('click', this.generateEmails.bind(this));
             $('#oo-save-sequence').on('click', this.saveSequence.bind(this));
+
+            // Email preview / test send (delegated — cards are rendered dynamically)
+            $(document).on('click', '.oo-preview-btn', this.previewEmail.bind(this));
+            $(document).on('click', '.oo-test-btn',    this.sendTestEmail.bind(this));
 
             // Step 4 — launch
             $('#oo-launch-campaign').on('click', this.launchCampaign.bind(this));
@@ -235,6 +264,10 @@
                 html += '<textarea class="oo-textarea oo-email-body" rows="8">' + wizard.esc(email.body) + '</textarea></div>';
                 html += '<div class="oo-field"><label class="oo-label">Send delay</label>';
                 html += '<div style="display:flex;align-items:center;gap:8px"><input type="number" class="oo-input oo-email-delay" style="width:80px" value="' + email.delay_days + '"><span class="oo-muted">days after previous email</span></div></div>';
+                html += '<div style="display:flex;gap:8px;margin-top:8px">';
+                html += '<button type="button" class="oo-btn oo-btn-secondary oo-btn-sm oo-preview-btn">Preview</button>';
+                html += '<button type="button" class="oo-btn oo-btn-secondary oo-btn-sm oo-test-btn">Send Test</button>';
+                html += '</div>';
                 html += '</div>';
             });
             $('#oo-email-sequence').html(html);
@@ -269,6 +302,90 @@
                 } else {
                     wizard.showNotice('#oo-sequence-result', res.data || 'Error saving sequence', 'error');
                 }
+            });
+        },
+
+        // ── Email preview ──────────────────────────────────────
+
+        initPreviewModal: function () {
+            if ($('#oo-preview-modal').length) return;
+            $('body').append(
+                '<div id="oo-preview-modal" style="display:none;position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);overflow-y:auto">' +
+                    '<div style="max-width:660px;margin:48px auto 48px;background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.3)">' +
+                        '<div style="padding:14px 20px;background:#f8f9fa;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:flex-start;gap:12px">' +
+                            '<div>' +
+                                '<div style="font-size:10.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#94a3b8;margin-bottom:3px">Subject preview</div>' +
+                                '<div id="oo-preview-subject" style="font-size:14px;font-weight:600;color:#1a202c"></div>' +
+                            '</div>' +
+                            '<button type="button" id="oo-preview-close" style="background:none;border:none;cursor:pointer;font-size:22px;color:#94a3b8;line-height:1;flex-shrink:0;padding:0">×</button>' +
+                        '</div>' +
+                        '<iframe id="oo-preview-iframe" style="width:100%;height:580px;border:none;display:block" sandbox="allow-same-origin"></iframe>' +
+                    '</div>' +
+                '</div>'
+            );
+            $('#oo-preview-close').on('click', function () { $('#oo-preview-modal').hide(); });
+            $('#oo-preview-modal').on('click', function (e) {
+                if ($(e.target).is('#oo-preview-modal')) $(this).hide();
+            });
+        },
+
+        openPreviewModal: function (subject, body) {
+            $('#oo-preview-subject').text(subject);
+            var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+                '<style>*{box-sizing:border-box}body{margin:0;padding:0;background:#f0f2f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:15px;line-height:1.65;color:#1a202c}' +
+                '.wrap{max-width:580px;margin:28px auto;background:#fff;border-radius:6px;padding:36px 40px;box-shadow:0 1px 3px rgba(0,0,0,.1)}' +
+                'p{margin:0 0 16px}h1,h2,h3{margin:0 0 12px;line-height:1.3}a{color:#4F46E5}hr{border:none;border-top:1px solid #e2e8f0;margin:24px 0}' +
+                'img{max-width:100%;height:auto;display:block}figure{margin:0 0 16px}figcaption{font-size:12px;color:#64748b;margin-top:4px}</style>' +
+                '</head><body><div class="wrap">' + body + '</div></body></html>';
+            document.getElementById('oo-preview-iframe').srcdoc = html;
+            $('#oo-preview-modal').show();
+        },
+
+        previewEmail: function (e) {
+            var $card   = $(e.target).closest('.oo-email-card');
+            var subject = $card.find('.oo-email-subject').val();
+            var body    = $card.find('.oo-email-body').val();
+            var sample  = { '{{first_name}}': 'Jane', '{{last_name}}': 'Smith', '{{company}}': 'Example Studio' };
+            Object.keys(sample).forEach(function (k) {
+                subject = subject.split(k).join(sample[k]);
+                body    = body.split(k).join(sample[k]);
+            });
+            this.openPreviewModal(subject, body);
+        },
+
+        // ── Test send ──────────────────────────────────────────
+
+        sendTestEmail: function (e) {
+            var $btn  = $(e.target);
+            var $card = $btn.closest('.oo-email-card');
+
+            if (!this.campaignId) {
+                alert('Save the campaign first (Step 1) so we have a From address.');
+                return;
+            }
+
+            var toEmail = prompt('Send test email to:');
+            if (!toEmail || !toEmail.trim()) return;
+
+            $btn.prop('disabled', true).text('Sending…');
+
+            $.post(ooData.ajaxUrl, {
+                action:      'oo_send_test_email',
+                nonce:       ooData.nonce,
+                campaign_id: this.campaignId,
+                to_email:    toEmail.trim(),
+                subject:     $card.find('.oo-email-subject').val(),
+                body:        $card.find('.oo-email-body').val(),
+            }, function (res) {
+                $btn.prop('disabled', false).text('Send Test');
+                if (res.success) {
+                    alert('Test sent to ' + toEmail.trim() + '.');
+                } else {
+                    alert('Error: ' + (res.data || 'Send failed.'));
+                }
+            }).fail(function () {
+                $btn.prop('disabled', false).text('Send Test');
+                alert('Request failed.');
             });
         },
 

@@ -26,6 +26,7 @@ class OO_Ajax {
             'oo_verify_emails',
             'oo_bulk_delete_dead',
             'oo_enrich_locations',
+            'oo_send_test_email',
         );
 
         foreach ( $actions as $action ) {
@@ -928,5 +929,55 @@ class OO_Ajax {
             'failed'    => $failed,
             'remaining' => $remaining,
         ) );
+    }
+
+    public function send_test_email() {
+        $this->check_nonce();
+
+        $to = sanitize_email( $_POST['to_email'] ?? '' );
+        if ( ! is_email( $to ) ) {
+            wp_send_json_error( 'Invalid email address.' );
+        }
+
+        $campaign_id = intval( $_POST['campaign_id'] ?? 0 );
+        $subject     = sanitize_text_field( $_POST['subject'] ?? '' );
+        $body        = wp_unslash( $_POST['body'] ?? '' );
+
+        // Substitute sample values for merge tags
+        $sample = array(
+            '{{first_name}}' => 'Jane',
+            '{{last_name}}'  => 'Smith',
+            '{{company}}'    => 'Example Studio',
+        );
+        $subject = str_replace( array_keys( $sample ), array_values( $sample ), $subject );
+        $body    = str_replace( array_keys( $sample ), array_values( $sample ), $body );
+
+        // Get sending identity from campaign
+        if ( ! $campaign_id ) {
+            wp_send_json_error( 'No campaign ID — save Step 1 first.' );
+        }
+        global $wpdb;
+        $campaign = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_campaigns WHERE id = %d", $campaign_id
+        ) );
+        if ( ! $campaign || ! $campaign->from_email ) {
+            wp_send_json_error( 'Campaign has no From email set. Save Step 1 first.' );
+        }
+
+        $mailer = new OO_Mailer();
+        $result = $mailer->send(
+            $to,
+            $to,
+            $campaign->from_email,
+            $campaign->from_name,
+            $campaign->reply_to ?: $campaign->from_email,
+            '[TEST] ' . $subject,
+            $body
+        );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+        wp_send_json_success( array( 'sent_to' => $to ) );
     }
 }
