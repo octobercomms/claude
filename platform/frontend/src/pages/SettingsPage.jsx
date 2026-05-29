@@ -396,7 +396,7 @@ export default function SettingsPage() {
       <div style={styles.tabStrip}>
         {[
           { key: 'general', label: 'General' },
-          { key: 'contacts', label: 'Contacts library' },
+          { key: 'contacts', label: 'Contacts' },
           { key: 'tags', label: 'Tags' },
           { key: 'users', label: 'Users & access' },
         ].map(t => (
@@ -966,7 +966,7 @@ function ContactsLibrary() {
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
-            <CardTitle>Contacts library</CardTitle>
+            <CardTitle>Contacts</CardTitle>
             <p style={styles.hint}>
               One workspace-wide list of contacts. Each contact can be attached to as many clients
               as you like — a journalist who unsubscribes from one client's emails stays subscribed
