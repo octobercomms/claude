@@ -40,9 +40,10 @@ function assertUnlocked(endpoint) {
 // What the /auth/me payload carries to the frontend so banners can be
 // shown without leaking server config.
 function availabilityForClient(now = new Date()) {
+  const unlocked = isUnlocked(now);
   return {
     enabled_from: ENABLED_FROM.toISOString(),
-    unlocked: isUnlocked(now),
+    unlocked,
     gated_apis: ['backlinks', 'llm_mentions'],
     gated_features: [
       'Full backlink list + referring domains',
@@ -51,6 +52,13 @@ function availabilityForClient(now = new Date()) {
       'Backlinks ↔ press-release ROI attribution',
       'AI assistant brand mentions (ChatGPT, Claude, Perplexity, Gemini)',
     ],
+    // After the cutover the banner flips to "now available" with a link
+    // to the checklist doc. The doc is the persistent reference — once
+    // we ship Phase E PRs the banner can be dismissed permanently.
+    doc_path: 'docs/dataforseo-july-2026.md',
+    post_unlock_message: unlocked
+      ? 'DataForSEO Backlinks and LLM Mentions are now available on pay-as-you-go. Open docs/dataforseo-july-2026.md for the implementation checklist + the Phase E PR plan.'
+      : null,
   };
 }
 

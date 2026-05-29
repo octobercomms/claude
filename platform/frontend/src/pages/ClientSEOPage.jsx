@@ -7,28 +7,75 @@ import { useAuth } from '../context/AuthContext';
 
 // Banner shown above the SEO tab listing the data sources that are
 // gated until DataForSEO drops the $100/mo Backlinks + LLM Mentions
-// commitment on 1 July 2026. Hides itself once that date is past.
+// commitment on 1 July 2026.
+//
+// Pre-cutover: yellow "coming soon" with the feature list.
+// Post-cutover: green "now available — open the checklist doc" with
+//   a Dismiss button (localStorage-persisted) so once Phase E is in
+//   flight the AM can clear it. Without the dismiss it'd stay forever
+//   and the reminder is the whole point.
+const DFS_DISMISS_KEY = 'dfs_post_unlock_dismissed';
 function DfsAvailabilityBanner() {
   const { user } = useAuth();
   const avail = user?.dataforseo_availability;
-  if (!avail || avail.unlocked) return null;
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(DFS_DISMISS_KEY) === '1'; }
+    catch { return false; }
+  });
+  if (!avail) return null;
   const when = new Date(avail.enabled_from).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  if (!avail.unlocked) {
+    return (
+      <div style={{
+        marginBottom: 16, padding: '12px 16px', background: '#fffdf2',
+        border: '1px solid #ddd6a8', borderRadius: 6, fontSize: 13, color: '#5a4a00',
+      }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          Coming {when} — DataForSEO Backlinks &amp; LLM Mentions
+        </div>
+        <div style={{ lineHeight: 1.5 }}>
+          These data sources need a paid commitment with DataForSEO that we don't currently hold.
+          On {when} both APIs move to pay-as-you-go and the platform will start pulling them
+          automatically. Until then the following won't appear:
+        </div>
+        <ul style={{ margin: '6px 0 6px 18px', padding: 0, lineHeight: 1.55 }}>
+          {avail.gated_features.map(f => <li key={f}>{f}</li>)}
+        </ul>
+        {avail.doc_path && (
+          <div style={{ fontSize: 12, color: '#7a6500' }}>
+            Implementation checklist + Phase E PR plan: <code>{avail.doc_path}</code>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (dismissed) return null;
   return (
     <div style={{
-      marginBottom: 16, padding: '12px 16px', background: '#fffdf2',
-      border: '1px solid #ddd6a8', borderRadius: 6, fontSize: 13, color: '#5a4a00',
+      marginBottom: 16, padding: '12px 16px', background: '#e7f4ea',
+      border: '1px solid #b6dcc1', borderRadius: 6, fontSize: 13, color: '#1b5e20',
+      display: 'flex', alignItems: 'flex-start', gap: 12,
     }}>
-      <div style={{ fontWeight: 700, marginBottom: 4 }}>
-        Coming {when} — DataForSEO Backlinks &amp; LLM Mentions
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 700, marginBottom: 4 }}>
+          ✓ DataForSEO Backlinks &amp; LLM Mentions are now available
+        </div>
+        <div style={{ lineHeight: 1.5 }}>
+          {avail.post_unlock_message || 'Backlinks + LLM Mentions are now pay-as-you-go.'}
+        </div>
+        {avail.doc_path && (
+          <div style={{ marginTop: 6, fontSize: 12 }}>
+            Open <code>{avail.doc_path}</code> in the repo — it has the day-of checklist and the Phase E PR order.
+          </div>
+        )}
       </div>
-      <div style={{ lineHeight: 1.5 }}>
-        These data sources need a paid commitment with DataForSEO that we don't currently hold.
-        On {when} both APIs move to pay-as-you-go and the platform will start pulling them
-        automatically. Until then the following won't appear:
-      </div>
-      <ul style={{ margin: '6px 0 0 18px', padding: 0, lineHeight: 1.55 }}>
-        {avail.gated_features.map(f => <li key={f}>{f}</li>)}
-      </ul>
+      <button
+        onClick={() => { try { localStorage.setItem(DFS_DISMISS_KEY, '1'); } catch {} setDismissed(true); }}
+        style={{ background: 'none', border: '1px solid #b6dcc1', color: '#1b5e20', borderRadius: 4, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
+        Dismiss
+      </button>
     </div>
   );
 }
