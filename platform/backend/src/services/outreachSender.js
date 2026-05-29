@@ -205,12 +205,30 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
   // the press feature.
   const pressRelease = require('./pressRelease');
 
+  // Step 1's subject lives on the outreach_sequences row so the AM can
+  // edit it independently of the release title. Fall back to the
+  // release title for older campaigns where step.subject was never set.
+  const { rows: seqRows } = await pool.query(
+    'SELECT subject FROM outreach_sequences WHERE campaign_id = $1 AND step_number = 1 LIMIT 1',
+    [campaignId]
+  );
+  const editedSubject = seqRows[0]?.subject;
+
   let subject, html, text;
   if (kind === 'release') {
-    subject = release.title;
+    subject = editedSubject || release.title;
     const releaseWithHero = { ...release, hero_image: (release.images?.[0]?.src) || null };
     const sender = { name: 'Daniel Nelson', first_name: 'Daniel', company: 'October Communications' };
-    html = pressRelease.buildEmailHtml({ release: releaseWithHero, pitch: cached.intro, sender, recipientName: contact.name, contactId: contact.id, clientId });
+    html = pressRelease.buildEmailHtml({
+      release: releaseWithHero,
+      pitch: cached.intro,
+      sender,
+      recipientName: contact.name,
+      // embed_full_release is set per-release, defaults true (migration 038).
+      embedFull: release.embed_full_release !== false,
+      contactId: contact.id,
+      clientId,
+    });
     html = rewriteLinksForTracking(html, sendId);
     // Append the open pixel — buildEmailHtml doesn't know about send_id.
     if (sendId && process.env.PLATFORM_URL) {
