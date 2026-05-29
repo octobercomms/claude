@@ -61,6 +61,28 @@ Thanks!</div>
 
     <div class="oo-settings-grid">
 
+        <!-- Modules -->
+        <div class="oo-card" style="grid-column:1/-1">
+            <h2 class="oo-card-title">Modules</h2>
+            <p class="oo-muted" style="margin-bottom:16px">Enable only the features you need. Disabling a module hides it from the campaign wizard — useful when installing on a site dedicated to one workflow.</p>
+            <div style="display:flex;flex-direction:column;gap:12px">
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                    <input type="checkbox" name="enable_outreach" value="1" <?php checked( ( $settings['enable_outreach'] ?? '1' ), '1' ); ?> style="margin-top:2px;width:16px;height:16px;cursor:pointer">
+                    <span>
+                        <strong style="font-size:14px">Outreach campaigns</strong>
+                        <span class="oo-muted" style="display:block;margin-top:2px">Find contacts via Hunter.io / Icypeas, send personalised multi-step email sequences.</span>
+                    </span>
+                </label>
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                    <input type="checkbox" name="enable_press_releases" value="1" <?php checked( ( $settings['enable_press_releases'] ?? '1' ), '1' ); ?> style="margin-top:2px;width:16px;height:16px;cursor:pointer">
+                    <span>
+                        <strong style="font-size:14px">Press releases</strong>
+                        <span class="oo-muted" style="display:block;margin-top:2px">Pitch journalists and editors. Claude reads your press release URL and writes the pitch emails.</span>
+                    </span>
+                </label>
+            </div>
+        </div>
+
         <!-- License -->
         <div class="oo-card">
             <h2 class="oo-card-title">License</h2>

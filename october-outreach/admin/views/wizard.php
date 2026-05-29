@@ -15,6 +15,13 @@ if ( $campaign_id ) {
 $brands   = OO_Database::get_brands();
 $types    = OO_Database::get_campaign_types();
 $settings = get_option( 'oo_settings', array() );
+
+// Module visibility
+$enable_outreach       = ( $settings['enable_outreach']       ?? '1' ) === '1';
+$enable_press          = ( $settings['enable_press_releases'] ?? '1' ) === '1';
+$single_module         = $enable_outreach xor $enable_press;
+$forced_type           = $enable_outreach ? 'outreach' : 'press_release';
+$show_press_card_init  = ( $single_module && $forced_type === 'press_release' ) || ( ! $single_module && ( $campaign->type ?? 'outreach' ) === 'press_release' );
 ?>
 
 <div class="oo-page-header">
@@ -69,6 +76,9 @@ $settings = get_option( 'oo_settings', array() );
                     </datalist>
                     <p class="oo-hint">Type freely or pick from your existing brands.</p>
                 </div>
+                <?php if ( $single_module ) : ?>
+                <input type="hidden" id="w_type" value="<?php echo esc_attr( $forced_type ); ?>">
+                <?php else : ?>
                 <div class="oo-field">
                     <label class="oo-label">Campaign Type</label>
                     <select id="w_type" class="oo-select">
@@ -77,6 +87,7 @@ $settings = get_option( 'oo_settings', array() );
                         <?php endforeach; ?>
                     </select>
                 </div>
+                <?php endif; ?>
                 <div class="oo-field">
                     <label class="oo-label">Audience description <span class="oo-muted" style="font-weight:400">(optional — helps Claude write better emails)</span></label>
                     <textarea id="w_audience" class="oo-textarea" rows="2" placeholder="e.g. Independent architecture practices in Melbourne — principals who value award recognition."><?php echo esc_textarea( $campaign->audience_description ?? '' ); ?></textarea>
@@ -104,7 +115,7 @@ $settings = get_option( 'oo_settings', array() );
                 </div>
             </div>
 
-            <div class="oo-card" id="oo-press-card" style="display:none">
+            <div class="oo-card" id="oo-press-card" style="display:<?php echo $show_press_card_init ? 'block' : 'none'; ?>">
                 <h2 class="oo-card-title">Press Release</h2>
                 <div class="oo-field">
                     <label class="oo-label">Press Release URL</label>

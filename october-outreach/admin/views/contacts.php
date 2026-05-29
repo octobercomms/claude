@@ -116,8 +116,12 @@ if ( $search ) {
     $like = '%' . $wpdb->esc_like( $search ) . '%';
     $where .= $wpdb->prepare( " AND (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR company LIKE %s)", $like, $like, $like, $like );
 }
-$contacts = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT 200" );
-$total    = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $where" );
+$total      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $where" );
+$per_page   = 50;
+$paged      = max( 1, intval( $_GET['paged'] ?? 1 ) );
+$offset     = ( $paged - 1 ) * $per_page;
+$total_pages = (int) ceil( $total / $per_page );
+$contacts   = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ) );
 $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')" );
 ?>
 
@@ -142,7 +146,13 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
             <option value="dead"       <?php selected( $verified_filter, 'dead' ); ?>>Dead</option>
         </select>
         <button type="submit" class="oo-btn oo-btn-secondary">Filter</button>
-        <span class="oo-count"><?php echo intval( $total ); ?> contacts</span>
+        <span class="oo-count">
+            <?php if ( $total_pages > 1 ) :
+                echo 'Showing ' . ( $offset + 1 ) . '–' . min( $offset + $per_page, $total ) . ' of ' . intval( $total ) . ' contacts';
+            else :
+                echo intval( $total ) . ' contact' . ( $total !== 1 ? 's' : '' );
+            endif; ?>
+        </span>
     </form>
     <?php
     $no_location_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)" );
@@ -216,6 +226,34 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
         </table>
     </div>
 </form>
+
+<?php if ( $total_pages > 1 ) :
+    $base_url = add_query_arg( array_filter( array(
+        'page'            => 'oo-contacts',
+        's'               => $search ?: null,
+        'type_filter'     => $type_filter ?: null,
+        'verified_filter' => $verified_filter ?: null,
+    ) ), admin_url( 'admin.php' ) );
+?>
+<div style="display:flex;align-items:center;gap:6px;margin-top:14px;flex-wrap:wrap">
+    <?php if ( $paged > 1 ) : ?>
+    <a href="<?php echo esc_url( add_query_arg( 'paged', $paged - 1, $base_url ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-sm">← Prev</a>
+    <?php endif; ?>
+
+    <?php for ( $p = max( 1, $paged - 3 ); $p <= min( $total_pages, $paged + 3 ); $p++ ) : ?>
+    <a href="<?php echo esc_url( add_query_arg( 'paged', $p, $base_url ) ); ?>"
+       class="oo-btn oo-btn-sm <?php echo $p === $paged ? 'oo-btn-primary' : 'oo-btn-secondary'; ?>">
+        <?php echo $p; ?>
+    </a>
+    <?php endfor; ?>
+
+    <?php if ( $paged < $total_pages ) : ?>
+    <a href="<?php echo esc_url( add_query_arg( 'paged', $paged + 1, $base_url ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-sm">Next →</a>
+    <?php endif; ?>
+    <span class="oo-muted" style="font-size:12px">Page <?php echo $paged; ?> of <?php echo $total_pages; ?></span>
+</div>
+<?php endif; ?>
+
 <script>
 (function(){
     var all = document.getElementById('oo-select-all');
