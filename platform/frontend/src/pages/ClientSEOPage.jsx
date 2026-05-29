@@ -29,8 +29,10 @@ function DfsAvailabilityBanner() {
   // can stash it somewhere they'll find again on the day. Goes through
   // /api/docs/* so the Bearer token authenticates the request.
   async function downloadChecklist() {
-    const filename = (avail.doc_path || '').split('/').pop();
-    if (!filename) return;
+    // Hardcoded so the button still works even on a stale /auth/me
+    // payload that pre-dates the doc_path field. The doc is fetched
+    // by an authed allowlisted route on the server.
+    const filename = 'dataforseo-july-2026.md';
     try {
       const res = await api.raw(`/docs/${filename}`);
       if (!res.ok) throw new Error(`Download failed (${res.status})`);
@@ -44,6 +46,7 @@ function DfsAvailabilityBanner() {
       alert(e.message);
     }
   }
+  const DOC_FILENAME = 'dataforseo-july-2026.md';
 
   if (!avail.unlocked) {
     return (
@@ -62,15 +65,13 @@ function DfsAvailabilityBanner() {
         <ul style={{ margin: '6px 0 6px 18px', padding: 0, lineHeight: 1.55 }}>
           {avail.gated_features.map(f => <li key={f}>{f}</li>)}
         </ul>
-        {avail.doc_path && (
-          <div style={{ fontSize: 12, color: '#7a6500' }}>
-            Implementation checklist + Phase E PR plan:{' '}
-            <button onClick={downloadChecklist}
-              style={{ background: 'none', border: 'none', padding: 0, color: '#5a4a00', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
-              ↓ download {avail.doc_path.split('/').pop()}
-            </button>
-          </div>
-        )}
+        <div style={{ fontSize: 12, color: '#7a6500' }}>
+          Implementation checklist + Phase E PR plan:{' '}
+          <button onClick={downloadChecklist}
+            style={{ background: 'none', border: 'none', padding: 0, color: '#5a4a00', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+            ↓ download {DOC_FILENAME}
+          </button>
+        </div>
       </div>
     );
   }
@@ -89,16 +90,14 @@ function DfsAvailabilityBanner() {
         <div style={{ lineHeight: 1.5 }}>
           {avail.post_unlock_message || 'Backlinks + LLM Mentions are now pay-as-you-go.'}
         </div>
-        {avail.doc_path && (
-          <div style={{ marginTop: 6, fontSize: 12 }}>
-            Open <code>{avail.doc_path}</code> in the repo — or{' '}
-            <button onClick={downloadChecklist}
-              style={{ background: 'none', border: 'none', padding: 0, color: '#1b5e20', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
-              ↓ download {avail.doc_path.split('/').pop()}
-            </button>{' '}
-            for the day-of checklist + Phase E PR order.
-          </div>
-        )}
+        <div style={{ marginTop: 6, fontSize: 12 }}>
+          Open <code>docs/{DOC_FILENAME}</code> in the repo — or{' '}
+          <button onClick={downloadChecklist}
+            style={{ background: 'none', border: 'none', padding: 0, color: '#1b5e20', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+            ↓ download {DOC_FILENAME}
+          </button>{' '}
+          for the day-of checklist + Phase E PR order.
+        </div>
       </div>
       <button
         onClick={() => { try { localStorage.setItem(DFS_DISMISS_KEY, '1'); } catch {} setDismissed(true); }}
