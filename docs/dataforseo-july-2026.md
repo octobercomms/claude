@@ -100,3 +100,21 @@ At the post-July 20% rate adjustment. Moving the cadence from every 3 days to ev
 - `platform/frontend/src/pages/ClientSEOPage.jsx` — `DfsAvailabilityBanner` reads `user.dataforseo_availability` and renders the appropriate state.
 
 No code change needed for the cutover itself — when the system clock passes `ENABLED_FROM`, the gate lifts automatically.
+
+---
+
+## 6. Cleanup once Phase E is in production
+
+Once E1–E8 have shipped, this whole gating + reminder structure is dead weight. Delete it in one PR. Specifically:
+
+- [ ] **Delete `platform/backend/src/services/dfsAvailability.js`** — the gating helper. Once Phase E is on, every API call should succeed; nothing should be gated.
+- [ ] **Drop the request interceptor in `platform/backend/src/connectors/dataforseo.js`** — search for `assertUnlocked` and remove the import + the interceptor block.
+- [ ] **Drop `dataforseo_availability` from `/auth/me`** in `platform/backend/src/routes/auth.js` — back to the plain `{ id, username, role }` payload.
+- [ ] **Delete the `/api/docs/dataforseo-july-2026.md` route** and the route file it lives in.
+- [ ] **Remove `DfsAvailabilityBanner` from `platform/frontend/src/pages/ClientSEOPage.jsx`** — the component definition plus the one render site at the top of the page.
+- [ ] **Drop `useAuth` from `ClientSEOPage`** if nothing else in that file uses it.
+- [ ] **Delete this file: `docs/dataforseo-july-2026.md`.**
+- [ ] Search the repo for any other references to "dataforseo-july-2026" or `DFS_DISMISS_KEY` and remove them.
+
+PR title suggestion: `Sunset DataForSEO July-2026 gating now that Phase E is live`.
+

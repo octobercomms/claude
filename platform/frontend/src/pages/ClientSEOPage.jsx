@@ -25,6 +25,26 @@ function DfsAvailabilityBanner() {
   if (!avail) return null;
   const when = new Date(avail.enabled_from).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
+  // Stream the in-repo checklist .md down to the user's machine so they
+  // can stash it somewhere they'll find again on the day. Goes through
+  // /api/docs/* so the Bearer token authenticates the request.
+  async function downloadChecklist() {
+    const filename = (avail.doc_path || '').split('/').pop();
+    if (!filename) return;
+    try {
+      const res = await api.raw(`/docs/${filename}`);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
   if (!avail.unlocked) {
     return (
       <div style={{
@@ -44,7 +64,11 @@ function DfsAvailabilityBanner() {
         </ul>
         {avail.doc_path && (
           <div style={{ fontSize: 12, color: '#7a6500' }}>
-            Implementation checklist + Phase E PR plan: <code>{avail.doc_path}</code>
+            Implementation checklist + Phase E PR plan:{' '}
+            <button onClick={downloadChecklist}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#5a4a00', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+              ↓ download {avail.doc_path.split('/').pop()}
+            </button>
           </div>
         )}
       </div>
@@ -67,7 +91,12 @@ function DfsAvailabilityBanner() {
         </div>
         {avail.doc_path && (
           <div style={{ marginTop: 6, fontSize: 12 }}>
-            Open <code>{avail.doc_path}</code> in the repo — it has the day-of checklist and the Phase E PR order.
+            Open <code>{avail.doc_path}</code> in the repo — or{' '}
+            <button onClick={downloadChecklist}
+              style={{ background: 'none', border: 'none', padding: 0, color: '#1b5e20', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+              ↓ download {avail.doc_path.split('/').pop()}
+            </button>{' '}
+            for the day-of checklist + Phase E PR order.
           </div>
         )}
       </div>

@@ -100,6 +100,7 @@ app.use('/api/brand', require('./routes/brandAssets'));
 app.use('/api/ad-creatives', require('./routes/adCreatives'));
 app.use('/api/approvals', require('./routes/approvals'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/docs', require('./routes/docs'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/chat', require('./routes/chat'));
 app.use('/api/outreach', require('./routes/outreach'));
