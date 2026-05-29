@@ -28,8 +28,11 @@ class OO_Database {
             email varchar(200) NOT NULL,
             company varchar(200) NOT NULL DEFAULT '',
             type varchar(50) NOT NULL DEFAULT '',
+            title varchar(200) NOT NULL DEFAULT '',
+            website varchar(500) NOT NULL DEFAULT '',
             location varchar(200) NOT NULL DEFAULT '',
             linkedin_url varchar(500) NOT NULL DEFAULT '',
+            tags text NOT NULL DEFAULT '',
             source varchar(100) NOT NULL DEFAULT '',
             status varchar(50) NOT NULL DEFAULT 'active',
             notes text NOT NULL DEFAULT '',
@@ -181,7 +184,10 @@ class OO_Database {
             'landscape_designer' => 'Landscape Designer',
             'hotel_designer'     => 'Hotel Designer',
             'journalist'         => 'Journalist',
+            'editor'             => 'Editor',
+            'media_outlet'       => 'Media Outlet',
             'property_developer' => 'Property Developer',
+            'pr_contact'         => 'PR Contact',
             'other'              => 'Other',
         );
     }

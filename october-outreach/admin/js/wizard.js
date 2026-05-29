@@ -13,7 +13,23 @@
 
         init: function () {
             this.campaignId = parseInt( $('#oo-wizard').data('campaign-id') ) || 0;
+            this.applyModules();
             this.bindEvents();
+        },
+
+        applyModules: function () {
+            var m = (typeof ooData !== 'undefined' && ooData.modules) ? ooData.modules : {};
+            var singleModule = (!!m.enableOutreach) !== (!!m.enablePress); // XOR
+            if ( ! singleModule ) return;
+
+            var forcedType = m.enableOutreach ? 'outreach' : 'press_release';
+            var $sel = $('#w_type');
+
+            // Replace any select with a hidden input
+            if ( $sel.length && $sel[0].tagName === 'SELECT' ) {
+                $sel.closest('.oo-field').hide();
+                $sel.replaceWith( '<input type="hidden" id="w_type" value="' + forcedType + '">' );
+            }
         },
 
         updateTypeCards: function () {
