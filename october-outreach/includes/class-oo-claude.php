@@ -407,4 +407,53 @@ class OO_Claude {
         $messages = array( array( 'role' => 'user', 'content' => $prompt ) );
         return $this->request_json( $messages, 1024, $system );
     }
+
+    public function analyze_tags( array $tags_map ) {
+        $tag_lines = array();
+        foreach ( $tags_map as $tag => $count ) {
+            $tag_lines[] = $tag . ' (' . $count . ')';
+        }
+        $tags_text = implode( "\n", $tag_lines );
+
+        $system = 'You are a data-quality assistant helping to clean up a contact tag library for a PR and media outreach tool. Analyse the tags and suggest operations to tidy them. Respond ONLY with a JSON array of operation objects — no explanation text outside the JSON.';
+
+        $prompt = "Here are all the tags in this workspace with their contact counts:\n\n" . $tags_text . "\n\n"
+            . "Suggest operations to tidy these tags. Each operation must be one of:\n"
+            . "- {\"type\":\"rename\",\"from\":\"old-tag\",\"to\":\"new-tag\",\"why\":\"reason\"}\n"
+            . "- {\"type\":\"merge\",\"from\":\"duplicate-tag\",\"to\":\"canonical-tag\",\"why\":\"reason\"}\n"
+            . "- {\"type\":\"delete\",\"tag\":\"tag-to-remove\",\"why\":\"reason\"}\n"
+            . "- {\"type\":\"add_parent\",\"child\":\"specific-tag\",\"parent\":\"broad-tag\",\"why\":\"reason\"}\n\n"
+            . "Rules:\n"
+            . "- Merge tags that mean the same thing (e.g. 'tv' and 'television')\n"
+            . "- Rename tags to lowercase-hyphenated canonical form\n"
+            . "- Delete tags that are clearly noise (single-letter, numbers, gibberish)\n"
+            . "- Only suggest changes that are clearly correct — be conservative\n"
+            . "- Do not suggest deleting tags with high counts (100+) without strong reason\n"
+            . "- Respond with a JSON array only. No markdown, no explanation outside the array.";
+
+        $raw = $this->request( array( array( 'role' => 'user', 'content' => $prompt ) ), 8192, $system );
+        if ( is_wp_error( $raw ) ) return $raw;
+
+        // Try clean decode first
+        $ops = json_decode( $raw, true );
+        if ( is_array( $ops ) ) return $ops;
+
+        // Salvage: extract balanced {...} objects from the text
+        $ops = array();
+        $depth = 0; $buf = ''; $in = false;
+        for ( $i = 0; $i < strlen( $raw ); $i++ ) {
+            $ch = $raw[ $i ];
+            if ( $ch === '{' ) { $in = true; $depth++; }
+            if ( $in ) $buf .= $ch;
+            if ( $ch === '}' && $in ) {
+                $depth--;
+                if ( $depth === 0 ) {
+                    $obj = json_decode( $buf, true );
+                    if ( $obj && isset( $obj['type'] ) ) $ops[] = $obj;
+                    $buf = ''; $in = false;
+                }
+            }
+        }
+        return $ops;
+    }
 }

@@ -35,6 +35,10 @@ class OO_Ajax {
             'oo_delete_contact_ajax',
             'oo_bulk_delete_contacts_ajax',
             'oo_delete_all_contacts',
+            'oo_rename_tag',
+            'oo_delete_tag',
+            'oo_analyze_tags',
+            'oo_apply_tag_plan',
         );
 
         foreach ( $actions as $action ) {
@@ -1259,5 +1263,167 @@ class OO_Ajax {
         $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}oo_contacts" );
         $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}oo_contact_audit" );
         wp_send_json_success( array( 'deleted' => $deleted ) );
+    }
+
+    // ── Tag management ─────────────────────────────────────────────────────
+
+    private function get_all_tags_map() {
+        global $wpdb;
+        $rows = $wpdb->get_results(
+            "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags IS NOT NULL AND tags != '' AND tags != '[]'",
+            ARRAY_A
+        );
+        $map = array();
+        foreach ( $rows as $r ) {
+            $arr = json_decode( $r['tags'], true );
+            if ( is_array( $arr ) ) {
+                foreach ( $arr as $t ) {
+                    if ( $t ) $map[ $t ] = ( $map[ $t ] ?? 0 ) + 1;
+                }
+            }
+        }
+        arsort( $map );
+        return $map;
+    }
+
+    public function rename_tag() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $from = strtolower( trim( sanitize_text_field( $_POST['from'] ?? '' ) ) );
+        $to   = strtolower( trim( preg_replace( '/[^a-z0-9\-]/', '', str_replace( ' ', '-', sanitize_text_field( $_POST['to'] ?? '' ) ) ) ) );
+        if ( ! $from || ! $to ) wp_send_json_error( 'from and to are required.' );
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags LIKE %s",
+                '%' . $wpdb->esc_like( '"' . $from . '"' ) . '%'
+            ),
+            ARRAY_A
+        );
+
+        $updated = 0;
+        foreach ( $rows as $r ) {
+            $tags = json_decode( $r['tags'], true );
+            if ( ! is_array( $tags ) || ! in_array( $from, $tags, true ) ) continue;
+            $tags = array_values( array_unique( array_map(
+                fn( $t ) => $t === $from ? $to : $t,
+                $tags
+            ) ) );
+            $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $r['id'] ) );
+            $updated++;
+        }
+
+        wp_send_json_success( array( 'updated' => $updated, 'to' => $to ) );
+    }
+
+    public function delete_tag() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $tag = strtolower( trim( sanitize_text_field( $_POST['tag'] ?? '' ) ) );
+        if ( ! $tag ) wp_send_json_error( 'tag is required.' );
+
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags LIKE %s",
+                '%' . $wpdb->esc_like( '"' . $tag . '"' ) . '%'
+            ),
+            ARRAY_A
+        );
+
+        $updated = 0;
+        foreach ( $rows as $r ) {
+            $tags = json_decode( $r['tags'], true );
+            if ( ! is_array( $tags ) || ! in_array( $tag, $tags, true ) ) continue;
+            $tags = array_values( array_filter( $tags, fn( $t ) => $t !== $tag ) );
+            $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $r['id'] ) );
+            $updated++;
+        }
+
+        wp_send_json_success( array( 'updated' => $updated ) );
+    }
+
+    public function analyze_tags() {
+        $this->check_nonce();
+
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) {
+            wp_send_json_error( 'Claude API key not configured. Go to Settings.' );
+        }
+
+        $tags_map = $this->get_all_tags_map();
+        if ( empty( $tags_map ) ) wp_send_json_error( 'No tags found.' );
+
+        $result = $claude->analyze_tags( $tags_map );
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+
+        wp_send_json_success( array( 'operations' => $result ) );
+    }
+
+    public function apply_tag_plan() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $ops = json_decode( stripslashes( $_POST['operations'] ?? '[]' ), true );
+        if ( ! is_array( $ops ) ) wp_send_json_error( 'Invalid operations.' );
+
+        $applied = 0;
+
+        foreach ( $ops as $op ) {
+            $type = $op['type'] ?? '';
+
+            if ( $type === 'rename' || $type === 'merge' ) {
+                $from = strtolower( trim( $op['from'] ?? '' ) );
+                $to   = strtolower( trim( preg_replace( '/[^a-z0-9\-]/', '', str_replace( ' ', '-', $op['to'] ?? '' ) ) ) );
+                if ( ! $from || ! $to ) continue;
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags LIKE %s",
+                    '%' . $wpdb->esc_like( '"' . $from . '"' ) . '%'
+                ), ARRAY_A );
+                foreach ( $rows as $r ) {
+                    $tags = json_decode( $r['tags'], true );
+                    if ( ! is_array( $tags ) || ! in_array( $from, $tags, true ) ) continue;
+                    $tags = array_values( array_unique( array_map( fn( $t ) => $t === $from ? $to : $t, $tags ) ) );
+                    $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $r['id'] ) );
+                }
+                $applied++;
+
+            } elseif ( $type === 'delete' ) {
+                $tag = strtolower( trim( $op['tag'] ?? '' ) );
+                if ( ! $tag ) continue;
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags LIKE %s",
+                    '%' . $wpdb->esc_like( '"' . $tag . '"' ) . '%'
+                ), ARRAY_A );
+                foreach ( $rows as $r ) {
+                    $tags = json_decode( $r['tags'], true );
+                    if ( ! is_array( $tags ) || ! in_array( $tag, $tags, true ) ) continue;
+                    $tags = array_values( array_filter( $tags, fn( $t ) => $t !== $tag ) );
+                    $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $r['id'] ) );
+                }
+                $applied++;
+
+            } elseif ( $type === 'add_parent' ) {
+                $child  = strtolower( trim( $op['child']  ?? '' ) );
+                $parent = strtolower( trim( preg_replace( '/[^a-z0-9\-]/', '', str_replace( ' ', '-', $op['parent'] ?? '' ) ) ) );
+                if ( ! $child || ! $parent ) continue;
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE tags LIKE %s",
+                    '%' . $wpdb->esc_like( '"' . $child . '"' ) . '%'
+                ), ARRAY_A );
+                foreach ( $rows as $r ) {
+                    $tags = json_decode( $r['tags'], true );
+                    if ( ! is_array( $tags ) || ! in_array( $child, $tags, true ) ) continue;
+                    if ( ! in_array( $parent, $tags, true ) ) $tags[] = $parent;
+                    $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $r['id'] ) );
+                }
+                $applied++;
+            }
+        }
+
+        wp_send_json_success( array( 'applied' => $applied ) );
     }
 }
