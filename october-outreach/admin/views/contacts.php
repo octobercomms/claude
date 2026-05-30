@@ -1,195 +1,151 @@
 <?php if ( ! defined( 'ABSPATH' ) ) exit;
 global $wpdb;
-$action     = $_GET['action'] ?? 'list';
-$contact_id = intval( $_GET['id'] ?? 0 );
-$contact    = null;
-$types      = OO_Database::get_contact_types();
 
-if ( in_array( $action, array( 'edit', 'new' ) ) && $contact_id ) {
-    $contact = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_contacts WHERE id = %d", $contact_id ) );
-    if ( ! $contact ) $action = 'list';
+$action = $_GET['action'] ?? 'list';
+if ( $action === 'finder' ) { return; } // handled by contact-finder view
+
+$types = OO_Database::get_contact_types();
+
+// ── Filters ─────────────────────────────────────────────────────────────
+$search          = sanitize_text_field( $_GET['s']               ?? '' );
+$type_filter     = sanitize_text_field( $_GET['type_filter']     ?? '' );
+$verified_filter = sanitize_text_field( $_GET['verified_filter'] ?? '' );
+$tag_filter      = array_map( 'sanitize_text_field', (array) ( $_GET['tag_filter'] ?? array() ) );
+$tag_filter      = array_filter( $tag_filter );
+
+$where = "WHERE 1=1";
+$args  = array();
+
+if ( $type_filter ) {
+    $where .= " AND type = %s";
+    $args[] = $type_filter;
 }
+if ( $verified_filter ) {
+    $where .= " AND verified_status = %s";
+    $args[] = $verified_filter;
+}
+if ( $search ) {
+    $like   = '%' . $wpdb->esc_like( $search ) . '%';
+    $where .= " AND (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR company LIKE %s)";
+    array_push( $args, $like, $like, $like, $like );
+}
+foreach ( $tag_filter as $tg ) {
+    $where .= " AND tags LIKE %s";
+    $args[] = '%' . $wpdb->esc_like( '"' . $tg . '"' ) . '%';
+}
+
+$total      = (int) $wpdb->get_var( $args
+    ? $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $where", $args )
+    : "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $where"
+);
+$per_page    = 50;
+$paged       = max( 1, intval( $_GET['paged'] ?? 1 ) );
+$offset      = ( $paged - 1 ) * $per_page;
+$total_pages = (int) ceil( $total / $per_page );
+
+$contacts = $args
+    ? $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT %d OFFSET %d", array_merge( $args, array( $per_page, $offset ) ) ) )
+    : $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT $per_page OFFSET $offset" );
+
+// ── Engagement stats for current page ──────────────────────────────────
+$engagement_map = array();
+if ( $contacts ) {
+    $page_ids = array_map( fn( $c ) => intval( $c->id ), $contacts );
+    $ph       = implode( ',', array_fill( 0, count( $page_ids ), '%d' ) );
+    $eng_rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT contact_id,
+                COUNT(*) AS sent,
+                SUM(opened_at IS NOT NULL) AS opened,
+                SUM(replied_at IS NOT NULL) AS replied,
+                MAX(sent_at) AS last_sent
+         FROM {$wpdb->prefix}oo_sends
+         WHERE contact_id IN ($ph) AND status IN ('sent','opened','replied')
+         GROUP BY contact_id",
+        $page_ids
+    ), ARRAY_A );
+    foreach ( $eng_rows as $r ) {
+        $engagement_map[ $r['contact_id'] ] = $r;
+    }
+}
+
+// ── Workspace tags for filter chips ────────────────────────────────────
+$tag_rows = $wpdb->get_col(
+    "SELECT tags FROM {$wpdb->prefix}oo_contacts WHERE tags IS NOT NULL AND tags != '' AND tags != '[]' LIMIT 5000"
+);
+$workspace_tags = array();
+foreach ( $tag_rows as $raw ) {
+    $arr = json_decode( $raw, true );
+    if ( is_array( $arr ) ) {
+        foreach ( $arr as $t ) {
+            $t = strtolower( trim( $t ) );
+            if ( $t ) $workspace_tags[ $t ] = ( $workspace_tags[ $t ] ?? 0 ) + 1;
+        }
+    }
+}
+arsort( $workspace_tags );
+$workspace_tags = array_keys( $workspace_tags );
+
+$dead_count       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')" );
+$no_location_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)" );
+
+$settings = get_option( 'oo_settings', array() );
 ?>
-
-<?php if ( $action === 'new' || $action === 'edit' ) : ?>
-
-<div class="oo-page-header">
-    <h1 class="oo-page-title"><?php echo $action === 'new' ? 'Add Contact' : 'Edit Contact'; ?></h1>
-    <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts' ) ); ?>" class="oo-btn oo-btn-secondary">← Back</a>
-</div>
-
-<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-    <?php wp_nonce_field( 'oo_save_contact' ); ?>
-    <input type="hidden" name="action" value="oo_save_contact">
-    <input type="hidden" name="contact_id" value="<?php echo esc_attr( $contact_id ); ?>">
-
-    <div class="oo-form-grid">
-        <div class="oo-card">
-            <h2 class="oo-card-title">Contact Details</h2>
-            <div class="oo-field"><label class="oo-label">First Name</label><input type="text" name="first_name" class="oo-input" value="<?php echo esc_attr( $contact->first_name ?? '' ); ?>" required></div>
-            <div class="oo-field"><label class="oo-label">Last Name</label><input type="text" name="last_name" class="oo-input" value="<?php echo esc_attr( $contact->last_name ?? '' ); ?>"></div>
-            <div class="oo-field"><label class="oo-label">Email</label><input type="email" name="email" class="oo-input" value="<?php echo esc_attr( $contact->email ?? '' ); ?>" required></div>
-            <div class="oo-field"><label class="oo-label">Company / Practice</label><input type="text" name="company" class="oo-input" value="<?php echo esc_attr( $contact->company ?? '' ); ?>"></div>
-            <div class="oo-field">
-                <label class="oo-label">Contact Type</label>
-                <select name="type" class="oo-select">
-                    <option value="">— Select —</option>
-                    <?php foreach ( $types as $val => $label ) : ?>
-                    <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $contact->type ?? '', $val ); ?>><?php echo esc_html( $label ); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-        </div>
-        <div class="oo-card">
-            <h2 class="oo-card-title">More Info</h2>
-            <div class="oo-field"><label class="oo-label">Job Title / Role</label><input type="text" name="title" class="oo-input" value="<?php echo esc_attr( $contact->title ?? '' ); ?>" placeholder="e.g. Senior Editor"></div>
-            <div class="oo-field"><label class="oo-label">Website</label><input type="url" name="website" class="oo-input" value="<?php echo esc_attr( $contact->website ?? '' ); ?>" placeholder="https://publication.com"></div>
-            <div class="oo-field"><label class="oo-label">Location</label><input type="text" name="location" class="oo-input" value="<?php echo esc_attr( $contact->location ?? '' ); ?>" placeholder="e.g. London, UK"></div>
-            <div class="oo-field"><label class="oo-label">LinkedIn URL</label><input type="url" name="linkedin_url" class="oo-input" value="<?php echo esc_attr( $contact->linkedin_url ?? '' ); ?>"></div>
-            <div class="oo-field"><label class="oo-label">Source</label><input type="text" name="source" class="oo-input" value="<?php echo esc_attr( $contact->source ?? '' ); ?>" placeholder="Hunter.io, Manual, Import..."></div>
-            <div class="oo-field">
-                <label class="oo-label">Status</label>
-                <select name="status" class="oo-select">
-                    <?php foreach ( array( 'active' => 'Active', 'unsubscribed' => 'Unsubscribed', 'bounced' => 'Bounced', 'do_not_contact' => 'Do Not Contact' ) as $val => $lbl ) : ?>
-                    <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $contact->status ?? 'active', $val ); ?>><?php echo esc_html( $lbl ); ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="oo-field"><label class="oo-label">Notes</label><textarea name="notes" class="oo-textarea"><?php echo esc_textarea( $contact->notes ?? '' ); ?></textarea></div>
-            <div class="oo-field">
-                <label class="oo-label">Tags <span class="oo-muted" style="font-weight:400">— comma-separated labels, e.g. architecture,uk,tier-1</span></label>
-                <?php
-                $existing_tags = array_filter( explode( ',', $contact->tags ?? '' ) );
-                ?>
-                <div class="oo-tag-list" id="oo-tag-list">
-                    <?php foreach ( $existing_tags as $tag ) : ?>
-                    <span class="oo-tag"><?php echo esc_html( $tag ); ?><button type="button" class="oo-tag-remove" aria-label="Remove">×</button></span>
-                    <?php endforeach; ?>
-                </div>
-                <div class="oo-tag-add">
-                    <input type="text" id="oo-tag-input" class="oo-input" placeholder="Add tag…" style="max-width:220px">
-                    <button type="button" class="oo-btn oo-btn-secondary" id="oo-tag-add-btn">Add</button>
-                </div>
-                <input type="hidden" name="tags" id="oo-tags-hidden" value="<?php echo esc_attr( implode( ',', $existing_tags ) ); ?>">
-            </div>
-        </div>
-    </div>
-
-    <div class="oo-wizard-actions">
-        <button type="submit" class="oo-btn oo-btn-primary oo-btn-lg">Save Contact</button>
-        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts' ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-lg">Cancel</a>
-    </div>
-</form>
-<script>
-(function() {
-    var list   = document.getElementById('oo-tag-list');
-    var input  = document.getElementById('oo-tag-input');
-    var hidden = document.getElementById('oo-tags-hidden');
-    var addBtn = document.getElementById('oo-tag-add-btn');
-    if (!list || !input || !hidden) return;
-
-    function getTags() {
-        return hidden.value ? hidden.value.split(',').filter(Boolean) : [];
-    }
-    function saveTags(tags) {
-        hidden.value = tags.join(',');
-    }
-    function addTag(val) {
-        var tag = val.toLowerCase().trim().replace(/\s+/g, '-');
-        if (!tag) return;
-        var tags = getTags();
-        if (tags.indexOf(tag) !== -1) return;
-        tags.push(tag);
-        saveTags(tags);
-        var span = document.createElement('span');
-        span.className = 'oo-tag';
-        span.innerHTML = tag + '<button type="button" class="oo-tag-remove" aria-label="Remove">×</button>';
-        span.querySelector('.oo-tag-remove').addEventListener('click', function() { removeTag(tag, span); });
-        list.appendChild(span);
-    }
-    function removeTag(tag, span) {
-        saveTags(getTags().filter(function(t) { return t !== tag; }));
-        span.remove();
-    }
-    list.querySelectorAll('.oo-tag-remove').forEach(function(btn) {
-        var tag = btn.parentElement.textContent.trim().replace('×','').trim();
-        btn.addEventListener('click', function() { removeTag(tag, btn.parentElement); });
-    });
-    addBtn.addEventListener('click', function() { addTag(input.value); input.value = ''; input.focus(); });
-    input.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addTag(input.value); input.value = ''; }
-    });
-})();
-</script>
-
-<?php else : ?>
 
 <div class="oo-page-header">
     <h1 class="oo-page-title">Contacts</h1>
     <div class="oo-page-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=finder' ) ); ?>" class="oo-btn oo-btn-primary">+ Find New Contacts</a>
-        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">+ Add Manually</a>
-        <button class="oo-btn oo-btn-secondary" id="oo-import-toggle-btn">↑ Import CSV</button>
+        <button class="oo-btn oo-btn-secondary" id="oo-add-contact-btn">+ Add Manually</button>
+        <button class="oo-btn oo-btn-secondary" id="oo-import-btn">↑ Import CSV</button>
         <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_export_contacts' ), 'oo_export_contacts' ) ); ?>" class="oo-btn oo-btn-secondary">↓ Export CSV</a>
-        <?php if ( ! empty( get_option( 'oo_settings', [] )['airtable_api_key'] ) ) : ?>
+        <?php if ( ! empty( $settings['airtable_api_key'] ) ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-airtable-push-btn">Sync Airtable</button>
         <?php endif; ?>
     </div>
 </div>
 
-<?php if ( isset( $_GET['imported'] ) ) : ?>
-<div class="oo-notice oo-notice-success"><?php echo intval( $_GET['imported'] ); ?> contacts imported<?php if ( isset( $_GET['skipped'] ) ) echo ', ' . intval( $_GET['skipped'] ) . ' skipped (duplicates or invalid email)'; ?>.</div>
-<?php endif; ?>
-<?php if ( isset( $_GET['import_error'] ) ) : ?>
-<?php $import_errors = array( 'no_file' => 'No file uploaded.', 'unreadable' => 'Could not read file.', 'empty' => 'File appears empty.', 'no_email_column' => 'CSV must have an "email" column.' ); ?>
-<div class="oo-notice oo-notice-error"><?php echo esc_html( $import_errors[ $_GET['import_error'] ] ?? 'Import failed.' ); ?></div>
-<?php endif; ?>
-
-<!-- CSV Import panel (hidden by default) -->
-<div id="oo-import-panel" class="oo-card" style="display:none;margin-bottom:16px">
-    <h2 class="oo-card-title">Import Contacts from CSV</h2>
-    <p class="oo-muted" style="margin-bottom:12px">Upload a CSV file with your contacts. Duplicate emails are automatically skipped. <a href="<?php echo esc_url( admin_url( 'admin-post.php?action=oo_export_contacts&template=1&_wpnonce=' . wp_create_nonce( 'oo_export_contacts' ) ) ); ?>" id="oo-csv-template-link">Download template →</a></p>
-    <p class="oo-muted" style="margin-bottom:14px;font-size:12px">Accepted columns: <code>first_name, last_name, email, company, type, title, location, linkedin_url, notes</code></p>
-    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data">
-        <?php wp_nonce_field( 'oo_import_contacts' ); ?>
-        <input type="hidden" name="action" value="oo_import_contacts">
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-            <input type="file" name="csv_file" accept=".csv,text/csv" class="oo-input" style="max-width:320px" required>
-            <button type="submit" class="oo-btn oo-btn-primary">Import</button>
-        </div>
-    </form>
-</div>
-
-<?php if ( isset( $_GET['saved'] ) ) : ?><div class="oo-notice oo-notice-success">Contact saved.</div><?php endif; ?>
-<?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval($_GET['deleted']); ?> contact(s) deleted.</div><?php endif; ?>
+<div id="oo-contacts-notices"></div>
 <div id="oo-airtable-push-result" class="oo-notice" style="display:none"></div>
 
-<?php
-$type_filter     = sanitize_text_field( $_GET['type_filter']     ?? '' );
-$verified_filter = sanitize_text_field( $_GET['verified_filter'] ?? '' );
-$search = sanitize_text_field( $_GET['s'] ?? '' );
-$where  = "WHERE 1=1";
-if ( $type_filter )     $where .= $wpdb->prepare( " AND type = %s", $type_filter );
-if ( $verified_filter ) $where .= $wpdb->prepare( " AND verified_status = %s", $verified_filter );
-if ( $search ) {
-    $like = '%' . $wpdb->esc_like( $search ) . '%';
-    $where .= $wpdb->prepare( " AND (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR company LIKE %s)", $like, $like, $like, $like );
-}
-$total      = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts $where" );
-$per_page   = 50;
-$paged      = max( 1, intval( $_GET['paged'] ?? 1 ) );
-$offset     = ( $paged - 1 ) * $per_page;
-$total_pages = (int) ceil( $total / $per_page );
-$contacts   = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_contacts $where ORDER BY created_at DESC LIMIT %d OFFSET %d", $per_page, $offset ) );
-$dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')" );
-?>
+<?php if ( isset( $_GET['imported'] ) ) : ?>
+<div class="oo-notice oo-notice-success"><?php echo intval( $_GET['imported'] ); ?> contacts imported, <?php echo intval( $_GET['merged'] ?? 0 ); ?> merged, <?php echo intval( $_GET['skipped'] ?? 0 ); ?> skipped.</div>
+<?php endif; ?>
 
-<div id="oo-dead-result" class="oo-notice" style="display:none;margin-bottom:8px"></div>
+<!-- ── Tag filter chips ──────────────────────────────────────────────── -->
+<?php if ( ! empty( $workspace_tags ) ) : ?>
+<div class="oo-tag-filter-bar" id="oo-tag-filter-bar">
+    <span class="oo-muted" style="font-size:12px;white-space:nowrap">Filter by tag:</span>
+    <?php foreach ( array_slice( $workspace_tags, 0, 40 ) as $wt ) :
+        $active = in_array( $wt, $tag_filter, true );
+        $new_tags = $active ? array_values( array_diff( $tag_filter, array( $wt ) ) ) : array_merge( $tag_filter, array( $wt ) );
+        $chip_url = add_query_arg( array_filter( array(
+            'page'            => 'oo-contacts',
+            's'               => $search ?: null,
+            'type_filter'     => $type_filter ?: null,
+            'verified_filter' => $verified_filter ?: null,
+            'tag_filter'      => $new_tags ?: null,
+        ) ), admin_url( 'admin.php' ) );
+    ?>
+    <a href="<?php echo esc_url( $chip_url ); ?>"
+       class="oo-tag-filter-chip<?php echo $active ? ' active' : ''; ?>">
+        <?php echo esc_html( $wt ); ?>
+        <?php if ( $active ) echo '<span>×</span>'; ?>
+    </a>
+    <?php endforeach; ?>
+    <?php if ( count( $workspace_tags ) > 40 ) : ?>
+    <span class="oo-muted" style="font-size:11px">+<?php echo count( $workspace_tags ) - 40; ?> more — use search</span>
+    <?php endif; ?>
+</div>
+<?php endif; ?>
 
+<!-- ── Filter bar ───────────────────────────────────────────────────── -->
 <div class="oo-filters">
     <form method="get" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <input type="hidden" name="page" value="oo-contacts">
-        <input type="search" name="s" class="oo-input" value="<?php echo esc_attr( $search ); ?>" placeholder="Search contacts..." style="width:220px">
+        <?php foreach ( $tag_filter as $tg ) : ?>
+        <input type="hidden" name="tag_filter[]" value="<?php echo esc_attr( $tg ); ?>">
+        <?php endforeach; ?>
+        <input type="search" name="s" class="oo-input" value="<?php echo esc_attr( $search ); ?>" placeholder="Search contacts…" style="width:220px">
         <select name="type_filter" class="oo-select" style="width:160px">
             <option value="">All Types</option>
             <?php foreach ( $types as $val => $label ) : ?>
@@ -205,17 +161,17 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
             <option value="dead"       <?php selected( $verified_filter, 'dead' ); ?>>Dead</option>
         </select>
         <button type="submit" class="oo-btn oo-btn-secondary">Filter</button>
+        <?php if ( $search || $type_filter || $verified_filter || $tag_filter ) : ?>
+        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts' ) ); ?>" class="oo-btn oo-btn-secondary">✕ Clear</a>
+        <?php endif; ?>
         <span class="oo-count">
             <?php if ( $total_pages > 1 ) :
-                echo 'Showing ' . ( $offset + 1 ) . '–' . min( $offset + $per_page, $total ) . ' of ' . intval( $total ) . ' contacts';
+                echo 'Showing ' . ( $offset + 1 ) . '–' . min( $offset + $per_page, $total ) . ' of ' . number_format( $total ) . ' contacts';
             else :
-                echo intval( $total ) . ' contact' . ( $total !== 1 ? 's' : '' );
+                echo number_format( $total ) . ' contact' . ( $total !== 1 ? 's' : '' );
             endif; ?>
         </span>
     </form>
-    <?php
-    $no_location_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)" );
-    ?>
     <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
         <?php if ( $no_location_count > 0 ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-enrich-locations-btn">
@@ -224,72 +180,65 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
         <?php endif; ?>
         <?php if ( $dead_count > 0 ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-delete-dead-btn" style="color:#c0392b;border-color:#c0392b">
-            Delete <?php echo $dead_count; ?> Dead / Invalid Emails
+            Delete <?php echo $dead_count; ?> Dead / Invalid
         </button>
         <?php endif; ?>
     </div>
 </div>
 <div id="oo-enrich-result" class="oo-notice" style="display:none;margin-bottom:8px"></div>
+<div id="oo-dead-result"   class="oo-notice" style="display:none;margin-bottom:8px"></div>
 
+<!-- ── Bulk toolbar ─────────────────────────────────────────────────── -->
+<div class="oo-bulk-toolbar" id="oo-bulk-toolbar" style="display:none">
+    <span id="oo-bulk-count" class="oo-muted" style="font-size:13px"></span>
+    <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-bulk-tag-btn">+ Add Tags</button>
+    <button class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-bulk-delete-btn" style="color:#c0392b;border-color:#c0392b">Delete Selected</button>
+</div>
+
+<!-- ── Table ────────────────────────────────────────────────────────── -->
 <?php if ( $contacts ) : ?>
-<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="oo-bulk-form">
-    <?php wp_nonce_field( 'oo_bulk_delete_contacts' ); ?>
-    <input type="hidden" name="action" value="oo_bulk_delete_contacts">
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-        <button type="submit" class="oo-btn oo-btn-secondary" onclick="return confirm('Delete all selected contacts? This cannot be undone.')">Delete Selected</button>
-        <span class="oo-muted" id="oo-selected-count" style="font-size:13px"></span>
-    </div>
-    <div class="oo-table-wrap">
-        <table class="oo-table">
-            <thead><tr>
-                <th style="width:36px"><input type="checkbox" id="oo-select-all" title="Select all"></th>
-                <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Tags</th><th>Location</th><th>Status</th><th>Added</th><th>Actions</th>
-            </tr></thead>
-            <tbody>
-            <?php
-            $verified_badge = array(
-                'valid'      => array( 'green',  'Valid' ),
-                'risky'      => array( 'orange', 'Risky' ),
-                'invalid'    => array( 'red',    'Invalid' ),
-                'dead'       => array( 'grey',   'Dead' ),
-                'unverified' => array( 'grey',   '—' ),
-            );
-            foreach ( $contacts as $c ) :
-                $vs     = $c->verified_status ?? 'unverified';
-                $vb     = $verified_badge[ $vs ] ?? array( 'grey', $vs );
-            ?>
-            <tr>
-                <td><input type="checkbox" name="contact_ids[]" value="<?php echo esc_attr( $c->id ); ?>" class="oo-row-cb"></td>
-                <td><strong><?php echo esc_html( trim( $c->first_name . ' ' . $c->last_name ) ?: '—' ); ?></strong></td>
-                <td><?php echo esc_html( $c->email ); ?></td>
-                <td><?php echo esc_html( $c->company ?: '—' ); ?></td>
-                <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ?: '—' ); ?></td>
-                <td>
-                    <?php if ( ! empty( $c->tags ) ) :
-                        foreach ( explode( ',', $c->tags ) as $tag ) : ?>
-                    <span class="oo-badge oo-badge-blue" style="margin:1px 2px;font-size:10.5px"><?php echo esc_html( $tag ); ?></span>
-                    <?php endforeach; endif; ?>
-                </td>
-                <td class="oo-muted"><?php echo esc_html( $c->location ?: '—' ); ?></td>
-                <td><span class="oo-badge oo-badge-<?php echo $c->status === 'active' ? 'green' : 'grey'; ?>"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $c->status ) ) ); ?></span></td>
-                <td class="oo-muted"><?php echo esc_html( date( 'd M Y', strtotime( $c->created_at ) ) ); ?></td>
-                <td>
-                    <div class="oo-row-actions">
-                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=edit&id=' . $c->id ) ); ?>">Edit</a>
-                        <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this contact?')">
-                            <?php wp_nonce_field( 'oo_delete_contact' ); ?>
-                            <input type="hidden" name="action" value="oo_delete_contact">
-                            <input type="hidden" name="contact_id" value="<?php echo esc_attr( $c->id ); ?>">
-                            <button type="submit" class="oo-delete-btn">Delete</button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-</form>
+<div class="oo-table-wrap">
+    <table class="oo-table" id="oo-contacts-table">
+        <thead><tr>
+            <th style="width:36px"><input type="checkbox" id="oo-select-all" title="Select all"></th>
+            <th>Name</th><th>Email</th><th>Company</th><th>Type</th><th>Tags</th><th>Location</th><th>Engagement</th><th>Status</th><th style="width:36px"></th>
+        </tr></thead>
+        <tbody>
+        <?php foreach ( $contacts as $c ) :
+            $tags   = json_decode( $c->tags ?? '[]', true );
+            $tags   = is_array( $tags ) ? $tags : array();
+            $eng    = $engagement_map[ $c->id ] ?? null;
+            $eng_str = $eng
+                ? $eng['sent'] . ' sent · ' . $eng['opened'] . ' opened'
+                : '—';
+            $eng_tip = $eng
+                ? sprintf( 'Sent %d · Opened %d · Replied %d · Last sent %s',
+                    $eng['sent'], $eng['opened'], $eng['replied'],
+                    $eng['last_sent'] ? date( 'd M Y', strtotime( $eng['last_sent'] ) ) : 'never'
+                  )
+                : '';
+        ?>
+        <tr class="oo-contact-row" data-id="<?php echo esc_attr( $c->id ); ?>">
+            <td class="oo-cb-cell"><input type="checkbox" class="oo-row-cb" value="<?php echo esc_attr( $c->id ); ?>"></td>
+            <td><strong><?php echo esc_html( trim( $c->first_name . ' ' . $c->last_name ) ?: '—' ); ?></strong></td>
+            <td class="oo-muted"><?php echo esc_html( $c->email ); ?></td>
+            <td><?php echo esc_html( $c->company ?: '—' ); ?></td>
+            <td><?php echo esc_html( $types[ $c->type ] ?? $c->type ?: '—' ); ?></td>
+            <td>
+                <?php foreach ( array_slice( $tags, 0, 3 ) as $tag ) : ?>
+                <span class="oo-badge oo-badge-blue" style="margin:1px 2px;font-size:10.5px"><?php echo esc_html( $tag ); ?></span>
+                <?php endforeach; ?>
+                <?php if ( count( $tags ) > 3 ) echo '<span class="oo-muted" style="font-size:11px">+' . ( count( $tags ) - 3 ) . '</span>'; ?>
+            </td>
+            <td class="oo-muted"><?php echo esc_html( $c->location ?: '—' ); ?></td>
+            <td class="oo-muted" <?php if ( $eng_tip ) echo 'title="' . esc_attr( $eng_tip ) . '"'; ?>><?php echo esc_html( $eng_str ); ?></td>
+            <td><span class="oo-badge oo-badge-<?php echo $c->status === 'active' ? 'green' : 'grey'; ?>"><?php echo esc_html( ucfirst( str_replace( '_', ' ', $c->status ) ) ); ?></span></td>
+            <td class="oo-delete-cell"><button class="oo-row-delete-btn" data-id="<?php echo esc_attr( $c->id ); ?>" title="Delete">×</button></td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>
 
 <?php if ( $total_pages > 1 ) :
     $base_url = add_query_arg( array_filter( array(
@@ -297,20 +246,19 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
         's'               => $search ?: null,
         'type_filter'     => $type_filter ?: null,
         'verified_filter' => $verified_filter ?: null,
+        'tag_filter'      => $tag_filter ?: null,
     ) ), admin_url( 'admin.php' ) );
 ?>
 <div style="display:flex;align-items:center;gap:6px;margin-top:14px;flex-wrap:wrap">
     <?php if ( $paged > 1 ) : ?>
     <a href="<?php echo esc_url( add_query_arg( 'paged', $paged - 1, $base_url ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-sm">← Prev</a>
     <?php endif; ?>
-
     <?php for ( $p = max( 1, $paged - 3 ); $p <= min( $total_pages, $paged + 3 ); $p++ ) : ?>
     <a href="<?php echo esc_url( add_query_arg( 'paged', $p, $base_url ) ); ?>"
        class="oo-btn oo-btn-sm <?php echo $p === $paged ? 'oo-btn-primary' : 'oo-btn-secondary'; ?>">
         <?php echo $p; ?>
     </a>
     <?php endfor; ?>
-
     <?php if ( $paged < $total_pages ) : ?>
     <a href="<?php echo esc_url( add_query_arg( 'paged', $paged + 1, $base_url ) ); ?>" class="oo-btn oo-btn-secondary oo-btn-sm">Next →</a>
     <?php endif; ?>
@@ -318,146 +266,178 @@ $dead_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_cont
 </div>
 <?php endif; ?>
 
-<script>
-(function(){
-    var all = document.getElementById('oo-select-all');
-    var cbs = document.querySelectorAll('.oo-row-cb');
-    var count = document.getElementById('oo-selected-count');
-    function updateCount(){
-        var n = document.querySelectorAll('.oo-row-cb:checked').length;
-        count.textContent = n ? n + ' selected' : '';
-    }
-    all.addEventListener('change', function(){ cbs.forEach(function(cb){ cb.checked = all.checked; }); updateCount(); });
-    cbs.forEach(function(cb){ cb.addEventListener('change', function(){ all.checked = Array.from(cbs).every(function(c){ return c.checked; }); updateCount(); }); });
-})();
-</script>
 <?php else : ?>
 <div class="oo-card">
     <div class="oo-empty-state">
         <h3>No contacts yet</h3>
         <p>Use the Contact Finder to search for contacts automatically via Hunter.io and Icypeas, or add them manually.</p>
         <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=finder' ) ); ?>" class="oo-btn oo-btn-primary" style="margin-right:8px">Find New Contacts</a>
-        <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-contacts&action=new' ) ); ?>" class="oo-btn oo-btn-secondary">Add Manually</a>
+        <button class="oo-btn oo-btn-secondary" id="oo-add-contact-btn-empty">Add Manually</button>
     </div>
 </div>
 <?php endif; ?>
 
+<!-- ══════════════════════════════════════════════════════════════════════
+     MODAL: Edit / Add Contact
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="oo-edit-modal" class="oo-modal-overlay" style="display:none">
+    <div class="oo-modal oo-modal-wide">
+        <div class="oo-modal-head">
+            <h2 id="oo-edit-modal-title">Edit Contact</h2>
+            <button class="oo-modal-close" id="oo-edit-modal-close">×</button>
+        </div>
+        <div class="oo-modal-tabs">
+            <button class="oo-tab-btn active" data-tab="details">Details</button>
+            <button class="oo-tab-btn" data-tab="activity">Activity</button>
+        </div>
+        <div id="oo-edit-tab-details" class="oo-tab-panel">
+            <form id="oo-edit-form">
+                <input type="hidden" id="oo-edit-contact-id" name="contact_id" value="">
+                <div class="oo-form-grid" style="gap:12px 20px">
+                    <div class="oo-field"><label class="oo-label">First Name</label><input type="text" name="first_name" id="oo-edit-first_name" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">Last Name</label><input type="text" name="last_name" id="oo-edit-last_name" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">Email *</label><input type="email" name="email" id="oo-edit-email" class="oo-input" required></div>
+                    <div class="oo-field"><label class="oo-label">Company</label><input type="text" name="company" id="oo-edit-company" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">Contact Type</label>
+                        <select name="type" id="oo-edit-type" class="oo-select">
+                            <option value="">— Select —</option>
+                            <?php foreach ( $types as $val => $label ) : ?>
+                            <option value="<?php echo esc_attr( $val ); ?>"><?php echo esc_html( $label ); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="oo-field"><label class="oo-label">Job Title</label><input type="text" name="title" id="oo-edit-title" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">Website</label><input type="url" name="website" id="oo-edit-website" class="oo-input" placeholder="https://"></div>
+                    <div class="oo-field"><label class="oo-label">Location</label><input type="text" name="location" id="oo-edit-location" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">LinkedIn URL</label><input type="url" name="linkedin_url" id="oo-edit-linkedin_url" class="oo-input" placeholder="https://"></div>
+                    <div class="oo-field"><label class="oo-label">Source</label><input type="text" name="source" id="oo-edit-source" class="oo-input"></div>
+                    <div class="oo-field"><label class="oo-label">Status</label>
+                        <select name="status" id="oo-edit-status" class="oo-select">
+                            <option value="active">Active</option>
+                            <option value="unsubscribed">Unsubscribed</option>
+                            <option value="bounced">Bounced</option>
+                            <option value="do_not_contact">Do Not Contact</option>
+                        </select>
+                    </div>
+                    <div class="oo-field oo-field-full"><label class="oo-label">Notes</label><textarea name="notes" id="oo-edit-notes" class="oo-textarea" rows="3"></textarea></div>
+                    <div class="oo-field oo-field-full">
+                        <label class="oo-label">Tags</label>
+                        <div class="oo-chip-list" id="oo-edit-tag-chips"></div>
+                        <div style="display:flex;gap:6px;margin-top:6px">
+                            <input type="text" id="oo-edit-tag-input" class="oo-input" placeholder="Add tag…" style="max-width:200px">
+                            <button type="button" class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-edit-tag-add-btn">Add</button>
+                        </div>
+                        <div class="oo-tag-suggest-row" id="oo-edit-tag-suggestions"></div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:16px;padding-top:16px;border-top:1px solid #e2e8f0">
+                    <button type="submit" class="oo-btn oo-btn-primary" id="oo-edit-save-btn">Save</button>
+                    <button type="button" class="oo-btn oo-btn-secondary" id="oo-edit-cancel-btn">Cancel</button>
+                    <span id="oo-edit-status-msg" style="font-size:13px;align-self:center"></span>
+                </div>
+            </form>
+        </div>
+        <div id="oo-edit-tab-activity" class="oo-tab-panel" style="display:none">
+            <div id="oo-activity-list" style="max-height:480px;overflow-y:auto"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MODAL: Import Wizard
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="oo-import-modal" class="oo-modal-overlay" style="display:none">
+    <div class="oo-modal oo-modal-wide">
+        <div class="oo-modal-head">
+            <h2>Import Contacts</h2>
+            <button class="oo-modal-close" id="oo-import-modal-close">×</button>
+        </div>
+        <!-- Step indicators -->
+        <div class="oo-import-steps">
+            <div class="oo-import-step active" id="oo-istep-1">1 · Upload</div>
+            <div class="oo-import-step-arrow">›</div>
+            <div class="oo-import-step" id="oo-istep-2">2 · Map columns</div>
+            <div class="oo-import-step-arrow">›</div>
+            <div class="oo-import-step" id="oo-istep-3">3 · Confirm</div>
+        </div>
+
+        <!-- Step 1: file picker -->
+        <div id="oo-import-panel-1" class="oo-import-panel">
+            <div class="oo-dropzone" id="oo-dropzone">
+                <div id="oo-dropzone-text">Drop a CSV here or <label for="oo-csv-file-input" style="color:var(--oo-accent);cursor:pointer;text-decoration:underline">browse</label></div>
+                <input type="file" id="oo-csv-file-input" accept=".csv,text/csv" style="display:none">
+                <div id="oo-dropzone-filename" class="oo-muted" style="margin-top:6px;font-size:12px"></div>
+            </div>
+            <p class="oo-muted" style="margin-top:12px;font-size:12px">Need a template? <a href="<?php echo esc_url( admin_url( 'admin-post.php?action=oo_export_contacts&template=1&_wpnonce=' . wp_create_nonce( 'oo_export_contacts' ) ) ); ?>">Download CSV template →</a></p>
+            <div style="margin-top:16px"><button class="oo-btn oo-btn-primary" id="oo-import-next-1" disabled>Next →</button></div>
+        </div>
+
+        <!-- Step 2: column mapping + tag picker -->
+        <div id="oo-import-panel-2" class="oo-import-panel" style="display:none">
+            <div style="overflow-x:auto">
+                <table class="oo-table oo-mapping-table" id="oo-mapping-table">
+                    <thead><tr><th>CSV Column</th><th>Map to field</th><th>Preview (first 3 rows)</th></tr></thead>
+                    <tbody id="oo-mapping-tbody"></tbody>
+                </table>
+            </div>
+            <div style="margin-top:20px">
+                <label class="oo-label">Apply tags to every imported row</label>
+                <div class="oo-chip-list" id="oo-import-tag-chips"></div>
+                <div style="display:flex;gap:6px;margin-top:6px">
+                    <input type="text" id="oo-import-tag-input" class="oo-input" placeholder="Add tag…" style="max-width:200px">
+                    <button type="button" class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-import-tag-add-btn">Add</button>
+                </div>
+                <div class="oo-tag-suggest-row" id="oo-import-tag-suggestions"></div>
+            </div>
+            <div id="oo-mapping-error" class="oo-notice oo-notice-error" style="display:none;margin-top:12px"></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="oo-btn oo-btn-secondary" id="oo-import-back-2">← Back</button>
+                <button class="oo-btn oo-btn-primary" id="oo-import-next-2">Next →</button>
+            </div>
+        </div>
+
+        <!-- Step 3: confirm + import -->
+        <div id="oo-import-panel-3" class="oo-import-panel" style="display:none">
+            <div id="oo-import-summary"></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="oo-btn oo-btn-secondary" id="oo-import-back-3">← Back</button>
+                <button class="oo-btn oo-btn-primary" id="oo-import-do-btn">Import</button>
+                <span id="oo-import-progress" class="oo-muted" style="align-self:center;font-size:13px"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MODAL: Bulk tag
+═══════════════════════════════════════════════════════════════════════ -->
+<div id="oo-bulk-tag-modal" class="oo-modal-overlay" style="display:none">
+    <div class="oo-modal">
+        <div class="oo-modal-head">
+            <h2>Add Tags to Selected Contacts</h2>
+            <button class="oo-modal-close" id="oo-bulk-tag-modal-close">×</button>
+        </div>
+        <div style="padding:20px">
+            <div class="oo-chip-list" id="oo-bulk-tag-chips"></div>
+            <div style="display:flex;gap:6px;margin-top:8px">
+                <input type="text" id="oo-bulk-tag-input" class="oo-input" placeholder="Add tag…" style="max-width:200px">
+                <button type="button" class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-bulk-tag-add-btn">Add</button>
+            </div>
+            <div class="oo-tag-suggest-row" id="oo-bulk-tag-suggestions"></div>
+            <div style="margin-top:16px;display:flex;gap:8px">
+                <button class="oo-btn oo-btn-primary" id="oo-bulk-tag-apply-btn">Apply Tags</button>
+                <button class="oo-btn oo-btn-secondary" id="oo-bulk-tag-cancel-btn">Cancel</button>
+                <span id="oo-bulk-tag-status" class="oo-muted" style="align-self:center;font-size:13px"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
-(function(){
-    var importBtn = document.getElementById('oo-import-toggle-btn');
-    var importPanel = document.getElementById('oo-import-panel');
-    if (importBtn && importPanel) {
-        importBtn.addEventListener('click', function() {
-            var visible = importPanel.style.display !== 'none';
-            importPanel.style.display = visible ? 'none' : 'block';
-            importBtn.textContent = visible ? '↑ Import CSV' : '✕ Close Import';
-        });
-        <?php if ( isset( $_GET['import_error'] ) ) : ?>
-        importPanel.style.display = 'block';
-        importBtn.textContent = '✕ Close Import';
-        <?php endif; ?>
-    }
-})();
-(function(){
-    var btn = document.getElementById('oo-airtable-push-btn');
-    if (!btn) return;
-    btn.addEventListener('click', function() {
-        btn.disabled = true;
-        btn.textContent = 'Syncing…';
-        var result = document.getElementById('oo-airtable-push-result');
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            headers: {'Content-Type':'application/x-www-form-urlencoded'},
-            body: 'action=oo_airtable_push_all&nonce=' + encodeURIComponent(ooData.nonce)
-        }).then(function(r){ return r.json(); }).then(function(res){
-            btn.disabled = false;
-            btn.textContent = 'Sync Airtable';
-            result.className = 'oo-notice ' + (res.success ? 'oo-notice-success' : 'oo-notice-error');
-            result.textContent = res.success ? (res.data.pushed + ' contacts synced to Airtable.') : (res.data || 'Sync failed');
-            result.style.display = 'block';
-        }).catch(function(){
-            btn.disabled = false; btn.textContent = 'Sync Airtable';
-            result.className = 'oo-notice oo-notice-error';
-            result.textContent = 'Request failed.';
-            result.style.display = 'block';
-        });
-    });
-})();
-(function(){
-    var btn = document.getElementById('oo-delete-dead-btn');
-    if (!btn) return;
-    btn.addEventListener('click', function() {
-        if (!confirm('Permanently delete all invalid and dead email contacts? This cannot be undone.')) return;
-        btn.disabled = true;
-        btn.textContent = 'Deleting…';
-        var result = document.getElementById('oo-dead-result');
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            headers: {'Content-Type':'application/x-www-form-urlencoded'},
-            body: 'action=oo_bulk_delete_dead&nonce=' + encodeURIComponent(ooData.nonce)
-        }).then(function(r){ return r.json(); }).then(function(res){
-            if (res.success) {
-                result.className = 'oo-notice oo-notice-success';
-                result.textContent = res.data.deleted + ' dead / invalid contacts deleted.';
-                result.style.display = 'block';
-                btn.parentNode.style.display = 'none';
-                setTimeout(function(){ location.reload(); }, 1500);
-            } else {
-                btn.disabled = false;
-                btn.textContent = 'Delete Dead / Invalid Emails';
-                result.className = 'oo-notice oo-notice-error';
-                result.textContent = res.data || 'Delete failed.';
-                result.style.display = 'block';
-            }
-        }).catch(function(){
-            btn.disabled = false;
-            btn.textContent = 'Delete Dead / Invalid Emails';
-        });
-    });
-})();
-(function(){
-    var btn = document.getElementById('oo-enrich-locations-btn');
-    if (!btn) return;
-    var result   = document.getElementById('oo-enrich-result');
-    var btnLabel = document.getElementById('oo-enrich-btn-text');
-
-    function runBatch() {
-        btn.disabled = true;
-        fetch(window.ajaxurl || '/wp-admin/admin-ajax.php', {
-            method: 'POST',
-            headers: {'Content-Type':'application/x-www-form-urlencoded'},
-            body: 'action=oo_enrich_locations&nonce=' + encodeURIComponent(ooData.nonce)
-        }).then(function(r){ return r.json(); }).then(function(res){
-            if (!res.success) {
-                btn.disabled = false;
-                result.className = 'oo-notice oo-notice-error';
-                result.textContent = res.data || 'Enrichment failed.';
-                result.style.display = 'block';
-                return;
-            }
-            var d = res.data;
-            result.className = 'oo-notice oo-notice-success';
-            result.textContent = d.updated + ' locations updated, ' + d.failed + ' could not be resolved. ' +
-                (d.remaining > 0 ? d.remaining + ' still missing — click again to continue.' : 'All done!');
-            result.style.display = 'block';
-
-            if (d.remaining > 0) {
-                btnLabel.textContent = 'Enrich Locations (' + d.remaining + ' remaining)';
-                btn.disabled = false;
-            } else {
-                btn.parentNode.style.display = 'none';
-                setTimeout(function(){ location.reload(); }, 1800);
-            }
-        }).catch(function(){
-            btn.disabled = false;
-            result.className = 'oo-notice oo-notice-error';
-            result.textContent = 'Request failed.';
-            result.style.display = 'block';
-        });
-    }
-
-    btn.addEventListener('click', runBatch);
-})();
+window.ooContactsData = {
+    nonce:         <?php echo wp_json_encode( wp_create_nonce( 'oo_nonce' ) ); ?>,
+    ajaxUrl:       <?php echo wp_json_encode( admin_url( 'admin-ajax.php' ) ); ?>,
+    workspaceTags: <?php echo wp_json_encode( $workspace_tags ); ?>,
+    contactTypes:  <?php echo wp_json_encode( $types ); ?>
+};
 </script>
-
-<?php endif; ?>
