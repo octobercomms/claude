@@ -55,8 +55,12 @@ class OO_Admin {
         if ( $screen && strpos( $screen->id, 'oo-campaigns' ) !== false && ( $_GET['action'] ?? '' ) === 'wizard' ) {
             wp_enqueue_script( 'oo-wizard', OO_PLUGIN_URL . 'admin/js/wizard.js', array( 'jquery' ), OO_VERSION, true );
         }
-        if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false && ( $_GET['action'] ?? '' ) === 'finder' ) {
-            wp_enqueue_script( 'oo-contact-finder', OO_PLUGIN_URL . 'admin/js/contact-finder.js', array( 'jquery' ), OO_VERSION, true );
+        if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
+            if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
+                wp_enqueue_script( 'oo-contact-finder', OO_PLUGIN_URL . 'admin/js/contact-finder.js', array( 'jquery' ), OO_VERSION, true );
+            } else {
+                wp_enqueue_script( 'oo-contacts', OO_PLUGIN_URL . 'admin/js/contacts.js', array(), OO_VERSION, true );
+            }
         }
 
         wp_localize_script( 'oo-app', 'ooData', array(
@@ -135,12 +139,12 @@ class OO_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
 
         global $wpdb;
-        // Normalise tags: lowercase, trim, dedupe, comma-join
+        // Normalise tags: lowercase, trim, dedupe, store as JSON array
         $raw_tags = sanitize_text_field( $_POST['tags'] ?? '' );
-        $tags     = array_unique( array_filter( array_map(
+        $tags     = array_values( array_unique( array_filter( array_map(
             fn( $t ) => strtolower( trim( $t ) ),
             preg_split( '/[\s,;]+/', $raw_tags )
-        ) ) );
+        ) ) ) );
 
         $data = array(
             'first_name'   => sanitize_text_field( $_POST['first_name'] ?? '' ),
@@ -152,7 +156,7 @@ class OO_Admin {
             'website'      => esc_url_raw( $_POST['website'] ?? '' ),
             'location'     => sanitize_text_field( $_POST['location'] ?? '' ),
             'linkedin_url' => esc_url_raw( $_POST['linkedin_url'] ?? '' ),
-            'tags'         => implode( ',', $tags ),
+            'tags'         => wp_json_encode( $tags ),
             'source'       => sanitize_text_field( $_POST['source'] ?? '' ),
             'status'       => sanitize_text_field( $_POST['status'] ?? 'active' ),
             'notes'        => sanitize_textarea_field( $_POST['notes'] ?? '' ),
@@ -265,6 +269,8 @@ class OO_Admin {
         $out = fopen( 'php://output', 'w' );
         fputcsv( $out, array( 'First Name', 'Last Name', 'Email', 'Company', 'Type', 'Title', 'Website', 'Location', 'LinkedIn', 'Tags', 'Status', 'Source', 'Notes', 'Added' ) );
         foreach ( $contacts as $row ) {
+            $tag_arr     = json_decode( $row['tags'] ?? '[]', true );
+            $row['tags'] = is_array( $tag_arr ) ? implode( ';', $tag_arr ) : ( $row['tags'] ?? '' );
             fputcsv( $out, $row );
         }
         fclose( $out );
@@ -354,10 +360,10 @@ class OO_Admin {
 
             // Normalise tags from CSV: split on comma/semicolon, lowercase, dedupe
             $raw_tags_csv = $get( 'tags' );
-            $tag_arr      = array_unique( array_filter( array_map(
+            $tag_arr      = array_values( array_unique( array_filter( array_map(
                 fn( $t ) => strtolower( trim( $t ) ),
                 preg_split( '/[\s,;]+/', $raw_tags_csv )
-            ) ) );
+            ) ) ) );
 
             $wpdb->insert( $table, array(
                 'first_name'   => $get( 'first_name' ),
@@ -369,7 +375,7 @@ class OO_Admin {
                 'website'      => esc_url_raw( $get( 'website' ) ),
                 'location'     => $get( 'location' ),
                 'linkedin_url' => esc_url_raw( $get( 'linkedin_url' ) ),
-                'tags'         => implode( ',', $tag_arr ),
+                'tags'         => wp_json_encode( $tag_arr ),
                 'notes'        => $get( 'notes' ),
                 'source'       => 'CSV Import',
                 'status'       => 'active',

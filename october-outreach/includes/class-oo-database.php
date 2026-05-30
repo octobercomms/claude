@@ -32,7 +32,7 @@ class OO_Database {
             website varchar(500) NOT NULL DEFAULT '',
             location varchar(200) NOT NULL DEFAULT '',
             linkedin_url varchar(500) NOT NULL DEFAULT '',
-            tags text NOT NULL DEFAULT '',
+            tags longtext NULL,
             source varchar(100) NOT NULL DEFAULT '',
             status varchar(50) NOT NULL DEFAULT 'active',
             notes text NOT NULL DEFAULT '',
@@ -139,6 +139,21 @@ class OO_Database {
             PRIMARY KEY (campaign_id, contact_id)
         ) $charset;";
 
+        $contact_audit = "CREATE TABLE {$wpdb->prefix}oo_contact_audit (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            contact_id bigint(20) NOT NULL,
+            field varchar(100) NOT NULL,
+            before_value longtext NULL,
+            after_value longtext NULL,
+            source varchar(50) NOT NULL DEFAULT 'manual',
+            rationale text NULL,
+            applied_by bigint(20) NOT NULL DEFAULT 0,
+            applied_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY contact_id (contact_id),
+            KEY applied_at (applied_at)
+        ) $charset;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $contacts );
         dbDelta( $campaigns );
@@ -147,6 +162,7 @@ class OO_Database {
         dbDelta( $coupons );
         dbDelta( $press_releases );
         dbDelta( $campaign_contacts );
+        dbDelta( $contact_audit );
 
         update_option( 'oo_db_version', OO_VERSION );
     }
@@ -159,6 +175,24 @@ class OO_Database {
             return;
         }
         self::create_tables(); // dbDelta is safe to re-run — adds missing columns
+        self::run_migrations();
+    }
+
+    /**
+     * ALTER-based migrations for column type changes dbDelta can't handle.
+     */
+    private static function run_migrations() {
+        global $wpdb;
+
+        // Migrate tags column from text NOT NULL DEFAULT '' to longtext NULL
+        $col = $wpdb->get_row( $wpdb->prepare(
+            "SELECT DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS
+             WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND COLUMN_NAME = 'tags'",
+            DB_NAME, $wpdb->prefix . 'oo_contacts'
+        ) );
+        if ( $col && ( strtolower( $col->DATA_TYPE ) === 'text' || $col->IS_NULLABLE === 'NO' ) ) {
+            $wpdb->query( "ALTER TABLE {$wpdb->prefix}oo_contacts MODIFY COLUMN tags longtext NULL" );
+        }
     }
 
     private static function set_defaults() {

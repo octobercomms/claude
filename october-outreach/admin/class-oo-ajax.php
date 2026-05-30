@@ -27,6 +27,12 @@ class OO_Ajax {
             'oo_bulk_delete_dead',
             'oo_enrich_locations',
             'oo_send_test_email',
+            'oo_get_contact',
+            'oo_save_contact_ajax',
+            'oo_get_workspace_tags',
+            'oo_import_contacts_mapped',
+            'oo_bulk_tag_contacts',
+            'oo_delete_contact_ajax',
         );
 
         foreach ( $actions as $action ) {
@@ -979,5 +985,257 @@ class OO_Ajax {
             wp_send_json_error( $result->get_error_message() );
         }
         wp_send_json_success( array( 'sent_to' => $to ) );
+    }
+
+    public function get_contact() {
+        $this->check_nonce();
+        global $wpdb;
+        $id = intval( $_POST['contact_id'] ?? 0 );
+        if ( ! $id ) wp_send_json_error( 'No ID.' );
+        $c = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_contacts WHERE id = %d", $id
+        ), ARRAY_A );
+        if ( ! $c ) wp_send_json_error( 'Not found.' );
+        $c['tags'] = json_decode( $c['tags'] ?? '[]', true ) ?: array();
+
+        // Activity log
+        $audit = $wpdb->get_results( $wpdb->prepare(
+            "SELECT field, before_value, after_value, source, rationale, applied_by, applied_at
+             FROM {$wpdb->prefix}oo_contact_audit
+             WHERE contact_id = %d ORDER BY applied_at DESC LIMIT 100",
+            $id
+        ), ARRAY_A );
+
+        // Sends
+        $sends = $wpdb->get_results( $wpdb->prepare(
+            "SELECT s.status, s.sent_at, s.opened_at, cam.name AS campaign_name
+             FROM {$wpdb->prefix}oo_sends s
+             JOIN {$wpdb->prefix}oo_campaigns cam ON cam.id = s.campaign_id
+             WHERE s.contact_id = %d ORDER BY s.sent_at DESC LIMIT 50",
+            $id
+        ), ARRAY_A );
+
+        wp_send_json_success( array( 'contact' => $c, 'audit' => $audit, 'sends' => $sends ) );
+    }
+
+    public function save_contact_ajax() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $id      = intval( $_POST['contact_id'] ?? 0 );
+        $user_id = get_current_user_id();
+
+        $raw_tags = $_POST['tags'] ?? '[]';
+        $tags     = json_decode( stripslashes( $raw_tags ), true );
+        if ( ! is_array( $tags ) ) $tags = array();
+        $tags = array_values( array_unique( array_filter( array_map(
+            fn( $t ) => strtolower( trim( $t ) ),
+            $tags
+        ) ) ) );
+
+        $data = array(
+            'first_name'   => sanitize_text_field( $_POST['first_name']   ?? '' ),
+            'last_name'    => sanitize_text_field( $_POST['last_name']    ?? '' ),
+            'email'        => sanitize_email(       $_POST['email']        ?? '' ),
+            'company'      => sanitize_text_field( $_POST['company']      ?? '' ),
+            'type'         => sanitize_text_field( $_POST['type']         ?? '' ),
+            'title'        => sanitize_text_field( $_POST['title']        ?? '' ),
+            'website'      => esc_url_raw(          $_POST['website']      ?? '' ),
+            'location'     => sanitize_text_field( $_POST['location']     ?? '' ),
+            'linkedin_url' => esc_url_raw(          $_POST['linkedin_url'] ?? '' ),
+            'source'       => sanitize_text_field( $_POST['source']       ?? '' ),
+            'status'       => sanitize_text_field( $_POST['status']       ?? 'active' ),
+            'notes'        => sanitize_textarea_field( $_POST['notes']    ?? '' ),
+            'tags'         => wp_json_encode( $tags ),
+        );
+
+        $now = current_time( 'mysql' );
+
+        if ( $id ) {
+            $old = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}oo_contacts WHERE id = %d", $id
+            ), ARRAY_A );
+
+            $wpdb->update( $wpdb->prefix . 'oo_contacts', $data, array( 'id' => $id ) );
+
+            // Write audit rows for changed fields
+            $auditable = array( 'first_name', 'last_name', 'email', 'company', 'type', 'title', 'website', 'location', 'linkedin_url', 'source', 'status', 'notes', 'tags' );
+            foreach ( $auditable as $field ) {
+                $before = $old[ $field ] ?? '';
+                $after  = $data[ $field ] ?? '';
+                if ( $before !== $after ) {
+                    $wpdb->insert( $wpdb->prefix . 'oo_contact_audit', array(
+                        'contact_id'   => $id,
+                        'field'        => $field,
+                        'before_value' => $before,
+                        'after_value'  => $after,
+                        'source'       => 'manual',
+                        'applied_by'   => $user_id,
+                        'applied_at'   => $now,
+                    ) );
+                }
+            }
+            wp_send_json_success( array( 'contact_id' => $id ) );
+        } else {
+            if ( ! is_email( $data['email'] ) ) wp_send_json_error( 'Valid email required.' );
+            $exists = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}oo_contacts WHERE email = %s", $data['email']
+            ) );
+            if ( $exists ) wp_send_json_error( 'A contact with this email already exists.' );
+            $data['created_at'] = $now;
+            $wpdb->insert( $wpdb->prefix . 'oo_contacts', $data );
+            wp_send_json_success( array( 'contact_id' => $wpdb->insert_id ) );
+        }
+    }
+
+    public function get_workspace_tags() {
+        $this->check_nonce();
+        global $wpdb;
+        $rows = $wpdb->get_col(
+            "SELECT tags FROM {$wpdb->prefix}oo_contacts WHERE tags IS NOT NULL AND tags != '' AND tags != '[]'"
+        );
+        $all = array();
+        foreach ( $rows as $raw ) {
+            $arr = json_decode( $raw, true );
+            if ( is_array( $arr ) ) {
+                foreach ( $arr as $t ) {
+                    $t = strtolower( trim( $t ) );
+                    if ( $t ) $all[ $t ] = ( $all[ $t ] ?? 0 ) + 1;
+                }
+            }
+        }
+        arsort( $all );
+        wp_send_json_success( array( 'tags' => array_keys( $all ) ) );
+    }
+
+    public function import_contacts_mapped() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $raw     = stripslashes( $_POST['rows']      ?? '[]' );
+        $mapping = json_decode( stripslashes( $_POST['mapping']  ?? '{}' ), true );
+        $extra   = json_decode( stripslashes( $_POST['tags']     ?? '[]' ), true );
+
+        $rows = json_decode( $raw, true );
+        if ( ! is_array( $rows ) || ! is_array( $mapping ) ) wp_send_json_error( 'Invalid data.' );
+
+        if ( ! is_array( $extra ) ) $extra = array();
+        $extra = array_values( array_unique( array_filter( array_map(
+            fn( $t ) => strtolower( trim( $t ) ), $extra
+        ) ) ) );
+
+        $table       = $wpdb->prefix . 'oo_contacts';
+        $user_id     = get_current_user_id();
+        $now         = current_time( 'mysql' );
+        $inserted    = 0;
+        $merged      = 0;
+        $skipped     = 0;
+
+        foreach ( $rows as $row ) {
+            $get = function( $field ) use ( $row, $mapping ) {
+                $col = $mapping[ $field ] ?? null;
+                return $col !== null && isset( $row[ $col ] ) ? sanitize_text_field( trim( $row[ $col ] ) ) : '';
+            };
+
+            $email = sanitize_email( $get( 'email' ) );
+            if ( ! is_email( $email ) ) { $skipped++; continue; }
+            $email = strtolower( $email );
+
+            // Parse row tags
+            $row_tags_raw = $get( 'tags' );
+            $row_tags     = array_values( array_unique( array_filter( array_map(
+                fn( $t ) => strtolower( trim( $t ) ),
+                preg_split( '/[\s,;]+/', $row_tags_raw )
+            ) ) ) );
+            $merged_tags = array_values( array_unique( array_merge( $row_tags, $extra ) ) );
+
+            $existing = $wpdb->get_row( $wpdb->prepare(
+                "SELECT * FROM {$table} WHERE email = %s", $email
+            ), ARRAY_A );
+
+            if ( $existing ) {
+                // Merge tags only; don't overwrite non-empty fields
+                $existing_tags = json_decode( $existing['tags'] ?? '[]', true );
+                if ( ! is_array( $existing_tags ) ) $existing_tags = array();
+                $new_tags = array_values( array_unique( array_merge( $existing_tags, $merged_tags ) ) );
+
+                if ( $new_tags !== $existing_tags ) {
+                    $wpdb->update( $table, array( 'tags' => wp_json_encode( $new_tags ) ), array( 'id' => $existing['id'] ) );
+                    $wpdb->insert( $wpdb->prefix . 'oo_contact_audit', array(
+                        'contact_id'   => $existing['id'],
+                        'field'        => 'tags',
+                        'before_value' => wp_json_encode( $existing_tags ),
+                        'after_value'  => wp_json_encode( $new_tags ),
+                        'source'       => 'import_merge',
+                        'applied_by'   => $user_id,
+                        'applied_at'   => $now,
+                    ) );
+                }
+                $merged++;
+            } else {
+                $valid_types = array_keys( OO_Database::get_contact_types() );
+                $type = $get( 'type' );
+                if ( ! in_array( $type, $valid_types, true ) ) $type = '';
+
+                $wpdb->insert( $table, array(
+                    'first_name'   => $get( 'first_name' ),
+                    'last_name'    => $get( 'last_name' ),
+                    'email'        => $email,
+                    'company'      => $get( 'company' ),
+                    'type'         => $type,
+                    'title'        => $get( 'title' ),
+                    'website'      => esc_url_raw( $get( 'website' ) ),
+                    'location'     => $get( 'location' ),
+                    'linkedin_url' => esc_url_raw( $get( 'linkedin_url' ) ),
+                    'source'       => $get( 'source' ) ?: 'CSV Import',
+                    'notes'        => $get( 'notes' ),
+                    'tags'         => wp_json_encode( $merged_tags ),
+                    'status'       => 'active',
+                    'created_at'   => $now,
+                ) );
+                $inserted++;
+            }
+        }
+
+        wp_send_json_success( array( 'inserted' => $inserted, 'merged' => $merged, 'skipped' => $skipped ) );
+    }
+
+    public function bulk_tag_contacts() {
+        $this->check_nonce();
+        global $wpdb;
+
+        $ids    = array_filter( array_map( 'intval', (array) json_decode( stripslashes( $_POST['ids'] ?? '[]' ), true ) ) );
+        $add    = array_filter( array_map( fn( $t ) => strtolower( trim( $t ) ), (array) json_decode( stripslashes( $_POST['add'] ?? '[]' ), true ) ) );
+        $remove = array_filter( array_map( fn( $t ) => strtolower( trim( $t ) ), (array) json_decode( stripslashes( $_POST['remove'] ?? '[]' ), true ) ) );
+
+        if ( empty( $ids ) ) wp_send_json_error( 'No contacts selected.' );
+
+        $placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+        $contacts     = $wpdb->get_results(
+            $wpdb->prepare( "SELECT id, tags FROM {$wpdb->prefix}oo_contacts WHERE id IN ($placeholders)", $ids ),
+            ARRAY_A
+        );
+
+        $updated = 0;
+        foreach ( $contacts as $c ) {
+            $tags = json_decode( $c['tags'] ?? '[]', true );
+            if ( ! is_array( $tags ) ) $tags = array();
+            $tags = array_values( array_unique( array_merge( $tags, $add ) ) );
+            $tags = array_values( array_filter( $tags, fn( $t ) => ! in_array( $t, $remove, true ) ) );
+            $wpdb->update( $wpdb->prefix . 'oo_contacts', array( 'tags' => wp_json_encode( $tags ) ), array( 'id' => $c['id'] ) );
+            $updated++;
+        }
+
+        wp_send_json_success( array( 'updated' => $updated ) );
+    }
+
+    public function delete_contact_ajax() {
+        $this->check_nonce();
+        global $wpdb;
+        $id = intval( $_POST['contact_id'] ?? 0 );
+        if ( ! $id ) wp_send_json_error( 'No ID.' );
+        $wpdb->delete( $wpdb->prefix . 'oo_contacts', array( 'id' => $id ) );
+        $wpdb->delete( $wpdb->prefix . 'oo_contact_audit', array( 'contact_id' => $id ) );
+        wp_send_json_success( array( 'deleted' => $id ) );
     }
 }
