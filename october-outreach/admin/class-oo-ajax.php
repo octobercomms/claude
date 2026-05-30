@@ -33,6 +33,8 @@ class OO_Ajax {
             'oo_import_contacts_mapped',
             'oo_bulk_tag_contacts',
             'oo_delete_contact_ajax',
+            'oo_bulk_delete_contacts_ajax',
+            'oo_delete_all_contacts',
         );
 
         foreach ( $actions as $action ) {
@@ -1237,5 +1239,25 @@ class OO_Ajax {
         $wpdb->delete( $wpdb->prefix . 'oo_contacts', array( 'id' => $id ) );
         $wpdb->delete( $wpdb->prefix . 'oo_contact_audit', array( 'contact_id' => $id ) );
         wp_send_json_success( array( 'deleted' => $id ) );
+    }
+
+    public function bulk_delete_contacts_ajax() {
+        $this->check_nonce();
+        global $wpdb;
+        $ids = array_filter( array_map( 'intval', (array) json_decode( stripslashes( $_POST['ids'] ?? '[]' ), true ) ) );
+        if ( empty( $ids ) ) wp_send_json_error( 'No IDs.' );
+        $ph = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+        $deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}oo_contacts WHERE id IN ($ph)", $ids ) );
+        $wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->prefix}oo_contact_audit WHERE contact_id IN ($ph)", $ids ) );
+        wp_send_json_success( array( 'deleted' => intval( $deleted ) ) );
+    }
+
+    public function delete_all_contacts() {
+        $this->check_nonce();
+        global $wpdb;
+        $deleted = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts" );
+        $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}oo_contacts" );
+        $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}oo_contact_audit" );
+        wp_send_json_success( array( 'deleted' => $deleted ) );
     }
 }
