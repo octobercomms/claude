@@ -101,6 +101,29 @@ $settings = get_option( 'oo_settings', array() );
         <?php if ( ! empty( $settings['airtable_api_key'] ) ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-airtable-push-btn">Sync Airtable</button>
         <?php endif; ?>
+        <?php if ( $total > 0 ) : ?>
+        <button class="oo-btn oo-btn-secondary" id="oo-delete-all-btn" style="color:#c0392b;border-color:#c0392b">Delete All <?php echo number_format( $total ); ?></button>
+        <?php endif; ?>
+    </div>
+</div>
+
+<!-- Delete All confirm modal -->
+<div id="oo-delete-all-modal" class="oo-modal-overlay" style="display:none">
+    <div class="oo-modal" style="max-width:440px">
+        <div class="oo-modal-head">
+            <h2>Delete All Contacts</h2>
+            <button class="oo-modal-close" id="oo-delete-all-modal-close">×</button>
+        </div>
+        <div style="padding:20px">
+            <p style="margin-bottom:12px">This will permanently delete all <strong><?php echo number_format( $total ); ?> contacts</strong> and cannot be undone.</p>
+            <p style="margin-bottom:16px">Type <strong>DELETE</strong> to confirm:</p>
+            <input type="text" id="oo-delete-all-confirm-input" class="oo-input" placeholder="Type DELETE here" style="width:100%;margin-bottom:16px">
+            <div style="display:flex;gap:8px">
+                <button class="oo-btn oo-btn-secondary" id="oo-delete-all-cancel-btn">Cancel</button>
+                <button class="oo-btn oo-btn-primary" id="oo-delete-all-confirm-btn" style="background:#c0392b;border-color:#c0392b" disabled>Delete All Contacts</button>
+                <span id="oo-delete-all-status" class="oo-muted" style="align-self:center;font-size:13px"></span>
+            </div>
+        </div>
     </div>
 </div>
 

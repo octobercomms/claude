@@ -298,17 +298,19 @@
         bulkDeleteBtn.addEventListener('click', function () {
             var ids = getCheckedIds();
             if (!ids.length) return;
-            if (!confirm('Permanently delete ' + ids.length + ' contacts?')) return;
-            post('oo_bulk_tag_contacts', { ids: ids, add: [], remove: [] }, function () {});
-            // Actually delete each — use delete endpoint in loop or dedicated handler
-            // For now: delete via the standard delete endpoint in sequence
-            var remaining = ids.slice();
-            function deleteNext() {
-                if (!remaining.length) { location.reload(); return; }
-                var id = remaining.shift();
-                post('oo_delete_contact_ajax', { contact_id: id }, deleteNext);
-            }
-            deleteNext();
+            if (!confirm('Permanently delete ' + ids.length + ' contact' + (ids.length === 1 ? '' : 's') + '?')) return;
+            bulkDeleteBtn.disabled = true;
+            bulkDeleteBtn.textContent = 'Deleting…';
+            post('oo_bulk_delete_contacts_ajax', { ids: ids }, function (res) {
+                if (res.success) {
+                    showNotice(res.data.deleted + ' contact' + (res.data.deleted === 1 ? '' : 's') + ' deleted.');
+                    setTimeout(function () { location.reload(); }, 800);
+                } else {
+                    bulkDeleteBtn.disabled = false;
+                    bulkDeleteBtn.textContent = 'Delete Selected';
+                    showNotice(res.data || 'Delete failed.', 'error');
+                }
+            });
         });
     }
 
@@ -639,6 +641,45 @@
                 } else {
                     enrichBtn.parentNode.style.display = 'none';
                     setTimeout(function () { location.reload(); }, 1800);
+                }
+            });
+        });
+    }
+
+    // ── Delete All contacts ──────────────────────────────────────────
+    var deleteAllBtn   = document.getElementById('oo-delete-all-btn');
+    var deleteAllModal = document.getElementById('oo-delete-all-modal');
+    if (deleteAllBtn && deleteAllModal) {
+        var deleteAllInput   = document.getElementById('oo-delete-all-confirm-input');
+        var deleteAllConfirm = document.getElementById('oo-delete-all-confirm-btn');
+        var deleteAllStatus  = document.getElementById('oo-delete-all-status');
+
+        deleteAllBtn.addEventListener('click', function () {
+            deleteAllInput.value = '';
+            deleteAllConfirm.disabled = true;
+            deleteAllStatus.textContent = '';
+            deleteAllModal.style.display = 'flex';
+            setTimeout(function () { deleteAllInput.focus(); }, 100);
+        });
+
+        deleteAllInput.addEventListener('input', function () {
+            deleteAllConfirm.disabled = deleteAllInput.value.trim() !== 'DELETE';
+        });
+
+        document.getElementById('oo-delete-all-modal-close').addEventListener('click', function () { deleteAllModal.style.display = 'none'; });
+        document.getElementById('oo-delete-all-cancel-btn').addEventListener('click', function () { deleteAllModal.style.display = 'none'; });
+        deleteAllModal.addEventListener('click', function (e) { if (e.target === deleteAllModal) deleteAllModal.style.display = 'none'; });
+
+        deleteAllConfirm.addEventListener('click', function () {
+            deleteAllConfirm.disabled = true;
+            deleteAllStatus.textContent = 'Deleting…';
+            post('oo_delete_all_contacts', {}, function (res) {
+                if (res.success) {
+                    deleteAllStatus.textContent = res.data.deleted + ' contacts deleted.';
+                    setTimeout(function () { location.reload(); }, 1000);
+                } else {
+                    deleteAllConfirm.disabled = false;
+                    deleteAllStatus.textContent = res.data || 'Delete failed.';
                 }
             });
         });
