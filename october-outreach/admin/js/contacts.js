@@ -646,7 +646,7 @@
         });
     }
 
-    // ── Delete All contacts ──────────────────────────────────────────
+    // ── Delete All contacts ─────────────────────────────────────────
     var deleteAllBtn   = document.getElementById('oo-delete-all-btn');
     var deleteAllModal = document.getElementById('oo-delete-all-modal');
     if (deleteAllBtn && deleteAllModal) {
@@ -685,8 +685,5 @@
         });
     }
 
-    function esc(str) {
-        return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
 
 })();

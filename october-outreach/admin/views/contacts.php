@@ -85,8 +85,9 @@ foreach ( $tag_rows as $raw ) {
 arsort( $workspace_tags );
 $workspace_tags = array_keys( $workspace_tags );
 
-$dead_count       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')" );
+$dead_count        = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE verified_status IN ('invalid','dead')" );
 $no_location_count = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts WHERE (location = '' OR location IS NULL)" );
+$real_total        = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}oo_contacts" );
 
 $settings = get_option( 'oo_settings', array() );
 ?>
@@ -101,8 +102,8 @@ $settings = get_option( 'oo_settings', array() );
         <?php if ( ! empty( $settings['airtable_api_key'] ) ) : ?>
         <button class="oo-btn oo-btn-secondary" id="oo-airtable-push-btn">Sync Airtable</button>
         <?php endif; ?>
-        <?php if ( $total > 0 ) : ?>
-        <button class="oo-btn oo-btn-secondary" id="oo-delete-all-btn" style="color:#c0392b;border-color:#c0392b">Delete All <?php echo number_format( $total ); ?></button>
+        <?php if ( $real_total > 0 ) : ?>
+        <button class="oo-btn oo-btn-secondary" id="oo-delete-all-btn" style="color:#c0392b;border-color:#c0392b">Delete All <?php echo number_format( $real_total ); ?></button>
         <?php endif; ?>
     </div>
 </div>
@@ -115,7 +116,7 @@ $settings = get_option( 'oo_settings', array() );
             <button class="oo-modal-close" id="oo-delete-all-modal-close">×</button>
         </div>
         <div style="padding:20px">
-            <p style="margin-bottom:12px">This will permanently delete all <strong><?php echo number_format( $total ); ?> contacts</strong> and cannot be undone.</p>
+            <p style="margin-bottom:12px">This will permanently delete all <strong><?php echo number_format( $real_total ); ?> contacts</strong> and cannot be undone.</p>
             <p style="margin-bottom:16px">Type <strong>DELETE</strong> to confirm:</p>
             <input type="text" id="oo-delete-all-confirm-input" class="oo-input" placeholder="Type DELETE here" style="width:100%;margin-bottom:16px">
             <div style="display:flex;gap:8px">
