@@ -40,6 +40,7 @@ class OO_Admin {
         add_menu_page( 'October Outreach', 'Outreach', 'manage_options', 'october-outreach', array( $this, 'page_dashboard' ), 'dashicons-email-alt', 30 );
         add_submenu_page( 'october-outreach', 'Dashboard',      'Dashboard',      'manage_options', 'october-outreach', array( $this, 'page_dashboard' ) );
         add_submenu_page( 'october-outreach', 'Contacts',       'Contacts',       'manage_options', 'oo-contacts',      array( $this, 'page_contacts' ) );
+        add_submenu_page( 'october-outreach', 'Tags',           'Tags',           'manage_options', 'oo-tags',          array( $this, 'page_tags' ) );
         add_submenu_page( 'october-outreach', 'Campaigns',      'Campaigns',      'manage_options', 'oo-campaigns',     array( $this, 'page_campaigns' ) );
         add_submenu_page( 'october-outreach', 'Settings',       'Settings',       'manage_options', 'oo-settings',      array( $this, 'page_settings' ) );
         add_submenu_page( 'october-outreach', 'Help & Support', 'Help & Support', 'manage_options', 'oo-help',          array( $this, 'page_help' ) );
@@ -54,6 +55,9 @@ class OO_Admin {
         $screen = get_current_screen();
         if ( $screen && strpos( $screen->id, 'oo-campaigns' ) !== false && ( $_GET['action'] ?? '' ) === 'wizard' ) {
             wp_enqueue_script( 'oo-wizard', OO_PLUGIN_URL . 'admin/js/wizard.js', array( 'jquery' ), OO_VERSION, true );
+        }
+        if ( $screen && strpos( $screen->id, 'oo-tags' ) !== false ) {
+            wp_enqueue_script( 'oo-tags', OO_PLUGIN_URL . 'admin/js/tags.js', array(), OO_VERSION, true );
         }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
@@ -91,6 +95,7 @@ class OO_Admin {
         }
     }
 
+    public function page_tags()     { $this->render( 'tags',     'tags' ); }
     public function page_press()    { $this->render( 'press',    'press' ); }
     public function page_settings() { $this->render( 'settings', 'settings' ); }
     public function page_help()     { $this->render( 'help',     'help' ); }
