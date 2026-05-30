@@ -1709,6 +1709,19 @@ router.put('/sending/:clientId', async (req, res) => {
 
 // ── Campaign launch & control ──────────────────────────────────────────────
 
+// Pre-send readiness report — DNS records, SES sandbox status, recipient
+// list quality, per-step content checks. The Launch step of the wizard
+// renders this and disables the button when blockers are non-empty.
+router.get('/campaigns/:id/readiness', async (req, res) => {
+  try {
+    const { buildReadiness } = require('../services/campaignReadiness');
+    const result = await buildReadiness(req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.post('/campaigns/:id/launch', async (req, res) => {
   try {
     const { rows: camps } = await pool.query('SELECT * FROM outreach_campaigns WHERE id = $1', [req.params.id]);
