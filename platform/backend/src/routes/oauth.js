@@ -67,8 +67,32 @@ async function gateOAuthStart(req, res, next) {
     res.status(500).send(err.message);
   }
 }
-router.use(['/google/start', '/meta/start', '/shopify/start', '/zoho/start', '/amazon/start', '/meta/reauth'],
+router.use(['/google/start', '/meta/start', '/shopify/start', '/zoho/start', '/amazon/start', '/meta/reauth', '/oauth/start-url'],
   authenticate, gateOAuthStart);
+
+// Returns the provider's OAuth URL (with signed state) as JSON so the
+// SPA can window.open() it directly. The legacy /<provider>/start
+// endpoints below are top-level redirects, but those require the
+// browser to carry a session — the SPA stores its JWT in localStorage
+// and sends it as an Authorization header, which a popup window
+// navigation doesn't pick up. This endpoint is fetched via XHR with
+// the header attached, returns { url }, and the SPA opens that URL.
+router.get('/oauth/start-url', async (req, res) => {
+  const { provider, client_id } = req.query;
+  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  try {
+    const state = signOAuthState({ client_id });
+    let url;
+    if (provider === 'google') url = googleConnector.getAuthUrl(state);
+    else if (provider === 'meta') url = await metaConnector.getAuthUrl(state);
+    else if (provider === 'zoho') url = zohoInventoryConnector.getAuthUrl(state);
+    else if (provider === 'amazon') url = amazonConnector.getAuthUrl(state);
+    else return res.status(400).json({ error: `Unknown provider: ${provider}` });
+    res.json({ url });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // ─── Google OAuth ───────────────────────────────────────────────
 
