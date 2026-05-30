@@ -1344,8 +1344,9 @@ router.put('/campaigns/:id', async (req, res) => {
          reply_to = $8, coupon_code = $9, press_release_url = $10,
          refined_audience = COALESCE($11::jsonb, refined_audience),
          searched_domains = COALESCE($12::jsonb, searched_domains),
+         wizard_step = GREATEST(COALESCE(wizard_step, 1), $13),
          updated_at = NOW()
-       WHERE id = $13 RETURNING *`,
+       WHERE id = $14 RETURNING *`,
       [
         b.name ?? c.name,
         b.brand ?? c.brand,
@@ -1359,6 +1360,9 @@ router.put('/campaigns/:id', async (req, res) => {
         b.press_release_url ?? c.press_release_url,
         refined,
         searched,
+        // wizard_step monotonically advances — never goes backward, so
+        // re-saving an earlier step doesn't reset the high-water mark.
+        Number(b.wizard_step) || 1,
         req.params.id,
       ]
     );
@@ -1612,6 +1616,71 @@ router.put('/sequences/:id', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Render a single sequence step as it would arrive in a real recipient's
+// inbox. Substitutes the merge fields against an attached contact (if any)
+// or a generic sample, returns subject + html + text without delivering.
+router.post('/sequences/:id/preview', async (req, res) => {
+  try {
+    const { rows: stepRows } = await pool.query('SELECT * FROM outreach_sequences WHERE id = $1', [req.params.id]);
+    if (!stepRows.length) return res.status(404).json({ error: 'Sequence step not found' });
+    const step = stepRows[0];
+
+    // Pick a contact: explicit ?contact_id, else any contact attached to
+    // the campaign, else a generic sample so the AM can preview before
+    // attaching recipients.
+    let sample;
+    if (req.body?.contact_id) {
+      const { rows: c } = await pool.query(
+        `SELECT c.* FROM outreach_contacts c
+          WHERE c.id = $1 LIMIT 1`,
+        [req.body.contact_id]
+      );
+      if (c.length) sample = c[0];
+    }
+    if (!sample) {
+      const { rows: c } = await pool.query(
+        `SELECT con.* FROM outreach_campaign_contacts cc
+           JOIN outreach_contacts con ON con.id = cc.contact_id
+          WHERE cc.campaign_id = $1
+          ORDER BY con.created_at DESC LIMIT 1`,
+        [step.campaign_id]
+      );
+      if (c.length) sample = c[0];
+    }
+    if (!sample) {
+      sample = { first_name: 'Sarah', last_name: 'Bloggs', name: 'Sarah Bloggs', company: 'Example Outlet', email: 'sarah@example.com' };
+    }
+    const { previewStep } = require('../services/outreachSender');
+    const result = previewStep(step, sample);
+    res.json({ ...result, sample: { id: sample.id || null, name: sample.name, email: sample.email, company: sample.company } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Send a test of one specific sequence step to an arbitrary email so
+// the AM can check it in their own inbox before launch. Subject is
+// prefixed with [TEST] by the sender.
+router.post('/sequences/:id/test', async (req, res) => {
+  const to = (req.body?.to || '').trim();
+  if (!to) return res.status(400).json({ error: 'A test recipient email is required.' });
+  try {
+    const { rows: stepRows } = await pool.query('SELECT * FROM outreach_sequences WHERE id = $1', [req.params.id]);
+    if (!stepRows.length) return res.status(404).json({ error: 'Sequence step not found' });
+    const step = stepRows[0];
+    const { rows: camps } = await pool.query(
+      `SELECT cam.*, cl.outreach_sending FROM outreach_campaigns cam
+         JOIN clients cl ON cl.id = cam.client_id WHERE cam.id = $1`,
+      [step.campaign_id]
+    );
+    if (!camps.length) return res.status(404).json({ error: 'Campaign not found' });
+    await outreachSender.sendTest(camps[0], step, camps[0].outreach_sending, to);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
 });
 
