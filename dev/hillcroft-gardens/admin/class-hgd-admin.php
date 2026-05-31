@@ -28,7 +28,7 @@ class HGD_Admin {
 	public function register_menus() {
 		add_menu_page(
 			__( 'Hillcroft Garden Designer', 'hillcroft-garden-designer' ),
-			__( 'Hillcroft', 'hillcroft-garden-designer' ),
+			__( 'Designer', 'hillcroft-garden-designer' ),
 			self::CAP,
 			self::MENU,
 			array( $this, 'render_dashboard' ),
