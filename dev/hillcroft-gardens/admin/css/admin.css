@@ -44,6 +44,9 @@
 .hgd-tagline { color: var(--hgd-cream); font-style: italic; margin: 10px 0 0; opacity: 0.85; font-family: "Cormorant Garamond", serif; font-size: 18px; }
 
 .hgd-page-head { display: flex; align-items: center; justify-content: space-between; margin: 16px 0 18px; gap: 16px; }
+.hgd-page-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.hgd-page-head-actions form { margin: 0; }
+.hgd-example-hint { margin: -6px 0 16px; }
 
 /* Pills — all buttons are pill-shaped */
 .hgd-pill {

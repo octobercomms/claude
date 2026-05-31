@@ -20,6 +20,23 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( '← All projects', 'hillcroft-garden-designer' ); ?></a>
 	</div>
 
+	<?php
+	$hgd_is_example = $is_edit && (
+		HGD_Demo::is_example_project( (int) $val( 'id', 0 ) )
+		|| 0 === strpos( (string) $val( 'title' ), HGD_Demo::TITLE_PREFIX )
+	);
+	?>
+	<?php if ( isset( $_GET['example'] ) && 'created' === $_GET['example'] ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Example project created — explore each section below.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
+
+	<?php if ( $hgd_is_example ) : ?>
+		<div class="hgd-flash">
+			<strong><?php esc_html_e( 'Example project.', 'hillcroft-garden-designer' ); ?></strong>
+			<?php esc_html_e( 'This is an example project with placeholder images — explore each section below. Remove it any time from the Projects list.', 'hillcroft-garden-designer' ); ?>
+		</div>
+	<?php endif; ?>
+
 	<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php esc_html_e( 'Project saved.', 'hillcroft-garden-designer' ); ?></div>
 	<?php endif; ?>

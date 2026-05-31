@@ -43,6 +43,8 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_proposal_save', array( $this, 'handle_proposal_save' ) );
 		add_action( 'admin_post_hgd_proposal_send', array( $this, 'handle_proposal_send' ) );
 		add_action( 'admin_post_hgd_proposal_delete', array( $this, 'handle_proposal_delete' ) );
+		add_action( 'admin_post_hgd_create_example', array( $this, 'handle_create_example' ) );
+		add_action( 'admin_post_hgd_remove_example', array( $this, 'handle_remove_example' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
@@ -331,6 +333,28 @@ class HGD_Admin {
 		}
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'updated' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Example / demo project
+	// -------------------------------------------------------------------------
+
+	/** Build the one-click example project, then open it. */
+	public function handle_create_example() {
+		$this->guard();
+		check_admin_referer( 'hgd_create_example' );
+
+		$project_id = HGD_Demo::create();
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => (int) $project_id, 'example' => 'created' ) );
+	}
+
+	/** Remove only the demo-created data and return to the projects list. */
+	public function handle_remove_example() {
+		$this->guard();
+		check_admin_referer( 'hgd_remove_example' );
+
+		HGD_Demo::remove();
+		$this->redirect_with( 'hgd-projects', array( 'example' => 'removed' ) );
 	}
 
 	public function handle_delete_project() {
