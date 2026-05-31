@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,11 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.7.0 =
+* Pricing engine: create Good / Better / Best quotes per project. Add plants straight from the catalogue (price snapshotted) plus custom material/labour/other lines.
+* Full quote maths: materials + wastage % + labour (days × day rate) + contingency % + design fee + VAT, with a tidy headline total. Internal margin (cost vs price) shown to you, never the client.
+* "Seed Better & Best from Good" auto-populates the upsell tiers. Pricing defaults (day rate, wastage, contingency, VAT, tier uplifts) configurable in Settings.
 
 = 0.6.0 =
 * Design & ideas: an editable design brief + render prompt on each project, with "Compose with Claude" to draft both from the sketch-reading and the designer's ideas.

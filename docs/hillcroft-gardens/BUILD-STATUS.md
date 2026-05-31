@@ -65,11 +65,21 @@ foundation-first, then each integration as its own testable PR (install via one-
   `render` assets. Per-image cost logged. Gemini model configurable.
 - Needs live testing: real Gemini + Claude keys.
 
+## ✅ 0.7.0 — Pricing engine
+
+- **Good / Better / Best** quotes per project (`hgd_quotes` + `hgd_quote_items`, schema v6).
+- Line items from the **plant catalogue** (price snapshotted) + custom material/labour/other lines.
+- Totals: materials + **wastage %** + **labour** (days×rate) + **contingency %** + **design fee** +
+  **VAT**, tidy headline total; **internal margin** (ex-VAT subtotal − cost) shown to Donna only.
+- **Seed Better & Best from Good** via configurable tier uplifts; pricing defaults in Settings.
+
 ## ⏳ Next
 
-1. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
+1. **Proposals + client portal + milestone payments** (turn a chosen quote into a sent, payable
+   proposal): interactive proposal page, e-sign, deposit/milestone Stripe payments, PDF keepsake.
+2. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
    seasonal variants) — the harder cross-angle-consistency work.
-2. Pricing engine → proposals → client portal → milestone payments → plant book → seasonal film.
+3. Plant book PDF + seasonal film.
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.
