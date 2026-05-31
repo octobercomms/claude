@@ -103,7 +103,14 @@ class HGD_Updater {
 			}
 		}
 
-		set_transient( $this->cache_key, $best ?: '', 6 * HOUR_IN_SECONDS );
+		// Cache a positive result for a few hours; cache a "no matching release"
+		// result only briefly so a newly published release is noticed quickly
+		// (and a manual "Check again" bypasses this cache entirely).
+		if ( $best ) {
+			set_transient( $this->cache_key, $best, 3 * HOUR_IN_SECONDS );
+		} else {
+			set_transient( $this->cache_key, '', 15 * MINUTE_IN_SECONDS );
+		}
 		return $best;
 	}
 
@@ -127,6 +134,12 @@ class HGD_Updater {
 	public function check_for_update( $transient ) {
 		if ( empty( $transient->checked ) ) {
 			return $transient;
+		}
+
+		// On a manual "Check again" (update-core.php?force-check=1), bypass our
+		// own cache so a freshly published release is picked up immediately.
+		if ( ! empty( $_GET['force-check'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			delete_transient( $this->cache_key );
 		}
 
 		$release = $this->latest_release();
