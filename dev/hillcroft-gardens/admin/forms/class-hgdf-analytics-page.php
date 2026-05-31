@@ -11,9 +11,9 @@ class HGDF_Analytics_Page {
 
 	public static function menu() {
 		add_submenu_page(
-			'hgd-forms',
-			'Analytics',
-			'Analytics',
+			'hgd-dashboard',
+			'Form Analytics',
+			'Form Analytics',
 			'manage_options',
 			'hgd-forms-analytics',
 			array( __CLASS__, 'render' )

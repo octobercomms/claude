@@ -40,8 +40,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 	<div class="hgd-panel">
 		<h2><?php esc_html_e( 'Capturing leads', 'hillcroft-garden-designer' ); ?></h2>
-		<p class="hgd-muted"><?php esc_html_e( 'Add the enquiry form to any page with this shortcode — submissions create a client and a project automatically, and email you a notification:', 'hillcroft-garden-designer' ); ?></p>
-		<p><code class="hgd-code">[hgd_enquiry]</code></p>
+		<p class="hgd-muted"><?php esc_html_e( 'Build a multi-step enquiry form under Forms, then embed it on any page with its shortcode. Completed forms create a client and a project automatically and email you a notification.', 'hillcroft-garden-designer' ); ?></p>
+		<p><code class="hgd-code">[hgd_form id="123"]</code> &nbsp; <span class="hgd-muted"><?php esc_html_e( 'or the quick fixed form:', 'hillcroft-garden-designer' ); ?> <code class="hgd-code">[hgd_enquiry]</code></span></p>
 	</div>
 
 	<div class="hgd-panel">

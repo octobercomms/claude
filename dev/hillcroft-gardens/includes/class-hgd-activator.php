@@ -18,6 +18,11 @@ class HGD_Activator {
 
 		update_option( 'hgd_db_version', HGD_DB::SCHEMA_VERSION );
 
+		// Forms subsystem: create its tables + upload dir.
+		if ( class_exists( 'HGDF_Activator' ) ) {
+			HGDF_Activator::activate();
+		}
+
 		// Seed defaults only on first install.
 		HGD_Settings::seed_defaults();
 	}

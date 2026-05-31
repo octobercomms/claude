@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.2.1
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.3.0 =
+* Forms: a full multi-step form builder (ported from October Forms) — drag-drop builder, 18 field types, conditional logic, theming, file uploads, honeypot/rate-limit spam protection.
+* Submissions viewer with CSV export, plus an analytics dashboard (views, starts, completions, funnel, conversion).
+* Closed loop: a completed form automatically creates a client and an "enquiry" project.
+* Embed a form with [hgd_form id="123"].
 
 = 0.2.1 =
 * Branded the admin menu with the Hillcroft monogram icon.

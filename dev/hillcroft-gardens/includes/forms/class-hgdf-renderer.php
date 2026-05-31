@@ -7,8 +7,6 @@ class HGDF_Renderer {
 
 	public static function init() {
 		add_shortcode( 'hgd_form', array( __CLASS__, 'shortcode' ) );
-		// Back-compat alias in case anything embedded the earlier name.
-		add_shortcode( 'hgd_form', array( __CLASS__, 'shortcode' ) );
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'register_assets' ) );
 		add_action( 'init', array( __CLASS__, 'register_block' ) );
 	}

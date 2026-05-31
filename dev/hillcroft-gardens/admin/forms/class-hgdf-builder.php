@@ -11,6 +11,24 @@ class HGDF_Builder {
 		add_action( 'add_meta_boxes_' . HGDF_CPT,   array( __CLASS__, 'meta_boxes' ) );
 		add_filter( 'manage_' . HGDF_CPT . '_posts_columns', array( __CLASS__, 'columns' ) );
 		add_action( 'manage_' . HGDF_CPT . '_posts_custom_column', array( __CLASS__, 'render_column' ), 10, 2 );
+		add_action( 'admin_enqueue_scripts', array( __CLASS__, 'assets' ) );
+	}
+
+	/**
+	 * Enqueue builder + forms-admin assets. The builder runs on the CPT
+	 * edit screen; the admin stylesheet loads across the Forms admin pages.
+	 * (Replaces the asset loading that lived in the dropped OCF_Admin.)
+	 */
+	public static function assets( $hook ) {
+		global $post;
+		if ( ( $hook === 'post.php' || $hook === 'post-new.php' ) && $post && get_post_type( $post ) === HGDF_CPT ) {
+			wp_enqueue_style( 'hgd-form-builder', HGDF_URL . 'assets/forms/css/builder.css', array(), HGDF_VERSION );
+			wp_enqueue_media();
+			wp_enqueue_script( 'hgd-form-builder', HGDF_URL . 'assets/forms/js/builder.js', array( 'jquery' ), HGDF_VERSION, true );
+		}
+		if ( strpos( (string) ( $_GET['page'] ?? '' ), 'hgd-forms' ) !== false ) {
+			wp_enqueue_style( 'hgd-forms-admin', HGDF_URL . 'assets/forms/css/forms-admin.css', array(), HGDF_VERSION );
+		}
 	}
 
 	public static function columns( $cols ) {
