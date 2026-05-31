@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.1.2 =
+* Verifies the one-click auto-update pipeline end to end (no functional changes).
 
 = 1.1.1 =
 * Updates: added a "Test update connection" button under Settings → Updates that calls GitHub and reports exactly what's happening (token invalid, org approval needed, wrong scope, no matching release, or connected OK) — so a silent "no update shown" can be diagnosed instead of guessed.
