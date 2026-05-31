@@ -287,7 +287,7 @@ user-friendly, never "back office."
   admin, client portal *and* PDFs all share the type.
 - **Logo:** "hillcroft gardens" lowercase serif wordmark, monochrome (black version on cream,
   cream/reverse on dark). Vector asset version-controlled at
-  `docs/brand/hillcroft-logo-black.svg` (fully outlined — no embedded font).
+  `docs/hillcroft-gardens/brand/hillcroft-logo-black.svg` (fully outlined — no embedded font).
 - **Tone of copy:** "Straight-talking plant expertise. No hard sell, no guesswork." Carry this
   voice into system copy and proposals.
 
@@ -325,7 +325,7 @@ user-friendly, never "back office."
 - **Milestone split** — editable default in Settings (**50% / 25% / 25%**), adjustable & saved
   per project.
 - **Contract / T&Cs** — drafted by us as a template (Hillcroft has no solicitor); see
-  `docs/HILLCROFT-TERMS-TEMPLATE.md`. **Must be reviewed by a qualified solicitor before use.**
+  `docs/hillcroft-gardens/HILLCROFT-TERMS-TEMPLATE.md`. **Must be reviewed by a qualified solicitor before use.**
 - **Booking / calendar** — native booking system + two-way **Google Calendar sync via OAuth on
   a personal Gmail** account; emails via the existing **IMAP/SMTP** service (see §10a).
 
