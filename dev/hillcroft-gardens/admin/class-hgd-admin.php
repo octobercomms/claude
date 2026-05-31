@@ -26,6 +26,10 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_save_design', array( $this, 'handle_save_design' ) );
 		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
+		add_action( 'admin_post_hgd_pack_generate_view', array( $this, 'handle_pack_generate_view' ) );
+		add_action( 'admin_post_hgd_pack_generate_all', array( $this, 'handle_pack_generate_all' ) );
+		add_action( 'admin_post_hgd_pack_fetch_satellite', array( $this, 'handle_pack_fetch_satellite' ) );
+		add_action( 'admin_post_hgd_pack_seasonal', array( $this, 'handle_pack_seasonal' ) );
 		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
 		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
 		add_action( 'admin_post_hgd_quote_init', array( $this, 'handle_quote_init' ) );
@@ -630,6 +634,181 @@ class HGD_Admin {
 		HGD_Project_Asset::add( $id, $att_id, 'render' );
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_done' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Render pack (deliberate set of named views, anchored to the concept render)
+	// -------------------------------------------------------------------------
+
+	/** Redirect back to a project's Render pack panel with optional flash flags. */
+	private function pack_redirect( $pid, array $args = array() ) {
+		$this->redirect_with( 'hgd-projects', array_merge(
+			array( 'action' => 'edit', 'id' => (int) $pid ),
+			$args
+		) );
+	}
+
+	/** Generate one named pack view, for an optional season. */
+	public function handle_pack_generate_view() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_pack_generate_view_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'nokey' ) );
+		}
+
+		$view_key = isset( $_POST['view_key'] ) ? sanitize_key( wp_unslash( $_POST['view_key'] ) ) : '';
+		$season   = isset( $_POST['season'] ) ? sanitize_key( wp_unslash( $_POST['season'] ) ) : HGD_Render_Pack::DEFAULT_SEASON;
+		if ( ! isset( HGD_Render_Pack::VIEWS[ $view_key ] ) ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'badview' ) );
+		}
+
+		$result = HGD_Render_Pack::generate_view( $id, $view_key, $season, HGD_Render_Pack::reference_ids_for( $id ) );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_pack_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->pack_redirect( $id, array( 'pack_error' => 'api' ) );
+		}
+
+		$this->pack_redirect( $id, array( 'pack_done' => 1 ) );
+	}
+
+	/** Generate the full core set of pack views for the default season (skipping any that exist). */
+	public function handle_pack_generate_all() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_pack_generate_all_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'nokey' ) );
+		}
+
+		// Generating ~6 images can take a while; lift the time limit where allowed.
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+
+		$season    = HGD_Render_Pack::DEFAULT_SEASON;
+		$refs      = HGD_Render_Pack::reference_ids_for( $id );
+		$generated = 0;
+		$skipped   = 0;
+		$failed    = 0;
+		$last_err  = '';
+
+		foreach ( array_keys( HGD_Render_Pack::VIEWS ) as $view_key ) {
+			if ( HGD_Render_Pack::view_exists( $id, $view_key, $season ) ) {
+				$skipped++;
+				continue;
+			}
+			$result = HGD_Render_Pack::generate_view( $id, $view_key, $season, $refs );
+			if ( is_wp_error( $result ) ) {
+				$failed++;
+				$last_err = $result->get_error_message();
+				continue;
+			}
+			$generated++;
+		}
+
+		if ( '' !== $last_err ) {
+			set_transient( 'hgd_pack_error_' . get_current_user_id(), $last_err, 120 );
+		}
+
+		$this->pack_redirect( $id, array(
+			'pack_all'      => 1,
+			'pack_gen'      => $generated,
+			'pack_skip'     => $skipped,
+			'pack_fail'     => $failed,
+		) );
+	}
+
+	/** Generate one chosen view across all four seasons (skipping any that exist). */
+	public function handle_pack_seasonal() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_pack_seasonal_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'nokey' ) );
+		}
+
+		$view_key = isset( $_POST['view_key'] ) ? sanitize_key( wp_unslash( $_POST['view_key'] ) ) : '';
+		if ( ! isset( HGD_Render_Pack::VIEWS[ $view_key ] ) ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'badview' ) );
+		}
+
+		if ( function_exists( 'set_time_limit' ) ) {
+			@set_time_limit( 600 ); // phpcs:ignore WordPress.PHP.NoSilencedErrors
+		}
+
+		$refs      = HGD_Render_Pack::reference_ids_for( $id );
+		$generated = 0;
+		$skipped   = 0;
+		$failed    = 0;
+		$last_err  = '';
+
+		foreach ( array_keys( HGD_Render_Pack::SEASONS ) as $season ) {
+			if ( HGD_Render_Pack::view_exists( $id, $view_key, $season ) ) {
+				$skipped++;
+				continue;
+			}
+			$result = HGD_Render_Pack::generate_view( $id, $view_key, $season, $refs );
+			if ( is_wp_error( $result ) ) {
+				$failed++;
+				$last_err = $result->get_error_message();
+				continue;
+			}
+			$generated++;
+		}
+
+		if ( '' !== $last_err ) {
+			set_transient( 'hgd_pack_error_' . get_current_user_id(), $last_err, 120 );
+		}
+
+		$this->pack_redirect( $id, array(
+			'pack_all'  => 1,
+			'pack_gen'  => $generated,
+			'pack_skip' => $skipped,
+			'pack_fail' => $failed,
+		) );
+	}
+
+	/** Fetch the real satellite photo of the plot and add it as a pack view. */
+	public function handle_pack_fetch_satellite() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_pack_fetch_satellite_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Maps::is_configured() ) {
+			$this->pack_redirect( $id, array( 'pack_error' => 'nomaps' ) );
+		}
+
+		$result = HGD_Maps::save_satellite_asset( $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_pack_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->pack_redirect( $id, array( 'pack_error' => 'maps' ) );
+		}
+
+		$this->pack_redirect( $id, array( 'pack_satellite' => 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

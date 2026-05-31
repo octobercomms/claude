@@ -84,11 +84,20 @@ foundation-first, then each integration as its own testable PR (install via one-
   on `payment_id` metadata). Pay route re-derives amount server-side from the stored row.
 - Needs live testing: Stripe payment round-trip + webhook.
 
+## ✅ 0.9.0 — Render pack
+
+- A deliberate set of named views via Gemini, each **anchored to the approved concept render**
+  for consistency: `masterplan`, `watercolour` (hero), `plan_handdrawn`, `corner_patio`,
+  `corner_border`, `corner_focal` — plus **seasonal** variants and a real **satellite** image
+  (Google Static Maps). "Generate full pack" makes the core set; per-image cost logged.
+- Schema v8: `view_key` + `label` on project assets; `pack` asset role.
+- Needs live testing: Gemini + Google Maps keys.
+
 ## ⏳ Next (the delight layer)
 
-1. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
-   seasonal variants) — the harder cross-angle-consistency work.
-2. **Plant book PDF** + **seasonal film** (Remotion).
+1. **Plant book PDF** (cover = watercolour, one plant per page) + the **proposal/keepsake PDF**.
+2. **Seasonal film** (Remotion montage of the seasonal renders).
+3. **1.1.0 guided-workflow wizard** wrapper over the project panels (agreed: after features).
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.

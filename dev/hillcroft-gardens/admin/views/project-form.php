@@ -327,6 +327,161 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		</div>
 
 		<?php
+		// --- Render pack ------------------------------------------------------
+		$pack_assets = HGD_Render_Pack::pack_for_project( $pid );
+		$pack_error  = isset( $_GET['pack_error'] ) ? sanitize_key( $_GET['pack_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$maps_ready  = HGD_Maps::is_configured();
+		?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Render pack', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'A deliberate set of named garden views for the proposal and client portal — aerial masterplan, watercolour cover, hand-drawn plan and eye-level corners. Each view uses your latest concept render above as the consistency anchor, so every image shows the same garden from a different viewpoint or season.', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'Each image is a separate Gemini generation (cost applies). Generating the full pack makes about six images and may take a minute or two — leave the tab open until it finishes.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['pack_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Pack view generated.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['pack_satellite'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Satellite view fetched.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['pack_all'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php
+					echo esc_html( sprintf(
+						/* translators: 1: generated count, 2: skipped count, 3: failed count */
+						__( 'Render pack: %1$d generated, %2$d already existed, %3$d failed.', 'hillcroft-garden-designer' ),
+						isset( $_GET['pack_gen'] ) ? (int) $_GET['pack_gen'] : 0, // phpcs:ignore WordPress.Security.NonceVerification
+						isset( $_GET['pack_skip'] ) ? (int) $_GET['pack_skip'] : 0, // phpcs:ignore WordPress.Security.NonceVerification
+						isset( $_GET['pack_fail'] ) ? (int) $_GET['pack_fail'] : 0 // phpcs:ignore WordPress.Security.NonceVerification
+					) );
+				?></div>
+			<?php endif; ?>
+			<?php if ( 'nokey' === $pack_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'No Gemini API key configured — add one under %s.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'nomaps' === $pack_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'No Google Maps API key configured — add one under %s.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'badview' === $pack_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Unknown render-pack view.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( 'api' === $pack_error || 'maps' === $pack_error ) :
+				$pe = get_transient( 'hgd_pack_error_' . get_current_user_id() ); delete_transient( 'hgd_pack_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $pe ? $pe : __( 'Could not generate the render pack.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( ! HGD_Gemini::is_configured() ) : ?>
+				<p class="hgd-muted"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a Gemini API key under %s to generate the render pack.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></p>
+			<?php else :
+				if ( empty( $renders ) ) : ?>
+					<p class="hgd-muted"><?php esc_html_e( 'Tip: generate a concept render above first — the pack anchors to it for consistency. Without one, it will fall back to the sketch.', 'hillcroft-garden-designer' ); ?></p>
+				<?php endif; ?>
+
+				<div class="hgd-form-actions">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+						<input type="hidden" name="action" value="hgd_pack_generate_all" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_pack_generate_all_' . $pid ); ?>
+						<button type="submit" class="hgd-pill" onclick="return confirm('<?php echo esc_js( __( 'Generate the full render pack (about six Gemini images)? This may take a minute or two.', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Generate full pack', 'hillcroft-garden-designer' ); ?></button>
+					</form>
+
+					<?php if ( $maps_ready ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
+							<input type="hidden" name="action" value="hgd_pack_fetch_satellite" />
+							<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+							<?php wp_nonce_field( 'hgd_pack_fetch_satellite_' . $pid ); ?>
+							<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Fetch satellite view', 'hillcroft-garden-designer' ); ?></button>
+						</form>
+					<?php endif; ?>
+				</div>
+				<p class="hgd-muted"><?php esc_html_e( 'The full-pack button tops up: it skips any view that already exists, so you can re-run it safely. The satellite view is the real aerial photo of the plot (from Google), distinct from the Gemini “Masterplan (aerial)” render of your design.', 'hillcroft-garden-designer' ); ?></p>
+
+				<div class="hgd-subform">
+					<p class="hgd-muted"><?php esc_html_e( 'Generate a single view', 'hillcroft-garden-designer' ); ?></p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-inline-form">
+						<input type="hidden" name="action" value="hgd_pack_generate_view" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_pack_generate_view_' . $pid ); ?>
+						<div class="hgd-grid">
+							<label><span><?php esc_html_e( 'View', 'hillcroft-garden-designer' ); ?></span>
+								<select name="view_key">
+									<?php foreach ( HGD_Render_Pack::VIEWS as $vk => $vdef ) : ?>
+										<option value="<?php echo esc_attr( $vk ); ?>"><?php echo esc_html( $vdef['label'] ); ?></option>
+									<?php endforeach; ?>
+								</select></label>
+							<label><span><?php esc_html_e( 'Season', 'hillcroft-garden-designer' ); ?></span>
+								<select name="season">
+									<?php foreach ( array_keys( HGD_Render_Pack::SEASONS ) as $sk ) : ?>
+										<option value="<?php echo esc_attr( $sk ); ?>" <?php selected( HGD_Render_Pack::DEFAULT_SEASON, $sk ); ?>><?php echo esc_html( HGD_Render_Pack::season_label( $sk ) ); ?></option>
+									<?php endforeach; ?>
+								</select></label>
+						</div>
+						<div class="hgd-form-actions">
+							<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Generate view', 'hillcroft-garden-designer' ); ?></button>
+						</div>
+					</form>
+				</div>
+
+				<div class="hgd-subform">
+					<p class="hgd-muted"><?php esc_html_e( 'Generate one view across all four seasons', 'hillcroft-garden-designer' ); ?></p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-inline-form">
+						<input type="hidden" name="action" value="hgd_pack_seasonal" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_pack_seasonal_' . $pid ); ?>
+						<div class="hgd-grid">
+							<label><span><?php esc_html_e( 'View', 'hillcroft-garden-designer' ); ?></span>
+								<select name="view_key">
+									<?php foreach ( HGD_Render_Pack::VIEWS as $vk => $vdef ) : ?>
+										<option value="<?php echo esc_attr( $vk ); ?>"><?php echo esc_html( $vdef['label'] ); ?></option>
+									<?php endforeach; ?>
+								</select></label>
+						</div>
+						<div class="hgd-form-actions">
+							<button type="submit" class="hgd-pill hgd-pill-ghost" onclick="return confirm('<?php echo esc_js( __( 'Generate this view for spring, summer, autumn and winter (up to four Gemini images)?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Generate all seasons', 'hillcroft-garden-designer' ); ?></button>
+						</div>
+					</form>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $pack_assets ) ) : ?>
+				<div class="hgd-asset-grid">
+					<?php foreach ( $pack_assets as $pack ) :
+						$del_url = wp_nonce_url(
+							add_query_arg(
+								array( 'action' => 'hgd_delete_asset', 'asset_id' => (int) $pack['id'], 'id' => $pid ),
+								admin_url( 'admin-post.php' )
+							),
+							'hgd_delete_asset_' . (int) $pack['id']
+						);
+						?>
+						<div class="hgd-asset">
+							<?php echo wp_get_attachment_image( (int) $pack['attachment_id'], 'medium' ); ?>
+							<div class="hgd-asset-meta">
+								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( $pack['pack_label'] ); ?></span>
+								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this pack image?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php else : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'No pack images yet.', 'hillcroft-garden-designer' ); ?></p>
+			<?php endif; ?>
+		</div>
+
+		<?php
 		// --- Pricing engine ---------------------------------------------------
 		$quotes      = isset( $quotes ) && is_array( $quotes ) ? $quotes : array();
 		$has_quotes  = ! empty( $quotes );

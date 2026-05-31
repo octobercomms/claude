@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.8.0
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.9.0 =
+* Render pack: generate a deliberate set of named garden views — aerial masterplan, watercolour hero, hand-drawn plan, and eye-level corner views (patio, border, focal point) — each anchored to the approved concept render so the whole set stays consistent.
+* Seasonal variants (spring / summer / autumn / winter) for any view, and a real satellite image of the plot via Google Maps. "Generate full pack" makes the core set in one go.
 
 = 0.8.0 =
 * Proposals: turn a chosen Good/Better/Best quote into a sendable proposal with a deposit + milestone payment schedule, editable intro and terms, and a 30-day expiry.
