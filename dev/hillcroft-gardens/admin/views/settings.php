@@ -62,6 +62,11 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				$field( 'stripe_webhook_secret', __( 'Stripe webhook signing secret', 'hillcroft-garden-designer' ) );
 				?>
 			</div>
+			<h3><?php esc_html_e( 'AI', 'hillcroft-garden-designer' ); ?></h3>
+			<div class="hgd-grid">
+				<?php $field( 'claude_model', __( 'Claude model', 'hillcroft-garden-designer' ) ); ?>
+			</div>
+			<p class="hgd-muted"><?php esc_html_e( 'Used for consultation sketch-reading. Default: claude-sonnet-4-6', 'hillcroft-garden-designer' ); ?></p>
 		</div>
 
 		<div class="hgd-panel">

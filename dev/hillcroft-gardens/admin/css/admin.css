@@ -189,3 +189,46 @@
 @media (max-width: 782px) {
 	.hgd-form .hgd-grid { grid-template-columns: 1fr; }
 }
+
+/* --- Consultation capture: asset grid + Claude reading ------------------- */
+.hgd-wrap .hgd-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+  margin: 18px 0;
+}
+
+.hgd-wrap .hgd-asset {
+  background: var(--hgd-cream);
+  border: 1px solid rgba(73, 74, 32, 0.15);
+  border-radius: 10px;
+  padding: 8px;
+}
+
+.hgd-wrap .hgd-asset img {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  display: block;
+}
+
+.hgd-wrap .hgd-asset-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.hgd-wrap .hgd-ai-reading {
+  line-height: 1.6;
+}
+
+.hgd-wrap .hgd-ai-questions {
+  margin: 10px 0 14px;
+  padding-left: 20px;
+}
+
+.hgd-wrap .hgd-ai-questions li {
+  margin-bottom: 8px;
+}

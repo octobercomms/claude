@@ -20,6 +20,9 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_save_settings', array( $this, 'handle_save_settings' ) );
 		add_action( 'admin_post_hgd_save_project', array( $this, 'handle_save_project' ) );
 		add_action( 'admin_post_hgd_delete_project', array( $this, 'handle_delete_project' ) );
+		add_action( 'admin_post_hgd_upload_assets', array( $this, 'handle_upload_assets' ) );
+		add_action( 'admin_post_hgd_delete_asset', array( $this, 'handle_delete_asset' ) );
+		add_action( 'admin_post_hgd_claude_read', array( $this, 'handle_claude_read' ) );
 		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
 		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
@@ -252,6 +255,7 @@ class HGD_Admin {
 				}
 			}
 			$clients = HGD_Client::all();
+			$assets  = ! empty( $project['id'] ) ? HGD_Project_Asset::for_project( (int) $project['id'] ) : array();
 			include HGD_PATH . 'admin/views/project-form.php';
 			return;
 		}
@@ -302,6 +306,172 @@ class HGD_Admin {
 			HGD_Project::delete( $id );
 		}
 		$this->redirect_with( 'hgd-projects', array( 'deleted' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Consultation capture (assets + Claude sketch reading)
+	// -------------------------------------------------------------------------
+
+	public function handle_upload_assets() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_upload_assets_' . $id );
+
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$role  = isset( $_POST['role'] ) ? sanitize_key( wp_unslash( $_POST['role'] ) ) : 'photo';
+		$count = 0;
+		$error = '';
+
+		if ( $id && ! empty( $_FILES['files'] ) && is_array( $_FILES['files']['name'] ) ) {
+			$files = $_FILES['files'];
+			$total = count( $files['name'] );
+			for ( $i = 0; $i < $total; $i++ ) {
+				if ( empty( $files['name'][ $i ] ) ) {
+					continue;
+				}
+				$_FILES['hgd_asset'] = array(
+					'name'     => $files['name'][ $i ],
+					'type'     => $files['type'][ $i ],
+					'tmp_name' => $files['tmp_name'][ $i ],
+					'error'    => $files['error'][ $i ],
+					'size'     => $files['size'][ $i ],
+				);
+				$attachment_id = media_handle_upload( 'hgd_asset', 0 );
+				if ( is_wp_error( $attachment_id ) ) {
+					$error = $attachment_id->get_error_message();
+					continue;
+				}
+				HGD_Project_Asset::add( $id, $attachment_id, $role );
+				$count++;
+			}
+			unset( $_FILES['hgd_asset'] );
+		}
+
+		$args = array( 'action' => 'edit', 'id' => $id, 'uploaded' => $count );
+		if ( '' !== $error && 0 === $count ) {
+			set_transient( 'hgd_upload_error_' . get_current_user_id(), $error, 60 );
+			$args['upload_error'] = 1;
+		}
+		$this->redirect_with( 'hgd-projects', $args );
+	}
+
+	public function handle_delete_asset() {
+		$this->guard();
+		$asset_id = isset( $_GET['asset_id'] ) ? (int) $_GET['asset_id'] : 0;
+		check_admin_referer( 'hgd_delete_asset_' . $asset_id );
+		$project_id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+		if ( $asset_id ) {
+			HGD_Project_Asset::delete( $asset_id );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $project_id, 'asset_deleted' => 1 ) );
+	}
+
+	public function handle_claude_read() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_claude_read_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Claude::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_error' => 'nokey' ) );
+		}
+
+		$assets = HGD_Project_Asset::for_project( $id );
+		// Sketches first, then photos/other.
+		usort( $assets, function ( $a, $b ) {
+			$wa = 'sketch' === $a['role'] ? 0 : 1;
+			$wb = 'sketch' === $b['role'] ? 0 : 1;
+			if ( $wa === $wb ) {
+				return (int) $a['id'] - (int) $b['id'];
+			}
+			return $wa - $wb;
+		} );
+
+		if ( empty( $assets ) ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_error' => 'noassets' ) );
+		}
+
+		$pets     = ! empty( $project['has_pets'] ) ? 'yes' : 'no';
+		$children = ! empty( $project['has_children'] ) ? 'yes' : 'no';
+
+		$prompt  = "Here is the consultation brief for a garden design project. Read the attached hand-drawn sketch(es) and any photos.\n\n";
+		$prompt .= 'Address: ' . ( $project['address'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Postcode: ' . ( $project['postcode'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Budget range: ' . ( $project['budget_range'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Style preferences: ' . ( $project['style_prefs'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Pets at home: ' . $pets . "\n";
+		$prompt .= 'Children at home: ' . $children . "\n";
+		$prompt .= "Brief / notes:\n" . ( $project['brief_notes'] ?: '(none)' ) . "\n";
+
+		$blocks = array( HGD_Claude::text_block( $prompt ) );
+		foreach ( $assets as $asset ) {
+			$block = HGD_Claude::image_block_from_attachment( (int) $asset['attachment_id'] );
+			if ( $block ) {
+				$blocks[] = $block;
+			}
+		}
+
+		$system = 'You are an expert garden-design assistant helping a professional garden designer. '
+			. 'You are given one or more hand-drawn garden sketches (and possibly photos) from a site consultation. '
+			. 'Carefully interpret the layout. READ any hand-written dimensions, measurements and annotations on the sketch. '
+			. 'Identify zones and features: beds, borders, lawn, patio, decking, paths, walls, fences, steps, water features, '
+			. 'existing trees/shrubs/plants, and anything else marked. '
+			. 'Respond ONLY with a single JSON object with exactly two keys: '
+			. '"reading" (a clear prose summary of everything you see, including all measurements you can read), and '
+			. '"questions" (an array of specific clarifying questions to confirm you have read the sketch correctly). '
+			. 'Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
+
+		$result = HGD_Claude::message( $blocks, $system, 2000, $id );
+
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_claude_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_error' => 'api' ) );
+		}
+
+		$parsed = $this->parse_claude_json( $result['text'] );
+		if ( null === $parsed ) {
+			set_transient( 'hgd_claude_error_' . get_current_user_id(), __( 'Could not parse a JSON response from Claude.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_error' => 'parse' ) );
+		}
+
+		$reading   = isset( $parsed['reading'] ) ? (string) $parsed['reading'] : '';
+		$questions = isset( $parsed['questions'] ) && is_array( $parsed['questions'] ) ? array_values( $parsed['questions'] ) : array();
+
+		HGD_Project::update( $id, array(
+			'ai_reading'   => wp_kses_post( $reading ),
+			'ai_questions' => wp_json_encode( array_map( 'sanitize_text_field', $questions ) ),
+		) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_read' => 1 ) );
+	}
+
+	/** Tolerant JSON extraction: grab the first {...} block and decode it. */
+	private function parse_claude_json( $text ) {
+		$text = trim( (string) $text );
+		if ( '' === $text ) {
+			return null;
+		}
+		$decoded = json_decode( $text, true );
+		if ( is_array( $decoded ) ) {
+			return $decoded;
+		}
+		$start = strpos( $text, '{' );
+		$end   = strrpos( $text, '}' );
+		if ( false !== $start && false !== $end && $end > $start ) {
+			$candidate = substr( $text, $start, $end - $start + 1 );
+			$decoded   = json_decode( $candidate, true );
+			if ( is_array( $decoded ) ) {
+				return $decoded;
+			}
+		}
+		return null;
 	}
 
 	// -------------------------------------------------------------------------
@@ -438,7 +608,7 @@ class HGD_Admin {
 		$input = array();
 
 		foreach ( array(
-			'claude_api_key', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
+			'claude_api_key', 'claude_model', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret',
 			'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',
