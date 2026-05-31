@@ -2,8 +2,8 @@
 /**
  * Database schema + table-name helpers.
  *
- * The plant catalogue and API-usage log are stored in dedicated custom tables.
- * Projects, proposals, payments etc. will be added in later feature PRs.
+ * Tables: plant catalogue, API-usage log, clients (CRM), and projects.
+ * Proposals, payments etc. will be added in later feature PRs.
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '1';
+	const SCHEMA_VERSION = '2';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -25,6 +25,16 @@ class HGD_DB {
 	public static function api_usage_table() {
 		global $wpdb;
 		return $wpdb->prefix . 'hgd_api_usage';
+	}
+
+	public static function clients_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_clients';
+	}
+
+	public static function projects_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_projects';
 	}
 
 	/**
@@ -37,6 +47,8 @@ class HGD_DB {
 		$charset_collate = $wpdb->get_charset_collate();
 		$plants          = self::plants_table();
 		$usage           = self::api_usage_table();
+		$clients         = self::clients_table();
+		$projects        = self::projects_table();
 
 		$statements = array();
 
@@ -85,6 +97,48 @@ class HGD_DB {
 			PRIMARY KEY  (id),
 			KEY api (api),
 			KEY project_id (project_id),
+			KEY created_at (created_at)
+		) {$charset_collate};";
+
+		// --- Clients (CRM) ---------------------------------------------------
+		$statements[] = "CREATE TABLE {$clients} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			first_name VARCHAR(100) NOT NULL DEFAULT '',
+			last_name VARCHAR(100) NOT NULL DEFAULT '',
+			email VARCHAR(191) NOT NULL DEFAULT '',
+			phone VARCHAR(40) NOT NULL DEFAULT '',
+			address_line1 VARCHAR(191) NOT NULL DEFAULT '',
+			address_line2 VARCHAR(191) NOT NULL DEFAULT '',
+			city VARCHAR(100) NOT NULL DEFAULT '',
+			postcode VARCHAR(20) NOT NULL DEFAULT '',
+			notes TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY email (email)
+		) {$charset_collate};";
+
+		// --- Projects --------------------------------------------------------
+		$statements[] = "CREATE TABLE {$projects} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			client_id BIGINT UNSIGNED NULL,
+			title VARCHAR(191) NOT NULL DEFAULT '',
+			status VARCHAR(30) NOT NULL DEFAULT 'lead',
+			source VARCHAR(30) NOT NULL DEFAULT 'manual',
+			address VARCHAR(255) NOT NULL DEFAULT '',
+			postcode VARCHAR(20) NOT NULL DEFAULT '',
+			budget_range VARCHAR(60) NOT NULL DEFAULT '',
+			style_prefs VARCHAR(255) NOT NULL DEFAULT '',
+			has_pets TINYINT(1) NOT NULL DEFAULT 0,
+			has_children TINYINT(1) NOT NULL DEFAULT 0,
+			brief_notes TEXT NULL,
+			consultation_paid TINYINT(1) NOT NULL DEFAULT 0,
+			consultation_at DATETIME NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY client_id (client_id),
+			KEY status (status),
 			KEY created_at (created_at)
 		) {$charset_collate};";
 

@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 0.1.4
+ * Version: 0.2.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '0.1.4' );
+define( 'HGD_VERSION', '0.2.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -26,7 +26,10 @@ require_once HGD_PATH . 'includes/class-hgd-db.php';
 require_once HGD_PATH . 'includes/class-hgd-activator.php';
 require_once HGD_PATH . 'includes/class-hgd-settings.php';
 require_once HGD_PATH . 'includes/class-hgd-plant.php';
+require_once HGD_PATH . 'includes/class-hgd-client.php';
+require_once HGD_PATH . 'includes/class-hgd-project.php';
 require_once HGD_PATH . 'includes/class-hgd-api-usage.php';
+require_once HGD_PATH . 'includes/class-hgd-lead-form.php';
 require_once HGD_PATH . 'includes/class-hgd-updater.php';
 
 register_activation_hook( __FILE__, array( 'HGD_Activator', 'activate' ) );
@@ -52,6 +55,10 @@ add_action( 'plugins_loaded', function () {
 		);
 	}
 } );
+
+// Public-facing lead-capture form ([hgd_enquiry] shortcode + submit handler).
+$hgd_lead_form = new HGD_Lead_Form();
+$hgd_lead_form->register();
 
 if ( is_admin() ) {
 	require_once HGD_PATH . 'admin/class-hgd-admin.php';
