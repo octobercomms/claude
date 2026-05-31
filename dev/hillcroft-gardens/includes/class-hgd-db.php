@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '5';
+	const SCHEMA_VERSION = '6';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -47,6 +47,16 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_project_assets';
 	}
 
+	public static function quotes_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_quotes';
+	}
+
+	public static function quote_items_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_quote_items';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -61,6 +71,8 @@ class HGD_DB {
 		$projects        = self::projects_table();
 		$bookings        = self::bookings_table();
 		$project_assets  = self::project_assets_table();
+		$quotes          = self::quotes_table();
+		$quote_items     = self::quote_items_table();
 
 		$statements = array();
 
@@ -193,6 +205,44 @@ class HGD_DB {
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
 			PRIMARY KEY  (id),
 			KEY project_id (project_id)
+		) {$charset_collate};";
+
+		// --- Quotes (one per project per tier) -------------------------------
+		$statements[] = "CREATE TABLE {$quotes} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			project_id BIGINT UNSIGNED NULL,
+			tier VARCHAR(20) NOT NULL DEFAULT 'standard',
+			title VARCHAR(191) NOT NULL DEFAULT '',
+			labour_days DECIMAL(6,2) NOT NULL DEFAULT 0,
+			day_rate_gbp DECIMAL(10,2) NOT NULL DEFAULT 0,
+			wastage_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+			contingency_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+			design_fee_gbp DECIMAL(10,2) NOT NULL DEFAULT 0,
+			vat_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+			notes TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY project_id (project_id),
+			KEY tier (tier)
+		) {$charset_collate};";
+
+		// --- Quote line items ------------------------------------------------
+		$statements[] = "CREATE TABLE {$quote_items} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			quote_id BIGINT UNSIGNED NULL,
+			item_type VARCHAR(20) NOT NULL DEFAULT 'plant',
+			plant_id BIGINT UNSIGNED NULL,
+			label VARCHAR(255) NOT NULL DEFAULT '',
+			qty DECIMAL(10,2) NOT NULL DEFAULT 1,
+			unit VARCHAR(20) NOT NULL DEFAULT 'each',
+			unit_cost_gbp DECIMAL(10,2) NOT NULL DEFAULT 0,
+			markup_pct DECIMAL(5,2) NOT NULL DEFAULT 0,
+			sort_order INT NOT NULL DEFAULT 0,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY quote_id (quote_id),
+			KEY item_type (item_type)
 		) {$charset_collate};";
 
 		return $statements;
