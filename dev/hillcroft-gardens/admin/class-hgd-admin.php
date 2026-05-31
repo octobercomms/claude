@@ -45,6 +45,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_proposal_delete', array( $this, 'handle_proposal_delete' ) );
 		add_action( 'admin_post_hgd_create_example', array( $this, 'handle_create_example' ) );
 		add_action( 'admin_post_hgd_remove_example', array( $this, 'handle_remove_example' ) );
+		add_action( 'admin_post_hgd_test_update', array( $this, 'handle_test_update' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
@@ -1222,6 +1223,30 @@ class HGD_Admin {
 		$s         = HGD_Settings::all();
 		$saved     = isset( $_GET['updated'] ); // phpcs:ignore WordPress.Security.NonceVerification
 		include HGD_PATH . 'admin/views/settings.php';
+	}
+
+	/** Diagnose the GitHub update connection and report the result on Settings. */
+	public function handle_test_update() {
+		$this->guard();
+		check_admin_referer( 'hgd_test_update' );
+
+		$s = HGD_Settings::all();
+		if ( empty( $s['github_token'] ) || empty( $s['github_repo'] ) ) {
+			set_transient( 'hgd_update_test_' . get_current_user_id(), array( 'ok' => false, 'message' => __( 'Add the GitHub repository and access token first, then save.', 'hillcroft-garden-designer' ) ), 60 );
+			$this->redirect_with( 'hgd-settings', array( 'update_test' => 1 ) );
+		}
+
+		$updater = new HGD_Updater(
+			HGD_BASENAME,
+			HGD_VERSION,
+			$s['github_repo'],
+			$s['github_token'],
+			isset( $s['github_tag_prefix'] ) ? $s['github_tag_prefix'] : 'hgd-v'
+		);
+		$result = $updater->diagnose();
+
+		set_transient( 'hgd_update_test_' . get_current_user_id(), $result, 60 );
+		$this->redirect_with( 'hgd-settings', array( 'update_test' => 1 ) );
 	}
 
 	public function handle_save_settings() {

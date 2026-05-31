@@ -82,6 +82,21 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				<label class="hgd-checkbox"><input type="checkbox" name="auto_update" value="1" <?php checked( ! empty( $s['auto_update'] ) ); ?> /> <span><?php esc_html_e( 'Enable automatic background updates', 'hillcroft-garden-designer' ); ?></span></label>
 			</div>
 			<p class="hgd-muted"><?php echo esc_html( sprintf( /* translators: %s version */ __( 'Installed version: %s', 'hillcroft-garden-designer' ), HGD_VERSION ) ); ?></p>
+
+			<?php
+			$test = isset( $_GET['update_test'] ) ? get_transient( 'hgd_update_test_' . get_current_user_id() ) : false; // phpcs:ignore WordPress.Security.NonceVerification
+			if ( is_array( $test ) ) {
+				delete_transient( 'hgd_update_test_' . get_current_user_id() );
+				printf(
+					'<div class="hgd-flash %s">%s</div>',
+					empty( $test['ok'] ) ? 'hgd-flash-error' : '',
+					esc_html( $test['message'] )
+				);
+			}
+			?>
+			<p class="hgd-muted"><?php esc_html_e( 'Not seeing updates on Dashboard → Updates? Test the connection to GitHub and see exactly what is happening:', 'hillcroft-garden-designer' ); ?>
+				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=hgd_test_update' ), 'hgd_test_update' ) ); ?>"><?php esc_html_e( 'Test update connection', 'hillcroft-garden-designer' ); ?></a>
+			</p>
 		</div>
 
 		<div class="hgd-panel">
