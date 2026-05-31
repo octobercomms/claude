@@ -29,6 +29,20 @@ class HGD_Admin {
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
 		add_filter( 'submenu_file', array( $this, 'highlight_forms_tab' ) );
+		add_action( 'admin_head', array( $this, 'hide_forms_subpages_in_menu' ) );
+	}
+
+	/**
+	 * Hide the Submissions/Analytics sidebar links (they're reached via the Forms
+	 * hub tabs). They stay *registered* so the pages remain accessible — only the
+	 * sidebar links are hidden, via CSS, which avoids the capability error that
+	 * remove_submenu_page() caused.
+	 */
+	public function hide_forms_subpages_in_menu() {
+		echo '<style>
+			#adminmenu a[href$="page=hgd-forms-submissions"],
+			#adminmenu a[href$="page=hgd-forms-analytics"] { display: none !important; }
+		</style>';
 	}
 
 	/** Keep "Forms" highlighted (and the Designer submenu open) on the hidden tab pages. */
