@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.1.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.1.1 =
+* Admin UI now uses the full content width (no longer boxed to 1100px); plant form spreads to three columns on wide screens.
 
 = 0.1.0 =
 * Foundation: admin shell, plant catalogue, cost banner, API-usage logging, GitHub self-updater.

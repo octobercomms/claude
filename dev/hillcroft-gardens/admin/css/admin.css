@@ -15,7 +15,8 @@
 .hgd-wrap {
 	font-family: "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	color: var(--hgd-charcoal);
-	max-width: 1100px;
+	max-width: none;
+	margin-right: 20px;
 }
 .hgd-wrap h1, .hgd-wrap h2 {
 	font-family: "Cormorant Garamond", Georgia, serif;
@@ -140,6 +141,12 @@
 .hgd-cost-action { margin-left: auto; }
 .hgd-level-amber .hgd-cost-action { background: #E6B450; border-color: #E6B450; color: var(--hgd-charcoal) !important; }
 .hgd-level-red .hgd-cost-action { background: #E06666; border-color: #E06666; }
+
+/* On wide screens, let the plant form breathe across more columns so full-width
+   inputs don't stretch awkwardly. */
+@media (min-width: 1500px) {
+	.hgd-form .hgd-grid { grid-template-columns: repeat(3, 1fr); }
+}
 
 @media (max-width: 782px) {
 	.hgd-form .hgd-grid { grid-template-columns: 1fr; }
