@@ -14,6 +14,7 @@ class HGD_Project_Asset {
 	const ROLES = array(
 		'sketch' => 'Sketch',
 		'photo'  => 'Photo',
+		'render' => 'Concept render',
 		'other'  => 'Other',
 	);
 
@@ -38,14 +39,22 @@ class HGD_Project_Asset {
 		return (int) $wpdb->insert_id;
 	}
 
-	/** Rows for a project, oldest first. */
-	public static function for_project( $project_id ) {
+	/** Rows for a project, oldest first. Optionally filter by role. */
+	public static function for_project( $project_id, $role = '' ) {
 		global $wpdb;
 		$table = HGD_DB::project_assets_table();
-		$rows  = $wpdb->get_results( $wpdb->prepare(
-			"SELECT * FROM {$table} WHERE project_id = %d ORDER BY id ASC",
-			(int) $project_id
-		), ARRAY_A );
+		if ( '' !== $role ) {
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT * FROM {$table} WHERE project_id = %d AND role = %s ORDER BY id ASC",
+				(int) $project_id,
+				$role
+			), ARRAY_A );
+		} else {
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT * FROM {$table} WHERE project_id = %d ORDER BY id ASC",
+				(int) $project_id
+			), ARRAY_A );
+		}
 		return $rows ? $rows : array();
 	}
 
