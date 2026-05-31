@@ -33,19 +33,25 @@ The repo is private, so the self-updater needs a token to read releases and down
 
 ## Shipping a new version (the dev workflow)
 
+Releases are **fully automatic** — no tag push or manual release needed.
+
 1. Make changes under `dev/hillcroft-gardens/`.
 2. Bump the version in **both**:
    - the plugin header `Version:` in `hillcroft-garden-designer.php`, and
    - `Stable tag:` in `readme.txt`.
    - Add a `== Changelog ==` entry.
-3. Merge to `main`.
-4. Tag the release: `git tag hgd-v<version> && git push origin hgd-v<version>`
-   (the tag version **must** match the header version — the Action checks this).
-5. The **GitHub Action** (`.github/workflows/hillcroft-garden-designer-release.yml`) builds
-   `hillcroft-garden-designer-<version>.zip` and publishes a GitHub Release with it attached.
-6. Within a few hours (or immediately on a manual "Check for updates"), Donna's site shows the
+3. **Merge to `main`.** That's it.
+4. The **GitHub Action** (`.github/workflows/hillcroft-garden-designer-release.yml`) fires on
+   the merge: it reads the version from the plugin header and, if no release exists for it yet,
+   builds `hillcroft-garden-designer-<version>.zip`, **creates the `hgd-v<version>` tag, and
+   publishes the GitHub Release** with the zip attached. (Re-running on unrelated pushes is a
+   no-op once the release exists.)
+5. Within a few hours (or immediately on a manual "Check again"), the live site shows the
    update under **Dashboard → Updates** and installs it with one click — or silently if
    auto-update is on.
+
+> The Action uses the first-party GitHub CLI (`gh`) so it doesn't depend on any third-party
+> action being allow-listed by the org.
 
 ## How the updater picks the right release
 
