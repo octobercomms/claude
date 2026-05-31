@@ -15,6 +15,7 @@ class HGD_Project_Asset {
 		'sketch' => 'Sketch',
 		'photo'  => 'Photo',
 		'render' => 'Concept render',
+		'pack'   => 'Render pack',
 		'other'  => 'Other',
 	);
 
@@ -25,15 +26,19 @@ class HGD_Project_Asset {
 	/**
 	 * Link an attachment to a project.
 	 *
+	 * @param string $view_key Optional pack-view key (e.g. 'masterplan', 'corner_1').
+	 * @param string $label    Optional human label for the view.
 	 * @return int Inserted row id.
 	 */
-	public static function add( $project_id, $attachment_id, $role = 'photo' ) {
+	public static function add( $project_id, $attachment_id, $role = 'photo', $view_key = '', $label = '' ) {
 		global $wpdb;
 		$role = isset( self::ROLES[ $role ] ) ? $role : 'other';
 		$wpdb->insert( HGD_DB::project_assets_table(), array(
 			'project_id'    => (int) $project_id,
 			'attachment_id' => (int) $attachment_id,
 			'role'          => $role,
+			'view_key'      => sanitize_key( $view_key ),
+			'label'         => sanitize_text_field( $label ),
 			'created_at'    => current_time( 'mysql' ),
 		) );
 		return (int) $wpdb->insert_id;
