@@ -236,6 +236,91 @@ class HGD_Updater {
 		delete_transient( $this->cache_key );
 	}
 
+	/**
+	 * Diagnose the update connection — calls the GitHub releases API and reports
+	 * exactly what happened, so a silent failure (bad token, org approval needed,
+	 * wrong scope, no matching release) becomes visible in Settings.
+	 *
+	 * @return array{ok:bool, message:string}
+	 */
+	public function diagnose() {
+		if ( '' === trim( (string) $this->token ) ) {
+			return array( 'ok' => false, 'message' => __( 'No GitHub token saved. Paste a fine-grained token with Contents: read on this repo.', 'hillcroft-garden-designer' ) );
+		}
+
+		$response = wp_remote_get(
+			"https://api.github.com/repos/{$this->repo}/releases?per_page=30",
+			$this->request_args( 'application/vnd.github+json' )
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return array( 'ok' => false, 'message' => sprintf(
+				/* translators: %s error */ __( 'Could not reach GitHub: %s', 'hillcroft-garden-designer' ),
+				$response->get_error_message()
+			) );
+		}
+
+		$code = (int) wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $code ) {
+			$api_msg = is_array( $body ) && isset( $body['message'] ) ? $body['message'] : '';
+			$hint    = '';
+			if ( 401 === $code ) {
+				$hint = __( 'The token is invalid or expired.', 'hillcroft-garden-designer' );
+			} elseif ( 403 === $code ) {
+				$hint = __( 'Access forbidden — the org may require approval for fine-grained tokens, or the token lacks Contents: read.', 'hillcroft-garden-designer' );
+			} elseif ( 404 === $code ) {
+				$hint = __( 'Repo not found for this token — check the repository name and that the token is scoped to it (Resource owner = octobercomms).', 'hillcroft-garden-designer' );
+			}
+			return array( 'ok' => false, 'message' => sprintf(
+				/* translators: 1: HTTP code, 2: github message, 3: hint */ __( 'GitHub returned HTTP %1$d (%2$s). %3$s', 'hillcroft-garden-designer' ),
+				$code,
+				$api_msg ? $api_msg : '—',
+				$hint
+			) );
+		}
+
+		if ( ! is_array( $body ) ) {
+			return array( 'ok' => false, 'message' => __( 'GitHub returned an unexpected response.', 'hillcroft-garden-designer' ) );
+		}
+
+		// Count matching releases.
+		$matching = 0;
+		$latest   = '';
+		foreach ( $body as $release ) {
+			if ( ! empty( $release['draft'] ) || ! empty( $release['prerelease'] ) ) {
+				continue;
+			}
+			$tag = isset( $release['tag_name'] ) ? $release['tag_name'] : '';
+			if ( 0 !== strpos( $tag, $this->tag_prefix ) ) {
+				continue;
+			}
+			$matching++;
+			$v = ltrim( substr( $tag, strlen( $this->tag_prefix ) ), 'v' );
+			if ( '' === $latest || version_compare( $v, $latest, '>' ) ) {
+				$latest = $v;
+			}
+		}
+
+		if ( 0 === $matching ) {
+			return array( 'ok' => false, 'message' => sprintf(
+				/* translators: %s tag prefix */ __( 'Connected to GitHub, but found no releases tagged "%s…". Check the tag prefix.', 'hillcroft-garden-designer' ),
+				$this->tag_prefix
+			) );
+		}
+
+		// Clear any stale cached miss so the Updates screen re-checks.
+		delete_transient( $this->cache_key );
+
+		return array( 'ok' => true, 'message' => sprintf(
+			/* translators: 1: count, 2: latest version, 3: installed version */ __( 'Connected. Found %1$d releases; latest is %2$s (you have %3$s). Go to Dashboard → Updates → Check again to pull it in.', 'hillcroft-garden-designer' ),
+			$matching,
+			$latest,
+			$this->version
+		) );
+	}
+
 	// -------------------------------------------------------------------------
 
 	private function request_args( $accept ) {
