@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '6';
+	const SCHEMA_VERSION = '7';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -57,6 +57,16 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_quote_items';
 	}
 
+	public static function proposals_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_proposals';
+	}
+
+	public static function payments_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_payments';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -73,6 +83,8 @@ class HGD_DB {
 		$project_assets  = self::project_assets_table();
 		$quotes          = self::quotes_table();
 		$quote_items     = self::quote_items_table();
+		$proposals       = self::proposals_table();
+		$payments        = self::payments_table();
 
 		$statements = array();
 
@@ -243,6 +255,53 @@ class HGD_DB {
 			PRIMARY KEY  (id),
 			KEY quote_id (quote_id),
 			KEY item_type (item_type)
+		) {$charset_collate};";
+
+		// --- Proposals (a sent, payable presentation of a chosen quote) ------
+		$statements[] = "CREATE TABLE {$proposals} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			project_id BIGINT UNSIGNED NULL,
+			quote_id BIGINT UNSIGNED NULL,
+			token VARCHAR(64) NOT NULL DEFAULT '',
+			status VARCHAR(20) NOT NULL DEFAULT 'draft',
+			total_gbp DECIMAL(10,2) NOT NULL DEFAULT 0,
+			deposit_type VARCHAR(10) NOT NULL DEFAULT 'pct',
+			deposit_value DECIMAL(10,2) NOT NULL DEFAULT 0,
+			intro_text TEXT NULL,
+			terms_text LONGTEXT NULL,
+			signature_name VARCHAR(191) NOT NULL DEFAULT '',
+			signed_at DATETIME NULL,
+			expires_at DATETIME NULL,
+			sent_at DATETIME NULL,
+			viewed_at DATETIME NULL,
+			accepted_at DATETIME NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY project_id (project_id),
+			KEY token (token),
+			KEY status (status)
+		) {$charset_collate};";
+
+		// --- Payments (milestones within a proposal) ------------------------
+		$statements[] = "CREATE TABLE {$payments} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			proposal_id BIGINT UNSIGNED NULL,
+			project_id BIGINT UNSIGNED NULL,
+			milestone VARCHAR(20) NOT NULL DEFAULT 'deposit',
+			label VARCHAR(191) NOT NULL DEFAULT '',
+			amount_gbp DECIMAL(10,2) NOT NULL DEFAULT 0,
+			status VARCHAR(20) NOT NULL DEFAULT 'due',
+			stripe_payment_intent VARCHAR(80) NOT NULL DEFAULT '',
+			sort_order INT NOT NULL DEFAULT 0,
+			due_at DATETIME NULL,
+			paid_at DATETIME NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY proposal_id (proposal_id),
+			KEY status (status),
+			KEY stripe_payment_intent (stripe_payment_intent)
 		) {$charset_collate};";
 
 		return $statements;
