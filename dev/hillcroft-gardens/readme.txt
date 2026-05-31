@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.5.1
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,11 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.6.0 =
+* Design & ideas: an editable design brief + render prompt on each project, with "Compose with Claude" to draft both from the sketch-reading and the designer's ideas.
+* Concept renders: "Generate render" turns the prompt (anchored by the sketch as a reference image) into a photorealistic concept image via Google Gemini; press again to iterate, and delete ones you don't want. Per-image cost feeds the cost banner.
+* Settings: choose the Gemini image model (default gemini-2.5-flash-image).
 
 = 0.5.1 =
 * Fix: the Forms Submissions and Analytics tabs returned "Sorry, you are not allowed to access this page." Pages stay registered (so they resolve); their sidebar links are hidden via CSS instead, with navigation via the Forms hub tabs.

@@ -23,6 +23,9 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_upload_assets', array( $this, 'handle_upload_assets' ) );
 		add_action( 'admin_post_hgd_delete_asset', array( $this, 'handle_delete_asset' ) );
 		add_action( 'admin_post_hgd_claude_read', array( $this, 'handle_claude_read' ) );
+		add_action( 'admin_post_hgd_save_design', array( $this, 'handle_save_design' ) );
+		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
+		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
 		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
 		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
@@ -489,6 +492,133 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+	// Design brief + render prompt (Claude-assisted) and Gemini concept renders
+	// -------------------------------------------------------------------------
+
+	/** Save the hand-editable design brief + render prompt textareas. */
+	public function handle_save_design() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_save_design_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		$design_brief  = isset( $_POST['design_brief'] ) ? sanitize_textarea_field( wp_unslash( $_POST['design_brief'] ) ) : '';
+		$render_prompt = isset( $_POST['render_prompt'] ) ? sanitize_textarea_field( wp_unslash( $_POST['render_prompt'] ) ) : '';
+
+		HGD_Project::update( $id, array(
+			'design_brief'  => $design_brief,
+			'render_prompt' => $render_prompt,
+		) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'design_saved' => 1 ) );
+	}
+
+	/** Ask Claude to compose a design brief + image-generation prompt. */
+	public function handle_compose_prompt() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_compose_prompt_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Claude::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'design_error' => 'nokey' ) );
+		}
+
+		$ideas = '' !== (string) $project['design_brief'] ? (string) $project['design_brief'] : (string) $project['brief_notes'];
+
+		$prompt  = "Consultation reading (Claude's interpretation of the site sketch):\n" . ( $project['ai_reading'] ?: '(none)' ) . "\n\n";
+		$prompt .= "Designer's ideas / brief notes:\n" . ( $ideas ?: '(none)' ) . "\n\n";
+		$prompt .= 'Style preferences: ' . ( $project['style_prefs'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Budget range: ' . ( $project['budget_range'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Address: ' . ( $project['address'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Postcode: ' . ( $project['postcode'] ?: '(not given)' ) . "\n";
+
+		$system = 'You are a garden-design assistant. Using the consultation reading and the designer\'s ideas, '
+			. 'write (a) a concise design brief and (b) a single richly-detailed image-generation prompt for a photorealistic '
+			. 'garden concept render — describe layout, planting, materials, mood, season, viewpoint; keep fixed features consistent. '
+			. 'Respond ONLY with a single JSON object with exactly two keys: "brief" (the concise design brief) and '
+			. '"prompt" (the single image-generation prompt). Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
+
+		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 2000, $id );
+
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_design_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'design_error' => 'api' ) );
+		}
+
+		$parsed = $this->parse_claude_json( $result['text'] );
+		if ( null === $parsed ) {
+			set_transient( 'hgd_design_error_' . get_current_user_id(), __( 'Could not parse a JSON response from Claude.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'design_error' => 'parse' ) );
+		}
+
+		$brief         = isset( $parsed['brief'] ) ? (string) $parsed['brief'] : '';
+		$render_prompt = isset( $parsed['prompt'] ) ? (string) $parsed['prompt'] : '';
+
+		HGD_Project::update( $id, array(
+			'design_brief'  => sanitize_textarea_field( $brief ),
+			'render_prompt' => sanitize_textarea_field( $render_prompt ),
+		) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'design_composed' => 1 ) );
+	}
+
+	/** Generate (or iterate) a Gemini concept render and append it to the gallery. */
+	public function handle_generate_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_generate_render_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_error' => 'nokey' ) );
+		}
+
+		$prompt = (string) $project['render_prompt'];
+		if ( '' === trim( $prompt ) ) {
+			$prompt = (string) $project['design_brief'];
+		}
+		if ( '' === trim( $prompt ) ) {
+			$prompt = 'A photorealistic concept render of a beautifully designed residential garden, natural daylight, lush planting, well-composed landscape photograph.';
+		}
+
+		// Anchor the render to the project sketch(es) where available (cap at 2).
+		$refs    = array();
+		$sketches = HGD_Project_Asset::for_project( $id, 'sketch' );
+		foreach ( array_slice( $sketches, 0, 2 ) as $sketch ) {
+			$refs[] = (int) $sketch['attachment_id'];
+		}
+
+		$result = HGD_Gemini::generate_image( $prompt, $refs, $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_error' => 'api' ) );
+		}
+
+		$att_id = HGD_Gemini::save_image_as_attachment( $result['bytes'], $result['mime'], $id, 'concept' );
+		if ( is_wp_error( $att_id ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $att_id->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_error' => 'save' ) );
+		}
+
+		HGD_Project_Asset::add( $id, $att_id, 'render' );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_done' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
 	// Clients
 	// -------------------------------------------------------------------------
 
@@ -622,7 +752,7 @@ class HGD_Admin {
 		$input = array();
 
 		foreach ( array(
-			'claude_api_key', 'claude_model', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
+			'claude_api_key', 'claude_model', 'gemini_api_key', 'gemini_image_model', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret',
 			'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',
