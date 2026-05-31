@@ -1,0 +1,183 @@
+/* October Forms — frontend styles. Theme-able via CSS vars set on .hgd-form-form-root. */
+
+.hgd-form-form-root {
+	--hgd-form-primary: #111;
+	--hgd-form-accent: #f59e0b;
+	--hgd-form-font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+	--hgd-form-radius: 8px;
+	--hgd-form-background: #ffffff;
+	--hgd-form-surface: #f5f5f5;
+	--hgd-form-border: #e5e7eb;
+	--hgd-form-muted: #6b7280;
+	--hgd-form-error: #dc2626;
+	font-family: var(--hgd-form-font);
+	color: #111;
+	width: 100%;
+	max-width: 800px;
+	margin: 0 auto;
+}
+
+.hgd-form-card {
+	background: var(--hgd-form-background);
+	border-radius: calc(var(--hgd-form-radius) * 1.5);
+	padding: 32px;
+}
+
+.hgd-form-logo { text-align: center; margin-bottom: 16px; }
+.hgd-form-logo img { max-height: 40px; }
+
+.hgd-form-progress { height: 4px; background: var(--hgd-form-surface); border-radius: 999px; overflow: hidden; margin-bottom: 24px; }
+.hgd-form-progress-bar { height: 100%; background: var(--hgd-form-accent); width: 0; transition: width .3s ease; }
+
+.hgd-form-step-title { font-size: 22px; font-weight: 600; margin: 0 0 24px; line-height: 1.3; text-align: center; }
+
+.hgd-form-q { margin-bottom: 20px; position: relative; }
+.hgd-form-q-label { display: block; font-weight: 500; margin-bottom: 8px; font-size: 15px; }
+.hgd-form-q-help { color: var(--hgd-form-muted); font-size: 14px; margin-bottom: 8px; }
+.hgd-form-q-error { color: var(--hgd-form-error); font-size: 13px; margin-top: 6px; }
+.hgd-form-q.has-error .hgd-form-input,
+.hgd-form-q.has-error .hgd-form-image-card { border-color: var(--hgd-form-error); }
+.hgd-form-req { color: var(--hgd-form-error); }
+
+.hgd-form-input {
+	width: 100%;
+	padding: 12px 14px;
+	border: 1px solid var(--hgd-form-border);
+	border-radius: var(--hgd-form-radius);
+	font: inherit;
+	background: #fff;
+	transition: border-color .15s ease, box-shadow .15s ease;
+	box-sizing: border-box;
+}
+.hgd-form-input:focus { outline: none; border-color: var(--hgd-form-primary); box-shadow: 0 0 0 3px rgba(0,0,0,.08); }
+.hgd-form-textarea { resize: vertical; min-height: 110px; }
+.hgd-form-select { appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--hgd-form-muted) 50%), linear-gradient(135deg, var(--hgd-form-muted) 50%, transparent 50%); background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%; background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
+
+.hgd-form-choices { display: flex; flex-direction: column; gap: 8px; }
+.hgd-form-choice {
+	display: flex; align-items: center; gap: 12px;
+	padding: 12px 14px; border: 1px solid var(--hgd-form-border);
+	border-radius: var(--hgd-form-radius); cursor: pointer;
+}
+.hgd-form-choice:hover { border-color: var(--hgd-form-primary); }
+.hgd-form-choice.is-checked { border-color: var(--hgd-form-primary); background: rgba(0,0,0,.02); }
+
+/* Custom-styled circular radio + checkbox for choice and image-card inputs.
+   Native UI is replaced with a 20px circle that gets an accent-colored
+   tick on selection. */
+.hgd-form-choice input[type="radio"],
+.hgd-form-choice input[type="checkbox"],
+.hgd-form-image-card-meta input[type="radio"],
+.hgd-form-image-card-meta input[type="checkbox"] {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 20px;
+	height: 20px;
+	min-width: 20px;
+	border: 2px solid var(--hgd-form-border);
+	border-radius: 50%;
+	background: #fff;
+	margin: 0;
+	cursor: pointer;
+	position: relative;
+	transition: border-color .15s;
+}
+.hgd-form-choice input:checked,
+.hgd-form-image-card-meta input:checked {
+	border-color: var(--hgd-form-accent);
+}
+.hgd-form-choice input:checked::after,
+.hgd-form-image-card-meta input:checked::after {
+	content: '';
+	position: absolute;
+	left: 4px;
+	top: 0;
+	width: 6px;
+	height: 11px;
+	border: solid var(--hgd-form-accent);
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+.hgd-form-image-cards {
+	display: grid; gap: 16px;
+	grid-template-columns: repeat(2, 1fr);
+}
+@media (max-width: 520px) {
+	.hgd-form-image-cards { grid-template-columns: 1fr; }
+}
+.hgd-form-image-card {
+	display: flex; flex-direction: column;
+	border: 1px solid var(--hgd-form-border);
+	border-radius: var(--hgd-form-radius);
+	overflow: hidden;
+	cursor: pointer;
+	background: #fff;
+	transition: border-color .15s, transform .15s, box-shadow .15s;
+	position: relative;
+}
+.hgd-form-image-card:hover { border-color: var(--hgd-form-primary); transform: translateY(-1px); }
+.hgd-form-image-card.is-selected {
+	border-color: var(--hgd-form-primary);
+	/* Inset ring sits on top of the image edge — exactly what we want when selected. */
+	box-shadow: 0 0 0 3px var(--hgd-form-primary) inset;
+}
+.hgd-form-image-card-img { aspect-ratio: 4 / 3; background: var(--hgd-form-surface); }
+.hgd-form-image-card-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.hgd-form-image-card-meta { display: flex; align-items: center; gap: 12px; padding: 12px 14px; font-size: 14px; }
+
+.hgd-form-grid { width: 100%; border-collapse: collapse; font-size: 14px; }
+.hgd-form-grid th, .hgd-form-grid td { padding: 8px 10px; border-bottom: 1px solid var(--hgd-form-border); text-align: center; }
+.hgd-form-grid th:first-child, .hgd-form-grid td:first-child { text-align: left; }
+
+.hgd-form-address { display: flex; flex-direction: column; gap: 10px; }
+.hgd-form-address-row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+@media (max-width: 520px) {
+	.hgd-form-address-row { grid-template-columns: 1fr; }
+}
+
+.hgd-form-file { display: flex; flex-direction: column; gap: 10px; }
+.hgd-form-file-input { display: none; }
+.hgd-form-dropzone {
+	border: 2px dashed var(--hgd-form-border);
+	border-radius: var(--hgd-form-radius);
+	padding: 24px;
+	text-align: center;
+	color: var(--hgd-form-muted);
+	cursor: pointer;
+}
+.hgd-form-dropzone:hover, .hgd-form-dropzone.is-drag { border-color: var(--hgd-form-primary); color: var(--hgd-form-primary); }
+.hgd-form-file-browse { color: var(--hgd-form-primary); font-weight: 600; }
+.hgd-form-file-list { display: flex; flex-direction: column; gap: 6px; }
+.hgd-form-file-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; background: var(--hgd-form-surface); border-radius: var(--hgd-form-radius); font-size: 14px; }
+.hgd-form-file-row.has-error { background: rgba(220,38,38,.08); color: var(--hgd-form-error); }
+.hgd-form-file-remove { background: none; border: none; color: var(--hgd-form-error); cursor: pointer; font-size: 13px; }
+.hgd-form-file-progress { color: var(--hgd-form-muted); font-size: 13px; }
+
+.hgd-form-foot {
+	display: flex; gap: 10px; justify-content: flex-end; align-items: center;
+	margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--hgd-form-border);
+	flex-wrap: wrap;
+}
+.hgd-form-turnstile { margin-right: auto; }
+.hgd-form-btn {
+	font: inherit; padding: 12px 22px; border-radius: var(--hgd-form-radius);
+	cursor: pointer; border: 1px solid transparent; font-weight: 500;
+	transition: opacity .15s, transform .05s, background .15s;
+}
+.hgd-form-btn:disabled { opacity: .6; cursor: default; }
+.hgd-form-btn:active:not(:disabled) { transform: translateY(1px); }
+.hgd-form-btn-primary { background: var(--hgd-form-primary); color: #fff; }
+.hgd-form-btn-primary:hover:not(:disabled) { opacity: .9; }
+.hgd-form-btn-ghost { background: transparent; color: var(--hgd-form-muted); border-color: transparent; }
+.hgd-form-btn-ghost:hover { color: var(--hgd-form-primary); }
+
+.hgd-form-ending { text-align: center; padding: 32px 12px; }
+.hgd-form-ending h2 { font-size: 24px; margin: 0 0 12px; }
+.hgd-form-ending p { color: var(--hgd-form-muted); margin: 0 0 20px; }
+.hgd-form-ending a.hgd-form-btn { display: inline-block; text-decoration: none; }
+
+.hgd-form-error { padding: 12px 14px; border: 1px solid var(--hgd-form-error); background: rgba(220,38,38,.06); color: var(--hgd-form-error); border-radius: var(--hgd-form-radius); margin-top: 12px; }
+.hgd-form-loading { text-align: center; color: var(--hgd-form-muted); padding: 40px; }
+.hgd-form-heading { font-size: 20px; margin: 0 0 8px; }
+.hgd-form-paragraph { color: var(--hgd-form-muted); margin-bottom: 8px; }
