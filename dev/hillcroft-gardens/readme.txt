@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.1.2
+Stable tag: 0.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.1.3 =
+* Releases now publish automatically when a version bump is merged to main — no manual tag push needed. (Also includes the 0.1.2 "Designer" menu rename.)
 
 = 0.1.2 =
 * Renamed the admin menu item from "Hillcroft" to "Designer".
