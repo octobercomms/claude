@@ -30,13 +30,18 @@ class HGD_Admin {
 	// -------------------------------------------------------------------------
 
 	public function register_menus() {
+		$icon_file = HGD_PATH . 'assets/img/menu-icon.svg';
+		$icon      = file_exists( $icon_file )
+			? 'data:image/svg+xml;base64,' . base64_encode( file_get_contents( $icon_file ) ) // phpcs:ignore WordPress.WP.AlternativeFunctions
+			: 'dashicons-palmtree';
+
 		add_menu_page(
 			__( 'Hillcroft Garden Designer', 'hillcroft-garden-designer' ),
 			__( 'Designer', 'hillcroft-garden-designer' ),
 			self::CAP,
 			self::MENU,
 			array( $this, 'render_dashboard' ),
-			'dashicons-palmtree',
+			$icon,
 			3
 		);
 
