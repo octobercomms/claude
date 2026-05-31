@@ -35,10 +35,15 @@ they live **with the code**, not in `docs/`:
 ## Current apps
 
 `dev/` contains: `ada-checker`, `architourian-pdf`, `brevo-widgets`,
-`landing-pages`, `loom-tutorial-player`, `meta-ads`, `oc-ad-manager`,
-`oc-forms`, `october-admin-theme`, `october-event-tickets`,
+`hillcroft-gardens`, `landing-pages`, `loom-tutorial-player`, `meta-ads`,
+`oc-ad-manager`, `oc-forms`, `october-admin-theme`, `october-event-tickets`,
 `october-outreach`, `platform`, `ticker-link`, `tour-dates-shortcode`,
 `video`, `webp-image-optimizer`, `woo-bulk-editor`, `wordpress-lead-capture`.
+
+The **Hillcroft Garden Designer** WordPress plugin lives in `dev/hillcroft-gardens`
+(WP plugin slug `hillcroft-garden-designer`); its docs are in `docs/hillcroft-gardens`.
+Releases are tagged `hgd-v<version>` and built by a GitHub Action into a release
+zip that the plugin's built-in self-updater installs.
 
 **nvelope.co** is the product name for the October Performance Marketing
 Platform; its code spans `dev/platform` (backend + frontend) and `dev/meta-ads`

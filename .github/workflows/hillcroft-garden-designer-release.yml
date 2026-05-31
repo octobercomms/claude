@@ -1,0 +1,51 @@
+# Builds the Hillcroft Garden Designer plugin zip and publishes a GitHub Release
+# whenever a tag like `hgd-v0.2.0` is pushed. The plugin's built-in self-updater
+# reads these releases (filtered by the `hgd-v` tag prefix) so the live site can
+# update with one click.
+#
+# Scoped to the `hgd-v*` tag prefix so it never interferes with other apps in
+# this monorepo.
+name: Hillcroft Garden Designer — Release
+
+on:
+  push:
+    tags:
+      - 'hgd-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Derive version from tag
+        id: ver
+        run: echo "version=${GITHUB_REF_NAME#hgd-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify tag matches plugin header version
+        working-directory: dev/hillcroft-gardens
+        run: |
+          HEADER_VERSION="$(grep -m1 -E '^\s*\*\s*Version:' hillcroft-garden-designer.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')"
+          echo "Tag version: ${{ steps.ver.outputs.version }} / Header version: $HEADER_VERSION"
+          if [ "$HEADER_VERSION" != "${{ steps.ver.outputs.version }}" ]; then
+            echo "::error::Tag hgd-v${{ steps.ver.outputs.version }} does not match plugin header version $HEADER_VERSION"
+            exit 1
+          fi
+
+      - name: Build plugin zip
+        working-directory: dev/hillcroft-gardens
+        run: |
+          chmod +x bin/build-zip.sh
+          bin/build-zip.sh "$GITHUB_WORKSPACE/dist"
+
+      - name: Create release with the zip asset
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Hillcroft Garden Designer ${{ steps.ver.outputs.version }}
+          tag_name: ${{ github.ref_name }}
+          files: dist/hillcroft-garden-designer-${{ steps.ver.outputs.version }}.zip
+          generate_release_notes: true
