@@ -338,6 +338,8 @@ class HGD_Admin {
 			'claude_api_key', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',
+			'google_client_id', 'google_client_secret', 'google_calendar_id',
+			'avail_days', 'avail_start', 'avail_end',
 		) as $key ) {
 			if ( isset( $raw[ $key ] ) ) {
 				$input[ $key ] = sanitize_text_field( $raw[ $key ] );
@@ -349,6 +351,7 @@ class HGD_Admin {
 			'rate_maps_per_1k_usd', 'rate_plantid_per_credit_eur', 'soft_monthly_cap_gbp',
 			'consultation_fee_gbp', 'deposit_pct', 'commencement_pct', 'completion_pct',
 			'plantid_credits_balance',
+			'slot_minutes', 'buffer_minutes', 'booking_lead_days', 'booking_window_days',
 		) as $key ) {
 			if ( isset( $raw[ $key ] ) ) {
 				$input[ $key ] = (float) $raw[ $key ];

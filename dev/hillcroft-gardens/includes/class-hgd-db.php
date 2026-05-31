@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '2';
+	const SCHEMA_VERSION = '3';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -37,6 +37,11 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_projects';
 	}
 
+	public static function bookings_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_bookings';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -49,6 +54,7 @@ class HGD_DB {
 		$usage           = self::api_usage_table();
 		$clients         = self::clients_table();
 		$projects        = self::projects_table();
+		$bookings        = self::bookings_table();
 
 		$statements = array();
 
@@ -140,6 +146,32 @@ class HGD_DB {
 			KEY client_id (client_id),
 			KEY status (status),
 			KEY created_at (created_at)
+		) {$charset_collate};";
+
+		// --- Consultation bookings ------------------------------------------
+		$statements[] = "CREATE TABLE {$bookings} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			client_id BIGINT UNSIGNED NULL,
+			project_id BIGINT UNSIGNED NULL,
+			name VARCHAR(191) NOT NULL DEFAULT '',
+			email VARCHAR(191) NOT NULL DEFAULT '',
+			phone VARCHAR(40) NOT NULL DEFAULT '',
+			address VARCHAR(255) NOT NULL DEFAULT '',
+			postcode VARCHAR(20) NOT NULL DEFAULT '',
+			slot_start DATETIME NULL,
+			slot_end DATETIME NULL,
+			status VARCHAR(20) NOT NULL DEFAULT 'pending',
+			amount_gbp DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+			stripe_payment_intent VARCHAR(80) NOT NULL DEFAULT '',
+			google_event_id VARCHAR(191) NOT NULL DEFAULT '',
+			notes TEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY client_id (client_id),
+			KEY status (status),
+			KEY slot_start (slot_start),
+			KEY stripe_payment_intent (stripe_payment_intent)
 		) {$charset_collate};";
 
 		return $statements;

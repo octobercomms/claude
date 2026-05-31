@@ -35,6 +35,7 @@ require_once HGD_PATH . 'includes/class-hgd-settings.php';
 require_once HGD_PATH . 'includes/class-hgd-plant.php';
 require_once HGD_PATH . 'includes/class-hgd-client.php';
 require_once HGD_PATH . 'includes/class-hgd-project.php';
+require_once HGD_PATH . 'includes/class-hgd-booking.php';
 require_once HGD_PATH . 'includes/class-hgd-api-usage.php';
 require_once HGD_PATH . 'includes/class-hgd-lead-form.php';
 require_once HGD_PATH . 'includes/class-hgd-updater.php';
