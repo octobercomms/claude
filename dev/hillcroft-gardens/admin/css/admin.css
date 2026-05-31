@@ -158,6 +158,11 @@
 .hgd-status-proposed, .hgd-status-accepted { background: var(--hgd-green); color: #fff; }
 .hgd-status-in_progress { background: var(--hgd-olive-mid); color: #fff; }
 .hgd-status-complete { background: var(--hgd-olive); color: #fff; }
+/* Proposal statuses */
+.hgd-status-draft { background: rgba(73, 74, 32, 0.1); color: var(--hgd-olive); }
+.hgd-status-sent, .hgd-status-viewed { background: var(--hgd-yellow); color: #5a5b1a; }
+.hgd-status-deposit_paid { background: var(--hgd-green); color: #fff; }
+.hgd-status-expired { background: rgba(155, 34, 38, 0.12); color: #9b2226; }
 
 /* Inline sub-form (e.g. add-new-client block on the project form) */
 .hgd-subform { border: 1px dashed var(--hgd-line); border-radius: var(--hgd-radius); padding: 16px 18px; margin: 4px 0 18px; background: rgba(159, 161, 69, 0.05); }

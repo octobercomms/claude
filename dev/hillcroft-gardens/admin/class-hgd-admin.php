@@ -35,6 +35,10 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_quote_update_item', array( $this, 'handle_quote_update_item' ) );
 		add_action( 'admin_post_hgd_quote_delete_item', array( $this, 'handle_quote_delete_item' ) );
 		add_action( 'admin_post_hgd_quote_seed_tiers', array( $this, 'handle_quote_seed_tiers' ) );
+		add_action( 'admin_post_hgd_proposal_create', array( $this, 'handle_proposal_create' ) );
+		add_action( 'admin_post_hgd_proposal_save', array( $this, 'handle_proposal_save' ) );
+		add_action( 'admin_post_hgd_proposal_send', array( $this, 'handle_proposal_send' ) );
+		add_action( 'admin_post_hgd_proposal_delete', array( $this, 'handle_proposal_delete' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
@@ -278,9 +282,11 @@ class HGD_Admin {
 					wp_die( esc_html__( 'Project not found.', 'hillcroft-garden-designer' ) );
 				}
 			}
-			$clients = HGD_Client::all();
-			$assets  = ! empty( $project['id'] ) ? HGD_Project_Asset::for_project( (int) $project['id'] ) : array();
-			$quotes  = ! empty( $project['id'] ) ? HGD_Quote::for_project( (int) $project['id'] ) : array();
+			$clients  = HGD_Client::all();
+			$assets   = ! empty( $project['id'] ) ? HGD_Project_Asset::for_project( (int) $project['id'] ) : array();
+			$quotes   = ! empty( $project['id'] ) ? HGD_Quote::for_project( (int) $project['id'] ) : array();
+			$proposal = ! empty( $project['id'] ) ? HGD_Proposal::for_project( (int) $project['id'] ) : null;
+			$payments = $proposal ? HGD_Payment::for_proposal( (int) $proposal['id'] ) : array();
 			include HGD_PATH . 'admin/views/project-form.php';
 			return;
 		}
@@ -826,6 +832,125 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+	// Proposals + milestone payments
+	// -------------------------------------------------------------------------
+
+	/** Redirect back to a project's Proposal tab with optional flash flags. */
+	private function proposal_redirect( $pid, array $args = array() ) {
+		$this->redirect_with( 'hgd-projects', array_merge(
+			array( 'action' => 'edit', 'id' => (int) $pid, 'tab' => 'proposal' ),
+			$args
+		) );
+	}
+
+	/** Create a proposal from a chosen tier quote, then build its milestones. */
+	public function handle_proposal_create() {
+		$this->guard();
+		$pid = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_proposal_create_' . $pid );
+
+		$project = $pid ? HGD_Project::get( $pid ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		if ( ! $quote_id || ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) ) {
+			$this->proposal_redirect( $pid, array( 'proposal_error' => 1 ) );
+		}
+
+		$proposal_id = HGD_Proposal::create( $pid, $quote_id );
+		if ( ! $proposal_id ) {
+			$this->proposal_redirect( $pid, array( 'proposal_error' => 1 ) );
+		}
+
+		HGD_Proposal::generate_milestones( $proposal_id );
+		$this->proposal_redirect( $pid, array( 'proposal_created' => 1 ) );
+	}
+
+	/** Save proposal copy + deposit fields, re-snapshot the total, regen milestones. */
+	public function handle_proposal_save() {
+		$this->guard();
+		$pid         = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$proposal_id = isset( $_POST['proposal_id'] ) ? (int) $_POST['proposal_id'] : 0;
+		check_admin_referer( 'hgd_proposal_save_' . $proposal_id );
+
+		$proposal = $proposal_id ? HGD_Proposal::get( $proposal_id ) : null;
+		if ( ! $proposal || (int) $proposal['project_id'] !== $pid ) {
+			$this->proposal_redirect( $pid, array( 'proposal_error' => 1 ) );
+		}
+
+		$clean = HGD_Proposal::sanitise_settings( $_POST );
+
+		// Re-snapshot the total from the linked quote (it may have changed).
+		$totals = HGD_Quote::compute( (int) $proposal['quote_id'] );
+		$clean['total_gbp'] = round( (float) $totals['total_rounded'], 2 );
+
+		HGD_Proposal::update( $proposal_id, $clean );
+		HGD_Proposal::generate_milestones( $proposal_id );
+
+		$this->proposal_redirect( $pid, array( 'proposal_saved' => 1 ) );
+	}
+
+	/** Send the proposal to the client: status sent, email the portal link. */
+	public function handle_proposal_send() {
+		$this->guard();
+		$pid         = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$proposal_id = isset( $_POST['proposal_id'] ) ? (int) $_POST['proposal_id'] : 0;
+		check_admin_referer( 'hgd_proposal_send_' . $proposal_id );
+
+		$proposal = $proposal_id ? HGD_Proposal::get( $proposal_id ) : null;
+		if ( ! $proposal || (int) $proposal['project_id'] !== $pid ) {
+			$this->proposal_redirect( $pid, array( 'proposal_error' => 1 ) );
+		}
+
+		$project = HGD_Project::get( $pid );
+		$client  = ( $project && ! empty( $project['client_id'] ) ) ? HGD_Client::get( (int) $project['client_id'] ) : null;
+		if ( ! $client || empty( $client['email'] ) || ! is_email( $client['email'] ) ) {
+			$this->proposal_redirect( $pid, array( 'proposal_error' => 'noemail' ) );
+		}
+
+		$now = current_time( 'mysql' );
+		HGD_Proposal::update( $proposal_id, array(
+			'status'  => 'sent',
+			'sent_at' => $now,
+		) );
+		HGD_Project::update( $pid, array( 'status' => 'proposed' ) );
+
+		$proposal = HGD_Proposal::get( $proposal_id );
+		$url      = HGD_Proposal::portal_url( $proposal );
+		$site     = get_bloginfo( 'name' );
+		$title    = $project ? (string) $project['title'] : __( 'your garden project', 'hillcroft-garden-designer' );
+
+		$subject = sprintf( __( 'Your garden proposal — %s', 'hillcroft-garden-designer' ), $title );
+		$body    = sprintf(
+			__( "Hi %s,\n\nThank you for the opportunity to design %s. Your proposal is ready to review online — including the concept, costs and a simple payment plan.\n\nView and accept your proposal here:\n%s\n\nThis link is private to you. If you have any questions, just reply to this email.\n\nWarm regards,\n%s", 'hillcroft-garden-designer' ),
+			HGD_Client::full_name( $client ),
+			$title,
+			$url,
+			$site
+		);
+		wp_mail( $client['email'], $subject, $body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
+
+		$this->proposal_redirect( $pid, array( 'proposal_sent' => 1 ) );
+	}
+
+	/** Delete a proposal (and its payments). */
+	public function handle_proposal_delete() {
+		$this->guard();
+		$pid         = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$proposal_id = isset( $_POST['proposal_id'] ) ? (int) $_POST['proposal_id'] : 0;
+		check_admin_referer( 'hgd_proposal_delete_' . $proposal_id );
+
+		$proposal = $proposal_id ? HGD_Proposal::get( $proposal_id ) : null;
+		if ( $proposal && (int) $proposal['project_id'] === $pid ) {
+			HGD_Proposal::delete( $proposal_id );
+		}
+
+		$this->proposal_redirect( $pid, array( 'proposal_deleted' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
 	// Plants
 	// -------------------------------------------------------------------------
 
@@ -920,6 +1045,7 @@ class HGD_Admin {
 			'usd_to_gbp', 'eur_to_gbp', 'rate_claude_per_mtok_usd', 'rate_gemini_per_image_usd',
 			'rate_maps_per_1k_usd', 'rate_plantid_per_credit_eur', 'soft_monthly_cap_gbp',
 			'consultation_fee_gbp', 'deposit_pct', 'commencement_pct', 'completion_pct',
+			'proposal_expiry_days',
 			'plantid_credits_balance',
 			'slot_minutes', 'buffer_minutes', 'booking_lead_days', 'booking_window_days',
 			'default_day_rate_gbp', 'default_wastage_pct', 'default_contingency_pct',
@@ -931,6 +1057,11 @@ class HGD_Admin {
 		}
 
 		$input['auto_update'] = empty( $raw['auto_update'] ) ? 0 : 1;
+
+		// Default proposal terms — multiline, handled explicitly.
+		if ( isset( $raw['terms_default'] ) ) {
+			$input['terms_default'] = sanitize_textarea_field( $raw['terms_default'] );
+		}
 
 		// Availability days arrive as a checkbox array (1..7); normalise to a CSV string.
 		if ( isset( $raw['avail_days'] ) && is_array( $raw['avail_days'] ) ) {

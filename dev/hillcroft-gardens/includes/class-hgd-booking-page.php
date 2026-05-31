@@ -171,8 +171,19 @@ class HGD_Booking_Page {
 		if ( 'payment_intent.succeeded' === $type ) {
 			$pi      = isset( $event['data']['object'] ) ? $event['data']['object'] : array();
 			$pi_id   = isset( $pi['id'] ) ? $pi['id'] : '';
-			$meta_id = isset( $pi['metadata']['booking_id'] ) ? (int) $pi['metadata']['booking_id'] : 0;
+			$meta    = isset( $pi['metadata'] ) && is_array( $pi['metadata'] ) ? $pi['metadata'] : array();
 
+			// Proposal milestone payment (carries a payment_id / hgd_kind=payment).
+			$payment_id = isset( $meta['payment_id'] ) ? (int) $meta['payment_id'] : 0;
+			$is_payment = $payment_id || ( isset( $meta['hgd_kind'] ) && 'payment' === $meta['hgd_kind'] );
+
+			if ( $is_payment ) {
+				self::fulfil_payment( $payment_id, $pi_id );
+				return new WP_REST_Response( array( 'received' => true ), 200 );
+			}
+
+			// Otherwise: existing consultation booking flow.
+			$meta_id = isset( $meta['booking_id'] ) ? (int) $meta['booking_id'] : 0;
 			$booking = $meta_id ? HGD_Booking::get( $meta_id ) : null;
 			if ( ! $booking && $pi_id ) {
 				$booking = HGD_Booking::find_by_payment_intent( $pi_id );
@@ -256,6 +267,88 @@ class HGD_Booking_Page {
 		// Emails.
 		$fresh = HGD_Booking::get( $booking_id );
 		self::send_emails( $fresh ? $fresh : array_merge( $booking, $update ) );
+	}
+
+	/**
+	 * Fulfil a proposal milestone payment from a succeeded PaymentIntent.
+	 *
+	 * Marks the HGD_Payment row paid, advances the proposal/project for a deposit,
+	 * marks the proposal complete once all milestones are paid, and emails a
+	 * receipt to the client + admin. Idempotent: an already-paid milestone is
+	 * ignored.
+	 *
+	 * @param int    $payment_id Payment row id from metadata (may be 0).
+	 * @param string $pi_id      Stripe PaymentIntent id (fallback lookup).
+	 */
+	public static function fulfil_payment( $payment_id, $pi_id ) {
+		$payment = $payment_id ? HGD_Payment::get( (int) $payment_id ) : null;
+		if ( ! $payment && $pi_id ) {
+			$payment = HGD_Payment::find_by_payment_intent( $pi_id );
+		}
+		if ( ! $payment ) {
+			return;
+		}
+		if ( 'paid' === $payment['status'] ) {
+			return; // idempotent
+		}
+
+		HGD_Payment::mark_paid( (int) $payment['id'], $pi_id ? $pi_id : $payment['stripe_payment_intent'] );
+
+		$proposal = HGD_Proposal::get( (int) $payment['proposal_id'] );
+		if ( $proposal ) {
+			// Deposit drives the proposal/project forward.
+			if ( 'deposit' === $payment['milestone'] && ! in_array( $proposal['status'], array( 'deposit_paid', 'complete' ), true ) ) {
+				HGD_Proposal::update( (int) $proposal['id'], array( 'status' => 'deposit_paid' ) );
+				if ( ! empty( $proposal['project_id'] ) ) {
+					HGD_Project::update( (int) $proposal['project_id'], array( 'status' => 'in_progress' ) );
+				}
+			}
+			// All milestones paid → proposal complete.
+			if ( HGD_Payment::all_paid( (int) $proposal['id'] ) ) {
+				HGD_Proposal::update( (int) $proposal['id'], array( 'status' => 'complete' ) );
+				if ( ! empty( $proposal['project_id'] ) ) {
+					HGD_Project::update( (int) $proposal['project_id'], array( 'status' => 'complete' ) );
+				}
+			}
+		}
+
+		self::send_payment_receipt( HGD_Payment::get( (int) $payment['id'] ), $proposal );
+	}
+
+	/** Email a milestone-payment receipt to the client and admin. */
+	private static function send_payment_receipt( $payment, $proposal ) {
+		if ( ! $payment ) {
+			return;
+		}
+		$site   = get_bloginfo( 'name' );
+		$amount = '£' . number_format( (float) $payment['amount_gbp'], 2 );
+
+		$project = ( $proposal && ! empty( $proposal['project_id'] ) ) ? HGD_Project::get( (int) $proposal['project_id'] ) : null;
+		$client  = ( $project && ! empty( $project['client_id'] ) ) ? HGD_Client::get( (int) $project['client_id'] ) : null;
+		$title   = $project ? (string) $project['title'] : __( 'your garden project', 'hillcroft-garden-designer' );
+
+		if ( $client && ! empty( $client['email'] ) ) {
+			$subject = sprintf( __( 'Payment received — %s', 'hillcroft-garden-designer' ), $title );
+			$body    = sprintf(
+				__( "Hi %s,\n\nThank you — we've received your %s payment (%s) for %s.\n\nWe'll be in touch with the next steps.\n\n%s", 'hillcroft-garden-designer' ),
+				HGD_Client::full_name( $client ),
+				$payment['label'],
+				$amount,
+				$title,
+				$site
+			);
+			wp_mail( $client['email'], $subject, $body, self::mail_headers() );
+		}
+
+		$admin_subject = sprintf( __( 'Milestone paid — %s (%s)', 'hillcroft-garden-designer' ), $title, $amount );
+		$admin_body    = sprintf(
+			__( "A proposal milestone has been paid.\n\nProject: %s\nMilestone: %s\nAmount: %s\nClient: %s", 'hillcroft-garden-designer' ),
+			$title,
+			$payment['label'],
+			$amount,
+			$client ? HGD_Client::full_name( $client ) : __( '(unknown)', 'hillcroft-garden-designer' )
+		);
+		wp_mail( get_option( 'admin_email' ), $admin_subject, $admin_body, self::mail_headers() );
 	}
 
 	// -------------------------------------------------------------------------

@@ -73,13 +73,22 @@ foundation-first, then each integration as its own testable PR (install via one-
   **VAT**, tidy headline total; **internal margin** (ex-VAT subtotal − cost) shown to Donna only.
 - **Seed Better & Best from Good** via configurable tier uplifts; pricing defaults in Settings.
 
-## ⏳ Next
+## ✅ 0.8.0 — Proposals + client portal + milestone payments
 
-1. **Proposals + client portal + milestone payments** (turn a chosen quote into a sent, payable
-   proposal): interactive proposal page, e-sign, deposit/milestone Stripe payments, PDF keepsake.
-2. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
+- **Proposal** from a chosen quote (`hgd_proposals` + `hgd_payments`, schema v7): deposit +
+  commencement + completion milestones, editable intro/terms, 30-day expiry, unique token.
+- **Public client portal** (`?hgd_proposal=TOKEN`): standalone brand-styled page — renders,
+  client-friendly costs (no margin), payment schedule, terms, **e-sign**, embedded **Stripe**
+  deposit payment. Status: `draft → sent → viewed → accepted → deposit_paid → complete`.
+- Milestone payments fulfilled by **extending the existing booking webhook** (idempotent, branches
+  on `payment_id` metadata). Pay route re-derives amount server-side from the stored row.
+- Needs live testing: Stripe payment round-trip + webhook.
+
+## ⏳ Next (the delight layer)
+
+1. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
    seasonal variants) — the harder cross-angle-consistency work.
-3. Plant book PDF + seasonal film.
+2. **Plant book PDF** + **seasonal film** (Remotion).
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.
