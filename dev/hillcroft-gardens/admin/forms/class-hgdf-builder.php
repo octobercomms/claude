@@ -55,7 +55,7 @@ class HGDF_Builder {
 	public static function render_help( $post ) {
 		echo '<p><strong>Shortcode:</strong></p>';
 		echo '<p><code>[hgd_form id="' . (int) $post->ID . '"]</code></p>';
-		echo '<p>Or use the <em>nvelope Form</em> block.</p>';
+		echo '<p>Or use the <em>Form</em> block.</p>';
 		echo '<p><a href="' . esc_url( admin_url( 'admin.php?page=hgd-forms-submissions&form_id=' . $post->ID ) ) . '">View submissions →</a></p>';
 	}
 

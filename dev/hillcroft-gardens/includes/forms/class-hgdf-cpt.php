@@ -12,15 +12,15 @@ class HGDF_CPT {
 	public static function register() {
 		register_post_type( HGDF_CPT, array(
 			'labels'             => array(
-				'name'               => 'October Forms',
+				'name'               => 'Forms',
 				'singular_name'      => 'Form',
-				'menu_name'          => 'October Forms',
+				'menu_name'          => 'Forms',
 				'add_new_item'       => 'Add New Form',
 				'edit_item'          => 'Edit Form',
 				'new_item'           => 'New Form',
 				'search_items'       => 'Search Forms',
 				'not_found'          => 'No forms found',
-				'all_items'          => 'All Forms',
+				'all_items'          => 'Forms',
 			),
 			'public'             => false,
 			'publicly_queryable' => false,
