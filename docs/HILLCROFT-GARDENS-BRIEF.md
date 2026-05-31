@@ -45,7 +45,9 @@ Front of the funnel, all native to the plugin. **All lead routes supported** (Hi
 hasn't launched yet, so we build them all):
 - **Paid consultation booking** — the site's primary CTA is **"Book a consultation — £200."**
   A public booking page (date/time + details) takes a **£200 Stripe payment** and creates a
-  Project in `lead` status.
+  Project in `lead` status. The **£200 is a separate, non-refundable service fee — it is NOT
+  deducted** from any later design/build total (deliberate, so Donna's consultation isn't
+  devalued). Booking uses the **native booking system** in §10a.
 - **Free enquiry form** — lighter "get in touch" route → Project in `enquiry` status.
 - **Manual entry** — Donna creates a Project herself.
 - **Pre-visit questionnaire** — once booked, the client fills in budget range, style,
@@ -164,8 +166,11 @@ Claude (gaps flagged "AI-generated, verify").
 - **Labour** (day rates × crew × estimated days), **wastage %**, **delivery / skip /
   machinery hire**, **contingency** line.
 - **Per-category markup rules**; tidy rounding (no £4,237.91).
-- **Good / Better / Best** tiers; **full milestone schedule** (deposit → interim → final, or
-  a custom schedule per project).
+- **Good / Better / Best** tiers; **full milestone schedule**. A **default split is set in
+  Settings** (default **50% deposit on signing / 25% on commencement / 25% on completion** —
+  weighted to deposit because plants & materials are bought up front) and Donna can **adjust
+  the numbers per project and save**. The **£200 consultation fee is separate** and never
+  rolled into this schedule.
 - **VAT** handling; metric units throughout; **£** everywhere.
 - **Price-locking:** a proposal **snapshots its line items at creation** — re-editing the
   catalogue never changes an already-sent proposal. Combined with the **30-day expiry**, the
@@ -245,6 +250,22 @@ book double as Hillcroft marketing/portfolio content.
 - **Light roles/permissions** — single-user is fine, but we'll use WordPress capabilities so a
   second designer can be added without rework (low cost to include).
 
+### 10a. Booking & Calendar (native, with Gmail sync)
+
+Hillcroft has **no Google Workspace** — they use an **IMAP/SMTP email service**. So:
+
+- **Native booking system** is the source of truth: Donna sets availability rules
+  (working hours, slot length, buffers, blackout dates); the public booking page shows open
+  slots, collects details, and takes the **£200 Stripe** consultation payment.
+- **Two-way Google Calendar sync via OAuth** — the Google Calendar API **works with a personal
+  Gmail account** (no Workspace needed). Donna connects her personal calendar once; her
+  existing events **block out availability**, and new bookings are **written to her calendar**
+  automatically.
+- **Client gets an `.ics` invite**; reminders and confirmations are sent through the
+  **existing IMAP/SMTP** service (also the channel for all proposal/follow-up email).
+- **Fallback if she ever declines OAuth:** the plugin still works standalone and can publish a
+  read-only **iCal feed** she subscribes to from any calendar app.
+
 ---
 
 ## 11. Design System — "glossy, even on the backend"
@@ -256,17 +277,14 @@ user-friendly, never "back office."
 - **Aesthetic:** dark, editorial, photographic; generous whitespace; large imagery; soft
   shadows and rounded cards ("glossy"); calm, confident.
 - **Buttons:** **all pill-shaped**, everywhere.
-- **Palette** — restrained and natural (derived from the live site; *confirm exact hex
-  against web CSS / brand guide*). The supplied logo is **monochrome black**, so there is **no
-  defined accent colour** — the scheme relies on dark + green + cream, with the accent TBC:
-  - Warm near-black / charcoal — primary dark / backgrounds (~`#1B1C18`)
-  - Deep forest / olive green — brand green (~`#3A4A2F`)
-  - Warm cream / paper — surfaces, and text/logo reversed on dark (~`#F2ECDD`)
-  - Accent — **to confirm** (none in the logo; likely a deeper green or muted natural tone,
-    not a bright colour)
-- **Typography:** editorial high-contrast **serif** for headings (with *italic* emphasis, as
-  on the site: "*designed by us.*"), clean sans for body and tracked-out caps for labels/nav.
-  **Match the website's actual fonts.**
+- **Palette** (confirmed):
+  - **Brand olive green `#494A20`** — primary brand colour / accent
+  - Warm near-black / charcoal — primary dark / backgrounds (~`#1B1C18`, confirm)
+  - Warm cream / paper — surfaces, and text/logo reversed on dark (~`#F2ECDD`, confirm)
+- **Typography (confirmed):** **Cormorant Garamond** for headings (elegant high-contrast
+  serif, with *italic* emphasis as on the site: "*designed by us.*"); **DM Sans** for body and
+  tracked-out caps for labels/nav. Both are free Google Fonts — **bundle locally** so the
+  admin, client portal *and* PDFs all share the type.
 - **Logo:** "hillcroft gardens" lowercase serif wordmark, monochrome (black version on cream,
   cream/reverse on dark). Vector asset version-controlled at
   `docs/brand/hillcroft-logo-black.svg` (fully outlined — no embedded font).
@@ -281,6 +299,8 @@ user-friendly, never "back office."
   Claude + **Action Scheduler async jobs** from `october-outreach` (render packs, film and
   book generation run async with live progress).
 - **Storage:** WP media library (unlimited).
+- **Email:** all transactional mail (booking confirmations, proposals, follow-ups) sent via
+  Hillcroft's existing **IMAP/SMTP** service — no Google Workspace, no new email provider.
 - **Caching:** GBIF lookups, geocoding and plant data cached aggressively to cut API spend.
 - **Resilience:** graceful API failure + retry; idempotent payments/webhooks.
 - **Security/privacy:** secrets in settings/env; **GDPR** — consent capture, retention policy,
@@ -297,11 +317,18 @@ user-friendly, never "back office."
 
 ---
 
-## 14. Remaining Things to Confirm
+## 14. Decisions Resolved
 
-- **Exact brand hex values + web font names** (confirm against the site CSS / brand guide).
-- **Consultation fee mechanics** — is the £200 deducted from the project total on conversion?
-- **Milestone defaults** — standard split (e.g. 25% deposit / 50% interim / 25% final) or
-  fully custom each time?
-- **Contract/T&Cs content** — Hillcroft to supply the legal wording to template.
-- **Booking calendar** — standalone, or sync to Donna's existing calendar (Google)?
+- **Brand** — olive green `#494A20`; **Cormorant Garamond** (headings) + **DM Sans** (body).
+- **Consultation fee** — £200 is **separate and non-refundable**, never deducted from the
+  project total (so the consultation isn't devalued).
+- **Milestone split** — editable default in Settings (**50% / 25% / 25%**), adjustable & saved
+  per project.
+- **Contract / T&Cs** — drafted by us as a template (Hillcroft has no solicitor); see
+  `docs/HILLCROFT-TERMS-TEMPLATE.md`. **Must be reviewed by a qualified solicitor before use.**
+- **Booking / calendar** — native booking system + two-way **Google Calendar sync via OAuth on
+  a personal Gmail** account; emails via the existing **IMAP/SMTP** service (see §10a).
+
+### Still to nail down later
+- Exact charcoal/cream hex values (olive + fonts confirmed; the neutrals are approximate).
+- Whether to add the optional AI "living stills" video upgrade in the first build.
