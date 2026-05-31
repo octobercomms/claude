@@ -93,11 +93,22 @@ foundation-first, then each integration as its own testable PR (install via one-
 - Schema v8: `view_key` + `label` on project assets; `pack` asset role.
 - Needs live testing: Gemini + Google Maps keys.
 
-## ⏳ Next (the delight layer)
+## ✅ 1.0.0 — Keepsakes (full vision delivered)
 
-1. **Plant book PDF** (cover = watercolour, one plant per page) + the **proposal/keepsake PDF**.
-2. **Seasonal film** (Remotion montage of the seasonal renders).
-3. **1.1.0 guided-workflow wizard** wrapper over the project panels (agreed: after features).
+- **Plant book**: print-ready HTML (`?hgd_book=<token>` / admin preview `?hgd_book_preview=<id>`) —
+  watercolour cover, design-brief intro, one page per plant (from the quote line items) with care
+  notes; "Save as PDF" / print-shop ready.
+- **Proposal keepsake**: printable record of the proposal (`?hgd_keepsake=<token>`).
+- **Seasonal film**: CSS/JS cinematic slideshow of the render pack (`?hgd_film=<token>` / preview),
+  linked from the client portal. Dependency-free.
+
+The full original brief is now delivered end to end across 10 releases.
+
+## ⏳ Remaining
+
+- **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
+  Step 1→N wizard with progress bar + Next/Back, keeping "jump to any step" (agreed: after features).
+- Then: full end-to-end test pass by the client (the live Stripe round-trips are the key unknowns).
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.

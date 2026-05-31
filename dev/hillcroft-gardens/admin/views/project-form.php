@@ -482,6 +482,47 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		</div>
 
 		<?php
+		// --- Keepsakes (plant book, proposal keepsake, seasonal film) ---------
+		$book_proposal  = HGD_Proposal::for_project( $pid );
+		$keepsake_token = ( $book_proposal && ! empty( $book_proposal['token'] ) ) ? $book_proposal['token'] : '';
+		$has_live_token = ( '' !== $keepsake_token && 'draft' !== $book_proposal['status'] && ! HGD_Proposal::is_expired( $book_proposal ) );
+		$book_preview   = home_url( '/?hgd_book_preview=' . $pid );
+		$film_preview   = home_url( '/?hgd_film_preview=' . $pid );
+		$plant_book_n   = HGD_Documents::plant_count_for_project( $pid );
+		$book_token_url = $has_live_token ? home_url( '/?hgd_book=' . rawurlencode( $keepsake_token ) ) : '';
+		$keepsake_url   = $has_live_token ? home_url( '/?hgd_keepsake=' . rawurlencode( $keepsake_token ) ) : '';
+		$film_token_url = $has_live_token ? home_url( '/?hgd_film=' . rawurlencode( $keepsake_token ) ) : '';
+		?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Keepsakes', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Client-facing deliverables: a print-ready planting book (the client saves it as a PDF), a printable proposal keepsake, and a cinematic seasonal film of the render pack. The book uses the watercolour render-pack image as its cover.', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php
+				echo esc_html( sprintf(
+					/* translators: %d distinct plant count */
+					_n( '%d plant from this project’s quotes will appear in the book.', '%d plants from this project’s quotes will appear in the book.', $plant_book_n, 'hillcroft-garden-designer' ),
+					$plant_book_n
+				) );
+			?></p>
+
+			<?php if ( $has_live_token ) : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'Client links (share via the same private token as the portal):', 'hillcroft-garden-designer' ); ?></p>
+				<div class="hgd-form-actions">
+					<a class="hgd-pill" href="<?php echo esc_url( $book_token_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open plant book ↗', 'hillcroft-garden-designer' ); ?></a>
+					<a class="hgd-pill" href="<?php echo esc_url( $keepsake_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open keepsake proposal ↗', 'hillcroft-garden-designer' ); ?></a>
+					<a class="hgd-pill" href="<?php echo esc_url( $film_token_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open seasonal film ↗', 'hillcroft-garden-designer' ); ?></a>
+				</div>
+			<?php else : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'No sent proposal yet — send a proposal below to generate shareable client links. You can still preview the book and film now:', 'hillcroft-garden-designer' ); ?></p>
+			<?php endif; ?>
+
+			<p class="hgd-muted" style="margin-top:14px;"><?php esc_html_e( 'Studio previews (admin only):', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-form-actions">
+				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $book_preview ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Preview plant book ↗', 'hillcroft-garden-designer' ); ?></a>
+				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $film_preview ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Preview seasonal film ↗', 'hillcroft-garden-designer' ); ?></a>
+			</div>
+		</div>
+
+		<?php
 		// --- Pricing engine ---------------------------------------------------
 		$quotes      = isset( $quotes ) && is_array( $quotes ) ? $quotes : array();
 		$has_quotes  = ! empty( $quotes );
