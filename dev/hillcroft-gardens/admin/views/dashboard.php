@@ -1,6 +1,6 @@
 <?php
 /**
- * Dashboard. Expects $banner_cb, $plant_count, $project_count, $client_count, $state.
+ * Dashboard. Expects $banner_cb, $plant_count, $project_count, $client_count, $upcoming_count, $state.
  */
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -20,6 +20,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<span class="hgd-card-label"><?php esc_html_e( 'Open projects', 'hillcroft-garden-designer' ); ?></span>
 			<span class="hgd-card-figure"><?php echo esc_html( number_format( $project_count ) ); ?></span>
 			<a class="hgd-pill" href="<?php echo esc_url( admin_url( 'admin.php?page=hgd-projects' ) ); ?>"><?php esc_html_e( 'View projects', 'hillcroft-garden-designer' ); ?></a>
+		</div>
+		<div class="hgd-card">
+			<span class="hgd-card-label"><?php esc_html_e( 'Upcoming consultations', 'hillcroft-garden-designer' ); ?></span>
+			<span class="hgd-card-figure"><?php echo esc_html( number_format( $upcoming_count ) ); ?></span>
+			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( admin_url( 'admin.php?page=hgd-bookings' ) ); ?>"><?php esc_html_e( 'View bookings', 'hillcroft-garden-designer' ); ?></a>
 		</div>
 		<div class="hgd-card">
 			<span class="hgd-card-label"><?php esc_html_e( 'Clients', 'hillcroft-garden-designer' ); ?></span>
@@ -53,7 +58,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<li class="done"><?php esc_html_e( 'Cost & credits banner', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'One-click self-update from GitHub', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'Projects, clients (CRM) & lead-capture form', 'hillcroft-garden-designer' ); ?></li>
-			<li><?php esc_html_e( 'Paid £200 consultation booking + calendar', 'hillcroft-garden-designer' ); ?></li>
+			<li class="done"><?php esc_html_e( 'Forms builder (multi-step, submissions, analytics)', 'hillcroft-garden-designer' ); ?></li>
+			<li class="done"><?php esc_html_e( 'Paid £200 consultation booking + Google Calendar', 'hillcroft-garden-designer' ); ?></li>
 			<li><?php esc_html_e( 'Consultation capture + Claude sketch reading', 'hillcroft-garden-designer' ); ?></li>
 			<li><?php esc_html_e( 'Gemini concept renders + render pack', 'hillcroft-garden-designer' ); ?></li>
 			<li><?php esc_html_e( 'Pricing engine + proposals + milestone payments', 'hillcroft-garden-designer' ); ?></li>

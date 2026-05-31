@@ -32,6 +32,18 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 		<div class="hgd-flash"><?php esc_html_e( 'Settings saved.', 'hillcroft-garden-designer' ); ?></div>
 	<?php endif; ?>
 
+	<?php
+	$google_state = isset( $_GET['google'] ) ? sanitize_key( $_GET['google'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+	if ( 'connected' === $google_state ) : ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Google Calendar connected.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'disconnected' === $google_state ) : ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Google Calendar disconnected.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'denied' === $google_state ) : ?>
+		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Google access was declined.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'error' === $google_state ) : ?>
+		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Could not connect Google Calendar. Check the client id/secret and try again.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
+
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<input type="hidden" name="action" value="hgd_save_settings" />
 		<?php wp_nonce_field( 'hgd_save_settings' ); ?>
@@ -47,6 +59,7 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				$field( 'plantid_api_key', __( 'Plant.id / Kindwise API key', 'hillcroft-garden-designer' ) );
 				$field( 'stripe_secret_key', __( 'Stripe secret key', 'hillcroft-garden-designer' ) );
 				$field( 'stripe_pub_key', __( 'Stripe publishable key', 'hillcroft-garden-designer' ) );
+				$field( 'stripe_webhook_secret', __( 'Stripe webhook signing secret', 'hillcroft-garden-designer' ) );
 				?>
 			</div>
 		</div>
@@ -92,6 +105,77 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				?>
 			</div>
 			<p class="hgd-muted"><?php esc_html_e( 'The consultation fee is charged separately and is never deducted from the project total.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Booking &amp; calendar', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Embed the public booking form on any page with this shortcode:', 'hillcroft-garden-designer' ); ?> <code class="hgd-code">[hgd_booking]</code></p>
+
+			<h3><?php esc_html_e( 'Google Calendar (optional)', 'hillcroft-garden-designer' ); ?></h3>
+			<p class="hgd-muted"><?php esc_html_e( 'Connect a personal Gmail calendar to hide clashing times and auto-add paid consultations. Booking works fine without this.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'google_client_id', __( 'Google OAuth client ID', 'hillcroft-garden-designer' ) );
+				$field( 'google_client_secret', __( 'Google OAuth client secret', 'hillcroft-garden-designer' ) );
+				$field( 'google_calendar_id', __( 'Calendar ID (or “primary”)', 'hillcroft-garden-designer' ) );
+				?>
+			</div>
+			<p class="hgd-muted">
+				<?php
+				printf(
+					/* translators: %s redirect URI */
+					esc_html__( 'Authorised redirect URI for your Google OAuth client: %s', 'hillcroft-garden-designer' ),
+					'<code class="hgd-code">' . esc_html( HGD_Google_Calendar::redirect_uri() ) . '</code>'
+				);
+				?>
+			</p>
+			<p>
+				<?php if ( HGD_Google_Calendar::is_connected() ) : ?>
+					<span class="hgd-status hgd-status-booked"><?php esc_html_e( 'Connected', 'hillcroft-garden-designer' ); ?></span>
+					&nbsp;
+					<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'hgd_google_disconnect', admin_url( 'admin-post.php' ) ), 'hgd_google_disconnect' ) ); ?>"><?php esc_html_e( 'Disconnect', 'hillcroft-garden-designer' ); ?></a>
+				<?php elseif ( '' !== $s['google_client_id'] && '' !== $s['google_client_secret'] ) : ?>
+					<span class="hgd-status hgd-status-lead"><?php esc_html_e( 'Not connected', 'hillcroft-garden-designer' ); ?></span>
+					&nbsp;
+					<a class="hgd-pill" href="<?php echo esc_url( HGD_Google_Calendar::auth_url() ); ?>"><?php esc_html_e( 'Connect Google Calendar', 'hillcroft-garden-designer' ); ?></a>
+					<span class="hgd-muted"><?php esc_html_e( '(save the client id/secret first)', 'hillcroft-garden-designer' ); ?></span>
+				<?php else : ?>
+					<span class="hgd-muted"><?php esc_html_e( 'Enter and save a client id and secret to enable the connect button.', 'hillcroft-garden-designer' ); ?></span>
+				<?php endif; ?>
+			</p>
+
+			<h3><?php esc_html_e( 'Availability', 'hillcroft-garden-designer' ); ?></h3>
+			<?php
+			$selected_days = array_filter( array_map( 'intval', explode( ',', (string) $s['avail_days'] ) ) );
+			$day_names     = array(
+				1 => __( 'Mon', 'hillcroft-garden-designer' ),
+				2 => __( 'Tue', 'hillcroft-garden-designer' ),
+				3 => __( 'Wed', 'hillcroft-garden-designer' ),
+				4 => __( 'Thu', 'hillcroft-garden-designer' ),
+				5 => __( 'Fri', 'hillcroft-garden-designer' ),
+				6 => __( 'Sat', 'hillcroft-garden-designer' ),
+				7 => __( 'Sun', 'hillcroft-garden-designer' ),
+			);
+			?>
+			<p class="hgd-muted"><?php esc_html_e( 'Days you take consultations:', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-booking-days">
+				<?php foreach ( $day_names as $num => $label ) : ?>
+					<label class="hgd-checkbox" style="display:inline-flex;margin-right:14px;">
+						<input type="checkbox" name="avail_days[]" value="<?php echo esc_attr( $num ); ?>" <?php checked( in_array( $num, $selected_days, true ) ); ?> />
+						<span><?php echo esc_html( $label ); ?></span>
+					</label>
+				<?php endforeach; ?>
+			</p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'avail_start', __( 'Day starts (HH:MM)', 'hillcroft-garden-designer' ), 'time' );
+				$field( 'avail_end', __( 'Day ends (HH:MM)', 'hillcroft-garden-designer' ), 'time' );
+				$field( 'slot_minutes', __( 'Slot length (minutes)', 'hillcroft-garden-designer' ), 'number', 'step="5" min="15"' );
+				$field( 'buffer_minutes', __( 'Buffer between slots (minutes)', 'hillcroft-garden-designer' ), 'number', 'step="5" min="0"' );
+				$field( 'booking_lead_days', __( 'Earliest booking (days ahead)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'booking_window_days', __( 'Booking window (days ahead)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				?>
+			</div>
 		</div>
 
 		<div class="hgd-panel">

@@ -22,6 +22,7 @@ class HGD_Settings {
 		'google_maps_api_key',
 		'plantid_api_key',
 		'stripe_secret_key',
+		'stripe_webhook_secret',
 		'github_token',
 		'google_client_secret',
 		'google_refresh_token',
@@ -34,8 +35,9 @@ class HGD_Settings {
 			'gemini_api_key'      => '',
 			'google_maps_api_key' => '',
 			'plantid_api_key'     => '',
-			'stripe_secret_key'   => '',
-			'stripe_pub_key'      => '',
+			'stripe_secret_key'    => '',
+			'stripe_pub_key'       => '',
+			'stripe_webhook_secret' => '',
 
 			// --- Self-updater (private GitHub repo) -------------------------
 			'github_repo'         => 'octobercomms/claude',

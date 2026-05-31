@@ -1,0 +1,143 @@
+/* Hillcroft Garden Designer — public booking UI. */
+.hgd-booking {
+	--hgd-olive: #494A20;
+	--hgd-charcoal: #1B1C18;
+	--hgd-cream: #F2ECDD;
+	--hgd-line: rgba(73, 74, 32, 0.18);
+	max-width: 640px;
+	margin: 0 auto;
+	font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+	color: var(--hgd-charcoal);
+	background: var(--hgd-cream);
+	border: 1px solid var(--hgd-line);
+	border-radius: 16px;
+	padding: 28px;
+	box-shadow: 0 10px 40px rgba(27, 28, 24, 0.08);
+}
+
+.hgd-booking-notice {
+	text-align: center;
+	padding: 24px;
+	color: var(--hgd-olive);
+}
+
+.hgd-booking-head h2 {
+	font-family: "Cormorant Garamond", Georgia, serif;
+	font-size: 30px;
+	margin: 0 0 6px;
+	color: var(--hgd-olive);
+}
+.hgd-booking-fee { margin: 0 0 18px; opacity: 0.8; }
+
+.hgd-booking-steps {
+	display: flex;
+	gap: 8px;
+	list-style: none;
+	padding: 0;
+	margin: 0 0 22px;
+	counter-reset: step;
+}
+.hgd-booking-steps li {
+	flex: 1;
+	text-align: center;
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 1px;
+	padding: 8px 4px;
+	border-radius: 8px;
+	background: rgba(73, 74, 32, 0.06);
+	color: rgba(27, 28, 24, 0.5);
+}
+.hgd-booking-steps li.is-active { background: var(--hgd-olive); color: #fff; }
+.hgd-booking-steps li.is-done { background: rgba(73, 74, 32, 0.2); color: var(--hgd-olive); }
+
+.hgd-booking-panel { animation: hgd-fade 0.25s ease; }
+@keyframes hgd-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.hgd-booking-dates,
+.hgd-booking-slots {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+	gap: 10px;
+	margin-top: 12px;
+}
+.hgd-booking-chip {
+	border: 1px solid var(--hgd-line);
+	background: #fff;
+	border-radius: 999px;
+	padding: 12px 14px;
+	cursor: pointer;
+	font-size: 14px;
+	transition: all 0.15s ease;
+	text-align: center;
+}
+.hgd-booking-chip:hover { border-color: var(--hgd-olive); box-shadow: 0 4px 12px rgba(73, 74, 32, 0.18); }
+.hgd-booking-chip.is-selected { background: var(--hgd-olive); color: #fff; border-color: var(--hgd-olive); }
+
+.hgd-booking-back {
+	background: none;
+	border: none;
+	color: var(--hgd-olive);
+	cursor: pointer;
+	font-size: 13px;
+	padding: 0;
+	margin-bottom: 12px;
+}
+
+.hgd-booking-chosen-date,
+.hgd-booking-chosen-slot { font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; color: var(--hgd-olive); margin: 0 0 8px; }
+
+.hgd-booking-fields {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 12px;
+	margin: 12px 0 16px;
+}
+.hgd-booking-fields label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.hgd-booking-full { grid-column: 1 / -1; }
+.hgd-booking-fields input,
+.hgd-booking-fields textarea {
+	border: 1px solid var(--hgd-line);
+	border-radius: 8px;
+	padding: 10px 12px;
+	font: inherit;
+	background: #fff;
+}
+.hgd-booking-fields input:focus,
+.hgd-booking-fields textarea:focus { outline: none; border-color: var(--hgd-olive); }
+
+.hgd-booking-btn {
+	display: inline-block;
+	background: var(--hgd-olive);
+	color: #fff;
+	border: none;
+	border-radius: 999px;
+	padding: 13px 26px;
+	font: inherit;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.15s ease;
+}
+.hgd-booking-btn:hover { box-shadow: 0 6px 18px rgba(73, 74, 32, 0.32); transform: translateY(-1px); }
+.hgd-booking-btn[disabled] { opacity: 0.6; cursor: default; transform: none; box-shadow: none; }
+
+.hgd-booking-payment-element { margin: 14px 0 18px; }
+.hgd-booking-summary { font-weight: 600; margin-bottom: 8px; }
+
+.hgd-booking-err { color: #9b2c2c; font-size: 13px; margin: 8px 0; }
+.hgd-booking-loading { opacity: 0.6; font-size: 14px; }
+
+.hgd-booking-success { text-align: center; padding: 20px 0; }
+.hgd-booking-tick {
+	width: 64px; height: 64px; line-height: 64px;
+	margin: 0 auto 14px;
+	border-radius: 50%;
+	background: var(--hgd-olive);
+	color: #fff;
+	font-size: 32px;
+}
+.hgd-booking-success h3 { font-family: "Cormorant Garamond", Georgia, serif; font-size: 26px; color: var(--hgd-olive); margin: 0 0 8px; }
+
+@media (max-width: 520px) {
+	.hgd-booking-fields { grid-template-columns: 1fr; }
+}

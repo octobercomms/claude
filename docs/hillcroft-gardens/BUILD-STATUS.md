@@ -36,10 +36,22 @@ foundation-first, then each integration as its own testable PR (install via one-
 - Embed with `[hgd_form id="N"]`. Brevo, Amazon SES and the external public API were dropped;
   notifications use the site mailer.
 
-## ⏳ Next (each its own PR)
+## ✅ 0.4.0 — Paid consultation booking + Google Calendar (+ Forms polish)
 
-1. **Paid £200 consultation booking** + embedded Stripe (0.4.0).
-2. Native **booking calendar** with two-way Google Calendar (personal Gmail) OAuth sync.
+- Public `[hgd_booking]` page: availability slot picker + **embedded Stripe** card form for the
+  £200 consultation. Payment confirmed by **Stripe webhook** → booking marked paid, Client +
+  `booked` Project created, `.ics` invite emailed.
+- **Google Calendar** (personal Gmail OAuth): busy times block slots; paid bookings written as
+  events. Connect/disconnect under Settings; availability rules (days/hours/slot/buffer/lead/window).
+- Admin **Bookings** list + "Upcoming consultations" dashboard card.
+- **Forms polish**: renamed to just "Forms"; Submissions + Analytics are now **tabs** in a single
+  Forms hub; Forms placed correctly in the menu (not first).
+- Needs live testing: Stripe payment + webhook, Google OAuth (keys/credentials in Settings).
+
+## ⏳ Next
+
+1. Consultation **capture** (sketch/photos/address uploads) + **Claude** sketch reading.
+2. Gemini concept renders → render pack → pricing engine → proposals/portal.
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.

@@ -22,6 +22,8 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_delete_project', array( $this, 'handle_delete_project' ) );
 		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
 		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
+		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
+		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
 	}
 
@@ -48,6 +50,8 @@ class HGD_Admin {
 		add_submenu_page( self::MENU, __( 'Dashboard', 'hillcroft-garden-designer' ), __( 'Dashboard', 'hillcroft-garden-designer' ), self::CAP, self::MENU, array( $this, 'render_dashboard' ) );
 		add_submenu_page( self::MENU, __( 'Projects', 'hillcroft-garden-designer' ), __( 'Projects', 'hillcroft-garden-designer' ), self::CAP, 'hgd-projects', array( $this, 'render_projects' ) );
 		add_submenu_page( self::MENU, __( 'Clients', 'hillcroft-garden-designer' ), __( 'Clients', 'hillcroft-garden-designer' ), self::CAP, 'hgd-clients', array( $this, 'render_clients' ) );
+		add_submenu_page( self::MENU, __( 'Forms', 'hillcroft-garden-designer' ), __( 'Forms', 'hillcroft-garden-designer' ), self::CAP, 'hgd-forms', array( $this, 'render_forms_hub' ) );
+		add_submenu_page( self::MENU, __( 'Bookings', 'hillcroft-garden-designer' ), __( 'Bookings', 'hillcroft-garden-designer' ), self::CAP, 'hgd-bookings', array( $this, 'render_bookings' ) );
 		add_submenu_page( self::MENU, __( 'Plant Catalogue', 'hillcroft-garden-designer' ), __( 'Plant Catalogue', 'hillcroft-garden-designer' ), self::CAP, 'hgd-plants', array( $this, 'render_plants' ) );
 		add_submenu_page( self::MENU, __( 'Settings', 'hillcroft-garden-designer' ), __( 'Settings', 'hillcroft-garden-designer' ), self::CAP, 'hgd-settings', array( $this, 'render_settings' ) );
 	}
@@ -127,8 +131,97 @@ class HGD_Admin {
 		$plant_count   = HGD_Plant::count();
 		$project_count = HGD_Project::count_open();
 		$client_count  = HGD_Client::count();
+		$upcoming_count = HGD_Booking::count_upcoming();
 		$state         = HGD_API_Usage::banner_state();
 		include HGD_PATH . 'admin/views/dashboard.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Bookings
+	// -------------------------------------------------------------------------
+
+	public function render_bookings() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+		$status    = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		// Upcoming first, then most recent.
+		$bookings  = HGD_Booking::query( array( 'status' => $status, 'orderby' => 'slot_start', 'order' => 'DESC' ) );
+		include HGD_PATH . 'admin/views/bookings.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Forms hub (tabbed: Forms / Submissions / Analytics)
+	// -------------------------------------------------------------------------
+
+	/** Shared tab bar shown on the Forms hub, Submissions and Analytics screens. */
+	public static function forms_tabs( $active ) {
+		$tabs = array(
+			'hgd-forms'             => __( 'Forms', 'hillcroft-garden-designer' ),
+			'hgd-forms-submissions' => __( 'Submissions', 'hillcroft-garden-designer' ),
+			'hgd-forms-analytics'   => __( 'Analytics', 'hillcroft-garden-designer' ),
+		);
+		echo '<h2 class="nav-tab-wrapper">';
+		foreach ( $tabs as $slug => $label ) {
+			printf(
+				'<a href="%s" class="nav-tab%s">%s</a>',
+				esc_url( admin_url( 'admin.php?page=' . $slug ) ),
+				$active === $slug ? ' nav-tab-active' : '',
+				esc_html( $label )
+			);
+		}
+		echo '</h2>';
+	}
+
+	public function render_forms_hub() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+		$forms     = get_posts( array(
+			'post_type'      => HGDF_CPT,
+			'posts_per_page' => 200,
+			'post_status'    => array( 'publish', 'draft' ),
+			'orderby'        => 'modified',
+			'order'          => 'DESC',
+		) );
+		include HGD_PATH . 'admin/views/forms-hub.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Google Calendar OAuth
+	// -------------------------------------------------------------------------
+
+	/** Handle the OAuth redirect back from Google on the settings screen. */
+	public function maybe_handle_google_oauth() {
+		if ( ! current_user_can( self::CAP ) ) {
+			return;
+		}
+		if ( ! isset( $_GET['page'] ) || 'hgd-settings' !== $_GET['page'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+		if ( ! isset( $_GET['hgd_google_oauth'] ) || 'callback' !== $_GET['hgd_google_oauth'] ) { // phpcs:ignore WordPress.Security.NonceVerification
+			return;
+		}
+
+		$args = array( 'page' => 'hgd-settings' );
+
+		if ( isset( $_GET['error'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$args['google'] = 'denied';
+		} elseif ( isset( $_GET['code'] ) ) {
+			$code   = sanitize_text_field( wp_unslash( $_GET['code'] ) );
+			$result = HGD_Google_Calendar::exchange_code( $code );
+			$args['google'] = is_wp_error( $result ) ? 'error' : 'connected';
+		} else {
+			$args['google'] = 'error';
+		}
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	public function handle_google_disconnect() {
+		$this->guard();
+		check_admin_referer( 'hgd_google_disconnect' );
+		HGD_Google_Calendar::disconnect();
+		$this->redirect_with( 'hgd-settings', array( 'google' => 'disconnected' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -336,10 +429,11 @@ class HGD_Admin {
 
 		foreach ( array(
 			'claude_api_key', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
-			'stripe_secret_key', 'stripe_pub_key', 'github_repo', 'github_token',
+			'stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret',
+			'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',
 			'google_client_id', 'google_client_secret', 'google_calendar_id',
-			'avail_days', 'avail_start', 'avail_end',
+			'avail_start', 'avail_end',
 		) as $key ) {
 			if ( isset( $raw[ $key ] ) ) {
 				$input[ $key ] = sanitize_text_field( $raw[ $key ] );
@@ -359,6 +453,15 @@ class HGD_Admin {
 		}
 
 		$input['auto_update'] = empty( $raw['auto_update'] ) ? 0 : 1;
+
+		// Availability days arrive as a checkbox array (1..7); normalise to a CSV string.
+		if ( isset( $raw['avail_days'] ) && is_array( $raw['avail_days'] ) ) {
+			$days = array_filter( array_map( 'intval', $raw['avail_days'] ), function ( $d ) {
+				return $d >= 1 && $d <= 7;
+			} );
+			sort( $days );
+			$input['avail_days'] = implode( ',', $days );
+		}
 
 		HGD_Settings::save( $input );
 		$this->redirect_with( 'hgd-settings', array( 'updated' => 1 ) );

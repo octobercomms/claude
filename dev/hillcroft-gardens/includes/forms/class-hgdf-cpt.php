@@ -25,7 +25,7 @@ class HGDF_CPT {
 			'public'             => false,
 			'publicly_queryable' => false,
 			'show_ui'            => true,
-			'show_in_menu'       => 'hgd-dashboard', // appears under the Designer menu
+			'show_in_menu'       => false, // surfaced via the custom "Forms" hub under Designer
 			'capability_type'    => 'post',
 			'supports'           => array( 'title' ),
 			'has_archive'        => false,
