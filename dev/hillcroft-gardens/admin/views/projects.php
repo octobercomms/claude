@@ -5,7 +5,9 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-$base_url = admin_url( 'admin.php?page=hgd-projects' );
+$base_url       = admin_url( 'admin.php?page=hgd-projects' );
+$post_url       = admin_url( 'admin-post.php' );
+$example_exists = HGD_Demo::exists();
 ?>
 <div class="wrap hgd-wrap">
 
@@ -13,8 +15,34 @@ $base_url = admin_url( 'admin.php?page=hgd-projects' );
 
 	<div class="hgd-page-head">
 		<h1><?php esc_html_e( 'Projects', 'hillcroft-garden-designer' ); ?></h1>
-		<a class="hgd-pill" href="<?php echo esc_url( add_query_arg( 'action', 'new', $base_url ) ); ?>"><?php esc_html_e( '+ New project', 'hillcroft-garden-designer' ); ?></a>
+		<div class="hgd-page-head-actions">
+			<?php if ( $example_exists ) : ?>
+				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( add_query_arg( array( 'action' => 'edit', 'id' => HGD_Demo::project_id() ), $base_url ) ); ?>"><?php esc_html_e( 'Open example', 'hillcroft-garden-designer' ); ?></a>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;" onsubmit="return confirm('<?php echo esc_js( __( 'Remove the example project and all of its demo data?', 'hillcroft-garden-designer' ) ); ?>');">
+					<input type="hidden" name="action" value="hgd_remove_example" />
+					<?php wp_nonce_field( 'hgd_remove_example' ); ?>
+					<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Remove example project', 'hillcroft-garden-designer' ); ?></button>
+				</form>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
+					<input type="hidden" name="action" value="hgd_create_example" />
+					<?php wp_nonce_field( 'hgd_create_example' ); ?>
+					<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Create example project', 'hillcroft-garden-designer' ); ?></button>
+				</form>
+			<?php endif; ?>
+			<a class="hgd-pill" href="<?php echo esc_url( add_query_arg( 'action', 'new', $base_url ) ); ?>"><?php esc_html_e( '+ New project', 'hillcroft-garden-designer' ); ?></a>
+		</div>
 	</div>
+
+	<?php if ( ! $example_exists ) : ?>
+		<p class="hgd-muted hgd-example-hint"><?php esc_html_e( 'A complete, clickable demo using placeholder images and no API calls — explore the whole flow, then remove it.', 'hillcroft-garden-designer' ); ?></p>
+	<?php endif; ?>
+
+	<?php if ( isset( $_GET['example'] ) && 'created' === $_GET['example'] ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Example project created.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( isset( $_GET['example'] ) && 'removed' === $_GET['example'] ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Example project removed.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
 
 	<?php if ( isset( $_GET['deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php esc_html_e( 'Project deleted.', 'hillcroft-garden-designer' ); ?></div>
