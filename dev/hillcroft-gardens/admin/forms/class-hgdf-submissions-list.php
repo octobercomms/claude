@@ -13,8 +13,10 @@ class HGDF_Submissions_List {
 	}
 
 	public static function menu() {
-		// Attached to the Designer menu so the sidebar + parent stay intact,
-		// then hidden as a sidebar item — it's reached via the Forms hub tabs.
+		// Registered under the Designer menu so the page is accessible and the
+		// parent/sidebar resolve correctly. The sidebar LINK is hidden via CSS
+		// (HGD_Admin::hide_forms_subpages_in_menu) — navigation is via the Forms
+		// hub tabs.
 		add_submenu_page(
 			'hgd-dashboard',
 			'Form Submissions',
@@ -23,7 +25,6 @@ class HGDF_Submissions_List {
 			'hgd-forms-submissions',
 			array( __CLASS__, 'render' )
 		);
-		remove_submenu_page( 'hgd-dashboard', 'hgd-forms-submissions' );
 	}
 
 	/**

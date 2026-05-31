@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.5.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.5.1 =
+* Fix: the Forms Submissions and Analytics tabs returned "Sorry, you are not allowed to access this page." Pages stay registered (so they resolve); their sidebar links are hidden via CSS instead, with navigation via the Forms hub tabs.
 
 = 0.5.0 =
 * Consultation capture: upload hand-drawn sketches and site photos to a project (stored in the media library).
