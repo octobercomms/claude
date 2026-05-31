@@ -10,8 +10,9 @@ class HGDF_Analytics_Page {
 	}
 
 	public static function menu() {
+		// Registered hidden (null parent) — reached via the Forms hub tabs.
 		add_submenu_page(
-			'hgd-dashboard',
+			null,
 			'Form Analytics',
 			'Form Analytics',
 			'manage_options',
@@ -32,8 +33,11 @@ class HGDF_Analytics_Page {
 		$from = sanitize_text_field( $_GET['from'] ?? '' );
 		$to   = sanitize_text_field( $_GET['to'] ?? '' );
 
-		echo '<div class="wrap"><h1>Analytics</h1>';
-		echo '<form method="get" style="margin-bottom: 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">';
+		echo '<div class="wrap"><h1>Forms</h1>';
+		if ( class_exists( 'HGD_Admin' ) ) {
+			HGD_Admin::forms_tabs( 'hgd-forms-analytics' );
+		}
+		echo '<form method="get" style="margin: 16px 0; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">';
 		echo '<input type="hidden" name="page" value="hgd-forms-analytics">';
 		echo '<label>Form: <select name="form_id">';
 		echo '<option value="">— Choose —</option>';

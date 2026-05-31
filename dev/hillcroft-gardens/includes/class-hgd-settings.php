@@ -22,7 +22,10 @@ class HGD_Settings {
 		'google_maps_api_key',
 		'plantid_api_key',
 		'stripe_secret_key',
+		'stripe_webhook_secret',
 		'github_token',
+		'google_client_secret',
+		'google_refresh_token',
 	);
 
 	public static function defaults() {
@@ -32,8 +35,9 @@ class HGD_Settings {
 			'gemini_api_key'      => '',
 			'google_maps_api_key' => '',
 			'plantid_api_key'     => '',
-			'stripe_secret_key'   => '',
-			'stripe_pub_key'      => '',
+			'stripe_secret_key'    => '',
+			'stripe_pub_key'       => '',
+			'stripe_webhook_secret' => '',
 
 			// --- Self-updater (private GitHub repo) -------------------------
 			'github_repo'         => 'octobercomms/claude',
@@ -63,6 +67,21 @@ class HGD_Settings {
 			'brand_olive'    => '#494A20',
 			'brand_charcoal' => '#1B1C18',
 			'brand_cream'    => '#F2ECDD',
+
+			// --- Google Calendar (booking sync; personal Gmail OAuth) -------
+			'google_client_id'     => '',
+			'google_client_secret' => '',
+			'google_refresh_token' => '',
+			'google_calendar_id'   => 'primary',
+
+			// --- Booking availability ---------------------------------------
+			'avail_days'          => '1,2,3,4,5', // 1=Mon … 7=Sun
+			'avail_start'         => '09:00',
+			'avail_end'           => '17:00',
+			'slot_minutes'        => 60,
+			'buffer_minutes'      => 30,
+			'booking_lead_days'   => 2,   // earliest bookable = today + N days
+			'booking_window_days' => 30,  // latest bookable = today + N days
 		);
 	}
 

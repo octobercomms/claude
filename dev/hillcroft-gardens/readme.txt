@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.4.0 =
+* Bookings: public [hgd_booking] page with an availability slot picker and an embedded Stripe card form for the £200 consultation; paid bookings create a client + project and send an .ics invite.
+* Google Calendar (personal Gmail) two-way sync — busy times block slots, paid bookings are written to the calendar. Connect under Settings.
+* Admin Bookings list + "Upcoming consultations" on the dashboard.
+* Forms: renamed from "October Forms" to just "Forms"; Submissions and Analytics are now tabs in a single Forms hub, and Forms sits in its proper place in the menu.
 
 = 0.3.0 =
 * Forms: a full multi-step form builder (ported from October Forms) — drag-drop builder, 18 field types, conditional logic, theming, file uploads, honeypot/rate-limit spam protection.

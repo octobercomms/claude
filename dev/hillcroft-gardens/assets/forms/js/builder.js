@@ -612,13 +612,13 @@
 			el('span', null, ['Submissions per IP per 10 min']),
 			el('input', { type: 'number', min: 1, max: 100, value: s.rate_limit || 5, onInput: function (e) { s.rate_limit = parseInt(e.target.value, 10) || 5; syncHiddenInput(); } })
 		]));
-		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → October Forms.']));
+		host.appendChild(el('p', { class: 'description' }, ['Turnstile keys are set in Settings → Forms.']));
 	}
 
 	function renderNotifications(host) {
 		var n = schema.notifications;
 		host.appendChild(el('h3', null, ['Notifications']));
-		host.appendChild(el('p', { class: 'hgd-form-b-hint' }, ['Each completed submission emails a notification to the address set in Settings → October Forms. Use the field below to CC additional people on the email for this form only.']));
+		host.appendChild(el('p', { class: 'hgd-form-b-hint' }, ['Each completed submission emails a notification to the address set in Settings → Forms. Use the field below to CC additional people on the email for this form only.']));
 
 		host.appendChild(el('label', { class: 'hgd-form-b-field' }, [
 			el('span', null, ['CC recipients (comma-separated email addresses)']),
@@ -639,7 +639,7 @@
 
 		host.appendChild(el('label', { class: 'hgd-form-b-field' }, [
 			el('span', null, ['Redirect to URL after submit (optional)']),
-			el('input', { type: 'url', class: 'widefat', placeholder: 'https://nvelope.co/thank-you', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
+			el('input', { type: 'url', class: 'widefat', placeholder: 'https://example.com/thank-you', value: e.redirect_url || '', onInput: function (ev) { e.redirect_url = ev.target.value; syncHiddenInput(); } })
 		]));
 		host.appendChild(el('p', { class: 'hgd-form-b-hint' }, ['If set, the visitor is redirected here once the form is submitted. The ending screen below is ignored.']));
 

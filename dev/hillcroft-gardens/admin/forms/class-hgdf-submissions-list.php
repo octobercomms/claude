@@ -13,8 +13,9 @@ class HGDF_Submissions_List {
 	}
 
 	public static function menu() {
+		// Registered hidden (null parent) — reached via the Forms hub tabs.
 		add_submenu_page(
-			'hgd-dashboard',
+			null,
 			'Form Submissions',
 			'Form Submissions',
 			'manage_options',
@@ -117,8 +118,11 @@ class HGDF_Submissions_List {
 			'post_status'    => array( 'publish', 'draft' ),
 		) );
 
-		echo '<div class="wrap"><h1>Submissions</h1>';
-		echo '<form method="get" style="margin-bottom: 16px;">';
+		echo '<div class="wrap"><h1>Forms</h1>';
+		if ( class_exists( 'HGD_Admin' ) ) {
+			HGD_Admin::forms_tabs( 'hgd-forms-submissions' );
+		}
+		echo '<form method="get" style="margin: 16px 0;">';
 		echo '<input type="hidden" name="page" value="hgd-forms-submissions">';
 		echo '<select name="form_id" onchange="this.form.submit()">';
 		echo '<option value="">— Choose a form —</option>';

@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Analytics + tracking for October Forms.
+ * Analytics + tracking for Forms.
  *
  * Pipeline of a single visitor:
  *   1. Page renders → JS POSTs to /view → row in wp_hgd_form_views.
