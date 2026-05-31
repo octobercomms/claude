@@ -35,6 +35,11 @@ WordPress Updates screen.
 
 == Changelog ==
 
+= 0.5.0 =
+* Consultation capture: upload hand-drawn sketches and site photos to a project (stored in the media library).
+* Claude sketch-reading: "Read sketch with Claude" interprets the sketch, reads hand-written dimensions and annotations, and drafts clarifying questions to confirm the layout. Token cost feeds the cost banner.
+* Settings: choose the Claude model (default Sonnet 4.6).
+
 = 0.4.1 =
 * Forms hub: the Submissions and Analytics tabs now keep the Designer menu and brand styling (they were losing the sidebar and looking like plain WordPress pages).
 * Dashboard: the "API spend this month" card now stands out in bold brand yellow on a dark card.
