@@ -10,15 +10,17 @@ class HGDF_Analytics_Page {
 	}
 
 	public static function menu() {
-		// Registered hidden (null parent) — reached via the Forms hub tabs.
+		// Attached to the Designer menu so the sidebar + parent stay intact,
+		// then hidden as a sidebar item — it's reached via the Forms hub tabs.
 		add_submenu_page(
-			null,
+			'hgd-dashboard',
 			'Form Analytics',
 			'Form Analytics',
 			'manage_options',
 			'hgd-forms-analytics',
 			array( __CLASS__, 'render' )
 		);
+		remove_submenu_page( 'hgd-dashboard', 'hgd-forms-analytics' );
 	}
 
 	public static function render() {
@@ -33,7 +35,7 @@ class HGDF_Analytics_Page {
 		$from = sanitize_text_field( $_GET['from'] ?? '' );
 		$to   = sanitize_text_field( $_GET['to'] ?? '' );
 
-		echo '<div class="wrap"><h1>Forms</h1>';
+		echo '<div class="wrap hgd-wrap"><h1>Forms</h1>';
 		if ( class_exists( 'HGD_Admin' ) ) {
 			HGD_Admin::forms_tabs( 'hgd-forms-analytics' );
 		}

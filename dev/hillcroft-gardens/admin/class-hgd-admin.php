@@ -25,6 +25,16 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
+		add_filter( 'submenu_file', array( $this, 'highlight_forms_tab' ) );
+	}
+
+	/** Keep "Forms" highlighted (and the Designer submenu open) on the hidden tab pages. */
+	public function highlight_forms_tab( $submenu_file ) {
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'hgd-forms-submissions' === $page || 'hgd-forms-analytics' === $page ) {
+			return 'hgd-forms';
+		}
+		return $submenu_file;
 	}
 
 	// -------------------------------------------------------------------------

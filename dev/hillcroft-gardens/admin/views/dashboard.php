@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<span class="hgd-card-figure"><?php echo esc_html( number_format( $plant_count ) ); ?></span>
 			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( admin_url( 'admin.php?page=hgd-plants' ) ); ?>"><?php esc_html_e( 'Manage catalogue', 'hillcroft-garden-designer' ); ?></a>
 		</div>
-		<div class="hgd-card">
+		<div class="hgd-card hgd-card--accent">
 			<span class="hgd-card-label"><?php esc_html_e( 'API spend this month', 'hillcroft-garden-designer' ); ?></span>
 			<span class="hgd-card-figure">£<?php echo esc_html( number_format( $state['spend'], 2 ) ); ?></span>
 			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( admin_url( 'admin.php?page=hgd-settings' ) ); ?>"><?php esc_html_e( 'Cost settings', 'hillcroft-garden-designer' ); ?></a>
