@@ -61,7 +61,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<li class="done"><?php esc_html_e( 'Forms builder (multi-step, submissions, analytics)', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'Paid £200 consultation booking + Google Calendar', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'Consultation capture + Claude sketch reading', 'hillcroft-garden-designer' ); ?></li>
-			<li><?php esc_html_e( 'Gemini concept renders + render pack', 'hillcroft-garden-designer' ); ?></li>
+			<li class="done"><?php esc_html_e( 'Gemini concept renders (iterate)', 'hillcroft-garden-designer' ); ?></li>
 			<li><?php esc_html_e( 'Pricing engine + proposals + milestone payments', 'hillcroft-garden-designer' ); ?></li>
 			<li><?php esc_html_e( 'Client portal, plant book & seasonal film', 'hillcroft-garden-designer' ); ?></li>
 		</ul>

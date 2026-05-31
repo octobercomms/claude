@@ -65,8 +65,9 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 			<h3><?php esc_html_e( 'AI', 'hillcroft-garden-designer' ); ?></h3>
 			<div class="hgd-grid">
 				<?php $field( 'claude_model', __( 'Claude model', 'hillcroft-garden-designer' ) ); ?>
+				<?php $field( 'gemini_image_model', __( 'Gemini image model', 'hillcroft-garden-designer' ) ); ?>
 			</div>
-			<p class="hgd-muted"><?php esc_html_e( 'Used for consultation sketch-reading. Default: claude-sonnet-4-6', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'Claude reads consultation sketches. Gemini generates concept renders. Defaults: claude-sonnet-4-6, gemini-2.5-flash-image', 'hillcroft-garden-designer' ); ?></p>
 		</div>
 
 		<div class="hgd-panel">

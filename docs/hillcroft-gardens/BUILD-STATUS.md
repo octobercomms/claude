@@ -56,10 +56,20 @@ foundation-first, then each integration as its own testable PR (install via one-
 - Token cost logged to the cost banner. Claude model is configurable (default Sonnet 4.6).
 - Needs live testing: a real Claude API key.
 
+## ✅ 0.6.0 — Ideas dialogue + Gemini concept renders
+
+- Editable **design brief** + **render prompt** per project; **"Compose with Claude"** drafts both
+  from the sketch-reading + ideas (`design_brief`/`render_prompt`, schema v5).
+- **Generate render** → Gemini turns the prompt (sketch sent as a reference image) into a
+  photorealistic concept; press again to **iterate**; renders saved to the media library as
+  `render` assets. Per-image cost logged. Gemini model configurable.
+- Needs live testing: real Gemini + Claude keys.
+
 ## ⏳ Next
 
-1. Ideas dialogue → **Gemini** concept renders (iterate) → render pack.
-2. Pricing engine → proposals → client portal → milestone payments → plant book.
+1. The full **render pack** (satellite masterplan, watercolour, hand-drawn plan, corner views,
+   seasonal variants) — the harder cross-angle-consistency work.
+2. Pricing engine → proposals → client portal → milestone payments → plant book → seasonal film.
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.

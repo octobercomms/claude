@@ -41,6 +41,7 @@ class HGD_Settings {
 
 			// --- AI ---------------------------------------------------------
 			'claude_model'        => 'claude-sonnet-4-6',
+			'gemini_image_model'  => 'gemini-2.5-flash-image',
 
 			// --- Self-updater (private GitHub repo) -------------------------
 			'github_repo'         => 'octobercomms/claude',

@@ -205,6 +205,126 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<p class="hgd-muted"><?php esc_html_e( 'Edit the brief / notes above to capture the answers to these questions.', 'hillcroft-garden-designer' ); ?></p>
 			</div>
 		<?php endif; ?>
+
+		<?php
+		$design_brief  = (string) $val( 'design_brief' );
+		$render_prompt = (string) $val( 'render_prompt' );
+		$design_error  = isset( $_GET['design_error'] ) ? sanitize_key( $_GET['design_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$render_error  = isset( $_GET['render_error'] ) ? sanitize_key( $_GET['render_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$renders       = HGD_Project_Asset::for_project( $pid, 'render' );
+		$settings_url  = admin_url( 'admin.php?page=hgd-settings' );
+		?>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Design &amp; ideas', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Capture the design brief and the prompt used to generate concept renders. Use “Compose with Claude” to draft both from the consultation reading and your ideas, then hand-edit either as needed.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['design_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Design brief and render prompt saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['design_composed'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Claude composed a design brief and render prompt.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( 'nokey' === $design_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'No Claude API key configured — add one under Settings.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( 'api' === $design_error || 'parse' === $design_error ) :
+				$de = get_transient( 'hgd_design_error_' . get_current_user_id() ); delete_transient( 'hgd_design_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $de ? $de : __( 'Claude could not compose the brief.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form">
+				<input type="hidden" name="action" value="hgd_save_design" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_save_design_' . $pid ); ?>
+
+				<label class="hgd-full"><span><?php esc_html_e( 'Design brief', 'hillcroft-garden-designer' ); ?></span>
+					<textarea name="design_brief" rows="6"><?php echo esc_textarea( $design_brief ); ?></textarea></label>
+
+				<label class="hgd-full"><span><?php esc_html_e( 'Render prompt', 'hillcroft-garden-designer' ); ?></span>
+					<textarea name="render_prompt" rows="6"><?php echo esc_textarea( $render_prompt ); ?></textarea></label>
+				<p class="hgd-muted"><?php esc_html_e( 'The render prompt is sent to Gemini to generate concept renders below. Tweak it and generate again to iterate.', 'hillcroft-garden-designer' ); ?></p>
+
+				<div class="hgd-form-actions">
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+			</form>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="hgd_compose_prompt" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<?php wp_nonce_field( 'hgd_compose_prompt_' . $pid ); ?>
+				<div class="hgd-form-actions">
+					<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Compose with Claude', 'hillcroft-garden-designer' ); ?></button>
+					<span class="hgd-muted"><?php esc_html_e( 'Fills both fields from the consultation reading + your ideas. May take a few seconds.', 'hillcroft-garden-designer' ); ?></span>
+				</div>
+			</form>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Concept renders', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Generate a photorealistic concept render from the render prompt, using any uploaded sketch as a layout reference. May take ~10–20s. Press again after tweaking the prompt to iterate — each render is appended below.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['render_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Concept render generated.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( 'nokey' === $render_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'No Gemini API key configured — add one under %s.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'api' === $render_error || 'save' === $render_error ) :
+				$re = get_transient( 'hgd_render_error_' . get_current_user_id() ); delete_transient( 'hgd_render_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $re ? $re : __( 'Could not generate a render.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( HGD_Gemini::is_configured() ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="hgd_generate_render" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<?php wp_nonce_field( 'hgd_generate_render_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Generate render', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + sketch as reference.', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+			<?php else : ?>
+				<p class="hgd-muted"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a Gemini API key under %s to enable concept renders.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></p>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $renders ) ) : ?>
+				<div class="hgd-asset-grid">
+					<?php foreach ( $renders as $render ) :
+						$del_url = wp_nonce_url(
+							add_query_arg(
+								array( 'action' => 'hgd_delete_asset', 'asset_id' => (int) $render['id'], 'id' => $pid ),
+								admin_url( 'admin-post.php' )
+							),
+							'hgd_delete_asset_' . (int) $render['id']
+						);
+						?>
+						<div class="hgd-asset">
+							<?php echo wp_get_attachment_image( (int) $render['attachment_id'], 'large' ); ?>
+							<div class="hgd-asset-meta">
+								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( HGD_Project_Asset::role_label( $render['role'] ) ); ?></span>
+								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this render?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<p class="hgd-muted"><?php esc_html_e( 'To iterate: edit the render prompt above, Save, then Generate render again.', 'hillcroft-garden-designer' ); ?></p>
+			<?php else : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'No renders yet.', 'hillcroft-garden-designer' ); ?></p>
+			<?php endif; ?>
+		</div>
 	<?php endif; ?>
 
 </div>
