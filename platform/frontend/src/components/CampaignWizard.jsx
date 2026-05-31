@@ -572,8 +572,20 @@ const previewModal = { background: '#fff', borderRadius: 8, width: '100%', maxWi
 function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    api.get(`/outreach/campaigns/${campaign.id}/readiness`)
+      .then(setReport)
+      .catch(err => toast(err.message, 'error'))
+      .finally(() => setLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaign.id]);
 
   async function launch() {
+    if (report?.blockers?.length) return;   // belt-and-braces; button is disabled anyway
     if (!window.confirm('Launch this campaign? The first email will start sending immediately to all enrolled contacts.')) return;
     setBusy(true);
     try {
@@ -586,10 +598,15 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
     } finally { setBusy(false); }
   }
 
+  const blockers = report?.blockers || [];
+  const warnings = report?.warnings || [];
+  const stats = report?.stats || {};
+
   return (
     <div style={s.card}>
-      <H>Launch</H>
-      <p style={{ fontSize: 13, color: '#555', marginTop: 0 }}>Review the campaign and launch when ready.</p>
+      <H>Pre-send report</H>
+      <p style={{ fontSize: 13, color: '#555', marginTop: 0 }}>Quick check before the campaign goes out — blockers stop the launch, warnings are worth a look.</p>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
         <Summary label="Campaign" value={campaign.name} />
         <Summary label="Brand" value={campaign.brand || '—'} />
@@ -598,12 +615,79 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
         <Summary label="Reply-To" value={campaign.reply_to || '—'} />
         <Summary label="Contacts enrolled" value={String(campaign.contact_count || 0)} />
       </div>
+
+      {loading && <div style={{ marginTop: 18, color: '#888', fontSize: 13 }}>Running readiness checks…</div>}
+
+      {!loading && (
+        <>
+          {/* Blockers — red, prevent launch */}
+          <ReportSection
+            title={`✗ Blockers (${blockers.filter(b => b.severity !== 'info').length})`}
+            empty="No blockers — good to go."
+            items={blockers}
+            tone="error"
+          />
+
+          {/* Warnings — yellow, allow launch but flag */}
+          <ReportSection
+            title={`⚠ Warnings (${warnings.filter(w => w.severity !== 'info').length})`}
+            empty="No warnings."
+            items={warnings}
+            tone="warn"
+          />
+
+          {/* Stats — informational */}
+          <div style={{ marginTop: 18, padding: 12, background: '#fafafa', border: '1px solid #eee', borderRadius: 6, fontSize: 12, color: '#444', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
+            <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
+            {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
+            {stats.previously_unsubscribed != null && <div>Previously unsubscribed (will be skipped): <strong>{stats.previously_unsubscribed}</strong></div>}
+            {stats.free_mail != null && <div>Free-mail addresses (gmail / hotmail / etc): <strong>{stats.free_mail}</strong></div>}
+            {stats.duplicates ? <div>Duplicate emails in list: <strong>{stats.duplicates}</strong></div> : null}
+            {stats.sending_domain && <div>Sending domain: <strong>{stats.sending_domain}</strong> — SPF {stats.dns?.spf}, DKIM {stats.dns?.dkim}, DMARC {stats.dns?.dmarc}</div>}
+            {stats.ses?.in_sandbox === true && <div style={{ color: '#c62828' }}>SES: in sandbox</div>}
+            {stats.ses?.in_sandbox === false && <div>SES: production access</div>}
+            {stats.ses?.in_sandbox == null && stats.ses?.configured && <div>SES status unknown ({stats.ses.error || 'no GetAccount response'})</div>}
+            {stats.estimated_send_days ? <div>Estimated send window: <strong>~{stats.estimated_send_days} day{stats.estimated_send_days === 1 ? '' : 's'}</strong> at standard pacing</div> : null}
+          </div>
+        </>
+      )}
+
       <Footer>
         <button onClick={onBack} style={s.btnGhost}>← Back</button>
-        <button onClick={launch} disabled={busy || !campaign.contact_count} style={s.btn}>
+        <button onClick={launch}
+          disabled={busy || loading || !campaign.contact_count || blockers.length > 0}
+          title={blockers.length ? 'Resolve blockers before launching' : undefined}
+          style={s.btn}>
           {busy ? 'Launching…' : '▶ Launch campaign'}
         </button>
       </Footer>
+    </div>
+  );
+}
+
+// One block of report findings (blockers or warnings). Tone drives
+// the colour; an "info" severity slips into the warnings list with
+// muted styling.
+function ReportSection({ title, empty, items, tone }) {
+  const palette = tone === 'error'
+    ? { bg: '#fdecea', border: '#f5c6cb', fg: '#7a1a14' }
+    : { bg: '#fffceb', border: '#ddd6a8', fg: '#5a4a00' };
+  if (!items.length) {
+    return (
+      <div style={{ marginTop: 14, padding: '8px 12px', background: '#e7f4ea', border: '1px solid #b6dcc1', color: '#1b5e20', borderRadius: 6, fontSize: 12 }}>
+        ✓ {empty}
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 14, padding: '10px 12px', background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg, borderRadius: 6 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.55 }}>
+        {items.map((it, i) => (
+          <li key={i} style={{ marginBottom: 3, opacity: it.severity === 'info' ? 0.75 : 1 }}>{it.msg}</li>
+        ))}
+      </ul>
     </div>
   );
 }
