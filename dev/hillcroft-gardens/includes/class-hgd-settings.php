@@ -67,6 +67,10 @@ class HGD_Settings {
 			'commencement_pct'     => 25,
 			'completion_pct'       => 25,
 
+			// --- Proposals --------------------------------------------------
+			'proposal_expiry_days' => 30,
+			'terms_default'        => '',
+
 			// --- Pricing engine defaults ------------------------------------
 			'default_day_rate_gbp'     => 250,
 			'default_wastage_pct'      => 10,

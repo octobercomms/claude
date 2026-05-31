@@ -586,6 +586,139 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<?php endif; ?>
 			<?php endif; ?>
 		</div>
+
+		<?php
+		// --- Proposal + milestone payments -----------------------------------
+		$proposal       = isset( $proposal ) ? $proposal : null;
+		$payments       = isset( $payments ) && is_array( $payments ) ? $payments : array();
+		$proposal_error = isset( $_GET['proposal_error'] ) ? sanitize_text_field( wp_unslash( $_GET['proposal_error'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Proposal', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Turn a chosen quote into a sendable, payable proposal. The client reviews it on a private, branded page, accepts and signs, then pays the deposit to begin.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['proposal_created'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Proposal created.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['proposal_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Proposal saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['proposal_sent'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Proposal sent to the client.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['proposal_deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Proposal deleted.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( 'noemail' === $proposal_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'This project has no client email — add one before sending.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( '' !== $proposal_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Could not complete that proposal action.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( ! $proposal ) : ?>
+				<?php if ( ! $has_quotes ) : ?>
+					<p class="hgd-muted"><?php esc_html_e( 'Create a Good / Better / Best quote above first, then you can build a proposal from one of the tiers.', 'hillcroft-garden-designer' ); ?></p>
+				<?php else : ?>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
+						<input type="hidden" name="action" value="hgd_proposal_create" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_proposal_create_' . $pid ); ?>
+						<div class="hgd-grid">
+							<label><span><?php esc_html_e( 'Build proposal from', 'hillcroft-garden-designer' ); ?></span>
+								<select name="quote_id">
+									<?php foreach ( $quotes as $q ) :
+										$qt = HGD_Quote::compute( (int) $q['id'] );
+										?>
+										<option value="<?php echo esc_attr( (int) $q['id'] ); ?>"><?php echo esc_html( HGD_Quote::tier_label( $q['tier'] ) . ' — £' . number_format( $qt['total_rounded'], 0 ) ); ?></option>
+									<?php endforeach; ?>
+								</select></label>
+						</div>
+						<div class="hgd-form-actions">
+							<button type="submit" class="hgd-pill"><?php esc_html_e( 'Create proposal', 'hillcroft-garden-designer' ); ?></button>
+						</div>
+					</form>
+				<?php endif; ?>
+			<?php else :
+				$portal_url = HGD_Proposal::portal_url( $proposal );
+				$exp_value  = ! empty( $proposal['expires_at'] ) ? mysql2date( 'Y-m-d', $proposal['expires_at'] ) : '';
+				?>
+				<p>
+					<span class="hgd-status hgd-status-<?php echo esc_attr( $proposal['status'] ); ?>"><?php echo esc_html( HGD_Proposal::status_label( $proposal['status'] ) ); ?></span>
+					&nbsp;
+					<span class="hgd-muted"><?php echo esc_html( sprintf( /* translators: %s amount */ __( 'Total: £%s', 'hillcroft-garden-designer' ), number_format( (float) $proposal['total_gbp'], 2 ) ) ); ?></span>
+				</p>
+
+				<label class="hgd-full"><span><?php esc_html_e( 'Client portal link (private)', 'hillcroft-garden-designer' ); ?></span>
+					<input type="text" class="hgd-code" readonly value="<?php echo esc_attr( $portal_url ); ?>" onclick="this.select();" /></label>
+				<p class="hgd-muted"><a href="<?php echo esc_url( $portal_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open the client portal preview ↗', 'hillcroft-garden-designer' ); ?></a></p>
+
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-form">
+					<input type="hidden" name="action" value="hgd_proposal_save" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
+					<?php wp_nonce_field( 'hgd_proposal_save_' . (int) $proposal['id'] ); ?>
+
+					<label class="hgd-full"><span><?php esc_html_e( 'Introduction (shown to the client)', 'hillcroft-garden-designer' ); ?></span>
+						<textarea name="intro_text" rows="4"><?php echo esc_textarea( (string) $proposal['intro_text'] ); ?></textarea></label>
+
+					<div class="hgd-grid">
+						<label><span><?php esc_html_e( 'Deposit type', 'hillcroft-garden-designer' ); ?></span>
+							<select name="deposit_type">
+								<option value="pct" <?php selected( $proposal['deposit_type'], 'pct' ); ?>><?php esc_html_e( 'Percentage of total', 'hillcroft-garden-designer' ); ?></option>
+								<option value="fixed" <?php selected( $proposal['deposit_type'], 'fixed' ); ?>><?php esc_html_e( 'Fixed amount (£)', 'hillcroft-garden-designer' ); ?></option>
+							</select></label>
+						<label><span><?php esc_html_e( 'Deposit value (% or £)', 'hillcroft-garden-designer' ); ?></span>
+							<input type="number" step="0.01" min="0" name="deposit_value" value="<?php echo esc_attr( $proposal['deposit_value'] ); ?>" /></label>
+						<label><span><?php esc_html_e( 'Expires on', 'hillcroft-garden-designer' ); ?></span>
+							<input type="date" name="expires_at" value="<?php echo esc_attr( $exp_value ); ?>" /></label>
+					</div>
+
+					<label class="hgd-full"><span><?php esc_html_e( 'Terms &amp; conditions (shown to the client)', 'hillcroft-garden-designer' ); ?></span>
+						<textarea name="terms_text" rows="6"><?php echo esc_textarea( (string) $proposal['terms_text'] ); ?></textarea></label>
+
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save proposal', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Saving re-snapshots the total from the quote and rebuilds the payment schedule.', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+
+				<h3><?php esc_html_e( 'Payment schedule', 'hillcroft-garden-designer' ); ?></h3>
+				<table class="hgd-table hgd-totals-table">
+					<tbody>
+						<?php foreach ( $payments as $p ) : ?>
+							<tr>
+								<td><?php echo esc_html( $p['label'] ); ?></td>
+								<td class="num"><?php echo esc_html( '£' . number_format( (float) $p['amount_gbp'], 2 ) ); ?></td>
+								<td>
+									<?php if ( 'paid' === $p['status'] ) : ?>
+										<span class="hgd-status hgd-status-complete"><?php esc_html_e( 'Paid', 'hillcroft-garden-designer' ); ?></span>
+									<?php else : ?>
+										<span class="hgd-status hgd-status-lead"><?php esc_html_e( 'Due', 'hillcroft-garden-designer' ); ?></span>
+									<?php endif; ?>
+								</td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+
+				<div class="hgd-form-actions" style="margin-top:18px;">
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
+						<input type="hidden" name="action" value="hgd_proposal_send" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
+						<?php wp_nonce_field( 'hgd_proposal_send_' . (int) $proposal['id'] ); ?>
+						<button type="submit" class="hgd-pill"><?php echo 'draft' === $proposal['status'] ? esc_html__( 'Send to client', 'hillcroft-garden-designer' ) : esc_html__( 'Re-send to client', 'hillcroft-garden-designer' ); ?></button>
+					</form>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
+						<input type="hidden" name="action" value="hgd_proposal_delete" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
+						<?php wp_nonce_field( 'hgd_proposal_delete_' . (int) $proposal['id'] ); ?>
+						<button type="submit" class="hgd-link-danger" onclick="return confirm('<?php echo esc_js( __( 'Delete this proposal and its payment schedule?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete proposal', 'hillcroft-garden-designer' ); ?></button>
+					</form>
+				</div>
+			<?php endif; ?>
+		</div>
 	<?php endif; ?>
 
 </div>

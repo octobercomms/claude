@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,11 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.8.0 =
+* Proposals: turn a chosen Good/Better/Best quote into a sendable proposal with a deposit + milestone payment schedule, editable intro and terms, and a 30-day expiry.
+* Client portal: a tokenised, brand-styled public page (no login) showing the renders, a client-friendly cost breakdown, the payment schedule and terms — the client e-signs to accept, then pays the deposit with an embedded Stripe card form. Internal margin is never shown.
+* Milestone payments via Stripe, fulfilled by webhook; project status advances sent → viewed → accepted → deposit paid. Send the proposal link to the client by email from the project screen.
 
 = 0.7.0 =
 * Pricing engine: create Good / Better / Best quotes per project. Add plants straight from the catalogue (price snapshotted) plus custom material/labour/other lines.

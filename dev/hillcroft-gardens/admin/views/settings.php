@@ -114,6 +114,17 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 		</div>
 
 		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Proposals', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Defaults applied to new proposals. The deposit / commencement / completion split is set under Business defaults above and determines the milestone amounts.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php $field( 'proposal_expiry_days', __( 'Proposal expires after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' ); ?>
+			</div>
+			<label class="hgd-full"><span><?php esc_html_e( 'Default terms &amp; conditions', 'hillcroft-garden-designer' ); ?></span>
+				<textarea name="terms_default" rows="8"><?php echo esc_textarea( isset( $s['terms_default'] ) ? $s['terms_default'] : '' ); ?></textarea></label>
+			<p class="hgd-muted"><?php esc_html_e( 'Pasted into each new proposal’s terms. You can edit the terms per proposal before sending.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Pricing defaults', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Used to seed each new quote and to scale the Better / Best tiers from Good. You can override any of these per quote.', 'hillcroft-garden-designer' ); ?></p>
 			<div class="hgd-grid">

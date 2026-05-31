@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 0.7.0
+ * Version: 0.8.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '0.7.0' );
+define( 'HGD_VERSION', '0.8.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -37,6 +37,8 @@ require_once HGD_PATH . 'includes/class-hgd-client.php';
 require_once HGD_PATH . 'includes/class-hgd-project.php';
 require_once HGD_PATH . 'includes/class-hgd-project-asset.php';
 require_once HGD_PATH . 'includes/class-hgd-quote.php';
+require_once HGD_PATH . 'includes/class-hgd-proposal.php';
+require_once HGD_PATH . 'includes/class-hgd-payment.php';
 require_once HGD_PATH . 'includes/class-hgd-claude.php';
 require_once HGD_PATH . 'includes/class-hgd-gemini.php';
 require_once HGD_PATH . 'includes/class-hgd-booking.php';
@@ -44,6 +46,7 @@ require_once HGD_PATH . 'includes/class-hgd-stripe.php';
 require_once HGD_PATH . 'includes/class-hgd-google.php';
 require_once HGD_PATH . 'includes/class-hgd-availability.php';
 require_once HGD_PATH . 'includes/class-hgd-booking-page.php';
+require_once HGD_PATH . 'includes/class-hgd-proposal-portal.php';
 require_once HGD_PATH . 'includes/class-hgd-api-usage.php';
 require_once HGD_PATH . 'includes/class-hgd-lead-form.php';
 require_once HGD_PATH . 'includes/class-hgd-updater.php';
@@ -93,6 +96,9 @@ $hgd_lead_form->register();
 
 // Paid consultation booking ([hgd_booking] shortcode, REST routes + Stripe webhook).
 HGD_Booking_Page::init();
+
+// Public proposal client portal (tokenised page + accept/pay REST routes).
+HGD_Proposal_Portal::init();
 
 // Forms subsystem runtime.
 add_action( 'plugins_loaded', function () {
