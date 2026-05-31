@@ -13,15 +13,17 @@ class HGDF_Submissions_List {
 	}
 
 	public static function menu() {
-		// Registered hidden (null parent) — reached via the Forms hub tabs.
+		// Attached to the Designer menu so the sidebar + parent stay intact,
+		// then hidden as a sidebar item — it's reached via the Forms hub tabs.
 		add_submenu_page(
-			null,
+			'hgd-dashboard',
 			'Form Submissions',
 			'Form Submissions',
 			'manage_options',
 			'hgd-forms-submissions',
 			array( __CLASS__, 'render' )
 		);
+		remove_submenu_page( 'hgd-dashboard', 'hgd-forms-submissions' );
 	}
 
 	/**
@@ -118,7 +120,7 @@ class HGDF_Submissions_List {
 			'post_status'    => array( 'publish', 'draft' ),
 		) );
 
-		echo '<div class="wrap"><h1>Forms</h1>';
+		echo '<div class="wrap hgd-wrap"><h1>Forms</h1>';
 		if ( class_exists( 'HGD_Admin' ) ) {
 			HGD_Admin::forms_tabs( 'hgd-forms-submissions' );
 		}

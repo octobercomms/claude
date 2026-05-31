@@ -166,6 +166,20 @@
 /* Shortcode chip on the dashboard */
 .hgd-code { display: inline-block; background: var(--hgd-charcoal); color: var(--hgd-lime); padding: 6px 14px; border-radius: 8px; font-family: monospace; }
 
+/* Forms hub tabs — on-brand take on the core nav-tab bar */
+.hgd-wrap .nav-tab-wrapper { border-bottom: 1px solid var(--hgd-line); margin: 4px 0 0; padding-bottom: 0; }
+.hgd-wrap .nav-tab { font-family: "DM Sans", sans-serif; font-size: 14px; border: 1px solid transparent; border-radius: 10px 10px 0 0; background: transparent; color: var(--hgd-muted); margin-bottom: -1px; }
+.hgd-wrap .nav-tab:hover { color: var(--hgd-olive); background: rgba(73, 74, 32, 0.05); }
+.hgd-wrap .nav-tab-active,
+.hgd-wrap .nav-tab-active:hover { background: var(--hgd-paper); border-color: var(--hgd-line); border-bottom-color: var(--hgd-paper); color: var(--hgd-olive); }
+
+/* Accent card — dark with a bold yellow figure (e.g. API usage) */
+.hgd-card--accent { background: var(--hgd-charcoal); border-color: var(--hgd-charcoal); }
+.hgd-card--accent .hgd-card-label { color: var(--hgd-cream); opacity: 0.85; }
+.hgd-card--accent .hgd-card-figure { color: var(--hgd-yellow); }
+.hgd-card--accent .hgd-pill-ghost { color: var(--hgd-yellow) !important; border-color: rgba(240, 242, 104, 0.5); }
+.hgd-card--accent .hgd-pill-ghost:hover { background: rgba(240, 242, 104, 0.12); }
+
 /* On wide screens, let the plant form breathe across more columns so full-width
    inputs don't stretch awkwardly. */
 @media (min-width: 1500px) {
