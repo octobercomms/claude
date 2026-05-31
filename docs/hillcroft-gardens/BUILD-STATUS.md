@@ -48,10 +48,18 @@ foundation-first, then each integration as its own testable PR (install via one-
   Forms hub; Forms placed correctly in the menu (not first).
 - Needs live testing: Stripe payment + webhook, Google OAuth (keys/credentials in Settings).
 
+## ✅ 0.5.0 — Consultation capture + Claude sketch-reading
+
+- Upload sketches + site photos to a project (WP media library; `hgd_project_assets`).
+- **Claude** (vision) reads the sketch — interprets layout, reads hand-written dimensions and
+  annotations, returns a prose reading + clarifying questions (`ai_reading`/`ai_questions`).
+- Token cost logged to the cost banner. Claude model is configurable (default Sonnet 4.6).
+- Needs live testing: a real Claude API key.
+
 ## ⏳ Next
 
-1. Consultation **capture** (sketch/photos/address uploads) + **Claude** sketch reading.
-2. Gemini concept renders → render pack → pricing engine → proposals/portal.
+1. Ideas dialogue → **Gemini** concept renders (iterate) → render pack.
+2. Pricing engine → proposals → client portal → milestone payments → plant book.
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
 5. **Gemini** concept renders + iteration; render pack; before/after sliders.

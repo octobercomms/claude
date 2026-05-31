@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '3';
+	const SCHEMA_VERSION = '4';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -42,6 +42,11 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_bookings';
 	}
 
+	public static function project_assets_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_project_assets';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -55,6 +60,7 @@ class HGD_DB {
 		$clients         = self::clients_table();
 		$projects        = self::projects_table();
 		$bookings        = self::bookings_table();
+		$project_assets  = self::project_assets_table();
 
 		$statements = array();
 
@@ -138,6 +144,8 @@ class HGD_DB {
 			has_pets TINYINT(1) NOT NULL DEFAULT 0,
 			has_children TINYINT(1) NOT NULL DEFAULT 0,
 			brief_notes TEXT NULL,
+			ai_reading LONGTEXT NULL,
+			ai_questions LONGTEXT NULL,
 			consultation_paid TINYINT(1) NOT NULL DEFAULT 0,
 			consultation_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -172,6 +180,17 @@ class HGD_DB {
 			KEY status (status),
 			KEY slot_start (slot_start),
 			KEY stripe_payment_intent (stripe_payment_intent)
+		) {$charset_collate};";
+
+		// --- Project assets (consultation capture: sketches/photos) ----------
+		$statements[] = "CREATE TABLE {$project_assets} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			project_id BIGINT UNSIGNED NULL,
+			attachment_id BIGINT UNSIGNED NULL,
+			role VARCHAR(20) NOT NULL DEFAULT 'photo',
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY project_id (project_id)
 		) {$charset_collate};";
 
 		return $statements;

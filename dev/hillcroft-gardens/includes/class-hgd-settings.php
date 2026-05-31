@@ -39,6 +39,9 @@ class HGD_Settings {
 			'stripe_pub_key'       => '',
 			'stripe_webhook_secret' => '',
 
+			// --- AI ---------------------------------------------------------
+			'claude_model'        => 'claude-sonnet-4-6',
+
 			// --- Self-updater (private GitHub repo) -------------------------
 			'github_repo'         => 'octobercomms/claude',
 			'github_token'        => '',
