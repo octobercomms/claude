@@ -3,7 +3,7 @@
 // content, not a public reference.
 //
 // Sunset note: once Phase E is in production, delete this whole file
-// (and its mount in index.js). See docs/dataforseo-july-2026.md §6
+// (and its mount in index.js). See docs/nvelope/dataforseo-july-2026.md §6
 // for the cleanup checklist.
 const express = require('express');
 const path = require('path');
@@ -13,9 +13,9 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
-// Repo root → docs/. The backend cwd is platform/backend at runtime,
-// so two ../ to get to the repo root, then docs/<filename>.
-const DOC_ROOT = path.resolve(__dirname, '../../../../docs');
+// Repo docs live at <repo-root>/docs/nvelope/. This file sits at
+// dev/platform/backend/src/routes/, so five ../ reach the repo root.
+const DOC_ROOT = path.resolve(__dirname, '../../../../../docs/nvelope');
 
 const ALLOWED = new Set(['dataforseo-july-2026.md']);
 
