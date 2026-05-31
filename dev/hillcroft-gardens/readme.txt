@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.9.0
+Stable tag: 1.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.0.0 =
+* Plant book: a print-ready book (cover = the watercolour render, an intro from the design brief, then one page per plant from the project's quote with care notes) — open it and Save as PDF, or send to print.
+* Proposal keepsake: a clean printable record of the proposal (renders, costs, schedule, terms).
+* Seasonal film: an on-brand cinematic slideshow (Ken Burns + season crossfades + title card) of the render pack — openable from the client portal.
+* The complete journey is now in place: capture → AI sketch-reading → design → concept renders → render pack → pricing → proposal → portal → e-sign → payments → keepsakes.
 
 = 0.9.0 =
 * Render pack: generate a deliberate set of named garden views — aerial masterplan, watercolour hero, hand-drawn plan, and eye-level corner views (patio, border, focal point) — each anchored to the approved concept render so the whole set stays consistent.

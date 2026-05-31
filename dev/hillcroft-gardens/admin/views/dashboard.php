@@ -65,7 +65,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			<li class="done"><?php esc_html_e( 'Pricing engine (Good / Better / Best quotes)', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'Proposals, client portal & milestone payments', 'hillcroft-garden-designer' ); ?></li>
 			<li class="done"><?php esc_html_e( 'Render pack (named views, satellite & seasons)', 'hillcroft-garden-designer' ); ?></li>
-			<li><?php esc_html_e( 'Plant book & seasonal film', 'hillcroft-garden-designer' ); ?></li>
+			<li class="done"><?php esc_html_e( 'Plant book & seasonal film', 'hillcroft-garden-designer' ); ?></li>
 		</ul>
 	</div>
 

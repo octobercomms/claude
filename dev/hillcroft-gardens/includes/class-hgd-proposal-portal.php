@@ -158,6 +158,15 @@ class HGD_Proposal_Portal {
 							<img src="<?php echo esc_url( $url ); ?>" alt="<?php esc_attr_e( 'Garden concept render', 'hillcroft-garden-designer' ); ?>" />
 						<?php endforeach; ?>
 					</div>
+					<?php
+					$book_url = home_url( '/?hgd_book=' . rawurlencode( $proposal['token'] ) );
+					$film_url = home_url( '/?hgd_film=' . rawurlencode( $proposal['token'] ) );
+					?>
+					<p class="hgd-portal-keepsakes">
+						<a href="<?php echo esc_url( $book_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Open your planting book', 'hillcroft-garden-designer' ); ?></a>
+						<span aria-hidden="true">&middot;</span>
+						<a href="<?php echo esc_url( $film_url ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Watch your seasonal film', 'hillcroft-garden-designer' ); ?></a>
+					</p>
 				</div>
 			<?php endif; ?>
 
@@ -303,6 +312,10 @@ h2{font-size:1.7rem;}
 .hgd-portal-intro p{margin:.5em 0;}
 .hgd-portal-gallery{display:grid;grid-template-columns:1fr;gap:14px;}
 .hgd-portal-gallery img{width:100%;height:auto;border-radius:12px;display:block;}
+.hgd-portal-keepsakes{margin:16px 0 0;font-size:.95rem;}
+.hgd-portal-keepsakes a{color:var(--hgd-olive);font-weight:500;text-decoration:none;border-bottom:1px solid var(--hgd-line);}
+.hgd-portal-keepsakes a:hover{border-bottom-color:var(--hgd-olive);}
+.hgd-portal-keepsakes span{margin:0 8px;color:rgba(27,28,24,.4);}
 .hgd-portal-totals{width:100%;border-collapse:collapse;}
 .hgd-portal-totals td{padding:9px 0;border-bottom:1px solid var(--hgd-line);}
 .hgd-portal-totals tr:last-child td{border-bottom:none;}

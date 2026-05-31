@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 0.9.0
+ * Version: 1.0.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '0.9.0' );
+define( 'HGD_VERSION', '1.0.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -49,6 +49,7 @@ require_once HGD_PATH . 'includes/class-hgd-google.php';
 require_once HGD_PATH . 'includes/class-hgd-availability.php';
 require_once HGD_PATH . 'includes/class-hgd-booking-page.php';
 require_once HGD_PATH . 'includes/class-hgd-proposal-portal.php';
+require_once HGD_PATH . 'includes/class-hgd-documents.php';
 require_once HGD_PATH . 'includes/class-hgd-api-usage.php';
 require_once HGD_PATH . 'includes/class-hgd-lead-form.php';
 require_once HGD_PATH . 'includes/class-hgd-updater.php';
@@ -101,6 +102,9 @@ HGD_Booking_Page::init();
 
 // Public proposal client portal (tokenised page + accept/pay REST routes).
 HGD_Proposal_Portal::init();
+
+// Client-facing keepsakes: plant book, printable proposal keepsake, seasonal film.
+HGD_Documents::init();
 
 // Forms subsystem runtime.
 add_action( 'plugins_loaded', function () {
