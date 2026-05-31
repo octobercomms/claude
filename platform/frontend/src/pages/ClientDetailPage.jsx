@@ -225,8 +225,20 @@ export default function ClientDetailPage() {
     else if (type === 'zoho_inventory') provider = 'zoho';
     else if (type === 'amazon_seller') provider = 'amazon';
     else provider = 'meta';
-    const url = `/auth/${provider}/start?client_id=${clientId}`;
-    const win = window.open(url, 'oauth', 'width=600,height=700');
+    // Open the popup synchronously so the browser still treats it as
+    // a user gesture (post-await opens get blocked). Then fetch the
+    // signed OAuth URL via the authed API and navigate the popup to
+    // it. We used to window.open the legacy /<provider>/start endpoint
+    // directly, but that's a top-level navigation with no
+    // Authorization header so the auth middleware 401s.
+    const win = window.open('about:blank', 'oauth', 'width=600,height=700');
+    if (!win) {
+      toast('Popup blocked — allow popups for this site and try again.', 'error');
+      return;
+    }
+    api.get(`/auth/oauth/start-url?provider=${provider}&client_id=${clientId}`)
+      .then(r => { win.location.href = r.url; })
+      .catch(err => { win.close(); toast(err.message, 'error'); });
     window.addEventListener('message', function handler(e) {
       if (e.data.type === 'oauth_success') {
         api.get(`/connectors/client/${id}`).then(setConnectors);
