@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '7';
+	const SCHEMA_VERSION = '8';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -214,9 +214,12 @@ class HGD_DB {
 			project_id BIGINT UNSIGNED NULL,
 			attachment_id BIGINT UNSIGNED NULL,
 			role VARCHAR(20) NOT NULL DEFAULT 'photo',
+			view_key VARCHAR(40) NOT NULL DEFAULT '',
+			label VARCHAR(191) NOT NULL DEFAULT '',
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
 			PRIMARY KEY  (id),
-			KEY project_id (project_id)
+			KEY project_id (project_id),
+			KEY role (role)
 		) {$charset_collate};";
 
 		// --- Quotes (one per project per tier) -------------------------------
