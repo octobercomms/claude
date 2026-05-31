@@ -67,6 +67,15 @@ class HGD_Settings {
 			'commencement_pct'     => 25,
 			'completion_pct'       => 25,
 
+			// --- Pricing engine defaults ------------------------------------
+			'default_day_rate_gbp'     => 250,
+			'default_wastage_pct'      => 10,
+			'default_contingency_pct'  => 5,
+			'default_vat_pct'          => 0,    // set to 20 if VAT-registered
+			'default_design_fee_gbp'   => 0,
+			'better_uplift_pct'        => 25,   // Good→Better multiplier on plant/materials
+			'best_uplift_pct'          => 60,   // Good→Best multiplier
+
 			// --- Brand ------------------------------------------------------
 			'brand_olive'    => '#494A20',
 			'brand_charcoal' => '#1B1C18',

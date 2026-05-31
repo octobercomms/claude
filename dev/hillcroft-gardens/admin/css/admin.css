@@ -232,3 +232,53 @@
 .hgd-wrap .hgd-ai-questions li {
   margin-bottom: 8px;
 }
+
+/* --- Pricing engine ------------------------------------------------------- */
+.hgd-wrap .hgd-tier-summary { margin: 18px 0 10px; }
+.hgd-wrap .hgd-tier-summary .hgd-card { align-items: stretch; }
+.hgd-wrap .hgd-tier-summary .hgd-card-figure { align-self: flex-start; }
+
+/* Compact totals table inside a tier card */
+.hgd-wrap .hgd-totals-table { margin-top: 6px; }
+.hgd-wrap .hgd-totals-table td { padding: 5px 0; border-bottom: 1px solid rgba(228, 222, 207, 0.6); font-size: 13px; }
+.hgd-wrap .hgd-totals-table .hgd-total-row td { border-bottom: none; border-top: 2px solid var(--hgd-olive); padding-top: 8px; font-size: 15px; }
+
+.hgd-wrap .hgd-margin-aside {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(73, 74, 32, 0.06);
+  font-style: italic;
+}
+
+/* Editable line-item table — each row is a form, so reset the row-form display */
+.hgd-wrap .hgd-quote-items tr > form { display: contents; }
+.hgd-wrap .hgd-quote-items td { vertical-align: middle; }
+.hgd-wrap .hgd-quote-items input[type=text],
+.hgd-wrap .hgd-quote-items input[type=number],
+.hgd-wrap .hgd-quote-items select { padding: 6px 8px; font-size: 13px; }
+.hgd-wrap .hgd-quote-items td.actions { white-space: nowrap; }
+.hgd-wrap .hgd-quote-items td.actions form { display: inline; }
+.hgd-wrap .hgd-quote-items td.actions .hgd-pill { padding: 5px 14px; }
+
+.hgd-wrap .hgd-link-danger {
+  background: none;
+  border: none;
+  color: #9b2c2c;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 12px;
+  font: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+}
+.hgd-wrap .hgd-link-danger:hover { opacity: 0.8; }
+
+.hgd-wrap .hgd-quote-add { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin: 14px 0 8px; }
+.hgd-wrap .hgd-quote-add .hgd-subform { margin: 0; }
+.hgd-wrap .hgd-inline-form .hgd-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px 16px; }
+.hgd-wrap .hgd-seed-form { margin: 6px 0 18px; }
+
+@media (max-width: 1100px) {
+  .hgd-wrap .hgd-quote-add { grid-template-columns: 1fr; }
+}

@@ -325,6 +325,267 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<p class="hgd-muted"><?php esc_html_e( 'No renders yet.', 'hillcroft-garden-designer' ); ?></p>
 			<?php endif; ?>
 		</div>
+
+		<?php
+		// --- Pricing engine ---------------------------------------------------
+		$quotes      = isset( $quotes ) && is_array( $quotes ) ? $quotes : array();
+		$has_quotes  = ! empty( $quotes );
+		$post_url    = admin_url( 'admin-post.php' );
+		$money       = function ( $n ) { return '£' . number_format( (float) $n, 2 ); };
+		$quote_error = isset( $_GET['quote_error'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		?>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Pricing', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Build a Good / Better / Best quote for this project. Add plants from the catalogue and custom lines, set labour and overheads, then review the costed totals. The margin is for your eyes only.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['quote_init'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Good / Better / Best quotes created.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['quote_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Quote settings saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['item_added'] ) || isset( $_GET['plant_added'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Line item added.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['item_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Line item updated.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['item_deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Line item removed.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['tiers_seeded'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Better &amp; Best seeded from Good.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( $quote_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Could not complete that pricing action.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( ! $has_quotes ) : ?>
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>">
+					<input type="hidden" name="action" value="hgd_quote_init" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<?php wp_nonce_field( 'hgd_quote_init_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Create Good / Better / Best quotes', 'hillcroft-garden-designer' ); ?></button>
+					</div>
+				</form>
+			<?php else :
+				$plant_query   = HGD_Plant::query( array( 'per_page' => 500 ) );
+				$plant_options = isset( $plant_query['items'] ) ? $plant_query['items'] : array();
+				?>
+
+				<div class="hgd-tier-summary hgd-cards">
+					<?php foreach ( $quotes as $q ) :
+						$t = HGD_Quote::compute( (int) $q['id'] );
+						?>
+						<div class="hgd-card">
+							<span class="hgd-card-label"><?php echo esc_html( HGD_Quote::tier_label( $q['tier'] ) ); ?></span>
+							<span class="hgd-card-figure"><?php echo esc_html( '£' . number_format( $t['total_rounded'], 0 ) ); ?></span>
+							<table class="hgd-table hgd-totals-table">
+								<tbody>
+									<tr><td><?php esc_html_e( 'Materials', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['materials_subtotal'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'Wastage', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['wastage'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'Labour', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['labour'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'Contingency', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['contingency'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'Design fee', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['design_fee'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'Subtotal', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['subtotal'] ) ); ?></td></tr>
+									<tr><td><?php esc_html_e( 'VAT', 'hillcroft-garden-designer' ); ?></td><td class="num"><?php echo esc_html( $money( $t['vat'] ) ); ?></td></tr>
+									<tr class="hgd-total-row"><td><strong><?php esc_html_e( 'Total', 'hillcroft-garden-designer' ); ?></strong></td><td class="num"><strong><?php echo esc_html( $money( $t['total'] ) ); ?></strong></td></tr>
+								</tbody>
+							</table>
+							<span class="hgd-muted hgd-margin-aside"><?php
+								echo esc_html( sprintf(
+									/* translators: %s margin amount */
+									__( 'Internal — not shown to client: margin %s', 'hillcroft-garden-designer' ),
+									$money( $t['margin'] )
+								) );
+							?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+
+				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-seed-form">
+					<input type="hidden" name="action" value="hgd_quote_seed_tiers" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<?php wp_nonce_field( 'hgd_quote_seed_tiers_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill hgd-pill-ghost" onclick="return confirm('<?php echo esc_js( __( 'This rebuilds the Better and Best tiers from Good (replacing their line items). Continue?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Seed Better &amp; Best from Good', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Copies Good’s lines into the other tiers, scaled by the uplift % in Settings.', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+
+				<?php
+				// Editable detail for the Good tier (the primary working quote).
+				$good = null;
+				foreach ( $quotes as $q ) {
+					if ( 'good' === $q['tier'] ) {
+						$good = $q;
+						break;
+					}
+				}
+				if ( $good ) :
+					$gid        = (int) $good['id'];
+					$good_items = HGD_Quote::items( $gid );
+					?>
+					<h3><?php esc_html_e( 'Good tier — line items', 'hillcroft-garden-designer' ); ?></h3>
+					<table class="hgd-table hgd-quote-items">
+						<thead>
+							<tr>
+								<th><?php esc_html_e( 'Item', 'hillcroft-garden-designer' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Qty', 'hillcroft-garden-designer' ); ?></th>
+								<th><?php esc_html_e( 'Unit', 'hillcroft-garden-designer' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Unit cost', 'hillcroft-garden-designer' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Markup %', 'hillcroft-garden-designer' ); ?></th>
+								<th class="num"><?php esc_html_e( 'Line sale', 'hillcroft-garden-designer' ); ?></th>
+								<th class="actions"></th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php if ( empty( $good_items ) ) : ?>
+								<tr><td colspan="7" class="hgd-empty"><?php esc_html_e( 'No line items yet — add plants or custom lines below.', 'hillcroft-garden-designer' ); ?></td></tr>
+							<?php else : foreach ( $good_items as $item ) :
+								$line_sale = round( (float) $item['qty'] * (float) $item['unit_cost_gbp'] * ( 1 + (float) $item['markup_pct'] / 100 ), 2 );
+								?>
+								<tr>
+									<form method="post" action="<?php echo esc_url( $post_url ); ?>">
+										<input type="hidden" name="action" value="hgd_quote_update_item" />
+										<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+										<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
+										<input type="hidden" name="item_id" value="<?php echo esc_attr( (int) $item['id'] ); ?>" />
+										<?php wp_nonce_field( 'hgd_quote_update_item_' . (int) $item['id'] ); ?>
+									<td>
+										<select name="item_type">
+											<?php foreach ( HGD_Quote::ITEM_TYPES as $tk => $tl ) : ?>
+												<option value="<?php echo esc_attr( $tk ); ?>" <?php selected( $item['item_type'], $tk ); ?>><?php echo esc_html( $tl ); ?></option>
+											<?php endforeach; ?>
+										</select>
+										<input type="text" name="label" value="<?php echo esc_attr( $item['label'] ); ?>" />
+									</td>
+									<td class="num"><input type="number" step="0.01" min="0" name="qty" value="<?php echo esc_attr( $item['qty'] ); ?>" style="max-width:90px;" /></td>
+									<td><input type="text" name="unit" value="<?php echo esc_attr( $item['unit'] ); ?>" style="max-width:80px;" /></td>
+									<td class="num"><input type="number" step="0.01" min="0" name="unit_cost_gbp" value="<?php echo esc_attr( $item['unit_cost_gbp'] ); ?>" style="max-width:110px;" /></td>
+									<td class="num"><input type="number" step="0.01" name="markup_pct" value="<?php echo esc_attr( $item['markup_pct'] ); ?>" style="max-width:90px;" /></td>
+									<td class="num"><?php echo esc_html( $money( $line_sale ) ); ?></td>
+									<td class="actions">
+										<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Save', 'hillcroft-garden-designer' ); ?></button>
+									</form>
+									<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
+										<input type="hidden" name="action" value="hgd_quote_delete_item" />
+										<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+										<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
+										<input type="hidden" name="item_id" value="<?php echo esc_attr( (int) $item['id'] ); ?>" />
+										<?php wp_nonce_field( 'hgd_quote_delete_item_' . (int) $item['id'] ); ?>
+										<button type="submit" class="hgd-link-danger" onclick="return confirm('<?php echo esc_js( __( 'Remove this line?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></button>
+									</form>
+									</td>
+								</tr>
+							<?php endforeach; endif; ?>
+						</tbody>
+					</table>
+
+					<div class="hgd-quote-add">
+						<div class="hgd-subform">
+							<p class="hgd-muted"><?php esc_html_e( 'Add a plant from the catalogue', 'hillcroft-garden-designer' ); ?></p>
+							<?php if ( empty( $plant_options ) ) : ?>
+								<p class="hgd-muted"><?php
+									printf(
+										/* translators: %s catalogue link */
+										esc_html__( 'No plants in the catalogue yet — add some under %s.', 'hillcroft-garden-designer' ),
+										'<a href="' . esc_url( admin_url( 'admin.php?page=hgd-plants' ) ) . '">' . esc_html__( 'Plant Catalogue', 'hillcroft-garden-designer' ) . '</a>'
+									);
+								?></p>
+							<?php else : ?>
+								<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
+									<input type="hidden" name="action" value="hgd_quote_add_plant" />
+									<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+									<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
+									<?php wp_nonce_field( 'hgd_quote_add_plant_' . $gid ); ?>
+									<div class="hgd-grid">
+										<label><span><?php esc_html_e( 'Plant', 'hillcroft-garden-designer' ); ?></span>
+											<select name="plant_id">
+												<?php foreach ( $plant_options as $po ) :
+													$pname = '' !== (string) $po['botanical_name'] ? $po['botanical_name'] : $po['common_name'];
+													if ( '' !== (string) $po['common_name'] && '' !== (string) $po['botanical_name'] ) {
+														$pname = $po['botanical_name'] . ' (' . $po['common_name'] . ')';
+													}
+													?>
+													<option value="<?php echo esc_attr( $po['id'] ); ?>"><?php echo esc_html( $pname . ' — £' . number_format( (float) $po['unit_cost'], 2 ) ); ?></option>
+												<?php endforeach; ?>
+											</select></label>
+										<label><span><?php esc_html_e( 'Quantity', 'hillcroft-garden-designer' ); ?></span>
+											<input type="number" step="0.01" min="0" name="qty" value="1" /></label>
+									</div>
+									<div class="hgd-form-actions">
+										<button type="submit" class="hgd-pill"><?php esc_html_e( 'Add plant', 'hillcroft-garden-designer' ); ?></button>
+									</div>
+								</form>
+							<?php endif; ?>
+						</div>
+
+						<div class="hgd-subform">
+							<p class="hgd-muted"><?php esc_html_e( 'Add a custom line (material, labour or other)', 'hillcroft-garden-designer' ); ?></p>
+							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
+								<input type="hidden" name="action" value="hgd_quote_add_item" />
+								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+								<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
+								<?php wp_nonce_field( 'hgd_quote_add_item_' . $gid ); ?>
+								<div class="hgd-grid">
+									<label><span><?php esc_html_e( 'Type', 'hillcroft-garden-designer' ); ?></span>
+										<select name="item_type">
+											<?php foreach ( HGD_Quote::ITEM_TYPES as $tk => $tl ) : ?>
+												<option value="<?php echo esc_attr( $tk ); ?>" <?php selected( 'material', $tk ); ?>><?php echo esc_html( $tl ); ?></option>
+											<?php endforeach; ?>
+										</select></label>
+									<label><span><?php esc_html_e( 'Label', 'hillcroft-garden-designer' ); ?></span>
+										<input type="text" name="label" value="" placeholder="<?php esc_attr_e( 'e.g. Indian sandstone paving', 'hillcroft-garden-designer' ); ?>" /></label>
+									<label><span><?php esc_html_e( 'Quantity', 'hillcroft-garden-designer' ); ?></span>
+										<input type="number" step="0.01" min="0" name="qty" value="1" /></label>
+									<label><span><?php esc_html_e( 'Unit', 'hillcroft-garden-designer' ); ?></span>
+										<input type="text" name="unit" value="each" placeholder="each, m2, m, m3" /></label>
+									<label><span><?php esc_html_e( 'Unit cost (£)', 'hillcroft-garden-designer' ); ?></span>
+										<input type="number" step="0.01" min="0" name="unit_cost_gbp" value="0" /></label>
+									<label><span><?php esc_html_e( 'Markup %', 'hillcroft-garden-designer' ); ?></span>
+										<input type="number" step="0.01" name="markup_pct" value="0" /></label>
+								</div>
+								<div class="hgd-form-actions">
+									<button type="submit" class="hgd-pill"><?php esc_html_e( 'Add line', 'hillcroft-garden-designer' ); ?></button>
+								</div>
+							</form>
+						</div>
+					</div>
+
+					<h3><?php esc_html_e( 'Good tier — quote settings', 'hillcroft-garden-designer' ); ?></h3>
+					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-form">
+						<input type="hidden" name="action" value="hgd_quote_save" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
+						<?php wp_nonce_field( 'hgd_quote_save_' . $gid ); ?>
+						<div class="hgd-grid">
+							<label><span><?php esc_html_e( 'Quote title', 'hillcroft-garden-designer' ); ?></span>
+								<input type="text" name="title" value="<?php echo esc_attr( $good['title'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'Labour days', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="labour_days" value="<?php echo esc_attr( $good['labour_days'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'Day rate (£)', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="day_rate_gbp" value="<?php echo esc_attr( $good['day_rate_gbp'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'Wastage %', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="wastage_pct" value="<?php echo esc_attr( $good['wastage_pct'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'Contingency %', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="contingency_pct" value="<?php echo esc_attr( $good['contingency_pct'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'Design fee (£)', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="design_fee_gbp" value="<?php echo esc_attr( $good['design_fee_gbp'] ); ?>" /></label>
+							<label><span><?php esc_html_e( 'VAT %', 'hillcroft-garden-designer' ); ?></span>
+								<input type="number" step="0.01" min="0" name="vat_pct" value="<?php echo esc_attr( $good['vat_pct'] ); ?>" /></label>
+						</div>
+						<label class="hgd-full"><span><?php esc_html_e( 'Quote notes', 'hillcroft-garden-designer' ); ?></span>
+							<textarea name="notes" rows="3"><?php echo esc_textarea( $good['notes'] ); ?></textarea></label>
+						<div class="hgd-form-actions">
+							<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save quote settings', 'hillcroft-garden-designer' ); ?></button>
+						</div>
+					</form>
+				<?php endif; ?>
+			<?php endif; ?>
+		</div>
 	<?php endif; ?>
 
 </div>

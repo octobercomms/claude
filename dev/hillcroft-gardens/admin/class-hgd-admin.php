@@ -28,6 +28,13 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
 		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
 		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
+		add_action( 'admin_post_hgd_quote_init', array( $this, 'handle_quote_init' ) );
+		add_action( 'admin_post_hgd_quote_save', array( $this, 'handle_quote_save' ) );
+		add_action( 'admin_post_hgd_quote_add_item', array( $this, 'handle_quote_add_item' ) );
+		add_action( 'admin_post_hgd_quote_add_plant', array( $this, 'handle_quote_add_plant' ) );
+		add_action( 'admin_post_hgd_quote_update_item', array( $this, 'handle_quote_update_item' ) );
+		add_action( 'admin_post_hgd_quote_delete_item', array( $this, 'handle_quote_delete_item' ) );
+		add_action( 'admin_post_hgd_quote_seed_tiers', array( $this, 'handle_quote_seed_tiers' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
@@ -273,6 +280,7 @@ class HGD_Admin {
 			}
 			$clients = HGD_Client::all();
 			$assets  = ! empty( $project['id'] ) ? HGD_Project_Asset::for_project( (int) $project['id'] ) : array();
+			$quotes  = ! empty( $project['id'] ) ? HGD_Quote::for_project( (int) $project['id'] ) : array();
 			include HGD_PATH . 'admin/views/project-form.php';
 			return;
 		}
@@ -674,6 +682,150 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
+	// Pricing engine (quotes + line items)
+	// -------------------------------------------------------------------------
+
+	/** Redirect back to a project's Pricing tab with optional flash flags. */
+	private function pricing_redirect( $pid, array $args = array() ) {
+		$this->redirect_with( 'hgd-projects', array_merge(
+			array( 'action' => 'edit', 'id' => (int) $pid, 'tab' => 'pricing' ),
+			$args
+		) );
+	}
+
+	/** Create the three tier quotes (Good / Better / Best) for a project. */
+	public function handle_quote_init() {
+		$this->guard();
+		$pid = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_quote_init_' . $pid );
+
+		$project = $pid ? HGD_Project::get( $pid ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		HGD_Quote::ensure_tiers( $pid );
+		$this->pricing_redirect( $pid, array( 'quote_init' => 1 ) );
+	}
+
+	/** Save a quote's settings fields (labour days, day rate, %s, fees, VAT). */
+	public function handle_quote_save() {
+		$this->guard();
+		$pid      = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		check_admin_referer( 'hgd_quote_save_' . $quote_id );
+
+		if ( ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$clean = HGD_Quote::sanitise_settings( wp_unslash( $_POST ) );
+		HGD_Quote::update( $quote_id, $clean );
+		$this->pricing_redirect( $pid, array( 'quote_saved' => 1 ) );
+	}
+
+	/** Add a manual line item to a quote. */
+	public function handle_quote_add_item() {
+		$this->guard();
+		$pid      = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		check_admin_referer( 'hgd_quote_add_item_' . $quote_id );
+
+		if ( ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$clean = HGD_Quote::sanitise_item( $_POST );
+		if ( '' === $clean['label'] ) {
+			$clean['label'] = HGD_Quote::item_type_label( $clean['item_type'] );
+		}
+		HGD_Quote::add_item( $quote_id, $clean );
+		$this->pricing_redirect( $pid, array( 'item_added' => 1 ) );
+	}
+
+	/** Add a plant from the catalogue to a quote. */
+	public function handle_quote_add_plant() {
+		$this->guard();
+		$pid      = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		check_admin_referer( 'hgd_quote_add_plant_' . $quote_id );
+
+		if ( ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$plant_id = isset( $_POST['plant_id'] ) ? (int) $_POST['plant_id'] : 0;
+		$qty      = isset( $_POST['qty'] ) ? round( (float) $_POST['qty'], 2 ) : 1;
+		if ( $qty <= 0 ) {
+			$qty = 1;
+		}
+		if ( ! $plant_id ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$added = HGD_Quote::add_plant( $quote_id, $plant_id, $qty );
+		$this->pricing_redirect( $pid, array( $added ? 'plant_added' : 'quote_error' => 1 ) );
+	}
+
+	/** Edit an existing line item. */
+	public function handle_quote_update_item() {
+		$this->guard();
+		$pid      = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		$item_id  = isset( $_POST['item_id'] ) ? (int) $_POST['item_id'] : 0;
+		check_admin_referer( 'hgd_quote_update_item_' . $item_id );
+
+		if ( ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) || ! HGD_Quote::item_belongs_to_quote( $item_id, $quote_id ) ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$clean = HGD_Quote::sanitise_item( $_POST );
+		HGD_Quote::update_item( $item_id, $clean );
+		$this->pricing_redirect( $pid, array( 'item_saved' => 1 ) );
+	}
+
+	/** Remove a line item. */
+	public function handle_quote_delete_item() {
+		$this->guard();
+		$pid      = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$quote_id = isset( $_POST['quote_id'] ) ? (int) $_POST['quote_id'] : 0;
+		$item_id  = isset( $_POST['item_id'] ) ? (int) $_POST['item_id'] : 0;
+		check_admin_referer( 'hgd_quote_delete_item_' . $item_id );
+
+		if ( ! HGD_Quote::quote_belongs_to_project( $quote_id, $pid ) || ! HGD_Quote::item_belongs_to_quote( $item_id, $quote_id ) ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		HGD_Quote::delete_item( $item_id );
+		$this->pricing_redirect( $pid, array( 'item_deleted' => 1 ) );
+	}
+
+	/** Seed Better & Best from the Good quote using the uplift settings. */
+	public function handle_quote_seed_tiers() {
+		$this->guard();
+		$pid = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_quote_seed_tiers_' . $pid );
+
+		$project = $pid ? HGD_Project::get( $pid ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		HGD_Quote::ensure_tiers( $pid );
+		$good = HGD_Quote::for_project_tier( $pid, 'good' );
+		if ( ! $good ) {
+			$this->pricing_redirect( $pid, array( 'quote_error' => 1 ) );
+		}
+
+		$better_uplift = (float) HGD_Settings::get( 'better_uplift_pct', 25 );
+		$best_uplift   = (float) HGD_Settings::get( 'best_uplift_pct', 60 );
+		HGD_Quote::duplicate_to_tier( (int) $good['id'], 'better', $better_uplift );
+		HGD_Quote::duplicate_to_tier( (int) $good['id'], 'best', $best_uplift );
+
+		$this->pricing_redirect( $pid, array( 'tiers_seeded' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
 	// Plants
 	// -------------------------------------------------------------------------
 
@@ -770,6 +922,8 @@ class HGD_Admin {
 			'consultation_fee_gbp', 'deposit_pct', 'commencement_pct', 'completion_pct',
 			'plantid_credits_balance',
 			'slot_minutes', 'buffer_minutes', 'booking_lead_days', 'booking_window_days',
+			'default_day_rate_gbp', 'default_wastage_pct', 'default_contingency_pct',
+			'default_vat_pct', 'default_design_fee_gbp', 'better_uplift_pct', 'best_uplift_pct',
 		) as $key ) {
 			if ( isset( $raw[ $key ] ) ) {
 				$input[ $key ] = (float) $raw[ $key ];

@@ -114,6 +114,23 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 		</div>
 
 		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Pricing defaults', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Used to seed each new quote and to scale the Better / Best tiers from Good. You can override any of these per quote.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'default_day_rate_gbp', __( 'Default day rate (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'default_wastage_pct', __( 'Default wastage (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_contingency_pct', __( 'Default contingency (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_vat_pct', __( 'Default VAT (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_design_fee_gbp', __( 'Default design fee (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'better_uplift_pct', __( 'Better tier uplift (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'best_uplift_pct', __( 'Best tier uplift (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				?>
+			</div>
+			<p class="hgd-muted"><?php esc_html_e( 'Set VAT to 20 if you are VAT-registered. Uplift % scales plant + material quantities (and labour days) when seeding Better / Best from Good.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Booking &amp; calendar', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Embed the public booking form on any page with this shortcode:', 'hillcroft-garden-designer' ); ?> <code class="hgd-code">[hgd_booking]</code></p>
 
