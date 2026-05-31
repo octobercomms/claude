@@ -18,9 +18,18 @@ foundation-first, then each integration as its own testable PR (install via one-
 - **GitHub self-updater** for the private repo (token-auth, `hgd-v` tag prefix) — no external
   library. Plus `bin/build-zip.sh` and a release-building GitHub Action.
 
+## ✅ 0.2.0 — Front of funnel (part 1)
+
+- **Projects**: full lifecycle (`lead → complete`), list with status filter + search, create/edit/delete.
+- **Clients (CRM)**: contact + address records, linked to projects, find-or-create by email.
+- **Lead capture**: `[hgd_enquiry]` public shortcode → creates client + project (`enquiry`) and
+  emails Donna via the site mailer. Honeypot spam guard.
+- **Design**: brand green/yellow palette (`#9FA145`, `#C8C957`, `#F0F268`, `#777834`) added as
+  status badges and accents.
+
 ## ⏳ Next (each its own PR)
 
-1. Projects + CRM data model, lead capture form, **paid £200 consultation booking** + Stripe.
+1. **Paid £200 consultation booking** + Stripe (0.3.0).
 2. Native **booking calendar** with two-way Google Calendar (personal Gmail) OAuth sync.
 3. Capture: uploads (sketch/photos/address), voice-note transcription.
 4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.

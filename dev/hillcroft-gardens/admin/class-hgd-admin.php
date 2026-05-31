@@ -18,6 +18,10 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_save_plant', array( $this, 'handle_save_plant' ) );
 		add_action( 'admin_post_hgd_delete_plant', array( $this, 'handle_delete_plant' ) );
 		add_action( 'admin_post_hgd_save_settings', array( $this, 'handle_save_settings' ) );
+		add_action( 'admin_post_hgd_save_project', array( $this, 'handle_save_project' ) );
+		add_action( 'admin_post_hgd_delete_project', array( $this, 'handle_delete_project' ) );
+		add_action( 'admin_post_hgd_save_client', array( $this, 'handle_save_client' ) );
+		add_action( 'admin_post_hgd_delete_client', array( $this, 'handle_delete_client' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
 	}
 
@@ -37,13 +41,15 @@ class HGD_Admin {
 		);
 
 		add_submenu_page( self::MENU, __( 'Dashboard', 'hillcroft-garden-designer' ), __( 'Dashboard', 'hillcroft-garden-designer' ), self::CAP, self::MENU, array( $this, 'render_dashboard' ) );
+		add_submenu_page( self::MENU, __( 'Projects', 'hillcroft-garden-designer' ), __( 'Projects', 'hillcroft-garden-designer' ), self::CAP, 'hgd-projects', array( $this, 'render_projects' ) );
+		add_submenu_page( self::MENU, __( 'Clients', 'hillcroft-garden-designer' ), __( 'Clients', 'hillcroft-garden-designer' ), self::CAP, 'hgd-clients', array( $this, 'render_clients' ) );
 		add_submenu_page( self::MENU, __( 'Plant Catalogue', 'hillcroft-garden-designer' ), __( 'Plant Catalogue', 'hillcroft-garden-designer' ), self::CAP, 'hgd-plants', array( $this, 'render_plants' ) );
 		add_submenu_page( self::MENU, __( 'Settings', 'hillcroft-garden-designer' ), __( 'Settings', 'hillcroft-garden-designer' ), self::CAP, 'hgd-settings', array( $this, 'render_settings' ) );
 	}
 
 	private function is_plugin_screen() {
 		$screen = get_current_screen();
-		return $screen && false !== strpos( $screen->id, 'hgd-' ) || ( $screen && false !== strpos( $screen->id, self::MENU ) );
+		return $screen && false !== strpos( $screen->id, 'hgd-' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -55,8 +61,6 @@ class HGD_Admin {
 			return;
 		}
 
-		// Brand fonts (Cormorant Garamond + DM Sans). Loaded from Google Fonts for
-		// now; self-hosting is tracked for a later pass.
 		wp_enqueue_style(
 			'hgd-fonts',
 			'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&display=swap',
@@ -67,8 +71,6 @@ class HGD_Admin {
 		wp_enqueue_style( 'hgd-admin', HGD_URL . 'admin/css/admin.css', array( 'hgd-fonts' ), HGD_VERSION );
 		wp_enqueue_script( 'hgd-admin', HGD_URL . 'admin/js/admin.js', array(), HGD_VERSION, true );
 
-		// Expose the brand palette as CSS variables so the stylesheet stays in sync
-		// with settings.
 		$s   = HGD_Settings::all();
 		$css = sprintf(
 			':root{--hgd-olive:%s;--hgd-charcoal:%s;--hgd-cream:%s;}',
@@ -80,7 +82,7 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Persistent cost banner (rendered at the top of every plugin screen)
+	// Persistent cost banner
 	// -------------------------------------------------------------------------
 
 	public function render_cost_banner() {
@@ -89,7 +91,6 @@ class HGD_Admin {
 		include HGD_PATH . 'admin/views/cost-banner.php';
 	}
 
-	/** Site-wide nudge when something needs attention (fires on any admin screen). */
 	public function maybe_low_balance_notice() {
 		if ( ! current_user_can( self::CAP ) ) {
 			return;
@@ -112,17 +113,147 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Page renderers
+	// Dashboard
 	// -------------------------------------------------------------------------
 
 	public function render_dashboard() {
 		$this->guard();
-		$banner_cb   = array( $this, 'render_cost_banner' );
-		$plant_count = HGD_Plant::count();
-		$by_api      = HGD_API_Usage::spend_by_api_this_month();
-		$state       = HGD_API_Usage::banner_state();
+		$banner_cb     = array( $this, 'render_cost_banner' );
+		$plant_count   = HGD_Plant::count();
+		$project_count = HGD_Project::count_open();
+		$client_count  = HGD_Client::count();
+		$state         = HGD_API_Usage::banner_state();
 		include HGD_PATH . 'admin/views/dashboard.php';
 	}
+
+	// -------------------------------------------------------------------------
+	// Projects
+	// -------------------------------------------------------------------------
+
+	public function render_projects() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+		$action    = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list'; // phpcs:ignore WordPress.Security.NonceVerification
+
+		if ( 'edit' === $action || 'new' === $action ) {
+			$project = array();
+			if ( 'edit' === $action && isset( $_GET['id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+				$project = HGD_Project::get( (int) $_GET['id'] );
+				if ( ! $project ) {
+					wp_die( esc_html__( 'Project not found.', 'hillcroft-garden-designer' ) );
+				}
+			}
+			$clients = HGD_Client::all();
+			include HGD_PATH . 'admin/views/project-form.php';
+			return;
+		}
+
+		$status   = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$search   = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$projects = HGD_Project::query( array( 'status' => $status, 'search' => $search ) );
+		include HGD_PATH . 'admin/views/projects.php';
+	}
+
+	public function handle_save_project() {
+		$this->guard();
+		check_admin_referer( 'hgd_save_project' );
+
+		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		$clean = HGD_Project::sanitise( $_POST );
+
+		// Optionally create a new client inline.
+		$new_email = isset( $_POST['new_client_email'] ) ? sanitize_email( wp_unslash( $_POST['new_client_email'] ) ) : '';
+		$new_name  = isset( $_POST['new_client_name'] ) ? sanitize_text_field( wp_unslash( $_POST['new_client_name'] ) ) : '';
+		if ( ! $clean['client_id'] && ( $new_name || $new_email ) ) {
+			$parts             = preg_split( '/\s+/', $new_name, 2 );
+			$clean['client_id'] = HGD_Client::find_or_create( array(
+				'first_name' => $parts[0],
+				'last_name'  => isset( $parts[1] ) ? $parts[1] : '',
+				'email'      => $new_email,
+			) );
+		}
+
+		if ( '' === $clean['title'] ) {
+			$clean['title'] = __( 'Untitled project', 'hillcroft-garden-designer' );
+		}
+
+		if ( $id ) {
+			HGD_Project::update( $id, $clean );
+		} else {
+			$id = HGD_Project::insert( $clean );
+		}
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'updated' => 1 ) );
+	}
+
+	public function handle_delete_project() {
+		$this->guard();
+		$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+		check_admin_referer( 'hgd_delete_project_' . $id );
+		if ( $id ) {
+			HGD_Project::delete( $id );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'deleted' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Clients
+	// -------------------------------------------------------------------------
+
+	public function render_clients() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+		$action    = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : 'list'; // phpcs:ignore WordPress.Security.NonceVerification
+
+		if ( 'edit' === $action || 'new' === $action ) {
+			$client = array();
+			if ( 'edit' === $action && isset( $_GET['id'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+				$client = HGD_Client::get( (int) $_GET['id'] );
+				if ( ! $client ) {
+					wp_die( esc_html__( 'Client not found.', 'hillcroft-garden-designer' ) );
+				}
+			}
+			include HGD_PATH . 'admin/views/client-form.php';
+			return;
+		}
+
+		$clients = HGD_Client::all();
+		include HGD_PATH . 'admin/views/clients.php';
+	}
+
+	public function handle_save_client() {
+		$this->guard();
+		check_admin_referer( 'hgd_save_client' );
+
+		$id    = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		$clean = HGD_Client::sanitise( $_POST );
+
+		if ( '' === $clean['first_name'] && '' === $clean['last_name'] && '' === $clean['email'] ) {
+			$this->redirect_with( 'hgd-clients', array( 'action' => $id ? 'edit' : 'new', 'id' => $id ?: null, 'error' => 'empty' ) );
+		}
+
+		if ( $id ) {
+			HGD_Client::update( $id, $clean );
+		} else {
+			$id = HGD_Client::insert( $clean );
+		}
+
+		$this->redirect_with( 'hgd-clients', array( 'updated' => 1 ) );
+	}
+
+	public function handle_delete_client() {
+		$this->guard();
+		$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+		check_admin_referer( 'hgd_delete_client_' . $id );
+		if ( $id ) {
+			HGD_Client::delete( $id );
+		}
+		$this->redirect_with( 'hgd-clients', array( 'deleted' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Plants
+	// -------------------------------------------------------------------------
 
 	public function render_plants() {
 		$this->guard();
@@ -148,18 +279,6 @@ class HGD_Admin {
 		$result   = HGD_Plant::query( array( 'search' => $search, 'type' => $type, 'per_page' => $per_page, 'page' => $paged ) );
 		include HGD_PATH . 'admin/views/plants.php';
 	}
-
-	public function render_settings() {
-		$this->guard();
-		$banner_cb = array( $this, 'render_cost_banner' );
-		$s         = HGD_Settings::all();
-		$saved     = isset( $_GET['updated'] ); // phpcs:ignore WordPress.Security.NonceVerification
-		include HGD_PATH . 'admin/views/settings.php';
-	}
-
-	// -------------------------------------------------------------------------
-	// Form handlers
-	// -------------------------------------------------------------------------
 
 	public function handle_save_plant() {
 		$this->guard();
@@ -191,6 +310,18 @@ class HGD_Admin {
 		$this->redirect_with( 'hgd-plants', array( 'deleted' => 1 ) );
 	}
 
+	// -------------------------------------------------------------------------
+	// Settings
+	// -------------------------------------------------------------------------
+
+	public function render_settings() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+		$s         = HGD_Settings::all();
+		$saved     = isset( $_GET['updated'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		include HGD_PATH . 'admin/views/settings.php';
+	}
+
 	public function handle_save_settings() {
 		$this->guard();
 		check_admin_referer( 'hgd_save_settings' );
@@ -198,7 +329,6 @@ class HGD_Admin {
 		$raw   = wp_unslash( $_POST );
 		$input = array();
 
-		// Strings / secrets.
 		foreach ( array(
 			'claude_api_key', 'gemini_api_key', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'github_repo', 'github_token',
@@ -209,7 +339,6 @@ class HGD_Admin {
 			}
 		}
 
-		// Numbers.
 		foreach ( array(
 			'usd_to_gbp', 'eur_to_gbp', 'rate_claude_per_mtok_usd', 'rate_gemini_per_image_usd',
 			'rate_maps_per_1k_usd', 'rate_plantid_per_credit_eur', 'soft_monthly_cap_gbp',

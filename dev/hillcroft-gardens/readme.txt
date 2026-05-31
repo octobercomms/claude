@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 0.1.4
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 0.2.0 =
+* Projects: full lifecycle management (lead → complete) with status filtering and search.
+* Clients (CRM): client records with contact and address details, linked to projects.
+* Lead capture: [hgd_enquiry] shortcode creates a client + project and emails a notification.
+* Design: brand green/yellow palette added as status badges and accents.
 
 = 0.1.4 =
 * Updater: a manual "Check again" now forces a fresh look, and "no update found" is cached for 15 minutes instead of 6 hours — so new releases are detected promptly.

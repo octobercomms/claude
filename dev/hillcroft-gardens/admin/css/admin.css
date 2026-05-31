@@ -2,7 +2,11 @@
    Palette + fonts injected via :root vars (see HGD_Admin::enqueue_assets). */
 
 :root {
-	--hgd-olive: #494A20;
+	--hgd-olive: #494A20;       /* brand (overridable in settings) */
+	--hgd-olive-mid: #777834;   /* mid olive */
+	--hgd-green: #9FA145;        /* olive green */
+	--hgd-lime: #C8C957;         /* yellow-green */
+	--hgd-yellow: #F0F268;       /* bright highlight */
 	--hgd-charcoal: #1B1C18;
 	--hgd-cream: #F2ECDD;
 	--hgd-paper: #FBF9F3;
@@ -141,6 +145,26 @@
 .hgd-cost-action { margin-left: auto; }
 .hgd-level-amber .hgd-cost-action { background: #E6B450; border-color: #E6B450; color: var(--hgd-charcoal) !important; }
 .hgd-level-red .hgd-cost-action { background: #E06666; border-color: #E06666; }
+
+/* Status badges (project lifecycle) — tinted with the brand greens */
+.hgd-status {
+	display: inline-block; padding: 4px 12px; border-radius: 999px;
+	font-size: 12px; font-weight: 500; white-space: nowrap;
+	background: rgba(159, 161, 69, 0.16); color: var(--hgd-olive-mid);
+}
+.hgd-status-lead, .hgd-status-enquiry { background: var(--hgd-yellow); color: #5a5b1a; }
+.hgd-status-booked { background: var(--hgd-lime); color: #4a4b14; }
+.hgd-status-capture, .hgd-status-design, .hgd-status-rendered { background: rgba(159, 161, 69, 0.25); color: #44461c; }
+.hgd-status-proposed, .hgd-status-accepted { background: var(--hgd-green); color: #fff; }
+.hgd-status-in_progress { background: var(--hgd-olive-mid); color: #fff; }
+.hgd-status-complete { background: var(--hgd-olive); color: #fff; }
+
+/* Inline sub-form (e.g. add-new-client block on the project form) */
+.hgd-subform { border: 1px dashed var(--hgd-line); border-radius: var(--hgd-radius); padding: 16px 18px; margin: 4px 0 18px; background: rgba(159, 161, 69, 0.05); }
+.hgd-checks { display: flex; gap: 22px; flex-wrap: wrap; margin: 4px 0 16px; }
+
+/* Shortcode chip on the dashboard */
+.hgd-code { display: inline-block; background: var(--hgd-charcoal); color: var(--hgd-lime); padding: 6px 14px; border-radius: 8px; font-family: monospace; }
 
 /* On wide screens, let the plant form breathe across more columns so full-width
    inputs don't stretch awkwardly. */
