@@ -78,6 +78,22 @@ const METRIC_CATALOG = {
     revenue: { label: 'Revenue', format: 'currency', get: d => parseFloat(d.summary?.total_revenue || 0) },
     orders:  { label: 'Orders',  format: 'integer',  get: d => parseInt(d.summary?.total_orders || 0) },
   },
+  klaviyo: {
+    // Klaviyo fetchData returns { campaigns, total_campaigns, performance: [{ statistics: {...} }] }
+    // — metrics sum across the period's campaigns. open_rate / click_rate
+    // recompute as weighted averages (Σ uniques / Σ delivered) so an
+    // average-of-averages doesn't sneak in.
+    campaigns:        { label: 'Campaigns',         format: 'integer',  get: d => parseInt(d.total_campaigns || 0) },
+    recipients:       { label: 'Recipients',        format: 'integer',  get: d => sumKlaviyo(d, 'recipients') },
+    delivered:        { label: 'Delivered',         format: 'integer',  get: d => sumKlaviyo(d, 'delivered') },
+    opens:            { label: 'Opens',             format: 'integer',  get: d => sumKlaviyo(d, 'opens_unique') },
+    open_rate:        { label: 'Open Rate',         format: 'percent',  get: d => klaviyoRate(d, 'opens_unique', 'delivered') },
+    clicks:           { label: 'Clicks',            format: 'integer',  get: d => sumKlaviyo(d, 'clicks_unique') },
+    click_rate:       { label: 'Click Rate',        format: 'percent',  get: d => klaviyoRate(d, 'clicks_unique', 'delivered') },
+    conversions:      { label: 'Conversions',       format: 'integer',  get: d => sumKlaviyo(d, 'conversions') },
+    revenue:          { label: 'Revenue',           format: 'currency', get: d => sumKlaviyo(d, 'conversion_value') },
+    unsubscribes:     { label: 'Unsubscribes',      format: 'integer',  get: d => sumKlaviyo(d, 'unsubscribes') },
+  },
   october_forms: {
     views:              { label: 'Views',          format: 'integer', get: d => parseInt(d.summary?.views || 0) },
     starts:             { label: 'Starts',         format: 'integer', get: d => parseInt(d.summary?.starts || 0) },
@@ -103,6 +119,14 @@ function sumMetaAction(data, actionType, fieldGroup) {
     const entry = (r[fieldGroup] || []).find(a => a.action_type === actionType);
     return s + parseFloat(entry?.value || 0);
   }, 0);
+}
+function sumKlaviyo(data, key) {
+  return (data.performance || []).reduce((s, c) => s + parseFloat(c.statistics?.[key] || 0), 0);
+}
+function klaviyoRate(data, numKey, denomKey) {
+  const num = sumKlaviyo(data, numKey);
+  const denom = sumKlaviyo(data, denomKey);
+  return denom > 0 ? (num / denom) * 100 : 0;
 }
 function sumGA4(data, metric) {
   const metHeaders = (data.metricHeaders || []).map(h => h.name);
