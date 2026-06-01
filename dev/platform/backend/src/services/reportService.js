@@ -73,11 +73,15 @@ async function generateReport(reportId) {
     const seriesFetches = [];
     for (const grain of Object.keys(seriesPlan)) {
       for (const offset of seriesPlan[grain]) {
-        if (offset === 0) {
-          rawDataByPeriod[grain][0] = collectedData.data;
+        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
+        // Only reuse the main collectedData when the offset's range matches
+        // the report period exactly — otherwise (notably yearly grain
+        // where offset 0 spans Jan 1 → periodEnd) we'd render YTD numbers
+        // with single-month data underneath.
+        if (range.start === periodStart && range.end === periodEnd) {
+          rawDataByPeriod[grain][offset] = collectedData.data;
           continue;
         }
-        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
         seriesFetches.push(
           dataCollector.collectClientData(report.client_id, range.start, range.end)
             .then(r => { rawDataByPeriod[grain][offset] = r.data; })
