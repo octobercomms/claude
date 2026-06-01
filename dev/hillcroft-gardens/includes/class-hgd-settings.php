@@ -19,6 +19,7 @@ class HGD_Settings {
 	const SECRET_KEYS = array(
 		'claude_api_key',
 		'gemini_api_key',
+		'flux_api_key',
 		'google_maps_api_key',
 		'plantid_api_key',
 		'stripe_secret_key',
@@ -33,6 +34,7 @@ class HGD_Settings {
 			// --- API keys ---------------------------------------------------
 			'claude_api_key'      => '',
 			'gemini_api_key'      => '',
+			'flux_api_key'        => '',
 			'google_maps_api_key' => '',
 			'plantid_api_key'     => '',
 			'stripe_secret_key'    => '',
@@ -42,6 +44,7 @@ class HGD_Settings {
 			// --- AI ---------------------------------------------------------
 			'claude_model'        => 'claude-sonnet-4-6',
 			'gemini_image_model'  => 'gemini-2.5-flash-image',
+			'flux_model'          => 'fal-ai/flux-control-lora-canny',
 			'render_style'        => 'watercolour', // photoreal | watercolour | pencil_wash
 
 			// --- Self-updater (private GitHub repo) -------------------------
@@ -55,6 +58,7 @@ class HGD_Settings {
 			'eur_to_gbp'          => 0.85,
 			'rate_claude_per_mtok_usd' => 15.0,   // blended $/million tokens
 			'rate_gemini_per_image_usd' => 0.04,
+			'rate_flux_per_image_usd'   => 0.05,
 			'rate_maps_per_1k_usd'      => 7.0,
 			'rate_plantid_per_credit_eur' => 0.05,
 			'plantid_credits_balance'   => 0,     // prepaid balance (manual or fetched)

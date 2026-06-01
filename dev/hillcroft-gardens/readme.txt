@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.7.0
+Stable tag: 1.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.8.0 =
+* Structural render engine (optional): a second render engine — Flux + ControlNet via fal.ai — that uses your approved plan as a *structural guide*, so the render follows the exact layout (bed shapes, paths and structures land where the plan puts them) rather than re-interpreting it. It's entirely optional and off until you add a fal.ai key under Settings; the button on the Renders step degrades gracefully without one. Add your key (and, if you like, a different fal.ai model) under Settings → API keys / AI. Per-image cost feeds the cost banner.
 
 = 1.7.0 =
 * Design into a site photo: a new render mode on the Renders step that generates the scheme straight onto one of the client's real site photos — keeping the same camera viewpoint, the house, fences and boundaries, ground levels and sky, and redesigning only the garden within the frame. It's the most convincing "after" you can show a client, because it's unmistakably *their* garden. Pick any uploaded photo, press "Design into this photo", and the result joins your concept renders.

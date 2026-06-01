@@ -33,6 +33,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
 		add_action( 'admin_post_hgd_generate_photo_render', array( $this, 'handle_generate_photo_render' ) );
+		add_action( 'admin_post_hgd_generate_flux_render', array( $this, 'handle_generate_flux_render' ) );
 		add_action( 'admin_post_hgd_generate_plan', array( $this, 'handle_generate_plan' ) );
 		add_action( 'admin_post_hgd_save_plan_prompt', array( $this, 'handle_save_plan_prompt' ) );
 		add_action( 'admin_post_hgd_compose_plan_prompt', array( $this, 'handle_compose_plan_prompt' ) );
@@ -973,6 +974,73 @@ class HGD_Admin {
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_done' => 1 ) );
 	}
 
+	/**
+	 * Generate a render with the optional Flux + ControlNet engine (fal.ai),
+	 * using the approved plan (or sketch) as a structural guide so the layout
+	 * is followed exactly. Only available when a fal.ai key is configured.
+	 */
+	public function handle_generate_flux_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_generate_flux_render_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Flux::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'noflux' ) );
+		}
+
+		// Structural guide: the most recent approved plan, else the sketch.
+		$control_id = 0;
+		$plans      = HGD_Project_Asset::for_project( $id, 'plan' );
+		if ( ! empty( $plans ) ) {
+			$latest     = end( $plans );
+			$control_id = (int) $latest['attachment_id'];
+		} else {
+			$sketches = HGD_Project_Asset::for_project( $id, 'sketch' );
+			if ( ! empty( $sketches ) ) {
+				$control_id = (int) $sketches[0]['attachment_id'];
+			}
+		}
+		if ( ! $control_id ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'nocontrol' ) );
+		}
+
+		$prompt = (string) $project['render_prompt'];
+		if ( '' === trim( $prompt ) ) {
+			$prompt = (string) $project['design_brief'];
+		}
+		if ( '' === trim( $prompt ) ) {
+			$prompt = 'A beautifully designed residential garden, lush layered planting and well-considered materials.';
+		}
+		$prompt .= "\n\n" . HGD_Settings::render_style_suffix();
+		if ( class_exists( 'HGD_Measure' ) ) {
+			$line = HGD_Measure::render_line( $project );
+			if ( '' !== $line ) {
+				$prompt .= "\n\nScale reference: " . $line;
+			}
+		}
+
+		$result = HGD_Flux::generate_image( $prompt, $control_id, $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'api' ) );
+		}
+
+		$att_id = HGD_Gemini::save_image_as_attachment( $result['bytes'], $result['mime'], $id, 'flux-render' );
+		if ( is_wp_error( $att_id ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $att_id->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'save' ) );
+		}
+
+		HGD_Project_Asset::add( $id, $att_id, 'render', 'flux_render', __( 'Structural render (Flux + ControlNet)', 'hillcroft-garden-designer' ) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_done' => 1 ) );
+	}
+
 	// -------------------------------------------------------------------------
 	// Plan-first pipeline (top-down garden PLAN drawing, iterated, then used as
 	// the structural reference for renders and the render pack)
@@ -1811,7 +1879,7 @@ class HGD_Admin {
 		$input = array();
 
 		foreach ( array(
-			'claude_api_key', 'claude_model', 'gemini_api_key', 'gemini_image_model', 'render_style', 'google_maps_api_key', 'plantid_api_key',
+			'claude_api_key', 'claude_model', 'gemini_api_key', 'gemini_image_model', 'flux_api_key', 'flux_model', 'render_style', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret',
 			'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',
@@ -1824,7 +1892,7 @@ class HGD_Admin {
 		}
 
 		foreach ( array(
-			'usd_to_gbp', 'eur_to_gbp', 'rate_claude_per_mtok_usd', 'rate_gemini_per_image_usd',
+			'usd_to_gbp', 'eur_to_gbp', 'rate_claude_per_mtok_usd', 'rate_gemini_per_image_usd', 'rate_flux_per_image_usd',
 			'rate_maps_per_1k_usd', 'rate_plantid_per_credit_eur', 'soft_monthly_cap_gbp',
 			'consultation_fee_gbp', 'deposit_pct', 'commencement_pct', 'completion_pct',
 			'proposal_expiry_days',
