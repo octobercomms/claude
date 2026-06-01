@@ -63,9 +63,36 @@ async function generateReport(reportId) {
       }
     }
 
+    // Time-series sections (time_grain: monthly | weekly | yearly with
+    // periods: N) need historical data slices, one per period. Fan out
+    // the per-period collections in parallel and key the results by
+    // grain + offset. Offset 0 reuses the main rawData so we don't
+    // re-fetch the current period.
+    const seriesPlan = reportTemplate.periodsForTimeSeries(template);
+    const rawDataByPeriod = { monthly: {}, weekly: {}, yearly: {} };
+    const seriesFetches = [];
+    for (const grain of Object.keys(seriesPlan)) {
+      for (const offset of seriesPlan[grain]) {
+        if (offset === 0) {
+          rawDataByPeriod[grain][0] = collectedData.data;
+          continue;
+        }
+        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
+        seriesFetches.push(
+          dataCollector.collectClientData(report.client_id, range.start, range.end)
+            .then(r => { rawDataByPeriod[grain][offset] = r.data; })
+            .catch(err => {
+              console.error(`[Report] time-series ${grain} offset ${offset} (${range.start}..${range.end}) failed:`, err.message);
+              rawDataByPeriod[grain][offset] = {};
+            })
+        );
+      }
+    }
+    if (seriesFetches.length) await Promise.all(seriesFetches);
+
     await generateTemplatedReport({
       report, client, period, periodStart, periodEnd, template,
-      rawData: collectedData.data, rawDataPrev, seoData, chatHistory,
+      rawData: collectedData.data, rawDataPrev, rawDataByPeriod, seoData, chatHistory,
     });
   } catch (err) {
     console.error(`Report generation failed for ${reportId}:`, err);
@@ -80,9 +107,9 @@ async function generateReport(reportId) {
 // Template-driven report generation. Resolves the template's sections into
 // concrete data (narrative paragraphs via Claude, metrics grids, tables,
 // charts), builds the PDF, stores + emails it.
-async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, rawDataPrev, seoData, chatHistory }) {
+async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory }) {
   const resolved = await templateRenderer.resolveTemplate({
-    template, client, period, rawData, rawDataPrev, seoData, chatHistory,
+    template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory,
   });
 
   const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });

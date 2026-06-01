@@ -167,7 +167,14 @@ function matchSources(rawData, sources) {
 // "table" layout is chosen when the AM asked for a multi-source LIST mode
 // (e.g. all Shopify stores, each with its own row). A 3-store × 3-metric
 // table is far more legible than 9 chunked cells.
-function resolveMetricsGrid(section, rawData, rawDataPrev) {
+function resolveMetricsGrid(section, rawData, rawDataPrev, ctx) {
+  // Time-series mode — rows = periods (most recent first), columns =
+  // metrics. Takes precedence over compare:"yoy" when both are set,
+  // since "last 3 months" / "last 5 years" is structurally a different
+  // table from "this period vs same period one year ago".
+  if (section.time_grain && ctx?.rawDataByPeriod) {
+    return resolveTimeSeriesMetricsGrid(section, ctx);
+  }
   const matches = matchSources(rawData, section.sources);
   if (!matches.length) return { layout: 'cells', cells: [] };
 
@@ -243,6 +250,141 @@ function resolveMetricsGrid(section, rawData, rawDataPrev) {
     cells.push(cell);
   }
   return { layout: 'cells', cells, compare: compareYoy ? 'yoy' : null };
+}
+
+// Time-series metrics_grid — emits one row per period (most recent first),
+// columns = metrics. Each row pulls its own data slice from
+// ctx.rawDataByPeriod[grain][offset] and runs through the same sum / list
+// logic as the single-period path. Numbers / currency cells render directly;
+// no embedded YoY object (time-series rows ARE the comparison).
+function resolveTimeSeriesMetricsGrid(section, ctx) {
+  const grain = section.time_grain;
+  const n = clampPeriods(section.periods);
+  const byGrain = (ctx.rawDataByPeriod || {})[grain] || {};
+  const metricKeys = section.metrics || [];
+  const referenceRaw = byGrain[0] || {};
+  const matches = matchSources(referenceRaw, section.sources);
+  // Resolve column labels from the first period that has each metric, so a
+  // missing-in-period-0 metric still gets a sensible header.
+  const metricLabels = metricKeys.map(mk => {
+    for (let i = 0; i < n; i++) {
+      const periodMatches = matchSources(byGrain[i] || {}, section.sources);
+      for (const m of periodMatches) {
+        const def = (METRIC_CATALOG[m.type] || {})[mk];
+        if (def) return def.label;
+      }
+    }
+    return mk.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  });
+  const rows = [];
+  for (let offset = 0; offset < n; offset++) {
+    const periodRaw = byGrain[offset];
+    if (!periodRaw) continue;
+    const label = periodLabel({ ctx, grain, offset });
+    const periodMatches = matchSources(periodRaw, section.sources);
+    if (!periodMatches.length) {
+      rows.push({ source: label, values: metricKeys.map(() => '—') });
+      continue;
+    }
+    // "list" only makes sense for the single-period table; in a time-series
+    // we always sum across sources of the same type for a given metric so
+    // each (period, metric) cell is a single number.
+    const totals = sumAcrossSources(periodMatches, metricKeys);
+    const values = metricKeys.map(mk => {
+      if (totals[mk] == null) {
+        // Fall back: maybe only one source has this metric and sumAcross
+        // skipped it (e.g. metric in list mode). Try first match's catalog.
+        for (const m of periodMatches) {
+          const def = (METRIC_CATALOG[m.type] || {})[mk];
+          if (def) return formatValue(def.get(m.data), def.format);
+        }
+        return '—';
+      }
+      return formatValue(totals[mk], totals[`__format_${mk}`] || 'integer');
+    });
+    rows.push({ source: label, values });
+  }
+  return { layout: 'table', metricLabels, rows };
+}
+
+function clampPeriods(p) {
+  // Hard-cap so a stray "periods: 100" doesn't trigger 100 connector
+  // round-trips. 12 is enough for a year of monthly rows or a decade of
+  // yearly rows.
+  const n = parseInt(p, 10);
+  if (!Number.isFinite(n) || n < 1) return 3;
+  return Math.min(n, 12);
+}
+
+function periodLabel({ ctx, grain, offset }) {
+  const r = rangeForOffset({ periodStart: ctx.periodStart, periodEnd: ctx.periodEnd, grain, offset });
+  return r.label;
+}
+
+// ─── PERIOD MATH ───────────────────────────────────────────────────────────
+// Given the report's main period, return the (start, end, label) for a
+// historical period at `offset` units back. offset=0 means "the current
+// period" (used as a no-op so the same code path produces the top row).
+function rangeForOffset({ periodStart, periodEnd, grain, offset }) {
+  const startDate = parseYmd(periodStart);
+  const endDate = parseYmd(periodEnd);
+  if (grain === 'monthly') {
+    // Anchor on the month containing periodStart, then walk backwards.
+    const ref = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() - offset, 1));
+    const start = ref;
+    const lastDay = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() + 1, 0));
+    // The current period may be a partial month (mid-month preview); keep
+    // the user-specified end for offset 0 so the row matches the rest of
+    // the report. Past months always run full calendar month.
+    const end = offset === 0 ? endDate : lastDay;
+    const sameYear = ref.getUTCFullYear() === startDate.getUTCFullYear();
+    const label = ref.toLocaleString('en-GB', sameYear ? { month: 'short' } : { month: 'short', year: 'numeric' });
+    return { start: ymd(start), end: ymd(end), label };
+  }
+  if (grain === 'yearly') {
+    const year = startDate.getUTCFullYear() - offset;
+    const start = new Date(Date.UTC(year, 0, 1));
+    const end = offset === 0
+      ? endDate
+      : new Date(Date.UTC(year, 11, 31));
+    return { start: ymd(start), end: ymd(end), label: String(year) };
+  }
+  if (grain === 'weekly') {
+    const MS = 24 * 60 * 60 * 1000;
+    const len = Math.floor((endDate - startDate) / MS) + 1;
+    const start = new Date(startDate.getTime() - offset * 7 * MS);
+    const end = new Date(start.getTime() + (len - 1) * MS);
+    const label = `w/c ${start.toLocaleString('en-GB', { day: 'numeric', month: 'short' })}`;
+    return { start: ymd(start), end: ymd(end), label };
+  }
+  throw new Error(`Unknown time_grain: ${grain}`);
+}
+
+function parseYmd(s) {
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+}
+function ymd(date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+}
+
+// Walks the template and returns the set of historical periods (per grain)
+// that need to be fetched. reportService uses this to decide how many extra
+// data-collection passes to run, and the renderer keys into the result by
+// grain + offset.
+function periodsForTimeSeries(template) {
+  const out = { monthly: new Set(), weekly: new Set(), yearly: new Set() };
+  for (const s of (template?.sections || [])) {
+    if (s.type !== 'metrics_grid' || !s.time_grain) continue;
+    if (!out[s.time_grain]) continue;
+    const n = clampPeriods(s.periods);
+    for (let i = 0; i < n; i++) out[s.time_grain].add(i);
+  }
+  return {
+    monthly: [...out.monthly].sort((a, b) => a - b),
+    weekly: [...out.weekly].sort((a, b) => a - b),
+    yearly: [...out.yearly].sort((a, b) => a - b),
+  };
 }
 
 // Combine current-period source data into one set of totals keyed by metric.
@@ -413,6 +555,9 @@ function validate(template) {
     if (!s.type) return `section[${i}].type is required`;
     if (!['narrative', 'metrics_grid', 'connector_table', 'bar_chart', 'position_distribution'].includes(s.type)) return `section[${i}].type "${s.type}" is invalid`;
     if (s.compare != null && !['yoy'].includes(s.compare)) return `section[${i}].compare "${s.compare}" is invalid — only "yoy" is supported`;
+    if (s.time_grain != null && !['monthly', 'weekly', 'yearly'].includes(s.time_grain)) return `section[${i}].time_grain "${s.time_grain}" is invalid — must be monthly, weekly or yearly`;
+    if (s.time_grain && s.type !== 'metrics_grid') return `section[${i}].time_grain only applies to metrics_grid sections`;
+    if (s.periods != null && (!Number.isFinite(s.periods) || s.periods < 1 || s.periods > 12)) return `section[${i}].periods must be a number 1–12`;
   }
   return null;
 }
@@ -465,4 +610,6 @@ module.exports = {
   yoyDate,
   templateRequiresYoy,
   normaliseTemplate,
+  periodsForTimeSeries,
+  rangeForOffset,
 };
