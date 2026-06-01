@@ -166,7 +166,14 @@ ${currentTemplate
 
   const response = await getClient().messages.create({
     model: MODEL,
-    max_tokens: 2048,
+    // A "monthly report" template can carry ~18 sections, each with a
+    // type and a metrics list. The full propose_template tool call
+    // (input.template object) easily exceeds 2k output tokens; when it
+    // does, Claude truncates mid-call and the SDK reports a malformed
+    // tool_use — the UI then renders "(no reply)" silently. 16k gives
+    // plenty of headroom; the truncation branch below catches anything
+    // bigger and surfaces a real error.
+    max_tokens: 16384,
     system,
     tools,
     tool_choice: { type: 'any' },
@@ -187,6 +194,15 @@ ${currentTemplate
     reply = reply ? `${reply}\n${replyMsg}` : replyMsg;
   }
   if (!reply && proposed) reply = 'Updated the draft on the right — let me know what to change.';
+  // Truncation path — Claude hit max_tokens mid-tool-call so the
+  // template (or the reply) is incomplete. Don't ship a broken
+  // proposed template downstream; tell the AM what happened.
+  if (response.stop_reason === 'max_tokens' && !reply) {
+    console.warn('[report-template chat] hit max_tokens, content blocks:',
+      response.content.map(b => ({ type: b.type, name: b.name, len: JSON.stringify(b).length })));
+    reply = 'My response hit the size limit before I could finish. Try splitting the request into smaller pieces — e.g. "draft the SEO sections first, then we\'ll add paid traffic".';
+    return { reply, proposed: null };
+  }
   return { reply, proposed };
 }
 
