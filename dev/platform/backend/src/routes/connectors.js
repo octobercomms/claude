@@ -328,9 +328,15 @@ router.get('/:id/diagnose', async (req, res) => {
         await connector.checkTokenValidity(creds);
         result.check = { status: 'ok', detail: 'Credentials are valid' };
         await pool.query('UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2', ['active', row.id]);
+        // Mirror the Google branch — sync the response field after the DB
+        // update so the badge in the UI matches reality without a reload.
+        // Without this, a previous transient failure leaves status='error'
+        // in result even though we just cleared it in the DB.
+        result.status = 'active';
       } catch (checkErr) {
         result.check = { status: 'error', detail: checkErr.message };
         await pool.query('UPDATE connectors SET status = $1, error_message = $2 WHERE id = $3', ['error', checkErr.message, row.id]);
+        result.status = 'error';
       }
     }
 
