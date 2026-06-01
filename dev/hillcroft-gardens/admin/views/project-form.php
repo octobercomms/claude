@@ -256,6 +256,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="hgd-form">
 				<input type="hidden" name="action" value="hgd_upload_assets" />
 				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 				<?php wp_nonce_field( 'hgd_upload_assets_' . $pid ); ?>
 				<div class="hgd-grid">
 					<label><span><?php esc_html_e( 'Files', 'hillcroft-garden-designer' ); ?></span>
@@ -312,10 +313,11 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="hgd_claude_read" />
 				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 				<?php wp_nonce_field( 'hgd_claude_read_' . $pid ); ?>
 				<div class="hgd-form-actions">
-					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Read sketch with Claude', 'hillcroft-garden-designer' ); ?></button>
-					<span class="hgd-muted"><?php esc_html_e( 'Reads the uploaded sketch(es) and hand-written dimensions. May take a few seconds.', 'hillcroft-garden-designer' ); ?></span>
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Read images with Claude', 'hillcroft-garden-designer' ); ?></button>
+					<span class="hgd-muted"><?php esc_html_e( 'Reads your sketch(es) and site photos together — layout and dimensions from the sketch, existing-garden context from the photos. May take a few seconds.', 'hillcroft-garden-designer' ); ?></span>
 				</div>
 			</form>
 		</div>
@@ -381,6 +383,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form hgd-chat-form">
 						<input type="hidden" name="action" value="hgd_chat_send" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_chat_send_' . $pid ); ?>
 						<label class="hgd-full"><span><?php esc_html_e( 'Your reply', 'hillcroft-garden-designer' ); ?></span>
 							<textarea name="message" rows="3" placeholder="<?php esc_attr_e( 'Answer Claude’s questions…', 'hillcroft-garden-designer' ); ?>"></textarea></label>
@@ -394,6 +397,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form id="hgd-chat-clear-<?php echo esc_attr( $pid ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:none;">
 						<input type="hidden" name="action" value="hgd_chat_clear" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_chat_clear_' . $pid ); ?>
 					</form>
 				<?php endif; ?>
@@ -435,6 +439,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form">
 				<input type="hidden" name="action" value="hgd_save_design" />
 				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 				<?php wp_nonce_field( 'hgd_save_design_' . $pid ); ?>
 
 				<label class="hgd-full"><span><?php esc_html_e( 'Design brief', 'hillcroft-garden-designer' ); ?></span>
@@ -452,6 +457,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="hgd_compose_prompt" />
 				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 				<?php wp_nonce_field( 'hgd_compose_prompt_' . $pid ); ?>
 				<div class="hgd-form-actions">
 					<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Compose with Claude', 'hillcroft-garden-designer' ); ?></button>
@@ -487,6 +493,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="hgd_generate_render" />
 					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 					<?php wp_nonce_field( 'hgd_generate_render_' . $pid ); ?>
 					<div class="hgd-form-actions">
 						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Generate render', 'hillcroft-garden-designer' ); ?></button>
@@ -602,6 +609,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 						<input type="hidden" name="action" value="hgd_pack_generate_all" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_pack_generate_all_' . $pid ); ?>
 						<button type="submit" class="hgd-pill" onclick="return confirm('<?php echo esc_js( __( 'Generate the full render pack (about six Gemini images)? This may take a minute or two.', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Generate full pack', 'hillcroft-garden-designer' ); ?></button>
 					</form>
@@ -610,6 +618,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline;">
 							<input type="hidden" name="action" value="hgd_pack_fetch_satellite" />
 							<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+							<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 							<?php wp_nonce_field( 'hgd_pack_fetch_satellite_' . $pid ); ?>
 							<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Fetch satellite view', 'hillcroft-garden-designer' ); ?></button>
 						</form>
@@ -622,6 +631,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-inline-form">
 						<input type="hidden" name="action" value="hgd_pack_generate_view" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_pack_generate_view_' . $pid ); ?>
 						<div class="hgd-grid">
 							<label><span><?php esc_html_e( 'View', 'hillcroft-garden-designer' ); ?></span>
@@ -648,6 +658,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-inline-form">
 						<input type="hidden" name="action" value="hgd_pack_seasonal" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_pack_seasonal_' . $pid ); ?>
 						<div class="hgd-grid">
 							<label><span><?php esc_html_e( 'View', 'hillcroft-garden-designer' ); ?></span>
@@ -777,6 +788,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				<form method="post" action="<?php echo esc_url( $post_url ); ?>">
 					<input type="hidden" name="action" value="hgd_quote_init" />
 					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 					<?php wp_nonce_field( 'hgd_quote_init_' . $pid ); ?>
 					<div class="hgd-form-actions">
 						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Create Good / Better / Best quotes', 'hillcroft-garden-designer' ); ?></button>
@@ -820,6 +832,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-seed-form">
 					<input type="hidden" name="action" value="hgd_quote_seed_tiers" />
 					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 					<?php wp_nonce_field( 'hgd_quote_seed_tiers_' . $pid ); ?>
 					<div class="hgd-form-actions">
 						<button type="submit" class="hgd-pill hgd-pill-ghost" onclick="return confirm('<?php echo esc_js( __( 'This rebuilds the Better and Best tiers from Good (replacing their line items). Continue?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Seed Better &amp; Best from Good', 'hillcroft-garden-designer' ); ?></button>
@@ -863,6 +876,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 									<form method="post" action="<?php echo esc_url( $post_url ); ?>">
 										<input type="hidden" name="action" value="hgd_quote_update_item" />
 										<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+										<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 										<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
 										<input type="hidden" name="item_id" value="<?php echo esc_attr( (int) $item['id'] ); ?>" />
 										<?php wp_nonce_field( 'hgd_quote_update_item_' . (int) $item['id'] ); ?>
@@ -885,6 +899,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 									<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
 										<input type="hidden" name="action" value="hgd_quote_delete_item" />
 										<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+										<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 										<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
 										<input type="hidden" name="item_id" value="<?php echo esc_attr( (int) $item['id'] ); ?>" />
 										<?php wp_nonce_field( 'hgd_quote_delete_item_' . (int) $item['id'] ); ?>
@@ -911,6 +926,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 								<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
 									<input type="hidden" name="action" value="hgd_quote_add_plant" />
 									<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+									<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 									<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
 									<?php wp_nonce_field( 'hgd_quote_add_plant_' . $gid ); ?>
 									<div class="hgd-grid">
@@ -940,6 +956,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 							<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
 								<input type="hidden" name="action" value="hgd_quote_add_item" />
 								<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+								<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 								<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
 								<?php wp_nonce_field( 'hgd_quote_add_item_' . $gid ); ?>
 								<div class="hgd-grid">
@@ -971,6 +988,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-form">
 						<input type="hidden" name="action" value="hgd_quote_save" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<input type="hidden" name="quote_id" value="<?php echo esc_attr( $gid ); ?>" />
 						<?php wp_nonce_field( 'hgd_quote_save_' . $gid ); ?>
 						<div class="hgd-grid">
@@ -1037,6 +1055,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-inline-form">
 						<input type="hidden" name="action" value="hgd_proposal_create" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<?php wp_nonce_field( 'hgd_proposal_create_' . $pid ); ?>
 						<div class="hgd-grid">
 							<label><span><?php esc_html_e( 'Build proposal from', 'hillcroft-garden-designer' ); ?></span>
@@ -1070,6 +1089,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="hgd-form">
 					<input type="hidden" name="action" value="hgd_proposal_save" />
 					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 					<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
 					<?php wp_nonce_field( 'hgd_proposal_save_' . (int) $proposal['id'] ); ?>
 
@@ -1120,6 +1140,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
 						<input type="hidden" name="action" value="hgd_proposal_send" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
 						<?php wp_nonce_field( 'hgd_proposal_send_' . (int) $proposal['id'] ); ?>
 						<button type="submit" class="hgd-pill"><?php echo 'draft' === $proposal['status'] ? esc_html__( 'Send to client', 'hillcroft-garden-designer' ) : esc_html__( 'Re-send to client', 'hillcroft-garden-designer' ); ?></button>
@@ -1127,6 +1148,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" style="display:inline;">
 						<input type="hidden" name="action" value="hgd_proposal_delete" />
 						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
 						<input type="hidden" name="proposal_id" value="<?php echo esc_attr( (int) $proposal['id'] ); ?>" />
 						<?php wp_nonce_field( 'hgd_proposal_delete_' . (int) $proposal['id'] ); ?>
 						<button type="submit" class="hgd-link-danger" onclick="return confirm('<?php echo esc_js( __( 'Delete this proposal and its payment schedule?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete proposal', 'hillcroft-garden-designer' ); ?></button>

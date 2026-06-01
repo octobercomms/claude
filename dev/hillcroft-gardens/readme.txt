@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.2
+Stable tag: 1.3.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.3.3 =
+* Wizard: actions like uploading photos, reading images, saving the design or generating a render now keep you on the step you're on (previously they bounced back to Details).
+* "Read sketch with Claude" is now "Read images with Claude" — it reads your sketch and your site photos together, so it understands the existing garden (levels, boundaries, existing plants) as well as the intended layout. Only your uploads are sent, never generated renders.
 
 = 1.3.2 =
 * Consultation capture now shows only the files you upload (sketches & photos) — generated concept renders and render-pack images no longer appear here; they live in their own steps.

@@ -457,7 +457,14 @@ class HGD_Admin {
 			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_error' => 'nokey' ) );
 		}
 
-		$assets = HGD_Project_Asset::for_project( $id );
+		// Only the designer's uploads — sketches & photos — never the generated
+		// concept renders / render-pack images.
+		$assets = array_values( array_filter(
+			HGD_Project_Asset::for_project( $id ),
+			function ( $a ) {
+				return in_array( ( isset( $a['role'] ) ? $a['role'] : '' ), array( 'sketch', 'photo', 'other' ), true );
+			}
+		) );
 		// Sketches first, then photos/other.
 		usort( $assets, function ( $a, $b ) {
 			$wa = 'sketch' === $a['role'] ? 0 : 1;
@@ -493,13 +500,17 @@ class HGD_Admin {
 		}
 
 		$system = 'You are an expert garden-design assistant helping a professional garden designer. '
-			. 'You are given one or more hand-drawn garden sketches (and possibly photos) from a site consultation. '
-			. 'Carefully interpret the layout. READ any hand-written dimensions, measurements and annotations on the sketch. '
+			. 'You are given images from a site consultation: one or more hand-drawn garden sketches AND photographs of the existing garden. '
+			. 'Use the SKETCH for the intended layout and READ any hand-written dimensions, measurements and annotations on it. '
+			. 'Use the PHOTOGRAPHS for real-world context — cross-reference them with the sketch to understand the existing garden: '
+			. 'levels and slopes, boundaries (walls/fences/hedges), aspect and light, surfaces, and existing trees, shrubs and plants '
+			. '(note which look established or worth keeping). Build one coherent picture of the site from the sketch and photos together. '
 			. 'Identify zones and features: beds, borders, lawn, patio, decking, paths, walls, fences, steps, water features, '
-			. 'existing trees/shrubs/plants, and anything else marked. '
+			. 'existing planting, and anything else marked or visible. '
 			. 'Respond ONLY with a single JSON object with exactly two keys: '
-			. '"reading" (a clear prose summary of everything you see, including all measurements you can read), and '
-			. '"questions" (an array of specific clarifying questions to confirm you have read the sketch correctly). '
+			. '"reading" (a clear prose summary of everything you see across the sketch and photos, including all measurements you can read '
+			. 'and the existing features the photos reveal), and '
+			. '"questions" (an array of specific clarifying questions to confirm you have read the site correctly). '
 			. 'Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
 
 		$result = HGD_Claude::message( $blocks, $system, 2000, $id );
@@ -1510,6 +1521,20 @@ class HGD_Admin {
 	}
 
 	private function redirect_with( $page, array $args ) {
+		// Keep the wizard on the step the action was performed from: if this is a
+		// project-edit redirect that doesn't already name a step, carry the step
+		// submitted by the form (or present in the URL) through.
+		if ( isset( $args['action'] ) && 'edit' === $args['action'] && ! isset( $args['step'] ) ) {
+			$step = '';
+			if ( isset( $_POST['step'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+				$step = sanitize_key( wp_unslash( $_POST['step'] ) );
+			} elseif ( isset( $_GET['step'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+				$step = sanitize_key( wp_unslash( $_GET['step'] ) );
+			}
+			if ( '' !== $step ) {
+				$args['step'] = $step;
+			}
+		}
 		$args = array_merge( array( 'page' => $page ), array_filter( $args, function ( $v ) { return null !== $v; } ) );
 		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		exit;
