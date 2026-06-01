@@ -128,6 +128,33 @@ function klaviyoRate(data, numKey, denomKey) {
   const denom = sumKlaviyo(data, denomKey);
   return denom > 0 ? (num / denom) * 100 : 0;
 }
+// Human-readable label for a connector match — prefers the store_label
+// when it looks like a name, falls back to a humanised connector type
+// when it's a pure-numeric account ID (Google Ads customer IDs, Meta
+// ad account IDs etc.). Without this, multi-source tables would print
+// "9737162403" as a row header instead of "Google Ads".
+function friendlySourceLabel(match) {
+  const label = match.storeLabel;
+  if (label && !/^\d+$/.test(label)) return label;
+  return TYPE_LABELS[match.type] || match.type;
+}
+const TYPE_LABELS = {
+  ga4: 'GA4',
+  google_search_console: 'Search Console',
+  google_ads: 'Google Ads',
+  google_merchant_center: 'Merchant Center',
+  meta_ads: 'Meta Ads',
+  instagram_insights: 'Instagram',
+  shopify: 'Shopify',
+  woocommerce: 'WooCommerce',
+  amazon_seller: 'Amazon',
+  klaviyo: 'Klaviyo',
+  brevo: 'Brevo',
+  october_forms: 'October Forms',
+  zoho_inventory: 'Zoho Inventory',
+  cin7: 'Cin7',
+  dataforseo: 'DataForSEO',
+};
 function sumGA4(data, metric) {
   const metHeaders = (data.metricHeaders || []).map(h => h.name);
   const dimHeaders = (data.dimensionHeaders || []).map(h => h.name);
@@ -225,7 +252,7 @@ function resolveMetricsGrid(section, rawData, rawDataPrev, ctx) {
     const rows = [];
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
-      const sourceLabel = m.storeLabel || m.type;
+      const sourceLabel = friendlySourceLabel(m);
       const prevData = compareYoy ? rawDataPrev[m.key] : null;
       const values = metricKeys.map(mk => {
         const def = catalog[mk];
@@ -246,7 +273,11 @@ function resolveMetricsGrid(section, rawData, rawDataPrev, ctx) {
     const cells = [];
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
-      const tag = m.storeLabel ? `${m.storeLabel} — ` : '';
+      // Only prefix the metric label with the source when distinguishing
+      // between multiple sources in a list. For single-source sections
+      // the section title already gives context, and bare account IDs
+      // like "9737162403" (Google Ads customer ID) just add noise.
+      const tag = (matches.length > 1 && m.storeLabel) ? `${m.storeLabel} — ` : '';
       const prevData = compareYoy ? rawDataPrev[m.key] : null;
       for (const mk of metricKeys) {
         const def = catalog[mk];
@@ -534,7 +565,7 @@ function defaultTemplate(reportType, availableTypes = []) {
       type: 'narrative',
       sources: ['*'],
       prompt: reportType === 'monthly'
-        ? 'Write a 300-400 word executive summary of the month. Highlight the most significant movements, call out anything that needs attention, end with one forward-looking sentence about next month.'
+        ? 'Write an executive summary of the month — 80-120 words maximum, three short paragraphs at most. Lead with the single most important movement, call out anything that needs attention, end with one forward-looking sentence about next month. No filler.'
         : 'Write 2-3 sentences summarising this week\'s performance across the data below. Reference notable movements. Be direct. British English.',
     },
   ];
