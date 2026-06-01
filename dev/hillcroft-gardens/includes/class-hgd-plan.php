@@ -50,6 +50,15 @@ class HGD_Plan {
 		$parts[] = $aesthetic;
 		$parts[] = $honour;
 
+		// Structured measurements (when captured) take priority — they are the
+		// designer's measured dimensions, so the plan must be drawn to them.
+		if ( class_exists( 'HGD_Measure' ) ) {
+			$measure = HGD_Measure::summary_text( $project );
+			if ( '' !== $measure ) {
+				$parts[] = "MEASUREMENTS (the designer's measured dimensions — draw the plan to these exact dimensions and zone areas; keep proportions true):\n" . $measure;
+			}
+		}
+
 		$context = "SITE READING (existing garden, dimensions and features):\n" . ( '' !== $reading ? $reading : '(none)' );
 		$parts[] = $context;
 

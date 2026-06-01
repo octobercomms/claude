@@ -28,6 +28,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_upload_assets', array( $this, 'handle_upload_assets' ) );
 		add_action( 'admin_post_hgd_delete_asset', array( $this, 'handle_delete_asset' ) );
 		add_action( 'admin_post_hgd_claude_read', array( $this, 'handle_claude_read' ) );
+		add_action( 'admin_post_hgd_save_measurements', array( $this, 'handle_save_measurements' ) );
 		add_action( 'admin_post_hgd_save_design', array( $this, 'handle_save_design' ) );
 		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
@@ -546,6 +547,73 @@ class HGD_Admin {
 		) );
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_read' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Structured measurements + draw-on-plan tool
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Save the structured site measurements (plot dimensions + zones).
+	 *
+	 * Accepts either the canvas's serialised hidden JSON field
+	 * (measurements_json) or the manual table fields. Whichever is present, the
+	 * data is re-built from known keys + clamped by HGD_Measure::save() — the
+	 * posted JSON is never trusted blindly.
+	 */
+	public function handle_save_measurements() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_save_measurements_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		$data = null;
+
+		// 1) Prefer the canvas JSON when present and decodable.
+		if ( isset( $_POST['measurements_json'] ) && '' !== trim( (string) wp_unslash( $_POST['measurements_json'] ) ) ) {
+			$decoded = json_decode( wp_unslash( $_POST['measurements_json'] ), true );
+			if ( is_array( $decoded ) ) {
+				$data = $decoded;
+			}
+		}
+
+		// 2) Otherwise build from the manual table fields.
+		if ( null === $data ) {
+			$data = array(
+				'plot'       => array(
+					'w' => isset( $_POST['plot_w'] ) ? (float) wp_unslash( $_POST['plot_w'] ) : 0,
+					'l' => isset( $_POST['plot_l'] ) ? (float) wp_unslash( $_POST['plot_l'] ) : 0,
+				),
+				'scale_note' => isset( $_POST['scale_note'] ) ? sanitize_text_field( wp_unslash( $_POST['scale_note'] ) ) : '',
+				'zones'      => array(),
+			);
+
+			if ( isset( $_POST['zone_label'] ) && is_array( $_POST['zone_label'] ) ) {
+				$labels = (array) wp_unslash( $_POST['zone_label'] );
+				$types  = isset( $_POST['zone_type'] ) ? (array) wp_unslash( $_POST['zone_type'] ) : array();
+				$ws     = isset( $_POST['zone_w'] ) ? (array) wp_unslash( $_POST['zone_w'] ) : array();
+				$ls     = isset( $_POST['zone_l'] ) ? (array) wp_unslash( $_POST['zone_l'] ) : array();
+				$areas  = isset( $_POST['zone_area'] ) ? (array) wp_unslash( $_POST['zone_area'] ) : array();
+
+				foreach ( $labels as $k => $label ) {
+					$data['zones'][] = array(
+						'label'   => (string) $label,
+						'type'    => isset( $types[ $k ] ) ? (string) $types[ $k ] : 'other',
+						'w'       => isset( $ws[ $k ] ) ? (float) $ws[ $k ] : 0,
+						'l'       => isset( $ls[ $k ] ) ? (float) $ls[ $k ] : 0,
+						'area_m2' => isset( $areas[ $k ] ) ? (float) $areas[ $k ] : 0,
+					);
+				}
+			}
+		}
+
+		HGD_Measure::save( $id, is_array( $data ) ? $data : array() );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'measure_saved' => 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

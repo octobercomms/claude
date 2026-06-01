@@ -491,3 +491,29 @@
 
 .hgd-plant-fetch { margin: 18px 0 0; }
 .hgd-plant-fetch form { margin: 0 0 6px; }
+
+/* Measurements & site plan */
+.hgd-flash-warn { background: rgba(184, 116, 42, 0.10); border-color: #b8742a; color: #b8742a; }
+.hgd-measure-readback { margin: 0 0 12px; }
+.hgd-measure-table { margin: 6px 0 12px; }
+.hgd-measure-table th { text-align: left; font-size: 12px; color: var(--hgd-charcoal); }
+.hgd-measure-table td { padding: 4px 6px 4px 0; vertical-align: middle; }
+.hgd-measure-table input[type="text"],
+.hgd-measure-table input[type="number"],
+.hgd-measure-table select { width: 100%; margin: 0; }
+.hgd-measure-table input[type="number"] { max-width: 110px; }
+.hgd-measure-del {
+	border: 1px solid var(--hgd-line); background: #fff; color: #9b2c2c;
+	border-radius: 8px; width: 28px; height: 28px; line-height: 1; cursor: pointer; font-size: 16px;
+}
+.hgd-measure-del:hover { background: rgba(155, 44, 44, 0.08); }
+.hgd-measure-summary { margin: 8px 0; }
+.hgd-measure-canvas-wrap { margin: 12px 0; }
+.hgd-measure-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
+.hgd-measure-canvas-frame {
+	border: 1px solid var(--hgd-line); border-radius: 12px; padding: 8px;
+	background: #fff; display: inline-block; max-width: 100%;
+}
+.hgd-measure-canvas-frame canvas {
+	display: block; max-width: 100%; height: auto; border-radius: 8px; cursor: crosshair;
+}
