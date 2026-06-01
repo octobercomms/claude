@@ -16,7 +16,9 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
   const [connectors, setConnectors] = useState([]);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [attachment, setAttachment] = useState(null);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     api.get(`/clients/${clientId}/report-template/${reportType}`)
@@ -39,23 +41,61 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
   }, [onClose]);
 
   async function send() {
-    if (!input.trim() || sending) return;
-    const next = [...history, { role: 'user', content: input.trim() }];
+    // Allow an attachment-only turn — the AM can drop a PDF without
+    // any prompt text and we'll ask Claude to recreate it as-is.
+    const text = input.trim();
+    if (!text && !attachment) return;
+    if (sending) return;
+    const displayContent = attachment
+      ? (text ? `${text}\n\n[attached: ${attachment.name}]` : `[attached: ${attachment.name}]`)
+      : text;
+    const next = [...history, { role: 'user', content: displayContent }];
     setHistory(next);
     setInput('');
+    const sentAttachment = attachment;
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setSending(true);
     setError(null);
     try {
-      const { reply, proposed: p } = await api.post(`/clients/${clientId}/report-template/${reportType}/chat`, { history: next });
+      let result;
+      if (sentAttachment) {
+        const form = new FormData();
+        form.append('history', JSON.stringify(next));
+        form.append('attachment', sentAttachment);
+        result = await api.postForm(`/clients/${clientId}/report-template/${reportType}/chat`, form);
+      } else {
+        result = await api.post(`/clients/${clientId}/report-template/${reportType}/chat`, { history: next });
+      }
+      const { reply, proposed: p } = result;
       setHistory([...next, { role: 'assistant', content: reply || '(no reply)' }]);
       if (p) setProposed(p);
     } catch (e) {
       setError(e.message);
       setHistory(next.slice(0, -1));
-      setInput(next[next.length - 1].content);
+      setInput(text);
+      if (sentAttachment) setAttachment(sentAttachment);
     } finally {
       setSending(false);
     }
+  }
+
+  function onFilePicked(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const ok = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!ok.includes(f.type)) {
+      setError(`Unsupported file type: ${f.type || 'unknown'}. Attach a PDF or image.`);
+      e.target.value = '';
+      return;
+    }
+    if (f.size > 25 * 1024 * 1024) {
+      setError('File is too large (max 25MB).');
+      e.target.value = '';
+      return;
+    }
+    setError(null);
+    setAttachment(f);
   }
 
   async function lockAndSave() {
@@ -101,6 +141,9 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                     <li>"Same as last month, but add a Meta Ads block and drop the SEO table."</li>
                     <li>"Just three things: total spend, total revenue, and net per channel."</li>
                   </ul>
+                  <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                    Or attach a PDF/image of an old report (📎) and Claude will recreate it as a template.
+                  </div>
                   <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
                     Connectors available: {connectors.length ? connectors.map(c => `${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}`).join(', ') : '(none configured)'}
                   </div>
@@ -114,18 +157,42 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
               ))}
               {sending && <div style={styles.assistantMsg}><div style={styles.msgRole}>Claude</div><div style={styles.msgBody}>Thinking…</div></div>}
             </div>
+            {attachment && (
+              <div style={styles.attachChip}>
+                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={styles.chipRemove} title="Remove attachment">×</button>
+              </div>
+            )}
             <div style={styles.inputRow}>
               <textarea
                 style={styles.textarea}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
-                placeholder="Describe a change, or press ⌘↩ to send"
+                placeholder={attachment ? 'Optional — describe how to use this file, or just send' : 'Describe a change, or attach a PDF/image. ⌘↩ to send'}
                 disabled={sending}
               />
-              <button type="button" onClick={send} disabled={!input.trim() || sending} style={primaryBtn}>
-                {sending ? 'Sending…' : 'Send'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
+                  onChange={onFilePicked}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending || !!attachment}
+                  style={styles.attachBtn}
+                  title="Attach a sample report (PDF or image) for Claude to recreate"
+                >
+                  📎
+                </button>
+                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} style={primaryBtn}>
+                  {sending ? 'Sending…' : 'Send'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -228,6 +295,9 @@ const styles = {
   msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
   textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  attachChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#eef4ff', border: '1px solid #c7d8f5', borderRadius: 4, marginTop: 8, alignSelf: 'flex-start' },
+  chipRemove: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666', lineHeight: 1, padding: '0 2px' },
+  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
   generatingOverlay: { position: 'absolute', inset: 0, background: 'rgba(250,250,250,0.55)', borderRadius: 4, pointerEvents: 'none', zIndex: 1 },
   sectionCard: { marginBottom: 8, padding: '6px 8px', background: '#fff', border: '1px solid #eee', borderRadius: 3 },
   sectionType: { fontSize: 10, color: '#888', fontFamily: 'monospace', textTransform: 'uppercase' },
