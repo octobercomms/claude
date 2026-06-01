@@ -284,7 +284,9 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						);
 						?>
 						<div class="hgd-asset">
-							<?php echo wp_get_attachment_image( (int) $asset['attachment_id'], 'medium' ); ?>
+							<a class="hgd-asset-link" href="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $asset['attachment_id'], 'full' ) ); ?>" data-hgd-lightbox>
+								<?php echo wp_get_attachment_image( (int) $asset['attachment_id'], 'medium' ); ?>
+							</a>
 							<div class="hgd-asset-meta">
 								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( HGD_Project_Asset::role_label( $asset['role'] ) ); ?></span>
 								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this asset?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
@@ -502,7 +504,9 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						);
 						?>
 						<div class="hgd-asset">
-							<?php echo wp_get_attachment_image( (int) $render['attachment_id'], 'large' ); ?>
+							<a class="hgd-asset-link" href="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $render['attachment_id'], 'full' ) ); ?>" data-hgd-lightbox>
+								<?php echo wp_get_attachment_image( (int) $render['attachment_id'], 'large' ); ?>
+							</a>
 							<div class="hgd-asset-meta">
 								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( HGD_Project_Asset::role_label( $render['role'] ) ); ?></span>
 								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this render?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
@@ -661,7 +665,9 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						);
 						?>
 						<div class="hgd-asset">
-							<?php echo wp_get_attachment_image( (int) $pack['attachment_id'], 'medium' ); ?>
+							<a class="hgd-asset-link" href="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $pack['attachment_id'], 'full' ) ); ?>" data-hgd-lightbox>
+								<?php echo wp_get_attachment_image( (int) $pack['attachment_id'], 'medium' ); ?>
+							</a>
 							<div class="hgd-asset-meta">
 								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( $pack['pack_label'] ); ?></span>
 								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this pack image?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
