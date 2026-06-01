@@ -739,6 +739,16 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				?></div>
 			<?php elseif ( 'nophoto' === $render_error ) : ?>
 				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Choose one of your uploaded site photos to design into first.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( 'noflux' === $render_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a fal.ai (Flux) API key under %s to use the structural render engine.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'nocontrol' === $render_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Generate a plan (or upload a sketch) first — the structural engine needs one as a layout guide.', 'hillcroft-garden-designer' ); ?></div>
 			<?php elseif ( 'api' === $render_error || 'save' === $render_error ) :
 				$re = get_transient( 'hgd_render_error_' . get_current_user_id() ); delete_transient( 'hgd_render_error_' . get_current_user_id() ); ?>
 				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $re ? $re : __( 'Could not generate a render.', 'hillcroft-garden-designer' ) ); ?></div>
@@ -830,6 +840,32 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<div class="hgd-form-actions">
 						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Design into this photo', 'hillcroft-garden-designer' ); ?></button>
 						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + the selected photo (and your plan, if any).', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+			<?php endif; ?>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Structural render (Flux + ControlNet)', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'An optional second engine (fal.ai). It uses your approved plan as a structural guide via ControlNet, so the render follows the exact layout — bed shapes, paths and structures land where the plan puts them. Best after your plan is settled. The result is added to the renders above.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( ! HGD_Flux::is_configured() ) : ?>
+				<p class="hgd-muted"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a fal.ai (Flux) API key under %s to enable this engine.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></p>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="hgd_generate_flux_render" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+					<?php wp_nonce_field( 'hgd_generate_flux_render_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Generate structural render', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + your plan as a ControlNet guide.', 'hillcroft-garden-designer' ); ?></span>
 					</div>
 				</form>
 			<?php endif; ?>

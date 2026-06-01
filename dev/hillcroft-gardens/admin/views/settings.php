@@ -55,6 +55,7 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				<?php
 				$field( 'claude_api_key', __( 'Claude API key', 'hillcroft-garden-designer' ) );
 				$field( 'gemini_api_key', __( 'Google Gemini API key', 'hillcroft-garden-designer' ) );
+				$field( 'flux_api_key', __( 'fal.ai (Flux) API key — optional', 'hillcroft-garden-designer' ) );
 				$field( 'google_maps_api_key', __( 'Google Maps API key', 'hillcroft-garden-designer' ) );
 				$field( 'plantid_api_key', __( 'Plant.id / Kindwise API key', 'hillcroft-garden-designer' ) );
 				$field( 'stripe_secret_key', __( 'Stripe secret key', 'hillcroft-garden-designer' ) );
@@ -66,6 +67,7 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 			<div class="hgd-grid">
 				<?php $field( 'claude_model', __( 'Claude model', 'hillcroft-garden-designer' ) ); ?>
 				<?php $field( 'gemini_image_model', __( 'Gemini image model', 'hillcroft-garden-designer' ) ); ?>
+				<?php $field( 'flux_model', __( 'Flux/ControlNet model (fal.ai)', 'hillcroft-garden-designer' ) ); ?>
 				<label><span><?php esc_html_e( 'Render style', 'hillcroft-garden-designer' ); ?></span>
 					<select name="render_style">
 						<?php $cur_style = isset( $s['render_style'] ) ? $s['render_style'] : 'watercolour';
@@ -74,7 +76,7 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 						<?php endforeach; ?>
 					</select></label>
 			</div>
-			<p class="hgd-muted"><?php esc_html_e( 'Claude reads sketches; Gemini generates renders. Render style sets the look of the eye-level concept renders (the watercolour cover and hand-drawn plan keep their own styles). Defaults: claude-sonnet-4-6, gemini-2.5-flash-image, watercolour', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'Claude reads sketches; Gemini generates renders. Flux (fal.ai) is an optional second render engine that uses your plan as a ControlNet structural guide — leave its key blank to keep it off. Render style sets the look of the eye-level concept renders (the watercolour cover and hand-drawn plan keep their own styles). Defaults: claude-sonnet-4-6, gemini-2.5-flash-image, fal-ai/flux-control-lora-canny, watercolour', 'hillcroft-garden-designer' ); ?></p>
 		</div>
 
 		<div class="hgd-panel">
@@ -116,6 +118,7 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 				$field( 'eur_to_gbp', __( 'EUR → GBP rate', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
 				$field( 'rate_claude_per_mtok_usd', __( 'Claude ($/M tokens)', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
 				$field( 'rate_gemini_per_image_usd', __( 'Gemini ($/image)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
+				$field( 'rate_flux_per_image_usd', __( 'Flux ($/image)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
 				$field( 'rate_maps_per_1k_usd', __( 'Maps ($/1k calls)', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
 				$field( 'rate_plantid_per_credit_eur', __( 'Plant.id (€/credit)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
 				?>
