@@ -31,6 +31,9 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_save_design', array( $this, 'handle_save_design' ) );
 		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
+		add_action( 'admin_post_hgd_generate_plan', array( $this, 'handle_generate_plan' ) );
+		add_action( 'admin_post_hgd_save_plan_prompt', array( $this, 'handle_save_plan_prompt' ) );
+		add_action( 'admin_post_hgd_compose_plan_prompt', array( $this, 'handle_compose_plan_prompt' ) );
 		add_action( 'admin_post_hgd_pack_generate_view', array( $this, 'handle_pack_generate_view' ) );
 		add_action( 'admin_post_hgd_pack_generate_all', array( $this, 'handle_pack_generate_all' ) );
 		add_action( 'admin_post_hgd_pack_fetch_satellite', array( $this, 'handle_pack_fetch_satellite' ) );
@@ -811,15 +814,15 @@ class HGD_Admin {
 			$prompt = (string) $project['design_brief'];
 		}
 		if ( '' === trim( $prompt ) ) {
-			$prompt = 'A photorealistic concept render of a beautifully designed residential garden, natural daylight, lush planting, well-composed landscape photograph.';
+			$prompt = 'A beautifully designed residential garden, lush layered planting and well-considered materials, well composed.';
 		}
+		// Apply the chosen render aesthetic (watercolour by default).
+		$prompt .= "\n\n" . HGD_Settings::render_style_suffix();
 
-		// Anchor the render to the project sketch(es) where available (cap at 2).
-		$refs    = array();
-		$sketches = HGD_Project_Asset::for_project( $id, 'sketch' );
-		foreach ( array_slice( $sketches, 0, 2 ) as $sketch ) {
-			$refs[] = (int) $sketch['attachment_id'];
-		}
+		// Anchor the render to the approved PLAN first, then concept render, then
+		// sketch (see HGD_Render_Pack::reference_ids_for) — so renders follow the
+		// real, agreed layout rather than inventing one.
+		$refs = HGD_Render_Pack::reference_ids_for( $id );
 
 		$result = HGD_Gemini::generate_image( $prompt, $refs, $id );
 		if ( is_wp_error( $result ) ) {
@@ -839,7 +842,121 @@ class HGD_Admin {
 	}
 
 	// -------------------------------------------------------------------------
-	// Render pack (deliberate set of named views, anchored to the concept render)
+	// Plan-first pipeline (top-down garden PLAN drawing, iterated, then used as
+	// the structural reference for renders and the render pack)
+	// -------------------------------------------------------------------------
+
+	/** Save the hand-editable plan prompt textarea. */
+	public function handle_save_plan_prompt() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_save_plan_prompt_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		$plan_prompt = isset( $_POST['plan_prompt'] ) ? sanitize_textarea_field( wp_unslash( $_POST['plan_prompt'] ) ) : '';
+
+		HGD_Project::update( $id, array( 'plan_prompt' => $plan_prompt ) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_saved' => 1 ) );
+	}
+
+	/** Ask Claude to draft a good plan prompt from the site reading + design brief. */
+	public function handle_compose_plan_prompt() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_compose_plan_prompt_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Claude::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'nokey' ) );
+		}
+
+		$prompt  = "Consultation reading (Claude's interpretation of the site sketch, including dimensions):\n" . ( $project['ai_reading'] ?: '(none)' ) . "\n\n";
+		$prompt .= "Design brief (the intended scheme):\n" . ( $project['design_brief'] ?: '(none)' ) . "\n\n";
+		$prompt .= 'Style preferences: ' . ( $project['style_prefs'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Address: ' . ( $project['address'] ?: '(not given)' ) . "\n";
+		$prompt .= 'Postcode: ' . ( $project['postcode'] ?: '(not given)' ) . "\n";
+
+		$system = 'You are a garden-design assistant. Using the site reading and design brief, write a single richly-detailed '
+			. 'image-generation prompt for a CLEAN, TOP-DOWN, SCALED GARDEN PLAN drawing — an architectural / landscape-plan style '
+			. 'bird\'s-eye orthographic view (NOT a photoreal render). The prompt must call for: a crisp plan view from directly above, '
+			. 'a north arrow, labelled zones (lawn, borders/beds, patio/terrace, paths, steps, structures, existing trees), clear bed outlines, '
+			. 'simple plant-massing blobs with a light legend, and a hand-drawn-but-precise ink-and-wash aesthetic on white. '
+			. 'It must explicitly tell the model to honour the real dimensions and layout from the reading and keep fixed features in place. '
+			. 'Respond ONLY with a single JSON object with exactly one key: "prompt" (the plan image-generation prompt). '
+			. 'Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
+
+		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 4000, $id );
+
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'api' ) );
+		}
+
+		$parsed = $this->parse_claude_json( $result['text'] );
+		if ( null === $parsed ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), __( 'Could not parse a JSON response from Claude.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'parse' ) );
+		}
+
+		$plan_prompt = isset( $parsed['prompt'] ) ? (string) $parsed['prompt'] : '';
+
+		HGD_Project::update( $id, array( 'plan_prompt' => sanitize_textarea_field( $plan_prompt ) ) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_composed' => 1 ) );
+	}
+
+	/** Generate (or iterate) a top-down garden plan drawing from the sketch + notes. */
+	public function handle_generate_plan() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_generate_plan_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'nokey' ) );
+		}
+
+		$prompt = isset( $project['plan_prompt'] ) ? trim( (string) $project['plan_prompt'] ) : '';
+		if ( '' === $prompt ) {
+			$prompt = HGD_Plan::compose_plan_prompt( $project );
+		}
+
+		// Build the plan FROM the real sketch(es), topped up with photos.
+		$refs = HGD_Plan::reference_ids_for( $id );
+
+		$result = HGD_Gemini::generate_image( $prompt, $refs, $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'api' ) );
+		}
+
+		$att_id = HGD_Gemini::save_image_as_attachment( $result['bytes'], $result['mime'], $id, 'plan' );
+		if ( is_wp_error( $att_id ) ) {
+			set_transient( 'hgd_plan_error_' . get_current_user_id(), $att_id->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_error' => 'save' ) );
+		}
+
+		HGD_Project_Asset::add( $id, $att_id, 'plan' );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'plan', 'plan_done' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Render pack (deliberate set of named views, anchored to the approved plan
+	// / concept render)
 	// -------------------------------------------------------------------------
 
 	/** Redirect back to a project's Render pack panel with optional flash flags. */
@@ -1562,7 +1679,7 @@ class HGD_Admin {
 		$input = array();
 
 		foreach ( array(
-			'claude_api_key', 'claude_model', 'gemini_api_key', 'gemini_image_model', 'google_maps_api_key', 'plantid_api_key',
+			'claude_api_key', 'claude_model', 'gemini_api_key', 'gemini_image_model', 'render_style', 'google_maps_api_key', 'plantid_api_key',
 			'stripe_secret_key', 'stripe_pub_key', 'stripe_webhook_secret',
 			'github_repo', 'github_token',
 			'github_tag_prefix', 'brand_olive', 'brand_charcoal', 'brand_cream',

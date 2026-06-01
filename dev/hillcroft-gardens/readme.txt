@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,11 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.5.0 =
+* Plan-first pipeline: a new "Plan" step generates a clean top-down garden plan from your sketch, photos and Claude's reading. Iterate it until the layout is right — the approved plan then becomes the primary reference for every render, so they follow the real layout instead of inventing one.
+* Elevations: the render pack now includes scaled rear and side elevation drawings — proper measured guides for the garden alongside the plan.
+* Render style: choose the look of the eye-level renders in Settings — Watercolour painting (default), Photorealistic, or Pencil & light wash. The watercolour cover and hand-drawn plan keep their own styles.
 
 = 1.4.0 =
 * Plant photos: each plant can have a picture. Fetch one automatically from Wikipedia by botanical name (free, properly-licensed), or pick one from the media library. The catalogue list shows a thumbnail on every row.

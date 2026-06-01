@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '10';
+	const SCHEMA_VERSION = '11';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -179,6 +179,7 @@ class HGD_DB {
 			ai_questions LONGTEXT NULL,
 			design_brief LONGTEXT NULL,
 			render_prompt LONGTEXT NULL,
+			plan_prompt LONGTEXT NULL,
 			consultation_paid TINYINT(1) NOT NULL DEFAULT 0,
 			consultation_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',

@@ -74,6 +74,8 @@
 		hgd_chat_send:       'Claude is thinking and updating your brief…',
 		hgd_compose_prompt:  'Claude is composing the design brief…',
 		hgd_generate_render: 'Generating your concept render… this can take up to a minute.',
+		hgd_generate_plan:   'Generating your garden plan… this can take up to a minute.',
+		hgd_compose_plan_prompt: 'Claude is drafting the plan…',
 		hgd_pack_generate_view:  'Generating this view… this can take up to a minute.',
 		hgd_pack_generate_all:   'Generating the full render pack… this can take a couple of minutes. Please keep this tab open.',
 		hgd_pack_seasonal:       'Generating the seasonal views… this can take a minute or two.',

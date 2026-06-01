@@ -101,6 +101,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
 			),
 			array(
+				'icon' => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/>',
+				'title' => __( 'Plan', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Top-down plan, the render reference', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
 				'icon' => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
 				'title' => __( 'Render pack', 'hillcroft-garden-designer' ),
 				'desc'  => __( 'Masterplan, corners, seasons', 'hillcroft-garden-designer' ),

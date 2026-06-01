@@ -52,6 +52,14 @@ class HGD_Render_Pack {
 			'label'         => 'Focal point / feature',
 			'prompt_suffix' => 'Render an eye-level, photorealistic view of the garden\'s focal point / key feature, as a person would see it standing in the garden.',
 		),
+		'elevation_rear' => array(
+			'label'         => 'Elevation — rear boundary',
+			'prompt_suffix' => 'Draw a scaled ELEVATION (a straight-on, head-on orthographic side view, NOT a perspective) of the garden looking square at the rear boundary — showing the back fence/wall, the planting in front of it drawn at true relative heights, and any structures (shed, pergola) in flat elevation. Architectural landscape-elevation style: clean, measured, ink-and-light-wash on white, with a simple height scale. It is a design guide, not a photo.',
+		),
+		'elevation_side' => array(
+			'label'         => 'Elevation — side boundary',
+			'prompt_suffix' => 'Draw a scaled ELEVATION (a straight-on, head-on orthographic side view, NOT a perspective) looking square at one side boundary of the garden — showing levels/steps, the side fence, and planting drawn at true relative heights along its length. Architectural landscape-elevation style: clean, measured, ink-and-light-wash on white, with a simple height scale. It is a design guide, not a photo.',
+		),
 	);
 
 	/**
@@ -108,6 +116,13 @@ class HGD_Render_Pack {
 		$suffix = self::VIEWS[ $view_key ]['prompt_suffix'];
 		$season_fragment = self::SEASONS[ $season ];
 
+		// The eye-level corner views follow the chosen render style (e.g. watercolour).
+		// The masterplan / watercolour / hand-drawn-plan views keep their own fixed look.
+		$style = '';
+		if ( in_array( $view_key, array( 'corner_patio', 'corner_border', 'corner_focal' ), true ) ) {
+			$style = "\n\n" . HGD_Settings::render_style_suffix();
+		}
+
 		// Consistency clause — the heart of keeping the pack coherent with the
 		// approved concept. The reference image carries the actual look; this wording
 		// instructs the model to preserve it across viewpoint / season changes.
@@ -117,14 +132,15 @@ class HGD_Render_Pack {
 
 		return $base . "\n\n" . $suffix . "\n\n"
 			. 'Depict the garden in ' . $season_fragment . ".\n\n"
-			. $consistency;
+			. $consistency . $style;
 	}
 
 	/**
-	 * The consistency anchor: reference attachment ids to pass to Gemini.
+	 * The structural / consistency anchor: reference attachment ids for Gemini.
 	 *
-	 * Prefers the most recent concept 'render'; falls back to the project sketch.
-	 * Returns up to two ids (concept first).
+	 * Priority (plan-first pipeline): the most recent approved 'plan' drawing
+	 * FIRST (the true layout reference), then the most recent concept 'render',
+	 * then the project sketch as a last resort. Returns up to two ids, plan first.
 	 *
 	 * @param int $project_id
 	 * @return int[]
@@ -133,15 +149,25 @@ class HGD_Render_Pack {
 		$project_id = (int) $project_id;
 		$ids = array();
 
+		// 1) Approved plan first — it carries the real, agreed layout.
+		$plans = HGD_Project_Asset::for_project( $project_id, 'plan' );
+		if ( ! empty( $plans ) ) {
+			$latest = end( $plans ); // for_project() returns oldest first.
+			if ( ! empty( $latest['attachment_id'] ) ) {
+				$ids[] = (int) $latest['attachment_id'];
+			}
+		}
+
+		// 2) Most recent concept render — carries the agreed look.
 		$renders = HGD_Project_Asset::for_project( $project_id, 'render' );
 		if ( ! empty( $renders ) ) {
-			// for_project() returns oldest first — take the most recent concept.
 			$latest = end( $renders );
 			if ( ! empty( $latest['attachment_id'] ) ) {
 				$ids[] = (int) $latest['attachment_id'];
 			}
 		}
 
+		// 3) Fall back to the sketch only if we still have nothing.
 		if ( empty( $ids ) ) {
 			$sketches = HGD_Project_Asset::for_project( $project_id, 'sketch' );
 			foreach ( array_slice( $sketches, 0, 2 ) as $sketch ) {
