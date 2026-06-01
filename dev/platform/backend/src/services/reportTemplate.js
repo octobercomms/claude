@@ -455,14 +455,40 @@ function periodsForTimeSeries(template) {
 // Combine current-period source data into one set of totals keyed by metric.
 // AOV / ROAS are recomputed at the end from the summed inputs so an average
 // of averages doesn't sneak in.
+// Metrics that report the SAME underlying number from multiple connectors
+// — summing them double-counts. e.g. WooCommerce.revenue and GA4.revenue
+// both represent "sales £" for the same period (Woo from order totals,
+// GA4 from tracked purchase events). The right answer for a metrics_grid
+// pulling from BOTH sources isn't "Woo + GA4" — it's "pick one canonical
+// source per metric". This list says which metrics behave that way; for
+// each metric here, only the first matching source (by SOURCE_PREFERENCE
+// order) contributes to the sum.
+const SINGLE_SOURCE_METRICS = new Set(['revenue', 'orders', 'conversions', 'aov']);
+const SOURCE_PREFERENCE = ['shopify', 'woocommerce', 'amazon_seller', 'google_ads', 'meta_ads', 'ga4'];
+
 function sumAcrossSources(matches, metricKeys) {
   const totals = {};
+  // For "single-source" metrics, decide up front which source wins for
+  // each metric and only count it from that source.
+  const winnerByMetric = {};
+  for (const mk of metricKeys) {
+    if (!SINGLE_SOURCE_METRICS.has(mk)) continue;
+    const eligible = matches.filter(m => (METRIC_CATALOG[m.type] || {})[mk]);
+    if (!eligible.length) continue;
+    eligible.sort((a, b) => {
+      const ai = SOURCE_PREFERENCE.indexOf(a.type);
+      const bi = SOURCE_PREFERENCE.indexOf(b.type);
+      return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+    });
+    winnerByMetric[mk] = eligible[0].key;
+  }
   for (const m of matches) {
     const catalog = METRIC_CATALOG[m.type] || {};
     for (const mk of metricKeys) {
       const def = catalog[mk];
       if (!def) continue;
       if (mk === 'aov' || mk === 'roas') continue;
+      if (winnerByMetric[mk] && winnerByMetric[mk] !== m.key) continue;
       totals[mk] = (totals[mk] || 0) + def.get(m.data);
       totals[`__format_${mk}`] = def.format;
       totals[`__label_${mk}`] = def.label;
