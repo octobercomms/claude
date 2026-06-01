@@ -381,6 +381,9 @@ export default function ClientDetailPage() {
                         onReset={resetConnector}
                         onConfigSave={handleConfigSave}
                         onAddAnother={handleAddAnother}
+                        onConnectorUpdated={(connectorId, patch) =>
+                          setConnectors(prev => prev.map(c => c.id === connectorId ? { ...c, ...patch } : c))
+                        }
                       />
                     ))}
                   </div>
@@ -857,7 +860,7 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
   );
 }
 
-function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother }) {
+function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopifyOAuth, onEditCredentials, onDelete, onReset, onConfigSave, onAddAnother, onConnectorUpdated }) {
   const isOAuth = OAUTH_TYPES.includes(connector.connector_type);
   const isShopify = SHOPIFY_TYPES.includes(connector.connector_type);
   const isActive = connector.status === 'active';
@@ -878,6 +881,17 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
     try {
       const result = await api.get(`/connectors/${connector.id}/diagnose`);
       setDiagnoseResult(result);
+      // The diagnose endpoint also writes the latest status to the DB.
+      // Push it up so the badge next to the connector title (which reads
+      // from the parent's connectors array) reflects the fresh state
+      // without requiring a page reload.
+      if (result?.status && onConnectorUpdated) {
+        onConnectorUpdated(connector.id, {
+          status: result.status,
+          last_checked: result.last_checked,
+          error_message: result.check?.status === 'error' ? result.check.detail : null,
+        });
+      }
     } catch (err) {
       setDiagnoseResult({ error: err.message });
     } finally {
