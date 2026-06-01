@@ -513,7 +513,7 @@ class HGD_Admin {
 			. '"questions" (an array of specific clarifying questions to confirm you have read the site correctly). '
 			. 'Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
 
-		$result = HGD_Claude::message( $blocks, $system, 2000, $id );
+		$result = HGD_Claude::message( $blocks, $system, 4000, $id );
 
 		if ( is_wp_error( $result ) ) {
 			set_transient( 'hgd_claude_error_' . get_current_user_id(), $result->get_error_message(), 120 );
@@ -587,7 +587,7 @@ class HGD_Admin {
 			. '(a) respond briefly and conversationally, and (b) produce an updated, polished design brief incorporating everything known so far. '
 			. 'Return STRICT JSON: {"reply":"…","brief":"…"}.';
 
-		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 2000, $id );
+		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 4000, $id );
 
 		if ( is_wp_error( $result ) ) {
 			set_transient( 'hgd_chat_error_' . get_current_user_id(), $result->get_error_message(), 120 );
@@ -631,10 +631,21 @@ class HGD_Admin {
 		if ( '' === $text ) {
 			return null;
 		}
+
+		// Strip ```json … ``` / ``` … ``` markdown fences if present.
+		if ( 0 === strpos( $text, '```' ) ) {
+			$text = preg_replace( '/^```[a-zA-Z]*\s*/', '', $text );
+			$text = preg_replace( '/```\s*$/', '', $text );
+			$text = trim( $text );
+		}
+
+		// 1) Strict decode.
 		$decoded = json_decode( $text, true );
 		if ( is_array( $decoded ) ) {
 			return $decoded;
 		}
+
+		// 2) Decode the outermost { … } block.
 		$start = strpos( $text, '{' );
 		$end   = strrpos( $text, '}' );
 		if ( false !== $start && false !== $end && $end > $start ) {
@@ -644,7 +655,52 @@ class HGD_Admin {
 				return $decoded;
 			}
 		}
+
+		// 3) Salvage: the JSON was likely truncated (token limit) or lightly
+		// malformed. Pull out the fields directly so the user still gets a result.
+		$salvaged = array();
+
+		// "reading": "...." — capture up to the next unescaped quote that closes
+		// the value, or to the end of the string if truncated.
+		if ( preg_match( '/"reading"\s*:\s*"(.*?)(?<!\\\\)"\s*(?:,\s*"questions"|}|$)/s', $text, $m ) ) {
+			$salvaged['reading'] = self::unescape_json_fragment( $m[1] );
+		} elseif ( preg_match( '/"reading"\s*:\s*"(.*)$/s', $text, $m ) ) {
+			// Truncated mid-reading — take what we have.
+			$salvaged['reading'] = self::unescape_json_fragment( rtrim( $m[1], '"\\' ) );
+		}
+
+		// "questions": [ "...", "..." ] — grab the array body and pull strings.
+		if ( preg_match( '/"questions"\s*:\s*\[(.*?)(?:\]|$)/s', $text, $m ) ) {
+			$qs = array();
+			if ( preg_match_all( '/"((?:[^"\\\\]|\\\\.)*)"/s', $m[1], $qm ) ) {
+				foreach ( $qm[1] as $q ) {
+					$q = self::unescape_json_fragment( $q );
+					if ( '' !== trim( $q ) ) {
+						$qs[] = $q;
+					}
+				}
+			}
+			$salvaged['questions'] = $qs;
+		}
+
+		if ( ! empty( $salvaged['reading'] ) || ! empty( $salvaged['questions'] ) ) {
+			return $salvaged;
+		}
+
 		return null;
+	}
+
+	/** Best-effort unescape of a JSON string fragment pulled out by regex. */
+	private static function unescape_json_fragment( $s ) {
+		$decoded = json_decode( '"' . $s . '"' );
+		if ( is_string( $decoded ) ) {
+			return $decoded;
+		}
+		return str_replace(
+			array( '\\"', '\\n', '\\r', '\\t', '\\/', '\\\\' ),
+			array( '"', "\n", "\r", "\t", '/', '\\' ),
+			$s
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -703,7 +759,7 @@ class HGD_Admin {
 			. 'Respond ONLY with a single JSON object with exactly two keys: "brief" (the concise design brief) and '
 			. '"prompt" (the single image-generation prompt). Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
 
-		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 2000, $id );
+		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 4000, $id );
 
 		if ( is_wp_error( $result ) ) {
 			set_transient( 'hgd_design_error_' . get_current_user_id(), $result->get_error_message(), 120 );
