@@ -213,12 +213,18 @@ class HGD_Render_Pack {
 			}
 		}
 
-		// 2) Most recent concept render — carries the agreed look.
-		$renders = HGD_Project_Asset::for_project( $project_id, 'render' );
-		if ( ! empty( $renders ) ) {
-			$latest = end( $renders );
-			if ( ! empty( $latest['attachment_id'] ) ) {
-				$ids[] = (int) $latest['attachment_id'];
+		// 2) The agreed look: the APPROVED render if Donna has picked one,
+		// otherwise the most recent concept render.
+		$approved = HGD_Project_Asset::approved_render( $project_id );
+		if ( $approved && ! empty( $approved['attachment_id'] ) ) {
+			$ids[] = (int) $approved['attachment_id'];
+		} else {
+			$renders = HGD_Project_Asset::for_project( $project_id, 'render' );
+			if ( ! empty( $renders ) ) {
+				$latest = end( $renders );
+				if ( ! empty( $latest['attachment_id'] ) ) {
+					$ids[] = (int) $latest['attachment_id'];
+				}
 			}
 		}
 
