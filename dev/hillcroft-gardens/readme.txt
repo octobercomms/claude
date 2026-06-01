@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -35,7 +35,10 @@ WordPress Updates screen.
 
 == Changelog ==
 
-= 1.5.0 =
+= 1.6.0 =
+* Measurements & site plan: a new panel on the Capture step where Donna records the garden's real dimensions — plot width × length, plus a repeatable table of zones (lawn, border, patio, path, water, structure) with their sizes and areas. Areas auto-calculate from width × length, and a running total warns (in amber) if the zones add up to more than the plot, so obvious measurement slips get caught.
+* Draw-on-plan tool: a built-in canvas measuring tool — set the scale by drawing a line over a known distance, then draw rectangles to mark out zones and read their real-world areas straight off the satellite view (or a plain grid). Shapes are saved with the project and reload for editing.
+* Accurate by the numbers: the measured plot size and zone areas now feed directly into the Plan prompt (so the top-down plan is drawn to true dimensions and proportions) and into every render's prompt as a scale reference — a big step towards renders that match the real garden rather than inventing a layout.
 * Plan-first pipeline: a new "Plan" step generates a clean top-down garden plan from your sketch, photos and Claude's reading. Iterate it until the layout is right — the approved plan then becomes the primary reference for every render, so they follow the real layout instead of inventing one.
 * Elevations: the render pack now includes scaled rear and side elevation drawings — proper measured guides for the garden alongside the plan.
 * Render style: choose the look of the eye-level renders in Settings — Watercolour painting (default), Photorealistic, or Pencil & light wash. The watercolour cover and hand-drawn plan keep their own styles.

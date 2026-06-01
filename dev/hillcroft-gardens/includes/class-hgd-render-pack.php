@@ -130,9 +130,19 @@ class HGD_Render_Pack {
 			. 'It is the same garden and the same design — only the viewpoint and/or season change. '
 			. 'Keep fixed features (boundaries, structures, paths, key plants) consistent with the reference.';
 
+		// Factual scale line from the structured measurements (when captured), so
+		// the render respects the real plot size and key zone areas.
+		$scale = '';
+		if ( class_exists( 'HGD_Measure' ) ) {
+			$line = HGD_Measure::render_line( $project );
+			if ( '' !== $line ) {
+				$scale = "\n\nScale reference (keep proportions true to these real dimensions): " . $line;
+			}
+		}
+
 		return $base . "\n\n" . $suffix . "\n\n"
 			. 'Depict the garden in ' . $season_fragment . ".\n\n"
-			. $consistency . $style;
+			. $consistency . $scale . $style;
 	}
 
 	/**

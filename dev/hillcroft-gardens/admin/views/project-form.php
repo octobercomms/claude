@@ -408,6 +408,145 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			</div>
 		<?php endif; ?>
 
+		<?php
+		// ---------------------------------------------------------------
+		// Measurements & site plan (structured dimensions + draw tool)
+		// ---------------------------------------------------------------
+		$hgd_measure = HGD_Measure::get( $project );
+		$hgd_plot_area  = HGD_Measure::plot_area( $hgd_measure );
+		$hgd_zone_total = HGD_Measure::total_zone_area( $hgd_measure );
+		$hgd_exceeds    = HGD_Measure::zones_exceed_plot( $hgd_measure );
+
+		// Optional satellite backdrop for the draw tool.
+		$hgd_sat_url = '';
+		foreach ( HGD_Project_Asset::for_project( $pid, 'pack' ) as $hgd_pack_row ) {
+			if ( isset( $hgd_pack_row['view_key'] ) && 'satellite' === $hgd_pack_row['view_key'] && ! empty( $hgd_pack_row['attachment_id'] ) ) {
+				$hgd_sat_url = (string) wp_get_attachment_image_url( (int) $hgd_pack_row['attachment_id'], 'large' );
+			}
+		}
+		?>
+		<div class="hgd-panel hgd-measure" data-hgd-measure>
+			<h2><?php esc_html_e( 'Measurements & site plan', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Capture the garden’s real dimensions and zone areas as structured data, so the plan, renders and pricing all use precise numbers. Enter them in the table, or draw over the satellite image / grid to measure by scale.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['measure_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Measurements saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( HGD_Measure::has_data( $hgd_measure ) ) : ?>
+				<p class="hgd-measure-readback">
+					<strong><?php
+						if ( $hgd_measure['plot']['w'] > 0 && $hgd_measure['plot']['l'] > 0 ) {
+							echo esc_html( sprintf(
+								/* translators: 1: width 2: length 3: zone count */
+								_n( 'Plot %1$s × %2$s m, %3$d zone', 'Plot %1$s × %2$s m, %3$d zones', count( $hgd_measure['zones'] ), 'hillcroft-garden-designer' ),
+								rtrim( rtrim( number_format( (float) $hgd_measure['plot']['w'], 2 ), '0' ), '.' ),
+								rtrim( rtrim( number_format( (float) $hgd_measure['plot']['l'], 2 ), '0' ), '.' ),
+								count( $hgd_measure['zones'] )
+							) );
+						} else {
+							echo esc_html( sprintf(
+								/* translators: %d zone count */
+								_n( '%d zone captured', '%d zones captured', count( $hgd_measure['zones'] ), 'hillcroft-garden-designer' ),
+								count( $hgd_measure['zones'] )
+							) );
+						}
+					?></strong>
+				</p>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form hgd-measure-form" data-hgd-measure-form>
+				<input type="hidden" name="action" value="hgd_save_measurements" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+				<?php wp_nonce_field( 'hgd_save_measurements_' . $pid ); ?>
+
+				<?php $hgd_measure_seed = wp_json_encode( $hgd_measure ); ?>
+				<input type="hidden" name="measurements_json" value="" data-hgd-measure-json />
+				<script type="application/json" data-hgd-measure-seed><?php echo $hgd_measure_seed ? $hgd_measure_seed : '{}'; ?></script>
+				<?php if ( '' !== $hgd_sat_url ) : ?>
+					<input type="hidden" data-hgd-measure-sat value="<?php echo esc_url( $hgd_sat_url ); ?>" />
+				<?php endif; ?>
+
+				<div class="hgd-grid">
+					<label><span><?php esc_html_e( 'Plot width (m)', 'hillcroft-garden-designer' ); ?></span>
+						<input type="number" step="0.01" min="0" name="plot_w" data-hgd-plot-w value="<?php echo esc_attr( $hgd_measure['plot']['w'] > 0 ? $hgd_measure['plot']['w'] : '' ); ?>" /></label>
+					<label><span><?php esc_html_e( 'Plot length (m)', 'hillcroft-garden-designer' ); ?></span>
+						<input type="number" step="0.01" min="0" name="plot_l" data-hgd-plot-l value="<?php echo esc_attr( $hgd_measure['plot']['l'] > 0 ? $hgd_measure['plot']['l'] : '' ); ?>" /></label>
+				</div>
+				<label class="hgd-full"><span><?php esc_html_e( 'Scale note (optional)', 'hillcroft-garden-designer' ); ?></span>
+					<input type="text" name="scale_note" value="<?php echo esc_attr( $hgd_measure['scale_note'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. measured on site / calibrated from satellite', 'hillcroft-garden-designer' ); ?>" /></label>
+
+				<h3><?php esc_html_e( 'Zones', 'hillcroft-garden-designer' ); ?></h3>
+				<table class="hgd-measure-table widefat" data-hgd-zone-table>
+					<thead>
+						<tr>
+							<th><?php esc_html_e( 'Label', 'hillcroft-garden-designer' ); ?></th>
+							<th><?php esc_html_e( 'Type', 'hillcroft-garden-designer' ); ?></th>
+							<th><?php esc_html_e( 'Width (m)', 'hillcroft-garden-designer' ); ?></th>
+							<th><?php esc_html_e( 'Length (m)', 'hillcroft-garden-designer' ); ?></th>
+							<th><?php esc_html_e( 'Area (m²)', 'hillcroft-garden-designer' ); ?></th>
+							<th></th>
+						</tr>
+					</thead>
+					<tbody data-hgd-zone-rows>
+						<?php
+						$hgd_zone_rows = ! empty( $hgd_measure['zones'] ) ? $hgd_measure['zones'] : array( array( 'label' => '', 'type' => 'lawn', 'w' => 0, 'l' => 0, 'area_m2' => 0 ) );
+						foreach ( $hgd_zone_rows as $hgd_z ) : ?>
+							<tr data-hgd-zone-row>
+								<td><input type="text" name="zone_label[]" value="<?php echo esc_attr( $hgd_z['label'] ); ?>" data-hgd-z-label /></td>
+								<td>
+									<select name="zone_type[]" data-hgd-z-type>
+										<?php foreach ( HGD_Measure::ZONE_TYPES as $hgd_tk ) : ?>
+											<option value="<?php echo esc_attr( $hgd_tk ); ?>" <?php selected( isset( $hgd_z['type'] ) ? $hgd_z['type'] : 'lawn', $hgd_tk ); ?>><?php echo esc_html( HGD_Measure::type_label( $hgd_tk ) ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</td>
+								<td><input type="number" step="0.01" min="0" name="zone_w[]" value="<?php echo esc_attr( (float) $hgd_z['w'] > 0 ? $hgd_z['w'] : '' ); ?>" data-hgd-z-w /></td>
+								<td><input type="number" step="0.01" min="0" name="zone_l[]" value="<?php echo esc_attr( (float) $hgd_z['l'] > 0 ? $hgd_z['l'] : '' ); ?>" data-hgd-z-l /></td>
+								<td><input type="number" step="0.01" min="0" name="zone_area[]" value="<?php echo esc_attr( (float) $hgd_z['area_m2'] > 0 ? $hgd_z['area_m2'] : '' ); ?>" data-hgd-z-area /></td>
+								<td><button type="button" class="hgd-measure-del" data-hgd-zone-del aria-label="<?php esc_attr_e( 'Remove zone', 'hillcroft-garden-designer' ); ?>">×</button></td>
+							</tr>
+						<?php endforeach; ?>
+					</tbody>
+				</table>
+				<p>
+					<button type="button" class="hgd-pill hgd-pill-ghost" data-hgd-zone-add><?php esc_html_e( '+ Add zone', 'hillcroft-garden-designer' ); ?></button>
+				</p>
+
+				<div class="hgd-measure-summary" data-hgd-measure-summary>
+					<p class="hgd-muted">
+						<?php esc_html_e( 'Plot area:', 'hillcroft-garden-designer' ); ?>
+						<strong data-hgd-sum-plot><?php echo esc_html( $hgd_plot_area > 0 ? number_format( $hgd_plot_area, 2 ) . ' m²' : '—' ); ?></strong>
+						&middot;
+						<?php esc_html_e( 'Total zone area:', 'hillcroft-garden-designer' ); ?>
+						<strong data-hgd-sum-zones><?php echo esc_html( number_format( $hgd_zone_total, 2 ) ); ?></strong> m²
+					</p>
+					<p class="hgd-flash hgd-flash-warn<?php echo $hgd_exceeds ? '' : ' hgd-hidden'; ?>" data-hgd-warn>
+						<?php esc_html_e( 'Zones exceed plot area — check your measurements.', 'hillcroft-garden-designer' ); ?>
+					</p>
+				</div>
+
+				<div class="hgd-measure-canvas-wrap hgd-hidden" data-hgd-canvas-wrap>
+					<div class="hgd-measure-toolbar">
+						<button type="button" class="hgd-pill hgd-pill-ghost" data-hgd-tool="scale"><?php esc_html_e( 'Set scale', 'hillcroft-garden-designer' ); ?></button>
+						<button type="button" class="hgd-pill hgd-pill-ghost" data-hgd-tool="zone"><?php esc_html_e( 'Draw zone', 'hillcroft-garden-designer' ); ?></button>
+						<button type="button" class="hgd-pill hgd-pill-ghost" data-hgd-canvas-clear><?php esc_html_e( 'Clear drawing', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted" data-hgd-canvas-status></span>
+					</div>
+					<div class="hgd-measure-canvas-frame">
+						<canvas data-hgd-canvas width="640" height="480"></canvas>
+					</div>
+					<p class="hgd-muted"><?php esc_html_e( 'First click “Set scale”, draw a line over a known distance and type its real length. Then click “Draw zone” and drag a rectangle for each area — its real size fills the table automatically.', 'hillcroft-garden-designer' ); ?></p>
+				</div>
+
+				<div class="hgd-form-actions">
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save measurements', 'hillcroft-garden-designer' ); ?></button>
+					<button type="button" class="hgd-pill hgd-pill-ghost hgd-hidden" data-hgd-canvas-toggle><?php esc_html_e( 'Draw on plan', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+			</form>
+		</div>
+
 		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
 		<?php endif; // capture step ?>
 
