@@ -139,6 +139,12 @@ ${section.prompt || 'Summarise the data above in 2-3 sentences.'}
 
 Length: ${section.id === 'exec_summary' ? 'maximum 120 words' : 'maximum 60 words — two or three short sentences'}. Be concise. Lead with the single most important point. No filler, no hedging, no restating what's in the table headers.
 
+Strict rules on numbers:
+- Quote only figures that appear in the "Data slice for this section" block above. If a number isn't in that block, do not write it.
+- Do not invent year-on-year comparisons by treating prior-year totals as "the equivalent period" — when you only have one period of data, just describe that period. Don't make up "vs last year" framings.
+- Do not infer trends across years unless the slice explicitly gives you matching windows (e.g. YTD vs YTD).
+- It's better to write nothing than to write a misleading comparison.
+
 Respond with just the paragraph(s) — prose only. No preamble, no heading, no markdown tables (lines of pipes/dashes are rendered as raw text, not parsed as a table), no bullet lists, no numbered lists, no code blocks. If you need to reference numbers, put them inline in sentences. If a data table is needed, it belongs in a separate metrics_grid section, not in narrative prose.`;
 
   // Preview path: re-use a previously generated paragraph when the inputs
