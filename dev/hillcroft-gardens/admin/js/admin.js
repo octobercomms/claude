@@ -61,3 +61,66 @@
 		} );
 	} );
 }() );
+
+/* Loading overlay for slow actions (Claude / Gemini can take ~60s). On submit
+   of a known long-running form, lock the page with a branded spinner + message
+   until it finishes (the action redirects + reloads the page on completion). */
+( function () {
+	'use strict';
+
+	// action value -> message shown while it runs.
+	var MESSAGES = {
+		hgd_claude_read:     'Claude is reading your sketch and photos…',
+		hgd_chat_send:       'Claude is thinking and updating your brief…',
+		hgd_compose_prompt:  'Claude is composing the design brief…',
+		hgd_generate_render: 'Generating your concept render… this can take up to a minute.',
+		hgd_pack_generate_view:  'Generating this view… this can take up to a minute.',
+		hgd_pack_generate_all:   'Generating the full render pack… this can take a couple of minutes. Please keep this tab open.',
+		hgd_pack_seasonal:       'Generating the seasonal views… this can take a minute or two.',
+		hgd_pack_fetch_satellite:'Fetching the satellite view…',
+		hgd_upload_assets:   'Uploading your images…',
+		hgd_plants_import:   'Importing plants…',
+		hgd_proposal_send:   'Sending the proposal…'
+	};
+
+	function buildOverlay() {
+		var o = document.createElement( 'div' );
+		o.className = 'hgd-loading';
+		o.setAttribute( 'role', 'alert' );
+		o.setAttribute( 'aria-live', 'assertive' );
+		o.innerHTML = '<div class="hgd-loading-box">' +
+			'<div class="hgd-spinner" aria-hidden="true"></div>' +
+			'<p class="hgd-loading-msg"></p>' +
+			'<p class="hgd-loading-sub">Please don’t close or refresh this page.</p>' +
+			'</div>';
+		return o;
+	}
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var overlay = null;
+
+		document.addEventListener( 'submit', function ( e ) {
+			var form = e.target;
+			if ( ! form || form.nodeName !== 'FORM' ) { return; }
+			var actionField = form.querySelector( 'input[name="action"]' );
+			if ( ! actionField ) { return; }
+			var msg = MESSAGES[ actionField.value ];
+			if ( ! msg ) { return; }
+
+			if ( ! overlay ) { overlay = buildOverlay(); document.body.appendChild( overlay ); }
+			overlay.querySelector( '.hgd-loading-msg' ).textContent = msg;
+			overlay.classList.add( 'is-open' );
+			document.body.style.overflow = 'hidden';
+
+			// Disable the submit button to prevent double-clicks (after a tick so
+			// the value still posts).
+			var btn = form.querySelector( 'button[type="submit"], input[type="submit"]' );
+			if ( btn ) { setTimeout( function () { btn.setAttribute( 'disabled', 'disabled' ); }, 10 ); }
+		}, true );
+
+		// If the user navigates back to a cached page, make sure the overlay is gone.
+		window.addEventListener( 'pageshow', function () {
+			if ( overlay ) { overlay.classList.remove( 'is-open' ); document.body.style.overflow = ''; }
+		} );
+	} );
+}() );
