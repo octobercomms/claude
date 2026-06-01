@@ -137,6 +137,8 @@ ${chat ? `\nRecent account-manager conversations:\n${chat}\n` : ''}
 Section instruction:
 ${section.prompt || 'Summarise the data above in 2-3 sentences.'}
 
+Length: ${section.id === 'exec_summary' ? 'maximum 120 words' : 'maximum 60 words — two or three short sentences'}. Be concise. Lead with the single most important point. No filler, no hedging, no restating what's in the table headers.
+
 Respond with just the paragraph(s) — prose only. No preamble, no heading, no markdown tables (lines of pipes/dashes are rendered as raw text, not parsed as a table), no bullet lists, no numbered lists, no code blocks. If you need to reference numbers, put them inline in sentences. If a data table is needed, it belongs in a separate metrics_grid section, not in narrative prose.`;
 
   // Preview path: re-use a previously generated paragraph when the inputs
@@ -150,7 +152,9 @@ Respond with just the paragraph(s) — prose only. No preamble, no heading, no m
   }
 
   const msg = await claudeService.callClaude({
-    max_tokens: section.id === 'exec_summary' ? 1024 : 512,
+    // Word caps above translate to roughly 200 / 100 tokens. Keep some
+    // headroom so a tight 120-word executive summary isn't truncated.
+    max_tokens: section.id === 'exec_summary' ? 320 : 160,
     system: SYSTEM_PROMPT,
     user: userPrompt,
   });

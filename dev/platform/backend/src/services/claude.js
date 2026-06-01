@@ -152,6 +152,8 @@ Default to propose_template. The AM can always iterate on a draft, but cannot it
 
 Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
 
+Ordering: when a section is analysis or commentary on data shown in another section (e.g. a "Paid Traffic — Analysis" narrative paired with a "Paid Traffic" data table), place the narrative section BEFORE the data table it discusses. The reader should see the takeaway first, then the supporting numbers. The Executive Summary always goes first.
+
 If the AM attaches a PDF or image (a sample report, screenshot, or layout), read it carefully and propose a template that recreates its structure as faithfully as possible: same section titles in the same order, same time grains (year-on-year vs month-on-month), same source attributions where you can identify them. Map each section to the closest type (narrative / metrics_grid / connector_table / bar_chart / position_distribution) and pick metric keys ONLY from the catalog for connectors this client actually has. If a section in the sample uses a connector the client doesn't have, include it anyway and flag it briefly in your reply. Skip purely decorative blocks (cover header, footer) — those are rendered automatically.
 
 Brief replies. No long explanations. Use British English.`;

@@ -131,7 +131,7 @@ ${buildFontCSS()}
 body {
   font-family: 'Brockmann', Arial, sans-serif;
   color: #000000;
-  font-size: 8pt;
+  font-size: 12pt;
   line-height: 1.4;
   background: white;
 }
@@ -203,18 +203,18 @@ thead { display: table-header-group; } /* repeat table headers on each page */
   padding-left: 8pt;
   border-left: 2pt solid #E7CD41;
 }
-.metrics-table th { background: #f3f3f3; font-weight: 700; padding: 5pt 8pt; border: 0.5pt solid #ccc; font-size: 8pt; }
-.metrics-table td { padding: 5pt 8pt; border: 0.5pt solid #eee; }
+.metrics-table th { background: #f3f3f3; font-weight: 700; padding: 5pt 8pt; border: 0.5pt solid #ccc; font-size: 9pt; }
+.metrics-table td { padding: 5pt 8pt; border: 0.5pt solid #eee; font-size: 9pt; }
 
 /* ---- Tables ---- */
-table { border-collapse: collapse; font-size: 8pt; margin-bottom: 16pt; }
+table { border-collapse: collapse; font-size: 9pt; margin-bottom: 16pt; }
 th {
   background: #d9d9d9;
   font-weight: 700;
   padding: 5pt;
   border: 1pt solid #000;
   text-align: left;
-  font-size: 8pt;
+  font-size: 9pt;
   white-space: nowrap;
 }
 td {
@@ -231,13 +231,13 @@ tr.alt > td { background: #f7f7f7; }
 .metrics-row { display: flex; gap: 0; margin-bottom: 16pt; border: 1pt solid #000; }
 .metric-cell { flex: 1; padding: 8pt 10pt; border-right: 1pt solid #000; }
 .metric-cell:last-child { border-right: none; }
-.metric-cell .val { font-size: 14pt; font-weight: 700; }
-.metric-cell .lbl { font-size: 7pt; color: #808080; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2pt; }
-.metric-cell .delta { font-size: 8pt; font-weight: 600; margin-top: 3pt; }
+.metric-cell .val { font-size: 16pt; font-weight: 700; }
+.metric-cell .lbl { font-size: 9pt; color: #555; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3pt; font-weight: 600; }
+.metric-cell .delta { font-size: 10pt; font-weight: 600; margin-top: 4pt; }
 .metric-cell .delta.up { color: #2e7d32; }
 .metric-cell .delta.down { color: #c62828; }
 .metric-cell .delta.flat { color: #808080; }
-.metric-cell .delta-prev { font-size: 7pt; color: #808080; margin-top: 1pt; }
+.metric-cell .delta-prev { font-size: 9pt; color: #808080; margin-top: 1pt; }
 
 /* Charts */
 .chart-block { margin-bottom: 18pt; }
