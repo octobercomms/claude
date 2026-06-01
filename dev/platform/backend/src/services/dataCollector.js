@@ -89,14 +89,39 @@ async function collectClientData(clientId, periodStart, periodEnd) {
       console.error(`Data collection failed for ${key}:`, err.message);
       errors[key] = err.message;
 
-      await pool.query(
-        'UPDATE connectors SET status = $1, error_message = $2 WHERE id = $3',
-        ['error', err.message, connector.id]
-      );
+      // Only flap the badge to 'error' on credential / auth failures —
+      // the things an AM actually needs to act on (re-auth, regenerate
+      // key, fix permissions). Rate limits, 5xx, network blips and other
+      // transient issues happen frequently during multi-period
+      // time-series fetches and shouldn't toggle the badge red and back
+      // every few minutes. Record the error message either way so the
+      // diagnose panel still surfaces what went wrong.
+      const isAuthFailure = looksLikeAuthFailure(err);
+      if (isAuthFailure) {
+        await pool.query(
+          'UPDATE connectors SET status = $1, error_message = $2 WHERE id = $3',
+          ['error', err.message, connector.id]
+        );
+      } else {
+        await pool.query(
+          'UPDATE connectors SET error_message = $1 WHERE id = $2',
+          [err.message, connector.id]
+        );
+      }
     }
   }
 
   return { data: results, errors };
+}
+
+// Heuristic: does this error look like an auth/credential problem the
+// AM needs to action, vs a transient API hiccup? Checks both the HTTP
+// status (when surfaced via axios) and the message text.
+function looksLikeAuthFailure(err) {
+  const status = err?.response?.status;
+  if (status === 401 || status === 403) return true;
+  const msg = (err?.message || '').toLowerCase();
+  return /\b(unauthori[sz]ed|forbidden|invalid[_ ]?(?:token|api[_ ]?key|grant|client)|token[_ ]?expired|expired[_ ]?token|access[_ ]?denied|permission[_ ]?denied|insufficient[_ ]?scope|not[_ ]?authori[sz]ed)\b/.test(msg);
 }
 
 async function collectSEOData(clientId) {
