@@ -12,20 +12,20 @@ git reset --hard origin/main
 echo "    HEAD is now: $(git log --oneline -1)"
 
 echo "==> Running migrations..."
-cd "$SOURCE_DIR/platform/backend"
+cd "$SOURCE_DIR/dev/platform/backend"
 node migrations/run.js
 
 echo "==> Installing backend dependencies..."
-cd "$SOURCE_DIR/platform/backend"
+cd "$SOURCE_DIR/dev/platform/backend"
 npm install --omit=dev --silent
 
 echo "==> Rebuilding frontend..."
-cd "$SOURCE_DIR/platform/frontend"
+cd "$SOURCE_DIR/dev/platform/frontend"
 npm install --silent
 npm run build
 
 echo "==> Publishing frontend..."
-rsync -a --delete "$SOURCE_DIR/platform/frontend/dist/" "$FRONTEND_DIST/"
+rsync -a --delete "$SOURCE_DIR/dev/platform/frontend/dist/" "$FRONTEND_DIST/"
 echo "    Published: $(ls "$FRONTEND_DIST"/assets/*.js 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
 
 echo "==> Restarting backend..."
