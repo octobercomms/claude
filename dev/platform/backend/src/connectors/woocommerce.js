@@ -30,6 +30,13 @@ async function fetchData(credentials, params) {
   // regardless of true volume. Loop through pages — Woo returns
   // X-WP-TotalPages so we know when to stop. Hard cap at 50 pages /
   // 5,000 orders so a runaway query can't tie up the worker.
+  // status: 'any' was including cancelled, refunded, failed and pending
+  // orders alongside the real commercial ones — which inflated counts and
+  // (because refunded orders keep their original `total`) inflated revenue
+  // by the full pre-refund amount on top. Restrict to processing and
+  // completed (the two Woo statuses for orders that actually contributed
+  // revenue), then subtract any partial-refund amounts so the net is
+  // accurate.
   const PER_PAGE = 100;
   const MAX_PAGES = 50;
   const orders = [];
@@ -42,15 +49,11 @@ async function fetchData(credentials, params) {
         before: `${endDate}T23:59:59`,
         per_page: PER_PAGE,
         page,
-        status: 'any',
+        status: 'processing,completed',
       },
     });
     orders.push(...res.data);
     lastPageSize = res.data.length;
-    // X-WP-TotalPages tells us when to stop. Some Woo installs / caching
-    // layers strip custom headers though — fall back to "stop when the
-    // page returned fewer than PER_PAGE items" so we don't give up after
-    // page 1 just because the header is missing.
     totalPages = parseInt(res.headers['x-wp-totalpages'] || '0', 10);
     if (lastPageSize < PER_PAGE) break;
     if (totalPages && page >= totalPages) break;
@@ -59,7 +62,15 @@ async function fetchData(credentials, params) {
 
   const productsRes = await client.get('/products', { params: { per_page: 50, status: 'publish' } });
 
-  const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+  // Net revenue = sum of order totals minus any refund amounts already
+  // recorded against those orders. Woo stores refunds as negative-total
+  // child records in `order.refunds`, with `total` as a negative string
+  // like "-25.00". Adding them sums to the net.
+  const totalRevenue = orders.reduce((sum, o) => {
+    const orderTotal = parseFloat(o.total || 0);
+    const refundTotal = (o.refunds || []).reduce((r, ref) => r + parseFloat(ref.total || 0), 0);
+    return sum + orderTotal + refundTotal;
+  }, 0);
 
   return {
     period: { start: startDate, end: endDate },

@@ -388,10 +388,14 @@ function rangeForOffset({ periodStart, periodEnd, grain, offset }) {
     const ref = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth() - offset, 1));
     const start = ref;
     const lastDay = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth() + 1, 0));
-    // The current period may be a partial month (mid-month preview); keep
-    // the user-specified end for offset 0 so the row matches the rest of
-    // the report. Past months always run full calendar month.
-    const end = offset === 0 ? endDate : lastDay;
+    // Current month: end at min(periodEnd, lastDay of month). This handles
+    // both partial-month previews (April 15 → row ends April 15) AND
+    // weird user-chosen ranges that bleed into the next month (April 30 →
+    // May 30 should still produce an April-only row, not April 1 → May 30).
+    // Past months always run their full calendar month.
+    const end = offset === 0
+      ? (endDate.getTime() < lastDay.getTime() ? endDate : lastDay)
+      : lastDay;
     const sameYear = ref.getUTCFullYear() === startDate.getUTCFullYear();
     const label = ref.toLocaleString('en-GB', sameYear ? { month: 'short' } : { month: 'short', year: 'numeric' });
     return { start: ymd(start), end: ymd(end), label };
