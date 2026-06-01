@@ -24,19 +24,34 @@ async function fetchData(credentials, params) {
   const { startDate, endDate } = params;
   const client = getClient(credentials);
 
-  const [ordersRes, productsRes] = await Promise.all([
-    client.get('/orders', {
+  // WooCommerce's /orders endpoint caps per_page at 100 and silently
+  // truncates without paginating. For a year-long range (used by the
+  // yearly time-series rows) the result was always "exactly 100 orders"
+  // regardless of true volume. Loop through pages — Woo returns
+  // X-WP-TotalPages so we know when to stop. Hard cap at 50 pages /
+  // 5,000 orders so a runaway query can't tie up the worker.
+  const PER_PAGE = 100;
+  const MAX_PAGES = 50;
+  const orders = [];
+  let totalPages = 1;
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await client.get('/orders', {
       params: {
         after: `${startDate}T00:00:00`,
         before: `${endDate}T23:59:59`,
-        per_page: 100,
+        per_page: PER_PAGE,
+        page,
         status: 'any',
       },
-    }),
-    client.get('/products', { params: { per_page: 50, status: 'publish' } }),
-  ]);
+    });
+    orders.push(...res.data);
+    totalPages = parseInt(res.headers['x-wp-totalpages'] || '1', 10);
+    if (page >= totalPages || !res.data.length) break;
+  }
+  const truncated = totalPages > MAX_PAGES;
 
-  const orders = ordersRes.data;
+  const productsRes = await client.get('/products', { params: { per_page: 50, status: 'publish' } });
+
   const totalRevenue = orders.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
 
   return {
@@ -45,6 +60,7 @@ async function fetchData(credentials, params) {
       total_orders: orders.length,
       total_revenue: totalRevenue.toFixed(2),
       avg_order_value: orders.length ? (totalRevenue / orders.length).toFixed(2) : '0.00',
+      truncated: truncated || undefined,
     },
     orders: orders.slice(0, 50),
     top_products: productsRes.data.slice(0, 10),
