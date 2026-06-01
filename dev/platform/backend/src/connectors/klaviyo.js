@@ -29,18 +29,21 @@ async function fetchData(credentials, params) {
   const startIso = `${startDate}T00:00:00Z`;
   const endIso = `${endDate}T23:59:59Z`;
 
+  // The campaigns endpoint rejects page[size] — Klaviyo error:
+  // "'page_size' is not a valid field for the resource 'campaign'".
+  // Use Klaviyo's default page size and (if we need more) follow the
+  // next-cursor link. Metrics doesn't accept it either on this revision,
+  // so leave it off too — the default size is plenty for both.
   const [campaignsRes, metricsRes] = await Promise.all([
     axios.get('https://a.klaviyo.com/api/campaigns/', {
       headers,
       params: {
         'filter': `and(equals(messages.channel,'email'),greater-or-equal(scheduled_at,${startIso}),less-or-equal(scheduled_at,${endIso}))`,
         'fields[campaign]': 'name,status,scheduled_at',
-        'page[size]': 50,
       },
     }).catch(e => { throw klaviyoError('GET /campaigns/', e, { startIso, endIso }); }),
     axios.get('https://a.klaviyo.com/api/metrics/', {
       headers,
-      params: { 'page[size]': 100 },
     }).catch(e => { throw klaviyoError('GET /metrics/', e); }),
   ]);
 
