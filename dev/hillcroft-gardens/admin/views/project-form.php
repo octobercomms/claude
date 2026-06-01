@@ -737,6 +737,8 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
 					);
 				?></div>
+			<?php elseif ( 'nophoto' === $render_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Choose one of your uploaded site photos to design into first.', 'hillcroft-garden-designer' ); ?></div>
 			<?php elseif ( 'api' === $render_error || 'save' === $render_error ) :
 				$re = get_transient( 'hgd_render_error_' . get_current_user_id() ); delete_transient( 'hgd_render_error_' . get_current_user_id() ); ?>
 				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $re ? $re : __( 'Could not generate a render.', 'hillcroft-garden-designer' ) ); ?></div>
@@ -790,6 +792,49 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				<p class="hgd-muted"><?php esc_html_e( 'No renders yet.', 'hillcroft-garden-designer' ); ?></p>
 			<?php endif; ?>
 		</div>
+
+		<?php
+		// Photo-inpainting: design the scheme INTO one of the client's real site photos.
+		$hgd_site_photos = array_filter( (array) $assets, function ( $a ) {
+			return in_array( ( isset( $a['role'] ) ? $a['role'] : '' ), array( 'photo', 'other' ), true );
+		} );
+		?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Design into a site photo', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Generate a render straight onto one of your real site photos — same viewpoint, house and boundaries — with only the garden redesigned to the scheme. This is the most convincing "after" for the client. May take up to a minute; the result is added to the renders above.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( ! HGD_Gemini::is_configured() ) : ?>
+				<p class="hgd-muted"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a Gemini API key under %s to enable this.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></p>
+			<?php elseif ( empty( $hgd_site_photos ) ) : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'Upload one or more site photos on the Capture step first — then pick one here to design into.', 'hillcroft-garden-designer' ); ?></p>
+			<?php else : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="hgd_generate_photo_render" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+					<?php wp_nonce_field( 'hgd_generate_photo_render_' . $pid ); ?>
+					<div class="hgd-photo-picker">
+						<?php $hgd_first = true; foreach ( $hgd_site_photos as $hgd_photo ) : ?>
+							<label class="hgd-photo-choice">
+								<input type="radio" name="base_photo_id" value="<?php echo esc_attr( (int) $hgd_photo['attachment_id'] ); ?>" <?php checked( $hgd_first ); $hgd_first = false; ?> />
+								<?php echo wp_get_attachment_image( (int) $hgd_photo['attachment_id'], 'medium' ); ?>
+							</label>
+						<?php endforeach; ?>
+					</div>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Design into this photo', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + the selected photo (and your plan, if any).', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+			<?php endif; ?>
+		</div>
+
 		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
 		<?php endif; // renders step ?>
 

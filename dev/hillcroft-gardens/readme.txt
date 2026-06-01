@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.6.0
+Stable tag: 1.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.7.0 =
+* Design into a site photo: a new render mode on the Renders step that generates the scheme straight onto one of the client's real site photos — keeping the same camera viewpoint, the house, fences and boundaries, ground levels and sky, and redesigning only the garden within the frame. It's the most convincing "after" you can show a client, because it's unmistakably *their* garden. Pick any uploaded photo, press "Design into this photo", and the result joins your concept renders.
+* The photo render uses the design/render prompt, the chosen photo as the in-place edit base, your approved plan as a layout guide (when present), and the captured measurements as a scale reference — so it stays true to the real space.
 
 = 1.6.0 =
 * Measurements & site plan: a new panel on the Capture step where Donna records the garden's real dimensions — plot width × length, plus a repeatable table of zones (lawn, border, patio, path, water, structure) with their sizes and areas. Areas auto-calculate from width × length, and a running total warns (in amber) if the zones add up to more than the plot, so obvious measurement slips get caught.
