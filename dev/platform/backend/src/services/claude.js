@@ -98,6 +98,8 @@ async function chatBuildReportTemplate({ client, reportType, availableConnectors
                     dimension: { type: 'string' },
                     metric: { type: 'string' },
                     compare: { type: 'string', enum: ['yoy'], description: 'Set to "yoy" on a metrics_grid section to show this period vs the same period one year ago, with delta %. Costs an extra fetch from every source in the section, so use it only when the AM asks for year-on-year — not by default.' },
+                    time_grain: { type: 'string', enum: ['monthly', 'weekly', 'yearly'], description: 'Set on a metrics_grid to render one row per time period (most recent first), columns = metrics. Use "monthly" for a Month-on-Month table, "yearly" for a Year-on-Year table with one row per calendar year, "weekly" for a 4-6 week trend. Each historical period costs an extra connector fetch — keep `periods` small.' },
+                    periods: { type: 'number', description: 'Used with time_grain. Number of rows / time periods to render, including the current one. 1–12. Defaults to 3.' },
                   },
                   required: ['id', 'title', 'type'],
                 },
@@ -133,6 +135,12 @@ A template is an ordered list of sections. Each section is one of:
 - position_distribution: { id, title, type: "position_distribution" }  (SEO ranking buckets — Top 3 / 4-10 / 11-20 / 21-50 / 51-100 / 100+)
 
 YoY comparisons: a metrics_grid can include compare: "yoy" to show the same period one year earlier with a delta %. Use it whenever the AM mentions "YoY", "year-on-year", "vs last year", or has a section titled with those words. Only metrics_grid supports comparison — not tables or charts.
+
+Time-series tables: a metrics_grid can also set time_grain ("monthly" | "weekly" | "yearly") with periods: N to render one row per time period (most recent first), columns = metrics. Examples:
+- "Month-on-Month, last 3 months" → time_grain: "monthly", periods: 3 → rows: this month, last month, month before.
+- "Year-on-Year, last 5 years" → time_grain: "yearly", periods: 5 → rows: this year (YTD), 2024, 2023, 2022, 2021. The current year's row uses the report period end date as its end; prior years run Jan 1 – Dec 31.
+- "Last 6 weeks" → time_grain: "weekly", periods: 6.
+Use time_grain whenever the AM describes rows as time periods rather than sources. Don't combine time_grain with compare:"yoy" — they conflict; time_grain wins. Keep periods small (3–6 is the sweet spot) because each historical row costs a fresh connector fetch.
 
 Source spec: ["*"] means "everything available". An entry like { type: "shopify" } matches all Shopify connectors regardless of store; { type: "shopify", storeLabel: "UK B2C" } matches that specific store.
 

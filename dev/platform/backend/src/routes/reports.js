@@ -267,6 +267,40 @@ router.post('/preview', async (req, res) => {
       }
     }
 
+    // Time-series sections (time_grain + periods) — fetch one slice per
+    // historical period in parallel, reusing the per-period preview
+    // cache so iterating on the template doesn't re-pull every time.
+    const seriesPlan = reportTemplate.periodsForTimeSeries(template);
+    const rawDataByPeriod = { monthly: {}, weekly: {}, yearly: {} };
+    const seriesFetches = [];
+    for (const grain of Object.keys(seriesPlan)) {
+      for (const offset of seriesPlan[grain]) {
+        if (offset === 0) {
+          rawDataByPeriod[grain][0] = rawData;
+          continue;
+        }
+        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
+        const k = previewCache.rawKey({ clientId: client_id, reportType: report_type, periodStart: range.start, periodEnd: range.end });
+        const cached = previewCache.getRawData(k);
+        if (cached) {
+          rawDataByPeriod[grain][offset] = cached.value.data;
+          continue;
+        }
+        seriesFetches.push(
+          dataCollector.collectClientData(client_id, range.start, range.end)
+            .then(r => {
+              previewCache.setRawData(k, { data: r.data, errors: r.errors });
+              rawDataByPeriod[grain][offset] = r.data;
+            })
+            .catch(err => {
+              console.error(`[preview] time-series ${grain}/${offset} (${range.start}..${range.end}) failed:`, err.message);
+              rawDataByPeriod[grain][offset] = {};
+            })
+        );
+      }
+    }
+    if (seriesFetches.length) await Promise.all(seriesFetches);
+
     // Wrap the narrative cache as a small adapter so templateRenderer
     // doesn't need to know about the cache layout — it just calls
     // narrativeCache.keyFor / .get / .set.
@@ -292,7 +326,7 @@ router.post('/preview', async (req, res) => {
       : `${new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
     const resolved = await templateRenderer.resolveTemplate({
-      template, client, period, rawData, rawDataPrev, seoData, chatHistory: [], narrativeCache,
+      template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory: [], narrativeCache,
     });
 
     const html = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });

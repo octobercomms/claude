@@ -13,11 +13,11 @@ const tpl = require('./reportTemplate');
 
 const SYSTEM_PROMPT = 'You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.';
 
-async function resolveTemplate({ template, client, period, rawData, rawDataPrev, seoData, chatHistory = [], narrativeCache }) {
+async function resolveTemplate({ template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory = [], narrativeCache }) {
   const resolved = [];
   for (const section of template.sections) {
     try {
-      const r = await resolveSection(section, { client, period, rawData, rawDataPrev, seoData, chatHistory, narrativeCache });
+      const r = await resolveSection(section, { client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory, narrativeCache });
       if (r) resolved.push(r);
     } catch (err) {
       console.error(`[templateRenderer] section "${section.id}" failed:`, err.message);
@@ -170,8 +170,8 @@ function previewMetrics(match) {
   return out;
 }
 
-function resolveMetricsGrid(section, { rawData, rawDataPrev }) {
-  const result = tpl.resolveMetricsGrid(section, rawData, rawDataPrev);
+function resolveMetricsGrid(section, { rawData, rawDataPrev, rawDataByPeriod, periodStart, periodEnd }) {
+  const result = tpl.resolveMetricsGrid(section, rawData, rawDataPrev, { rawDataByPeriod, periodStart, periodEnd });
   return { id: section.id, type: 'metrics_grid', title: section.title, ...result };
 }
 
