@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '8';
+	const SCHEMA_VERSION = '9';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -67,6 +67,11 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_payments';
 	}
 
+	public static function chat_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_chat';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -85,6 +90,7 @@ class HGD_DB {
 		$quote_items     = self::quote_items_table();
 		$proposals       = self::proposals_table();
 		$payments        = self::payments_table();
+		$chat            = self::chat_table();
 
 		$statements = array();
 
@@ -305,6 +311,17 @@ class HGD_DB {
 			KEY proposal_id (proposal_id),
 			KEY status (status),
 			KEY stripe_payment_intent (stripe_payment_intent)
+		) {$charset_collate};";
+
+		// --- Capture chat (Claude Q&A that refines the design brief) ---------
+		$statements[] = "CREATE TABLE {$chat} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			project_id BIGINT UNSIGNED NULL,
+			role VARCHAR(12) NOT NULL DEFAULT 'user',
+			body LONGTEXT NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY project_id (project_id)
 		) {$charset_collate};";
 
 		return $statements;
