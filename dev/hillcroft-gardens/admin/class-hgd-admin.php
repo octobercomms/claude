@@ -32,6 +32,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_save_design', array( $this, 'handle_save_design' ) );
 		add_action( 'admin_post_hgd_compose_prompt', array( $this, 'handle_compose_prompt' ) );
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
+		add_action( 'admin_post_hgd_generate_photo_render', array( $this, 'handle_generate_photo_render' ) );
 		add_action( 'admin_post_hgd_generate_plan', array( $this, 'handle_generate_plan' ) );
 		add_action( 'admin_post_hgd_save_plan_prompt', array( $this, 'handle_save_plan_prompt' ) );
 		add_action( 'admin_post_hgd_compose_plan_prompt', array( $this, 'handle_compose_plan_prompt' ) );
@@ -907,6 +908,69 @@ class HGD_Admin {
 		HGD_Project_Asset::add( $id, $att_id, 'render' );
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'render_done' => 1 ) );
+	}
+
+	/**
+	 * Generate a render by designing the scheme INTO one of the client's real
+	 * site photos (photo-inpainting mode): same viewpoint, house and boundaries,
+	 * only the garden is redesigned. The chosen photo is the primary reference.
+	 */
+	public function handle_generate_photo_render() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_generate_photo_render_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Gemini::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'nokey' ) );
+		}
+
+		// The chosen base photo must be one of THIS project's uploaded photos.
+		$base_id  = isset( $_POST['base_photo_id'] ) ? (int) $_POST['base_photo_id'] : 0;
+		$base_ok  = false;
+		foreach ( HGD_Project_Asset::for_project( $id ) as $a ) {
+			if ( (int) $a['attachment_id'] === $base_id
+				&& in_array( ( isset( $a['role'] ) ? $a['role'] : '' ), array( 'photo', 'other' ), true ) ) {
+				$base_ok = true;
+				break;
+			}
+		}
+		if ( ! $base_id || ! $base_ok ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'nophoto' ) );
+		}
+
+		$prompt = HGD_Render_Pack::compose_photo_prompt( $project );
+
+		// The base photo leads (so the model edits it in place); the approved plan,
+		// if any, follows as a layout guide.
+		$refs  = array( $base_id );
+		$plans = HGD_Project_Asset::for_project( $id, 'plan' );
+		if ( ! empty( $plans ) ) {
+			$latest = end( $plans );
+			if ( ! empty( $latest['attachment_id'] ) ) {
+				$refs[] = (int) $latest['attachment_id'];
+			}
+		}
+
+		$result = HGD_Gemini::generate_image( $prompt, $refs, $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'api' ) );
+		}
+
+		$att_id = HGD_Gemini::save_image_as_attachment( $result['bytes'], $result['mime'], $id, 'photo-render' );
+		if ( is_wp_error( $att_id ) ) {
+			set_transient( 'hgd_render_error_' . get_current_user_id(), $att_id->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_error' => 'save' ) );
+		}
+
+		HGD_Project_Asset::add( $id, $att_id, 'render', 'photo_render', __( 'Designed into site photo', 'hillcroft-garden-designer' ) );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_done' => 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

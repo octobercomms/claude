@@ -146,6 +146,51 @@ class HGD_Render_Pack {
 	}
 
 	/**
+	 * Compose the prompt for a "design into the client's site photo" render.
+	 *
+	 * Unlike a fresh concept render, this is an in-place edit of an actual
+	 * photograph of the existing garden (passed as the first reference image):
+	 * the model must keep the same camera viewpoint, the house, boundaries,
+	 * fences, neighbouring buildings, ground levels and sky, and redesign ONLY
+	 * the garden within that frame. That yields a believable "after" from the
+	 * client's real vantage point rather than an invented scene.
+	 *
+	 * @param array $project
+	 * @return string
+	 */
+	public static function compose_photo_prompt( $project ) {
+		$project = is_array( $project ) ? $project : array();
+
+		$base = isset( $project['render_prompt'] ) ? trim( (string) $project['render_prompt'] ) : '';
+		if ( '' === $base ) {
+			$base = isset( $project['design_brief'] ) ? trim( (string) $project['design_brief'] ) : '';
+		}
+		if ( '' === $base ) {
+			$base = 'A beautifully designed residential garden with lush layered planting and well-considered materials.';
+		}
+
+		$instruction = 'TASK: Redesign the garden shown in the attached PHOTOGRAPH of the existing garden. '
+			. 'This is a photo edit, not a new scene. Keep the EXACT same camera viewpoint, framing, lens and perspective as the photo. '
+			. 'Preserve the fixed surroundings precisely: the house and its windows/doors, all boundary fences and walls, neighbouring '
+			. 'buildings and trees, ground levels and changes in level, paths to the house, and the sky and lighting direction. '
+			. 'Change ONLY the garden itself — lay out and plant it according to the design below, replacing the existing lawn, beds, '
+			. 'paving and features with the new scheme while keeping everything in true scale and correct perspective for this view. '
+			. 'The result must look like a real photograph of the SAME garden after the redesign.';
+
+		// Real dimensions, when captured, so the in-photo layout stays to scale.
+		$scale = '';
+		if ( class_exists( 'HGD_Measure' ) ) {
+			$line = HGD_Measure::render_line( $project );
+			if ( '' !== $line ) {
+				$scale = "\n\nScale reference (keep proportions true to these real dimensions): " . $line;
+			}
+		}
+
+		return $instruction . "\n\nThe design to realise in the photo:\n" . $base . $scale
+			. "\n\n" . HGD_Settings::render_style_suffix();
+	}
+
+	/**
 	 * The structural / consistency anchor: reference attachment ids for Gemini.
 	 *
 	 * Priority (plan-first pipeline): the most recent approved 'plan' drawing
