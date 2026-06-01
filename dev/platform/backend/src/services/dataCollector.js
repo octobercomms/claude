@@ -76,10 +76,14 @@ async function collectClientData(clientId, periodStart, periodEnd) {
 
       results[key] = data;
 
-      // Update last_checked
+      // Successful fetch — promote status to 'active' as well as clearing
+      // last_checked / error_message. Without the status flip a connector
+      // that errored once (e.g. transient 400, expired token) keeps its
+      // red badge in the UI forever even after the underlying issue is
+      // resolved and subsequent fetches succeed.
       await pool.query(
-        'UPDATE connectors SET last_checked = NOW(), error_message = NULL WHERE id = $1',
-        [connector.id]
+        'UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2',
+        ['active', connector.id]
       );
     } catch (err) {
       console.error(`Data collection failed for ${key}:`, err.message);
