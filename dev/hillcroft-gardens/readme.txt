@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.4
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,12 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.4.0 =
+* Plant photos: each plant can have a picture. Fetch one automatically from Wikipedia by botanical name (free, properly-licensed), or pick one from the media library. The catalogue list shows a thumbnail on every row.
+* Plant catalogue: click a row to expand it and see all the detail inline — no need to open Edit.
+* Import CSV is now a single button that opens the file picker and imports as soon as you choose a file.
+* Renamed the marked-up price column from "Sale" to "Retail".
 
 = 1.3.4 =
 * Loading feedback: slow actions (reading images, the Claude chat, composing the brief, generating renders or the render pack, uploads, imports, sending a proposal) now show a branded spinner overlay with a clear message and lock the page until they finish — so it's obvious something is happening and you can't double-click.

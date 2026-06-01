@@ -124,3 +124,100 @@
 		} );
 	} );
 }() );
+
+/* Plant catalogue — Import CSV picker auto-submit. The visible "Import CSV" pill
+   is a <label> for a hidden file input; selecting a file submits the form. */
+( function () {
+	'use strict';
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var input = document.querySelector( '[data-hgd-csv-auto]' );
+		if ( ! input ) { return; }
+		input.addEventListener( 'change', function () {
+			if ( input.files && input.files.length && input.form ) {
+				input.form.submit();
+			}
+		} );
+	} );
+}() );
+
+/* Plant catalogue — click-to-expand rows. Clicking a plant row (or pressing Enter)
+   toggles the detail row immediately below it. Clicks on the Edit/Delete/fetch
+   controls are ignored so they keep their own behaviour. */
+( function () {
+	'use strict';
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var rows = document.querySelectorAll( '.hgd-plant-row' );
+		if ( ! rows.length ) { return; }
+
+		function toggle( row ) {
+			var detail = row.nextElementSibling;
+			if ( ! detail || ! detail.classList.contains( 'hgd-plant-detail' ) ) { return; }
+			var open = detail.classList.toggle( 'is-open' );
+			row.classList.toggle( 'is-open', open );
+			row.setAttribute( 'aria-expanded', open ? 'true' : 'false' );
+		}
+
+		rows.forEach( function ( row ) {
+			row.addEventListener( 'click', function ( e ) {
+				if ( e.target.closest( '[data-hgd-no-expand]' ) ) { return; }
+				toggle( row );
+			} );
+			row.addEventListener( 'keydown', function ( e ) {
+				if ( e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar' ) {
+					if ( e.target.closest( '[data-hgd-no-expand]' ) ) { return; }
+					e.preventDefault();
+					toggle( row );
+				}
+			} );
+		} );
+	} );
+}() );
+
+/* Plant edit — media-library image picker. Opens wp.media, sets the hidden
+   image_id input + preview; Remove clears it. */
+( function () {
+	'use strict';
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var pick    = document.getElementById( 'hgd-image-pick' );
+		var idField = document.getElementById( 'hgd-image-id' );
+		var preview = document.getElementById( 'hgd-image-preview' );
+		var remove  = document.getElementById( 'hgd-image-remove' );
+		if ( ! pick || ! idField || ! preview ) { return; }
+		if ( typeof window.wp === 'undefined' || ! window.wp.media ) { return; }
+
+		var frame = null;
+
+		function setPreview( html ) {
+			preview.innerHTML = html;
+		}
+
+		pick.addEventListener( 'click', function ( e ) {
+			e.preventDefault();
+			if ( ! frame ) {
+				frame = window.wp.media( {
+					title: 'Select a plant photo',
+					button: { text: 'Use this photo' },
+					library: { type: 'image' },
+					multiple: false
+				} );
+				frame.on( 'select', function () {
+					var att = frame.state().get( 'selection' ).first().toJSON();
+					idField.value = att.id;
+					var src = att.sizes && att.sizes.thumbnail ? att.sizes.thumbnail.url : att.url;
+					setPreview( '<img src="' + src + '" alt="" />' );
+					if ( remove ) { remove.classList.remove( 'hgd-hidden' ); }
+				} );
+			}
+			frame.open();
+		} );
+
+		if ( remove ) {
+			remove.addEventListener( 'click', function ( e ) {
+				e.preventDefault();
+				idField.value = '0';
+				setPreview( '<span class="hgd-plant-thumb hgd-plant-thumb-empty" aria-hidden="true">✿</span>' );
+				remove.classList.add( 'hgd-hidden' );
+			} );
+		}
+	} );
+}() );
