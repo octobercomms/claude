@@ -203,6 +203,26 @@ ${currentTemplate
     reply = 'My response hit the size limit before I could finish. Try splitting the request into smaller pieces — e.g. "draft the SEO sections first, then we\'ll add paid traffic".';
     return { reply, proposed: null };
   }
+  // Final catch-all — any path where Claude returned successfully but
+  // neither populated reply nor proposed. Surfaces the stop_reason +
+  // a content-block summary in the server log so we can diagnose,
+  // and gives the AM a useful message back instead of "(no reply)".
+  // Has caught: refusal stop_reasons, all-thinking-block responses,
+  // tool_use blocks with empty input objects.
+  if (!reply && !proposed) {
+    const summary = response.content.map(b => ({
+      type: b.type, name: b.name,
+      keys: b.type === 'tool_use' ? Object.keys(b.input || {}) : undefined,
+      text_len: b.type === 'text' ? (b.text || '').length : undefined,
+    }));
+    console.warn('[report-template chat] empty reply + empty proposed', {
+      stop_reason: response.stop_reason,
+      content: summary,
+      usage: response.usage,
+    });
+    reply = `I didn't return a useful response (stop_reason: ${response.stop_reason || 'unknown'}). This sometimes happens with very large requests — try a smaller change first, e.g. "set up the SEO sections only" or "remove the paid traffic block".`;
+    return { reply, proposed: null };
+  }
   return { reply, proposed };
 }
 
