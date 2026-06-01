@@ -33,7 +33,8 @@ async function fetchData(credentials, params) {
   const PER_PAGE = 100;
   const MAX_PAGES = 50;
   const orders = [];
-  let totalPages = 1;
+  let totalPages = 0;
+  let lastPageSize = PER_PAGE;
   for (let page = 1; page <= MAX_PAGES; page++) {
     const res = await client.get('/orders', {
       params: {
@@ -45,10 +46,16 @@ async function fetchData(credentials, params) {
       },
     });
     orders.push(...res.data);
-    totalPages = parseInt(res.headers['x-wp-totalpages'] || '1', 10);
-    if (page >= totalPages || !res.data.length) break;
+    lastPageSize = res.data.length;
+    // X-WP-TotalPages tells us when to stop. Some Woo installs / caching
+    // layers strip custom headers though — fall back to "stop when the
+    // page returned fewer than PER_PAGE items" so we don't give up after
+    // page 1 just because the header is missing.
+    totalPages = parseInt(res.headers['x-wp-totalpages'] || '0', 10);
+    if (lastPageSize < PER_PAGE) break;
+    if (totalPages && page >= totalPages) break;
   }
-  const truncated = totalPages > MAX_PAGES;
+  const truncated = totalPages > MAX_PAGES || (!totalPages && lastPageSize === PER_PAGE && orders.length === MAX_PAGES * PER_PAGE);
 
   const productsRes = await client.get('/products', { params: { per_page: 50, status: 'publish' } });
 

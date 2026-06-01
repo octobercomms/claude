@@ -275,11 +275,17 @@ router.post('/preview', async (req, res) => {
     const seriesFetches = [];
     for (const grain of Object.keys(seriesPlan)) {
       for (const offset of seriesPlan[grain]) {
-        if (offset === 0) {
-          rawDataByPeriod[grain][0] = rawData;
+        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
+        // Offset 0's range can be wider than the report period (notably
+        // yearly grain where the current-year row is Jan 1 → periodEnd,
+        // not just the report's month). Only reuse the main rawData when
+        // the computed range matches the report period exactly; otherwise
+        // treat it like any other historical fetch — cache lookup, then
+        // fan-out collect.
+        if (range.start === periodStart && range.end === periodEnd) {
+          rawDataByPeriod[grain][offset] = rawData;
           continue;
         }
-        const range = reportTemplate.rangeForOffset({ periodStart, periodEnd, grain, offset });
         const k = previewCache.rawKey({ clientId: client_id, reportType: report_type, periodStart: range.start, periodEnd: range.end });
         const cached = previewCache.getRawData(k);
         if (cached) {
