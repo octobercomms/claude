@@ -374,9 +374,14 @@
 }
 .hgd-chat-clear:hover { color: var(--hgd-charcoal); }
 
-/* Plant CSV import control in the page head */
+/* Plant CSV import control in the page head — one-click pill that opens the file picker */
 .hgd-csv-import { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
-.hgd-csv-import input[type=file] { font-size: 12px; max-width: 220px; }
+.hgd-csv-import label.hgd-pill { cursor: pointer; }
+.hgd-visually-hidden {
+	position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px;
+	overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.hgd-hidden { display: none !important; }
 
 @media (max-width: 600px) {
 	.hgd-step { flex-basis: 100%; }
@@ -429,3 +434,60 @@
 	color: var(--hgd-charcoal); margin: 0 0 8px;
 }
 .hgd-loading-sub { font-size: 13px; color: var(--hgd-muted); margin: 0; }
+
+/* Plant catalogue — row thumbnails, expandable detail, image control */
+.hgd-plants-table .hgd-col-thumb { width: 60px; }
+.hgd-plant-thumb {
+	width: 48px; height: 48px; display: inline-flex; align-items: center; justify-content: center;
+	border-radius: 10px; object-fit: cover; border: 1px solid var(--hgd-line); background: var(--hgd-paper);
+	vertical-align: middle;
+}
+.hgd-plant-thumb-empty {
+	background: var(--hgd-cream); color: var(--hgd-green);
+	font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; font-weight: 600;
+}
+
+.hgd-plant-row { cursor: pointer; }
+.hgd-plant-row:hover { background: rgba(159, 161, 69, 0.06); }
+.hgd-plant-row:focus-visible { outline: 2px solid var(--hgd-green); outline-offset: -2px; }
+.hgd-plant-caret {
+	display: inline-block; margin-right: 8px; color: var(--hgd-muted); font-size: 11px;
+	transition: transform .15s ease;
+}
+.hgd-plant-row.is-open .hgd-plant-caret { transform: rotate(90deg); }
+
+.hgd-plant-detail { display: none; }
+.hgd-plant-detail.is-open { display: table-row; }
+.hgd-plant-detail > td { background: var(--hgd-paper); padding: 16px 18px; }
+.hgd-plant-detail-grid {
+	display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: 10px 24px; margin: 0;
+}
+.hgd-plant-detail-item dt {
+	font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--hgd-muted); margin: 0 0 2px;
+}
+.hgd-plant-detail-item dd { margin: 0; font-size: 14px; color: var(--hgd-charcoal); }
+.hgd-plant-detail-fetch { margin: 14px 0 0; }
+.hgd-link-btn {
+	background: none; border: 0; padding: 0; cursor: pointer;
+	color: var(--hgd-olive); text-decoration: underline; font-size: 13px; font-family: inherit;
+}
+.hgd-link-btn:hover { color: var(--hgd-charcoal); }
+
+/* Plant image control on the edit form */
+.hgd-field-label {
+	display: block; font-size: 12px; color: var(--hgd-muted);
+	text-transform: uppercase; letter-spacing: 0.6px; margin: 0 0 8px;
+}
+.hgd-plant-image { margin: 4px 0 4px; }
+.hgd-plant-image-row { display: flex; align-items: center; gap: 16px; }
+.hgd-plant-image-preview img,
+.hgd-plant-image-preview .hgd-plant-thumb {
+	width: 96px; height: 96px; border-radius: 12px; object-fit: cover;
+	border: 1px solid var(--hgd-line); display: block; font-size: 38px;
+}
+.hgd-plant-image-controls { display: flex; align-items: center; gap: 14px; }
+.hgd-image-remove { color: #9b2c2c; text-decoration: underline; font-size: 13px; }
+
+.hgd-plant-fetch { margin: 18px 0 0; }
+.hgd-plant-fetch form { margin: 0 0 6px; }

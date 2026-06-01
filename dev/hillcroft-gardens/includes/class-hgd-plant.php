@@ -40,6 +40,7 @@ class HGD_Plant {
 			'flowering_months' => 'text',
 			'toxicity'         => 'text',
 			'gbif_id'          => 'text',
+			'image_id'         => 'int',
 			'notes'            => 'textarea',
 		);
 	}

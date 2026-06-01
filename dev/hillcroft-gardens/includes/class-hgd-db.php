@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '9';
+	const SCHEMA_VERSION = '10';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -117,6 +117,7 @@ class HGD_DB {
 			flowering_months VARCHAR(40) NOT NULL DEFAULT '',
 			toxicity VARCHAR(20) NOT NULL DEFAULT 'none',
 			gbif_id VARCHAR(40) NOT NULL DEFAULT '',
+			image_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			notes TEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
 			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',

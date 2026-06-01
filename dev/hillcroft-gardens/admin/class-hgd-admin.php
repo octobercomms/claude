@@ -19,6 +19,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_delete_plant', array( $this, 'handle_delete_plant' ) );
 		add_action( 'admin_post_hgd_plants_export', array( $this, 'handle_plants_export' ) );
 		add_action( 'admin_post_hgd_plants_import', array( $this, 'handle_plants_import' ) );
+		add_action( 'admin_post_hgd_plant_fetch_photo', array( $this, 'handle_plant_fetch_photo' ) );
 		add_action( 'admin_post_hgd_chat_send', array( $this, 'handle_chat_send' ) );
 		add_action( 'admin_post_hgd_chat_clear', array( $this, 'handle_chat_clear' ) );
 		add_action( 'admin_post_hgd_save_settings', array( $this, 'handle_save_settings' ) );
@@ -141,6 +142,13 @@ class HGD_Admin {
 
 		wp_enqueue_style( 'hgd-admin', HGD_URL . 'admin/css/admin.css', array( 'hgd-fonts' ), HGD_VERSION );
 		wp_enqueue_script( 'hgd-admin', HGD_URL . 'admin/js/admin.js', array(), HGD_VERSION, true );
+
+		// The media-library picker (plant image) is only needed on the plant edit/new screen.
+		$page   = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$action = isset( $_GET['action'] ) ? sanitize_key( $_GET['action'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( 'hgd-plants' === $page && ( 'edit' === $action || 'new' === $action ) ) {
+			wp_enqueue_media();
+		}
 
 		$s   = HGD_Settings::all();
 		$css = sprintf(
@@ -1475,6 +1483,39 @@ class HGD_Admin {
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 
 		$this->redirect_with( 'hgd-plants', array( 'imported' => $imported, 'skipped' => $skipped ) );
+	}
+
+	/** Fetch a freely-licensed plant photo from Wikipedia by botanical name and set it as the plant image. */
+	public function handle_plant_fetch_photo() {
+		$this->guard();
+		$id = isset( $_POST['id'] ) ? (int) $_POST['id'] : 0;
+		check_admin_referer( 'hgd_plant_fetch_photo_' . $id );
+
+		$plant = $id ? HGD_Plant::get( $id ) : null;
+		if ( ! $plant ) {
+			$this->redirect_with( 'hgd-plants', array() );
+		}
+
+		$name = '' !== trim( (string) $plant['botanical_name'] ) ? (string) $plant['botanical_name'] : (string) $plant['common_name'];
+		if ( '' === trim( $name ) ) {
+			set_transient( 'hgd_plant_photo_error_' . get_current_user_id(), __( 'Add a botanical name first, then fetch a photo.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-plants', array( 'action' => 'edit', 'id' => $id, 'photo_error' => 1 ) );
+		}
+
+		$url = HGD_Wikimedia::fetch_image_for( $name );
+		if ( is_wp_error( $url ) ) {
+			set_transient( 'hgd_plant_photo_error_' . get_current_user_id(), $url->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-plants', array( 'action' => 'edit', 'id' => $id, 'photo_error' => 1 ) );
+		}
+
+		$att_id = HGD_Wikimedia::import_to_media( $url, $id, $name );
+		if ( is_wp_error( $att_id ) ) {
+			set_transient( 'hgd_plant_photo_error_' . get_current_user_id(), $att_id->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-plants', array( 'action' => 'edit', 'id' => $id, 'photo_error' => 1 ) );
+		}
+
+		HGD_Plant::update( $id, array( 'image_id' => (int) $att_id ) );
+		$this->redirect_with( 'hgd-plants', array( 'action' => 'edit', 'id' => $id, 'photo_fetched' => 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

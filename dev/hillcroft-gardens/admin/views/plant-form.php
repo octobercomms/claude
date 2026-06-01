@@ -24,6 +24,15 @@ $list_url = admin_url( 'admin.php?page=hgd-plants' );
 		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Please give the plant at least a botanical or common name.', 'hillcroft-garden-designer' ); ?></div>
 	<?php endif; ?>
 
+	<?php if ( isset( $_GET['photo_fetched'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Photo fetched from Wikipedia and set as the plant image.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( isset( $_GET['photo_error'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification
+		$photo_err = get_transient( 'hgd_plant_photo_error_' . get_current_user_id() );
+		delete_transient( 'hgd_plant_photo_error_' . get_current_user_id() );
+		?>
+		<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $photo_err ? $photo_err : __( 'Could not fetch a photo. Please try again.', 'hillcroft-garden-designer' ) ); ?></div>
+	<?php endif; ?>
+
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-panel hgd-form">
 		<input type="hidden" name="action" value="hgd_save_plant" />
 		<input type="hidden" name="id" value="<?php echo esc_attr( (int) $val( 'id', 0 ) ); ?>" />
@@ -100,6 +109,28 @@ $list_url = admin_url( 'admin.php?page=hgd-plants' );
 				<input type="text" name="gbif_id" value="<?php echo esc_attr( $val( 'gbif_id' ) ); ?>" /></label>
 		</div>
 
+		<?php
+		$image_id  = (int) $val( 'image_id', 0 );
+		$image_url = $image_id > 0 ? wp_get_attachment_image_url( $image_id, array( 96, 96 ) ) : '';
+		?>
+		<div class="hgd-full hgd-plant-image" id="hgd-plant-image">
+			<span class="hgd-field-label"><?php esc_html_e( 'Plant photo', 'hillcroft-garden-designer' ); ?></span>
+			<input type="hidden" name="image_id" id="hgd-image-id" value="<?php echo esc_attr( $image_id ); ?>" />
+			<div class="hgd-plant-image-row">
+				<span class="hgd-plant-image-preview" id="hgd-image-preview">
+					<?php if ( $image_url ) : ?>
+						<img src="<?php echo esc_url( $image_url ); ?>" alt="" />
+					<?php else : ?>
+						<span class="hgd-plant-thumb hgd-plant-thumb-empty" aria-hidden="true">✿</span>
+					<?php endif; ?>
+				</span>
+				<span class="hgd-plant-image-controls">
+					<button type="button" class="hgd-pill hgd-pill-ghost" id="hgd-image-pick"><?php esc_html_e( 'Choose from media library', 'hillcroft-garden-designer' ); ?></button>
+					<a href="#" class="hgd-image-remove<?php echo $image_id > 0 ? '' : ' hgd-hidden'; ?>" id="hgd-image-remove"><?php esc_html_e( 'Remove', 'hillcroft-garden-designer' ); ?></a>
+				</span>
+			</div>
+		</div>
+
 		<label class="hgd-full"><span><?php esc_html_e( 'Notes', 'hillcroft-garden-designer' ); ?></span>
 			<textarea name="notes" rows="3"><?php echo esc_textarea( $val( 'notes' ) ); ?></textarea></label>
 
@@ -108,5 +139,17 @@ $list_url = admin_url( 'admin.php?page=hgd-plants' );
 			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Cancel', 'hillcroft-garden-designer' ); ?></a>
 		</div>
 	</form>
+
+	<?php if ( $is_edit ) : ?>
+		<div class="hgd-plant-fetch">
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="hgd_plant_fetch_photo" />
+				<input type="hidden" name="id" value="<?php echo esc_attr( (int) $val( 'id', 0 ) ); ?>" />
+				<?php wp_nonce_field( 'hgd_plant_fetch_photo_' . (int) $val( 'id', 0 ) ); ?>
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Fetch photo from Wikipedia', 'hillcroft-garden-designer' ); ?></button>
+			</form>
+			<p class="hgd-muted"><?php esc_html_e( 'Pulls a freely-licensed photo from Wikipedia by botanical name.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+	<?php endif; ?>
 
 </div>
