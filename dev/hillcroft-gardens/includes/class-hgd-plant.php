@@ -69,6 +69,27 @@ class HGD_Plant {
 		return $clean;
 	}
 
+	/**
+	 * Column order for CSV export/import — the editable field keys in a sensible order.
+	 *
+	 * @return string[]
+	 */
+	public static function csv_headers() {
+		return array_keys( self::fields() );
+	}
+
+	/**
+	 * All plants (no paging), ordered by botanical name — used by CSV export.
+	 *
+	 * @return array[]
+	 */
+	public static function all() {
+		global $wpdb;
+		$table = HGD_DB::plants_table();
+		$items = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY botanical_name ASC", ARRAY_A );
+		return $items ? $items : array();
+	}
+
 	public static function get( $id ) {
 		global $wpdb;
 		$table = HGD_DB::plants_table();

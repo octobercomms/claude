@@ -17,6 +17,10 @@ class HGD_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_hgd_save_plant', array( $this, 'handle_save_plant' ) );
 		add_action( 'admin_post_hgd_delete_plant', array( $this, 'handle_delete_plant' ) );
+		add_action( 'admin_post_hgd_plants_export', array( $this, 'handle_plants_export' ) );
+		add_action( 'admin_post_hgd_plants_import', array( $this, 'handle_plants_import' ) );
+		add_action( 'admin_post_hgd_chat_send', array( $this, 'handle_chat_send' ) );
+		add_action( 'admin_post_hgd_chat_clear', array( $this, 'handle_chat_clear' ) );
 		add_action( 'admin_post_hgd_save_settings', array( $this, 'handle_save_settings' ) );
 		add_action( 'admin_post_hgd_save_project', array( $this, 'handle_save_project' ) );
 		add_action( 'admin_post_hgd_delete_project', array( $this, 'handle_delete_project' ) );
@@ -105,8 +109,18 @@ class HGD_Admin {
 	}
 
 	private function is_plugin_screen() {
+		// Cheap, robust check so brand CSS loads on every plugin surface — including
+		// the Forms hub tabs (Submissions/Analytics) and the hgd_form CPT screens,
+		// whose screen ids don't always contain the 'hgd-' prefix.
+		$page = isset( $_GET['page'] ) ? sanitize_key( $_GET['page'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( '' !== $page && 0 === strpos( $page, 'hgd-' ) ) {
+			return true;
+		}
 		$screen = get_current_screen();
-		return $screen && false !== strpos( $screen->id, 'hgd-' );
+		if ( ! $screen ) {
+			return false;
+		}
+		return false !== strpos( $screen->id, 'hgd-' ) || false !== strpos( $screen->id, 'hgd_form' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -510,6 +524,94 @@ class HGD_Admin {
 		) );
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'claude_read' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Capture chat (Claude Q&A that auto-updates the design brief)
+	// -------------------------------------------------------------------------
+
+	/** Send a designer reply to Claude; it answers and returns an updated design brief. */
+	public function handle_chat_send() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_chat_send_' . $id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		if ( ! $project ) {
+			$this->redirect_with( 'hgd-projects', array() );
+		}
+
+		if ( ! HGD_Claude::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_error' => 'nokey' ) );
+		}
+
+		$message = isset( $_POST['message'] ) ? sanitize_textarea_field( wp_unslash( $_POST['message'] ) ) : '';
+		if ( '' === trim( $message ) ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_error' => 'empty' ) );
+		}
+
+		// 1. Save the user message.
+		HGD_Chat::add( $id, 'user', $message );
+
+		// 2. Build the Claude call context.
+		$current_brief = '' !== (string) $project['design_brief'] ? (string) $project['design_brief'] : (string) $project['brief_notes'];
+
+		$prompt  = "CONSULTATION READING (Claude's earlier interpretation of the site sketch):\n" . ( $project['ai_reading'] ?: '(none)' ) . "\n\n";
+		$prompt .= "CURRENT DESIGN BRIEF:\n" . ( '' !== trim( $current_brief ) ? $current_brief : '(none yet)' ) . "\n\n";
+
+		$prompt .= "CONVERSATION SO FAR:\n";
+		$transcript = HGD_Chat::messages( $id );
+		if ( empty( $transcript ) ) {
+			$prompt .= "(none)\n";
+		} else {
+			foreach ( $transcript as $turn ) {
+				$who     = ( 'assistant' === $turn['role'] ) ? 'assistant' : 'designer';
+				$prompt .= $who . ': ' . (string) $turn['body'] . "\n";
+			}
+		}
+		$prompt .= "\nNEW DESIGNER MESSAGE:\n" . $message . "\n";
+
+		$system = 'You are an expert garden-design assistant helping the designer turn an on-site consultation into a clear design brief. '
+			. 'You have already read the sketch. The designer is answering your clarifying questions. After each reply: '
+			. '(a) respond briefly and conversationally, and (b) produce an updated, polished design brief incorporating everything known so far. '
+			. 'Return STRICT JSON: {"reply":"…","brief":"…"}.';
+
+		$result = HGD_Claude::message( array( HGD_Claude::text_block( $prompt ) ), $system, 2000, $id );
+
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_chat_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_error' => 'api' ) );
+		}
+
+		$parsed = $this->parse_claude_json( $result['text'] );
+		if ( null === $parsed ) {
+			set_transient( 'hgd_chat_error_' . get_current_user_id(), __( 'Could not parse a JSON response from Claude.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_error' => 'parse' ) );
+		}
+
+		$reply = isset( $parsed['reply'] ) ? (string) $parsed['reply'] : '';
+		$brief = isset( $parsed['brief'] ) ? (string) $parsed['brief'] : '';
+
+		// 3. Save the assistant reply and (if present) auto-update the design brief.
+		HGD_Chat::add( $id, 'assistant', wp_kses_post( $reply ) );
+		if ( '' !== trim( $brief ) ) {
+			HGD_Project::update( $id, array( 'design_brief' => sanitize_textarea_field( $brief ) ) );
+		}
+
+		// 4. Back to the capture step with a success flash.
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_sent' => 1 ) );
+	}
+
+	/** Reset the capture chat thread for a project. */
+	public function handle_chat_clear() {
+		$this->guard();
+		$id = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		check_admin_referer( 'hgd_chat_clear_' . $id );
+
+		if ( $id ) {
+			HGD_Chat::clear( $id );
+		}
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'capture', 'chat_cleared' => 1 ) );
 	}
 
 	/** Tolerant JSON extraction: grab the first {...} block and decode it. */
@@ -1211,6 +1313,101 @@ class HGD_Admin {
 			HGD_Plant::delete( $id );
 		}
 		$this->redirect_with( 'hgd-plants', array( 'deleted' => 1 ) );
+	}
+
+	/** Stream the whole plant catalogue as a CSV download. */
+	public function handle_plants_export() {
+		$this->guard();
+		check_admin_referer( 'hgd_plants_export' );
+
+		$headers = HGD_Plant::csv_headers();
+		$plants  = HGD_Plant::all();
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename=hgd-plants-' . gmdate( 'Y-m-d' ) . '.csv' );
+
+		$out = fopen( 'php://output', 'w' );
+		fputcsv( $out, $headers );
+		foreach ( $plants as $plant ) {
+			$row = array();
+			foreach ( $headers as $key ) {
+				$row[] = isset( $plant[ $key ] ) ? $plant[ $key ] : '';
+			}
+			fputcsv( $out, $row );
+		}
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		exit;
+	}
+
+	/** Import plants from an uploaded CSV — header row maps columns to plant fields. New rows only. */
+	public function handle_plants_import() {
+		$this->guard();
+		check_admin_referer( 'hgd_plants_import' );
+
+		if ( empty( $_FILES['csv'] ) || ! isset( $_FILES['csv']['tmp_name'] ) || '' === $_FILES['csv']['tmp_name'] || ! is_uploaded_file( $_FILES['csv']['tmp_name'] ) ) {
+			$this->redirect_with( 'hgd-plants', array( 'import_error' => 'nofile' ) );
+		}
+		if ( ! empty( $_FILES['csv']['error'] ) ) {
+			$this->redirect_with( 'hgd-plants', array( 'import_error' => 'upload' ) );
+		}
+
+		$handle = fopen( $_FILES['csv']['tmp_name'], 'r' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		if ( false === $handle ) {
+			$this->redirect_with( 'hgd-plants', array( 'import_error' => 'open' ) );
+		}
+
+		$fields = HGD_Plant::fields();
+		$header = fgetcsv( $handle );
+		if ( ! is_array( $header ) ) {
+			fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+			$this->redirect_with( 'hgd-plants', array( 'import_error' => 'empty' ) );
+		}
+
+		// Map each CSV column index to a known plant field key (ignore unknown columns).
+		$map = array();
+		foreach ( $header as $i => $name ) {
+			$name = trim( (string) $name );
+			if ( isset( $fields[ $name ] ) ) {
+				$map[ $i ] = $name;
+			}
+		}
+
+		$imported = 0;
+		$skipped  = 0;
+		$rows     = 0;
+		$max_rows = 5000;
+
+		while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+			if ( $rows >= $max_rows ) {
+				break;
+			}
+			$rows++;
+
+			// Skip wholly blank rows.
+			if ( ! is_array( $row ) || '' === trim( implode( '', array_map( 'strval', $row ) ) ) ) {
+				$skipped++;
+				continue;
+			}
+
+			$raw = array();
+			foreach ( $map as $i => $key ) {
+				$raw[ $key ] = isset( $row[ $i ] ) ? $row[ $i ] : '';
+			}
+
+			$clean = HGD_Plant::sanitise( $raw );
+			if ( '' === $clean['botanical_name'] && '' === $clean['common_name'] ) {
+				$skipped++;
+				continue;
+			}
+
+			HGD_Plant::insert( $clean );
+			$imported++;
+		}
+
+		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+
+		$this->redirect_with( 'hgd-plants', array( 'imported' => $imported, 'skipped' => $skipped ) );
 	}
 
 	// -------------------------------------------------------------------------

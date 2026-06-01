@@ -92,6 +92,28 @@ class HGD_Gemini {
 			if ( is_array( $data ) && isset( $data['error']['message'] ) ) {
 				$msg = $data['error']['message'];
 			}
+
+			// Turn the raw Google quota/billing dump into a clear, actionable sentence.
+			$lower    = strtolower( $msg );
+			$is_quota = 429 === $code
+				|| false !== strpos( $lower, 'quota' )
+				|| false !== strpos( $lower, 'free_tier' )
+				|| false !== strpos( $lower, 'billing' )
+				|| false !== strpos( $lower, 'limit: 0' );
+			if ( $is_quota ) {
+				$friendly = __( "Google Gemini image generation needs billing enabled on your Google AI project (the free tier doesn't include image generation). Enable billing in Google AI Studio, then try again.", 'hillcroft-garden-designer' );
+				if ( '' !== trim( (string) $msg ) ) {
+					$detail   = trim( preg_replace( '/\s+/', ' ', (string) $msg ) );
+					if ( function_exists( 'mb_substr' ) ) {
+						$detail = mb_substr( $detail, 0, 160 );
+					} else {
+						$detail = substr( $detail, 0, 160 );
+					}
+					$friendly .= ' (' . $detail . ')';
+				}
+				return new WP_Error( 'hgd_gemini_quota', $friendly, array( 'status' => $code ) );
+			}
+
 			if ( '' === $msg ) {
 				$msg = sprintf( /* translators: %d HTTP code */ __( 'Gemini API returned HTTP %d.', 'hillcroft-garden-designer' ), $code );
 			}

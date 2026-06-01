@@ -14,15 +14,44 @@ $base_url    = admin_url( 'admin.php?page=hgd-plants' );
 
 	<?php call_user_func( $banner_cb ); ?>
 
+	<?php
+	$export_url = wp_nonce_url(
+		add_query_arg( array( 'action' => 'hgd_plants_export' ), admin_url( 'admin-post.php' ) ),
+		'hgd_plants_export'
+	);
+	?>
 	<div class="hgd-page-head">
 		<h1><?php esc_html_e( 'Plant Catalogue', 'hillcroft-garden-designer' ); ?></h1>
-		<a class="hgd-pill" href="<?php echo esc_url( add_query_arg( array( 'action' => 'new' ), $base_url ) ); ?>"><?php esc_html_e( '+ Add plant', 'hillcroft-garden-designer' ); ?></a>
+		<div class="hgd-page-head-actions">
+			<a class="hgd-pill" href="<?php echo esc_url( add_query_arg( array( 'action' => 'new' ), $base_url ) ); ?>"><?php esc_html_e( '+ Add plant', 'hillcroft-garden-designer' ); ?></a>
+			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export CSV', 'hillcroft-garden-designer' ); ?></a>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="hgd-csv-import">
+				<input type="hidden" name="action" value="hgd_plants_import" />
+				<?php wp_nonce_field( 'hgd_plants_import' ); ?>
+				<input type="file" name="csv" accept=".csv,text/csv" required />
+				<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Import', 'hillcroft-garden-designer' ); ?></button>
+			</form>
+		</div>
 	</div>
+	<p class="hgd-muted"><?php esc_html_e( 'Import adds new plants — the columns match the exported CSV (the header row maps to plant fields; unknown columns are ignored).', 'hillcroft-garden-designer' ); ?></p>
 
 	<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php esc_html_e( 'Plant saved.', 'hillcroft-garden-designer' ); ?></div>
 	<?php elseif ( isset( $_GET['deleted'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php esc_html_e( 'Plant deleted.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
+
+	<?php if ( isset( $_GET['imported'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash"><?php
+			echo esc_html( sprintf(
+				/* translators: 1: imported count, 2: skipped count */
+				__( 'Import complete: %1$d plants added, %2$d rows skipped.', 'hillcroft-garden-designer' ),
+				(int) $_GET['imported'], // phpcs:ignore WordPress.Security.NonceVerification
+				isset( $_GET['skipped'] ) ? (int) $_GET['skipped'] : 0 // phpcs:ignore WordPress.Security.NonceVerification
+			) );
+		?></div>
+	<?php elseif ( isset( $_GET['import_error'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Could not import that CSV. Please check the file and try again.', 'hillcroft-garden-designer' ); ?></div>
 	<?php endif; ?>
 
 	<form method="get" class="hgd-filters">
