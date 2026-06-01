@@ -70,24 +70,80 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<p><code class="hgd-code">[hgd_form id="123"]</code> &nbsp; <span class="hgd-muted"><?php esc_html_e( 'or the quick fixed form:', 'hillcroft-garden-designer' ); ?> <code class="hgd-code">[hgd_enquiry]</code></span></p>
 	</div>
 
-	<div class="hgd-panel">
-		<h2><?php esc_html_e( 'Build progress', 'hillcroft-garden-designer' ); ?></h2>
-		<p class="hgd-muted"><?php esc_html_e( 'Features arrive as one-click updates from the WordPress Updates screen.', 'hillcroft-garden-designer' ); ?></p>
-		<ul class="hgd-checklist">
-			<li class="done"><?php esc_html_e( 'Glossy admin + brand design system', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Plant catalogue database', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Cost & credits banner', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'One-click self-update from GitHub', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Projects, clients (CRM) & lead-capture form', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Forms builder (multi-step, submissions, analytics)', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Paid £200 consultation booking + Google Calendar', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Consultation capture + Claude sketch reading', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Gemini concept renders (iterate)', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Pricing engine (Good / Better / Best quotes)', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Proposals, client portal & milestone payments', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Render pack (named views, satellite & seasons)', 'hillcroft-garden-designer' ); ?></li>
-			<li class="done"><?php esc_html_e( 'Plant book & seasonal film', 'hillcroft-garden-designer' ); ?></li>
-		</ul>
+	<div class="hgd-panel hgd-workflow-panel">
+		<h2><?php esc_html_e( 'How it works', 'hillcroft-garden-designer' ); ?></h2>
+		<p class="hgd-muted"><?php esc_html_e( 'Every garden flows through the same journey — from first enquiry to a signed, paid proposal and the keepsakes that delight the client.', 'hillcroft-garden-designer' ); ?></p>
+
+		<?php
+		$flow = array(
+			array(
+				'icon' => '<path d="M3 7h18M3 12h18M3 17h12"/>',
+				'title' => __( 'Enquiry & booking', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Lead form or paid £200 consultation', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-bookings' ),
+			),
+			array(
+				'icon' => '<path d="M4 16l4.5-9 3 6 2.5-4 6 7z"/><circle cx="8" cy="6" r="1.5"/>',
+				'title' => __( 'Capture', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Sketch, photos & address', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
+				'icon' => '<circle cx="12" cy="12" r="9"/><path d="M9 10h.01M15 10h.01M8.5 14a4 4 0 0 0 7 0"/>',
+				'title' => __( 'Claude reads it', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'AI interprets the sketch & dimensions', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
+				'icon' => '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
+				'title' => __( 'Design & renders', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Gemini concept images, iterate', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
+				'icon' => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
+				'title' => __( 'Render pack', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Masterplan, corners, seasons', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
+				'icon' => '<path d="M12 3v18"/><path d="M7 7h7a3 3 0 0 1 0 6H7m0 0h8"/>',
+				'title' => __( 'Pricing', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Good / Better / Best from the catalogue', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-plants' ),
+			),
+			array(
+				'icon' => '<path d="M6 2h9l5 5v15H6z"/><path d="M14 2v6h6M9 13h6M9 17h6"/>',
+				'title' => __( 'Proposal & portal', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Client reviews, e-signs & pays', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+			array(
+				'icon' => '<path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11"/><path d="M4 19a2 2 0 0 1 2-2h14"/><path d="M9 8h4"/>',
+				'title' => __( 'Payment & keepsakes', 'hillcroft-garden-designer' ),
+				'desc'  => __( 'Deposit, plant book & seasonal film', 'hillcroft-garden-designer' ),
+				'url'   => admin_url( 'admin.php?page=hgd-projects' ),
+			),
+		);
+		$total = count( $flow );
+		?>
+		<div class="hgd-flow">
+			<?php foreach ( $flow as $i => $step ) : ?>
+				<a class="hgd-flow-step" href="<?php echo esc_url( $step['url'] ); ?>">
+					<span class="hgd-flow-num"><?php echo esc_html( $i + 1 ); ?></span>
+					<span class="hgd-flow-icon" aria-hidden="true">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><?php echo $step['icon']; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped — static inline SVG paths ?></svg>
+					</span>
+					<span class="hgd-flow-title"><?php echo esc_html( $step['title'] ); ?></span>
+					<span class="hgd-flow-desc"><?php echo esc_html( $step['desc'] ); ?></span>
+				</a>
+				<?php if ( $i < $total - 1 ) : ?>
+					<span class="hgd-flow-arrow" aria-hidden="true">→</span>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</div>
+
+		<p class="hgd-muted hgd-flow-foot"><?php esc_html_e( 'New here? Create the example project above to click through the whole journey with sample data.', 'hillcroft-garden-designer' ); ?></p>
 	</div>
 
 </div>

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.1.2
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.2.0 =
+* Dashboard: replaced the build-progress checklist with a visual "How it works" workflow diagram — the eight-step journey (enquiry & booking → capture → Claude reads it → design & renders → render pack → pricing → proposal & portal → payment & keepsakes), each step linking to where it happens.
 
 = 1.1.2 =
 * Verifies the one-click auto-update pipeline end to end (no functional changes).

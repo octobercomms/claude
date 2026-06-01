@@ -290,3 +290,41 @@
 @media (max-width: 1100px) {
   .hgd-wrap .hgd-quote-add { grid-template-columns: 1fr; }
 }
+
+/* Workflow diagram (dashboard "How it works") */
+.hgd-flow {
+	display: flex; align-items: stretch; flex-wrap: wrap; gap: 6px;
+	margin: 18px 0 6px;
+}
+.hgd-flow-step {
+	flex: 1 1 0; min-width: 150px;
+	display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+	background: #fff; border: 1px solid var(--hgd-line); border-radius: var(--hgd-radius);
+	padding: 16px 16px 18px; text-decoration: none; color: var(--hgd-charcoal);
+	position: relative; transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.hgd-flow-step:hover { transform: translateY(-2px); box-shadow: var(--hgd-shadow); border-color: var(--hgd-green); }
+.hgd-flow-num {
+	position: absolute; top: 12px; right: 14px;
+	font-family: "Cormorant Garamond", serif; font-size: 20px; color: var(--hgd-line); line-height: 1;
+}
+.hgd-flow-icon {
+	width: 40px; height: 40px; border-radius: 50%;
+	background: rgba(159,161,69,0.14); color: var(--hgd-olive);
+	display: flex; align-items: center; justify-content: center;
+}
+.hgd-flow-icon svg { width: 22px; height: 22px; }
+.hgd-flow-title { font-weight: 600; font-size: 14px; }
+.hgd-flow-desc { font-size: 12px; color: var(--hgd-muted); line-height: 1.4; }
+.hgd-flow-arrow {
+	align-self: center; color: var(--hgd-green); font-size: 20px; flex: 0 0 auto; padding: 0 2px;
+}
+.hgd-flow-foot { margin-top: 14px; }
+
+@media (max-width: 1100px) {
+	.hgd-flow-step { flex-basis: calc(50% - 20px); }
+	.hgd-flow-arrow { display: none; }
+}
+@media (max-width: 600px) {
+	.hgd-flow-step { flex-basis: 100%; }
+}
