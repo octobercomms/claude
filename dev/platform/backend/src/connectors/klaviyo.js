@@ -22,11 +22,18 @@ async function fetchData(credentials, params) {
   const { startDate, endDate } = params;
   const headers = getHeaders(credentials);
 
+  // Klaviyo's filter language compares datetime fields like scheduled_at
+  // against ISO 8601 timestamps with a Z (UTC) suffix. Passing a bare
+  // YYYY-MM-DD returns HTTP 400 — the API treats date-only literals as
+  // an invalid type for datetime comparison.
+  const startIso = `${startDate}T00:00:00Z`;
+  const endIso = `${endDate}T23:59:59Z`;
+
   const [campaignsRes, metricsRes] = await Promise.all([
     axios.get('https://a.klaviyo.com/api/campaigns/', {
       headers,
       params: {
-        'filter': `and(equals(messages.channel,'email'),greater-or-equal(scheduled_at,${startDate}),less-or-equal(scheduled_at,${endDate}))`,
+        'filter': `and(equals(messages.channel,'email'),greater-or-equal(scheduled_at,${startIso}),less-or-equal(scheduled_at,${endIso}))`,
         'fields[campaign]': 'name,status,scheduled_at',
         'page[size]': 50,
       },
@@ -59,7 +66,7 @@ async function fetchData(credentials, params) {
           data: {
             type: 'campaign-values-report',
             attributes: {
-              timeframe: { start: `${startDate}T00:00:00`, end: `${endDate}T23:59:59` },
+              timeframe: { start: startIso, end: endIso },
               conversion_metric_id: orderMetric.id,
               statistics: [
                 'recipients', 'delivered', 'opens_unique', 'open_rate',
