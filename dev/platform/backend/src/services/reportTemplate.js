@@ -399,6 +399,12 @@ function rangeForOffset({ periodStart, periodEnd, grain, offset }) {
   if (grain === 'yearly') {
     const year = startDate.getUTCFullYear() - offset;
     const start = new Date(Date.UTC(year, 0, 1));
+    // Current year row is YTD (running total to the report's period
+    // end); prior-year rows are full Jan 1 – Dec 31 totals. This is
+    // deliberate — the AM wants to see "are we ahead of last year yet?"
+    // by comparing the in-progress current year against historical
+    // year-end finals. A November preview will be approaching the
+    // prior year's totals; a January preview will look behind.
     const end = offset === 0
       ? endDate
       : new Date(Date.UTC(year, 11, 31));
