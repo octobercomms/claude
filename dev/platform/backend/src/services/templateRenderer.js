@@ -137,7 +137,7 @@ ${chat ? `\nRecent account-manager conversations:\n${chat}\n` : ''}
 Section instruction:
 ${section.prompt || 'Summarise the data above in 2-3 sentences.'}
 
-Respond with just the paragraph(s). No preamble, no heading.`;
+Respond with just the paragraph(s) — prose only. No preamble, no heading, no markdown tables (lines of pipes/dashes are rendered as raw text, not parsed as a table), no bullet lists, no numbered lists, no code blocks. If you need to reference numbers, put them inline in sentences. If a data table is needed, it belongs in a separate metrics_grid section, not in narrative prose.`;
 
   // Preview path: re-use a previously generated paragraph when the inputs
   // that affect it (prompt, sources, data slice, period) haven't changed.
