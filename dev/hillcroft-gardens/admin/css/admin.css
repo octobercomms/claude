@@ -407,3 +407,25 @@
 	background: transparent; border: 0; color: #fff; font-size: 40px; line-height: 1; cursor: pointer; opacity: .85;
 }
 .hgd-lightbox-close:hover { opacity: 1; }
+
+/* Loading overlay (slow Claude/Gemini actions) */
+.hgd-loading {
+	display: none; position: fixed; inset: 0; z-index: 100001;
+	background: rgba(27,28,24,0.86); align-items: center; justify-content: center; padding: 24px;
+}
+.hgd-loading.is-open { display: flex; }
+.hgd-loading-box {
+	background: var(--hgd-paper); border-radius: var(--hgd-radius); box-shadow: 0 12px 50px rgba(0,0,0,0.4);
+	padding: 34px 40px; max-width: 420px; text-align: center;
+}
+.hgd-spinner {
+	width: 46px; height: 46px; margin: 0 auto 18px;
+	border: 4px solid var(--hgd-line); border-top-color: var(--hgd-olive);
+	border-radius: 50%; animation: hgd-spin .8s linear infinite;
+}
+@keyframes hgd-spin { to { transform: rotate(360deg); } }
+.hgd-loading-msg {
+	font-family: "Cormorant Garamond", Georgia, serif; font-size: 22px; line-height: 1.3;
+	color: var(--hgd-charcoal); margin: 0 0 8px;
+}
+.hgd-loading-sub { font-size: 13px; color: var(--hgd-muted); margin: 0; }

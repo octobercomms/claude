@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.3
+Stable tag: 1.3.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.3.4 =
+* Loading feedback: slow actions (reading images, the Claude chat, composing the brief, generating renders or the render pack, uploads, imports, sending a proposal) now show a branded spinner overlay with a clear message and lock the page until they finish — so it's obvious something is happening and you can't double-click.
+* Fix: "Could not parse a JSON response from Claude" — the reader now tolerates markdown-fenced and truncated responses and salvages the reading + questions, and the AI calls allow longer replies (4000 tokens) so big readings aren't cut off.
 
 = 1.3.3 =
 * Wizard: actions like uploading photos, reading images, saving the design or generating a render now keep you on the step you're on (previously they bounced back to Details).
