@@ -10,6 +10,30 @@ $val     = function ( $key, $default = '' ) use ( $project ) {
 	return isset( $project[ $key ] ) ? $project[ $key ] : $default;
 };
 $list_url = admin_url( 'admin.php?page=hgd-projects' );
+
+// --- Wizard steps (edit screen only) -------------------------------------------
+$hgd_steps = array(
+	'details'   => __( 'Details', 'hillcroft-garden-designer' ),
+	'capture'   => __( 'Capture', 'hillcroft-garden-designer' ),
+	'design'    => __( 'Design', 'hillcroft-garden-designer' ),
+	'renders'   => __( 'Renders', 'hillcroft-garden-designer' ),
+	'pack'      => __( 'Render pack', 'hillcroft-garden-designer' ),
+	'pricing'   => __( 'Pricing', 'hillcroft-garden-designer' ),
+	'proposal'  => __( 'Proposal', 'hillcroft-garden-designer' ),
+	'keepsakes' => __( 'Keepsakes', 'hillcroft-garden-designer' ),
+);
+$hgd_step_keys = array_keys( $hgd_steps );
+$step          = isset( $_GET['step'] ) ? sanitize_key( $_GET['step'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+if ( ! isset( $hgd_steps[ $step ] ) ) {
+	$step = 'details';
+}
+// Link to a given step of this project.
+$hgd_step_url = function ( $key ) use ( $val ) {
+	return add_query_arg(
+		array( 'page' => 'hgd-projects', 'action' => 'edit', 'id' => (int) $val( 'id', 0 ), 'step' => $key ),
+		admin_url( 'admin.php' )
+	);
+};
 ?>
 <div class="wrap hgd-wrap">
 
@@ -41,6 +65,42 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		<div class="hgd-flash"><?php esc_html_e( 'Project saved.', 'hillcroft-garden-designer' ); ?></div>
 	<?php endif; ?>
 
+	<?php
+	if ( $is_edit ) :
+		// Loose "has data" heuristics for the completed-step tick.
+		$hgd_done = array(
+			'details'   => true,
+			'capture'   => ! empty( $assets ) || '' !== (string) $val( 'ai_reading' ),
+			'design'    => '' !== trim( (string) $val( 'design_brief' ) ),
+			'renders'   => ! empty( HGD_Project_Asset::for_project( (int) $val( 'id', 0 ), 'render' ) ),
+			'pack'      => ! empty( HGD_Render_Pack::pack_for_project( (int) $val( 'id', 0 ) ) ),
+			'pricing'   => ! empty( $quotes ),
+			'proposal'  => ! empty( $proposal ),
+			'keepsakes' => false,
+		);
+		?>
+		<nav class="hgd-stepper" aria-label="<?php esc_attr_e( 'Project steps', 'hillcroft-garden-designer' ); ?>">
+			<?php $hgd_i = 0; foreach ( $hgd_steps as $hgd_key => $hgd_label ) :
+				$hgd_i++;
+				$is_current = ( $step === $hgd_key );
+				$is_done    = ! empty( $hgd_done[ $hgd_key ] );
+				$classes    = 'hgd-step';
+				if ( $is_current ) {
+					$classes .= ' is-current';
+				}
+				if ( $is_done ) {
+					$classes .= ' is-done';
+				}
+				?>
+				<a class="<?php echo esc_attr( $classes ); ?>" href="<?php echo esc_url( $hgd_step_url( $hgd_key ) ); ?>"<?php echo $is_current ? ' aria-current="step"' : ''; ?>>
+					<span class="hgd-step-num"><?php echo $is_done && ! $is_current ? '&#10003;' : esc_html( $hgd_i ); ?></span>
+					<span class="hgd-step-label"><?php echo esc_html( $hgd_label ); ?></span>
+				</a>
+			<?php endforeach; ?>
+		</nav>
+	<?php endif; ?>
+
+	<?php if ( ! $is_edit || 'details' === $step ) : ?>
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-panel hgd-form">
 		<input type="hidden" name="action" value="hgd_save_project" />
 		<input type="hidden" name="id" value="<?php echo esc_attr( (int) $val( 'id', 0 ) ); ?>" />
@@ -110,6 +170,41 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 			<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $list_url ); ?>"><?php esc_html_e( 'Cancel', 'hillcroft-garden-designer' ); ?></a>
 		</div>
 	</form>
+	<?php endif; // details step / new project ?>
+
+	<?php
+	// Renders the Back / Next step navigation at the foot of a wizard step.
+	if ( ! function_exists( 'hgd_render_step_nav' ) ) {
+		function hgd_render_step_nav( $step, array $step_keys, array $steps, $step_url ) {
+			$idx  = array_search( $step, $step_keys, true );
+			$prev = ( false !== $idx && $idx > 0 ) ? $step_keys[ $idx - 1 ] : '';
+			$next = ( false !== $idx && $idx < count( $step_keys ) - 1 ) ? $step_keys[ $idx + 1 ] : '';
+			echo '<div class="hgd-step-nav">';
+			if ( '' !== $prev ) {
+				printf(
+					'<a class="hgd-pill hgd-pill-ghost" href="%s">&larr; %s</a>',
+					esc_url( $step_url( $prev ) ),
+					esc_html( $steps[ $prev ] )
+				);
+			} else {
+				echo '<span></span>';
+			}
+			if ( '' !== $next ) {
+				printf(
+					'<a class="hgd-pill" href="%s">%s &rarr;</a>',
+					esc_url( $step_url( $next ) ),
+					esc_html( $steps[ $next ] )
+				);
+			} else {
+				printf(
+					'<span class="hgd-pill hgd-pill-ghost hgd-step-done">%s</span>',
+					esc_html__( 'Done', 'hillcroft-garden-designer' )
+				);
+			}
+			echo '</div>';
+		}
+	}
+	?>
 
 	<?php if ( $is_edit ) :
 		$pid          = (int) $val( 'id', 0 );
@@ -124,7 +219,14 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 			}
 		}
 		$claude_error = isset( $_GET['claude_error'] ) ? sanitize_key( $_GET['claude_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$chat_error   = isset( $_GET['chat_error'] ) ? sanitize_key( $_GET['chat_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		?>
+
+		<?php if ( 'details' === $step ) : ?>
+			<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; ?>
+
+		<?php if ( 'capture' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Consultation capture', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Upload hand-drawn sketches and site photos, then let Claude read the sketch and draft clarifying questions.', 'hillcroft-garden-designer' ); ?></p>
@@ -219,9 +321,76 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 						<?php endforeach; ?>
 					</ul>
 				<?php endif; ?>
-				<p class="hgd-muted"><?php esc_html_e( 'Edit the brief / notes above to capture the answers to these questions.', 'hillcroft-garden-designer' ); ?></p>
+
+				<?php
+				// --- Capture chat: answer Claude's questions; it updates the brief ---
+				$chat_messages = HGD_Chat::messages( $pid );
+				?>
+				<h3><?php esc_html_e( 'Chat with Claude', 'hillcroft-garden-designer' ); ?></h3>
+
+				<?php if ( isset( $_GET['chat_sent'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+					<div class="hgd-flash"><?php esc_html_e( 'Claude replied and updated the design brief.', 'hillcroft-garden-designer' ); ?></div>
+				<?php endif; ?>
+				<?php if ( isset( $_GET['chat_cleared'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+					<div class="hgd-flash"><?php esc_html_e( 'Chat cleared.', 'hillcroft-garden-designer' ); ?></div>
+				<?php endif; ?>
+				<?php if ( 'nokey' === $chat_error ) : ?>
+					<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'No Claude API key configured — add one under Settings.', 'hillcroft-garden-designer' ); ?></div>
+				<?php elseif ( 'empty' === $chat_error ) : ?>
+					<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Type a message before sending.', 'hillcroft-garden-designer' ); ?></div>
+				<?php elseif ( 'api' === $chat_error || 'parse' === $chat_error ) :
+					$che = get_transient( 'hgd_chat_error_' . get_current_user_id() ); delete_transient( 'hgd_chat_error_' . get_current_user_id() ); ?>
+					<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $che ? $che : __( 'Claude could not reply.', 'hillcroft-garden-designer' ) ); ?></div>
+				<?php endif; ?>
+
+				<?php if ( ! HGD_Claude::is_configured() ) : ?>
+					<p class="hgd-muted"><?php
+						printf(
+							/* translators: %s settings link */
+							esc_html__( 'Add a Claude API key under %s to chat about the brief.', 'hillcroft-garden-designer' ),
+							'<a href="' . esc_url( admin_url( 'admin.php?page=hgd-settings' ) ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+						);
+					?></p>
+				<?php else : ?>
+					<?php if ( ! empty( $chat_messages ) ) : ?>
+						<div class="hgd-chat-thread">
+							<?php foreach ( $chat_messages as $cm ) :
+								$is_assistant = ( 'assistant' === $cm['role'] );
+								?>
+								<div class="hgd-chat-bubble <?php echo $is_assistant ? 'hgd-chat-assistant' : 'hgd-chat-user'; ?>">
+									<span class="hgd-chat-who"><?php echo $is_assistant ? esc_html__( 'Claude', 'hillcroft-garden-designer' ) : esc_html__( 'You', 'hillcroft-garden-designer' ); ?></span>
+									<div class="hgd-chat-body"><?php echo wp_kses_post( wpautop( $cm['body'] ) ); ?></div>
+								</div>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form hgd-chat-form">
+						<input type="hidden" name="action" value="hgd_chat_send" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_chat_send_' . $pid ); ?>
+						<label class="hgd-full"><span><?php esc_html_e( 'Your reply', 'hillcroft-garden-designer' ); ?></span>
+							<textarea name="message" rows="3" placeholder="<?php esc_attr_e( 'Answer Claude’s questions…', 'hillcroft-garden-designer' ); ?>"></textarea></label>
+						<div class="hgd-form-actions">
+							<button type="submit" class="hgd-pill"><?php esc_html_e( 'Send to Claude', 'hillcroft-garden-designer' ); ?></button>
+							<?php if ( ! empty( $chat_messages ) ) : ?>
+								<button type="submit" form="hgd-chat-clear-<?php echo esc_attr( $pid ); ?>" class="hgd-chat-clear" onclick="return confirm('<?php echo esc_js( __( 'Clear this chat thread?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Clear chat', 'hillcroft-garden-designer' ); ?></button>
+							<?php endif; ?>
+						</div>
+					</form>
+					<form id="hgd-chat-clear-<?php echo esc_attr( $pid ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:none;">
+						<input type="hidden" name="action" value="hgd_chat_clear" />
+						<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+						<?php wp_nonce_field( 'hgd_chat_clear_' . $pid ); ?>
+					</form>
+				<?php endif; ?>
+
+				<p class="hgd-muted"><?php esc_html_e( 'Answer Claude’s questions here — it updates the design brief below for you.', 'hillcroft-garden-designer' ); ?></p>
 			</div>
 		<?php endif; ?>
+
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // capture step ?>
 
 		<?php
 		$design_brief  = (string) $val( 'design_brief' );
@@ -232,6 +401,7 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		$settings_url  = admin_url( 'admin.php?page=hgd-settings' );
 		?>
 
+		<?php if ( 'design' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Design &amp; ideas', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Capture the design brief and the prompt used to generate concept renders. Use “Compose with Claude” to draft both from the consultation reading and your ideas, then hand-edit either as needed.', 'hillcroft-garden-designer' ); ?></p>
@@ -276,7 +446,10 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				</div>
 			</form>
 		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // design step ?>
 
+		<?php if ( 'renders' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Concept renders', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Generate a photorealistic concept render from the render prompt, using any uploaded sketch as a layout reference. May take ~10–20s. Press again after tweaking the prompt to iterate — each render is appended below.', 'hillcroft-garden-designer' ); ?></p>
@@ -342,6 +515,8 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<p class="hgd-muted"><?php esc_html_e( 'No renders yet.', 'hillcroft-garden-designer' ); ?></p>
 			<?php endif; ?>
 		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // renders step ?>
 
 		<?php
 		// --- Render pack ------------------------------------------------------
@@ -349,6 +524,7 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		$pack_error  = isset( $_GET['pack_error'] ) ? sanitize_key( $_GET['pack_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		$maps_ready  = HGD_Maps::is_configured();
 		?>
+		<?php if ( 'pack' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Render pack', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'A deliberate set of named garden views for the proposal and client portal — aerial masterplan, watercolour cover, hand-drawn plan and eye-level corners. Each view uses your latest concept render above as the consistency anchor, so every image shows the same garden from a different viewpoint or season.', 'hillcroft-garden-designer' ); ?></p>
@@ -497,6 +673,8 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<p class="hgd-muted"><?php esc_html_e( 'No pack images yet.', 'hillcroft-garden-designer' ); ?></p>
 			<?php endif; ?>
 		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // pack step ?>
 
 		<?php
 		// --- Keepsakes (plant book, proposal keepsake, seasonal film) ---------
@@ -510,6 +688,7 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		$keepsake_url   = $has_live_token ? home_url( '/?hgd_keepsake=' . rawurlencode( $keepsake_token ) ) : '';
 		$film_token_url = $has_live_token ? home_url( '/?hgd_film=' . rawurlencode( $keepsake_token ) ) : '';
 		?>
+		<?php if ( 'keepsakes' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Keepsakes', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Client-facing deliverables: a print-ready planting book (the client saves it as a PDF), a printable proposal keepsake, and a cinematic seasonal film of the render pack. The book uses the watercolour render-pack image as its cover.', 'hillcroft-garden-designer' ); ?></p>
@@ -538,6 +717,8 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( $film_preview ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Preview seasonal film ↗', 'hillcroft-garden-designer' ); ?></a>
 			</div>
 		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // keepsakes step ?>
 
 		<?php
 		// --- Pricing engine ---------------------------------------------------
@@ -548,6 +729,7 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		$quote_error = isset( $_GET['quote_error'] ); // phpcs:ignore WordPress.Security.NonceVerification
 		?>
 
+		<?php if ( 'pricing' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Pricing', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Build a Good / Better / Best quote for this project. Add plants from the catalogue and custom lines, set labour and overheads, then review the costed totals. The margin is for your eyes only.', 'hillcroft-garden-designer' ); ?></p>
@@ -799,6 +981,8 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				<?php endif; ?>
 			<?php endif; ?>
 		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // pricing step ?>
 
 		<?php
 		// --- Proposal + milestone payments -----------------------------------
@@ -806,6 +990,7 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 		$payments       = isset( $payments ) && is_array( $payments ) ? $payments : array();
 		$proposal_error = isset( $_GET['proposal_error'] ) ? sanitize_text_field( wp_unslash( $_GET['proposal_error'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 		?>
+		<?php if ( 'proposal' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Proposal', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Turn a chosen quote into a sendable, payable proposal. The client reviews it on a private, branded page, accepts and signs, then pays the deposit to begin.', 'hillcroft-garden-designer' ); ?></p>
@@ -932,6 +1117,8 @@ $list_url = admin_url( 'admin.php?page=hgd-projects' );
 				</div>
 			<?php endif; ?>
 		</div>
-	<?php endif; ?>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // proposal step ?>
+	<?php endif; // is_edit ?>
 
 </div>

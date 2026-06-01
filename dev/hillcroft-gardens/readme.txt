@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,13 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.3.0 =
+* Guided wizard: the project screen is now a step-by-step flow (Details → Capture → Design → Renders → Render pack → Pricing → Proposal → Keepsakes) with a progress stepper and Back/Next — one stage at a time.
+* Claude chat in Capture: after reading the sketch, answer Claude's questions in a chat thread and it rewrites the design brief for you automatically — no more editing it by hand.
+* Plant catalogue: Export CSV and Import CSV buttons (import adds new plants; columns match the export).
+* Friendlier message when Gemini image generation needs billing enabled (instead of the raw Google error).
+* Fix: the Forms Submissions and Analytics screens now keep the brand styling.
 
 = 1.2.0 =
 * Dashboard: replaced the build-progress checklist with a visual "How it works" workflow diagram — the eight-step journey (enquiry & booking → capture → Claude reads it → design & renders → render pack → pricing → proposal & portal → payment & keepsakes), each step linking to where it happens.

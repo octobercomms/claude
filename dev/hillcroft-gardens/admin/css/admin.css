@@ -328,3 +328,57 @@
 @media (max-width: 600px) {
 	.hgd-flow-step { flex-basis: 100%; }
 }
+
+/* --- Project wizard: stepper, step nav, capture chat --------------------- */
+.hgd-stepper {
+	display: flex; flex-wrap: wrap; gap: 8px;
+	background: var(--hgd-cream); border: 1px solid var(--hgd-line); border-radius: var(--hgd-radius);
+	padding: 10px; margin: 0 0 18px;
+}
+.hgd-step {
+	display: flex; align-items: center; gap: 8px;
+	flex: 1 1 auto; min-width: 120px;
+	padding: 8px 12px; border-radius: 999px; text-decoration: none;
+	color: var(--hgd-charcoal); border: 1px solid transparent; background: transparent;
+	transition: background .12s ease, border-color .12s ease;
+}
+.hgd-step:hover { background: rgba(73, 74, 32, 0.06); }
+.hgd-step-num {
+	display: inline-flex; align-items: center; justify-content: center;
+	width: 24px; height: 24px; border-radius: 50%; flex: 0 0 auto;
+	background: #fff; border: 1px solid var(--hgd-line); color: var(--hgd-muted);
+	font-size: 12px; font-weight: 700;
+}
+.hgd-step-label { font-size: 13px; font-weight: 500; }
+.hgd-step.is-done .hgd-step-num { background: var(--hgd-green); border-color: var(--hgd-green); color: #fff; }
+.hgd-step.is-current { background: var(--hgd-olive); border-color: var(--hgd-olive); }
+.hgd-step.is-current .hgd-step-label { color: #fff; }
+.hgd-step.is-current .hgd-step-num { background: var(--hgd-yellow); border-color: var(--hgd-yellow); color: var(--hgd-charcoal); }
+
+.hgd-step-nav { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 24px; }
+.hgd-step-done { opacity: .8; }
+
+/* Capture chat thread */
+.hgd-chat-thread { display: flex; flex-direction: column; gap: 10px; margin: 12px 0 16px; }
+.hgd-chat-bubble { max-width: 80%; border-radius: var(--hgd-radius); padding: 10px 14px; border: 1px solid var(--hgd-line); }
+.hgd-chat-bubble .hgd-chat-body p { margin: 0 0 6px; }
+.hgd-chat-bubble .hgd-chat-body p:last-child { margin-bottom: 0; }
+.hgd-chat-who { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; opacity: .8; }
+.hgd-chat-user { align-self: flex-end; background: var(--hgd-cream); border-color: var(--hgd-olive); color: var(--hgd-charcoal); }
+.hgd-chat-user .hgd-chat-who { color: var(--hgd-olive); }
+.hgd-chat-assistant { align-self: flex-start; background: var(--hgd-paper); border-left: 3px solid var(--hgd-green); }
+.hgd-chat-assistant .hgd-chat-who { color: var(--hgd-green); }
+.hgd-chat-clear {
+	background: none; border: none; cursor: pointer; padding: 0; margin-left: 6px;
+	color: var(--hgd-muted); text-decoration: underline; font-size: 13px;
+}
+.hgd-chat-clear:hover { color: var(--hgd-charcoal); }
+
+/* Plant CSV import control in the page head */
+.hgd-csv-import { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.hgd-csv-import input[type=file] { font-size: 12px; max-width: 220px; }
+
+@media (max-width: 600px) {
+	.hgd-step { flex-basis: 100%; }
+	.hgd-chat-bubble { max-width: 100%; }
+}
