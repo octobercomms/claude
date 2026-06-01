@@ -6,10 +6,12 @@ function getToken() {
 
 async function request(path, options = {}) {
   const token = getToken();
+  // FormData sets its own Content-Type with boundary — don't force JSON.
+  const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
   const res = await fetch(`${BASE}${path}`, {
     ...options,
     headers: {
-      'Content-Type': 'application/json',
+      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...options.headers,
     },
@@ -33,6 +35,7 @@ async function request(path, options = {}) {
 export const api = {
   get: (path) => request(path),
   post: (path, body) => request(path, { method: 'POST', body: JSON.stringify(body) }),
+  postForm: (path, formData) => request(path, { method: 'POST', body: formData }),
   put: (path, body) => request(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),

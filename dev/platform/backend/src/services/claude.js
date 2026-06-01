@@ -61,7 +61,7 @@ async function callClaude({ max_tokens, system, user, model = MODEL }) {
 //
 // History is full conversation context (passed in from the frontend); we
 // don't store it server-side, the lock action is what persists.
-async function chatBuildReportTemplate({ client, reportType, availableConnectors, currentTemplate, history }) {
+async function chatBuildReportTemplate({ client, reportType, availableConnectors, currentTemplate, history, attachment }) {
   const reportTemplate = require('./reportTemplate');
   // Enumerate exactly which metric keys are valid for each connector type
   // present on this client. Without this, Claude was proposing ad-hoc keys
@@ -144,6 +144,8 @@ Default to propose_template. The AM can always iterate on a draft, but cannot it
 
 Don't add sections the AM didn't ask for. Don't try to be exhaustive — a focused 4-6 section report is usually better than 12.
 
+If the AM attaches a PDF or image (a sample report, screenshot, or layout), read it carefully and propose a template that recreates its structure as faithfully as possible: same section titles in the same order, same time grains (year-on-year vs month-on-month), same source attributions where you can identify them. Map each section to the closest type (narrative / metrics_grid / connector_table / bar_chart / position_distribution) and pick metric keys ONLY from the catalog for connectors this client actually has. If a section in the sample uses a connector the client doesn't have, include it anyway and flag it briefly in your reply. Skip purely decorative blocks (cover header, footer) — those are rendered automatically.
+
 Brief replies. No long explanations. Use British English.`;
 
   const userIntro = `Client: ${client.name}
@@ -163,6 +165,22 @@ ${currentTemplate
     { role: 'user', content: userIntro },
     ...history.map(m => ({ role: m.role, content: m.content })),
   ];
+
+  // If the AM attached a PDF or image to this turn, splice it into the
+  // last user message as a document/image content block so Claude can
+  // read the sample report and draft a template that recreates its
+  // shape. PDFs are vision-decoded by the API (handles flattened scans
+  // as well as text-extractable PDFs).
+  if (attachment && attachment.buffer && attachment.mimeType) {
+    const last = messages[messages.length - 1];
+    if (last && last.role === 'user') {
+      const block = attachment.mimeType === 'application/pdf'
+        ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: attachment.buffer.toString('base64') } }
+        : { type: 'image', source: { type: 'base64', media_type: attachment.mimeType, data: attachment.buffer.toString('base64') } };
+      const textBlock = { type: 'text', text: typeof last.content === 'string' ? last.content : '' };
+      last.content = [block, textBlock];
+    }
+  }
 
   const response = await getClient().messages.create({
     model: MODEL,
