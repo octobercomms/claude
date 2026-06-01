@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.3.1 =
+* Renders & images: click any sketch, concept render or render-pack thumbnail to view it full-size in a lightbox (press Esc or click outside to close).
 
 = 1.3.0 =
 * Guided wizard: the project screen is now a step-by-step flow (Details → Capture → Design → Renders → Render pack → Pricing → Proposal → Keepsakes) with a progress stepper and Back/Next — one stage at a time.
