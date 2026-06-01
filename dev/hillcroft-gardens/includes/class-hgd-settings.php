@@ -42,6 +42,7 @@ class HGD_Settings {
 			// --- AI ---------------------------------------------------------
 			'claude_model'        => 'claude-sonnet-4-6',
 			'gemini_image_model'  => 'gemini-2.5-flash-image',
+			'render_style'        => 'watercolour', // photoreal | watercolour | pencil_wash
 
 			// --- Self-updater (private GitHub repo) -------------------------
 			'github_repo'         => 'octobercomms/claude',
@@ -140,5 +141,32 @@ class HGD_Settings {
 
 	public static function is_secret( $key ) {
 		return in_array( $key, self::SECRET_KEYS, true );
+	}
+
+	/** Render-style options for the Settings dropdown. */
+	public static function render_styles() {
+		return array(
+			'watercolour' => __( 'Watercolour painting', 'hillcroft-garden-designer' ),
+			'photoreal'   => __( 'Photorealistic', 'hillcroft-garden-designer' ),
+			'pencil_wash' => __( 'Pencil & light wash', 'hillcroft-garden-designer' ),
+		);
+	}
+
+	/**
+	 * A prompt fragment describing the chosen render aesthetic, appended to the
+	 * eye-level / concept render prompts. (Plan drawings and the dedicated
+	 * watercolour/hand-drawn pack views keep their own fixed styles.)
+	 */
+	public static function render_style_suffix() {
+		$style = (string) self::get( 'render_style', 'watercolour' );
+		switch ( $style ) {
+			case 'photoreal':
+				return 'STYLE: a clean, photorealistic landscape photograph — natural daylight, true-to-life materials and planting, sharp focus, no lens distortion.';
+			case 'pencil_wash':
+				return 'STYLE: a hand-drawn pencil illustration with light watercolour washes — confident line-work, soft colour, an architect\'s presentation sketch; warm and hand-crafted, not photographic.';
+			case 'watercolour':
+			default:
+				return 'STYLE: a loose, elegant watercolour painting — soft graded washes, confident brushwork, gentle bleeds and a hint of visible paper texture, in the manner of a fine garden-design illustration. Painterly and atmospheric rather than photographic, while staying true to the layout and planting.';
+		}
 	}
 }

@@ -16,6 +16,7 @@ $hgd_steps = array(
 	'details'   => __( 'Details', 'hillcroft-garden-designer' ),
 	'capture'   => __( 'Capture', 'hillcroft-garden-designer' ),
 	'design'    => __( 'Design', 'hillcroft-garden-designer' ),
+	'plan'      => __( 'Plan', 'hillcroft-garden-designer' ),
 	'renders'   => __( 'Renders', 'hillcroft-garden-designer' ),
 	'pack'      => __( 'Render pack', 'hillcroft-garden-designer' ),
 	'pricing'   => __( 'Pricing', 'hillcroft-garden-designer' ),
@@ -72,6 +73,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 			'details'   => true,
 			'capture'   => ! empty( $assets ) || '' !== (string) $val( 'ai_reading' ),
 			'design'    => '' !== trim( (string) $val( 'design_brief' ) ),
+			'plan'      => ! empty( HGD_Project_Asset::for_project( (int) $val( 'id', 0 ), 'plan' ) ),
 			'renders'   => ! empty( HGD_Project_Asset::for_project( (int) $val( 'id', 0 ), 'render' ) ),
 			'pack'      => ! empty( HGD_Render_Pack::pack_for_project( (int) $val( 'id', 0 ) ) ),
 			'pricing'   => ! empty( $quotes ),
@@ -468,10 +470,122 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
 		<?php endif; // design step ?>
 
+		<?php
+		// --- Plan (top-down garden plan drawing) ------------------------------
+		$plan_prompt  = (string) $val( 'plan_prompt' );
+		$plan_assets  = HGD_Project_Asset::for_project( $pid, 'plan' );
+		$plan_error   = isset( $_GET['plan_error'] ) ? sanitize_key( $_GET['plan_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		?>
+		<?php if ( 'plan' === $step ) : ?>
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Plan drawing', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Generate a clean top-down plan from your sketch and notes, and iterate it until the layout is right. The approved plan becomes the reference for your renders, so they follow the real layout.', 'hillcroft-garden-designer' ); ?></p>
+
+			<?php if ( isset( $_GET['plan_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Plan drawing generated.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['plan_saved'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Plan prompt saved.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( isset( $_GET['plan_composed'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Claude drafted a plan prompt.', 'hillcroft-garden-designer' ); ?></div>
+			<?php endif; ?>
+			<?php if ( 'nokey' === $plan_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'No API key configured — add one under %s.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'api' === $plan_error || 'parse' === $plan_error || 'save' === $plan_error ) :
+				$pe = get_transient( 'hgd_plan_error_' . get_current_user_id() ); delete_transient( 'hgd_plan_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $pe ? $pe : __( 'Could not generate the plan.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="hgd-form">
+				<input type="hidden" name="action" value="hgd_save_plan_prompt" />
+				<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+				<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+				<?php wp_nonce_field( 'hgd_save_plan_prompt_' . $pid ); ?>
+
+				<label class="hgd-full"><span><?php esc_html_e( 'Plan prompt', 'hillcroft-garden-designer' ); ?></span>
+					<textarea name="plan_prompt" rows="6" placeholder="<?php esc_attr_e( 'Leave blank to auto-build a plan prompt from the site reading and design brief.', 'hillcroft-garden-designer' ); ?>"><?php echo esc_textarea( $plan_prompt ); ?></textarea></label>
+				<p class="hgd-muted"><?php esc_html_e( 'This prompt is sent to Gemini to draw the plan. Refine it and generate again to iterate. If left blank, a prompt is built automatically from the consultation reading and design brief.', 'hillcroft-garden-designer' ); ?></p>
+
+				<div class="hgd-form-actions">
+					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+			</form>
+
+			<?php if ( HGD_Claude::is_configured() ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="hgd_compose_plan_prompt" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+					<?php wp_nonce_field( 'hgd_compose_plan_prompt_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Draft with Claude', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Drafts a plan prompt from the consultation reading + design brief. May take a few seconds.', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+			<?php endif; ?>
+
+			<?php if ( HGD_Gemini::is_configured() ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="hgd_generate_plan" />
+					<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+					<input type="hidden" name="step" value="<?php echo esc_attr( $step ); ?>" />
+					<?php wp_nonce_field( 'hgd_generate_plan_' . $pid ); ?>
+					<div class="hgd-form-actions">
+						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Generate plan', 'hillcroft-garden-designer' ); ?></button>
+						<span class="hgd-muted"><?php esc_html_e( 'Draws a top-down plan using your sketch (and photos) as the reference. May take ~20s. Press again after tweaking the prompt to iterate.', 'hillcroft-garden-designer' ); ?></span>
+					</div>
+				</form>
+			<?php else : ?>
+				<p class="hgd-muted"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'Add a Gemini API key under %s to generate plan drawings.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></p>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $plan_assets ) ) : ?>
+				<div class="hgd-asset-grid">
+					<?php foreach ( $plan_assets as $plan ) :
+						$del_url = wp_nonce_url(
+							add_query_arg(
+								array( 'action' => 'hgd_delete_asset', 'asset_id' => (int) $plan['id'], 'id' => $pid ),
+								admin_url( 'admin-post.php' )
+							),
+							'hgd_delete_asset_' . (int) $plan['id']
+						);
+						?>
+						<div class="hgd-asset">
+							<a class="hgd-asset-link" href="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $plan['attachment_id'], 'full' ) ); ?>" data-hgd-lightbox>
+								<?php echo wp_get_attachment_image( (int) $plan['attachment_id'], 'large' ); ?>
+							</a>
+							<div class="hgd-asset-meta">
+								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( HGD_Project_Asset::role_label( $plan['role'] ) ); ?></span>
+								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this plan?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
+							</div>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<p class="hgd-muted"><?php esc_html_e( 'The most recent plan is used as the primary reference for your concept renders and render pack. To iterate: refine the plan prompt above, Save, then Generate plan again.', 'hillcroft-garden-designer' ); ?></p>
+			<?php else : ?>
+				<p class="hgd-muted"><?php esc_html_e( 'No plan drawings yet.', 'hillcroft-garden-designer' ); ?></p>
+			<?php endif; ?>
+		</div>
+		<?php hgd_render_step_nav( $step, $hgd_step_keys, $hgd_steps, $hgd_step_url ); ?>
+		<?php endif; // plan step ?>
+
 		<?php if ( 'renders' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Concept renders', 'hillcroft-garden-designer' ); ?></h2>
-			<p class="hgd-muted"><?php esc_html_e( 'Generate a photorealistic concept render from the render prompt, using any uploaded sketch as a layout reference. May take ~10–20s. Press again after tweaking the prompt to iterate — each render is appended below.', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'Generate a photorealistic concept render from the render prompt, using your approved plan as the primary layout reference (falling back to a sketch if no plan exists). May take ~10–20s. Press again after tweaking the prompt to iterate — each render is appended below.', 'hillcroft-garden-designer' ); ?></p>
 
 			<?php if ( isset( $_GET['render_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 				<div class="hgd-flash"><?php esc_html_e( 'Concept render generated.', 'hillcroft-garden-designer' ); ?></div>
@@ -497,7 +611,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 					<?php wp_nonce_field( 'hgd_generate_render_' . $pid ); ?>
 					<div class="hgd-form-actions">
 						<button type="submit" class="hgd-pill"><?php esc_html_e( 'Generate render', 'hillcroft-garden-designer' ); ?></button>
-						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + sketch as reference.', 'hillcroft-garden-designer' ); ?></span>
+						<span class="hgd-muted"><?php esc_html_e( 'Uses the render prompt + your approved plan as reference.', 'hillcroft-garden-designer' ); ?></span>
 					</div>
 				</form>
 			<?php else : ?>
@@ -549,7 +663,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 		<?php if ( 'pack' === $step ) : ?>
 		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Render pack', 'hillcroft-garden-designer' ); ?></h2>
-			<p class="hgd-muted"><?php esc_html_e( 'A deliberate set of named garden views for the proposal and client portal — aerial masterplan, watercolour cover, hand-drawn plan and eye-level corners. Each view uses your latest concept render above as the consistency anchor, so every image shows the same garden from a different viewpoint or season.', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'A deliberate set of named garden views for the proposal and client portal — aerial masterplan, watercolour cover, hand-drawn plan and eye-level corners. Each view anchors to your approved plan first (then the latest concept render), so every image follows the same real layout from a different viewpoint or season.', 'hillcroft-garden-designer' ); ?></p>
 			<p class="hgd-muted"><?php esc_html_e( 'Each image is a separate Gemini generation (cost applies). Generating the full pack makes about six images and may take a minute or two — leave the tab open until it finishes.', 'hillcroft-garden-designer' ); ?></p>
 
 			<?php if ( isset( $_GET['pack_done'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
@@ -602,7 +716,7 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				?></p>
 			<?php else :
 				if ( empty( $renders ) ) : ?>
-					<p class="hgd-muted"><?php esc_html_e( 'Tip: generate a concept render above first — the pack anchors to it for consistency. Without one, it will fall back to the sketch.', 'hillcroft-garden-designer' ); ?></p>
+					<p class="hgd-muted"><?php esc_html_e( 'Tip: approve a plan and generate a concept render first — the pack anchors to your plan (then the render) for consistency. Without either, it falls back to the sketch.', 'hillcroft-garden-designer' ); ?></p>
 				<?php endif; ?>
 
 				<div class="hgd-form-actions">

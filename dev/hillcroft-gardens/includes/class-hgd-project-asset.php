@@ -14,6 +14,7 @@ class HGD_Project_Asset {
 	const ROLES = array(
 		'sketch' => 'Sketch',
 		'photo'  => 'Photo',
+		'plan'   => 'Plan drawing',
 		'render' => 'Concept render',
 		'pack'   => 'Render pack',
 		'other'  => 'Other',

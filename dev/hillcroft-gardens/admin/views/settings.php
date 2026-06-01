@@ -66,8 +66,15 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 			<div class="hgd-grid">
 				<?php $field( 'claude_model', __( 'Claude model', 'hillcroft-garden-designer' ) ); ?>
 				<?php $field( 'gemini_image_model', __( 'Gemini image model', 'hillcroft-garden-designer' ) ); ?>
+				<label><span><?php esc_html_e( 'Render style', 'hillcroft-garden-designer' ); ?></span>
+					<select name="render_style">
+						<?php $cur_style = isset( $s['render_style'] ) ? $s['render_style'] : 'watercolour';
+						foreach ( HGD_Settings::render_styles() as $rk => $rl ) : ?>
+							<option value="<?php echo esc_attr( $rk ); ?>" <?php selected( $cur_style, $rk ); ?>><?php echo esc_html( $rl ); ?></option>
+						<?php endforeach; ?>
+					</select></label>
 			</div>
-			<p class="hgd-muted"><?php esc_html_e( 'Claude reads consultation sketches. Gemini generates concept renders. Defaults: claude-sonnet-4-6, gemini-2.5-flash-image', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-muted"><?php esc_html_e( 'Claude reads sketches; Gemini generates renders. Render style sets the look of the eye-level concept renders (the watercolour cover and hand-drawn plan keep their own styles). Defaults: claude-sonnet-4-6, gemini-2.5-flash-image, watercolour', 'hillcroft-garden-designer' ); ?></p>
 		</div>
 
 		<div class="hgd-panel">
