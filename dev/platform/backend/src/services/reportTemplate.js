@@ -399,9 +399,14 @@ function rangeForOffset({ periodStart, periodEnd, grain, offset }) {
   if (grain === 'yearly') {
     const year = startDate.getUTCFullYear() - offset;
     const start = new Date(Date.UTC(year, 0, 1));
+    // For prior years, end on the same month/day as the current report
+    // period's end — so "2025" row covers Jan 1 to (current report
+    // end's mm-dd) of 2025, matching the current year's YTD window.
+    // Without this, a mid-year report compares e.g. Jan–Apr 2026 (partial)
+    // against Jan–Dec 2025 (full year), which is misleading.
     const end = offset === 0
       ? endDate
-      : new Date(Date.UTC(year, 11, 31));
+      : new Date(Date.UTC(year, endDate.getUTCMonth(), endDate.getUTCDate()));
     return { start: ymd(start), end: ymd(end), label: String(year) };
   }
   if (grain === 'weekly') {

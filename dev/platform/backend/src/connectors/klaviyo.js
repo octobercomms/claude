@@ -37,11 +37,11 @@ async function fetchData(credentials, params) {
         'fields[campaign]': 'name,status,scheduled_at',
         'page[size]': 50,
       },
-    }),
+    }).catch(e => { throw klaviyoError('GET /campaigns/', e, { startIso, endIso }); }),
     axios.get('https://a.klaviyo.com/api/metrics/', {
       headers,
       params: { 'page[size]': 100 },
-    }),
+    }).catch(e => { throw klaviyoError('GET /metrics/', e); }),
   ]);
 
   const campaigns = campaignsRes.data.data || [];
@@ -103,6 +103,24 @@ async function fetchData(credentials, params) {
   };
   if (note) result.note = note;
   return result;
+}
+
+// Pull the actual error detail out of Klaviyo's response body and rethrow
+// with it. Axios's default err.message is just "Request failed with status
+// code 400" — useless for diagnosing which filter the API choked on.
+// Klaviyo's body shape: { errors: [{ status, code, title, detail, source }] }
+function klaviyoError(endpoint, err, ctx) {
+  const status = err.response?.status;
+  const body = err.response?.data;
+  const detail = body?.errors?.[0]?.detail
+    || body?.errors?.[0]?.title
+    || (typeof body === 'string' ? body : null)
+    || err.message;
+  const code = body?.errors?.[0]?.code ? ` [${body.errors[0].code}]` : '';
+  const ctxStr = ctx ? ` (${Object.entries(ctx).map(([k, v]) => `${k}=${v}`).join(', ')})` : '';
+  const wrapped = new Error(`Klaviyo ${endpoint} ${status || 'request'} failed${code}: ${detail}${ctxStr}`);
+  wrapped.response = err.response;
+  return wrapped;
 }
 
 module.exports = { authType, checkTokenValidity, fetchData };
