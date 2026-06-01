@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.3.2 =
+* Consultation capture now shows only the files you upload (sketches & photos) — generated concept renders and render-pack images no longer appear here; they live in their own steps.
+* Bulk photo upload: select multiple photos at once on the Capture step to add them all in one go (with a tip to make it obvious).
 
 = 1.3.1 =
 * Renders & images: click any sketch, concept render or render-pack thumbnail to view it full-size in a lightbox (press Esc or click outside to close).

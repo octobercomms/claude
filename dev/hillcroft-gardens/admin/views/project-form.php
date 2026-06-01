@@ -262,19 +262,30 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 						<input type="file" name="files[]" multiple accept="image/*" /></label>
 					<label><span><?php esc_html_e( 'Role', 'hillcroft-garden-designer' ); ?></span>
 						<select name="role">
-							<?php foreach ( HGD_Project_Asset::ROLES as $rk => $rl ) : ?>
-								<option value="<?php echo esc_attr( $rk ); ?>" <?php selected( 'sketch', $rk ); ?>><?php echo esc_html( $rl ); ?></option>
+							<?php
+							// Only upload roles — generated renders/pack are created elsewhere.
+							$hgd_upload_roles = array( 'sketch', 'photo', 'other' );
+							foreach ( $hgd_upload_roles as $rk ) : ?>
+								<option value="<?php echo esc_attr( $rk ); ?>" <?php selected( 'photo', $rk ); ?>><?php echo esc_html( HGD_Project_Asset::role_label( $rk ) ); ?></option>
 							<?php endforeach; ?>
 						</select></label>
 				</div>
+				<p class="hgd-muted"><?php esc_html_e( 'Tip: select multiple photos at once to upload them all in one go.', 'hillcroft-garden-designer' ); ?></p>
 				<div class="hgd-form-actions">
 					<button type="submit" class="hgd-pill"><?php esc_html_e( 'Upload', 'hillcroft-garden-designer' ); ?></button>
 				</div>
 			</form>
 
-			<?php if ( ! empty( $assets ) ) : ?>
+			<?php
+			// Show only what Donna uploaded here — generated concept renders and
+			// render-pack images appear in their own steps, not in Capture.
+			$hgd_capture_assets = array_filter( (array) $assets, function ( $a ) {
+				return in_array( ( isset( $a['role'] ) ? $a['role'] : '' ), array( 'sketch', 'photo', 'other' ), true );
+			} );
+			?>
+			<?php if ( ! empty( $hgd_capture_assets ) ) : ?>
 				<div class="hgd-asset-grid">
-					<?php foreach ( $assets as $asset ) :
+					<?php foreach ( $hgd_capture_assets as $asset ) :
 						$del_url = wp_nonce_url(
 							add_query_arg(
 								array( 'action' => 'hgd_delete_asset', 'asset_id' => (int) $asset['id'], 'id' => $pid ),
