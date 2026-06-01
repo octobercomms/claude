@@ -82,4 +82,61 @@ class HGD_Project_Asset {
 		}
 		return false !== $wpdb->delete( HGD_DB::project_assets_table(), array( 'id' => (int) $id ) );
 	}
+
+	/**
+	 * Mark a render as the single approved "hero" render for its project,
+	 * clearing approval from any other render on the same project. Pass a row
+	 * that is already approved to toggle it off.
+	 *
+	 * @return string 'approved' | 'cleared'
+	 */
+	public static function toggle_approved( $asset_id, $project_id ) {
+		global $wpdb;
+		$table = HGD_DB::project_assets_table();
+		$row   = self::get( $asset_id );
+		$was   = $row && ! empty( $row['approved'] );
+
+		// Only one approved render per project: clear all first.
+		$wpdb->query( $wpdb->prepare(
+			"UPDATE {$table} SET approved = 0 WHERE project_id = %d AND role = 'render'",
+			(int) $project_id
+		) );
+
+		if ( $was ) {
+			return 'cleared';
+		}
+		$wpdb->update( $table, array( 'approved' => 1 ), array( 'id' => (int) $asset_id ) );
+		return 'approved';
+	}
+
+	/** The approved render row for a project, or null. */
+	public static function approved_render( $project_id ) {
+		global $wpdb;
+		$table = HGD_DB::project_assets_table();
+		$row   = $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE project_id = %d AND role = 'render' AND approved = 1 ORDER BY id DESC LIMIT 1",
+			(int) $project_id
+		), ARRAY_A );
+		return $row ? $row : null;
+	}
+
+	/** Persist a render scorecard (score 0–100 + structured review JSON). */
+	public static function save_review( $asset_id, $score, array $review ) {
+		global $wpdb;
+		$score = max( 0, min( 100, (int) $score ) );
+		return false !== $wpdb->update(
+			HGD_DB::project_assets_table(),
+			array( 'score' => $score, 'review' => wp_json_encode( $review ) ),
+			array( 'id' => (int) $asset_id )
+		);
+	}
+
+	/** Decode a stored scorecard review into an array (or empty array). */
+	public static function review( $row ) {
+		if ( ! is_array( $row ) || empty( $row['review'] ) ) {
+			return array();
+		}
+		$data = json_decode( (string) $row['review'], true );
+		return is_array( $data ) ? $data : array();
+	}
 }

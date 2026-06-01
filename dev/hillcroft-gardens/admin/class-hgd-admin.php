@@ -34,6 +34,8 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_generate_render', array( $this, 'handle_generate_render' ) );
 		add_action( 'admin_post_hgd_generate_photo_render', array( $this, 'handle_generate_photo_render' ) );
 		add_action( 'admin_post_hgd_generate_flux_render', array( $this, 'handle_generate_flux_render' ) );
+		add_action( 'admin_post_hgd_approve_render', array( $this, 'handle_approve_render' ) );
+		add_action( 'admin_post_hgd_score_render', array( $this, 'handle_score_render' ) );
 		add_action( 'admin_post_hgd_generate_plan', array( $this, 'handle_generate_plan' ) );
 		add_action( 'admin_post_hgd_save_plan_prompt', array( $this, 'handle_save_plan_prompt' ) );
 		add_action( 'admin_post_hgd_compose_plan_prompt', array( $this, 'handle_compose_plan_prompt' ) );
@@ -1039,6 +1041,102 @@ class HGD_Admin {
 		HGD_Project_Asset::add( $id, $att_id, 'render', 'flux_render', __( 'Structural render (Flux + ControlNet)', 'hillcroft-garden-designer' ) );
 
 		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'render_done' => 1 ) );
+	}
+
+	// -------------------------------------------------------------------------
+	// Approval gate + render scorecard
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Toggle the approved "hero" render. Only an approved render (if any) is
+	 * used as the downstream reference for the render pack and proposal.
+	 */
+	public function handle_approve_render() {
+		$this->guard();
+		$id       = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$asset_id = isset( $_POST['asset_id'] ) ? (int) $_POST['asset_id'] : 0;
+		check_admin_referer( 'hgd_approve_render_' . $asset_id );
+
+		$row = $asset_id ? HGD_Project_Asset::get( $asset_id ) : null;
+		if ( ! $id || ! $row || (int) $row['project_id'] !== $id || 'render' !== $row['role'] ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders' ) );
+		}
+
+		$state = HGD_Project_Asset::toggle_approved( $asset_id, $id );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'approved' => ( 'approved' === $state ? 1 : 0 ) ) );
+	}
+
+	/**
+	 * Score a render against the brief, reading and measurements using Claude
+	 * vision — a 0–100 match score plus what matches and what's off. Stored on
+	 * the render so a render that ignored the brief is caught before the client.
+	 */
+	public function handle_score_render() {
+		$this->guard();
+		$id       = isset( $_POST['project_id'] ) ? (int) $_POST['project_id'] : 0;
+		$asset_id = isset( $_POST['asset_id'] ) ? (int) $_POST['asset_id'] : 0;
+		check_admin_referer( 'hgd_score_render_' . $asset_id );
+
+		$project = $id ? HGD_Project::get( $id ) : null;
+		$row     = $asset_id ? HGD_Project_Asset::get( $asset_id ) : null;
+		if ( ! $project || ! $row || (int) $row['project_id'] !== $id || 'render' !== $row['role'] ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders' ) );
+		}
+
+		if ( ! HGD_Claude::is_configured() ) {
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'score_error' => 'nokey' ) );
+		}
+
+		$measure = class_exists( 'HGD_Measure' ) ? HGD_Measure::summary_text( $project ) : '';
+
+		$context  = "DESIGN BRIEF (the intended scheme):\n" . ( $project['design_brief'] ?: '(none)' ) . "\n\n";
+		$context .= "SITE READING (existing garden, dimensions, features):\n" . ( $project['ai_reading'] ?: '(none)' ) . "\n\n";
+		$context .= 'MEASUREMENTS: ' . ( '' !== $measure ? $measure : '(none captured)' ) . "\n\n";
+		$context .= "RENDER PROMPT used:\n" . ( $project['render_prompt'] ?: '(none)' );
+
+		$system = 'You are a senior garden designer doing QA on an AI-generated concept render before it goes to the client. '
+			. 'You are given the design brief, the site reading, the measured dimensions and the attached render image. '
+			. 'Judge HOW WELL THE RENDER MATCHES THE BRIEF AND THE REAL SITE: layout and zones, planting palette and density, '
+			. 'hard-landscaping and materials, boundaries and fixed features, and whether proportions look true to the measurements. '
+			. 'Be specific and honest — flag anything invented, missing or contradicting the brief. '
+			. 'Respond ONLY with a single JSON object with exactly these keys: '
+			. '"score" (integer 0-100, how faithfully it realises the brief on the real site), '
+			. '"verdict" (one short sentence), '
+			. '"matches" (array of short strings — what it gets right), '
+			. '"mismatches" (array of short strings — what is off, missing or invented). '
+			. 'Do not wrap the JSON in markdown fences or add any text outside the JSON object.';
+
+		$blocks = array(
+			HGD_Claude::text_block( $context ),
+		);
+		$img = HGD_Claude::image_block_from_attachment( (int) $row['attachment_id'] );
+		if ( $img ) {
+			$blocks[] = $img;
+		}
+
+		$result = HGD_Claude::message( $blocks, $system, 1500, $id );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'hgd_score_error_' . get_current_user_id(), $result->get_error_message(), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'score_error' => 'api' ) );
+		}
+
+		$parsed = $this->parse_claude_json( $result['text'] );
+		if ( ! is_array( $parsed ) ) {
+			set_transient( 'hgd_score_error_' . get_current_user_id(), __( 'Could not read the scorecard from Claude. Try again.', 'hillcroft-garden-designer' ), 120 );
+			$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'score_error' => 'parse' ) );
+		}
+
+		$score  = isset( $parsed['score'] ) ? (int) $parsed['score'] : 0;
+		$review = array(
+			'verdict'    => isset( $parsed['verdict'] ) ? sanitize_text_field( (string) $parsed['verdict'] ) : '',
+			'matches'    => array_map( 'sanitize_text_field', isset( $parsed['matches'] ) && is_array( $parsed['matches'] ) ? $parsed['matches'] : array() ),
+			'mismatches' => array_map( 'sanitize_text_field', isset( $parsed['mismatches'] ) && is_array( $parsed['mismatches'] ) ? $parsed['mismatches'] : array() ),
+		);
+
+		HGD_Project_Asset::save_review( $asset_id, $score, $review );
+
+		$this->redirect_with( 'hgd-projects', array( 'action' => 'edit', 'id' => $id, 'step' => 'renders', 'scored' => 1 ) );
 	}
 
 	// -------------------------------------------------------------------------

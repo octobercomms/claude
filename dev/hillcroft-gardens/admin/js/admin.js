@@ -76,6 +76,7 @@
 		hgd_generate_render: 'Generating your concept render… this can take up to a minute.',
 		hgd_generate_photo_render: 'Designing the scheme into your site photo… this can take up to a minute.',
 		hgd_generate_flux_render: 'Generating a structural render with Flux + ControlNet… this can take up to a minute.',
+		hgd_score_render: 'Claude is checking this render against the brief…',
 		hgd_generate_plan:   'Generating your garden plan… this can take up to a minute.',
 		hgd_compose_plan_prompt: 'Claude is drafting the plan…',
 		hgd_pack_generate_view:  'Generating this view… this can take up to a minute.',

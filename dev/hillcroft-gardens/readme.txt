@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.8.0
+Stable tag: 1.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.9.0 =
+* Render scorecard: a "Check against brief" button on each concept render asks Claude to compare the image against the design brief, the site reading and the captured measurements, and returns a 0–100 match score with what it gets right and — crucially — what's off, missing or invented. A low score opens its scorecard automatically, so a render that ignored the brief is caught before the client ever sees it.
+* Approval gate: mark your chosen render as "Approved", and only that render is used as the reference for the render pack and the proposal (previously it was always the most recent one). Approving one render clears approval from the others, so there's always a single, deliberate "hero" image driving the deliverables.
 
 = 1.8.0 =
 * Structural render engine (optional): a second render engine — Flux + ControlNet via fal.ai — that uses your approved plan as a *structural guide*, so the render follows the exact layout (bed shapes, paths and structures land where the plan puts them) rather than re-interpreting it. It's entirely optional and off until you add a fal.ai key under Settings; the button on the Renders step degrades gracefully without one. Add your key (and, if you like, a different fal.ai model) under Settings → API keys / AI. Per-image cost feeds the cost banner.

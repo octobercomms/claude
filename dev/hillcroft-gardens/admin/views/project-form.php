@@ -775,6 +775,23 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 				?></p>
 			<?php endif; ?>
 
+			<?php
+			$score_error = isset( $_GET['score_error'] ) ? sanitize_key( $_GET['score_error'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+			if ( isset( $_GET['scored'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
+				<div class="hgd-flash"><?php esc_html_e( 'Render checked against the brief.', 'hillcroft-garden-designer' ); ?></div>
+			<?php elseif ( 'nokey' === $score_error ) : ?>
+				<div class="hgd-flash hgd-flash-error"><?php
+					printf(
+						/* translators: %s settings link */
+						esc_html__( 'No Claude API key configured — add one under %s to check renders.', 'hillcroft-garden-designer' ),
+						'<a href="' . esc_url( $settings_url ) . '">' . esc_html__( 'Settings', 'hillcroft-garden-designer' ) . '</a>'
+					);
+				?></div>
+			<?php elseif ( 'api' === $score_error || 'parse' === $score_error ) :
+				$se = get_transient( 'hgd_score_error_' . get_current_user_id() ); delete_transient( 'hgd_score_error_' . get_current_user_id() ); ?>
+				<div class="hgd-flash hgd-flash-error"><?php echo esc_html( $se ? $se : __( 'Could not check the render.', 'hillcroft-garden-designer' ) ); ?></div>
+			<?php endif; ?>
+
 			<?php if ( ! empty( $renders ) ) : ?>
 				<div class="hgd-asset-grid">
 					<?php foreach ( $renders as $render ) :
@@ -785,19 +802,61 @@ $hgd_step_url = function ( $key ) use ( $val ) {
 							),
 							'hgd_delete_asset_' . (int) $render['id']
 						);
+						$is_approved = ! empty( $render['approved'] );
+						$score       = isset( $render['score'] ) && '' !== $render['score'] && null !== $render['score'] ? (int) $render['score'] : null;
+						$review      = HGD_Project_Asset::review( $render );
+						$score_class = null === $score ? '' : ( $score >= 80 ? 'hgd-score-good' : ( $score >= 60 ? 'hgd-score-ok' : 'hgd-score-poor' ) );
 						?>
-						<div class="hgd-asset">
+						<div class="hgd-asset<?php echo $is_approved ? ' is-approved' : ''; ?>">
 							<a class="hgd-asset-link" href="<?php echo esc_url( (string) wp_get_attachment_image_url( (int) $render['attachment_id'], 'full' ) ); ?>" data-hgd-lightbox>
 								<?php echo wp_get_attachment_image( (int) $render['attachment_id'], 'large' ); ?>
 							</a>
 							<div class="hgd-asset-meta">
-								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( HGD_Project_Asset::role_label( $render['role'] ) ); ?></span>
+								<span class="hgd-pill hgd-pill-ghost"><?php echo esc_html( '' !== (string) $render['label'] ? $render['label'] : HGD_Project_Asset::role_label( $render['role'] ) ); ?></span>
+								<?php if ( $is_approved ) : ?><span class="hgd-pill hgd-pill-approved"><?php esc_html_e( 'Approved ✓', 'hillcroft-garden-designer' ); ?></span><?php endif; ?>
+								<?php if ( null !== $score ) : ?><span class="hgd-score <?php echo esc_attr( $score_class ); ?>"><?php echo esc_html( sprintf( /* translators: %d match score */ __( 'Match %d%%', 'hillcroft-garden-designer' ), $score ) ); ?></span><?php endif; ?>
+							</div>
+
+							<?php if ( $review ) : ?>
+								<details class="hgd-scorecard"<?php echo ( null !== $score && $score < 60 ) ? ' open' : ''; ?>>
+									<summary><?php esc_html_e( 'Scorecard', 'hillcroft-garden-designer' ); ?></summary>
+									<?php if ( ! empty( $review['verdict'] ) ) : ?><p class="hgd-scorecard-verdict"><?php echo esc_html( $review['verdict'] ); ?></p><?php endif; ?>
+									<?php if ( ! empty( $review['matches'] ) ) : ?>
+										<p class="hgd-scorecard-h"><?php esc_html_e( 'Matches the brief', 'hillcroft-garden-designer' ); ?></p>
+										<ul class="hgd-scorecard-list hgd-scorecard-good"><?php foreach ( $review['matches'] as $m ) : ?><li><?php echo esc_html( $m ); ?></li><?php endforeach; ?></ul>
+									<?php endif; ?>
+									<?php if ( ! empty( $review['mismatches'] ) ) : ?>
+										<p class="hgd-scorecard-h"><?php esc_html_e( 'Off / missing / invented', 'hillcroft-garden-designer' ); ?></p>
+										<ul class="hgd-scorecard-list hgd-scorecard-bad"><?php foreach ( $review['mismatches'] as $m ) : ?><li><?php echo esc_html( $m ); ?></li><?php endforeach; ?></ul>
+									<?php endif; ?>
+								</details>
+							<?php endif; ?>
+
+							<div class="hgd-asset-actions">
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<input type="hidden" name="action" value="hgd_approve_render" />
+									<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+									<input type="hidden" name="asset_id" value="<?php echo esc_attr( (int) $render['id'] ); ?>" />
+									<input type="hidden" name="step" value="renders" />
+									<?php wp_nonce_field( 'hgd_approve_render_' . (int) $render['id'] ); ?>
+									<button type="submit" class="hgd-pill <?php echo $is_approved ? 'hgd-pill-ghost' : ''; ?>"><?php echo $is_approved ? esc_html__( 'Unapprove', 'hillcroft-garden-designer' ) : esc_html__( 'Approve', 'hillcroft-garden-designer' ); ?></button>
+								</form>
+								<?php if ( HGD_Claude::is_configured() ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<input type="hidden" name="action" value="hgd_score_render" />
+										<input type="hidden" name="project_id" value="<?php echo esc_attr( $pid ); ?>" />
+										<input type="hidden" name="asset_id" value="<?php echo esc_attr( (int) $render['id'] ); ?>" />
+										<input type="hidden" name="step" value="renders" />
+										<?php wp_nonce_field( 'hgd_score_render_' . (int) $render['id'] ); ?>
+										<button type="submit" class="hgd-pill hgd-pill-ghost"><?php echo null === $score ? esc_html__( 'Check against brief', 'hillcroft-garden-designer' ) : esc_html__( 'Re-check', 'hillcroft-garden-designer' ); ?></button>
+									</form>
+								<?php endif; ?>
 								<a class="hgd-muted" href="<?php echo esc_url( $del_url ); ?>" onclick="return confirm('<?php echo esc_js( __( 'Delete this render?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Delete', 'hillcroft-garden-designer' ); ?></a>
 							</div>
 						</div>
 					<?php endforeach; ?>
 				</div>
-				<p class="hgd-muted"><?php esc_html_e( 'To iterate: edit the render prompt above, Save, then Generate render again.', 'hillcroft-garden-designer' ); ?></p>
+				<p class="hgd-muted"><?php esc_html_e( 'Approve your chosen render to make it the one used for the render pack and proposal. "Check against brief" uses Claude to score how faithfully a render matches the brief and measurements, and flags anything off — so a render that ignored the brief is caught before the client sees it. To iterate: edit the render prompt above, Save, then Generate render again.', 'hillcroft-garden-designer' ); ?></p>
 			<?php else : ?>
 				<p class="hgd-muted"><?php esc_html_e( 'No renders yet.', 'hillcroft-garden-designer' ); ?></p>
 			<?php endif; ?>

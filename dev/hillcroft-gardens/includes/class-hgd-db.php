@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '12';
+	const SCHEMA_VERSION = '13';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -227,6 +227,9 @@ class HGD_DB {
 			role VARCHAR(20) NOT NULL DEFAULT 'photo',
 			view_key VARCHAR(40) NOT NULL DEFAULT '',
 			label VARCHAR(191) NOT NULL DEFAULT '',
+			approved TINYINT(1) NOT NULL DEFAULT 0,
+			score TINYINT NULL,
+			review LONGTEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
