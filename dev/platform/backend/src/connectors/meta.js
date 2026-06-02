@@ -98,17 +98,31 @@ async function fetchAdsData(credentials, params) {
     'reach', 'cpc', 'cpm', 'ctr', 'actions', 'action_values',
   ].join(',');
 
-  const { data } = await axios.get(`${BASE_URL}/act_${adAccountId}/insights`, {
-    params: {
-      access_token: credentials.access_token,
-      fields,
-      time_range: JSON.stringify({ since: startDate, until: endDate }),
-      level: 'campaign',
-      limit: 100,
-    },
-  });
+  // Fetch insights + the ad account's currency in parallel. Currency
+  // tagging lets the report renderer normalise multi-market Meta Ads
+  // sections (e.g. US ad account in USD + UK in GBP) to a single GBP
+  // total via fxRates, instead of summing raw numbers as if they shared
+  // a unit. Currency call is best-effort — if it fails we fall back to
+  // GBP (which is also the no-op default in sumAcrossSources).
+  const [insightsRes, accountRes] = await Promise.all([
+    axios.get(`${BASE_URL}/act_${adAccountId}/insights`, {
+      params: {
+        access_token: credentials.access_token,
+        fields,
+        time_range: JSON.stringify({ since: startDate, until: endDate }),
+        level: 'campaign',
+        limit: 100,
+      },
+    }),
+    axios.get(`${BASE_URL}/act_${adAccountId}`, {
+      params: { access_token: credentials.access_token, fields: 'currency' },
+    }).catch(err => {
+      console.warn('[Meta Ads] currency fetch failed:', err.response?.data?.error?.message || err.message);
+      return { data: {} };
+    }),
+  ]);
 
-  return data;
+  return { ...insightsRes.data, currency: accountRes.data?.currency || null };
 }
 
 async function fetchInstagramData(credentials, params) {

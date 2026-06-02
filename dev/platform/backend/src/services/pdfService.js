@@ -711,7 +711,7 @@ function buildMetricsTableHtml(metricLabels, rows, compare) {
   return `
     <table class="w-full metrics-table">
       <thead><tr><th></th>${metricLabels.map(l => `<th style="text-align:right;">${escapeXml(l)}</th>`).join('')}</tr></thead>
-      <tbody>${rows.map((r, i) => `<tr${i % 2 === 1 ? ' class="alt"' : ''}>
+      <tbody>${rows.map((r, i) => `<tr${r.combined ? ' style="border-top:1pt solid #000;background:#fafafa;font-weight:700;"' : (i % 2 === 1 ? ' class="alt"' : '')}>
         <td style="font-weight:700;">${escapeXml(r.source)}</td>
         ${(r.values || []).map(cellHtml).join('')}
       </tr>`).join('')}</tbody>
