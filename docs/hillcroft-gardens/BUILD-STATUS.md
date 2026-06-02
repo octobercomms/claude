@@ -176,6 +176,20 @@ The full original brief is now delivered end to end across 10 releases.
 - No schema change. (Export + header-mapped import already existed since the catalogue build; this
   closes the long-standing "CSV import/export" foundation TODO.)
 
+## ✅ 1.17.0 — Encrypt stored secrets at rest
+
+- New `HGD_Crypto`: AES-256-CBC + HMAC-SHA256 (encrypt-then-MAC), key derived from the site's WP
+  salts (`wp_salt('secure_auth')`) — no extra secret to store. Payloads are tagged `hgdc1$…`.
+- `HGD_Settings` decrypts secrets transparently in `all()` and encrypts them in `save()` (operating
+  on the raw stored array so untouched secrets aren't rewritten in clear). One-time idempotent
+  `migrate_secrets()` runs on load and encrypts any legacy plaintext; flagged by `hgd_secrets_encrypted`.
+- Covers all `SECRET_KEYS` (Claude/Gemini/Flux/Maps/Plant.id keys, Stripe secret + webhook secret,
+  GitHub token, Google client secret + refresh token). Graceful: openssl missing → passthrough;
+  tampered/unkeyable payload → blank (re-enter in Settings).
+- Fixed `HGD_Google_Calendar::disconnect()` to edit the raw option (it previously round-tripped
+  `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
+  passthrough, tamper and double-encrypt cases. No schema change.
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
@@ -194,5 +208,5 @@ The full original brief is now delivered end to end across 10 releases.
 ## Known foundation TODOs
 
 - Self-host the brand fonts (currently loaded from Google Fonts in admin).
-- Consider encrypting stored secrets (currently masked plaintext in `wp_options`).
+- ~~Consider encrypting stored secrets (currently masked plaintext in `wp_options`).~~ Done in 1.17.0.
 - ~~Add CSV import/export for the catalogue.~~ Done (export + import; import upserts as of 1.16.0).

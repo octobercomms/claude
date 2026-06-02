@@ -14,3 +14,4 @@ if ( ! defined( 'WP_UNINSTALL_PLUGIN' ) ) {
 
 delete_option( 'hgd_settings' );
 delete_option( 'hgd_db_version' );
+delete_option( 'hgd_secrets_encrypted' );
