@@ -1930,7 +1930,12 @@ class HGD_Admin {
 			}
 		}
 
+		// Default: update existing plants (match on botanical name + pot size)
+		// rather than duplicate them. Unticking the box adds every row as new.
+		$update_existing = ! isset( $_POST['update_existing'] ) || ! empty( $_POST['update_existing'] );
+
 		$imported = 0;
+		$updated  = 0;
 		$skipped  = 0;
 		$rows     = 0;
 		$max_rows = 5000;
@@ -1958,13 +1963,21 @@ class HGD_Admin {
 				continue;
 			}
 
-			HGD_Plant::insert( $clean );
-			$imported++;
+			if ( $update_existing ) {
+				if ( 'updated' === HGD_Plant::upsert( $clean ) ) {
+					$updated++;
+				} else {
+					$imported++;
+				}
+			} else {
+				HGD_Plant::insert( $clean );
+				$imported++;
+			}
 		}
 
 		fclose( $handle ); // phpcs:ignore WordPress.WP.AlternativeFunctions
 
-		$this->redirect_with( 'hgd-plants', array( 'imported' => $imported, 'skipped' => $skipped ) );
+		$this->redirect_with( 'hgd-plants', array( 'imported' => $imported, 'refreshed' => $updated, 'skipped' => $skipped ) );
 	}
 
 	/** Fetch a freely-licensed plant photo from Wikipedia by botanical name and set it as the plant image. */
