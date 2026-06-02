@@ -72,17 +72,21 @@ class HGD_Booking_Page {
 			);
 		}
 
+		$woo = HGD_Woo::is_active();
+
 		return new WP_REST_Response( array(
-			'configured' => HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'],
+			'configured' => $woo || ( HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'] ),
+			'woo'        => $woo,
 			'fee_gbp'    => (float) $s['consultation_fee_gbp'],
 			'dates'      => $dates,
 		), 200 );
 	}
 
 	public static function rest_create( $request ) {
-		$s = HGD_Settings::all();
+		$s   = HGD_Settings::all();
+		$woo = HGD_Woo::is_active();
 
-		if ( ! HGD_Stripe::is_configured() || '' === (string) $s['stripe_pub_key'] ) {
+		if ( ! $woo && ( ! HGD_Stripe::is_configured() || '' === (string) $s['stripe_pub_key'] ) ) {
 			return new WP_Error( 'hgd_not_configured', __( 'Online booking is not yet configured.', 'hillcroft-garden-designer' ), array( 'status' => 503 ) );
 		}
 
@@ -124,6 +128,21 @@ class HGD_Booking_Page {
 
 		if ( ! $booking_id ) {
 			return new WP_Error( 'hgd_save_failed', __( 'Could not start your booking. Please try again.', 'hillcroft-garden-designer' ), array( 'status' => 500 ) );
+		}
+
+		// Preferred path: WooCommerce takes payment + sends the receipt.
+		if ( $woo ) {
+			$booking = HGD_Booking::get( $booking_id );
+			$order   = HGD_Woo::create_consultation_order( $booking ? $booking : array( 'id' => $booking_id, 'name' => $name, 'email' => $email, 'phone' => $phone, 'address' => $address, 'postcode' => $postcode ) );
+			if ( is_wp_error( $order ) ) {
+				HGD_Booking::update( $booking_id, array( 'status' => 'cancelled' ) );
+				return new WP_Error( 'hgd_woo_failed', $order->get_error_message(), array( 'status' => 502 ) );
+			}
+			HGD_Booking::update( $booking_id, array( 'woo_order_id' => (int) $order->get_id() ) );
+			return new WP_REST_Response( array(
+				'booking_id'  => $booking_id,
+				'woo_pay_url' => $order->get_checkout_payment_url(),
+			), 200 );
 		}
 
 		$intent = HGD_Stripe::create_payment_intent(
@@ -488,20 +507,28 @@ class HGD_Booking_Page {
 
 		wp_enqueue_style( 'hgd-booking', HGD_URL . 'assets/booking/css/booking.css', array(), HGD_VERSION );
 
-		$configured = HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'];
+		$woo        = HGD_Woo::is_active();
+		$has_stripe = HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'];
+		$configured = $woo || $has_stripe;
 
 		if ( $configured ) {
-			wp_enqueue_script( 'stripe-js', 'https://js.stripe.com/v3/', array(), null, true );
-			wp_enqueue_script( 'hgd-booking', HGD_URL . 'assets/booking/js/booking.js', array( 'stripe-js' ), HGD_VERSION, true );
+			// Woo checkout needs no Stripe.js on this page; the bespoke fallback does.
+			$deps = array();
+			if ( ! $woo && $has_stripe ) {
+				wp_enqueue_script( 'stripe-js', 'https://js.stripe.com/v3/', array(), null, true );
+				$deps = array( 'stripe-js' );
+			}
+			wp_enqueue_script( 'hgd-booking', HGD_URL . 'assets/booking/js/booking.js', $deps, HGD_VERSION, true );
 			wp_localize_script( 'hgd-booking', 'HGD_BOOKING', array(
 				'rest'    => esc_url_raw( rest_url( self::NS ) ),
 				'nonce'   => wp_create_nonce( 'wp_rest' ),
+				'woo'     => $woo ? 1 : 0,
 				'pub_key' => (string) $s['stripe_pub_key'],
 				'fee'     => number_format( (float) $s['consultation_fee_gbp'], 2 ),
 				'i18n'    => array(
 					'taken'   => __( 'That slot was just taken — please pick another.', 'hillcroft-garden-designer' ),
 					'error'   => __( 'Something went wrong. Please try again.', 'hillcroft-garden-designer' ),
-					'paying'  => __( 'Processing payment…', 'hillcroft-garden-designer' ),
+					'paying'  => __( 'Redirecting to secure payment…', 'hillcroft-garden-designer' ),
 				),
 			) );
 		}

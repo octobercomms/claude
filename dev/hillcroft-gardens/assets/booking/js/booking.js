@@ -5,13 +5,19 @@
 	'use strict';
 
 	var root = document.querySelector( '.hgd-booking[data-configured="1"]' );
-	if ( ! root || typeof HGD_BOOKING === 'undefined' || typeof Stripe === 'undefined' ) {
+	if ( ! root || typeof HGD_BOOKING === 'undefined' ) {
 		return;
 	}
 
 	var cfg = HGD_BOOKING;
+	var wooMode = !! cfg.woo;
+	// Bespoke Stripe path needs Stripe.js + a publishable key; Woo mode does not.
+	if ( ! wooMode && ( typeof Stripe === 'undefined' || ! cfg.pub_key ) ) {
+		return;
+	}
+
 	var state = { dates: [], date: null, slot: null, bookingId: null };
-	var stripe = Stripe( cfg.pub_key );
+	var stripe = wooMode ? null : Stripe( cfg.pub_key );
 	var elements = null;
 
 	function panel( name ) { return root.querySelector( '[data-pane="' + name + '"]' ); }
@@ -138,6 +144,15 @@
 				return;
 			}
 			state.bookingId = res.data.booking_id;
+
+			// Woo mode: hand off to WooCommerce checkout for payment + receipt.
+			if ( res.data.woo_pay_url ) {
+				btn.disabled = true;
+				btn.textContent = cfg.i18n.paying;
+				window.location.href = res.data.woo_pay_url;
+				return;
+			}
+
 			mountPaymentElement( res.data.client_secret, f );
 			panel( 'pay' ).querySelector( '.hgd-booking-summary' ).textContent =
 				state.date.label + ' · ' + state.slot.label + ' — £' + cfg.fee;
