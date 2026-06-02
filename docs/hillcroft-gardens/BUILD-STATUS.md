@@ -104,6 +104,30 @@ foundation-first, then each integration as its own testable PR (install via one-
 
 The full original brief is now delivered end to end across 10 releases.
 
+> Note: releases 1.1.0–1.11.0 (guided wizard, plan-first render pipeline, Flux/ControlNet,
+> photo-inpainting, structured measurements, approval gate/scorecard, and the WooCommerce
+> checkout + receipts work for the consultation and proposal payments) shipped as their own
+> PRs and aren't all expanded here — see the `readme.txt` changelog for the full list.
+
+## ✅ 1.12.0 — Maintenance-plan subscriptions (Stripe Billing)
+
+- Recurring garden-care plans **without** the paid WooCommerce Subscriptions extension. Three
+  monthly plans (Essential £45 / Full £85 / Premium £140) defined in `HGD_Subscription::plans()`
+  (filterable via `hgd_maintenance_plans`).
+- Public **`[hgd_maintenance_plans]`** sign-up block → pending `hgd_subscriptions` row + Stripe
+  **hosted Checkout** (subscription mode). Stripe owns the recurring charge, SCA/3DS, automatic
+  retries and dunning emails — the "auto-retry + emails" requirement met by Stripe Billing rather
+  than bespoke cron code.
+- Single shared Stripe webhook (via the new `hgd_stripe_webhook_event` action on
+  `HGD_Booking_Page`) keeps the local record in step: `checkout.session.completed` activates +
+  links a CRM client; `invoice.paid` advances the period and **mirrors a completed WooCommerce
+  order** so Woo sends the receipt and stays system-of-record (idempotent on the Stripe invoice
+  id); `invoice.payment_failed` → past-due; subscription updated/deleted → status/cancel sync.
+- Admin **Maintenance Plans** list (plan summary + subscribers, status, amount, next bill date)
+  with cancel-at-period-end. Schema v15 (`hgd_subscriptions`).
+- Needs live testing: real Stripe round-trip (Checkout, the webhook events, and the Woo order
+  mirror). To avoid duplicate receipts, disable Stripe's own email receipts and let Woo send them.
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a

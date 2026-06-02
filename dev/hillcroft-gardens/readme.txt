@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.12.0 =
+* Recurring garden maintenance plans, billed by Stripe — no paid WooCommerce Subscriptions extension required. Three monthly care plans (Essential / Full / Premium) are offered through a new on-brand sign-up block: drop [hgd_maintenance_plans] on any page and clients pick a plan, enter their details, and complete sign-up on Stripe's secure hosted Checkout. Stripe Billing then owns the recurring monthly charge, card authentication (SCA/3DS), automatic retries on a failed payment, and the dunning reminder emails — all configured in your Stripe dashboard, at no extra cost.
+* Each successful monthly payment is mirrored into a completed WooCommerce order, so Woo stays your system of record and sends its proper receipt, and the customer is created/linked in the CRM on the first payment. A new "Maintenance Plans" admin screen lists every subscriber with plan, status (active / payment failed / cancelled), amount and next bill date, and lets you cancel a plan at the end of its billing period. Tip: to avoid duplicate receipts, turn off Stripe's own email receipts in the Stripe dashboard and let WooCommerce send them.
 
 = 1.11.0 =
 * WooCommerce checkout for proposal payments: when a client accepts a proposal and pays the deposit from their portal, the payment now goes through WooCommerce checkout — so WooCommerce sends its proper order receipt (with your store's receipt settings/VAT), the same as the consultation. The Good/Better/Best pricing and the deposit/milestone schedule are unchanged; only the payment + receipt move to Woo. Each milestone becomes a Woo order line ("Deposit on signing — <project>") on a hidden "Garden design service" product. On payment the proposal/project advance exactly as before, and the duplicate plain-text receipt is suppressed so the client only gets Woo's. (If WooCommerce isn't active, the previous built-in Stripe card form still works.)

@@ -60,6 +60,7 @@ class HGD_Admin {
 		add_action( 'admin_post_hgd_remove_example', array( $this, 'handle_remove_example' ) );
 		add_action( 'admin_post_hgd_test_update', array( $this, 'handle_test_update' ) );
 		add_action( 'admin_post_hgd_google_disconnect', array( $this, 'handle_google_disconnect' ) );
+		add_action( 'admin_post_hgd_subscription_cancel', array( $this, 'handle_subscription_cancel' ) );
 		add_action( 'admin_init', array( $this, 'maybe_handle_google_oauth' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_low_balance_notice' ) );
 		add_filter( 'submenu_file', array( $this, 'highlight_forms_tab' ) );
@@ -113,6 +114,7 @@ class HGD_Admin {
 		add_submenu_page( self::MENU, __( 'Clients', 'hillcroft-garden-designer' ), __( 'Clients', 'hillcroft-garden-designer' ), self::CAP, 'hgd-clients', array( $this, 'render_clients' ) );
 		add_submenu_page( self::MENU, __( 'Forms', 'hillcroft-garden-designer' ), __( 'Forms', 'hillcroft-garden-designer' ), self::CAP, 'hgd-forms', array( $this, 'render_forms_hub' ) );
 		add_submenu_page( self::MENU, __( 'Bookings', 'hillcroft-garden-designer' ), __( 'Bookings', 'hillcroft-garden-designer' ), self::CAP, 'hgd-bookings', array( $this, 'render_bookings' ) );
+		add_submenu_page( self::MENU, __( 'Maintenance Plans', 'hillcroft-garden-designer' ), __( 'Maintenance Plans', 'hillcroft-garden-designer' ), self::CAP, 'hgd-subscriptions', array( $this, 'render_subscriptions' ) );
 		add_submenu_page( self::MENU, __( 'Plant Catalogue', 'hillcroft-garden-designer' ), __( 'Plant Catalogue', 'hillcroft-garden-designer' ), self::CAP, 'hgd-plants', array( $this, 'render_plants' ) );
 		add_submenu_page( self::MENU, __( 'Settings', 'hillcroft-garden-designer' ), __( 'Settings', 'hillcroft-garden-designer' ), self::CAP, 'hgd-settings', array( $this, 'render_settings' ) );
 	}
@@ -225,6 +227,51 @@ class HGD_Admin {
 		// Upcoming first, then most recent.
 		$bookings  = HGD_Booking::query( array( 'status' => $status, 'orderby' => 'slot_start', 'order' => 'DESC' ) );
 		include HGD_PATH . 'admin/views/bookings.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Maintenance-plan subscriptions
+	// -------------------------------------------------------------------------
+
+	public function render_subscriptions() {
+		$this->guard();
+		$banner_cb     = array( $this, 'render_cost_banner' );
+		$status        = isset( $_GET['status'] ) ? sanitize_key( $_GET['status'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$subscriptions = HGD_Subscription::all( $status );
+		$plans         = HGD_Subscription::plans();
+		$configured    = HGD_Subscription_Page::is_configured();
+		include HGD_PATH . 'admin/views/subscriptions.php';
+	}
+
+	/** Cancel a subscription at period end (Stripe), and reflect it locally. */
+	public function handle_subscription_cancel() {
+		$this->guard();
+		$id = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0;
+		check_admin_referer( 'hgd_subscription_cancel_' . $id );
+
+		$sub = $id ? HGD_Subscription::get( $id ) : null;
+		if ( ! $sub ) {
+			$this->redirect_with( 'hgd-subscriptions', array() );
+		}
+
+		$args = array();
+		if ( ! empty( $sub['stripe_subscription_id'] ) ) {
+			$result = HGD_Stripe::cancel_subscription( (string) $sub['stripe_subscription_id'], true );
+			if ( is_wp_error( $result ) ) {
+				set_transient( 'hgd_sub_error_' . get_current_user_id(), $result->get_error_message(), 60 );
+				$args['cancel_error'] = 1;
+			} else {
+				// Webhook will confirm; record the request now for immediate feedback.
+				HGD_Subscription::update( $id, array( 'canceled_at' => current_time( 'mysql' ) ) );
+				$args['cancelled'] = 1;
+			}
+		} else {
+			// Never reached Stripe — just close the local record.
+			HGD_Subscription::update( $id, array( 'status' => 'canceled', 'canceled_at' => current_time( 'mysql' ) ) );
+			$args['cancelled'] = 1;
+		}
+
+		$this->redirect_with( 'hgd-subscriptions', $args );
 	}
 
 	// -------------------------------------------------------------------------
