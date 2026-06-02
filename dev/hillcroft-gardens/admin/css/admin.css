@@ -547,3 +547,9 @@
 .hgd-scorecard-list { margin: 0 0 4px; padding-left: 18px; }
 .hgd-scorecard-good li { color: #5a5d18; }
 .hgd-scorecard-bad li { color: #b5482f; }
+
+/* Reports */
+.hgd-section-title { margin: 26px 0 10px; font-size: 18px; color: var(--hgd-olive, #494A20); }
+.hgd-note { margin: 8px 2px 0; font-size: 13px; }
+.hgd-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+@media (max-width: 782px) { .hgd-two-col { grid-template-columns: 1fr; } }

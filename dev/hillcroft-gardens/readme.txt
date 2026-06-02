@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.13.0
+Stable tag: 1.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.14.0 =
+* New **Reports** screen (Designer → Reports): your business at a glance, built from the records the plugin already keeps. Collected revenue for this month / this year / all time (paid consultations + paid design milestones), recurring income from maintenance plans (MRR, annualised ARR, active plans, new sign-ups this month), the open sales pipeline (proposal value by stage), projects by status, and a lead → consultation → proposal → won funnel. Read-only and figures come from local data, so no extra cost and nothing to configure. (Follow-up automation — reminder emails for un-booked leads and ageing proposals — is the planned next step.)
 
 = 1.13.0 =
 * Subscriber self-service for maintenance plans, via Stripe's secure Customer Portal — no client login needed. Customers can update their card, view and download invoices, and cancel, all on Stripe's hosted pages. After signing up they get a "Manage your plan" link on the confirmation screen, and returning customers can use the new [hgd_manage_plan] block: they enter their email and we send a secure one-time link (the response is deliberately neutral so it never reveals whether an email has a plan). The Maintenance Plans admin screen also gains a "Manage link" per subscriber, so you can open or send a customer their billing portal directly. (One-time setup: activate the Customer Portal in your Stripe dashboard, test and live.)
