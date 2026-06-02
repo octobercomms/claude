@@ -76,6 +76,16 @@ class HGD_Settings {
 			'proposal_expiry_days' => 30,
 			'terms_default'        => '',
 
+			// --- Client follow-ups (daily cron; opt-in) ---------------------
+			'followups_enabled'          => 0,   // master switch (off until enabled)
+			'followup_lead_enabled'      => 1,
+			'followup_lead_days'         => 3,   // nudge leads with no consultation after N days
+			'followup_proposal_enabled'  => 1,
+			'followup_proposal_days'     => 5,   // remind on unanswered proposals after N days
+			'followup_expiring_enabled'  => 1,
+			'followup_expiring_days'     => 3,   // final nudge when expiry is within N days
+			'booking_page_url'           => '',  // where the [hgd_booking] form lives (for lead nudges)
+
 			// --- Pricing engine defaults ------------------------------------
 			'default_day_rate_gbp'     => 250,
 			'default_wastage_pct'      => 10,

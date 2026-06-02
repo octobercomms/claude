@@ -2065,6 +2065,7 @@ class HGD_Admin {
 			'slot_minutes', 'buffer_minutes', 'booking_lead_days', 'booking_window_days',
 			'default_day_rate_gbp', 'default_wastage_pct', 'default_contingency_pct',
 			'default_vat_pct', 'default_design_fee_gbp', 'better_uplift_pct', 'best_uplift_pct',
+			'followup_lead_days', 'followup_proposal_days', 'followup_expiring_days',
 		) as $key ) {
 			if ( isset( $raw[ $key ] ) ) {
 				$input[ $key ] = (float) $raw[ $key ];
@@ -2072,6 +2073,14 @@ class HGD_Admin {
 		}
 
 		$input['auto_update'] = empty( $raw['auto_update'] ) ? 0 : 1;
+
+		// Client follow-up toggles (checkboxes) + the booking-page URL.
+		foreach ( array( 'followups_enabled', 'followup_lead_enabled', 'followup_proposal_enabled', 'followup_expiring_enabled' ) as $key ) {
+			$input[ $key ] = empty( $raw[ $key ] ) ? 0 : 1;
+		}
+		if ( isset( $raw['booking_page_url'] ) ) {
+			$input['booking_page_url'] = esc_url_raw( trim( (string) $raw['booking_page_url'] ) );
+		}
 
 		// Default proposal terms — multiline, handled explicitly.
 		if ( isset( $raw['terms_default'] ) ) {

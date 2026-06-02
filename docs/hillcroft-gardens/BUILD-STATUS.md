@@ -155,6 +155,19 @@ The full original brief is now delivered end to end across 10 releases.
 - No schema change. Addresses the reporting half of brief item #11; **follow-up automation**
   (reminder emails for un-booked leads / ageing proposals via cron) is the planned next step.
 
+## ✅ 1.15.0 — Follow-up automation (completes brief #11)
+
+- Once-daily WP-Cron job (`hgd_daily_followups`, `HGD_Followups`) sending gentle client-facing
+  reminder emails. Scheduled by the activator (≈08:00 site time), cleared on deactivate.
+- Three reminders, each individually toggleable with its own day threshold:
+  - **Lead nudge** — enquiries/leads with a linked client and no paid consultation after N days.
+  - **Proposal reminder** — sent/viewed proposals unanswered after N days (skips expired).
+  - **Proposal expiring** — sent/viewed proposals whose expiry falls within N days.
+- Idempotent: every reminder is logged in `hgd_followups` (schema v17) and sent at most once per
+  record. Whole feature is **off by default** (opt-in master switch), configured under
+  **Settings → Client follow-ups**, incl. a booking-page URL for lead-nudge links.
+- No new external services — uses the site mailer. Reporting half shipped in 1.14.0.
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
