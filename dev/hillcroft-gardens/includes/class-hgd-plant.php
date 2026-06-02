@@ -165,6 +165,46 @@ class HGD_Plant {
 		return false !== $wpdb->delete( HGD_DB::plants_table(), array( 'id' => (int) $id ) );
 	}
 
+	/**
+	 * Find an existing plant matching a botanical name (case-insensitive) and
+	 * pot size — the natural key for CSV re-imports. Returns the row id or 0.
+	 * A blank botanical name never matches (we don't want to merge unnamed rows).
+	 */
+	public static function find_match( $botanical_name, $pot_size = '' ) {
+		global $wpdb;
+		$botanical_name = trim( (string) $botanical_name );
+		if ( '' === $botanical_name ) {
+			return 0;
+		}
+		$table = HGD_DB::plants_table();
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT id FROM {$table} WHERE botanical_name = %s AND pot_size = %s ORDER BY id ASC LIMIT 1",
+			$botanical_name,
+			(string) $pot_size
+		) );
+	}
+
+	/**
+	 * Update-or-insert by the natural key (botanical name + pot size). Used by
+	 * CSV import so re-importing the same file refreshes rows instead of
+	 * duplicating them.
+	 *
+	 * @param array $clean Already-sanitised field values.
+	 * @return string 'updated' or 'inserted'.
+	 */
+	public static function upsert( array $clean ) {
+		$id = self::find_match(
+			isset( $clean['botanical_name'] ) ? $clean['botanical_name'] : '',
+			isset( $clean['pot_size'] ) ? $clean['pot_size'] : ''
+		);
+		if ( $id ) {
+			self::update( $id, $clean );
+			return 'updated';
+		}
+		self::insert( $clean );
+		return 'inserted';
+	}
+
 	public static function count() {
 		global $wpdb;
 		$table = HGD_DB::plants_table();

@@ -104,12 +104,13 @@ $render_detail = function ( $p ) {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="hgd-csv-import">
 				<input type="hidden" name="action" value="hgd_plants_import" />
 				<?php wp_nonce_field( 'hgd_plants_import' ); ?>
+				<input type="hidden" name="update_existing" value="1" />
 				<input type="file" id="hgd-csv-input" name="csv" accept=".csv,text/csv" class="hgd-visually-hidden" data-hgd-csv-auto required />
 				<label for="hgd-csv-input" class="hgd-pill hgd-pill-ghost"><?php esc_html_e( 'Import CSV', 'hillcroft-garden-designer' ); ?></label>
 			</form>
 		</div>
 	</div>
-	<p class="hgd-muted"><?php esc_html_e( 'Import adds new plants — the columns match the exported CSV (the header row maps to plant fields; unknown columns are ignored).', 'hillcroft-garden-designer' ); ?></p>
+	<p class="hgd-muted"><?php esc_html_e( 'Import matches the exported CSV columns (the header row maps to plant fields; unknown columns are ignored). Rows that match an existing plant on botanical name + pot size are updated; the rest are added — so re-importing refreshes your catalogue instead of duplicating it.', 'hillcroft-garden-designer' ); ?></p>
 
 	<?php if ( isset( $_GET['updated'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php esc_html_e( 'Plant saved.', 'hillcroft-garden-designer' ); ?></div>
@@ -120,9 +121,10 @@ $render_detail = function ( $p ) {
 	<?php if ( isset( $_GET['imported'] ) ) : // phpcs:ignore WordPress.Security.NonceVerification ?>
 		<div class="hgd-flash"><?php
 			echo esc_html( sprintf(
-				/* translators: 1: imported count, 2: skipped count */
-				__( 'Import complete: %1$d plants added, %2$d rows skipped.', 'hillcroft-garden-designer' ),
+				/* translators: 1: added count, 2: updated count, 3: skipped count */
+				__( 'Import complete: %1$d added, %2$d updated, %3$d rows skipped.', 'hillcroft-garden-designer' ),
 				(int) $_GET['imported'], // phpcs:ignore WordPress.Security.NonceVerification
+				isset( $_GET['refreshed'] ) ? (int) $_GET['refreshed'] : 0, // phpcs:ignore WordPress.Security.NonceVerification
 				isset( $_GET['skipped'] ) ? (int) $_GET['skipped'] : 0 // phpcs:ignore WordPress.Security.NonceVerification
 			) );
 		?></div>

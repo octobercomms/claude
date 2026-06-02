@@ -168,6 +168,14 @@ The full original brief is now delivered end to end across 10 releases.
   **Settings → Client follow-ups**, incl. a booking-page URL for lead-nudge links.
 - No new external services — uses the site mailer. Reporting half shipped in 1.14.0.
 
+## ✅ 1.16.0 — CSV import upsert
+
+- Plant-catalogue CSV import is now **update-or-insert**: rows matching an existing plant on
+  botanical name + pot size update it instead of duplicating (`HGD_Plant::find_match` / `upsert`).
+  Confirmation reports added vs. updated. Export → edit in a spreadsheet → re-import to refresh.
+- No schema change. (Export + header-mapped import already existed since the catalogue build; this
+  closes the long-standing "CSV import/export" foundation TODO.)
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
@@ -187,4 +195,4 @@ The full original brief is now delivered end to end across 10 releases.
 
 - Self-host the brand fonts (currently loaded from Google Fonts in admin).
 - Consider encrypting stored secrets (currently masked plaintext in `wp_options`).
-- Add CSV import/export for the catalogue.
+- ~~Add CSV import/export for the catalogue.~~ Done (export + import; import upserts as of 1.16.0).
