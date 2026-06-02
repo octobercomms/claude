@@ -206,7 +206,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
               <div style={styles.generatingOverlay} />
             )}
             {proposed ? (
-              <TemplatePreview template={proposed} />
+              <TemplatePreview template={proposed} onChange={setProposed} />
             ) : (
               <div style={{ fontSize: 12, color: '#888' }}>
                 {saved ? 'A template is locked. Ask Claude to change it.' : 'Ask Claude for a starting point.'}
@@ -249,15 +249,31 @@ function GeneratingDots() {
   );
 }
 
-function TemplatePreview({ template }) {
+function TemplatePreview({ template, onChange }) {
   const sections = template.sections || [];
+  function updateSection(id, patch) {
+    onChange?.({ ...template, sections: sections.map(s => s.id === id ? { ...s, ...patch } : s) });
+  }
+  function removeSection(id) {
+    onChange?.({ ...template, sections: sections.filter(s => s.id !== id) });
+  }
   return (
     <div style={{ fontSize: 12 }}>
       {sections.map((s, i) => (
         <div key={s.id || i} style={styles.sectionCard}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <strong>{s.title || s.id}</strong>
-            <span style={styles.sectionType}>{s.type}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={styles.sectionType}>{s.type}</span>
+              {onChange && (
+                <button
+                  type="button"
+                  onClick={() => removeSection(s.id)}
+                  style={styles.removeBtn}
+                  title="Remove this section"
+                >×</button>
+              )}
+            </span>
           </div>
           {s.sources && (
             <div style={{ color: '#666', marginTop: 3 }}>
@@ -270,6 +286,18 @@ function TemplatePreview({ template }) {
           {s.dimension && <div style={{ color: '#666' }}>dimension: {s.dimension} / {s.metric}</div>}
           {s.compare === 'yoy' && <div style={{ color: '#2e7d32', marginTop: 2, fontWeight: 600 }}>compare: year-on-year</div>}
           {s.prompt && <div style={{ color: '#666', marginTop: 4, fontStyle: 'italic' }}>"{s.prompt}"</div>}
+          {/* Per-section auto-insight toggle — only relevant for non-narrative
+              section types (narrative sections ARE the prose themselves). */}
+          {onChange && s.type !== 'narrative' && (
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, color: '#555', cursor: 'pointer', userSelect: 'none' }}>
+              <input
+                type="checkbox"
+                checked={s.insight !== false}
+                onChange={e => updateSection(s.id, { insight: e.target.checked })}
+              />
+              auto-narrative above table
+            </label>
+          )}
         </div>
       ))}
       {!sections.length && <div style={{ color: '#888' }}>(empty)</div>}
@@ -301,6 +329,7 @@ const styles = {
   generatingOverlay: { position: 'absolute', inset: 0, background: 'rgba(250,250,250,0.55)', borderRadius: 4, pointerEvents: 'none', zIndex: 1 },
   sectionCard: { marginBottom: 8, padding: '6px 8px', background: '#fff', border: '1px solid #eee', borderRadius: 3 },
   sectionType: { fontSize: 10, color: '#888', fontFamily: 'monospace', textTransform: 'uppercase' },
+  removeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 3, width: 18, height: 18, padding: 0, fontSize: 13, lineHeight: 1, color: '#888', cursor: 'pointer' },
   error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14, borderTop: '1px solid #eee', paddingTop: 12 },
 };
