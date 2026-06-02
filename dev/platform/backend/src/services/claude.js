@@ -45,14 +45,36 @@ const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports f
 // section. Returns the concatenated text content (no tool use). Keep this
 // generic — section-specific framing lives in templateRenderer.js.
 async function callClaude({ max_tokens, system, user, model = MODEL }) {
-  const message = await getClient().messages.create({
+  const message = await callWithRetry(() => getClient().messages.create({
     model,
     max_tokens,
     system: system || SYSTEM_PROMPT,
     messages: [{ role: 'user', content: user }],
-  });
+  }));
   const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
   return blocks.map(b => b.text).join('\n').trim();
+}
+
+// Retry transient API failures with exponential backoff. Anthropic's 529
+// "Overloaded" responses and 429 rate-limits are the common ones; 5xx is
+// also worth retrying. Without this the report was rendering the raw
+// error envelope (529 {"type":"error",...}) as narrative text in the PDF.
+async function callWithRetry(fn, { retries = 3, baseDelayMs = 1500 } = {}) {
+  let lastErr;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const status = err?.status || err?.response?.status;
+      const isTransient = status === 529 || status === 429 || (status >= 500 && status < 600) || err?.code === 'ECONNRESET' || err?.code === 'ETIMEDOUT';
+      lastErr = err;
+      if (!isTransient || attempt === retries) throw err;
+      const delay = baseDelayMs * Math.pow(2, attempt) + Math.floor(Math.random() * 500);
+      console.warn(`[claude] transient ${status || err?.code} — retrying in ${delay}ms (attempt ${attempt + 1}/${retries})`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
+  throw lastErr;
 }
 
 // Template builder — turn-based chat that designs a report template
