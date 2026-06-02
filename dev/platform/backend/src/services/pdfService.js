@@ -399,6 +399,19 @@ function escapeXml(str) {
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&apos;', '"': '&quot;' }[c]));
 }
 
+// Convert a raw section-failure message into something an AM can read.
+// The common case is an Anthropic API error — 529 Overloaded, 429 rate
+// limit, 5xx — whose stringified body is JSON garbage. Detect and
+// rewrite; pass through anything that looks human-readable.
+function sanitiseSectionError(message) {
+  const msg = String(message || '');
+  if (/overloaded|529/i.test(msg)) return 'Analysis unavailable — Claude API was briefly overloaded. Click Refresh data to retry.';
+  if (/rate_?limit|429/i.test(msg)) return 'Analysis unavailable — Claude API rate limit hit. Click Refresh data to retry.';
+  if (/^5\d{2}\b/.test(msg) || /5\d{2}\s*\{/.test(msg)) return 'Analysis unavailable — Claude API returned a server error. Click Refresh data to retry.';
+  if (/^\d{3}\s*\{/.test(msg)) return 'Analysis unavailable — content generation failed. Click Refresh data to retry.';
+  return msg || 'Section failed to render.';
+}
+
 // Inline SVG horizontal bar chart — no external charting library. Sized to
 // the page content width (about 460pt at A4 with 42pt side padding).
 function buildChartHtml(chart) {
@@ -662,8 +675,14 @@ function renderResolvedSection(s) {
       if (!rankings.length) return '';
       return `${open}${title}${insight}${buildPositionDistributionHtml(rankings)}${close}`;
     }
-    case 'error':
-      return `${open}${title}<div class="unavail">${escapeXml(s.message || 'Section failed to render.')}</div>${close}`;
+    case 'error': {
+      // Never render the raw error envelope — for narrative sections that
+      // failed because the Anthropic API was overloaded, the message used
+      // to come through as the 529 JSON body and the AM saw it in the PDF.
+      // Show a clean note instead; the actual error is in the server log.
+      const friendly = sanitiseSectionError(s.message);
+      return `${open}${title}<div class="unavail">${escapeXml(friendly)}</div>${close}`;
+    }
     default:
       return '';
   }
