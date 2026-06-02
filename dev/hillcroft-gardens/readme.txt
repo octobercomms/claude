@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.9.0
+Stable tag: 1.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,10 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.10.0 =
+* WooCommerce checkout for the consultation: the £200 consultation is now a WooCommerce product, and booking it sends the client to WooCommerce checkout — so payment is taken by your normal Woo payment gateway and WooCommerce sends its proper order confirmation / receipt email (with your configured receipt settings, VAT, etc.). When the order is paid, the booking is fulfilled exactly as before: client + project created, Google Calendar event written, and the calendar invite sent. The consultation product price stays in step with the fee in Settings automatically. (If WooCommerce ever isn't active, the previous built-in Stripe card form still works as a fallback, and an admin notice prompts you to activate WooCommerce.)
+* Groundwork for selling the design services and monthly subscriptions through WooCommerce too (coming next).
 
 = 1.9.0 =
 * Render scorecard: a "Check against brief" button on each concept render asks Claude to compare the image against the design brief, the site reading and the captured measurements, and returns a 0–100 match score with what it gets right and — crucially — what's off, missing or invented. A low score opens its scorecard automatically, so a render that ignored the brief is caught before the client ever sees it.

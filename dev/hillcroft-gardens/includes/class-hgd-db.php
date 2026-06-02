@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '13';
+	const SCHEMA_VERSION = '14';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -208,6 +208,7 @@ class HGD_DB {
 			status VARCHAR(20) NOT NULL DEFAULT 'pending',
 			amount_gbp DECIMAL(10,2) NOT NULL DEFAULT 0.00,
 			stripe_payment_intent VARCHAR(80) NOT NULL DEFAULT '',
+			woo_order_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
 			google_event_id VARCHAR(191) NOT NULL DEFAULT '',
 			notes TEXT NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',

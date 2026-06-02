@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 1.9.0
+ * Version: 1.10.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '1.9.0' );
+define( 'HGD_VERSION', '1.10.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -44,6 +44,7 @@ require_once HGD_PATH . 'includes/class-hgd-chat.php';
 require_once HGD_PATH . 'includes/class-hgd-gemini.php';
 require_once HGD_PATH . 'includes/class-hgd-flux.php';
 require_once HGD_PATH . 'includes/class-hgd-maps.php';
+require_once HGD_PATH . 'includes/class-hgd-woo.php';
 require_once HGD_PATH . 'includes/class-hgd-measure.php';
 require_once HGD_PATH . 'includes/class-hgd-plan.php';
 require_once HGD_PATH . 'includes/class-hgd-render-pack.php';
@@ -105,6 +106,11 @@ $hgd_lead_form->register();
 
 // Paid consultation booking ([hgd_booking] shortcode, REST routes + Stripe webhook).
 HGD_Booking_Page::init();
+
+// WooCommerce bridge (consultation product + checkout/receipts).
+add_action( 'plugins_loaded', function () {
+	HGD_Woo::init();
+}, 20 );
 
 // Public proposal client portal (tokenised page + accept/pay REST routes).
 HGD_Proposal_Portal::init();
