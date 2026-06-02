@@ -447,7 +447,8 @@ class HGD_Subscription_Page {
 	// -------------------------------------------------------------------------
 
 	public static function shortcode( $atts ) {
-		wp_enqueue_style( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/css/subscriptions.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-fonts', HGD_URL . 'assets/fonts/fonts.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/css/subscriptions.css', array( 'hgd-fonts' ), HGD_VERSION );
 
 		$configured = self::is_configured();
 		$plans      = HGD_Subscription::plans();
@@ -556,7 +557,8 @@ class HGD_Subscription_Page {
 	 * enumeration). The actual portal opens via ?hgd_manage=<token>.
 	 */
 	public static function manage_shortcode( $atts ) {
-		wp_enqueue_style( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/css/subscriptions.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-fonts', HGD_URL . 'assets/fonts/fonts.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/css/subscriptions.css', array( 'hgd-fonts' ), HGD_VERSION );
 		wp_enqueue_script( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/js/subscriptions.js', array(), HGD_VERSION, true );
 		wp_localize_script( 'hgd-subscriptions', 'HGD_SUBS', array(
 			'rest'  => esc_url_raw( rest_url( self::NS ) ),

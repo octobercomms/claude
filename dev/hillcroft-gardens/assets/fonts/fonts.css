@@ -1,0 +1,45 @@
+/* Hillcroft Garden Designer — self-hosted brand fonts (Cormorant Garamond + DM Sans, SIL OFL).
+   Subsetted to latin from Google Fonts so the UI loads no third-party fonts. */
+
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:url('cormorant-garamond.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:normal;
+  font-weight:600;
+  font-display:swap;
+  src:url('cormorant-garamond.woff2') format('woff2');
+}
+@font-face{
+  font-family:'Cormorant Garamond';
+  font-style:italic;
+  font-weight:400;
+  font-display:swap;
+  src:url('cormorant-garamond-italic.woff2') format('woff2');
+}
+@font-face{
+  font-family:'DM Sans';
+  font-style:normal;
+  font-weight:400;
+  font-display:swap;
+  src:url('dm-sans.woff2') format('woff2');
+}
+@font-face{
+  font-family:'DM Sans';
+  font-style:normal;
+  font-weight:500;
+  font-display:swap;
+  src:url('dm-sans.woff2') format('woff2');
+}
+@font-face{
+  font-family:'DM Sans';
+  font-style:normal;
+  font-weight:700;
+  font-display:swap;
+  src:url('dm-sans.woff2') format('woff2');
+}

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.17.0
+Stable tag: 1.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.18.0 =
+* Brand fonts are now self-hosted. Cormorant Garamond and DM Sans ship with the plugin (as small latin-subset woff2 files) and are served from your own site, so the admin screens — and the public booking and maintenance-plan pages — no longer call Google Fonts. That removes a third-party request (better privacy/GDPR and no dependency on Google being reachable) and renders the on-brand type consistently. Both fonts are licensed under the SIL Open Font License 1.1 (bundled in assets/fonts/LICENSE.txt).
 
 = 1.17.0 =
 * Stored secrets are now encrypted at rest. Your API keys (Claude, Gemini, Flux, Google Maps, Plant.id), the Stripe secret + webhook secret, the GitHub update token and the Google OAuth secrets are encrypted (AES-256 with an integrity check, keyed from your site's WordPress security salts) before being written to the database — so a database dump or stray backup no longer exposes live credentials in plaintext. Existing keys are migrated automatically on update, and nothing changes in how you enter or use them. Note: if your site's salts in wp-config.php are ever regenerated, the stored keys can't be decrypted and will need re-entering in Settings.
