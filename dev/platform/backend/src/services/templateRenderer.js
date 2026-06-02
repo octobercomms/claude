@@ -27,8 +27,16 @@ async function resolveTemplate({ template, client, period, periodStart, periodEn
 
   // Annotate non-narrative sections with a one-sentence "what stands out"
   // insight from Claude. A single batched call keeps cost / latency in check.
+  // Sections with `insight: false` on the template skip this pass — gives
+  // the AM a per-section opt-out for the auto-generated italic line.
   try {
-    const insights = await generateSectionInsights({ resolved, client, period });
+    const insightsAllowed = new Set(
+      (template.sections || []).filter(s => s.insight !== false).map(s => s.id)
+    );
+    const insights = await generateSectionInsights({
+      resolved: resolved.filter(s => insightsAllowed.has(s.id)),
+      client, period,
+    });
     for (const s of resolved) {
       if (insights[s.id]) s.insight = insights[s.id];
     }

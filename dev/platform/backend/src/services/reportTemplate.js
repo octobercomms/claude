@@ -658,6 +658,7 @@ function validate(template) {
     if (s.time_grain != null && !['monthly', 'weekly', 'yearly'].includes(s.time_grain)) return `section[${i}].time_grain "${s.time_grain}" is invalid — must be monthly, weekly or yearly`;
     if (s.time_grain && s.type !== 'metrics_grid') return `section[${i}].time_grain only applies to metrics_grid sections`;
     if (s.periods != null && (!Number.isFinite(s.periods) || s.periods < 1 || s.periods > 12)) return `section[${i}].periods must be a number 1–12`;
+    if (s.insight != null && typeof s.insight !== 'boolean') return `section[${i}].insight must be a boolean`;
   }
   return null;
 }
