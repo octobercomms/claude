@@ -141,6 +141,20 @@ The full original brief is now delivered end to end across 10 releases.
 - Needs live testing: requires the Customer Portal to be activated in the Stripe dashboard
   (test + live) — see `MAINTENANCE-PLANS-STRIPE-SETUP.md`.
 
+## ✅ 1.14.0 — Reports (pipeline + revenue dashboard)
+
+- New **Designer → Reports** screen, read-only, aggregated from the plugin's own tables (no
+  WooCommerce queries, no external calls). `HGD_Reports` + `admin/views/reports.php`.
+- **Collected revenue** for this month / this year / all time (paid consultations from
+  `hgd_bookings` + paid design milestones from `hgd_payments`, bounded by `paid_at`).
+- **Recurring**: MRR (active plans, yearly normalised to /12), ARR, active count, new this month.
+- **Sales pipeline**: open proposal value (sent/viewed/accepted/deposit-paid) + value & count per
+  proposal stage.
+- **Projects by status** (links through to filtered Projects list) and a lead → consultation →
+  proposal → accepted → complete **funnel**.
+- No schema change. Addresses the reporting half of brief item #11; **follow-up automation**
+  (reminder emails for un-booked leads / ageing proposals via cron) is the planned next step.
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a

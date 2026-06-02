@@ -110,6 +110,7 @@ class HGD_Admin {
 		);
 
 		add_submenu_page( self::MENU, __( 'Dashboard', 'hillcroft-garden-designer' ), __( 'Dashboard', 'hillcroft-garden-designer' ), self::CAP, self::MENU, array( $this, 'render_dashboard' ) );
+		add_submenu_page( self::MENU, __( 'Reports', 'hillcroft-garden-designer' ), __( 'Reports', 'hillcroft-garden-designer' ), self::CAP, 'hgd-reports', array( $this, 'render_reports' ) );
 		add_submenu_page( self::MENU, __( 'Projects', 'hillcroft-garden-designer' ), __( 'Projects', 'hillcroft-garden-designer' ), self::CAP, 'hgd-projects', array( $this, 'render_projects' ) );
 		add_submenu_page( self::MENU, __( 'Clients', 'hillcroft-garden-designer' ), __( 'Clients', 'hillcroft-garden-designer' ), self::CAP, 'hgd-clients', array( $this, 'render_clients' ) );
 		add_submenu_page( self::MENU, __( 'Forms', 'hillcroft-garden-designer' ), __( 'Forms', 'hillcroft-garden-designer' ), self::CAP, 'hgd-forms', array( $this, 'render_forms_hub' ) );
@@ -214,6 +215,25 @@ class HGD_Admin {
 		$upcoming_count = HGD_Booking::count_upcoming();
 		$state         = HGD_API_Usage::banner_state();
 		include HGD_PATH . 'admin/views/dashboard.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Reports
+	// -------------------------------------------------------------------------
+
+	public function render_reports() {
+		$this->guard();
+		$banner_cb = array( $this, 'render_cost_banner' );
+
+		$rev_month = HGD_Reports::collected_revenue( 'month' );
+		$rev_year  = HGD_Reports::collected_revenue( 'year' );
+		$rev_all   = HGD_Reports::collected_revenue( 'all' );
+		$recurring = HGD_Reports::recurring();
+		$pipeline  = HGD_Reports::proposal_pipeline();
+		$projects  = HGD_Reports::projects_by_status();
+		$funnel    = HGD_Reports::funnel();
+
+		include HGD_PATH . 'admin/views/reports.php';
 	}
 
 	// -------------------------------------------------------------------------
