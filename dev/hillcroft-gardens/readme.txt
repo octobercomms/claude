@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.16.0
+Stable tag: 1.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.17.0 =
+* Stored secrets are now encrypted at rest. Your API keys (Claude, Gemini, Flux, Google Maps, Plant.id), the Stripe secret + webhook secret, the GitHub update token and the Google OAuth secrets are encrypted (AES-256 with an integrity check, keyed from your site's WordPress security salts) before being written to the database — so a database dump or stray backup no longer exposes live credentials in plaintext. Existing keys are migrated automatically on update, and nothing changes in how you enter or use them. Note: if your site's salts in wp-config.php are ever regenerated, the stored keys can't be decrypted and will need re-entering in Settings.
 
 = 1.16.0 =
 * Smarter plant-catalogue CSV import: re-importing no longer creates duplicates. Rows that match an existing plant on **botanical name + pot size** now update that plant; everything else is added. The confirmation tells you how many were added vs. updated. So you can export, tweak prices/stock in a spreadsheet, and re-import to refresh the whole catalogue in one go.

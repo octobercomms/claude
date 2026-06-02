@@ -213,9 +213,14 @@ class HGD_Google_Calendar {
 	/** Forget the stored refresh token + cached access token. */
 	public static function disconnect() {
 		delete_transient( self::TOKEN_TRANS );
-		// Bypass the secret-keep behaviour of Settings::save by writing directly.
-		$all = HGD_Settings::all();
-		$all['google_refresh_token'] = '';
-		update_option( HGD_Settings::OPTION, $all );
+		// Clear the token by editing the RAW stored option directly — never via
+		// HGD_Settings::all(), which decrypts secrets and would rewrite them in
+		// plaintext. save() can't clear a secret (blank = keep), so do it here.
+		$stored = get_option( HGD_Settings::OPTION, array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
+		}
+		$stored['google_refresh_token'] = '';
+		update_option( HGD_Settings::OPTION, $stored );
 	}
 }

@@ -3,7 +3,7 @@
  * Plugin Name: Hillcroft Garden Designer
  * Plugin URI: https://octobercomms.com
  * Description: AI-powered garden design system for Hillcroft Gardens — consultation capture, plant catalogue, pricing, visual renders, client proposals and payments. Foundation build.
- * Version: 1.16.0
+ * Version: 1.17.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'HGD_VERSION', '1.16.0' );
+define( 'HGD_VERSION', '1.17.0' );
 define( 'HGD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'HGD_URL', plugin_dir_url( __FILE__ ) );
 define( 'HGD_BASENAME', plugin_basename( __FILE__ ) );
@@ -31,6 +31,7 @@ define( 'HGDF_VERSION', HGD_VERSION );
 
 require_once HGD_PATH . 'includes/class-hgd-db.php';
 require_once HGD_PATH . 'includes/class-hgd-activator.php';
+require_once HGD_PATH . 'includes/class-hgd-crypto.php';
 require_once HGD_PATH . 'includes/class-hgd-settings.php';
 require_once HGD_PATH . 'includes/class-hgd-plant.php';
 require_once HGD_PATH . 'includes/class-hgd-client.php';
@@ -88,6 +89,8 @@ add_action( 'plugins_loaded', function () {
 	if ( get_option( 'hgd_db_version' ) !== HGD_DB::SCHEMA_VERSION ) {
 		HGD_Activator::activate();
 	}
+	// Encrypt any pre-existing plaintext secrets at rest (one-time, idempotent).
+	HGD_Settings::migrate_secrets();
 } );
 
 // Self-updater: pulls signed release zips from the private GitHub repo using a stored token.

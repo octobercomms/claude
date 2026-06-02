@@ -122,7 +122,15 @@ class HGD_Settings {
 		if ( ! is_array( $saved ) ) {
 			$saved = array();
 		}
-		return array_merge( self::defaults(), $saved );
+		$merged = array_merge( self::defaults(), $saved );
+
+		// Secrets are stored encrypted; hand callers the plaintext transparently.
+		foreach ( self::SECRET_KEYS as $key ) {
+			if ( isset( $merged[ $key ] ) && '' !== $merged[ $key ] ) {
+				$merged[ $key ] = HGD_Crypto::decrypt( $merged[ $key ] );
+			}
+		}
+		return $merged;
 	}
 
 	public static function get( $key, $fallback = '' ) {
@@ -143,14 +151,48 @@ class HGD_Settings {
 	 * @param array $input Raw, already-sanitised key => value pairs.
 	 */
 	public static function save( array $input ) {
-		$current = self::all();
-		foreach ( $input as $key => $value ) {
-			if ( in_array( $key, self::SECRET_KEYS, true ) && '' === trim( (string) $value ) ) {
-				continue; // keep existing secret
-			}
-			$current[ $key ] = $value;
+		// Operate on the RAW stored array (not self::all(), which decrypts) so
+		// untouched secrets stay encrypted rather than being rewritten in clear.
+		$stored = get_option( self::OPTION, array() );
+		if ( ! is_array( $stored ) ) {
+			$stored = array();
 		}
-		update_option( self::OPTION, $current );
+		foreach ( $input as $key => $value ) {
+			if ( in_array( $key, self::SECRET_KEYS, true ) ) {
+				if ( '' === trim( (string) $value ) ) {
+					continue; // keep existing secret
+				}
+				$stored[ $key ] = HGD_Crypto::encrypt( (string) $value );
+			} else {
+				$stored[ $key ] = $value;
+			}
+		}
+		update_option( self::OPTION, $stored );
+	}
+
+	/**
+	 * One-time, idempotent migration: encrypt any secret still held in plaintext
+	 * (from before encryption-at-rest). Safe to call on every load — it does
+	 * nothing once the flag is set.
+	 */
+	public static function migrate_secrets() {
+		if ( get_option( 'hgd_secrets_encrypted' ) ) {
+			return;
+		}
+		$stored = get_option( self::OPTION, array() );
+		if ( is_array( $stored ) ) {
+			$changed = false;
+			foreach ( self::SECRET_KEYS as $key ) {
+				if ( ! empty( $stored[ $key ] ) && ! HGD_Crypto::is_encrypted( $stored[ $key ] ) ) {
+					$stored[ $key ] = HGD_Crypto::encrypt( (string) $stored[ $key ] );
+					$changed        = true;
+				}
+			}
+			if ( $changed ) {
+				update_option( self::OPTION, $stored );
+			}
+		}
+		update_option( 'hgd_secrets_encrypted', 1 );
 	}
 
 	public static function is_secret( $key ) {
