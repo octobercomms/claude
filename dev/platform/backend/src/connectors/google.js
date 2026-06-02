@@ -182,16 +182,34 @@ async function fetchSearchConsoleData(credentials, params) {
   const { siteUrl, startDate, endDate } = params;
   if (!siteUrl) throw new Error('Search Console site not selected — open the client connectors tab and choose a site.');
 
-  const { data } = await axios.post(
-    `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
-    {
+  // Two queries:
+  //   1. UNDIMENSIONED → returns one aggregate row that is the period's
+  //      true total clicks / impressions / ctr / position. Without this
+  //      we were summing the top 100 (query, page, device, country) rows
+  //      and reporting that as the period total — undercounted clicks
+  //      ~3× and impressions ~20× on real sites.
+  //   2. dimensioned → top rows for the queries/pages tables.
+  // Run both in parallel — same API, different shape.
+  const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
+  const auth = { headers: { Authorization: `Bearer ${creds.access_token}` } };
+  const [totalsRes, rowsRes] = await Promise.all([
+    axios.post(url, { startDate, endDate }, auth),
+    axios.post(url, {
       startDate, endDate,
       dimensions: ['query', 'page', 'device', 'country'],
       rowLimit: 100,
+    }, auth),
+  ]);
+  const totalsRow = (totalsRes.data.rows || [])[0] || {};
+  return {
+    totals: {
+      clicks: totalsRow.clicks || 0,
+      impressions: totalsRow.impressions || 0,
+      ctr: totalsRow.ctr || 0,
+      position: totalsRow.position || 0,
     },
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
-  );
-  return data;
+    rows: rowsRes.data.rows || [],
+  };
 }
 
 // Single-dimension Search Analytics query — used by the SEO page tabs so we
