@@ -182,23 +182,25 @@ async function fetchSearchConsoleData(credentials, params) {
   const { siteUrl, startDate, endDate } = params;
   if (!siteUrl) throw new Error('Search Console site not selected — open the client connectors tab and choose a site.');
 
-  // Two queries:
-  //   1. UNDIMENSIONED → returns one aggregate row that is the period's
-  //      true total clicks / impressions / ctr / position. Without this
-  //      we were summing the top 100 (query, page, device, country) rows
-  //      and reporting that as the period total — undercounted clicks
-  //      ~3× and impressions ~20× on real sites.
-  //   2. dimensioned → top rows for the queries/pages tables.
-  // Run both in parallel — same API, different shape.
+  // Three queries in parallel:
+  //   1. UNDIMENSIONED → period's true total clicks/impressions/ctr/position.
+  //   2. dimensions=['query'] → one row per query, with that query's TRUE
+  //      totals (summed across all its pages/devices/countries by GSC).
+  //   3. dimensions=['page'] → one row per page, ditto.
+  //
+  // Previously the connector used a single multi-dimension query
+  // (query, page, device, country) with rowLimit=100, then aggregated
+  // by first dimension in the renderer. That's broken twice over:
+  // - Top-100 multi-dim combinations cover only a fraction of the long
+  //   tail, so the per-query totals were missing most of the data.
+  // - Aggregating by averaging CTR/position across sub-combinations
+  //   misweights vs the per-query values GSC returns natively.
   const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
   const auth = { headers: { Authorization: `Bearer ${creds.access_token}` } };
-  const [totalsRes, rowsRes] = await Promise.all([
+  const [totalsRes, queriesRes, pagesRes] = await Promise.all([
     axios.post(url, { startDate, endDate }, auth),
-    axios.post(url, {
-      startDate, endDate,
-      dimensions: ['query', 'page', 'device', 'country'],
-      rowLimit: 100,
-    }, auth),
+    axios.post(url, { startDate, endDate, dimensions: ['query'], rowLimit: 25 }, auth),
+    axios.post(url, { startDate, endDate, dimensions: ['page'], rowLimit: 25 }, auth),
   ]);
   const totalsRow = (totalsRes.data.rows || [])[0] || {};
   return {
@@ -208,7 +210,8 @@ async function fetchSearchConsoleData(credentials, params) {
       ctr: totalsRow.ctr || 0,
       position: totalsRow.position || 0,
     },
-    rows: rowsRes.data.rows || [],
+    topQueries: queriesRes.data.rows || [],
+    topPages: pagesRes.data.rows || [],
   };
 }
 
