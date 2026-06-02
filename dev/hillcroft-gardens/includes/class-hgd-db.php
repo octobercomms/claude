@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '16';
+	const SCHEMA_VERSION = '17';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -77,6 +77,11 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_subscriptions';
 	}
 
+	public static function followups_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_followups';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -97,6 +102,7 @@ class HGD_DB {
 		$payments        = self::payments_table();
 		$chat            = self::chat_table();
 		$subscriptions   = self::subscriptions_table();
+		$followups       = self::followups_table();
 
 		$statements = array();
 
@@ -367,6 +373,19 @@ class HGD_DB {
 			KEY stripe_subscription_id (stripe_subscription_id),
 			KEY stripe_checkout_session (stripe_checkout_session),
 			KEY manage_token (manage_token)
+		) {$charset_collate};";
+
+		// --- Follow-up log (one row per reminder sent; ensures idempotency) ---
+		$statements[] = "CREATE TABLE {$followups} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			entity_type VARCHAR(20) NOT NULL DEFAULT '',
+			entity_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
+			kind VARCHAR(40) NOT NULL DEFAULT '',
+			email VARCHAR(191) NOT NULL DEFAULT '',
+			sent_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY entity (entity_type, entity_id),
+			KEY kind (kind)
 		) {$charset_collate};";
 
 		return $statements;

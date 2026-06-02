@@ -150,6 +150,27 @@ $field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secre
 		</div>
 
 		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Client follow-ups', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'A once-daily job that emails gentle, client-facing reminders. Each reminder is sent at most once per record. Off by default — switch it on when you\'re ready.', 'hillcroft-garden-designer' ); ?></p>
+			<label class="hgd-checkbox"><input type="checkbox" name="followups_enabled" value="1" <?php checked( ! empty( $s['followups_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Enable automatic client follow-up emails', 'hillcroft-garden-designer' ); ?></span></label>
+
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_lead_enabled" value="1" <?php checked( ! empty( $s['followup_lead_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Nudge enquiries with no consultation booked', 'hillcroft-garden-designer' ); ?></span></label>
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_proposal_enabled" value="1" <?php checked( ! empty( $s['followup_proposal_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Remind on unanswered proposals', 'hillcroft-garden-designer' ); ?></span></label>
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_expiring_enabled" value="1" <?php checked( ! empty( $s['followup_expiring_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Final nudge when a proposal is about to expire', 'hillcroft-garden-designer' ); ?></span></label>
+
+			<div class="hgd-grid">
+				<?php
+				$field( 'followup_lead_days', __( 'Nudge leads after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				$field( 'followup_proposal_days', __( 'Remind on proposals after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				$field( 'followup_expiring_days', __( 'Expiry nudge within (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				?>
+			</div>
+			<label class="hgd-full"><span><?php esc_html_e( 'Booking page URL (for lead nudges)', 'hillcroft-garden-designer' ); ?></span>
+				<input type="url" name="booking_page_url" value="<?php echo esc_attr( isset( $s['booking_page_url'] ) ? $s['booking_page_url'] : '' ); ?>" placeholder="https://…" /></label>
+			<p class="hgd-muted"><?php esc_html_e( 'The page your [hgd_booking] form lives on, linked in lead-nudge emails. If left blank, the site home page is used.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
 			<h2><?php esc_html_e( 'Pricing defaults', 'hillcroft-garden-designer' ); ?></h2>
 			<p class="hgd-muted"><?php esc_html_e( 'Used to seed each new quote and to scale the Better / Best tiers from Good. You can override any of these per quote.', 'hillcroft-garden-designer' ); ?></p>
 			<div class="hgd-grid">

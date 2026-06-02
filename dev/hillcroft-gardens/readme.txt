@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.14.0
+Stable tag: 1.15.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.15.0 =
+* Automatic client follow-ups (Settings → Client follow-ups) — a once-daily job that sends gentle, client-facing reminder emails so warm leads and sent proposals don't go cold. Three reminders, each individually toggleable with its own day threshold: a nudge to enquiries that haven't booked a consultation after N days; a reminder on proposals that are still unanswered after N days; and a final nudge when a proposal is about to expire. Each reminder is sent at most once per record (tracked internally), so the daily run is safe. The whole feature is **off by default** — turn it on when you're ready, and set the booking-page URL used in lead-nudge emails. This completes brief item #11 (the reporting half shipped in 1.14.0).
 
 = 1.14.0 =
 * New **Reports** screen (Designer → Reports): your business at a glance, built from the records the plugin already keeps. Collected revenue for this month / this year / all time (paid consultations + paid design milestones), recurring income from maintenance plans (MRR, annualised ARR, active plans, new sign-ups this month), the open sales pipeline (proposal value by stage), projects by status, and a lead → consultation → proposal → won funnel. Read-only and figures come from local data, so no extra cost and nothing to configure. (Follow-up automation — reminder emails for un-booked leads and ageing proposals — is the planned next step.)

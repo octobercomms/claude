@@ -23,12 +23,21 @@ class HGD_Activator {
 			HGDF_Activator::activate();
 		}
 
+		// Daily client follow-up reminders (the job itself is gated by a setting).
+		if ( class_exists( 'HGD_Followups' ) ) {
+			HGD_Followups::schedule();
+		}
+
 		// Seed defaults only on first install.
 		HGD_Settings::seed_defaults();
 	}
 
 	public static function deactivate() {
 		// Intentionally non-destructive: leave tables and settings in place so no
-		// client data is lost on a deactivate/reactivate cycle.
+		// client data is lost on a deactivate/reactivate cycle. We do, however,
+		// clear our scheduled cron event.
+		if ( class_exists( 'HGD_Followups' ) ) {
+			HGD_Followups::unschedule();
+		}
 	}
 }
