@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.10.0
+Stable tag: 1.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.11.0 =
+* WooCommerce checkout for proposal payments: when a client accepts a proposal and pays the deposit from their portal, the payment now goes through WooCommerce checkout — so WooCommerce sends its proper order receipt (with your store's receipt settings/VAT), the same as the consultation. The Good/Better/Best pricing and the deposit/milestone schedule are unchanged; only the payment + receipt move to Woo. Each milestone becomes a Woo order line ("Deposit on signing — <project>") on a hidden "Garden design service" product. On payment the proposal/project advance exactly as before, and the duplicate plain-text receipt is suppressed so the client only gets Woo's. (If WooCommerce isn't active, the previous built-in Stripe card form still works.)
 
 = 1.10.0 =
 * WooCommerce checkout for the consultation: the £200 consultation is now a WooCommerce product, and booking it sends the client to WooCommerce checkout — so payment is taken by your normal Woo payment gateway and WooCommerce sends its proper order confirmation / receipt email (with your configured receipt settings, VAT, etc.). When the order is paid, the booking is fulfilled exactly as before: client + project created, Google Calendar event written, and the calendar invite sent. The consultation product price stays in step with the fee in Settings automatically. (If WooCommerce ever isn't active, the previous built-in Stripe card form still works as a fallback, and an admin notice prompts you to activate WooCommerce.)

@@ -296,10 +296,12 @@ class HGD_Booking_Page {
 	 * receipt to the client + admin. Idempotent: an already-paid milestone is
 	 * ignored.
 	 *
-	 * @param int    $payment_id Payment row id from metadata (may be 0).
-	 * @param string $pi_id      Stripe PaymentIntent id (fallback lookup).
+	 * @param int    $payment_id   Payment row id from metadata (may be 0).
+	 * @param string $pi_id        Stripe PaymentIntent id (fallback lookup).
+	 * @param bool   $send_receipt Email the bespoke receipt. False when Woo
+	 *                             already sends its own order receipt.
 	 */
-	public static function fulfil_payment( $payment_id, $pi_id ) {
+	public static function fulfil_payment( $payment_id, $pi_id, $send_receipt = true ) {
 		$payment = $payment_id ? HGD_Payment::get( (int) $payment_id ) : null;
 		if ( ! $payment && $pi_id ) {
 			$payment = HGD_Payment::find_by_payment_intent( $pi_id );
@@ -331,7 +333,9 @@ class HGD_Booking_Page {
 			}
 		}
 
-		self::send_payment_receipt( HGD_Payment::get( (int) $payment['id'] ), $proposal );
+		if ( $send_receipt ) {
+			self::send_payment_receipt( HGD_Payment::get( (int) $payment['id'] ), $proposal );
+		}
 	}
 
 	/** Email a milestone-payment receipt to the client and admin. */
