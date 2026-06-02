@@ -187,6 +187,15 @@ class HGD_Booking_Page {
 		$event = json_decode( $payload, true );
 		$type  = isset( $event['type'] ) ? $event['type'] : '';
 
+		/**
+		 * Let other modules (e.g. maintenance-plan subscriptions) handle Stripe
+		 * events on this single, signature-verified endpoint.
+		 *
+		 * @param string $type  The Stripe event type.
+		 * @param array  $event The decoded event.
+		 */
+		do_action( 'hgd_stripe_webhook_event', $type, is_array( $event ) ? $event : array() );
+
 		if ( 'payment_intent.succeeded' === $type ) {
 			$pi      = isset( $event['data']['object'] ) ? $event['data']['object'] : array();
 			$pi_id   = isset( $pi['id'] ) ? $pi['id'] : '';

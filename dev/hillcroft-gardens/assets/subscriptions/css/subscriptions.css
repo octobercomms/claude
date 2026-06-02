@@ -1,0 +1,142 @@
+/* Hillcroft Garden Designer — public maintenance-plan UI. */
+.hgd-subs {
+	--hgd-olive: #494A20;
+	--hgd-charcoal: #1B1C18;
+	--hgd-cream: #F2ECDD;
+	--hgd-line: rgba(73, 74, 32, 0.18);
+	max-width: 980px;
+	margin: 0 auto;
+	font-family: "DM Sans", system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+	color: var(--hgd-charcoal);
+}
+
+.hgd-subs-notice {
+	text-align: center;
+	padding: 22px 24px;
+	border: 1px solid var(--hgd-line);
+	border-radius: 14px;
+	background: var(--hgd-cream);
+	margin-bottom: 22px;
+	color: var(--hgd-olive);
+}
+.hgd-subs-success h3,
+.hgd-subs-cancel p { margin: 0; }
+.hgd-subs-success h3 {
+	font-family: "Cormorant Garamond", Georgia, serif;
+	font-size: 26px;
+	margin-bottom: 6px;
+}
+
+/* Plan grid */
+.hgd-subs-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 18px;
+}
+.hgd-subs-card {
+	border: 1px solid var(--hgd-line);
+	border-radius: 16px;
+	background: #fff;
+	padding: 26px 22px;
+	display: flex;
+	flex-direction: column;
+	box-shadow: 0 10px 40px rgba(27, 28, 24, 0.06);
+}
+.hgd-subs-name {
+	font-family: "Cormorant Garamond", Georgia, serif;
+	font-size: 26px;
+	color: var(--hgd-olive);
+	margin: 0 0 4px;
+}
+.hgd-subs-price { margin: 0 0 12px; }
+.hgd-subs-amount { font-size: 30px; font-weight: 600; }
+.hgd-subs-interval { opacity: 0.7; }
+.hgd-subs-blurb { margin: 0 0 14px; opacity: 0.85; }
+.hgd-subs-features {
+	list-style: none;
+	padding: 0;
+	margin: 0 0 20px;
+	flex: 1;
+}
+.hgd-subs-features li {
+	position: relative;
+	padding-left: 22px;
+	margin-bottom: 8px;
+	line-height: 1.4;
+}
+.hgd-subs-features li::before {
+	content: "✓";
+	position: absolute;
+	left: 0;
+	color: var(--hgd-olive);
+	font-weight: 700;
+}
+.hgd-subs-choose,
+.hgd-subs-submit,
+.hgd-subs-back {
+	font: inherit;
+	cursor: pointer;
+	border-radius: 999px;
+	padding: 12px 22px;
+	border: 1px solid var(--hgd-olive);
+	transition: opacity 0.15s ease;
+}
+.hgd-subs-choose,
+.hgd-subs-submit {
+	background: var(--hgd-olive);
+	color: var(--hgd-cream);
+}
+.hgd-subs-choose:hover,
+.hgd-subs-submit:hover { opacity: 0.9; }
+.hgd-subs-choose:disabled,
+.hgd-subs-submit:disabled { opacity: 0.6; cursor: default; }
+.hgd-subs-back {
+	background: transparent;
+	color: var(--hgd-olive);
+}
+
+/* Details form */
+.hgd-subs-form {
+	max-width: 480px;
+	margin: 6px auto 0;
+	border: 1px solid var(--hgd-line);
+	border-radius: 16px;
+	background: var(--hgd-cream);
+	padding: 26px;
+}
+.hgd-subs-form-title {
+	font-family: "Cormorant Garamond", Georgia, serif;
+	font-size: 24px;
+	color: var(--hgd-olive);
+	margin: 0 0 4px;
+}
+.hgd-subs-chosen { margin: 0 0 16px; font-weight: 600; }
+.hgd-subs-form label {
+	display: block;
+	margin-bottom: 14px;
+	font-size: 14px;
+}
+.hgd-subs-form input {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	margin-top: 5px;
+	padding: 11px 12px;
+	border: 1px solid var(--hgd-line);
+	border-radius: 10px;
+	font: inherit;
+	background: #fff;
+}
+.hgd-subs-error {
+	color: #8a1f11;
+	background: rgba(138, 31, 17, 0.08);
+	border-radius: 8px;
+	padding: 10px 12px;
+	margin-bottom: 14px;
+	font-size: 14px;
+}
+.hgd-subs-actions {
+	display: flex;
+	justify-content: space-between;
+	gap: 12px;
+}

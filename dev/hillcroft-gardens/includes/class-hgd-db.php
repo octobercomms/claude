@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '14';
+	const SCHEMA_VERSION = '15';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -72,6 +72,11 @@ class HGD_DB {
 		return $wpdb->prefix . 'hgd_chat';
 	}
 
+	public static function subscriptions_table() {
+		global $wpdb;
+		return $wpdb->prefix . 'hgd_subscriptions';
+	}
+
 	/**
 	 * Return the dbDelta schema statements for all tables.
 	 *
@@ -91,6 +96,7 @@ class HGD_DB {
 		$proposals       = self::proposals_table();
 		$payments        = self::payments_table();
 		$chat            = self::chat_table();
+		$subscriptions   = self::subscriptions_table();
 
 		$statements = array();
 
@@ -331,6 +337,34 @@ class HGD_DB {
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
 			PRIMARY KEY  (id),
 			KEY project_id (project_id)
+		) {$charset_collate};";
+
+		// --- Maintenance-plan subscriptions (billed by Stripe Billing) -------
+		$statements[] = "CREATE TABLE {$subscriptions} (
+			id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+			client_id BIGINT UNSIGNED NULL,
+			project_id BIGINT UNSIGNED NULL,
+			plan_key VARCHAR(40) NOT NULL DEFAULT '',
+			plan_label VARCHAR(191) NOT NULL DEFAULT '',
+			name VARCHAR(191) NOT NULL DEFAULT '',
+			email VARCHAR(191) NOT NULL DEFAULT '',
+			phone VARCHAR(40) NOT NULL DEFAULT '',
+			postcode VARCHAR(20) NOT NULL DEFAULT '',
+			amount_gbp DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+			billing_interval VARCHAR(10) NOT NULL DEFAULT 'month',
+			status VARCHAR(20) NOT NULL DEFAULT 'incomplete',
+			stripe_customer_id VARCHAR(80) NOT NULL DEFAULT '',
+			stripe_subscription_id VARCHAR(80) NOT NULL DEFAULT '',
+			stripe_checkout_session VARCHAR(120) NOT NULL DEFAULT '',
+			current_period_end DATETIME NULL,
+			canceled_at DATETIME NULL,
+			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			updated_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
+			PRIMARY KEY  (id),
+			KEY client_id (client_id),
+			KEY status (status),
+			KEY stripe_subscription_id (stripe_subscription_id),
+			KEY stripe_checkout_session (stripe_checkout_session)
 		) {$charset_collate};";
 
 		return $statements;

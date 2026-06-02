@@ -28,6 +28,9 @@ class HGD_Woo {
 	/** Option storing the design-service product id (used for proposal milestones). */
 	const OPT_DESIGN_PID = 'hgd_woo_design_pid';
 
+	/** Option storing the maintenance-plan product id (used to mirror Stripe invoices). */
+	const OPT_MAINT_PID = 'hgd_woo_maintenance_pid';
+
 	public static function init() {
 		// Fulfil consultation bookings once their Woo order is paid.
 		add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'maybe_fulfil_order' ) );
@@ -244,6 +247,130 @@ class HGD_Woo {
 		$order->update_meta_data( '_hgd_proposal_id', (int) $proposal['id'] );
 		$order->set_created_via( 'hillcroft-proposal' );
 		$order->calculate_totals();
+		$order->save();
+
+		return $order;
+	}
+
+	/**
+	 * The maintenance-plan product id, creating it the first time. Priced per
+	 * order line (the invoice amount), so its base price is 0. Returns 0 if
+	 * WooCommerce is unavailable.
+	 */
+	public static function maintenance_product_id() {
+		if ( ! self::is_active() ) {
+			return 0;
+		}
+
+		$pid = (int) get_option( self::OPT_MAINT_PID, 0 );
+		if ( $pid && ( $p = wc_get_product( $pid ) ) && 'trash' !== $p->get_status() ) {
+			return $pid;
+		}
+
+		$product = new WC_Product_Simple();
+		$product->set_name( __( 'Garden maintenance plan', 'hillcroft-garden-designer' ) );
+		$product->set_status( 'publish' );
+		$product->set_catalog_visibility( 'hidden' ); // billed by Stripe Billing, not the shop
+		$product->set_virtual( true );
+		$product->set_regular_price( '0' );
+		$product->set_price( '0' );
+		$product->set_description( __( 'Recurring garden maintenance plan, billed monthly via Stripe.', 'hillcroft-garden-designer' ) );
+		$product->update_meta_data( '_hgd_managed', 'maintenance' );
+		$pid = (int) $product->save();
+
+		if ( $pid ) {
+			update_option( self::OPT_MAINT_PID, $pid );
+		}
+		return $pid;
+	}
+
+	/**
+	 * Mirror a paid Stripe invoice into a completed Woo order, so Woo keeps the
+	 * record and sends a receipt. Idempotent: an invoice already mirrored is
+	 * skipped (matched on the stored Stripe invoice id).
+	 *
+	 * @param array $subscription An HGD_Subscription row.
+	 * @param array $invoice      The Stripe invoice object from the webhook.
+	 * @return WC_Order|WP_Error|null Order, error, or null when skipped.
+	 */
+	public static function create_subscription_invoice_order( $subscription, array $invoice ) {
+		if ( ! self::is_active() ) {
+			return new WP_Error( 'hgd_woo_inactive', __( 'WooCommerce is not active.', 'hillcroft-garden-designer' ) );
+		}
+		if ( ! is_array( $subscription ) ) {
+			return new WP_Error( 'hgd_woo_no_sub', __( 'Missing subscription.', 'hillcroft-garden-designer' ) );
+		}
+
+		$invoice_id = isset( $invoice['id'] ) ? sanitize_text_field( (string) $invoice['id'] ) : '';
+
+		// Idempotency: don't mirror the same invoice twice.
+		if ( '' !== $invoice_id ) {
+			$existing = wc_get_orders( array(
+				'limit'      => 1,
+				'return'     => 'ids',
+				'meta_key'   => '_hgd_stripe_invoice',
+				'meta_value' => $invoice_id,
+			) );
+			if ( ! empty( $existing ) ) {
+				return null;
+			}
+		}
+
+		$pid     = self::maintenance_product_id();
+		$product = $pid ? wc_get_product( $pid ) : null;
+		if ( ! $product ) {
+			return new WP_Error( 'hgd_woo_no_product', __( 'Could not find the maintenance-plan product.', 'hillcroft-garden-designer' ) );
+		}
+
+		// Amount actually paid (pence → pounds), falling back to the plan price.
+		$amount = isset( $invoice['amount_paid'] )
+			? round( (int) $invoice['amount_paid'] / 100, 2 )
+			: round( (float) $subscription['amount_gbp'], 2 );
+
+		$order = wc_create_order();
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+
+		$item_id = $order->add_product( $product, 1 );
+		$item    = $item_id ? $order->get_item( $item_id ) : null;
+		if ( $item ) {
+			$label = sprintf(
+				/* translators: %s: plan name */
+				__( '%s — monthly maintenance', 'hillcroft-garden-designer' ),
+				(string) $subscription['plan_label']
+			);
+			$item->set_name( $label );
+			$item->set_subtotal( $amount );
+			$item->set_total( $amount );
+			$item->save();
+		}
+
+		$parts = preg_split( '/\s+/', trim( (string) $subscription['name'] ), 2 );
+		$order->set_billing_first_name( isset( $parts[0] ) ? $parts[0] : '' );
+		$order->set_billing_last_name( isset( $parts[1] ) ? $parts[1] : '' );
+		if ( ! empty( $subscription['email'] ) ) {
+			$order->set_billing_email( (string) $subscription['email'] );
+		}
+		if ( ! empty( $subscription['phone'] ) ) {
+			$order->set_billing_phone( (string) $subscription['phone'] );
+		}
+		if ( ! empty( $subscription['postcode'] ) ) {
+			$order->set_billing_postcode( (string) $subscription['postcode'] );
+		}
+
+		$order->update_meta_data( '_hgd_kind', 'subscription' );
+		$order->update_meta_data( '_hgd_subscription_id', (int) $subscription['id'] );
+		if ( '' !== $invoice_id ) {
+			$order->update_meta_data( '_hgd_stripe_invoice', $invoice_id );
+		}
+		$order->set_created_via( 'hillcroft-subscription' );
+		$order->set_payment_method_title( 'Stripe (subscription)' );
+		$order->calculate_totals();
+
+		// Record the payment (sets paid date + sends the Woo receipt email).
+		$txn = isset( $invoice['payment_intent'] ) ? (string) $invoice['payment_intent'] : $invoice_id;
+		$order->payment_complete( $txn );
 		$order->save();
 
 		return $order;
