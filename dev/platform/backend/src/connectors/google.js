@@ -316,7 +316,19 @@ async function fetchGoogleAdsData(credentials, params) {
     } catch (kwErr) {
       console.warn('[Google Ads] keyword_view fetch failed:', kwErr.response?.data?.error?.message || kwErr.message);
     }
-    return { ...data, keyword_view: keywords };
+    // Pull the customer's currency code so the report renderer can
+    // convert cross-currency Google Ads sections (US/USD vs UK/GBP) to
+    // GBP via fxRates instead of summing raw numbers as if they were
+    // the same unit. Best-effort — if the query fails we fall back to
+    // GBP and the renderer treats the data as already-in-GBP.
+    let currency = null;
+    try {
+      const cuRes = await search(loginCustomerId, `SELECT customer.currency_code FROM customer LIMIT 1`);
+      currency = cuRes.data.results?.[0]?.customer?.currencyCode || null;
+    } catch (cuErr) {
+      console.warn('[Google Ads] currency_code fetch failed:', cuErr.response?.data?.error?.message || cuErr.message);
+    }
+    return { ...data, keyword_view: keywords, currency };
   };
 
   // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery

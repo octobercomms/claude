@@ -112,8 +112,13 @@ async function generateReport(reportId) {
 // concrete data (narrative paragraphs via Claude, metrics grids, tables,
 // charts), builds the PDF, stores + emails it.
 async function generateTemplatedReport({ report, client, period, periodStart, periodEnd, template, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory }) {
+  // Pre-fetch GBP rates for every non-GBP currency present in the data.
+  // Cheap (cached after first call) and lets sumAcrossSources run sync
+  // currency-to-GBP conversion when a section combines mixed-currency
+  // sources like a US + UK Google Ads pair.
+  const fxRates = await require('./fxRates').ratesToGbp(rawData, periodEnd);
   const resolved = await templateRenderer.resolveTemplate({
-    template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory,
+    template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory, fxRates,
   });
 
   const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });

@@ -303,8 +303,9 @@ function resolveMetricsGrid(section, rawData, rawDataPrev, ctx) {
   // aggregate === 'sum' (default multi-source) — combine across sources, with
   // AOV recomputed from total revenue / total orders and ROAS from value /
   // spend (an average of averages would be misleading).
-  const totals = sumAcrossSources(matches, metricKeys);
-  const prevTotals = compareYoy ? sumAcrossSources(matchSourcesFromPrev(matches, rawDataPrev), metricKeys) : null;
+  const fxRates = ctx?.fxRates;
+  const totals = sumAcrossSources(matches, metricKeys, fxRates);
+  const prevTotals = compareYoy ? sumAcrossSources(matchSourcesFromPrev(matches, rawDataPrev), metricKeys, fxRates) : null;
   const cells = [];
   for (const mk of metricKeys) {
     if (totals[mk] == null) continue;
@@ -475,7 +476,7 @@ function periodsForTimeSeries(template) {
 const SINGLE_SOURCE_METRICS = new Set(['revenue', 'orders', 'conversions', 'aov']);
 const SOURCE_PREFERENCE = ['shopify', 'woocommerce', 'amazon_seller', 'google_ads', 'meta_ads', 'ga4'];
 
-function sumAcrossSources(matches, metricKeys) {
+function sumAcrossSources(matches, metricKeys, fxRates = {}) {
   const totals = {};
   // For "single-source" metrics, decide up front which source wins for
   // each metric and only count it from that source.
@@ -493,12 +494,20 @@ function sumAcrossSources(matches, metricKeys) {
   }
   for (const m of matches) {
     const catalog = METRIC_CATALOG[m.type] || {};
+    // Source currency for FX conversion when a currency metric is being
+    // summed across mixed-currency markets (e.g. US Google Ads in USD +
+    // UK in GBP). Connectors tag their response with `currency`; if a
+    // connector hasn't been updated to set it, we treat values as GBP.
+    const sourceCurrency = m.data?.currency || m.data?.summary?.currency || 'GBP';
+    const fxToGbp = sourceCurrency === 'GBP' ? 1 : (fxRates[sourceCurrency] || 1);
     for (const mk of metricKeys) {
       const def = catalog[mk];
       if (!def) continue;
       if (mk === 'aov' || mk === 'roas') continue;
       if (winnerByMetric[mk] && winnerByMetric[mk] !== m.key) continue;
-      totals[mk] = (totals[mk] || 0) + def.get(m.data);
+      let raw = def.get(m.data);
+      if (def.format === 'currency' && fxToGbp !== 1) raw = raw * fxToGbp;
+      totals[mk] = (totals[mk] || 0) + raw;
       totals[`__format_${mk}`] = def.format;
       totals[`__label_${mk}`] = def.label;
     }

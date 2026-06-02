@@ -331,8 +331,13 @@ router.post('/preview', async (req, res) => {
       ? new Date(periodStart).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
       : `${new Date(periodStart).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${new Date(periodEnd).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
 
+    // Pre-fetch GBP rates for non-GBP currencies in the data — used by
+    // sumAcrossSources to normalise multi-market totals (e.g. US + UK
+    // Google Ads) into a single GBP figure.
+    const fxRates = await require('../services/fxRates').ratesToGbp(rawData, periodEnd);
+
     const resolved = await templateRenderer.resolveTemplate({
-      template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory: [], narrativeCache,
+      template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory: [], narrativeCache, fxRates,
     });
 
     const html = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });
