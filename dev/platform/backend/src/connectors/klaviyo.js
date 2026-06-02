@@ -28,37 +28,25 @@ async function fetchData(credentials, params) {
   // an invalid type for datetime comparison.
   const startIso = `${startDate}T00:00:00Z`;
   const endIso = `${endDate}T23:59:59Z`;
-  // Widen the campaigns lookup to start-90d so older campaigns that
-  // produced revenue/opens INSIDE the report period (the campaign-values
-  // report's timeframe handles that) aren't dropped by the campaigns
-  // list filter. Without this, a March send with attribution conversions
-  // through May would show £0 in the May row even though Klaviyo's UI
-  // counts that revenue against May.
-  const widenedStart = new Date(`${startDate}T00:00:00Z`);
-  widenedStart.setUTCDate(widenedStart.getUTCDate() - 90);
-  const wideStartIso = widenedStart.toISOString().replace(/\.\d{3}Z$/, 'Z');
 
-  // The campaigns endpoint rejects page[size] — Klaviyo error:
-  // "'page_size' is not a valid field for the resource 'campaign'".
-  // Use Klaviyo's default page size and (if we need more) follow the
-  // next-cursor link. Metrics doesn't accept it either on this revision,
-  // so leave it off too — the default size is plenty for both.
-  //
-  // The channel filter IS required by Klaviyo — calling /campaigns/
-  // without one returns HTTP 400 with "A channel filter is required to
-  // list campaigns. Please provide either ?filter=equals(messages.channel,
-  // 'email') ...". Earlier this filter was dropped on the assumption it
-  // was excluding legitimate campaigns, but the May-shows-0 problem was
-  // really the narrow scheduled_at window — fixed separately by widening
-  // to start-90d above. Keep the channel filter here.
+  // Klaviyo's /campaigns/ endpoint requires a channel filter — calling
+  // without one returns 400 "A channel filter is required to list
+  // campaigns." It also refuses to accept the channel filter when nested
+  // inside an and(...) alongside scheduled_at clauses on this revision
+  // (same 400 error). So just send the channel filter on its own and
+  // rely on Klaviyo's default sort (created_at desc) to surface the
+  // most recent campaigns first; the campaign-values report's timeframe
+  // (set further below to the report period) handles attribution
+  // scoping. Default page size is enough for attribution use cases.
   const [campaignsRes, metricsRes] = await Promise.all([
     axios.get('https://a.klaviyo.com/api/campaigns/', {
       headers,
       params: {
-        'filter': `and(equals(messages.channel,'email'),greater-or-equal(scheduled_at,${wideStartIso}),less-or-equal(scheduled_at,${endIso}))`,
+        'filter': `equals(messages.channel,'email')`,
         'fields[campaign]': 'name,status,scheduled_at',
+        'sort': '-scheduled_at',
       },
-    }).catch(e => { throw klaviyoError('GET /campaigns/', e, { wideStartIso, endIso }); }),
+    }).catch(e => { throw klaviyoError('GET /campaigns/', e, { startIso, endIso }); }),
     axios.get('https://a.klaviyo.com/api/metrics/', {
       headers,
     }).catch(e => { throw klaviyoError('GET /metrics/', e); }),
