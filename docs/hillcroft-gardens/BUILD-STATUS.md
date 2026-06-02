@@ -190,6 +190,16 @@ The full original brief is now delivered end to end across 10 releases.
   `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
   passthrough, tamper and double-encrypt cases. No schema change.
 
+## ✅ 1.18.0 — Self-hosted brand fonts
+
+- Cormorant Garamond + DM Sans bundled as latin-subset woff2 (`assets/fonts/`, 3 files ≈ 98KB,
+  variable fonts shared across weights) with a generated `fonts.css` (`@font-face`, `font-display:swap`).
+- Admin enqueue now loads the local `fonts.css` instead of `fonts.googleapis.com`; the public
+  booking + maintenance-plan pages also enqueue it (they referenced the families but never loaded
+  them) — so no third-party font request anywhere.
+- SIL OFL 1.1 compliance: `assets/fonts/LICENSE.txt` bundles attribution + the full licence.
+- No schema change. Closes the last foundation TODO (self-host the brand fonts).
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
@@ -207,6 +217,6 @@ The full original brief is now delivered end to end across 10 releases.
 
 ## Known foundation TODOs
 
-- Self-host the brand fonts (currently loaded from Google Fonts in admin).
+- ~~Self-host the brand fonts (currently loaded from Google Fonts in admin).~~ Done in 1.18.0.
 - ~~Consider encrypting stored secrets (currently masked plaintext in `wp_options`).~~ Done in 1.17.0.
 - ~~Add CSV import/export for the catalogue.~~ Done (export + import; import upserts as of 1.16.0).

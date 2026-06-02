@@ -144,11 +144,12 @@ class HGD_Admin {
 			return;
 		}
 
+		// Self-hosted brand fonts — no third-party (Google Fonts) request.
 		wp_enqueue_style(
 			'hgd-fonts',
-			'https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&display=swap',
+			HGD_URL . 'assets/fonts/fonts.css',
 			array(),
-			null
+			HGD_VERSION
 		);
 
 		wp_enqueue_style( 'hgd-admin', HGD_URL . 'admin/css/admin.css', array( 'hgd-fonts' ), HGD_VERSION );

@@ -518,7 +518,8 @@ class HGD_Booking_Page {
 	public static function shortcode( $atts ) {
 		$s = HGD_Settings::all();
 
-		wp_enqueue_style( 'hgd-booking', HGD_URL . 'assets/booking/css/booking.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-fonts', HGD_URL . 'assets/fonts/fonts.css', array(), HGD_VERSION );
+		wp_enqueue_style( 'hgd-booking', HGD_URL . 'assets/booking/css/booking.css', array( 'hgd-fonts' ), HGD_VERSION );
 
 		$woo        = HGD_Woo::is_active();
 		$has_stripe = HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'];
