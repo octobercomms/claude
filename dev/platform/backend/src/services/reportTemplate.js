@@ -71,8 +71,15 @@ const METRIC_CATALOG = {
     revenue:     { label: 'Revenue',     format: 'currency', get: d => sumGA4(d, 'totalRevenue') },
   },
   google_search_console: {
-    clicks:      { label: 'Organic Clicks', format: 'integer', get: d => (d.rows || []).reduce((s, r) => s + (r.clicks || 0), 0) },
-    impressions: { label: 'Impressions',    format: 'integer', get: d => (d.rows || []).reduce((s, r) => s + (r.impressions || 0), 0) },
+    // Connector returns { totals: { clicks, impressions, ctr, position }, rows: [...] }
+    // since the multi-dimension `rows` only cover the top 100 combinations
+    // and undercount actuals dramatically (3× clicks, 20× impressions
+    // on real sites). Pull period totals from `.totals`; fall back to
+    // summing rows so older cached data still renders.
+    clicks:      { label: 'Organic Clicks', format: 'integer', get: d => d.totals?.clicks ?? (d.rows || []).reduce((s, r) => s + (r.clicks || 0), 0) },
+    impressions: { label: 'Impressions',    format: 'integer', get: d => d.totals?.impressions ?? (d.rows || []).reduce((s, r) => s + (r.impressions || 0), 0) },
+    ctr:         { label: 'CTR',            format: 'percent', get: d => (d.totals?.ctr ?? 0) * 100 },
+    position:    { label: 'Avg. Position',  format: 'decimal', get: d => d.totals?.position ?? 0 },
   },
   amazon_seller: {
     revenue: { label: 'Revenue', format: 'currency', get: d => parseFloat(d.summary?.total_revenue || 0) },
@@ -181,6 +188,8 @@ function formatValue(value, format) {
       return `${value.toFixed(2)}×`;
     case 'percent':
       return `${value.toFixed(1)}%`;
+    case 'decimal':
+      return value.toFixed(1);
     default:
       return String(value);
   }
