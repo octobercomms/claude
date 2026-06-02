@@ -262,20 +262,16 @@ function extractKeyMetrics(connectorType, data) {
       return metrics;
     }
     case 'google_search_console': {
-      const rows = data.rows || [];
-      if (!rows.length) return [];
-      const totals = rows.reduce((acc, r) => {
-        acc.clicks += r.clicks || 0;
-        acc.impressions += r.impressions || 0;
-        acc.ctrSum += r.ctr || 0;
-        acc.positionSum += r.position || 0;
-        return acc;
-      }, { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0 });
+      // Use the undimensioned totals returned by the connector — the
+      // pre-PR fallback (summing rows and averaging CTR/position) used
+      // a top-100 multi-dimension sample that drastically under-counted.
+      const t = data.totals;
+      if (!t) return [];
       return [
-        { label: 'Organic Clicks', value: totals.clicks.toLocaleString() },
-        { label: 'Impressions', value: totals.impressions.toLocaleString() },
-        { label: 'Avg CTR', value: `${((totals.ctrSum / rows.length) * 100).toFixed(2)}%` },
-        { label: 'Avg Position', value: (totals.positionSum / rows.length).toFixed(1) },
+        { label: 'Organic Clicks', value: (t.clicks || 0).toLocaleString() },
+        { label: 'Impressions', value: (t.impressions || 0).toLocaleString() },
+        { label: 'Avg CTR', value: `${((t.ctr || 0) * 100).toFixed(2)}%` },
+        { label: 'Avg Position', value: (t.position || 0).toFixed(1) },
       ];
     }
     case 'google_ads': {
@@ -427,46 +423,36 @@ function extractTables(connectorType, data) {
       }];
     }
     case 'google_search_console': {
-      // GSC fetch uses dimensions [query, page, device, country]
-      const aggBy = (idx, limit) => {
-        const map = {};
-        for (const row of (data.rows || [])) {
-          const key = row.keys?.[idx] || '';
-          if (!key) continue;
-          if (!map[key]) map[key] = { clicks: 0, impressions: 0, ctrSum: 0, positionSum: 0, count: 0 };
-          map[key].clicks += row.clicks || 0;
-          map[key].impressions += row.impressions || 0;
-          map[key].ctrSum += row.ctr || 0;
-          map[key].positionSum += row.position || 0;
-          map[key].count++;
-        }
-        return Object.entries(map).sort((a, b) => b[1].clicks - a[1].clicks).slice(0, limit);
-      };
-      const queries = aggBy(0, 15);
-      const pages = aggBy(1, 15);
+      // GSC connector now returns topQueries / topPages as single-dimension
+      // rows from the API — each row's clicks/impressions/ctr/position is
+      // the true total for that query/page across all sub-dimensions, so
+      // we just sort and render without any local aggregation.
       const tables = [];
-      if (queries.length) tables.push({
+      const queryRows = (data.topQueries || []).slice().sort((a, b) => (b.clicks || 0) - (a.clicks || 0)).slice(0, 15);
+      const pageRows = (data.topPages || []).slice().sort((a, b) => (b.clicks || 0) - (a.clicks || 0)).slice(0, 15);
+      if (queryRows.length) tables.push({
         heading: 'Top Organic Queries',
         headers: ['Query', 'Clicks', 'Impressions', 'CTR', 'Position'],
-        rows: queries.map(([k, m]) => [
-          k,
-          m.clicks.toLocaleString(),
-          m.impressions.toLocaleString(),
-          `${((m.ctrSum / m.count) * 100).toFixed(2)}%`,
-          (m.positionSum / m.count).toFixed(1),
+        rows: queryRows.map(r => [
+          r.keys?.[0] || '',
+          (r.clicks || 0).toLocaleString(),
+          (r.impressions || 0).toLocaleString(),
+          `${((r.ctr || 0) * 100).toFixed(2)}%`,
+          (r.position || 0).toFixed(1),
         ]),
       });
-      if (pages.length) tables.push({
+      if (pageRows.length) tables.push({
         heading: 'Top Landing Pages',
         headers: ['Page', 'Clicks', 'Impressions', 'CTR', 'Position'],
-        rows: pages.map(([k, m]) => {
-          const shortPage = k.length > 60 ? '…' + k.slice(-58) : k;
+        rows: pageRows.map(r => {
+          const page = r.keys?.[0] || '';
+          const shortPage = page.length > 60 ? '…' + page.slice(-58) : page;
           return [
             shortPage,
-            m.clicks.toLocaleString(),
-            m.impressions.toLocaleString(),
-            `${((m.ctrSum / m.count) * 100).toFixed(2)}%`,
-            (m.positionSum / m.count).toFixed(1),
+            (r.clicks || 0).toLocaleString(),
+            (r.impressions || 0).toLocaleString(),
+            `${((r.ctr || 0) * 100).toFixed(2)}%`,
+            (r.position || 0).toFixed(1),
           ];
         }),
       });
