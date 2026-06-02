@@ -25,7 +25,11 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
       .then(r => {
         setSaved(r.template);
         setConnectors(r.available_connectors || []);
-        if (!r.template) setProposed(r.default_template);
+        // Seed the preview pane with the locked template (if any) so the
+        // AM can edit it directly — toggle narratives, delete sections —
+        // without having to round-trip through chat just to surface it.
+        // proposedDiffers stays false until they actually change something.
+        setProposed(r.template || r.default_template);
       })
       .catch(e => setError(e.message));
   }, [clientId, reportType]);
