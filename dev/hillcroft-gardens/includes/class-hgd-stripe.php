@@ -210,6 +210,29 @@ class HGD_Stripe {
 		return self::request( 'POST', '/checkout/sessions', $body );
 	}
 
+	/**
+	 * Create a Billing (Customer) Portal session, so the customer can manage
+	 * their own subscription — update card, view invoices, cancel — on Stripe's
+	 * hosted, self-service pages.
+	 *
+	 * Requires the Customer Portal to be activated once in the Stripe dashboard
+	 * (Settings → Billing → Customer portal), in both test and live mode.
+	 *
+	 * @param string $customer_id Stripe Customer id (cus_…).
+	 * @param string $return_url  Where Stripe returns the customer afterwards.
+	 * @return array|WP_Error Decoded session (incl. url) or error.
+	 */
+	public static function create_billing_portal_session( $customer_id, $return_url ) {
+		$customer_id = sanitize_text_field( (string) $customer_id );
+		if ( '' === $customer_id ) {
+			return new WP_Error( 'hgd_stripe_bad_id', __( 'Missing customer id.', 'hillcroft-garden-designer' ) );
+		}
+		return self::request( 'POST', '/billing_portal/sessions', array(
+			'customer'   => $customer_id,
+			'return_url' => (string) $return_url,
+		) );
+	}
+
 	/** Retrieve a Subscription by id (sub_…). */
 	public static function retrieve_subscription( $id ) {
 		$id = sanitize_text_field( (string) $id );

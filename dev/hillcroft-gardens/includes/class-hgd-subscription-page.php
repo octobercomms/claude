@@ -26,7 +26,17 @@ class HGD_Subscription_Page {
 	public static function init() {
 		add_action( 'rest_api_init', array( __CLASS__, 'register_routes' ) );
 		add_shortcode( 'hgd_maintenance_plans', array( __CLASS__, 'shortcode' ) );
+		add_shortcode( 'hgd_manage_plan', array( __CLASS__, 'manage_shortcode' ) );
 		add_action( 'hgd_stripe_webhook_event', array( __CLASS__, 'handle_webhook_event' ), 10, 2 );
+
+		// Self-service entry: ?hgd_manage=<token> → Stripe Customer Portal.
+		add_filter( 'query_vars', array( __CLASS__, 'register_query_var' ) );
+		add_action( 'template_redirect', array( __CLASS__, 'maybe_manage' ) );
+	}
+
+	public static function register_query_var( $vars ) {
+		$vars[] = 'hgd_manage';
+		return $vars;
 	}
 
 	/** Are subscriptions sellable (Stripe secret key present)? */
@@ -44,9 +54,15 @@ class HGD_Subscription_Page {
 			'permission_callback' => array( __CLASS__, 'checkout_permission' ),
 			'callback'            => array( __CLASS__, 'rest_checkout' ),
 		) );
+
+		register_rest_route( self::NS, '/subscription/manage-link', array(
+			'methods'             => 'POST',
+			'permission_callback' => array( __CLASS__, 'checkout_permission' ),
+			'callback'            => array( __CLASS__, 'rest_manage_link' ),
+		) );
 	}
 
-	/** Nonce-protect the checkout route. */
+	/** Nonce-protect the public POST routes. */
 	public static function checkout_permission( $request ) {
 		return (bool) wp_verify_nonce( $request->get_header( 'X-WP-Nonce' ), 'wp_rest' );
 	}
@@ -132,6 +148,108 @@ class HGD_Subscription_Page {
 			'subscription_id' => $sub_id,
 			'redirect_url'    => isset( $session['url'] ) ? $session['url'] : '',
 		), 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// Self-service — Stripe Customer Portal (manage card / invoices / cancel)
+	// -------------------------------------------------------------------------
+
+	private static function current_manage_token() {
+		$token = get_query_var( 'hgd_manage' );
+		if ( '' === $token && isset( $_GET['hgd_manage'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification
+			$token = wp_unslash( $_GET['hgd_manage'] ); // phpcs:ignore WordPress.Security.NonceVerification
+		}
+		return preg_replace( '/[^A-Za-z0-9]/', '', (string) $token );
+	}
+
+	/**
+	 * On ?hgd_manage=<token>, open a Stripe Customer Portal session for that
+	 * subscriber and redirect them to it. The token is the only credential, so
+	 * everything is re-validated here and the customer id comes from our record.
+	 */
+	public static function maybe_manage() {
+		$token = self::current_manage_token();
+		if ( '' === $token ) {
+			return;
+		}
+
+		nocache_headers();
+
+		$sub = HGD_Subscription::find_by_manage_token( $token );
+		if ( ! $sub || empty( $sub['stripe_customer_id'] ) ) {
+			status_header( 404 );
+			self::render_manage_message(
+				__( 'Link not available', 'hillcroft-garden-designer' ),
+				__( 'This management link is no longer valid, or your plan is not yet active. If you\'ve just signed up, please try again in a few minutes.', 'hillcroft-garden-designer' )
+			);
+			exit;
+		}
+
+		$session = HGD_Stripe::create_billing_portal_session(
+			(string) $sub['stripe_customer_id'],
+			home_url( '/' )
+		);
+
+		if ( is_wp_error( $session ) || empty( $session['url'] ) ) {
+			status_header( 502 );
+			self::render_manage_message(
+				__( 'Couldn\'t open your account', 'hillcroft-garden-designer' ),
+				__( 'Sorry — we couldn\'t open your billing account just now. Please try again shortly, or get in touch and we\'ll help.', 'hillcroft-garden-designer' )
+			);
+			exit;
+		}
+
+		wp_redirect( esc_url_raw( $session['url'] ) );
+		exit;
+	}
+
+	/** A minimal branded page for manage-link errors. */
+	private static function render_manage_message( $title, $body ) {
+		header( 'Content-Type: text/html; charset=utf-8' );
+		echo '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">';
+		echo '<title>' . esc_html( $title ) . '</title>';
+		echo '<div style="max-width:520px;margin:12vh auto;padding:32px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#1B1C18;text-align:center;">';
+		echo '<h1 style="font-size:24px;color:#494A20;">' . esc_html( $title ) . '</h1>';
+		echo '<p style="line-height:1.5;opacity:.85;">' . esc_html( $body ) . '</p>';
+		echo '<p><a href="' . esc_url( home_url( '/' ) ) . '" style="color:#494A20;">' . esc_html__( 'Return to the website', 'hillcroft-garden-designer' ) . '</a></p>';
+		echo '</div>';
+	}
+
+	/**
+	 * Email a magic self-service link to a returning subscriber. To avoid email
+	 * enumeration, the response is always neutral regardless of whether a
+	 * matching subscription exists.
+	 */
+	public static function rest_manage_link( $request ) {
+		$email = sanitize_email( (string) $request->get_param( 'email' ) );
+		if ( is_email( $email ) ) {
+			$sub = HGD_Subscription::latest_manageable_for_email( $email );
+			if ( $sub ) {
+				self::send_manage_link( $sub );
+			}
+		}
+
+		return new WP_REST_Response( array(
+			'message' => __( 'If that email has an active maintenance plan, we\'ve sent a secure link to manage it.', 'hillcroft-garden-designer' ),
+		), 200 );
+	}
+
+	/** Send the self-service link email to the subscriber. */
+	public static function send_manage_link( array $sub ) {
+		$url     = HGD_Subscription::manage_url( $sub );
+		$name    = (string) $sub['name'];
+		$site    = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
+		$subject = sprintf(
+			/* translators: %s: site name */
+			__( 'Manage your %s maintenance plan', 'hillcroft-garden-designer' ),
+			$site
+		);
+		$body  = ( '' !== trim( $name ) ? sprintf( __( 'Hi %s,', 'hillcroft-garden-designer' ), $name ) : __( 'Hello,', 'hillcroft-garden-designer' ) ) . "\n\n";
+		$body .= __( 'Use the secure link below to manage your garden maintenance plan — update your card, view invoices or cancel:', 'hillcroft-garden-designer' ) . "\n\n";
+		$body .= $url . "\n\n";
+		$body .= __( 'For your security this link is unique to you. If you didn\'t request it, you can safely ignore this email.', 'hillcroft-garden-designer' ) . "\n";
+
+		wp_mail( (string) $sub['email'], $subject, $body, array( 'Content-Type: text/plain; charset=UTF-8' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -335,6 +453,16 @@ class HGD_Subscription_Page {
 		$plans      = HGD_Subscription::plans();
 		$state      = isset( $_GET['hgd_sub'] ) ? sanitize_key( wp_unslash( $_GET['hgd_sub'] ) ) : '';
 
+		// On return from a successful Checkout, offer a self-service link.
+		$manage_url = '';
+		if ( 'success' === $state && isset( $_GET['session_id'] ) ) {
+			$session_id = sanitize_text_field( wp_unslash( $_GET['session_id'] ) );
+			$paid_sub   = $session_id ? HGD_Subscription::find_by_session( $session_id ) : null;
+			if ( $paid_sub ) {
+				$manage_url = HGD_Subscription::manage_url( $paid_sub );
+			}
+		}
+
 		if ( $configured ) {
 			wp_enqueue_script( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/js/subscriptions.js', array(), HGD_VERSION, true );
 			wp_localize_script( 'hgd-subscriptions', 'HGD_SUBS', array(
@@ -355,6 +483,9 @@ class HGD_Subscription_Page {
 				<div class="hgd-subs-notice hgd-subs-success">
 					<h3><?php esc_html_e( 'You\'re all set — welcome aboard!', 'hillcroft-garden-designer' ); ?></h3>
 					<p><?php esc_html_e( 'Your maintenance plan is active. A receipt is on its way by email, and we\'ll be in touch to schedule your first visit.', 'hillcroft-garden-designer' ); ?></p>
+					<?php if ( '' !== $manage_url ) : ?>
+						<p><a class="hgd-subs-manage-link" href="<?php echo esc_url( $manage_url ); ?>"><?php esc_html_e( 'Manage your plan', 'hillcroft-garden-designer' ); ?></a></p>
+					<?php endif; ?>
 				</div>
 			<?php elseif ( 'cancel' === $state ) : ?>
 				<div class="hgd-subs-notice hgd-subs-cancel">
@@ -414,6 +545,46 @@ class HGD_Subscription_Page {
 					</div>
 				</form>
 			<?php endif; ?>
+		</div>
+		<?php
+		return ob_get_clean();
+	}
+
+	/**
+	 * [hgd_manage_plan] — a small form where a returning subscriber enters their
+	 * email to be sent a secure self-service link. Neutral response (no email
+	 * enumeration). The actual portal opens via ?hgd_manage=<token>.
+	 */
+	public static function manage_shortcode( $atts ) {
+		wp_enqueue_style( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/css/subscriptions.css', array(), HGD_VERSION );
+		wp_enqueue_script( 'hgd-subscriptions', HGD_URL . 'assets/subscriptions/js/subscriptions.js', array(), HGD_VERSION, true );
+		wp_localize_script( 'hgd-subscriptions', 'HGD_SUBS', array(
+			'rest'  => esc_url_raw( rest_url( self::NS ) ),
+			'nonce' => wp_create_nonce( 'wp_rest' ),
+			'i18n'  => array(
+				'error'    => __( 'Something went wrong. Please try again.', 'hillcroft-garden-designer' ),
+				'redirect' => __( 'Redirecting to secure checkout…', 'hillcroft-garden-designer' ),
+				'fields'   => __( 'Please enter your name and a valid email.', 'hillcroft-garden-designer' ),
+				'sending'  => __( 'Sending…', 'hillcroft-garden-designer' ),
+				'email'    => __( 'Please enter a valid email.', 'hillcroft-garden-designer' ),
+			),
+		) );
+
+		ob_start();
+		?>
+		<div class="hgd-manage">
+			<form class="hgd-manage-form">
+				<h3 class="hgd-subs-form-title"><?php esc_html_e( 'Manage your plan', 'hillcroft-garden-designer' ); ?></h3>
+				<p class="hgd-subs-blurb"><?php esc_html_e( 'Enter the email you signed up with and we\'ll send you a secure link to update your card, view invoices or cancel.', 'hillcroft-garden-designer' ); ?></p>
+				<label><?php esc_html_e( 'Email', 'hillcroft-garden-designer' ); ?>
+					<input type="email" name="email" required autocomplete="email">
+				</label>
+				<div class="hgd-subs-error" role="alert" hidden></div>
+				<div class="hgd-manage-done" hidden></div>
+				<div class="hgd-subs-actions">
+					<button type="submit" class="hgd-subs-submit"><?php esc_html_e( 'Send me a link', 'hillcroft-garden-designer' ); ?></button>
+				</div>
+			</form>
 		</div>
 		<?php
 		return ob_get_clean();

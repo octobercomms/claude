@@ -120,6 +120,7 @@ class HGD_Subscription {
 		$now = current_time( 'mysql' );
 
 		$row = array(
+			'manage_token'            => isset( $data['manage_token'] ) ? sanitize_text_field( $data['manage_token'] ) : self::generate_token(),
 			'client_id'               => isset( $data['client_id'] ) ? (int) $data['client_id'] : null,
 			'project_id'              => isset( $data['project_id'] ) ? (int) $data['project_id'] : null,
 			'plan_key'                => isset( $data['plan_key'] ) ? sanitize_text_field( $data['plan_key'] ) : '',
@@ -165,6 +166,57 @@ class HGD_Subscription {
 		return $wpdb->get_row( $wpdb->prepare(
 			"SELECT * FROM {$table} WHERE stripe_checkout_session = %s LIMIT 1",
 			$session_id
+		), ARRAY_A );
+	}
+
+	/** Generate an unguessable self-service token. */
+	public static function generate_token() {
+		return wp_generate_password( 64, false );
+	}
+
+	/** Find a subscription by its self-service manage token. */
+	public static function find_by_manage_token( $token ) {
+		global $wpdb;
+		$token = preg_replace( '/[^A-Za-z0-9]/', '', (string) $token );
+		if ( '' === $token ) {
+			return null;
+		}
+		$table = HGD_DB::subscriptions_table();
+		return $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE manage_token = %s LIMIT 1",
+			$token
+		), ARRAY_A );
+	}
+
+	/**
+	 * The manage token for a row, generating + persisting one if it predates the
+	 * self-service feature (schema < 16). Returns the token string.
+	 */
+	public static function ensure_manage_token( array $sub ) {
+		if ( ! empty( $sub['manage_token'] ) ) {
+			return (string) $sub['manage_token'];
+		}
+		$token = self::generate_token();
+		self::update( (int) $sub['id'], array( 'manage_token' => $token ) );
+		return $token;
+	}
+
+	/** Public self-service URL for managing a plan. */
+	public static function manage_url( array $sub ) {
+		return home_url( '/?hgd_manage=' . rawurlencode( self::ensure_manage_token( $sub ) ) );
+	}
+
+	/** The newest active/past-due subscription for an email, or null. */
+	public static function latest_manageable_for_email( $email ) {
+		global $wpdb;
+		$email = sanitize_email( (string) $email );
+		if ( '' === $email ) {
+			return null;
+		}
+		$table = HGD_DB::subscriptions_table();
+		return $wpdb->get_row( $wpdb->prepare(
+			"SELECT * FROM {$table} WHERE email = %s AND status IN ('active','past_due') AND stripe_customer_id <> '' ORDER BY id DESC LIMIT 1",
+			$email
 		), ARRAY_A );
 	}
 

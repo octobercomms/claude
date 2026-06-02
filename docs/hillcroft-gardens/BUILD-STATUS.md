@@ -128,6 +128,19 @@ The full original brief is now delivered end to end across 10 releases.
 - Needs live testing: real Stripe round-trip (Checkout, the webhook events, and the Woo order
   mirror). To avoid duplicate receipts, disable Stripe's own email receipts and let Woo send them.
 
+## ✅ 1.13.0 — Subscription self-service (Stripe Customer Portal)
+
+- Subscribers manage their own plan (update card, view/download invoices, cancel) on Stripe's
+  hosted **Customer Portal** — no client login. `HGD_Stripe::create_billing_portal_session()`.
+- Tokenised entry `?hgd_manage=<token>` (`template_redirect`) → opens a portal session for that
+  customer and redirects. Each `hgd_subscriptions` row carries an unguessable `manage_token`
+  (schema v16); legacy rows get one lazily.
+- Reach it three ways: a **"Manage your plan"** link on the post-signup success screen; the new
+  **`[hgd_manage_plan]`** block (enter email → emailed a secure magic link, neutral response to
+  avoid email enumeration); and a **"Manage link"** per subscriber in the admin list.
+- Needs live testing: requires the Customer Portal to be activated in the Stripe dashboard
+  (test + live) — see `MAINTENANCE-PLANS-STRIPE-SETUP.md`.
+
 ## ⏳ Remaining
 
 - **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a

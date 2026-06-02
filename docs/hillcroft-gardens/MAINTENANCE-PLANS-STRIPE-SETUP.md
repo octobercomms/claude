@@ -61,6 +61,23 @@ This is where the "auto-retry + reminder emails" behaviour lives:
   leave it unpaid). The plugin reflects whatever Stripe decides via the
   webhook, so the admin **Maintenance Plans** list stays accurate.
 
+## 5. Activate the Customer Portal (self-service)
+
+For subscribers to manage their own plan (update card, view invoices, cancel),
+turn on Stripe's **Customer Portal** — once in **test** and once in **live**:
+
+**Stripe → Settings → Billing → Customer portal** → configure what customers may
+do (recommended: update payment method, view invoice history, and cancel
+subscriptions) and **Save / Activate**. Until this is activated, the "Manage
+your plan" links return an error from Stripe.
+
+How customers reach it:
+- A **"Manage your plan"** link on the confirmation screen right after sign-up.
+- The **`[hgd_manage_plan]`** block: a returning customer enters their email and
+  is emailed a secure one-time link.
+- From the admin **Maintenance Plans** list, the **"Manage link"** per subscriber
+  (open it yourself, or send it to the customer).
+
 ---
 
 ## Test it end to end (test mode)

@@ -125,6 +125,9 @@ if ( $cancel_error ) {
 								<?php if ( ! empty( $sub['client_id'] ) ) : ?>
 									<a href="<?php echo esc_url( add_query_arg( array( 'page' => 'hgd-clients', 'action' => 'edit', 'id' => (int) $sub['client_id'] ), admin_url( 'admin.php' ) ) ); ?>"><?php esc_html_e( 'Client', 'hillcroft-garden-designer' ); ?></a>
 								<?php endif; ?>
+								<?php if ( ! empty( $sub['stripe_customer_id'] ) ) : ?>
+									&nbsp;<a href="<?php echo esc_url( HGD_Subscription::manage_url( $sub ) ); ?>" target="_blank" rel="noopener" title="<?php esc_attr_e( 'Opens the customer\'s self-service billing portal', 'hillcroft-garden-designer' ); ?>"><?php esc_html_e( 'Manage link', 'hillcroft-garden-designer' ); ?></a>
+								<?php endif; ?>
 								<?php if ( $can_cancel ) : ?>
 									&nbsp;<a href="<?php echo esc_url( $cancel_url ); ?>" class="hgd-link-danger" onclick="return confirm('<?php echo esc_js( __( 'Cancel this plan at the end of the current billing period?', 'hillcroft-garden-designer' ) ); ?>');"><?php esc_html_e( 'Cancel', 'hillcroft-garden-designer' ); ?></a>
 								<?php endif; ?>

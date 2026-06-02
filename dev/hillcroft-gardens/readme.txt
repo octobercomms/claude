@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.12.0
+Stable tag: 1.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.13.0 =
+* Subscriber self-service for maintenance plans, via Stripe's secure Customer Portal — no client login needed. Customers can update their card, view and download invoices, and cancel, all on Stripe's hosted pages. After signing up they get a "Manage your plan" link on the confirmation screen, and returning customers can use the new [hgd_manage_plan] block: they enter their email and we send a secure one-time link (the response is deliberately neutral so it never reveals whether an email has a plan). The Maintenance Plans admin screen also gains a "Manage link" per subscriber, so you can open or send a customer their billing portal directly. (One-time setup: activate the Customer Portal in your Stripe dashboard, test and live.)
 
 = 1.12.0 =
 * Recurring garden maintenance plans, billed by Stripe — no paid WooCommerce Subscriptions extension required. Three monthly care plans (Essential / Full / Premium) are offered through a new on-brand sign-up block: drop [hgd_maintenance_plans] on any page and clients pick a plan, enter their details, and complete sign-up on Stripe's secure hosted Checkout. Stripe Billing then owns the recurring monthly charge, card authentication (SCA/3DS), automatic retries on a failed payment, and the dunning reminder emails — all configured in your Stripe dashboard, at no extra cost.

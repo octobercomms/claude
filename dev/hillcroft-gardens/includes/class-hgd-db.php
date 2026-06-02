@@ -15,7 +15,7 @@ class HGD_DB {
 	/**
 	 * Bump this whenever the schema changes so dbDelta re-runs on the next load.
 	 */
-	const SCHEMA_VERSION = '15';
+	const SCHEMA_VERSION = '16';
 
 	public static function plants_table() {
 		global $wpdb;
@@ -356,6 +356,7 @@ class HGD_DB {
 			stripe_customer_id VARCHAR(80) NOT NULL DEFAULT '',
 			stripe_subscription_id VARCHAR(80) NOT NULL DEFAULT '',
 			stripe_checkout_session VARCHAR(120) NOT NULL DEFAULT '',
+			manage_token VARCHAR(64) NOT NULL DEFAULT '',
 			current_period_end DATETIME NULL,
 			canceled_at DATETIME NULL,
 			created_at DATETIME NOT NULL DEFAULT '1970-01-01 00:00:00',
@@ -364,7 +365,8 @@ class HGD_DB {
 			KEY client_id (client_id),
 			KEY status (status),
 			KEY stripe_subscription_id (stripe_subscription_id),
-			KEY stripe_checkout_session (stripe_checkout_session)
+			KEY stripe_checkout_session (stripe_checkout_session),
+			KEY manage_token (manage_token)
 		) {$charset_collate};";
 
 		return $statements;
