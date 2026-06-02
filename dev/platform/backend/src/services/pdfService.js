@@ -449,17 +449,18 @@ function buildChartHtml(chart) {
     </div>`;
 }
 
-function buildTableHtml({ heading, headers, rows, highlightFirst = false }) {
+function buildTableHtml({ heading, headers, rows, highlightFirst = false, note }) {
   if (!rows || !rows.length) return '';
   return `
-    ${heading ? `<div class="sub-title">${heading}</div>` : ''}
+    ${heading ? `<div class="sub-title">${escapeXml(heading)}</div>` : ''}
     <table class="w-full">
       <thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>
       <tbody>${rows.map((row, i) => {
         const cls = (highlightFirst && i === 0) ? ' class="current"' : (i % 2 === 1 ? ' class="alt"' : '');
         return `<tr${cls}>${row.map(cell => `<td>${cell ?? ''}</td>`).join('')}</tr>`;
       }).join('')}</tbody>
-    </table>`;
+    </table>
+    ${note ? `<div style="font-size:8pt;color:#808080;font-style:italic;margin:-12pt 0 16pt;">${escapeXml(note)}</div>` : ''}`;
 }
 
 function buildSEOSectionsHtml(seoData, client = {}, period = '') {
