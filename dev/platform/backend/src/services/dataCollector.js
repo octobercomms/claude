@@ -473,17 +473,31 @@ function extractTables(connectorType, data) {
       }
       const sorted = Object.entries(campaignMap).sort((a, b) => b[1].spend - a[1].spend).slice(0, 20);
       if (!sorted.length) return [];
+      // Heading + footnote signal the billing currency explicitly so AMs
+      // don't manually re-convert values that Google has already converted.
+      // Google Ads reports every metric (spend, conversions_value etc.) in
+      // the account's billing currency, auto-converting non-billing market
+      // bids at the daily average FX rate. Without surfacing this, AMs who
+      // historically maintained spreadsheets that "convert US conv value
+      // from USD to GBP" end up double-converting and understating
+      // performance.
+      const cur = data.currency || null;
+      const heading = cur ? `Campaign Performance (${cur})` : 'Campaign Performance';
+      const note = cur
+        ? `All values in ${cur} (account billing currency). Google auto-converts conversion values from non-${cur} markets at the daily average FX rate.`
+        : null;
       return [{
-        heading: 'Campaign Performance',
+        heading,
         headers: ['Campaign', 'Spend', 'Conv. Value', 'ROAS', 'Net', 'CPA'],
         rows: sorted.map(([name, m]) => [
           name,
-          formatCurrency(m.spend),
-          formatCurrency(m.convValue),
+          formatCurrency(m.spend, cur),
+          formatCurrency(m.convValue, cur),
           m.spend > 0 ? `${(m.convValue / m.spend).toFixed(2)}×` : '—',
-          formatCurrency(m.convValue - m.spend),
-          m.conversions > 0 ? formatCurrency(m.spend / m.conversions) : '—',
+          formatCurrency(m.convValue - m.spend, cur),
+          m.conversions > 0 ? formatCurrency(m.spend / m.conversions, cur) : '—',
         ]),
+        note,
       }];
     }
     case 'klaviyo': {
@@ -602,10 +616,11 @@ function extractCharts(connectorType, data) {
   }
 }
 
-function formatCurrency(val) {
+function formatCurrency(val, currency) {
   const n = parseFloat(val || 0);
-  if (isNaN(n)) return '£0.00';
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(n);
+  const cur = currency || 'GBP';
+  if (isNaN(n)) return new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(0);
+  return new Intl.NumberFormat('en-GB', { style: 'currency', currency: cur }).format(n);
 }
 
 // Build a metric with a period-on-period delta. `previous` is undefined when
