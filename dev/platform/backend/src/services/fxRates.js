@@ -41,20 +41,16 @@ async function getRate(base, target, date) {
 async function ratesToGbp(rawData, date) {
   const map = { GBP: 1 };
   const seen = new Set();
-  const perKey = {};
-  for (const [key, data] of Object.entries(rawData || {})) {
+  for (const data of Object.values(rawData || {})) {
     const cur = data?.currency || data?.summary?.currency;
-    perKey[key] = cur || null;
     if (cur && !seen.has(cur)) seen.add(cur);
   }
-  console.log(`[fxRates] currencies discovered: ${JSON.stringify(perKey)} → need rates for: ${[...seen].filter(c => c !== 'GBP').join(', ') || '(none, all GBP)'}`);
   await Promise.all(
     [...seen].filter(c => c !== 'GBP').map(async c => {
       const r = await getRate(c, 'GBP', date);
       if (r) map[c] = r;
     })
   );
-  console.log(`[fxRates] final map: ${JSON.stringify(map)}`);
   return map;
 }
 
