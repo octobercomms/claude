@@ -26,6 +26,6 @@ for f in "$@"; do
   [ -d "$f" ] || continue
   title="$(basename "$f")"
   out="$HOME/Desktop/$title.pdf"
-  "$PY" "$SCRIPT" "$f" --title "$title" -o "$out"
+  "$PY" "$SCRIPT" "$f" --title "$title" --reference-first -o "$out"
   open "$out"
 done
