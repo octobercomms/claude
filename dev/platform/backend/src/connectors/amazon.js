@@ -120,7 +120,25 @@ async function fetchData(credentials, params) {
     } catch (dayErr) {
       console.warn('[Amazon] daily orderMetrics fetch failed:', dayErr.response?.status, dayErr.message);
     }
-    return { ...data, daily };
+    // SP-API returns { payload: [{ orderCount, totalSales: { amount,
+    // currencyCode }, averageUnitPrice, … }] } — one entry for the Total
+    // granularity. Map to the canonical { summary: { total_revenue,
+    // total_orders, avg_order_value, … } } shape that the metric catalog
+    // and downstream consumers read from. Without this, every Amazon
+    // section rendered £0 / 0 regardless of actual sales.
+    const totalEntry = (data.payload || [])[0] || {};
+    const revenue = parseFloat(totalEntry.totalSales?.amount || 0);
+    const orders = parseInt(totalEntry.orderCount || 0);
+    return {
+      ...data,
+      summary: {
+        total_revenue: revenue.toFixed(2),
+        total_orders: orders,
+        avg_order_value: orders > 0 ? (revenue / orders).toFixed(2) : '0.00',
+        currency: totalEntry.totalSales?.currencyCode,
+      },
+      daily,
+    };
   } catch (err) {
     const status = err.response?.status;
     const detail = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
