@@ -124,7 +124,9 @@ class HGD_Proposal_Portal {
 		$deposit_paid = $deposit ? ( 'paid' === $deposit['status'] ) : false;
 
 		$s          = HGD_Settings::all();
-		$configured = HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'];
+		$woo        = HGD_Woo::is_active();
+		$has_stripe = HGD_Stripe::is_configured() && '' !== (string) $s['stripe_pub_key'];
+		$configured = $woo || $has_stripe;
 
 		$money = function ( $n ) { return '£' . number_format( (float) $n, 2 ); };
 
@@ -262,11 +264,16 @@ class HGD_Proposal_Portal {
 			</footer>
 		</main>
 
-		<?php if ( $configured && $is_accepted && $deposit && ! $deposit_paid ) : ?>
+		<?php
+		$pay_ready   = $is_accepted && $deposit && ! $deposit_paid;
+		$with_stripe = $pay_ready && ! $woo && $has_stripe;
+		$with_woo    = $pay_ready && $woo;
+		?>
+		<?php if ( $with_stripe ) : ?>
 			<script src="https://js.stripe.com/v3/"></script>
 		<?php endif; ?>
 		<script>
-		<?php echo self::portal_js( $proposal, $configured && $is_accepted && $deposit && ! $deposit_paid, (string) $s['stripe_pub_key'] ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+		<?php echo self::portal_js( $proposal, $with_stripe, (string) $s['stripe_pub_key'], $with_woo ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
 		</script>
 		</body></html>
 		<?php
@@ -343,12 +350,13 @@ h2{font-size:1.7rem;}
 	}
 
 	/** Inline JS for accept + Stripe deposit payment (mirrors booking.js). */
-	private static function portal_js( array $proposal, $with_stripe, $pub_key ) {
+	private static function portal_js( array $proposal, $with_stripe, $pub_key, $with_woo = false ) {
 		$cfg = array(
 			'rest'    => esc_url_raw( rest_url( self::NS ) ),
 			'token'   => $proposal['token'],
 			'pub_key' => (string) $pub_key,
 			'stripe'  => (bool) $with_stripe,
+			'woo'     => (bool) $with_woo,
 			'reload'  => esc_url_raw( HGD_Proposal::portal_url( $proposal ) ),
 			'i18n'    => array(
 				'name'    => __( 'Please type your full name to sign.', 'hillcroft-garden-designer' ),
@@ -401,6 +409,31 @@ h2{font-size:1.7rem;}
 			} ).catch( function () {
 				signBtn.disabled = false;
 				setErr( errEl, CFG.i18n.error );
+			} );
+		} );
+	}
+
+	// --- Deposit payment via WooCommerce checkout --------------------------
+	var wooPayBtn = document.getElementById( 'hgd-pay-btn' );
+	if ( CFG.woo && wooPayBtn ) {
+		var wooErr = document.getElementById( 'hgd-pay-err' );
+		wooPayBtn.addEventListener( 'click', function () {
+			setErr( wooErr, '' );
+			var label = wooPayBtn.textContent;
+			wooPayBtn.disabled = true;
+			wooPayBtn.textContent = CFG.i18n.paying;
+			api( '/proposal/pay', { token: CFG.token, payment_id: wooPayBtn.getAttribute( 'data-payment-id' ) } ).then( function ( res ) {
+				if ( ! res.ok || ! res.data.woo_pay_url ) {
+					setErr( wooErr, ( res.data && res.data.message ) ? res.data.message : CFG.i18n.error );
+					wooPayBtn.disabled = false;
+					wooPayBtn.textContent = label;
+					return;
+				}
+				window.location.href = res.data.woo_pay_url;
+			} ).catch( function () {
+				setErr( wooErr, CFG.i18n.error );
+				wooPayBtn.disabled = false;
+				wooPayBtn.textContent = label;
 			} );
 		} );
 	}
@@ -526,8 +559,9 @@ h2{font-size:1.7rem;}
 			return new WP_Error( 'hgd_not_accepted', __( 'Please accept the proposal before paying.', 'hillcroft-garden-designer' ), array( 'status' => 409 ) );
 		}
 
-		$s = HGD_Settings::all();
-		if ( ! HGD_Stripe::is_configured() || '' === (string) $s['stripe_pub_key'] ) {
+		$s   = HGD_Settings::all();
+		$woo = HGD_Woo::is_active();
+		if ( ! $woo && ( ! HGD_Stripe::is_configured() || '' === (string) $s['stripe_pub_key'] ) ) {
 			return new WP_Error( 'hgd_not_configured', __( 'Online payment is not available right now.', 'hillcroft-garden-designer' ), array( 'status' => 503 ) );
 		}
 
@@ -546,6 +580,17 @@ h2{font-size:1.7rem;}
 		$amount_pence = (int) round( (float) $payment['amount_gbp'] * 100 );
 		if ( $amount_pence < 1 ) {
 			return new WP_Error( 'hgd_bad_amount', __( 'This milestone has no payable amount.', 'hillcroft-garden-designer' ), array( 'status' => 400 ) );
+		}
+
+		// Preferred path: WooCommerce takes payment + sends the receipt.
+		if ( $woo ) {
+			$order = HGD_Woo::create_milestone_order( $payment, $proposal );
+			if ( is_wp_error( $order ) ) {
+				return new WP_Error( 'hgd_woo_failed', $order->get_error_message(), array( 'status' => 502 ) );
+			}
+			return new WP_REST_Response( array(
+				'woo_pay_url' => $order->get_checkout_payment_url(),
+			), 200 );
 		}
 
 		$intent = HGD_Stripe::create_payment_intent(

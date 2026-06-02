@@ -25,6 +25,9 @@ class HGD_Woo {
 	/** Option storing the consultation product id. */
 	const OPT_CONSULT_PID = 'hgd_woo_consultation_pid';
 
+	/** Option storing the design-service product id (used for proposal milestones). */
+	const OPT_DESIGN_PID = 'hgd_woo_design_pid';
+
 	public static function init() {
 		// Fulfil consultation bookings once their Woo order is paid.
 		add_action( 'woocommerce_order_status_processing', array( __CLASS__, 'maybe_fulfil_order' ) );
@@ -152,8 +155,103 @@ class HGD_Woo {
 	}
 
 	/**
-	 * On a paid Woo order, fulfil the linked consultation booking.
-	 * Idempotent — fulfil_booking() ignores an already-paid booking.
+	 * The design-service product id, creating it the first time. Priced per
+	 * order line (the milestone amount), so its base price is 0. Returns 0 if
+	 * WooCommerce is unavailable.
+	 */
+	public static function design_product_id() {
+		if ( ! self::is_active() ) {
+			return 0;
+		}
+
+		$pid = (int) get_option( self::OPT_DESIGN_PID, 0 );
+		if ( $pid && ( $p = wc_get_product( $pid ) ) && 'trash' !== $p->get_status() ) {
+			return $pid;
+		}
+
+		$product = new WC_Product_Simple();
+		$product->set_name( __( 'Garden design service', 'hillcroft-garden-designer' ) );
+		$product->set_status( 'publish' );
+		$product->set_catalog_visibility( 'hidden' ); // billed per project via proposals, not the shop
+		$product->set_virtual( true );
+		$product->set_regular_price( '0' );
+		$product->set_price( '0' );
+		$product->set_description( __( 'Bespoke garden design & installation, billed per project against an accepted proposal.', 'hillcroft-garden-designer' ) );
+		$product->update_meta_data( '_hgd_managed', 'design' );
+		$pid = (int) $product->save();
+
+		if ( $pid ) {
+			update_option( self::OPT_DESIGN_PID, $pid );
+		}
+		return $pid;
+	}
+
+	/**
+	 * Create a Woo order for one proposal milestone, priced at the milestone
+	 * amount, with the line named for the milestone + project. Woo takes the
+	 * payment and sends the receipt; we fulfil on order-paid.
+	 *
+	 * @param array $payment  An HGD_Payment row.
+	 * @param array $proposal An HGD_Proposal row.
+	 * @return WC_Order|WP_Error
+	 */
+	public static function create_milestone_order( array $payment, array $proposal ) {
+		if ( ! self::is_active() ) {
+			return new WP_Error( 'hgd_woo_inactive', __( 'WooCommerce is not active.', 'hillcroft-garden-designer' ) );
+		}
+
+		$pid     = self::design_product_id();
+		$product = $pid ? wc_get_product( $pid ) : null;
+		if ( ! $product ) {
+			return new WP_Error( 'hgd_woo_no_product', __( 'Could not find the design-service product.', 'hillcroft-garden-designer' ) );
+		}
+
+		$amount  = round( (float) $payment['amount_gbp'], 2 );
+		$project = ! empty( $proposal['project_id'] ) ? HGD_Project::get( (int) $proposal['project_id'] ) : null;
+		$client  = ( $project && ! empty( $project['client_id'] ) ) ? HGD_Client::get( (int) $project['client_id'] ) : null;
+		$title   = $project ? (string) $project['title'] : __( 'Garden design', 'hillcroft-garden-designer' );
+
+		$order   = wc_create_order();
+		if ( is_wp_error( $order ) ) {
+			return $order;
+		}
+
+		$item_id = $order->add_product( $product, 1 );
+		$item    = $item_id ? $order->get_item( $item_id ) : null;
+		if ( $item ) {
+			$item->set_name( sprintf( '%s — %s', (string) $payment['label'], $title ) );
+			$item->set_subtotal( $amount );
+			$item->set_total( $amount );
+			$item->save();
+		}
+
+		if ( $client ) {
+			$order->set_billing_first_name( (string) $client['first_name'] );
+			$order->set_billing_last_name( (string) $client['last_name'] );
+			if ( ! empty( $client['email'] ) ) {
+				$order->set_billing_email( (string) $client['email'] );
+			}
+			if ( ! empty( $client['phone'] ) ) {
+				$order->set_billing_phone( (string) $client['phone'] );
+			}
+			if ( ! empty( $client['postcode'] ) ) {
+				$order->set_billing_postcode( (string) $client['postcode'] );
+			}
+		}
+
+		$order->update_meta_data( '_hgd_kind', 'payment' );
+		$order->update_meta_data( '_hgd_payment_id', (int) $payment['id'] );
+		$order->update_meta_data( '_hgd_proposal_id', (int) $proposal['id'] );
+		$order->set_created_via( 'hillcroft-proposal' );
+		$order->calculate_totals();
+		$order->save();
+
+		return $order;
+	}
+
+	/**
+	 * On a paid Woo order, fulfil the linked Hillcroft record.
+	 * Idempotent — the underlying fulfilment ignores already-paid records.
 	 */
 	public static function maybe_fulfil_order( $order_id ) {
 		if ( ! self::is_active() ) {
@@ -163,16 +261,25 @@ class HGD_Woo {
 		if ( ! $order ) {
 			return;
 		}
-		if ( 'consultation' !== (string) $order->get_meta( '_hgd_kind' ) ) {
+
+		$kind = (string) $order->get_meta( '_hgd_kind' );
+
+		if ( 'consultation' === $kind ) {
+			$booking_id = (int) $order->get_meta( '_hgd_booking_id' );
+			$booking    = $booking_id ? HGD_Booking::get( $booking_id ) : null;
+			if ( $booking ) {
+				HGD_Booking_Page::fulfil_booking( $booking );
+			}
 			return;
 		}
-		$booking_id = (int) $order->get_meta( '_hgd_booking_id' );
-		if ( ! $booking_id ) {
+
+		if ( 'payment' === $kind ) {
+			$payment_id = (int) $order->get_meta( '_hgd_payment_id' );
+			if ( $payment_id ) {
+				// Woo sends the receipt — suppress the bespoke one to avoid duplicates.
+				HGD_Booking_Page::fulfil_payment( $payment_id, '', false );
+			}
 			return;
-		}
-		$booking = HGD_Booking::get( $booking_id );
-		if ( $booking ) {
-			HGD_Booking_Page::fulfil_booking( $booking );
 		}
 	}
 
