@@ -177,11 +177,14 @@ function sumGA4(data, metric) {
 }
 
 // ─── FORMATTING ────────────────────────────────────────────────────────────
-function formatValue(value, format) {
+function formatValue(value, format, currency) {
   if (value == null || (typeof value === 'number' && !isFinite(value))) return '—';
   switch (format) {
     case 'currency':
-      return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP' }).format(value);
+      // Honour the source's currency when supplied, falling back to GBP.
+      // Lets multi-market sections show e.g. a USD row alongside a GBP
+      // row in their actual units instead of mis-labelling both as £.
+      return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(value);
     case 'integer':
       return Math.round(value).toLocaleString('en-GB');
     case 'multiple':
@@ -258,21 +261,42 @@ function resolveMetricsGrid(section, rawData, rawDataPrev, ctx) {
       // variable name ("total_revenue" → "Total Revenue").
       return mk.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     });
+    const fxRates = ctx?.fxRates;
     const rows = [];
+    const currenciesSeen = new Set();
     for (const m of matches) {
       const catalog = METRIC_CATALOG[m.type] || {};
       const sourceLabel = friendlySourceLabel(m);
+      const sourceCurrency = m.data?.currency || m.data?.summary?.currency || 'GBP';
       const prevData = compareYoy ? rawDataPrev[m.key] : null;
       const values = metricKeys.map(mk => {
         const def = catalog[mk];
         if (!def) return '—';
         const curRaw = def.get(m.data);
-        const cur = formatValue(curRaw, def.format);
+        // Currency metrics render in the source's own currency in
+        // list mode — preserves "$3,800 spend" / "£1,020 spend" side
+        // by side instead of mis-labelling both as £.
+        const cur = formatValue(curRaw, def.format, def.format === 'currency' ? sourceCurrency : undefined);
+        if (def.format === 'currency') currenciesSeen.add(sourceCurrency);
         if (!compareYoy || !prevData) return cur;
         const prevRaw = def.get(prevData);
         return withComparison(cur, curRaw, prevRaw, def.format);
       });
       rows.push({ source: sourceLabel, values });
+    }
+    // Combined GBP row — only added when (a) more than one currency
+    // appears across the rendered rows AND (b) we have fxRates to do
+    // the conversion. Sums every currency-format metric via sumAcrossSources
+    // (which already handles cross-currency conversion to GBP). Non-currency
+    // metrics also get summed for symmetry.
+    if (currenciesSeen.size > 1 && fxRates) {
+      const totals = sumAcrossSources(matches, metricKeys, fxRates);
+      const combinedValues = metricKeys.map(mk => {
+        if (totals[mk] == null) return '—';
+        const fmt = totals[`__format_${mk}`] || 'integer';
+        return formatValue(totals[mk], fmt, fmt === 'currency' ? 'GBP' : undefined);
+      });
+      rows.push({ source: 'Combined (GBP)', values: combinedValues, combined: true });
     }
     return { layout: 'table', metricLabels, rows, compare: compareYoy ? 'yoy' : null };
   }
