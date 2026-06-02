@@ -325,6 +325,7 @@ async function fetchGoogleAdsData(credentials, params) {
     try {
       const cuRes = await search(loginCustomerId, `SELECT customer.currency_code FROM customer LIMIT 1`);
       currency = cuRes.data.results?.[0]?.customer?.currencyCode || null;
+      console.log(`[Google Ads] customer ${cleanCustomerId} currency=${currency} (results=${(cuRes.data.results || []).length}, raw[0]=${JSON.stringify(cuRes.data.results?.[0] || null)})`);
     } catch (cuErr) {
       console.warn('[Google Ads] currency_code fetch failed:', cuErr.response?.data?.error?.message || cuErr.message);
     }
