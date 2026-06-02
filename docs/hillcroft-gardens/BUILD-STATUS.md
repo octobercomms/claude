@@ -202,18 +202,21 @@ The full original brief is now delivered end to end across 10 releases.
 
 ## ⏳ Remaining
 
-- **1.1.0 guided-workflow wizard** — wrap the project panels (capture → … → keepsakes) in a
-  Step 1→N wizard with progress bar + Next/Back, keeping "jump to any step" (agreed: after features).
-- Then: full end-to-end test pass by the client (the live Stripe round-trips are the key unknowns).
-3. Capture: uploads (sketch/photos/address), voice-note transcription.
-4. **Claude** integration: read sketch + hand-written measurements, clarifying-questions loop.
-5. **Gemini** concept renders + iteration; render pack; before/after sliders.
-6. **Remotion** seasonal film (+ optional AI living-stills).
-7. Pricing engine (area-driven quantities, price-locking snapshots, Good/Better/Best, milestones).
-8. Client portal: interactive proposal, e-sign, **milestone payments**, 30-day expiry, comments.
-9. PDFs: proposal keepsake + **print-ready plant book**.
-10. Enrichment: GBIF normalisation, Plant.id ID/care, Wikimedia photos.
-11. Follow-up automation + pipeline/reporting dashboard.
+**Nothing in the dev backlog.** The full 11-point brief (capture → Claude → Gemini → Remotion
+film → pricing → client portal + milestone payments → PDFs → enrichment → follow-up automation +
+reporting), the **1.1.0 guided-workflow wizard** (Step 1→N with progress + Back/Next; built into
+`project-form.php`), the post-1.0 feature set (maintenance-plan subscriptions, self-service,
+Reports, follow-up automation), and all three foundation TODOs (below) are delivered as of 1.18.0.
+
+The only outstanding work is **not code** — a live-site verification pass that can't be done from
+the repo:
+
+- The Stripe round-trips (Checkout → webhook → Woo receipt, the Customer Portal, the magic-link
+  email), once the dashboard setup in `MAINTENANCE-PLANS-STRIPE-SETUP.md` is complete.
+- One run of the follow-up cron (`wp cron event run hgd_daily_followups`) against a few aged
+  leads/proposals.
+
+Anything beyond that is net-new scope, not part of the original build.
 
 ## Known foundation TODOs
 
