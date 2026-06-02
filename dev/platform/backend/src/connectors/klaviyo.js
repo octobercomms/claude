@@ -44,17 +44,18 @@ async function fetchData(credentials, params) {
   // next-cursor link. Metrics doesn't accept it either on this revision,
   // so leave it off too — the default size is plenty for both.
   //
-  // Dropped the `equals(messages.channel,'email')` filter that used to
-  // be in here — Klaviyo's nested-relationship filter semantics are
-  // inconsistent across revisions, and on some accounts it silently
-  // excludes legitimate sent campaigns. Most clients only run email
-  // campaigns in Klaviyo anyway; if SMS / mobile push are mixed in, the
-  // user can split into separate sections later.
+  // The channel filter IS required by Klaviyo — calling /campaigns/
+  // without one returns HTTP 400 with "A channel filter is required to
+  // list campaigns. Please provide either ?filter=equals(messages.channel,
+  // 'email') ...". Earlier this filter was dropped on the assumption it
+  // was excluding legitimate campaigns, but the May-shows-0 problem was
+  // really the narrow scheduled_at window — fixed separately by widening
+  // to start-90d above. Keep the channel filter here.
   const [campaignsRes, metricsRes] = await Promise.all([
     axios.get('https://a.klaviyo.com/api/campaigns/', {
       headers,
       params: {
-        'filter': `and(greater-or-equal(scheduled_at,${wideStartIso}),less-or-equal(scheduled_at,${endIso}))`,
+        'filter': `and(equals(messages.channel,'email'),greater-or-equal(scheduled_at,${wideStartIso}),less-or-equal(scheduled_at,${endIso}))`,
         'fields[campaign]': 'name,status,scheduled_at',
       },
     }).catch(e => { throw klaviyoError('GET /campaigns/', e, { wideStartIso, endIso }); }),
