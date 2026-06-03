@@ -647,7 +647,7 @@ class AIPDF_PDF_Generator {
 		// Three absolute positioned divs — avoids mPDF td margin suppression inside columns.
 		// No bottom bar on this page to maximise content area (50mm–285mm = 235mm).
 		$col_lefts  = [ self::ML, self::CL2, self::CL3 ];
-		$col_widths = [ self::C1 - 4, self::C2 - 4, self::C3 ];  // 4mm gap between cols 1-2 and 2-3
+		$col_widths = [ self::C1 - 6, self::C2 - 6, self::C3 ];  // 6mm gutters between cols 1-2 and 2-3
 
 		ob_start(); ?>
 <!DOCTYPE html><html><head><?php echo self::css(); ?></head><body>
