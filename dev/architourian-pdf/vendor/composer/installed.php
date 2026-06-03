@@ -3,7 +3,7 @@
         'name' => 'architourian/pdf-generator',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'a0abbe6614c3af711209a1de6cfec9ae18276db0',
+        'reference' => '25df276fa0422ac1cc2665b64fbace649d7225d3',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'architourian/pdf-generator' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'a0abbe6614c3af711209a1de6cfec9ae18276db0',
+            'reference' => '25df276fa0422ac1cc2665b64fbace649d7225d3',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
