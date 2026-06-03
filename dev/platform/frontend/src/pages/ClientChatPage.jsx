@@ -1,7 +1,36 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+
+// Style overrides for ReactMarkdown — keeps headings, tables, lists,
+// and code blocks legible inside a chat bubble. Same component set is
+// reused for every assistant message.
+const MD_COMPONENTS = {
+  h1: ({ children }) => <div style={{ fontSize: 17, fontWeight: 700, margin: '12px 0 6px' }}>{children}</div>,
+  h2: ({ children }) => <div style={{ fontSize: 15, fontWeight: 700, margin: '10px 0 5px' }}>{children}</div>,
+  h3: ({ children }) => <div style={{ fontSize: 13, fontWeight: 700, margin: '8px 0 4px' }}>{children}</div>,
+  p: ({ children }) => <p style={{ margin: '4px 0' }}>{children}</p>,
+  ul: ({ children }) => <ul style={{ margin: '4px 0', paddingLeft: 20 }}>{children}</ul>,
+  ol: ({ children }) => <ol style={{ margin: '4px 0', paddingLeft: 20 }}>{children}</ol>,
+  li: ({ children }) => <li style={{ margin: '2px 0' }}>{children}</li>,
+  table: ({ children }) => (
+    <div style={{ overflowX: 'auto', margin: '8px 0' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>{children}</table>
+    </div>
+  ),
+  th: ({ children }) => <th style={{ border: '1px solid #ddd', background: '#f3f3f3', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
+  td: ({ children }) => <td style={{ border: '1px solid #eee', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
+  code: ({ inline, children }) => inline
+    ? <code style={{ background: '#f4f4f4', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
+    : <code style={{ display: 'block', background: '#f6f6f6', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
+  pre: ({ children }) => <pre style={{ background: 'transparent', padding: 0, margin: 0 }}>{children}</pre>,
+  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: '#555', fontStyle: 'italic' }}>{children}</blockquote>,
+  hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '10px 0' }} />,
+  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>{children}</a>,
+};
 
 const TOOL_LABELS = {
   get_client_info: 'Client info',
@@ -198,12 +227,20 @@ export default function ClientChatPage() {
                   ...(msg.role === 'user' ? s.bubbleUser : s.bubbleAssistant),
                   ...(msg.isError ? { background: '#fff3f3', borderColor: '#f5c6cb' } : {}),
                 }}>
-                  {msg.content.split('\n').map((line, i, arr) => (
-                    <React.Fragment key={i}>
-                      {line}
-                      {i < arr.length - 1 && <br />}
-                    </React.Fragment>
-                  ))}
+                  {msg.role === 'assistant' ? (
+                    <div style={s.markdownBody}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
+                        {msg.content || ''}
+                      </ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content.split('\n').map((line, i, arr) => (
+                      <React.Fragment key={i}>
+                        {line}
+                        {i < arr.length - 1 && <br />}
+                      </React.Fragment>
+                    ))
+                  )}
                   <div style={s.timestamp}>
                     {new Date(msg.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </div>
@@ -316,6 +353,13 @@ const s = {
   bubbleUser: { background: '#1a1a1a', color: 'white', borderBottomRightRadius: 3 },
   bubbleAssistant: { background: 'white', color: '#1a1a1a', border: '1px solid #e8e8e8', borderBottomLeftRadius: 3 },
   timestamp: { fontSize: 10, opacity: 0.5, marginTop: 4, textAlign: 'right' },
+  // Tame react-markdown defaults to look right inside a chat bubble.
+  // Removes the big top/bottom margins on headings, pulls list bullets
+  // in to the bubble's padding, makes tables compact, code blocks
+  // monospace + grey, blockquotes left-bordered.
+  markdownBody: {
+    lineHeight: 1.5,
+  },
   toolsUsed: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
   toolChip: { fontSize: 10, padding: '2px 7px', background: '#f0f4ff', color: '#3355cc', borderRadius: 10, fontWeight: 500 },
   inputRow: { display: 'flex', gap: 10, paddingTop: 12, borderTop: '1px solid #e8e8e8', marginTop: 'auto' },
