@@ -385,7 +385,7 @@ class AIPDF_PDF_Generator {
 		// Weight each element by its estimated rendered height in lines, since
 		// every wrapped line is a fixed height. ~38 chars per line for a ~54mm
 		// column at 6pt monospace (deliberately conservative to avoid overflow).
-		$cpl     = 38;
+		$cpl     = 28;
 		$weights = array_map( function( $el ) use ( $cpl ) {
 			$lines = max( 1, (int) ceil( strlen( strip_tags( $el ) ) / $cpl ) );
 			if ( strpos( $el, '<h3' ) !== false ) $lines += 2; // top margin + taller face
@@ -452,11 +452,11 @@ class AIPDF_PDF_Generator {
 		.day-body p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
 
 		/* ── Terms & Conditions — class selectors beat global * and h3!important ── */
-		h3.tc-h3 { font-size: 7pt !important; font-weight: bold !important;
-		           margin: 2.5mm 0 0.8mm 0 !important; padding: 0 !important;
+		h3.tc-h3 { font-size: 9pt !important; font-weight: bold !important;
+		           margin: 3mm 0 1mm 0 !important; padding: 0 !important;
 		           font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
-		p.tc-p        { font-size: 6pt !important; line-height: 1.2 !important; margin: 0 0 0.8mm 0 !important; }
-		p.tc-p-bullet { font-size: 6pt !important; line-height: 1.2 !important; margin: 0 0 0.5mm 0 !important; padding-left: 2mm !important; }
+		p.tc-p        { font-size: 8pt !important; line-height: 1.35 !important; margin: 0 0 0.8mm 0 !important; }
+		p.tc-p-bullet { font-size: 8pt !important; line-height: 1.35 !important; margin: 0 0 0.5mm 0 !important; padding-left: 2mm !important; }
 		</style>';
 	}
 
@@ -655,7 +655,7 @@ class AIPDF_PDF_Generator {
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
 <?php for ( $i = 0; $i < 3; $i++ ) : ?>
-<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:6pt; line-height:1.2; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:8pt; line-height:1.35; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
 	<?php echo $cols[ $i ]; ?>
 </div>
 <?php endfor; ?>
