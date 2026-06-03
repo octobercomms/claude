@@ -41,8 +41,8 @@ final class PostTypes {
         'story'       => ['slug' => 'adf_story',       'external' => false, 'listing' => true,  'label' => 'Story'],
         'ad'          => ['slug' => 'adf_ad',          'external' => false, 'listing' => true,  'label' => 'Ad'],
         // Supporting records (not public listings, not in the approval queue).
+        // Tickets/orders are relational tables (see ADF\Ticketing), not a CPT.
         'account'     => ['slug' => 'adf_account',     'external' => false, 'listing' => false, 'label' => 'Account'],
-        'ticket'      => ['slug' => 'adf_ticket',      'external' => false, 'listing' => false, 'label' => 'Ticket'],
         'volunteer'   => ['slug' => 'volunteer',       'external' => true,  'listing' => false, 'label' => 'Volunteer'],
     ];
 
@@ -108,7 +108,6 @@ final class PostTypes {
 
         // Supporting records: not publicly queryable.
         register_post_type(self::slug('account'), $this->args('Account', 'Accounts', 'dashicons-id', ['title', 'author'], false));
-        register_post_type(self::slug('ticket'), $this->args('Ticket', 'Tickets', 'dashicons-tickets-alt', ['title', 'author'], false));
     }
 
     /**

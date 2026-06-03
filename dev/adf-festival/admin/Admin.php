@@ -7,7 +7,6 @@ use ADF\PostTypes;
 use ADF\Fields;
 use ADF\Submission;
 use ADF\Volunteers;
-use ADF\Tickets;
 use ADF\AuditLog;
 
 defined('ABSPATH') || exit;
@@ -34,6 +33,7 @@ final class Admin {
         add_action('admin_post_adf_send_digest', [$this, 'handle_send_digest']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
+        TicketsAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -47,7 +47,8 @@ final class Admin {
         add_submenu_page('adf-festival', 'Destinations', 'Destinations', $cap, 'adf-destinations', fn() => $this->page_listing('destination'));
         add_submenu_page('adf-festival', 'Products', 'Products', $cap, 'adf-products', fn() => $this->page_listing('product'));
         add_submenu_page('adf-festival', 'Events', 'Events', $cap, 'adf-events', fn() => $this->page_listing('event'));
-        add_submenu_page('adf-festival', 'Tickets', 'Tickets', $cap, 'adf-tickets', [$this, 'page_tickets']);
+        add_submenu_page('adf-festival', 'Registrations', 'Tickets', $cap, 'adf-tickets', [$this, 'page_tickets']);
+        add_submenu_page('adf-festival', 'Promo Codes', 'Promo Codes', $cap, 'adf-promos', [TicketsAdmin::get_instance(), 'render_promos']);
         add_submenu_page('adf-festival', 'Volunteers', 'Volunteers', $cap, 'adf-volunteers', [$this, 'page_volunteers']);
         add_submenu_page('adf-festival', 'Stories', 'Stories', $cap, 'adf-stories', fn() => $this->page_listing('story'));
         add_submenu_page('adf-festival', 'Ads', 'Ads', $cap, 'adf-ads', fn() => $this->page_listing('ad'));
@@ -105,14 +106,7 @@ final class Admin {
     }
 
     public function page_tickets(): void {
-        $items = get_posts([
-            'post_type'      => Tickets::slug(),
-            'post_status'    => 'publish',
-            'posts_per_page' => 500,
-            'orderby'        => 'date',
-            'order'          => 'DESC',
-        ]);
-        require ADF_DIR . 'admin/views/tickets.php';
+        TicketsAdmin::get_instance()->render_registrations();
     }
 
     public function page_volunteers(): void {
@@ -197,17 +191,7 @@ final class Admin {
         check_admin_referer('adf_export');
         $what = sanitize_key((string) $_GET['adf_export']);
 
-        if ($what === 'tickets') {
-            $this->stream_csv('adf-tickets.csv', ['Number', 'Event', 'Purchaser', 'Email', 'Checked in'], array_map(static function ($id) {
-                return [
-                    get_post_meta($id, '_adf_ticket_number', true),
-                    get_the_title((int) get_post_meta($id, '_adf_event_id', true)),
-                    get_post_meta($id, '_adf_purchaser_name', true),
-                    get_post_meta($id, '_adf_purchaser_email', true),
-                    get_post_meta($id, '_adf_checked_in', true) ? 'yes' : 'no',
-                ];
-            }, get_posts(['post_type' => Tickets::slug(), 'posts_per_page' => -1, 'fields' => 'ids'])));
-        }
+        // Ticket/order CSV is handled by TicketsAdmin::maybe_export_orders().
 
         if ($what === 'volunteers') {
             global $wpdb;

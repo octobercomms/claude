@@ -85,15 +85,8 @@ final class Plugin {
     }
 
     private function render_ticket(string $token): void {
-        $ids = get_posts([
-            'post_type'      => Tickets::slug(),
-            'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'meta_key'       => '_adf_qr_token',
-            'meta_value'     => $token,
-            'no_found_rows'  => true,
-        ]);
-        if (! $ids) {
+        $ticket = \ADF\Ticketing\Orders::ticket_by_token($token);
+        if (! $ticket || $ticket->status !== 'active') {
             wp_die(esc_html__('Ticket not found.', 'adf-festival'), '', ['response' => 404]);
         }
         require ADF_DIR . 'frontend/templates/ticket.php';

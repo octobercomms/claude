@@ -148,7 +148,7 @@ final class RestApi {
                 'status' => get_post_meta($account_id, '_adf_account_status', true) ?: 'active',
             ],
             'pending_count'  => count($pending),
-            'tickets'        => array_map([$this, 'ticket_dto'], Tickets::for_account($account_id)),
+            'tickets'        => array_map([$this, 'ticket_dto'], \ADF\Ticketing\Orders::for_account($account_id)),
             'volunteer'      => array_map([$this, 'volunteer_dto'], Volunteers::for_account($account_id)),
             'invoices'       => Invoice::for_account($account_id),
         ], 200);
@@ -297,13 +297,14 @@ final class RestApi {
         ];
     }
 
-    private function ticket_dto(int $id): array {
+    private function ticket_dto(object $t): array {
         return [
-            'id'         => $id,
-            'number'     => get_post_meta($id, '_adf_ticket_number', true),
-            'event'      => get_the_title((int) get_post_meta($id, '_adf_event_id', true)),
-            'checked_in' => (bool) get_post_meta($id, '_adf_checked_in', true),
-            'url'        => Tickets::ticket_url($id),
+            'id'         => (int) $t->id,
+            'number'     => $t->ticket_number . '/' . $t->total_in_order,
+            'event'      => get_the_title((int) $t->event_id),
+            'type'       => $t->ticket_type_label,
+            'checked_in' => \ADF\Ticketing\Orders::checked_in((int) $t->id),
+            'url'        => \ADF\Ticketing\Orders::ticket_url($t->token),
         ];
     }
 

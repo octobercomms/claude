@@ -3,30 +3,22 @@ declare(strict_types=1);
 
 namespace ADF\Migration;
 
-use ADF\PostTypes;
 use ADF\Account;
-use ADF\Logger;
+use ADF\Ticketing\Schema;
 
 defined('ABSPATH') || exit;
 
 /**
- * Migrate the legacy Event Tickets plugin (october-event-tickets) into the
- * `adf_ticket` records (§9).
+ * Migrate the legacy Event Tickets plugin into ADF's relational ticketing
+ * tables (§9). The legacy schema maps almost 1:1:
+ *   oct_orders   → adf_orders
+ *   oct_tickets  → adf_tickets   (unique check-in `token` preserved)
+ *   oct_checkins → adf_checkins
  *
- * Real legacy schema (custom tables):
- *   - {prefix}oct_orders   id, event_id, email, name, payment_method, payment_id,
- *                          total, currency, status, created_at …
- *   - {prefix}oct_tickets  id, order_id, event_id, ticket_type_label,
- *                          attendee_name, token (unique), ticket_number (seq),
- *                          total_in_order, status, created_at
- *   - {prefix}oct_checkins token-based check-in log
- *
- * Each legacy ticket becomes one `adf_ticket`, joined to its order for the
- * purchaser email/name + Stripe payment id, with the unique `token` preserved as
- * the QR/check-in token (so existing printed tickets keep working) and a stable
- * human number of `<order_id>-<seq>`. Events already exist in the adopted
- * `events` CPT, so event posts are NOT recreated — only the event_id link.
- * Idempotent: a ticket whose token already exists is skipped.
+ * Event posts are NOT recreated (events live in the adopted `events` CPT) — only
+ * the event_id link is carried across. Idempotent: an order whose tickets'
+ * tokens already exist is skipped. Order/ticket ids are remapped to the new
+ * auto-increment ids.
  *
  * Usage: wp adf migrate-tickets [--prefix=wp_] [--dry-run]
  */
@@ -37,85 +29,94 @@ final class MigrateTickets {
         $dry_run = isset($assoc['dry-run']);
         $prefix  = $assoc['prefix'] ?? $wpdb->prefix;
 
-        $tickets_t  = $prefix . 'oct_tickets';
-        $orders_t   = $prefix . 'oct_orders';
-        $checkins_t = $prefix . 'oct_checkins';
+        $o_t = $prefix . 'oct_orders';
+        $t_t = $prefix . 'oct_tickets';
+        $c_t = $prefix . 'oct_checkins';
 
-        if (! self::table_exists($tickets_t)) {
-            \WP_CLI::warning("Legacy tickets table '{$tickets_t}' not found. Pass --prefix if needed.");
+        if (! self::table_exists($t_t)) {
+            \WP_CLI::warning("Legacy tickets table '{$t_t}' not found. Pass --prefix if needed.");
             return;
         }
-        $has_orders   = self::table_exists($orders_t);
-        $has_checkins = self::table_exists($checkins_t);
 
-        // Join tickets to orders for purchaser + payment data.
-        $sql = $has_orders
-            ? "SELECT t.*, o.email AS o_email, o.name AS o_name, o.payment_id AS o_payment_id,
-                      o.payment_method AS o_payment_method, o.created_at AS o_created_at
-                 FROM {$tickets_t} t LEFT JOIN {$orders_t} o ON t.order_id = o.id"
-            : "SELECT t.* FROM {$tickets_t} t";
-
-        $rows = $wpdb->get_results($sql);
-        \WP_CLI::log(sprintf('Found %d ticket(s).', is_array($rows) ? count($rows) : 0));
-
-        // Preload check-in tokens.
-        $checked_tokens = [];
-        if ($has_checkins) {
-            $tokens = $wpdb->get_col("SELECT token FROM {$checkins_t}");
-            $checked_tokens = array_flip(array_map('strval', $tokens ?: []));
-        }
-
+        $orders = $wpdb->get_results("SELECT * FROM {$o_t}");
+        \WP_CLI::log(sprintf('Found %d legacy order(s).', is_array($orders) ? count($orders) : 0));
         $created = 0; $skipped = 0;
-        foreach (($rows ?: []) as $r) {
-            $token = (string) ($r->token ?? '');
-            if ($token === '' || self::token_exists($token)) {
+
+        foreach (($orders ?: []) as $o) {
+            $legacy_tickets = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$t_t} WHERE order_id = %d", $o->id));
+            if (! $legacy_tickets) {
+                $skipped++;
+                continue;
+            }
+            // Idempotency: if the first token already exists, this order is done.
+            if (self::token_exists((string) $legacy_tickets[0]->token)) {
                 $skipped++;
                 continue;
             }
 
-            $email = (string) ($r->o_email ?? '');
-            $name  = (string) ($r->attendee_name ?: ($r->o_name ?? ''));
-            $number = ((int) ($r->order_id ?? 0)) . '-' . ((int) ($r->ticket_number ?? 1));
-
-            \WP_CLI::log(sprintf(' • %s — %s (%s)%s', $number, $name, $email, $dry_run ? ' [dry-run]' : ''));
+            \WP_CLI::log(sprintf(' • Order #%d — %s (%d ticket(s))%s', $o->id, $o->email, count($legacy_tickets), $dry_run ? ' [dry-run]' : ''));
             if ($dry_run) {
                 continue;
             }
 
             $account_id = 0;
-            if ($email !== '' && ($user = get_user_by('email', $email))) {
+            if (! empty($o->email) && ($user = get_user_by('email', $o->email))) {
                 $account_id = Account::ensure((int) $user->ID);
             }
 
-            $new_id = wp_insert_post([
-                'post_type'   => PostTypes::slug('ticket'),
-                'post_status' => 'publish',
-                'post_title'  => $number,
-                'post_date'   => (string) ($r->created_at ?? $r->o_created_at ?? current_time('mysql')),
-            ], true);
-            if (is_wp_error($new_id)) {
-                Logger::log('migrate-tickets insert failed', ['error' => $new_id->get_error_message()]);
-                continue;
+            $wpdb->insert(Schema::orders(), [
+                'event_id'          => (int) $o->event_id,
+                'email'             => (string) $o->email,
+                'name'              => (string) ($o->name ?? ''),
+                'ticket_type_key'   => (string) ($o->ticket_type_key ?? ''),
+                'ticket_type_label' => (string) ($o->ticket_type_label ?? ''),
+                'qty'               => (int) ($o->qty ?? 1),
+                'unit_price'        => (float) ($o->unit_price ?? 0),
+                'promo_code'        => $o->promo_code ?? null,
+                'discount_amount'   => (float) ($o->discount_amount ?? 0),
+                'total'             => (float) ($o->total ?? 0),
+                'currency'          => (string) ($o->currency ?? 'USD'),
+                'payment_method'    => (string) ($o->payment_method ?? 'stripe'),
+                'payment_id'        => $o->payment_id ?? null,
+                'source'            => 'migrated',
+                'status'            => (string) ($o->status ?? 'paid'),
+                'account_id'        => $account_id ?: null,
+                'created_at'        => (string) ($o->created_at ?? current_time('mysql', true)),
+                'updated_at'        => (string) ($o->updated_at ?? current_time('mysql', true)),
+            ]);
+            $new_order_id = (int) $wpdb->insert_id;
+
+            foreach ($legacy_tickets as $lt) {
+                $wpdb->insert(Schema::tickets(), [
+                    'order_id'          => $new_order_id,
+                    'event_id'          => (int) $lt->event_id,
+                    'ticket_type_label' => (string) ($lt->ticket_type_label ?? ''),
+                    'attendee_name'     => (string) ($lt->attendee_name ?? ''),
+                    'token'             => (string) $lt->token,
+                    'ticket_number'     => (int) ($lt->ticket_number ?? 1),
+                    'total_in_order'    => (int) ($lt->total_in_order ?? 1),
+                    'status'            => (string) ($lt->status ?? 'active'),
+                    'created_at'        => (string) ($lt->created_at ?? current_time('mysql', true)),
+                ]);
+                $new_ticket_id = (int) $wpdb->insert_id;
+
+                // Carry across check-ins for this ticket.
+                if (self::table_exists($c_t)) {
+                    $checks = $wpdb->get_results($wpdb->prepare("SELECT * FROM {$c_t} WHERE ticket_id = %d", $lt->id));
+                    foreach (($checks ?: []) as $ci) {
+                        $wpdb->insert(Schema::checkins(), [
+                            'ticket_id'  => $new_ticket_id,
+                            'event_id'   => (int) $ci->event_id,
+                            'venue_name' => (string) ($ci->venue_name ?? ''),
+                            'scanned_at' => (string) ($ci->scanned_at ?? current_time('mysql', true)),
+                        ]);
+                    }
+                }
             }
-            $new_id = (int) $new_id;
-
-            $payment_id = (($r->o_payment_method ?? '') === 'stripe') ? (string) ($r->o_payment_id ?? '') : '';
-
-            update_post_meta($new_id, '_adf_ticket_number', $number);
-            update_post_meta($new_id, '_adf_event_id', (int) ($r->event_id ?? 0));
-            update_post_meta($new_id, '_adf_account_id', $account_id);
-            update_post_meta($new_id, '_adf_purchaser_name', $name);
-            update_post_meta($new_id, '_adf_purchaser_email', $email);
-            update_post_meta($new_id, '_adf_ticket_type', (string) ($r->ticket_type_label ?? ''));
-            update_post_meta($new_id, '_adf_stripe_payment_intent_id', $payment_id);
-            update_post_meta($new_id, '_adf_purchase_date', (string) ($r->created_at ?? ''));
-            update_post_meta($new_id, '_adf_qr_token', $token); // preserve check-in token
-            update_post_meta($new_id, '_adf_checked_in', isset($checked_tokens[$token]) ? 1 : 0);
-            update_post_meta($new_id, '_adf_migrated_from', 'oct_tickets:' . ($r->id ?? $token));
             $created++;
         }
 
-        \WP_CLI::success(sprintf('Ticket migration complete. Created %d, skipped %d.', $created, $skipped));
+        \WP_CLI::success(sprintf('Ticket migration complete. Imported %d order(s), skipped %d.', $created, $skipped));
     }
 
     private static function table_exists(string $table): bool {
@@ -124,14 +125,10 @@ final class MigrateTickets {
     }
 
     private static function token_exists(string $token): bool {
-        $found = get_posts([
-            'post_type'      => PostTypes::slug('ticket'),
-            'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'meta_key'       => '_adf_qr_token',
-            'meta_value'     => $token,
-            'no_found_rows'  => true,
-        ]);
-        return ! empty($found);
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE token = %s",
+            $token
+        )) > 0;
     }
 }
