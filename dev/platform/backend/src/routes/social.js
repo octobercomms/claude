@@ -488,6 +488,26 @@ router.put('/clients/:clientId/competitors', async (req, res) => {
 // the batch flow above eventually — they run side-by-side for now.
 const socialPlanner = require('../services/socialPlanner');
 const chatExport = require('../services/chatExport');
+const multer = require('multer');
+
+// Same upload constraints as the report-template chat — 25MB cap on
+// memoryStorage, PDF/image mime allowlist. Errors come back as JSON
+// instead of express's HTML 500 default.
+const PLAN_UPLOAD_MIME = new Set(['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif']);
+const planChatUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (PLAN_UPLOAD_MIME.has(file.mimetype)) return cb(null, true);
+    cb(new Error(`Unsupported file type: ${file.mimetype}. Attach a PDF or image.`));
+  },
+});
+function handlePlanChatUpload(req, res, next) {
+  planChatUpload.single('attachment')(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    next();
+  });
+}
 
 router.get('/clients/:clientId/plans', async (req, res) => {
   try {
@@ -510,13 +530,28 @@ router.get('/clients/:clientId/plans/:planId', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.post('/clients/:clientId/plans/chat', async (req, res) => {
-  const { history, current_plan } = req.body || {};
+// Chat endpoint accepts JSON or multipart. With multipart, `history`
+// arrives as a JSON-encoded form field and `attachment` is the file —
+// same pattern as the report-template chat upload.
+router.post('/clients/:clientId/plans/chat', handlePlanChatUpload, async (req, res) => {
+  let history, current_plan;
+  if (typeof req.body?.history === 'string') {
+    try { history = JSON.parse(req.body.history); } catch { return res.status(400).json({ error: 'history must be valid JSON' }); }
+    if (typeof req.body?.current_plan === 'string') {
+      try { current_plan = JSON.parse(req.body.current_plan); } catch { current_plan = null; }
+    }
+  } else {
+    history = req.body?.history;
+    current_plan = req.body?.current_plan;
+  }
   if (!Array.isArray(history) || !history.length) return res.status(400).json({ error: 'history is required' });
   try {
     const c = (await pool.query('SELECT id, name, briefing_field, monthly_focus FROM clients WHERE id = $1', [req.params.clientId])).rows[0];
     if (!c) return res.status(404).json({ error: 'Client not found' });
-    const result = await socialPlanner.chatBuildPlan({ client: c, currentPlan: current_plan || null, history });
+    const attachment = req.file
+      ? { buffer: req.file.buffer, mimeType: req.file.mimetype, filename: req.file.originalname }
+      : null;
+    const result = await socialPlanner.chatBuildPlan({ client: c, currentPlan: current_plan || null, history, attachment });
     res.json(result);
   } catch (err) {
     console.error('[social planner chat] failed:', err);

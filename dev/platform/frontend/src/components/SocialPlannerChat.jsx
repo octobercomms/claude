@@ -15,7 +15,9 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const [planRowId, setPlanRowId] = useState(planId || null);
+  const [attachment, setAttachment] = useState(null);
   const scrollRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (!planId) return;
@@ -38,26 +40,63 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   }, [onClose]);
 
   async function send() {
-    if (!input.trim() || sending) return;
-    const next = [...history, { role: 'user', content: input.trim() }];
+    const text = input.trim();
+    if (!text && !attachment) return;
+    if (sending) return;
+    const displayContent = attachment
+      ? (text ? `${text}\n\n[attached: ${attachment.name}]` : `[attached: ${attachment.name}]`)
+      : text;
+    const next = [...history, { role: 'user', content: displayContent }];
     setHistory(next);
     setInput('');
+    const sentAttachment = attachment;
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
     setSending(true);
     setError(null);
     try {
-      const { reply, proposed: p } = await api.post(`/social/clients/${clientId}/plans/chat`, {
-        history: next,
-        current_plan: proposed || saved || null,
-      });
+      let result;
+      if (sentAttachment) {
+        const form = new FormData();
+        form.append('history', JSON.stringify(next));
+        form.append('current_plan', JSON.stringify(proposed || saved || null));
+        form.append('attachment', sentAttachment);
+        result = await api.postForm(`/social/clients/${clientId}/plans/chat`, form);
+      } else {
+        result = await api.post(`/social/clients/${clientId}/plans/chat`, {
+          history: next,
+          current_plan: proposed || saved || null,
+        });
+      }
+      const { reply, proposed: p } = result;
       setHistory([...next, { role: 'assistant', content: reply || '(no reply)' }]);
       if (p) setProposed(p);
     } catch (e) {
       setError(e.message);
       setHistory(next.slice(0, -1));
-      setInput(next[next.length - 1].content);
+      setInput(text);
+      if (sentAttachment) setAttachment(sentAttachment);
     } finally {
       setSending(false);
     }
+  }
+
+  function onFilePicked(e) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const ok = ['application/pdf', 'image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+    if (!ok.includes(f.type)) {
+      setError(`Unsupported file: ${f.type || 'unknown'}. Attach a PDF or image.`);
+      e.target.value = '';
+      return;
+    }
+    if (f.size > 25 * 1024 * 1024) {
+      setError('File too large (max 25MB).');
+      e.target.value = '';
+      return;
+    }
+    setError(null);
+    setAttachment(f);
   }
 
   async function lockAndSave() {
@@ -145,18 +184,40 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
               ))}
               {sending && <div style={styles.assistantMsg}><div style={styles.msgRole}>Claude</div><div style={styles.msgBody}>Thinking…</div></div>}
             </div>
+            {attachment && (
+              <div style={styles.attachChip}>
+                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={styles.chipRemove} title="Remove attachment">×</button>
+              </div>
+            )}
             <div style={styles.inputRow}>
               <textarea
                 style={styles.textarea}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
-                placeholder="Describe a change, or ⌘↩ to send"
+                placeholder={attachment ? 'Optional — describe how to use the file, or just send' : (history.length ? 'Describe a change, or ⌘↩ to send' : 'Describe the post — platform, audience, angle. ⌘↩ to send.')}
                 disabled={sending}
               />
-              <button type="button" onClick={send} disabled={!input.trim() || sending} style={primaryBtn}>
-                {sending ? 'Sending…' : 'Send'}
-              </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
+                  onChange={onFilePicked}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={sending || !!attachment}
+                  style={styles.attachBtn}
+                  title="Attach an example post / brand guidelines (PDF or image)"
+                >📎</button>
+                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} style={primaryBtn}>
+                  {sending ? 'Sending…' : 'Send'}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -317,6 +378,9 @@ const styles = {
   msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
   textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  attachChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#eef4ff', border: '1px solid #c7d8f5', borderRadius: 4, marginTop: 8, alignSelf: 'flex-start' },
+  chipRemove: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666', lineHeight: 1, padding: '0 2px' },
+  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
   error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14, borderTop: '1px solid #eee', paddingTop: 12 },
   tag: { display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#E7CD41', color: '#000', borderRadius: 3, textTransform: 'uppercase' },
