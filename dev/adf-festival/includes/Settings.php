@@ -47,6 +47,9 @@ final class Settings {
             // AI Stories connector source URLs (RSS preferred) (§6).
             'ai_source_urls'  => [],
             'ai_model'        => 'claude-sonnet-4-20250514',
+            // Editable "tone of voice" training for the AI Stories layer.
+            'ai_voice_guide'  => '',
+            'ai_examples'     => [],
             // Brevo transactional template IDs keyed by trigger name (§5).
             'brevo_templates' => [],
             'brevo_lists'     => [],

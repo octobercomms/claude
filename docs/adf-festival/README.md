@@ -169,6 +169,12 @@ through Claude with the ADF editorial prompt, discards `SKIP` responses, and
 saves keepers as `adf_story` drafts (`author_type = ai_generated`, source URL
 stored for attribution) into the Stories approval queue.
 
+**Tone-of-voice training (Settings → AI Stories):** the voice is tuned in the
+admin, not hard-coded. A **house style guide** and **example pieces** are sent to
+Claude as the system prompt + voice references on every generation
+(`ClaudeConnector::system_prompt()`), and a **Test the voice** box runs a pasted
+source through the live prompt so you can iterate until it sounds like ADF.
+
 The **monthly digest** compiles recent stories + upcoming events + listings
 flagged `featured_in_email`, sends through Brevo to the digest list, and resets
 the flags.

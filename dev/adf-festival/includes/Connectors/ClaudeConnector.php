@@ -24,18 +24,36 @@ final class ClaudeConnector {
     }
 
     /**
-     * The base editorial prompt (§6). Kept as a method so it can be filtered /
-     * refined before launch without touching call sites.
+     * The system prompt = ADF's editorial role + the admin-editable house voice
+     * guide. This is where the "tone of voice" is trained: the guide text and
+     * example pieces from Settings are injected so every generation matches ADF.
      */
-    public static function editorial_prompt(string $source_content): string {
-        $base = <<<PROMPT
-You are the editorial voice of Atlanta Design Festival — a design-culture publication covering architecture, interiors, urban design, and the creative industries. Your tone is direct, editorial, and specific. You write for a design-literate audience. You do not use marketing language.
-Given the following source article, write a short editorial piece of 150–200 words in this voice. Include a suggested headline. Do not reproduce the source text — rewrite entirely in ADF's voice. Focus on why this is relevant to a design audience in Atlanta or the wider US South. If the story has no clear relevance, return only the word SKIP.
-Source article:
-{$source_content}
-PROMPT;
+    public static function system_prompt(): string {
+        $base = "You are the editorial voice of Atlanta Design Festival — a design-culture publication covering architecture, interiors, urban design, and the creative industries. Your tone is direct, editorial, and specific. You write for a design-literate audience. You do not use marketing language.";
 
-        return (string) apply_filters('adf_claude_editorial_prompt', $base, $source_content);
+        $guide = trim((string) Settings::get('ai_voice_guide', ''));
+        if ($guide !== '') {
+            $base .= "\n\n# House voice & style guide\n" . $guide;
+        }
+
+        $examples = array_filter(array_map('trim', (array) Settings::get('ai_examples', [])));
+        if ($examples) {
+            $base .= "\n\n# Examples of our published voice\nMatch the tone, rhythm and vocabulary of these. Do NOT reuse their subject matter or copy phrasing — they are voice references only.\n";
+            foreach (array_values($examples) as $i => $ex) {
+                $base .= "\n--- Example " . ($i + 1) . " ---\n" . $ex . "\n";
+            }
+        }
+
+        return (string) apply_filters('adf_claude_system_prompt', $base);
+    }
+
+    /**
+     * The per-article task prompt (the user turn).
+     */
+    public static function editorial_task(string $source_content): string {
+        $task = "Given the following source article, write a short editorial piece of 150–200 words in this voice. Put a suggested headline on the first line, then the body. Do not reproduce the source text — rewrite entirely in ADF's voice. Focus on why this is relevant to a design audience in Atlanta or the wider US South. If the story has no clear relevance, return only the word SKIP.\n\nSource article:\n" . $source_content;
+
+        return (string) apply_filters('adf_claude_editorial_task', $task, $source_content);
     }
 
     /**
@@ -50,7 +68,7 @@ PROMPT;
             return null;
         }
 
-        $text = self::message(self::editorial_prompt($source_content));
+        $text = self::message(self::editorial_task($source_content), 1024, self::system_prompt());
         if ($text === null) {
             return null;
         }
@@ -66,7 +84,18 @@ PROMPT;
     /**
      * Low-level single-turn message call. Returns the assistant text or null.
      */
-    public static function message(string $prompt, int $max_tokens = 1024): ?string {
+    public static function message(string $prompt, int $max_tokens = 1024, string $system = ''): ?string {
+        $payload = [
+            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-4-20250514'),
+            'max_tokens' => $max_tokens,
+            'messages'   => [
+                ['role' => 'user', 'content' => $prompt],
+            ],
+        ];
+        if ($system !== '') {
+            $payload['system'] = $system;
+        }
+
         $response = wp_remote_post(self::API_BASE, [
             'timeout' => 60,
             'headers' => [
@@ -74,13 +103,7 @@ PROMPT;
                 'anthropic-version' => self::API_VERSION,
                 'Content-Type'      => 'application/json',
             ],
-            'body' => wp_json_encode([
-                'model'      => (string) Settings::get('ai_model', 'claude-sonnet-4-20250514'),
-                'max_tokens' => $max_tokens,
-                'messages'   => [
-                    ['role' => 'user', 'content' => $prompt],
-                ],
-            ]),
+            'body' => wp_json_encode($payload),
         ]);
 
         if (is_wp_error($response)) {

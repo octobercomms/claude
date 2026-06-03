@@ -28,6 +28,36 @@ final class Settings {
     public function init(): void {
         add_action('admin_post_adf_save_settings', [$this, 'save']);
         add_action('admin_post_adf_test_updater', [$this, 'test_updater']);
+        add_action('admin_post_adf_test_voice', [$this, 'test_voice']);
+    }
+
+    /**
+     * Live "test the voice" tool — run a pasted source article through the
+     * trained editorial prompt and show the result so the voice can be tuned.
+     */
+    public function test_voice(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('adf_test_voice');
+
+        $source = trim((string) wp_unslash($_POST['adf_voice_sample'] ?? ''));
+        if ($source === '') {
+            set_transient('adf_voice_test', ['ok' => false, 'message' => __('Paste some source text to test.', 'adf-festival')], 120);
+        } elseif (! \ADF\Connectors\ClaudeConnector::is_ready()) {
+            set_transient('adf_voice_test', ['ok' => false, 'message' => __('No Claude API key configured (ADF_CLAUDE_API_KEY).', 'adf-festival')], 120);
+        } else {
+            $result = \ADF\Connectors\ClaudeConnector::editorialize($source);
+            if ($result === null) {
+                set_transient('adf_voice_test', ['ok' => false, 'message' => __('Claude returned an error — check the debug log.', 'adf-festival')], 120);
+            } elseif (! empty($result['skip'])) {
+                set_transient('adf_voice_test', ['ok' => true, 'skip' => true, 'message' => __('The model judged this source as not relevant (SKIP).', 'adf-festival')], 120);
+            } else {
+                set_transient('adf_voice_test', ['ok' => true, 'headline' => $result['headline'], 'body' => $result['body']], 120);
+            }
+        }
+        wp_safe_redirect(admin_url('admin.php?page=adf-settings#voice'));
+        exit;
     }
 
     /**
@@ -81,6 +111,9 @@ final class Settings {
 
         $sources = array_filter(array_map('esc_url_raw', preg_split('/\r\n|\r|\n/', (string) ($in['ai_source_urls'] ?? ''))));
 
+        // Voice examples: one per block, separated by a line of "---".
+        $examples = array_filter(array_map('trim', preg_split('/^\s*---\s*$/m', (string) ($in['ai_examples'] ?? ''))));
+
         $brevo_templates = [];
         foreach (BrevoConnector::TRIGGERS as $trigger) {
             $brevo_templates[$trigger] = (int) ($in['brevo_templates'][$trigger] ?? 0);
@@ -103,6 +136,8 @@ final class Settings {
             'rejection_copy'   => $rejection,
             'ai_source_urls'   => array_values($sources),
             'ai_model'         => sanitize_text_field((string) ($in['ai_model'] ?? 'claude-sonnet-4-20250514')),
+            'ai_voice_guide'   => sanitize_textarea_field((string) ($in['ai_voice_guide'] ?? '')),
+            'ai_examples'      => array_map('sanitize_textarea_field', array_values($examples)),
             'brevo_templates'  => $brevo_templates,
             'brevo_lists'      => $brevo_lists,
             'digest_enabled'   => ! empty($in['digest_enabled']),

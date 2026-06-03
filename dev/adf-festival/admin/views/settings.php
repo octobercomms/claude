@@ -46,10 +46,18 @@ use ADF\Connectors\BrevoConnector;
         </table>
         <p><label><?php esc_html_e('Currency', 'adf-festival'); ?> <input type="text" name="currency" value="<?php echo esc_attr((string) ($cfg['currency'] ?? 'usd')); ?>" size="5"></label></p>
 
-        <h2><?php esc_html_e('AI Stories connector', 'adf-festival'); ?></h2>
+        <h2 id="voice"><?php esc_html_e('AI Stories connector', 'adf-festival'); ?></h2>
         <p><label><?php esc_html_e('Model', 'adf-festival'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'adf-festival'); ?><br>
             <textarea name="ai_source_urls" rows="5" class="large-text"><?php echo esc_textarea(implode("\n", (array) ($cfg['ai_source_urls'] ?? []))); ?></textarea></label></p>
+
+        <h3><?php esc_html_e('Tone of voice training', 'adf-festival'); ?></h3>
+        <p class="description"><?php esc_html_e('This is how you "train" the AI. The style guide and examples below are sent to Claude with every story it writes, steering it to sound like ADF. Be specific about voice, rhythm, vocabulary, and what to avoid.', 'adf-festival'); ?></p>
+        <p><label><strong><?php esc_html_e('House style guide', 'adf-festival'); ?></strong><br>
+            <textarea name="ai_voice_guide" rows="8" class="large-text" placeholder="<?php esc_attr_e('e.g. Write in third person. Lead with the design idea, not the event. Favour concrete nouns over adjectives. Never use words like “stunning”, “must-see”, “game-changing”. UK/US spelling: US. Reference Atlanta neighbourhoods by name where relevant…', 'adf-festival'); ?>"><?php echo esc_textarea((string) ($cfg['ai_voice_guide'] ?? '')); ?></textarea></label></p>
+        <p><label><strong><?php esc_html_e('Example pieces', 'adf-festival'); ?></strong> — <?php esc_html_e('paste 1–4 published pieces that exemplify the voice, separated by a line containing only ---', 'adf-festival'); ?><br>
+            <textarea name="ai_examples" rows="12" class="large-text" placeholder="<?php esc_attr_e("Headline of a great ADF piece\nFull body text in the ADF voice…\n---\nAnother example headline\nIts body text…", 'adf-festival'); ?>"><?php echo esc_textarea(implode("\n---\n", (array) ($cfg['ai_examples'] ?? []))); ?></textarea></label></p>
+        <p class="description"><?php echo esc_html(sprintf(/* translators: %d: count */ __('Currently %d example(s) saved.', 'adf-festival'), count((array) ($cfg['ai_examples'] ?? [])))); ?></p>
 
         <h2><?php esc_html_e('Brevo template IDs', 'adf-festival'); ?></h2>
         <table class="widefat striped" style="max-width:640px"><tbody>
@@ -104,6 +112,28 @@ use ADF\Connectors\BrevoConnector;
         <?php submit_button(); ?>
     </form>
 
+    <hr>
+    <h2><?php esc_html_e('Test the voice', 'adf-festival'); ?></h2>
+    <p class="description"><?php esc_html_e('Paste a sample source article (or any text) and run it through the trained editorial prompt to preview how a generated story would read. Save your style guide above first.', 'adf-festival'); ?></p>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+        <input type="hidden" name="action" value="adf_test_voice">
+        <?php wp_nonce_field('adf_test_voice'); ?>
+        <p><textarea name="adf_voice_sample" rows="6" class="large-text" placeholder="<?php esc_attr_e('Paste a source article here…', 'adf-festival'); ?>"></textarea></p>
+        <?php submit_button(__('Generate preview', 'adf-festival'), 'primary', 'submit', false); ?>
+    </form>
+    <?php $voice = get_transient('adf_voice_test'); if (is_array($voice)) { delete_transient('adf_voice_test'); ?>
+        <div class="notice <?php echo $voice['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin-top:10px;padding:12px">
+            <?php if (! empty($voice['skip']) || empty($voice['headline'])) : ?>
+                <p><?php echo esc_html($voice['message'] ?? ''); ?></p>
+            <?php else : ?>
+                <p><strong><?php echo esc_html($voice['headline']); ?></strong></p>
+                <div style="white-space:pre-wrap"><?php echo esc_html($voice['body']); ?></div>
+            <?php endif; ?>
+        </div>
+    <?php } ?>
+
+    <hr>
+    <h2 id="update-test"><?php esc_html_e('Updates', 'adf-festival'); ?></h2>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:-8px">
         <input type="hidden" name="action" value="adf_test_updater">
         <?php wp_nonce_field('adf_test_updater'); ?>
