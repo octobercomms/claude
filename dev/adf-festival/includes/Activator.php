@@ -18,6 +18,7 @@ final class Activator {
         AuditLog::install();
         VolunteerSignups::install();
         \ADF\Ticketing\Schema::install();
+        \ADF\Ads\Schema::install();
         Cron::schedule();
 
         // Seed default settings if absent.

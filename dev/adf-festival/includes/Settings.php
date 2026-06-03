@@ -64,6 +64,9 @@ final class Settings {
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
+            // Ad booking packages + promo codes.
+            'ad_packages'      => [],
+            'ad_promo_codes'   => [],
         ];
     }
 

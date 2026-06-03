@@ -123,6 +123,30 @@ final class Settings {
             $brevo_lists[sanitize_key($list)] = (int) $id;
         }
 
+        // Ad packages: "Name | impressions|clicks | quantity | price" per line.
+        $ad_packages = [];
+        foreach (preg_split('/\r\n|\r|\n/', (string) ($in['ad_packages'] ?? '')) as $line) {
+            $p = array_map('trim', explode('|', $line));
+            if (count($p) < 4 || $p[0] === '') {
+                continue;
+            }
+            $ad_packages[] = [
+                'name'     => sanitize_text_field($p[0]),
+                'type'     => in_array($p[1], ['impressions', 'clicks'], true) ? $p[1] : 'impressions',
+                'quantity' => (int) $p[2],
+                'price'    => round((float) $p[3], 2),
+            ];
+        }
+        // Ad promo codes: "CODE | pct" per line.
+        $ad_promos = [];
+        foreach (preg_split('/\r\n|\r|\n/', (string) ($in['ad_promo_codes'] ?? '')) as $line) {
+            $p = array_map('trim', explode('|', $line));
+            if (count($p) < 2 || $p[0] === '') {
+                continue;
+            }
+            $ad_promos[strtoupper(sanitize_text_field($p[0]))] = max(0, min(100, (int) $p[1]));
+        }
+
         $offsets = [];
         foreach (['week', '48h', 'morning'] as $key) {
             if (! empty($in['reminder_offsets'][$key])) {
@@ -147,6 +171,8 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => trim((string) ($in['github_token'] ?? '')),
+            'ad_packages'      => $ad_packages,
+            'ad_promo_codes'   => $ad_promos,
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=adf-settings')));

@@ -103,6 +103,21 @@ use ADF\Connectors\BrevoConnector;
         <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'adf-festival'); ?></label></p>
         <p><label><?php esc_html_e('Daily ticket sales report to', 'adf-festival'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'adf-festival'); ?></span></p>
 
+        <h2><?php esc_html_e('Ad booking packages', 'adf-festival'); ?></h2>
+        <p class="description"><?php esc_html_e('One per line: Name | impressions or clicks | quantity | price', 'adf-festival'); ?></p>
+        <p><textarea name="ad_packages" rows="4" class="large-text" placeholder="Homepage MPU — 1 month | impressions | 50000 | 299"><?php
+            $lines = [];
+            foreach ((array) ($cfg['ad_packages'] ?? []) as $p) { $lines[] = ($p['name'] ?? '') . ' | ' . ($p['type'] ?? 'impressions') . ' | ' . ($p['quantity'] ?? 0) . ' | ' . ($p['price'] ?? 0); }
+            echo esc_textarea(implode("\n", $lines));
+        ?></textarea></p>
+        <h2><?php esc_html_e('Ad promo codes', 'adf-festival'); ?></h2>
+        <p class="description"><?php esc_html_e('One per line: CODE | percent', 'adf-festival'); ?></p>
+        <p><textarea name="ad_promo_codes" rows="3" class="large-text" placeholder="LAUNCH | 20"><?php
+            $lines = [];
+            foreach ((array) ($cfg['ad_promo_codes'] ?? []) as $code => $pct) { $lines[] = $code . ' | ' . $pct; }
+            echo esc_textarea(implode("\n", $lines));
+        ?></textarea></p>
+
         <h2 id="updates"><?php esc_html_e('Updates (GitHub)', 'adf-festival'); ?></h2>
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged adf-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define ADF_GITHUB_TOKEN in wp-config.php).', 'adf-festival'); ?></p>
         <p><label><?php esc_html_e('Repository', 'adf-festival'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
