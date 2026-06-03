@@ -99,6 +99,20 @@ final class RestApi {
             'permission_callback' => '__return_true',
         ]);
 
+        // Check-in PWA (PIN-gated, not WP-login gated).
+        register_rest_route(self::NS, '/checkin-events', [
+            'methods' => 'GET', 'callback' => [$this, 'checkin_events'], 'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/checkin-venues', [
+            'methods' => 'GET', 'callback' => [$this, 'checkin_venues'], 'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/checkin-scan', [
+            'methods' => 'POST', 'callback' => [$this, 'checkin_scan'], 'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/checkin-stats', [
+            'methods' => 'GET', 'callback' => [$this, 'checkin_stats'], 'permission_callback' => '__return_true',
+        ]);
+
         // Public map feed for Elementor/JetEngine or the fallback shortcode.
         register_rest_route(self::NS, '/map', [
             'methods'             => 'GET',
@@ -382,6 +396,49 @@ final class RestApi {
             return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
         }
         return new \WP_REST_Response(['ok' => true, 'tickets' => $order['tickets']], 200);
+    }
+
+    /* ----------------------------------------------------------------- *
+     * Check-in PWA
+     * ----------------------------------------------------------------- */
+
+    public function checkin_events(\WP_REST_Request $req): \WP_REST_Response {
+        return new \WP_REST_Response(\ADF\Ticketing\CheckIn::events(), 200);
+    }
+
+    private function checkin_pin_guard(\WP_REST_Request $req): int {
+        $event_id = absint($req->get_param('event_id'));
+        $pin      = (string) $req->get_param('pin');
+        return \ADF\Ticketing\CheckIn::pin_ok($event_id, $pin) ? $event_id : 0;
+    }
+
+    public function checkin_venues(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        return new \WP_REST_Response(\ADF\Ticketing\CheckIn::venues($event_id), 200);
+    }
+
+    public function checkin_scan(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        $result = \ADF\Ticketing\CheckIn::scan(
+            sanitize_text_field((string) $req->get_param('token')),
+            $event_id,
+            (string) $req->get_param('venue')
+        );
+        return new \WP_REST_Response($result, 200);
+    }
+
+    public function checkin_stats(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        return new \WP_REST_Response(\ADF\Ticketing\CheckIn::stats($event_id), 200);
     }
 
     public function map_pins(\WP_REST_Request $req): \WP_REST_Response {

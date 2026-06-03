@@ -144,6 +144,22 @@
 .adf-co-total { border-top: 1px solid var(--adf-line); margin-top: 6px; padding-top: 10px; font-weight: 800; font-size: 18px; }
 .adf-co-success { text-align: center; }
 
+/* --- Check-in PWA -------------------------------------------------- */
+.adf-checkin { max-width: 480px; margin: 0 auto; }
+.adf-ci-step { display: none; }
+.adf-ci-step.is-active { display: block; }
+.adf-ci-event, .adf-ci-venue { display: block; width: 100%; margin-bottom: 8px; }
+.adf-ci-pin { font-size: 32px; letter-spacing: 12px; text-align: center; width: 100%; padding: 12px; border: 1px solid var(--adf-line); border-radius: 12px; margin-bottom: 12px; }
+.adf-ci-reader { width: 100%; min-height: 280px; background: #14110e; border-radius: var(--adf-radius); overflow: hidden; margin-bottom: 12px; }
+.adf-ci-counter { margin: 12px 0; font-weight: 700; }
+.adf-ci-stats { color: var(--adf-muted); font-size: 14px; margin-bottom: 12px; }
+.adf-ci-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; z-index: 9999; }
+.adf-ci-overlay-inner { text-align: center; padding: 24px; }
+.adf-ci-big { font-size: 40px; font-weight: 800; margin-bottom: 8px; }
+.adf-ci-ok { background: rgba(26,127,55,.96); }
+.adf-ci-warn { background: rgba(154,91,0,.96); }
+.adf-ci-bad { background: rgba(178,50,24,.96); }
+
 /* --- Map fallback (§7) --------------------------------------------- */
 .adf-design-map { display: grid; grid-template-columns: 220px 1fr; gap: 18px; }
 .adf-map-filters { display: grid; gap: 8px; font-size: 14px; background: var(--adf-paper); padding: 16px; border-radius: var(--adf-radius); height: max-content; }

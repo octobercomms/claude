@@ -42,6 +42,7 @@ final class Plugin {
         }
         Dashboard::get_instance()->init();
         \ADF\Frontend\Checkout::get_instance()->init();
+        \ADF\Frontend\CheckInApp::get_instance()->init();
 
         // GitHub self-updater (offers releases in the WP Updates screen).
         (new Updater(ADF_BASENAME, ADF_VERSION, Updater::repo(), Updater::token()))->init();
