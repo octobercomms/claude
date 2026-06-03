@@ -15,6 +15,10 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   const [generating, setGenerating] = useState(false);
   const [period, setPeriod] = useState(7);
   const [actions, setActions] = useState([]);
+  const [recipients, setRecipients] = useState('');
+  const [recipientsDirty, setRecipientsDirty] = useState(false);
+  const [savingRecipients, setSavingRecipients] = useState(false);
+  const [emailing, setEmailing] = useState(false);
 
   useEffect(() => {
     api.get(`/strategist/clients/${clientId}/reports`)
@@ -31,6 +35,41 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
       .then(setActions)
       .catch(() => setActions([]));
   }, [selectedId, toast]);
+
+  // Load the client's saved strategist_recipients so the AM can edit
+  // them inline (no need to know about the env var or SQL).
+  useEffect(() => {
+    api.get(`/clients/${clientId}`).then(c => {
+      setRecipients(c.strategist_recipients || '');
+      setRecipientsDirty(false);
+    }).catch(() => {});
+  }, [clientId]);
+
+  async function saveRecipients() {
+    setSavingRecipients(true);
+    try {
+      await api.put(`/clients/${clientId}`, { strategist_recipients: recipients });
+      setRecipientsDirty(false);
+      toast('Recipients saved', 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setSavingRecipients(false);
+    }
+  }
+
+  async function sendBriefingEmail() {
+    if (!selected) return;
+    setEmailing(true);
+    try {
+      const res = await api.post(`/strategist/reports/${selected.id}/email`, {});
+      toast(`Sent to ${(res.sent_to || []).join(', ') || 'recipients'}`, 'success');
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setEmailing(false);
+    }
+  }
 
   async function toggleAction(action) {
     const next = !action.done;
@@ -164,7 +203,29 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             )}
             {selected && selected.status === 'completed' && (
               <>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 280 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                      Monday email recipients
+                    </label>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <input
+                        type="text"
+                        value={recipients}
+                        onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
+                        placeholder="email@example.com, another@example.com"
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4 }}
+                      />
+                      {recipientsDirty && (
+                        <button onClick={saveRecipients} disabled={savingRecipients} style={styles.ghostBtn}>
+                          {savingRecipients ? 'Saving…' : 'Save'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <button onClick={sendBriefingEmail} disabled={emailing || !selected} style={styles.ghostBtn} title="Send this briefing as an email now (uses the recipients above)">
+                    {emailing ? 'Sending…' : '✉ Send to email'}
+                  </button>
                   <button onClick={savePdf} style={styles.ghostBtn} title="Save a PDF copy with the standard report header + footer">
                     ↓ Save PDF
                   </button>
