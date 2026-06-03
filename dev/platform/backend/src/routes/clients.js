@@ -92,7 +92,7 @@ router.post('/', adminOnly, async (req, res) => {
 
 // Update client
 router.put('/:id', async (req, res) => {
-  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain } = req.body;
+  const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);
     if (!current.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -103,8 +103,9 @@ router.put('/:id', async (req, res) => {
         name = $1, slug = $2, active = $3,
         briefing_field = $4, monthly_focus = $5,
         report_recipients = $6, report_schedule = $7,
-        report_sections = $8, section_instructions = $9, domain = $10
-       WHERE id = $11 RETURNING *`,
+        report_sections = $8, section_instructions = $9, domain = $10,
+        strategist_recipients = $11
+       WHERE id = $12 RETURNING *`,
       [
         name ?? c.name,
         slug ?? c.slug,
@@ -116,6 +117,7 @@ router.put('/:id', async (req, res) => {
         JSON.stringify(report_sections ?? c.report_sections ?? null),
         JSON.stringify(section_instructions ?? c.section_instructions ?? {}),
         domain ?? c.domain ?? null,
+        strategist_recipients !== undefined ? strategist_recipients : c.strategist_recipients,
         req.params.id,
       ]
     );

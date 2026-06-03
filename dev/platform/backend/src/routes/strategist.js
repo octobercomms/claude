@@ -138,6 +138,48 @@ router.post('/clients/:clientId/reports/generate', async (req, res) => {
   }
 });
 
+// On-demand email — same payload as the Monday cron job. Lets the AM
+// preview / re-send a briefing without waiting for the next Monday.
+// Recipients resolution: explicit body.to override → client's
+// strategist_recipients → STRATEGIST_RECIPIENTS env var.
+router.post('/reports/:id/email', async (req, res) => {
+  const { to: toOverride } = req.body || {};
+  try {
+    const { rows: rows1 } = await pool.query(
+      `SELECT r.id, r.client_id, r.period_start, r.period_end, r.markdown,
+              c.name AS client_name, c.strategist_recipients
+         FROM strategist_reports r JOIN clients c ON c.id = r.client_id
+        WHERE r.id = $1`,
+      [req.params.id]
+    );
+    if (!rows1.length) return res.status(404).json({ error: 'Report not found' });
+    const r = rows1[0];
+    const { rows: actionRows } = await pool.query(
+      `SELECT text FROM strategist_recommendations WHERE report_id = $1 ORDER BY position ASC`,
+      [r.id]
+    );
+    const envRecipients = (process.env.STRATEGIST_RECIPIENTS || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const clientRecipients = (r.strategist_recipients || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const overrideRecipients = (toOverride || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    const to = overrideRecipients.length ? overrideRecipients : (clientRecipients.length ? clientRecipients : envRecipients);
+    if (!to.length) return res.status(400).json({ error: 'No recipients configured. Add some to the Recipients box on this client, or set STRATEGIST_RECIPIENTS in the server .env.' });
+    const period = r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : '';
+    const platformUrl = process.env.PLATFORM_URL || '';
+    const reportUrl = platformUrl ? `${platformUrl}/clients/${r.client_id}/ads?tab=strategist&report=${r.id}` : null;
+    const emailService = require('../services/emailService');
+    await emailService.sendStrategistBriefing({
+      to, clientName: r.client_name, period,
+      markdown: r.markdown || '_Briefing has no content._',
+      recommendations: actionRows.map(a => a.text),
+      reportUrl,
+    });
+    res.json({ ok: true, sent_to: to });
+  } catch (err) {
+    console.error('[strategist] manual email failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── Recommendation checklist ────────────────────────────────────
 // Each row in strategist_recommendations is one numbered item parsed
 // from the briefing's Recommendations section. AM ticks them off; next
