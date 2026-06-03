@@ -483,4 +483,108 @@ router.put('/clients/:clientId/competitors', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Social Post Planner (conversational) ────────────────────────
+// Per-client list of detailed plans + chat-based refinement. Replaces
+// the batch flow above eventually — they run side-by-side for now.
+const socialPlanner = require('../services/socialPlanner');
+const chatExport = require('../services/chatExport');
+
+router.get('/clients/:clientId/plans', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, status, updated_at, created_at FROM social_post_plans WHERE client_id = $1 ORDER BY updated_at DESC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/plans/:planId', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, client_id, title, plan, status, updated_at FROM social_post_plans WHERE id = $1 AND client_id = $2`,
+      [req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/plans/chat', async (req, res) => {
+  const { history, current_plan } = req.body || {};
+  if (!Array.isArray(history) || !history.length) return res.status(400).json({ error: 'history is required' });
+  try {
+    const c = (await pool.query('SELECT id, name, briefing_field, monthly_focus FROM clients WHERE id = $1', [req.params.clientId])).rows[0];
+    if (!c) return res.status(404).json({ error: 'Client not found' });
+    const result = await socialPlanner.chatBuildPlan({ client: c, currentPlan: current_plan || null, history });
+    res.json(result);
+  } catch (err) {
+    console.error('[social planner chat] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.put('/clients/:clientId/plans/:planId', async (req, res) => {
+  const { title, plan } = req.body || {};
+  const err = socialPlanner.validatePlan(plan);
+  if (err) return res.status(400).json({ error: err });
+  try {
+    const { rows } = await pool.query(
+      `UPDATE social_post_plans SET title = $1, plan = $2, status = 'locked', updated_at = NOW()
+       WHERE id = $3 AND client_id = $4 RETURNING id, title, plan, status, updated_at`,
+      [title || plan.title || 'Untitled plan', JSON.stringify(plan), req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    res.json(rows[0]);
+  } catch (err2) { res.status(500).json({ error: err2.message }); }
+});
+
+router.post('/clients/:clientId/plans', async (req, res) => {
+  const { title, plan } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO social_post_plans (client_id, title, plan, status)
+       VALUES ($1, $2, $3, $4) RETURNING id, title, plan, status, updated_at`,
+      [req.params.clientId, title || plan?.title || 'Untitled plan', JSON.stringify(plan || {}), plan ? 'locked' : 'draft']
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/clients/:clientId/plans/:planId', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM social_post_plans WHERE id = $1 AND client_id = $2', [req.params.planId, req.params.clientId]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/plans/:planId/export.:format(pdf|docx)', async (req, res) => {
+  const { clientId, planId, format } = req.params;
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.title, p.plan, c.name AS client_name FROM social_post_plans p
+       JOIN clients c ON c.id = p.client_id
+       WHERE p.id = $1 AND p.client_id = $2`,
+      [planId, clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    const row = rows[0];
+    const markdown = socialPlanner.planToMarkdown(row.plan);
+    const safeSlug = (row.client_name + '-' + (row.title || 'plan')).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+    const filename = `${safeSlug}.${format}`;
+    const opts = { title: row.title || 'Social Post Plan', clientName: row.client_name, generatedAt: new Date() };
+    const buf = format === 'pdf'
+      ? await chatExport.markdownToPdfBuffer(markdown, opts)
+      : await chatExport.markdownToDocxBuffer(markdown, opts);
+    res.setHeader('Content-Type', format === 'pdf'
+      ? 'application/pdf'
+      : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(buf);
+  } catch (err) {
+    console.error('[social plan export] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

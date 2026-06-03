@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
+import SocialPlannerChat from '../components/SocialPlannerChat';
 
 // Social Phase 1 — generate 9 posts at a time, grounded in the client's
 // briefing + Google Trends signals. Each post has a hook, caption,
@@ -27,6 +28,8 @@ export default function ClientSocialPage() {
   const [frameworkBreakdown, setFrameworkBreakdown] = useState([]);
   const [trendingSounds, setTrendingSounds] = useState([]);
   const [refreshingSounds, setRefreshingSounds] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(null); // { planId } | null
+  const [plansRefreshKey, setPlansRefreshKey] = useState(0);
 
   async function loadAll() {
     const [c, bs, comp, ws, eng, fb, ts] = await Promise.all([
@@ -233,14 +236,17 @@ export default function ClientSocialPage() {
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" style={primaryBtn} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</button>
           {activeBatchId && (
             <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
           )}
-          <button type="button" style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
-            {generating ? 'Generating…' : 'Generate 9 posts'}
+          <button type="button" style={secondaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
+            {generating ? 'Generating…' : 'Generate 9 posts (batch)'}
           </button>
         </div>
       </div>
+
+      <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} />
 
       <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
 
@@ -292,6 +298,69 @@ export default function ClientSocialPage() {
             ))}
           </div>
         </div>
+      </div>
+      {plannerOpen && (
+        <SocialPlannerChat
+          clientId={id}
+          clientName={client?.name}
+          planId={plannerOpen.planId}
+          onClose={() => setPlannerOpen(null)}
+          onSaved={() => setPlansRefreshKey(k => k + 1)}
+        />
+      )}
+    </div>
+  );
+}
+
+function PlansList({ clientId, clientName, onOpen }) {
+  const [plans, setPlans] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    api.get(`/social/clients/${clientId}/plans`)
+      .then(r => { if (!cancelled) { setPlans(r); setLoading(false); } })
+      .catch(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [clientId]);
+
+  async function downloadPlan(planId, format) {
+    try {
+      const res = await api.raw(`/social/clients/${clientId}/plans/${planId}/export.${format}`);
+      if (!res.ok) throw new Error('download failed');
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') || '';
+      const m = cd.match(/filename="([^"]+)"/);
+      const filename = m ? m[1] : `social-plan.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {}
+  }
+
+  if (loading) return null;
+  if (!plans.length) return null;
+
+  return (
+    <div style={{ marginBottom: 22, padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        Locked plans
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {plans.map(p => (
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 4 }}>
+            <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: '#1a1a1a' }}>
+              {p.title || '(untitled)'}
+            </button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
+              <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
+              <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
