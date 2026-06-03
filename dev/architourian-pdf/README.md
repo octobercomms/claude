@@ -131,6 +131,41 @@ The T&C page uses a 3-column flowing layout (matching page 6 of the template).
 N+1. Terms & Conditions (3-column, if text is set)
 Last. Back cover (SVG illustration + contact)
 
+## Automatic Updates (from GitHub)
+
+The plugin self-updates from **GitHub Releases** on a public mirror repo, so a
+new version shows up under **Plugins → Update available** and you click
+**Update now** — no manual zip upload.
+
+### One-time setup
+
+1. Create a **public** GitHub repo for the plugin, e.g. `octobercomms/architourian-pdf`.
+2. Confirm the URL in `architourian-pdf.php` matches it:
+   ```php
+   define( 'AIPDF_UPDATE_REPO', 'https://github.com/octobercomms/architourian-pdf/' );
+   ```
+3. Push the plugin source to that repo (or just publish Releases — the source
+   doesn't have to live there, only the Releases need to exist).
+
+### Publishing a new version
+
+1. Bump the version in **both** places in `architourian-pdf.php`:
+   - the `Version:` header comment
+   - the `AIPDF_VERSION` constant
+2. Build the distributable zip:
+   ```bash
+   bash build.sh        # produces ../architourian-pdf.zip
+   ```
+3. Create a GitHub **Release** on the public repo:
+   - Tag: `v1.3.1` (must be ≥ the version installed on the site)
+   - **Attach `architourian-pdf.zip` as a release asset** — WordPress installs
+     this exact built zip (mPDF bundled), not the source zipball.
+4. Within ~12 hours (or click "Check again" on the Plugins screen) every site
+   running an older version sees the update and can one-click install it.
+
+> The bundled update checker is [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker)
+> in `lib/`. `enableReleaseAssets()` is what makes WP use the attached zip.
+
 ## Design Notes
 
 - Font: Courier New (monospace) throughout, matching the original template

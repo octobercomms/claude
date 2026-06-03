@@ -18,8 +18,32 @@ define( 'AIPDF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AIPDF_URL', plugin_dir_url( __FILE__ ) );
 define( 'AIPDF_VENDOR', AIPDF_PATH . 'vendor/autoload.php' );
 
+// Public GitHub repo that publishes plugin Releases. WordPress checks this for
+// updates — keep it pointed at the PUBLIC mirror (no token needed on the site).
+define( 'AIPDF_UPDATE_REPO', 'https://github.com/octobercomms/architourian-pdf/' );
+
 require_once AIPDF_PATH . 'includes/class-settings.php';
 require_once AIPDF_PATH . 'includes/class-pdf-generator.php';
+
+/**
+ * Self-update from GitHub Releases.
+ *
+ * Shows "Update available" on the Plugins screen whenever a newer Release is
+ * published on the public repo above. enableReleaseAssets() makes WordPress
+ * install the exact built zip attached to the Release (mPDF bundled) rather
+ * than a bare source zipball.
+ */
+$aipdf_puc = AIPDF_PATH . 'lib/plugin-update-checker/plugin-update-checker.php';
+if ( is_admin() && file_exists( $aipdf_puc ) ) {
+	require_once $aipdf_puc;
+	$aipdf_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+		AIPDF_UPDATE_REPO,
+		__FILE__,
+		'architourian-pdf'
+	);
+	// Use the zip attached to each Release (built via build.sh), not the source zipball.
+	$aipdf_update_checker->getVcsApi()->enableReleaseAssets();
+}
 
 /**
  * Boot the plugin.
