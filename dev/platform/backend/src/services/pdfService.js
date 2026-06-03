@@ -787,6 +787,9 @@ async function generatePDFBuffer(htmlContent, options = {}) {
 module.exports = {
   generatePDF, generatePDFBuffer, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml,
   buildStrategistReportHtml,
+  // Exposed so ad-hoc exporters (chatExport) can wrap their own
+  // body content in the same branded shell as the scheduled reports.
+  getPageCSS, getLogoDataUri,
   // Exposed for callers that need to build bespoke PDFs (Strategist) using
   // the same fonts / page chrome as the standard reports.
   buildFontCSS, buildPrintHeaderTemplate, buildPrintFooterTemplate, getPageCSS,
