@@ -575,4 +575,38 @@ async function sendWaitlistSignup(email) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup };
+// Internal Strategist briefing email. Sent every Monday 07:00 by the
+// scheduler after the new briefing is generated, so the AM walks into
+// a punchlist instead of having to log in. Body is the markdown
+// rendered with marked; recommendations are surfaced as a checkbox-
+// looking list at the very top so the AM can scan what to do.
+async function sendStrategistBriefing({ to, clientName, period, markdown, recommendations = [], reportUrl }) {
+  if (!to || (Array.isArray(to) && !to.length)) return null;
+  const { marked } = require('marked');
+  const bodyHtml = marked.parse(markdown || '');
+  const recsHtml = recommendations.length
+    ? `<div style="border:1pt solid #E7CD41;background:#fffbe6;padding:14px 16px;border-radius:6px;margin:0 0 18px;">
+         <div style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Actions for the week</div>
+         <ol style="margin:0;padding-left:22px;">${recommendations.map(r => `<li style="margin-bottom:6px;">${escapeForTemplate(r)}</li>`).join('')}</ol>
+         ${reportUrl ? `<div style="margin-top:10px;font-size:12px;"><a href="${reportUrl}" style="color:#1a56db;">Open the briefing to tick these off →</a></div>` : ''}
+       </div>`
+    : '';
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#111;line-height:1.5;max-width:720px;margin:0 auto;padding:20px;">
+    <div style="border-bottom:1pt solid #000;padding-bottom:10px;margin-bottom:18px;">
+      <div style="font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1.5px;">Internal · For the AM</div>
+      <div style="font-size:18px;font-weight:700;margin-top:4px;">${escapeForTemplate(clientName)} — Strategist briefing</div>
+      <div style="font-size:12px;color:#888;margin-top:2px;">${escapeForTemplate(period || '')}</div>
+    </div>
+    ${recsHtml}
+    ${bodyHtml}
+  </body></html>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject: `${clientName} — Strategist briefing (${period})`,
+    html,
+    attachments: [logoAttachment()],
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing };

@@ -138,4 +138,45 @@ router.post('/clients/:clientId/reports/generate', async (req, res) => {
   }
 });
 
+// ─── Recommendation checklist ────────────────────────────────────
+// Each row in strategist_recommendations is one numbered item parsed
+// from the briefing's Recommendations section. AM ticks them off; next
+// week's briefing knows what was done.
+
+router.get('/reports/:id/actions', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, position, text, done, done_at, done_by, notes
+         FROM strategist_recommendations
+        WHERE report_id = $1 ORDER BY position ASC`,
+      [req.params.id]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/actions/:id', async (req, res) => {
+  const { done, notes } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE strategist_recommendations
+          SET done = COALESCE($1, done),
+              notes = COALESCE($2, notes),
+              done_at = CASE
+                WHEN $1 IS TRUE  AND done = false THEN NOW()
+                WHEN $1 IS FALSE THEN NULL
+                ELSE done_at END,
+              done_by = CASE
+                WHEN $1 IS TRUE  AND done = false THEN $3
+                WHEN $1 IS FALSE THEN NULL
+                ELSE done_by END
+        WHERE id = $4
+        RETURNING id, position, text, done, done_at, done_by, notes`,
+      [typeof done === 'boolean' ? done : null, notes ?? null, req.user?.id || null, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Action not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

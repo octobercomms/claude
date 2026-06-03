@@ -133,7 +133,7 @@ async function snapshot(clientId, start, end) {
   };
 }
 
-function buildPrompt({ client, current, previous, previousReport }) {
+function buildPrompt({ client, current, previous, previousReport, previousActions = [] }) {
   const hasMeta = current.meta.campaigns.length > 0;
   const hasGoogle = current.google.campaigns.length > 0;
   const platforms = [hasMeta && 'Meta Ads', hasGoogle && 'Google Ads'].filter(Boolean).join(' and ') || 'Meta Ads + Google Ads';
@@ -177,6 +177,13 @@ Generated on ${new Date(previousReport.generated_at).toISOString().slice(0,10)} 
 \`\`\`markdown
 ${previousReport.markdown}
 \`\`\`
+${previousActions && previousActions.length ? `
+# Previous recommendations — what the AM actually did
+
+You can grade follow-through. Use this to: (a) congratulate the AM on completed actions and report measurable impact in this period's data, and (b) re-raise any that were skipped IF the data still warrants action. Don't recycle items as fresh recommendations — frame them as "still open" / "now resolved" / "graded".
+
+${previousActions.map(a => `${a.position}. ${a.done ? '✅ DONE' : '⬜ NOT DONE'} — ${a.text}${a.notes ? `\n   (AM note: ${a.notes})` : ''}`).join('\n')}
+` : ''}
 ` : '# No previous Strategist report on file — this is the first.'}`;
 }
 
@@ -248,7 +255,21 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
     );
     const previousReport = priorRows[0] || null;
 
-    const prompt = buildPrompt({ client, current, previous, previousReport });
+    // Previous recommendations with done/notes state — passed to Claude
+    // so the next briefing can grade follow-through ("Last week you
+    // recommended X — done, here's the impact"; "you didn't act on Y —
+    // worth revisiting because…").
+    let previousActions = [];
+    if (previousReport) {
+      const { rows: actionRows } = await pool.query(
+        `SELECT position, text, done, notes FROM strategist_recommendations
+          WHERE report_id = $1 ORDER BY position ASC`,
+        [previousReport.id]
+      );
+      previousActions = actionRows;
+    }
+
+    const prompt = buildPrompt({ client, current, previous, previousReport, previousActions });
     const markdown = await callClaude({ system: SYSTEM_PROMPT, user: prompt });
 
     await pool.query(
@@ -257,6 +278,24 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
         WHERE id = $3`,
       [markdown, { current, previous }, reportId]
     );
+
+    // Parse the Recommendations section into individual rows so the AM
+    // can tick them off. Best-effort — if parsing finds nothing the
+    // briefing still renders normally, just without the checklist.
+    try {
+      const items = extractRecommendations(markdown);
+      if (items.length) {
+        const values = items.map((_t, i) => `($1, $2, ${i + 1}, $${i + 3})`).join(',');
+        await pool.query(
+          `INSERT INTO strategist_recommendations (report_id, client_id, position, text)
+           VALUES ${values}`,
+          [reportId, clientId, ...items]
+        );
+      }
+    } catch (parseErr) {
+      console.warn('[strategist] recommendation parse failed:', parseErr.message);
+    }
+
     return reportId;
   } catch (err) {
     await pool.query(
@@ -269,4 +308,41 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
   }
 }
 
-module.exports = { generate };
+// Pull the numbered Recommendations list out of the briefing markdown.
+// Looks for a heading containing "Recommendation" (or "Recommended
+// actions") and collects the numbered items beneath it until the next
+// heading. Returns the cleaned text of each item — no leading numbering.
+function extractRecommendations(markdown) {
+  if (!markdown) return [];
+  const lines = markdown.split('\n');
+  let inSection = false;
+  let buffer = '';
+  const items = [];
+  function flush() {
+    const t = buffer.trim();
+    if (t) items.push(t);
+    buffer = '';
+  }
+  for (const line of lines) {
+    const isHeading = /^#{1,6}\s/.test(line);
+    if (isHeading) {
+      if (inSection) { flush(); inSection = false; }
+      if (/^#{1,6}\s.*recommend/i.test(line)) inSection = true;
+      continue;
+    }
+    if (!inSection) continue;
+    const numStart = line.match(/^\s*\d+\.\s+(.*)$/);
+    if (numStart) {
+      flush();
+      buffer = numStart[1];
+    } else if (buffer && line.trim()) {
+      buffer += ' ' + line.trim();
+    } else if (!line.trim()) {
+      // blank line — keep accumulating across paragraphs within an item
+    }
+  }
+  flush();
+  return items.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+}
+
+module.exports = { generate, extractRecommendations };
