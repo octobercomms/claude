@@ -1,0 +1,1683 @@
+import React, { useState, useEffect } from 'react';
+import { api } from '../utils/api';
+import ImportWizard from '../components/ImportWizard';
+import EditContactModal from '../components/EditContactModal';
+import ManageUsersPage from './ManageUsersPage';
+
+const KEY_GROUPS = [
+  {
+    title: 'Claude AI',
+    category: 'AI & Email',
+    hint: 'Used for generating executive summaries, social posts, ad creative and report narratives. The Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API; without it, Anthropic spend is tracked via your dashboard.',
+    keys: [
+      { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
+      { key: 'ANTHROPIC_ADMIN_KEY', label: 'Anthropic Admin Key (optional — for cost tracking)', placeholder: 'sk-ant-admin-…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Replicate (Flux 1.1 Pro)',
+    category: 'AI & Email',
+    hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',
+    keys: [
+      { key: 'REPLICATE_API_TOKEN', label: 'Replicate API Token', placeholder: 'r8_…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Ideogram',
+    category: 'AI & Email',
+    hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
+    keys: [
+      { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Adobe (Firefly + Photoshop)',
+    category: 'AI & Email',
+    hint: 'Third image option, commercially-safe training data — good for regulated clients. Photoshop generative resize fans one image out to every aspect ratio. Set up a Firefly Services project at developer.adobe.com → Console.',
+    keys: [
+      { key: 'ADOBE_CLIENT_ID', label: 'Adobe Client ID', placeholder: '…', type: 'text' },
+      { key: 'ADOBE_CLIENT_SECRET', label: 'Adobe Client Secret', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Arcads (UGC video)',
+    category: 'AI & Email',
+    hint: 'UGC-style talking-head video from a script. ~$2 per video. Used per-post on the Social tab — the storyboard\'s voiceover lines become the script by default.',
+    keys: [
+      { key: 'ARCADS_API_KEY', label: 'Arcads API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'ElevenLabs (voiceover)',
+    category: 'AI & Email',
+    hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
+    keys: [
+      { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Apify (TikTok trending sounds)',
+    category: 'AI & Email',
+    hint: 'Powers the "Refresh trending sounds" action on the Social tab. ~$0.25 per scrape; cached for 7 days so weekly refreshes are plenty.',
+    keys: [
+      { key: 'APIFY_API_TOKEN', label: 'Apify API Token', placeholder: 'apify_api_…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Email Provider',
+    category: 'AI & Email',
+    hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',
+    keys: [
+      { key: 'EMAIL_PROVIDER', label: 'Provider', placeholder: 'gmail or ses', type: 'text' },
+    ],
+  },
+  {
+    title: 'Gmail SMTP',
+    category: 'AI & Email',
+    hint: 'Used when EMAIL_PROVIDER is set to "gmail". Requires a Gmail App Password — Google Account → Security → 2-Step Verification → App passwords.',
+    keys: [
+      { key: 'GMAIL_USER', label: 'Gmail Address', placeholder: 'octobercommsreports@gmail.com', type: 'text' },
+      { key: 'GMAIL_APP_PASSWORD', label: 'Gmail App Password', placeholder: 'xxxx xxxx xxxx xxxx', type: 'password' },
+    ],
+  },
+  {
+    title: 'Amazon SES',
+    category: 'AI & Email',
+    hint: 'Amazon SES handles report email (SMTP) and outreach (preferred via the SES API). Set the API access keys for outreach — they enable the SESv2 path which is lower latency than SMTP and gives better error responses. Keep the SMTP credentials too for the report transport.',
+    keys: [
+      { key: 'SES_FROM_EMAIL', label: 'From Email (verified in SES)', placeholder: 'reports@octobercomms.com', type: 'text' },
+      { key: 'SES_REGION', label: 'AWS Region', placeholder: 'eu-west-1', type: 'text' },
+      { key: 'SES_ACCESS_KEY_ID', label: 'API Access Key ID (preferred for outreach)', placeholder: 'AKIA…', type: 'text' },
+      { key: 'SES_SECRET_ACCESS_KEY', label: 'API Secret Access Key', placeholder: '…', type: 'password' },
+      { key: 'SES_SMTP_USER', label: 'SMTP Username (used by report email)', placeholder: 'AKIA…', type: 'text' },
+      { key: 'SES_SMTP_PASS', label: 'SMTP Password', placeholder: '…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Google OAuth',
+    category: 'Ad Platforms',
+    hint: 'Required for GA4, Google Search Console, Google Ads and Merchant Center connectors. Create credentials at console.cloud.google.com.',
+    keys: [
+      { key: 'GOOGLE_CLIENT_ID', label: 'Client ID', placeholder: '…apps.googleusercontent.com', type: 'text' },
+      { key: 'GOOGLE_CLIENT_SECRET', label: 'Client Secret', placeholder: 'GOCSPX-…', type: 'password' },
+    ],
+  },
+  {
+    title: 'Google Ads',
+    category: 'Ad Platforms',
+    hint: 'Optional. A developer token enables automatic account discovery for Google Ads connectors. Apply at ads.google.com → Tools → API Center. Without it, enter Customer IDs manually in the connector.',
+    keys: [
+      { key: 'GOOGLE_ADS_DEVELOPER_TOKEN', label: 'Developer Token', placeholder: 'ABcDEF…', type: 'password' },
+      { key: 'GOOGLE_ADS_MCC_ID', label: 'Manager Account ID (MCC)', placeholder: 'e.g. 1234567890', type: 'text' },
+    ],
+  },
+  {
+    title: 'Meta',
+    category: 'Ad Platforms',
+    hint: 'Required for Meta Ads and Instagram connectors. Create an app at developers.facebook.com, then add the redirect URL below to the app\'s App Domains (Settings → Basic) and Valid OAuth Redirect URIs (Facebook Login for Business → Settings).',
+    scopes: {
+      label: 'Required permissions (App Review)',
+      help: 'Paste these into the App Review request in Meta for Developers — see platform/backend/src/connectors/meta.js for the source of truth.',
+      values: [
+        'ads_read', 'read_insights', 'instagram_basic',
+        'instagram_manage_insights', 'pages_read_engagement', 'business_management',
+      ],
+    },
+    keys: [
+      { key: 'META_APP_ID', label: 'App ID', placeholder: '1234567890', type: 'text' },
+      { key: 'META_APP_SECRET', label: 'App Secret', placeholder: '…', type: 'password' },
+      { key: 'META_REDIRECT_URI', label: 'Redirect URI (must match Meta app config)', placeholder: 'https://your-platform.com/auth/meta/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'Shopify',
+    category: 'Ecommerce & Inventory',
+    hint: 'Required for Shopify connectors. Create one app in the Shopify Partners dashboard (partners.shopify.com → Apps → Create app). Either "Public" distribution (works for any store) or "Custom" distribution with each client store added to the allow-list. Set the redirect URL to your platform URL + /auth/shopify/callback. One app + one set of API keys works for every client store — each store just runs the install flow with the same credentials.',
+    scopes: {
+      label: 'Required access scopes',
+      help: 'Paste these into the app\'s Configuration → Access scopes section in the Shopify Partners dashboard. Source of truth: platform/backend/src/connectors/shopify.js.',
+      values: [
+        'read_orders', 'read_all_orders', 'read_products', 'read_customers',
+        'read_analytics', 'read_reports', 'read_marketing_events',
+        'read_inventory', 'read_fulfillments', 'read_shipping',
+        'read_price_rules', 'read_discounts', 'read_draft_orders',
+      ],
+    },
+    keys: [
+      { key: 'SHOPIFY_CLIENT_ID', label: 'API Key (Client ID)', placeholder: 'a1b2c3d4e5f6…', type: 'text' },
+      { key: 'SHOPIFY_CLIENT_SECRET', label: 'API Secret (Client Secret)', placeholder: 'shpss_…', type: 'password' },
+      { key: 'SHOPIFY_REDIRECT_URI', label: 'Redirect URI (must match Shopify app config)', placeholder: 'https://your-platform.com/auth/shopify/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'Amazon SP-API',
+    category: 'Ecommerce & Inventory',
+    hint: null,
+    note: 'Amazon SP-API requires a registered developer application approved by Amazon before credentials can be generated. This is a separate process from standard API key setup.',
+    keys: [
+      { key: 'AMAZON_CLIENT_ID', label: 'Client ID', placeholder: 'amzn1.application-oa2-client.…', type: 'text' },
+      { key: 'AMAZON_CLIENT_SECRET', label: 'Client Secret', placeholder: 'Client secret from LWA credentials', type: 'password' },
+    ],
+  },
+  {
+    title: 'Zoho Inventory',
+    category: 'Ecommerce & Inventory',
+    hint: 'Required for Zoho Inventory connectors. Create an OAuth app at api-console.zoho.com → Server-based Applications. Set the redirect URL to your platform URL + /auth/zoho/callback.',
+    keys: [
+      { key: 'ZOHO_CLIENT_ID', label: 'Client ID', placeholder: '1000.XXXXXXXX', type: 'text' },
+      { key: 'ZOHO_CLIENT_SECRET', label: 'Client Secret', placeholder: '…', type: 'password' },
+      { key: 'ZOHO_REDIRECT_URI', label: 'Redirect URI (must match Zoho app config)', placeholder: 'https://your-platform.com/auth/zoho/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'DataForSEO',
+    category: 'SEO',
+    hint: 'Keyword rank tracking, backlinks and search volume. Copy the API login and password from app.dataforseo.com/api-access — the API password is not your dashboard login password.',
+    test: 'dataforseo',
+    keys: [
+      { key: 'DATAFORSEO_LOGIN', label: 'API login (email)', placeholder: 'you@example.com', type: 'text' },
+      { key: 'DATAFORSEO_PASSWORD', label: 'API password', placeholder: 'From app.dataforseo.com/api-access', type: 'password' },
+    ],
+  },
+  {
+    title: 'October Outreach',
+    category: 'Outreach',
+    hint: 'Contact-finding APIs for the Outreach module. Hunter and Serper each need one key. Icypeas needs all three (API Key, API Secret and User ID) — copy them from icypeas.com → Settings → API.',
+    keys: [
+      { key: 'HUNTER_API_KEY', label: 'Hunter API Key', placeholder: 'Hunter.io API key', type: 'password' },
+      { key: 'ICYPEAS_API_KEY', label: 'Icypeas API Key', placeholder: 'Icypeas API key', type: 'password' },
+      { key: 'ICYPEAS_API_SECRET', label: 'Icypeas API Secret', placeholder: 'Icypeas API secret', type: 'password' },
+      { key: 'ICYPEAS_USER_ID', label: 'Icypeas User ID', placeholder: 'Icypeas account user ID', type: 'text' },
+      { key: 'SERPER_API_KEY', label: 'Serper API Key', placeholder: 'Serper.dev API key', type: 'password' },
+    ],
+  },
+  {
+    title: 'Outreach Reply Inbox',
+    category: 'Outreach',
+    hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies, classify them with Claude, and stop follow-ups automatically.',
+    keys: [
+      { key: 'OUTREACH_IMAP_HOST', label: 'IMAP Host', placeholder: 'e.g. imap.gmail.com', type: 'text' },
+      { key: 'OUTREACH_IMAP_PORT', label: 'IMAP Port', placeholder: '993', type: 'text' },
+      { key: 'OUTREACH_IMAP_USER', label: 'IMAP User', placeholder: 'replies@example.com', type: 'text' },
+      { key: 'OUTREACH_IMAP_PASSWORD', label: 'IMAP Password', placeholder: 'App password', type: 'password' },
+    ],
+  },
+  {
+    title: 'Outreach Sending Domain',
+    category: 'Outreach',
+    hint: 'Used for SPF / DMARC health checks on the dashboard. A dedicated subdomain (e.g. outreach.yourbrand.com) keeps cold-email reputation separate from your main mail domain. Reply-to is the inbox replies should go to — usually the same as the IMAP user above.',
+    keys: [
+      { key: 'OUTREACH_SENDING_DOMAIN', label: 'Sending Domain', placeholder: 'outreach.yourbrand.com', type: 'text' },
+      { key: 'OUTREACH_DEFAULT_REPLY_TO', label: 'Default Reply-To Address', placeholder: 'replies@yourbrand.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'n8n Integration',
+    category: 'Other',
+    hint: 'Set your n8n instance URL to enable webhook-triggered data pulls.',
+    keys: [
+      { key: 'N8N_WEBHOOK_BASE_URL', label: 'Webhook Base URL', placeholder: 'https://your-n8n.example.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'Alerts',
+    category: 'Other',
+    hint: 'Email address for platform alerts — connector failures, token expiry, and daily health check summaries.',
+    keys: [
+      { key: 'ALERT_EMAIL', label: 'Alert Email', placeholder: 'you@octobercomms.com', type: 'text' },
+    ],
+  },
+  {
+    title: 'Report Footer',
+    category: 'Other',
+    hint: 'Three lines printed at the bottom of every report PDF, beneath the "Page X of Y" line. Edit any time. Leave blank to use the built-in October defaults. Header is locked.',
+    keys: [
+      { key: 'REPORT_FOOTER_LINE_1', label: 'Footer line 1', placeholder: 'Private & Confidential · October Communications Ltd.', type: 'text' },
+      { key: 'REPORT_FOOTER_LINE_2', label: 'Footer line 2', placeholder: 'Company No. 8816416 · VAT Registration No. GB 176 6335 82 · Registered in England and Wales', type: 'text' },
+      { key: 'REPORT_FOOTER_LINE_3', label: 'Footer line 3', placeholder: '85 Great Portland Street, First Floor, London W1W 7LT · www.octobercomms.com', type: 'text' },
+    ],
+  },
+];
+
+// Top-level categories displayed as collapsible cards in a responsive grid.
+const CATEGORIES = [
+  { title: 'AI & Email', description: 'Claude for report generation; email transport for reports and outreach.', hasTestEmail: true },
+  { title: 'Ad Platforms', description: 'Google Ads, Meta Ads and Instagram Insights.' },
+  { title: 'Ecommerce & Inventory', description: 'Shopify, Amazon Seller and Zoho Inventory.' },
+  { title: 'SEO', description: 'Keyword rank tracking, backlinks and search volume.' },
+  { title: 'Outreach', description: 'Contact-finding, AI-drafted emails and reply tracking for cold outreach.' },
+  { title: 'Other', description: 'Webhooks and platform alerts.' },
+];
+
+export default function SettingsPage() {
+  const [values, setValues] = useState({});
+  const [revealed, setRevealed] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState({});
+  const [savingSection, setSavingSection] = useState(null);
+  const [sectionResult, setSectionResult] = useState(null);
+  const [testEmail, setTestEmail] = useState('');
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testMsg, setTestMsg] = useState('');
+  const [account, setAccount] = useState({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [savingAccount, setSavingAccount] = useState(false);
+  const [accountMsg, setAccountMsg] = useState('');
+  const [testingDfs, setTestingDfs] = useState(false);
+  const [dfsTestMsg, setDfsTestMsg] = useState(null);
+  const [openCategories, setOpenCategories] = useState({});
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'general');
+
+  function switchTab(next) {
+    setTab(next);
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', next);
+    window.history.replaceState(null, '', url.toString());
+  }
+
+  // initialValues captures what came back from GET /platform-keys so the
+  // save handler can tell "this field was already empty" from "this field
+  // was just cleared by the AM" and only post the latter as a delete.
+  const [initialValues, setInitialValues] = useState({});
+
+  useEffect(() => {
+    api.get('/settings/platform-keys').then(data => {
+      setValues(data);
+      setInitialValues(data);
+    });
+    api.get('/settings/account').then(data => setAccount(prev => ({ ...prev, username: data.username || '' }))).catch(() => {});
+  }, []);
+
+  async function toggleReveal(key) {
+    if (!revealed) {
+      const data = await api.get('/settings/platform-keys/values');
+      setValues(data);
+      setRevealed(true);
+    }
+    setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }));
+  }
+
+  function handleChange(key, val) {
+    setValues(prev => ({ ...prev, [key]: val }));
+  }
+
+  function toggleCategory(title) {
+    setOpenCategories(prev => ({ ...prev, [title]: !prev[title] }));
+  }
+
+  async function handleSaveSection(group) {
+    setSavingSection(group.title);
+    setSectionResult(null);
+    try {
+      const body = {};
+      let changed = 0;
+      for (const k of group.keys) {
+        const cur = (values[k.key] == null ? '' : values[k.key]);
+        const init = (initialValues[k.key] == null ? '' : initialValues[k.key]);
+        if (cur === init) continue;        // untouched
+        if (cur === '••••••••') continue;  // still masked; nothing to send
+        // Send the new value (or '' meaning "clear it"); backend handles both.
+        body[k.key] = cur;
+        changed++;
+      }
+      if (changed === 0) {
+        setSectionResult({ title: group.title, ok: false, message: 'No changes to save' });
+        return;
+      }
+      await api.post('/settings/platform-keys', body);
+      const fresh = await api.get('/settings/platform-keys');
+      setValues(fresh);
+      setInitialValues(fresh);
+      setVisibleKeys({});
+      setSectionResult({ title: group.title, ok: true, message: 'Saved' });
+      setTimeout(() => setSectionResult(r => (r && r.title === group.title ? null : r)), 4000);
+    } catch (err) {
+      setSectionResult({ title: group.title, ok: false, message: err.message });
+    } finally {
+      setSavingSection(null);
+    }
+  }
+
+  async function handleSaveAccount(e) {
+    e.preventDefault();
+    if (account.newPassword && account.newPassword !== account.confirmPassword) {
+      setAccountMsg('New passwords do not match.');
+      return;
+    }
+    setSavingAccount(true);
+    setAccountMsg('');
+    try {
+      await api.post('/settings/account', {
+        username: account.username,
+        currentPassword: account.currentPassword,
+        newPassword: account.newPassword || undefined,
+      });
+      setAccountMsg('Account updated.');
+      setAccount(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
+    } catch (err) {
+      setAccountMsg(`Error: ${err.message}`);
+    } finally {
+      setSavingAccount(false);
+    }
+  }
+
+  async function handleTestEmail(e) {
+    e.preventDefault();
+    setSendingTest(true);
+    setTestMsg('');
+    try {
+      await api.post('/settings/test-email', { to: testEmail });
+      setTestMsg('Test email sent successfully.');
+    } catch (err) {
+      setTestMsg(`Error: ${err.message}`);
+    } finally {
+      setSendingTest(false);
+    }
+  }
+
+  async function handleTestDataForSEO() {
+    setTestingDfs(true);
+    setDfsTestMsg(null);
+    try {
+      const result = await api.post('/settings/test-dataforseo', {
+        login: values.DATAFORSEO_LOGIN,
+        password: values.DATAFORSEO_PASSWORD,
+      });
+      setDfsTestMsg(result);
+    } catch (err) {
+      setDfsTestMsg({ ok: false, message: err.message });
+    } finally {
+      setTestingDfs(false);
+    }
+  }
+
+  return (
+    <div>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Settings</h1>
+
+      <div style={styles.tabStrip}>
+        {[
+          { key: 'general', label: 'General' },
+          { key: 'contacts', label: 'Contacts' },
+          { key: 'tags', label: 'Tags' },
+          { key: 'users', label: 'Users & access' },
+        ].map(t => (
+          <button key={t.key} onClick={() => switchTab(t.key)}
+            style={tab === t.key ? styles.tabBtnActive : styles.tabBtn}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'contacts' && <ContactsLibrary />}
+      {tab === 'tags' && <TagsManager />}
+      {tab === 'users' && <ManageUsersPage embedded />}
+      {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && (<>
+      <CostsPanel />
+
+      {/* Always-visible essentials: platform info + account */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start', marginBottom: 16 }}>
+        <Card>
+          <CardTitle>Platform</CardTitle>
+          <InfoRow label="Platform URL" value={window.location.origin} />
+          <InfoRow label="Environment" value={import.meta.env.MODE} />
+        </Card>
+
+        <Card>
+          <CardTitle>Account</CardTitle>
+          <p style={styles.hint}>Change your login username or password.</p>
+          <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+            <Field label="Username">
+              <input type="text" style={styles.input} value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
+            </Field>
+            <Field label="Current Password">
+              <input type="password" style={styles.input} value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
+            </Field>
+            <Field label={<>New Password <span style={{ fontWeight: 400, textTransform: 'none', color: '#888' }}>(leave blank to keep current)</span></>}>
+              <input type="password" style={styles.input} value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
+            </Field>
+            {account.newPassword && (
+              <Field label="Confirm New Password">
+                <input type="password" style={styles.input} value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
+              </Field>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <button type="submit" style={styles.btn} disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
+              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{accountMsg}</span>}
+            </div>
+          </form>
+        </Card>
+      </div>
+
+      <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>
+        Tap a category to expand its integrations. Each block has its own Save button.
+      </p>
+
+      {/* Categorised integration cards — collapsible, multi-column grid */}
+      <form onSubmit={e => e.preventDefault()} autoComplete="off">
+        {/* Dummy fields to prevent browser autofill from hitting real inputs */}
+        <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
+        <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+          {CATEGORIES.map(cat => {
+            const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
+            const open = !!openCategories[cat.title];
+            const configuredCount = groupsInCat.filter(g => g.keys.some(k => values[k.key] === '••••••••')).length;
+
+            return (
+              <Card key={cat.title}>
+                <button
+                  type="button"
+                  onClick={() => toggleCategory(cat.title)}
+                  style={styles.categoryToggle}
+                >
+                  <div>
+                    <div style={styles.categoryTitle}>{cat.title}</div>
+                    {cat.description && <div style={styles.categoryDesc}>{cat.description}</div>}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={styles.countPill}>{configuredCount} / {groupsInCat.length}</span>
+                    <span style={{ fontSize: 14, color: '#666' }}>{open ? '▾' : '▸'}</span>
+                  </div>
+                </button>
+
+                {open && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16 }}>
+                    {groupsInCat.map(group => (
+                      <div key={group.title} style={styles.subSection}>
+                        <div style={styles.subSectionTitle}>{group.title}</div>
+                        {group.hint && <p style={styles.hint}>{group.hint}</p>}
+                        {group.note && (
+                          <div style={styles.note}><strong>Developer app required.</strong> {group.note}</div>
+                        )}
+                        {group.scopes && <ScopesBlock scopes={group.scopes} />}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
+                          {group.keys.map(({ key, label, placeholder, type }) => (
+                            <div key={key} style={styles.field}>
+                              <label style={styles.label}>{label}</label>
+                              <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <input
+                                  type={visibleKeys[key] ? 'text' : type}
+                                  style={{ ...styles.input, flex: 1 }}
+                                  value={values[key] === '••••••••' ? '' : (values[key] || '')}
+                                  placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
+                                  onChange={e => handleChange(key, e.target.value)}
+                                  autoComplete="new-password"
+                                />
+                                {type === 'password' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleReveal(key)}
+                                    style={styles.eyeBtn}
+                                    title={visibleKeys[key] ? 'Hide' : 'Show'}
+                                  >
+                                    {visibleKeys[key] ? '🙈' : '👁️'}
+                                  </button>
+                                )}
+                              </div>
+                              <span style={styles.envHint}><code>{key}</code></span>
+                            </div>
+                          ))}
+                        </div>
+                        {group.test === 'dataforseo' && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
+                                style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }}>
+                                {testingDfs ? 'Testing…' : 'Test connection'}
+                              </button>
+                              {dfsTestMsg && (
+                                <span style={{ fontSize: 12, color: dfsTestMsg.ok ? '#2e7d32' : '#c62828' }}>
+                                  {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
+                                </span>
+                              )}
+                            </div>
+                            {dfsTestMsg && dfsTestMsg.sent && (
+                              <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
+                                Sent login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} chars ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO code ${dfsTestMsg.code}` : ''}.
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+                          <button type="button" onClick={() => handleSaveSection(group)} disabled={savingSection === group.title}
+                            style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }}>
+                            {savingSection === group.title ? 'Saving…' : 'Save'}
+                          </button>
+                          {sectionResult && sectionResult.title === group.title && (
+                            <span style={{ fontSize: 12, fontWeight: 600, color: sectionResult.ok ? '#2e7d32' : '#c62828' }}>
+                              {sectionResult.ok ? '✓ Saved' : `✗ ${sectionResult.message}`}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+
+                    {cat.hasTestEmail && (
+                      <div style={styles.subSection}>
+                        <div style={styles.subSectionTitle}>Send Test Email</div>
+                        <p style={styles.hint}>Verify your email provider after saving credentials above.</p>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+                          <input
+                            type="email" placeholder="Send test email to…"
+                            value={testEmail} onChange={e => setTestEmail(e.target.value)}
+                            style={{ ...styles.input, flex: '1 1 200px' }}
+                          />
+                          <button type="button" onClick={handleTestEmail} style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }} disabled={sendingTest}>
+                            {sendingTest ? 'Sending…' : 'Send Test'}
+                          </button>
+                        </div>
+                        {testMsg && <div style={{ marginTop: 6, fontSize: 12, color: testMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{testMsg}</div>}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </form>
+      </>)}
+    </div>
+  );
+}
+
+function ScopesBlock({ scopes }) {
+  const [copied, setCopied] = useState(false);
+  const csv = scopes.values.join(',');
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(csv);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  }
+  return (
+    <div style={styles.scopes}>
+      <div style={styles.scopesHead}>
+        <div>
+          <div style={styles.scopesLabel}>{scopes.label}</div>
+          {scopes.help && <div style={styles.scopesHelp}>{scopes.help}</div>}
+        </div>
+        <button type="button" onClick={copy} style={styles.scopesCopyBtn}>
+          {copied ? '✓ Copied' : 'Copy all'}
+        </button>
+      </div>
+      <code style={styles.scopesCode}>{csv}</code>
+      <div style={styles.scopesChips}>
+        {scopes.values.map(s => (
+          <span key={s} style={styles.scopeChip}>{s}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CostsPanel() {
+  const [rows, setRows] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [err, setErr] = useState(null);
+
+  async function load() {
+    try { setRows(await api.get('/settings/usage')); }
+    catch (e) { setErr(e.message); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function refresh() {
+    setRefreshing(true);
+    setErr(null);
+    try {
+      const { snapshots } = await api.post('/settings/usage/refresh', {});
+      setRows(snapshots);
+    } catch (e) { setErr(e.message); }
+    finally { setRefreshing(false); }
+  }
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <div>
+          <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
+          <p style={styles.hint}>Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
+        </div>
+        <button onClick={refresh} disabled={refreshing} style={{ ...styles.btn, padding: '6px 14px' }}>
+          {refreshing ? 'Polling…' : 'Refresh now'}
+        </button>
+      </div>
+      {err && <div style={{ color: '#c62828', fontSize: 12, marginBottom: 8 }}>{err}</div>}
+      {!rows && <div style={{ color: '#888', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {rows && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+          {rows.map(r => <ProviderCard key={r.name} entry={r} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderCard({ entry }) {
+  const s = entry.snapshot;
+  let body, statusColour = '#888';
+  if (!s) {
+    body = <div style={{ fontSize: 12, color: '#999' }}>No data yet — click Refresh.</div>;
+  } else if (s.status === 'no_credentials') {
+    body = <div style={{ fontSize: 12, color: '#bbb' }}>Not configured</div>;
+  } else if (s.status === 'error') {
+    body = <div style={{ fontSize: 12, color: '#c62828' }}>{s.error_message || 'Error'}</div>;
+    statusColour = '#c62828';
+  } else {
+    body = (
+      <div>
+        {s.cost_this_period != null && (
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+            {fmtCurrency(s.cost_this_period, s.currency)}
+            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>this month</span>
+          </div>
+        )}
+        {s.cost_this_period == null && s.balance_remaining != null && (
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+            {fmtCurrency(s.balance_remaining, s.currency)}
+            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+          </div>
+        )}
+        {s.units_used != null && (
+          <div style={{ fontSize: 13, color: '#333', marginTop: 2 }}>
+            {s.units_used.toLocaleString()}{s.units_limit ? ` / ${s.units_limit.toLocaleString()}` : ''}{' '}
+            <span style={{ color: '#888' }}>{s.unit_label || ''}</span>
+          </div>
+        )}
+        {(s.cost_this_period == null && s.balance_remaining == null && s.units_used == null) && (
+          <div style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>
+            {s.raw?.note || 'Configured — no balance API.'}
+          </div>
+        )}
+        <div style={{ fontSize: 10, color: '#aaa', marginTop: 6 }}>
+          {s.snapshot_at ? `Updated ${new Date(s.snapshot_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
+        </div>
+      </div>
+    );
+    statusColour = '#1d7a3a';
+  }
+  return (
+    <div style={{ border: '1px solid #eee', borderRadius: 4, padding: 12, position: 'relative' }}>
+      <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
+      <div style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
+      {body}
+    </div>
+  );
+}
+
+function fmtCurrency(value, currency) {
+  if (value == null) return '—';
+  const c = currency || 'USD';
+  try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: c, maximumFractionDigits: 2 }).format(value); }
+  catch { return `${c} ${value.toFixed(2)}`; }
+}
+
+function Card({ children }) {
+  return <div style={styles.card}>{children}</div>;
+}
+function CardTitle({ children }) {
+  return <h2 style={styles.cardTitle}>{children}</h2>;
+}
+function Field({ label, children }) {
+  return (
+    <div style={styles.field}>
+      <label style={styles.label}>{label}</label>
+      {children}
+    </div>
+  );
+}
+function InfoRow({ label, value }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
+      <span style={{ color: '#666' }}>{label}</span>
+      <code style={{ color: '#1a1a1a' }}>{value}</code>
+    </div>
+  );
+}
+
+// Workspace-wide contact library. The same contact (one row here) can be
+// attached to many clients via outreach_contact_clients; this view shows
+// every contact with the count + names of the clients they're attached to.
+function ContactsLibrary() {
+  const [rows, setRows] = useState(null);
+  const [clients, setClients] = useState([]);
+  const [tags, setTags] = useState([]);
+  const [search, setSearch] = useState('');
+  const [activeTags, setActiveTags] = useState(() => new Set());
+  const [selected, setSelected] = useState(() => new Set());
+  const [err, setErr] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [openContact, setOpenContact] = useState(null);
+  const [tidyOpen, setTidyOpen] = useState(false);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [bulkTagInput, setBulkTagInput] = useState('');
+  const [tagSearch, setTagSearch] = useState('');
+  const [tagsExpanded, setTagsExpanded] = useState(false);
+  const [bulkTagsToAdd, setBulkTagsToAdd] = useState(() => new Set());
+
+  // Filter state lives in the URL params we send to the server — with
+  // 21k+ contacts in the library the old client-side filter was lying
+  // (it only filtered the first 1000 returned). Now the server applies
+  // search + tags and returns both the page (capped at 1000) and the
+  // unbounded match count so the "delete all matching" button is
+  // honest about how much it's about to wipe.
+  const [total, setTotal] = useState(0);
+
+  function buildFilterParams() {
+    const p = new URLSearchParams();
+    p.set('include_totals', '1');
+    p.set('include_count', '1');
+    if (search.trim()) p.set('search', search.trim());
+    if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
+    return p;
+  }
+
+  // Filter parts sent to the server for the by-filter delete — same
+  // shape as the list endpoint expects.
+  function filterBody() {
+    const o = {};
+    if (search.trim()) o.search = search.trim();
+    if (activeTags.size) o.tags_all = Array.from(activeTags);
+    return o;
+  }
+
+  useEffect(() => {
+    Promise.all([
+      api.get('/clients'),
+      api.get('/outreach/tags'),
+    ]).then(([cs, ts]) => {
+      setClients(cs);
+      setTags(ts);
+    }).catch(e => setErr(e.message));
+  }, []);
+
+  // Refetch the list when filter changes, debounced.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      try {
+        const res = await api.get(`/outreach/contacts/library?${buildFilterParams().toString()}`);
+        setRows(res.rows || []);
+        setTotal(res.total ?? (res.rows?.length || 0));
+        setSelected(new Set());
+      } catch (e) { setErr(e.message); }
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, activeTags]);
+
+  async function reload() {
+    try {
+      const res = await api.get(`/outreach/contacts/library?${buildFilterParams().toString()}`);
+      setRows(res.rows || []);
+      setTotal(res.total ?? (res.rows?.length || 0));
+      setSelected(new Set());
+      // Tags may have changed (bulk-tag adds new ones) — refresh chips too.
+      api.get('/outreach/tags').then(setTags).catch(() => {});
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function exportCsv() {
+    // Stream the export via the existing api.raw helper so the Bearer
+    // token rides along; convert to a Blob and trigger a download.
+    // Server-side endpoint walks every match (no 1000-row cap) so the
+    // CSV reflects the filtered total, not just what's on screen.
+    try {
+      const qs = buildFilterParams();
+      qs.delete('include_totals'); qs.delete('include_count');
+      const res = await api.raw(`/outreach/contacts/library/export.csv?${qs.toString()}`);
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `contacts-library-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a); a.click();
+      document.body.removeChild(a); URL.revokeObjectURL(url);
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function destroyAllMatching() {
+    if (!total) return;
+    const filterDesc = (search.trim() ? `matching "${search.trim()}"` : '') +
+      (activeTags.size ? ` tagged ${Array.from(activeTags).join(' + ')}` : '') ||
+      'in the entire library';
+    if (!confirm(`Delete all ${total.toLocaleString()} contacts ${filterDesc.trim()} from the library? This removes them from every client they were attached to and CANNOT be undone.`)) return;
+    if (total > 100) {
+      const typed = prompt(`This will delete ${total.toLocaleString()} contacts. Type DELETE to confirm.`);
+      if (typed !== 'DELETE') return;
+    }
+    try {
+      const res = await api.post('/outreach/contacts/library/delete-by-filter', {
+        ...filterBody(),
+        expected_count: total,
+      });
+      setInfo(`Deleted ${res.deleted.toLocaleString()} contact${res.deleted === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
+  }
+
+  function toggleTag(t) {
+    setActiveTags(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t); else next.add(t);
+      return next;
+    });
+  }
+
+  function toggleRow(id) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    if (!filtered) return;
+    if (selected.size === filtered.length) setSelected(new Set());
+    else setSelected(new Set(filtered.map(r => r.id)));
+  }
+
+  async function attachTo(clientId) {
+    if (!selected.size) return;
+    try {
+      await api.post(`/outreach/clients/${clientId}/contacts/attach`, { contact_ids: Array.from(selected) });
+      setAttachOpen(false);
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  async function destroyContacts() {
+    if (!selected.size) return;
+    if (!confirm(`Delete ${selected.size} contact${selected.size === 1 ? '' : 's'} from the library entirely? This also removes them from every client they were attached to.`)) return;
+    try {
+      await api.post('/outreach/contacts/bulk-delete', { ids: Array.from(selected) });
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  async function destroyOne(contactId) {
+    if (!confirm('Delete this contact from the library entirely? This removes them from every client they were attached to.')) return;
+    try {
+      await api.delete(`/outreach/contacts/${contactId}`);
+      await reload();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+
+  function addBulkTag(t) {
+    const norm = String(t || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+    if (!norm) return;
+    setBulkTagsToAdd(prev => new Set([...prev, norm]));
+    setBulkTagInput('');
+  }
+
+  async function applyBulkTags() {
+    if (!selected.size || !bulkTagsToAdd.size) return;
+    try {
+      await api.post('/outreach/contacts/bulk-tags', {
+        ids: Array.from(selected),
+        add: Array.from(bulkTagsToAdd),
+      });
+      setBulkTagsOpen(false);
+      setBulkTagsToAdd(new Set());
+      await reload();
+      setInfo(`Tagged ${selected.size} contact${selected.size === 1 ? '' : 's'}.`);
+    } catch (e) { setErr(e.message); }
+  }
+
+  const clientNameById = Object.fromEntries(clients.map(c => [c.id, c.name]));
+  // Server already applied search + tags filters; just use the rows we got.
+  const filtered = rows;
+
+  return (
+    <div>
+      <ImportWizard
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        allowClients
+        onImported={async () => {
+          await reload();
+        }}
+      />
+      {openContact && (
+        <EditContactModal
+          contact={openContact}
+          onClose={() => setOpenContact(null)}
+          onSaved={async () => { await reload(); }}
+        />
+      )}
+      <ContactTidyModal
+        open={tidyOpen}
+        onClose={() => setTidyOpen(false)}
+        filterBody={filterBody()}
+        totalInFilter={total}
+        onApplied={async () => { await reload(); }}
+      />
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <CardTitle>Contacts</CardTitle>
+            <p style={styles.hint}>
+              One workspace-wide list of contacts. Each contact can be attached to as many clients
+              as you like — a journalist who unsubscribes from one client's emails stays subscribed
+              to the others.
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={() => setTidyOpen(true)} style={styles.ghostBtn}
+              title="Ask Claude to spot fixes on the contacts matching the current filter">
+              ✨ Tidy with Claude
+            </button>
+            <button onClick={exportCsv} disabled={!total} style={styles.ghostBtn}
+              title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
+              ↓ Export CSV
+            </button>
+            <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
+          <input
+            placeholder="Search by name, email or outlet…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ ...styles.input, flex: '1 1 220px' }}
+          />
+          {!!tags.length && (() => {
+            // Filter by the tag-search input (substring, case-insensitive)
+            // then collapse to a short default unless expanded. Manage all
+            // tags from the Tags tab — this strip is just for filtering.
+            const q = tagSearch.trim().toLowerCase();
+            const filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
+            const COLLAPSED = 20;
+            const showAll = tagsExpanded || filtered.length <= COLLAPSED;
+            const visible = showAll ? filtered : filtered.slice(0, COLLAPSED);
+            const hiddenCount = filtered.length - visible.length;
+            return (
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 100%' }}>
+                <input
+                  placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
+                  value={tagSearch}
+                  onChange={e => setTagSearch(e.target.value)}
+                  style={{ ...styles.input, padding: '5px 9px', fontSize: 12, width: 200, flex: '0 0 200px' }}
+                />
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+                  {visible.map(t => {
+                    const on = activeTags.has(t.tag);
+                    return (
+                      <span key={t.tag} style={on ? styles.tagChipOn : styles.tagChip}
+                        onClick={() => toggleTag(t.tag)}>
+                        {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
+                      </span>
+                    );
+                  })}
+                  {hiddenCount > 0 && (
+                    <button onClick={() => setTagsExpanded(true)} style={{
+                      ...styles.tagChip, fontWeight: 700, color: '#1a1a1a',
+                    }}>
+                      + {hiddenCount} more
+                    </button>
+                  )}
+                  {tagsExpanded && filtered.length > COLLAPSED && (
+                    <button onClick={() => setTagsExpanded(false)} style={{
+                      ...styles.tagChip, fontWeight: 700, color: '#666',
+                    }}>
+                      show less
+                    </button>
+                  )}
+                  {!filtered.length && (
+                    <span style={{ fontSize: 11, color: '#888', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
+
+        {!filtered && <div style={{ marginTop: 16, color: '#888' }}>Loading…</div>}
+        {filtered && !filtered.length && (
+          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+            {search.trim() || activeTags.size
+              ? 'No contacts match this filter.'
+              : `No contacts yet. Use ↑ Import CSV above, or add some from a client's Contacts tab — they'll show up here automatically.`}
+          </div>
+        )}
+
+        {filtered && !!filtered.length && (
+          <div style={{ marginTop: 14, overflowX: 'auto' }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, color: '#666' }}>
+                {selected.size} selected
+                {total > filtered.length
+                  ? <> · Showing <strong>{filtered.length.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong> matching</>
+                  : <> of <strong>{filtered.length.toLocaleString()}</strong></>}
+              </span>
+              <div style={{ flex: 1 }} />
+              <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} style={styles.ghostBtn}>
+                + Add tags
+              </button>
+              <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} style={styles.btn}>
+                Add to client…
+              </button>
+              <button onClick={destroyContacts} disabled={!selected.size} style={styles.dangerBtn}>
+                Delete selected
+              </button>
+              {total > 0 && (
+                <button onClick={destroyAllMatching} style={styles.dangerBtn}
+                  title={total > filtered.length ? `Delete all ${total.toLocaleString()} matching, not just the ${filtered.length.toLocaleString()} on screen` : ''}>
+                  Delete all {total.toLocaleString()} matching
+                </button>
+              )}
+            </div>
+
+            {bulkTagsOpen && (
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+                  Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
+                </div>
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
+                  {Array.from(bulkTagsToAdd).map(t => (
+                    <span key={t} style={styles.tagChipOn} onClick={() => setBulkTagsToAdd(prev => { const n = new Set(prev); n.delete(t); return n; })}>{t} ×</span>
+                  ))}
+                  <input
+                    value={bulkTagInput}
+                    onChange={e => setBulkTagInput(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addBulkTag(bulkTagInput); } }}
+                    placeholder="type a tag and press Enter"
+                    style={{ ...styles.input, flex: '1 1 200px', minWidth: 160 }}
+                  />
+                </div>
+                {!!tags.length && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                    {tags.slice(0, 16).filter(t => !bulkTagsToAdd.has(t.tag)).map(t => (
+                      <button key={t.tag} onClick={() => addBulkTag(t.tag)} style={styles.tagChip}>
+                        {t.tag} <span style={{ opacity: 0.5 }}>· {t.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} style={styles.btn}>
+                    Apply to {selected.size}
+                  </button>
+                  <button onClick={() => { setBulkTagsOpen(false); setBulkTagsToAdd(new Set()); }} style={styles.ghostBtn}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {attachOpen && (
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {clients.map(c => (
+                    <button key={c.id} onClick={() => attachTo(c.id)} style={styles.ghostBtn}>
+                      {c.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={{ ...styles.th, width: 28 }}>
+                    <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
+                  </th>
+                  <th style={styles.th}>Name</th>
+                  <th style={styles.th}>Email</th>
+                  <th style={styles.th}>Outlet / company</th>
+                  <th style={styles.th}>Beat</th>
+                  <th style={styles.th}>Tags</th>
+                  <th style={styles.th}>Attached to</th>
+                  <th style={styles.th}>Engagement</th>
+                  <th style={{ ...styles.th, width: 28 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(r => {
+                  const totalsTip = r.total_sent != null
+                    ? `Sent ${r.total_sent} · Opened ${r.total_opened || 0} · Clicked ${r.total_clicked || 0} · Replied ${r.total_replied || 0}` +
+                      (r.last_sent_at ? ` · Last sent ${new Date(r.last_sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}` : '')
+                    : '';
+                  return (
+                    <tr key={r.id} style={{ cursor: 'pointer' }}>
+                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                        <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                        <strong style={{ color: '#1a1a1a' }}>{r.name || '(unnamed)'}</strong>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <span style={{ color: '#666' }}>{r.email || '—'}</span>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                          {(r.tags || []).map(t => (
+                            <span key={t} style={{ ...styles.tagChip, cursor: 'default', padding: '1px 7px', fontSize: 10 }}>{t}</span>
+                          ))}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                        <div style={{ fontSize: 11, color: '#666' }}>
+                          {(r.client_ids || []).length
+                            ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
+                            : <span style={{ color: '#bbb' }}>library only</span>}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                        <div style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
+                          {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: '#bbb' }}>—</span>}
+                        </div>
+                      </td>
+                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                        <button onClick={() => destroyOne(r.id)} title="Delete from library"
+                          style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// Tag manager — lists every tag in the workspace with its contact count,
+// and lets the AM rename or delete tags one at a time. Use this to clean
+// up the long tail of imported-but-unwanted tags. Operations are scoped
+// to the caller's visibility on the backend.
+function TagsManager() {
+  const [tags, setTags] = useState(null);
+  const [search, setSearch] = useState('');
+  const [sort, setSort] = useState('count'); // 'count' | 'name'
+  const [err, setErr] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [plan, setPlan] = useState(null);            // { operations: [], tagCount }
+  const [selectedOps, setSelectedOps] = useState(() => new Set());
+  const [applying, setApplying] = useState(false);
+
+  async function reload() {
+    try {
+      const t = await api.get('/outreach/tags');
+      setTags(t);
+    } catch (e) { setErr(e.message); }
+  }
+  useEffect(() => { reload(); }, []);
+
+  async function renameTag(tag) {
+    const next = prompt(`Rename "${tag}" everywhere it's used to:`, tag);
+    if (!next || next.trim().toLowerCase() === tag) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/rename', { from: tag, to: next });
+      setInfo(`Renamed "${tag}" → "${r.to}" on ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+
+  async function tidyWithClaude() {
+    setAnalyzing(true); setErr(null); setInfo(null); setPlan(null); setSelectedOps(new Set());
+    try {
+      const r = await api.post('/outreach/tags/analyze', {});
+      setPlan(r);
+      // Pre-tick everything Claude suggested — the AM can untick anything
+      // they disagree with. Safer than ticking nothing (would be missed).
+      setSelectedOps(new Set((r.operations || []).map((_, i) => i)));
+      if (!(r.operations || []).length) setInfo('Claude has no cleanup suggestions — the catalogue looks tidy.');
+    } catch (e) { setErr(e.message); }
+    finally { setAnalyzing(false); }
+  }
+
+  async function applyPlan() {
+    if (!plan || !selectedOps.size) return;
+    const ops = plan.operations.filter((_, i) => selectedOps.has(i));
+    if (!confirm(`Apply ${ops.length} cleanup operation${ops.length === 1 ? '' : 's'}? This rewrites tags on contacts and can't be undone in one click.`)) return;
+    setApplying(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/apply-plan', { operations: ops });
+      const totals = (r.results || []).reduce((acc, x) => {
+        acc[x.op.type] = (acc[x.op.type] || 0) + (x.updated || 0);
+        return acc;
+      }, {});
+      const summary = Object.entries(totals).map(([k, v]) => `${k}: ${v.toLocaleString()}`).join(' · ');
+      setInfo(`Applied ${ops.length} operation${ops.length === 1 ? '' : 's'}. ${summary}`);
+      setPlan(null); setSelectedOps(new Set());
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setApplying(false); }
+  }
+
+  async function deleteTag(tag, count) {
+    if (!confirm(`Remove the tag "${tag}" from ${count.toLocaleString()} contact${count === 1 ? '' : 's'}? The contacts themselves stay; only the tag is stripped.`)) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await api.post('/outreach/tags/delete', { tag });
+      setInfo(`Removed "${tag}" from ${r.updated.toLocaleString()} contact${r.updated === 1 ? '' : 's'}.`);
+      await reload();
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(false); }
+  }
+
+  if (!tags) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>;
+
+  const q = search.trim().toLowerCase();
+  let filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
+  if (sort === 'name') filtered = [...filtered].sort((a, b) => a.tag.localeCompare(b.tag));
+  else filtered = [...filtered].sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+
+  return (
+    <div>
+      <Card>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+          <div>
+            <CardTitle>Tags</CardTitle>
+            <p style={styles.hint}>
+              Every tag in the workspace. Rename merges contacts already on the new name; delete strips
+              the tag from every contact (the contacts themselves stay). Use this to clean up junk from
+              old CSV imports.
+            </p>
+          </div>
+          <button onClick={tidyWithClaude} disabled={analyzing || applying} style={styles.btn}
+            title="Send the tag list to Claude and get cleanup suggestions">
+            {analyzing ? 'Analysing…' : '✨ Tidy with Claude'}
+          </button>
+        </div>
+
+        {plan && plan.operations && plan.operations.length > 0 && (
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 6, background: '#fffdf2' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>
+                Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
+              </div>
+              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
+            </div>
+            <p style={{ ...styles.hint, marginBottom: 12 }}>
+              Untick anything you disagree with, then apply. Each operation rewrites tags on contacts and can't be undone in one click.
+            </p>
+            <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
+              {plan.operations.map((op, i) => {
+                const ticked = selectedOps.has(i);
+                return (
+                  <label key={i} style={{
+                    display: 'flex', alignItems: 'flex-start', gap: 10,
+                    padding: '10px 0', borderBottom: '1px solid #f0eccd', cursor: 'pointer',
+                  }}>
+                    <input type="checkbox" checked={ticked} onChange={() => {
+                      setSelectedOps(prev => {
+                        const n = new Set(prev);
+                        if (n.has(i)) n.delete(i); else n.add(i);
+                        return n;
+                      });
+                    }} style={{ marginTop: 3 }} />
+                    <div style={{ flex: 1, fontSize: 12 }}>
+                      <div style={{ marginBottom: 3 }}>
+                        <span style={{ ...styles.tagChip, padding: '1px 8px', fontSize: 10, marginRight: 6 }}>{op.type}</span>
+                        <OpSummary op={op} />
+                      </div>
+                      {op.why && <div style={{ color: '#888', fontStyle: 'italic' }}>{op.why}</div>}
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
+              <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} style={styles.ghostBtn}>Tick all</button>
+              <button onClick={() => setSelectedOps(new Set())} style={styles.ghostBtn}>Untick all</button>
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: '#666' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
+              <button onClick={applyPlan} disabled={!selectedOps.size || applying}
+                style={!selectedOps.size || applying ? { ...styles.btn, opacity: 0.5 } : styles.btn}>
+                {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+          <input
+            placeholder={`Search ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ ...styles.input, flex: '1 1 240px' }}
+          />
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#666' }}>
+            Sort:
+            <button onClick={() => setSort('count')} style={sort === 'count' ? styles.tagChipOn : styles.tagChip}>by count</button>
+            <button onClick={() => setSort('name')} style={sort === 'name' ? styles.tagChipOn : styles.tagChip}>A → Z</button>
+          </div>
+        </div>
+
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
+
+        {!filtered.length ? (
+          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+            {q ? `No tags match "${search}".` : 'No tags yet.'}
+          </div>
+        ) : (
+          <div style={{ marginTop: 14, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Tag</th>
+                  <th style={{ ...styles.th, width: 120, textAlign: 'right' }}>Contacts</th>
+                  <th style={{ ...styles.th, width: 200, textAlign: 'right' }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map(t => (
+                  <tr key={t.tag}>
+                    <td style={styles.td}>
+                      <span style={{ ...styles.tagChip, cursor: 'default', padding: '2px 9px' }}>{t.tag}</span>
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right', color: '#666', fontVariantNumeric: 'tabular-nums' }}>
+                      {t.count.toLocaleString()}
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button onClick={() => renameTag(t.tag)} disabled={busy} style={styles.ghostBtn}>
+                        Rename
+                      </button>
+                      <button onClick={() => deleteTag(t.tag, t.count)} disabled={busy}
+                        style={{ ...styles.dangerBtn, marginLeft: 6 }}>
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+    </div>
+  );
+}
+
+// Claude-driven contact data cleanup. Takes the current Contacts
+// library filter, sends matching contacts to Claude in batches, then
+// lets the AM tick which per-field fixes to apply. Each accepted fix
+// writes an audit row so the change history is visible later from
+// the contact's Edit modal.
+function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied }) {
+  const [phase, setPhase] = useState('idle'); // idle | analysing | review | applying | done
+  const [result, setResult] = useState(null); // { suggestions, analysed, capped }
+  const [selected, setSelected] = useState(new Set());
+  const [err, setErr] = useState(null);
+  const [appliedCount, setAppliedCount] = useState(0);
+
+  useEffect(() => {
+    if (!open) {
+      setPhase('idle'); setResult(null); setSelected(new Set());
+      setErr(null); setAppliedCount(0);
+    }
+  }, [open]);
+
+  async function runAnalyse() {
+    setPhase('analysing'); setErr(null);
+    try {
+      const r = await api.post('/outreach/contacts/analyze-tidy', { ...filterBody, limit: 500 });
+      setResult(r);
+      // Pre-tick everything Claude found — the AM unticks anything they disagree with.
+      setSelected(new Set((r.suggestions || []).map((_, i) => i)));
+      setPhase('review');
+    } catch (e) { setErr(e.message); setPhase('idle'); }
+  }
+
+  async function apply() {
+    if (!result || !selected.size) return;
+    const accepted = result.suggestions.filter((_, i) => selected.has(i));
+    setPhase('applying'); setErr(null);
+    try {
+      const r = await api.post('/outreach/contacts/apply-tidy', { suggestions: accepted });
+      setAppliedCount(r.applied || 0);
+      setPhase('done');
+      onApplied?.();
+    } catch (e) { setErr(e.message); setPhase('review'); }
+  }
+
+  if (!open) return null;
+
+  // Group suggestions by contact so the AM can see "this row needs 3 fixes"
+  // rather than 3 unrelated lines.
+  const grouped = result ? groupByContact(result.suggestions) : [];
+
+  return (
+    <div style={tidyStyles.overlay} onClick={onClose}>
+      <div style={tidyStyles.modal} onClick={e => e.stopPropagation()}>
+        <div style={tidyStyles.header}>
+          <div>
+            <div style={tidyStyles.eyebrow}>Tidy with Claude</div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Contact data cleanup</h2>
+          </div>
+          <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
+        </div>
+
+        {err && <div style={tidyStyles.err}>{err}</div>}
+
+        {phase === 'idle' && (
+          <div>
+            <p style={tidyStyles.hint}>
+              Claude will look at the contacts matching your current filter and propose fixes:
+              capitalisation, missing company derived from email domain, lowercase emails, URL
+              schemes, name splits, and similar. You review each suggestion before anything
+              changes — every applied change writes an audit row so you can see what happened
+              later.
+            </p>
+            <div style={tidyStyles.summary}>
+              <div><strong>{Math.min(500, totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed (max 500 per run)</div>
+              {totalInFilter > 500 && (
+                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                  Your filter matches {totalInFilter.toLocaleString()} — narrow the filter, run multiple times, or accept that this batch covers only the 500 most recent.
+                </div>
+              )}
+            </div>
+            <div style={tidyStyles.footer}>
+              <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
+              <div style={{ flex: 1 }} />
+              <button onClick={runAnalyse} style={tidyStyles.btn}>Start analysis</button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'analysing' && (
+          <div style={{ padding: 30, textAlign: 'center', color: '#666' }}>
+            <div style={{ fontSize: 13, marginBottom: 8 }}>Claude is reading the contacts in batches of 40…</div>
+            <div style={{ fontSize: 11, color: '#888' }}>Can take 30–90 seconds for 500 contacts.</div>
+          </div>
+        )}
+
+        {phase === 'review' && result && (
+          <div>
+            <div style={tidyStyles.summary}>
+              <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> contact{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
+              {result.capped && (
+                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                  Hit the 500-contact cap — re-run with a narrower filter to cover the rest.
+                </div>
+              )}
+            </div>
+            {!result.suggestions.length ? (
+              <div style={{ padding: 20, color: '#888', fontSize: 13, textAlign: 'center' }}>
+                Nothing to clean up — the records in this filter look healthy.
+              </div>
+            ) : (
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 0 }}>
+                {grouped.map(g => (
+                  <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
+                    <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 700, marginBottom: 6 }}>
+                      {g.label}
+                    </div>
+                    {g.suggestions.map(({ idx, s }) => {
+                      const ticked = selected.has(idx);
+                      return (
+                        <label key={idx} style={{ display: 'flex', gap: 8, padding: '4px 0', cursor: 'pointer', fontSize: 12 }}>
+                          <input type="checkbox" checked={ticked} onChange={() => {
+                            setSelected(prev => {
+                              const n = new Set(prev);
+                              if (n.has(idx)) n.delete(idx); else n.add(idx);
+                              return n;
+                            });
+                          }} style={{ marginTop: 3 }} />
+                          <div style={{ flex: 1 }}>
+                            <div>
+                              <code style={tidyStyles.fieldChip}>{s.field}</code>{' '}
+                              <span style={{ color: '#999' }}>{s.before ? `"${s.before}"` : <em>empty</em>}</span>
+                              {' → '}
+                              <span style={{ color: '#1b5e20', fontWeight: 700 }}>"{s.new_value}"</span>
+                            </div>
+                            {s.why && <div style={{ color: '#888', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={tidyStyles.footer}>
+              {!!result.suggestions.length && (
+                <>
+                  <button onClick={() => setSelected(new Set(result.suggestions.map((_, i) => i)))} style={tidyStyles.ghostBtn}>Tick all</button>
+                  <button onClick={() => setSelected(new Set())} style={tidyStyles.ghostBtn}>Untick all</button>
+                </>
+              )}
+              <div style={{ flex: 1 }} />
+              <span style={{ fontSize: 12, color: '#666' }}>{selected.size} of {result.suggestions.length} ticked</span>
+              <button onClick={apply} disabled={!selected.size}
+                style={!selected.size ? { ...tidyStyles.btn, opacity: 0.5 } : tidyStyles.btn}>
+                Apply {selected.size} change{selected.size === 1 ? '' : 's'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'applying' && (
+          <div style={{ padding: 30, textAlign: 'center', color: '#666', fontSize: 13 }}>Applying…</div>
+        )}
+
+        {phase === 'done' && (
+          <div>
+            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 6, color: '#1b5e20', fontSize: 13 }}>
+              ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
+            </div>
+            <div style={tidyStyles.footer}>
+              <div style={{ flex: 1 }} />
+              <button onClick={onClose} style={tidyStyles.btn}>Done</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Build a per-contact view of a flat suggestions list. Preserves the
+// original index so checkbox state stays in sync with the source array.
+function groupByContact(suggestions) {
+  const byId = new Map();
+  suggestions.forEach((s, idx) => {
+    if (!byId.has(s.id)) byId.set(s.id, { id: s.id, label: contactLabel(s), suggestions: [] });
+    byId.get(s.id).suggestions.push({ idx, s });
+  });
+  return Array.from(byId.values());
+}
+function contactLabel(s) {
+  // Use whichever identifying field appears first in the bundle's
+  // metadata so the AM can recognise the row at a glance.
+  return s.contact_email || s.contact_name || `Contact ${s.id.slice(0, 8)}…`;
+}
+
+const tidyStyles = {
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
+  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
+  hint: { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 },
+  summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 14, fontSize: 13, marginTop: 12 },
+  footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
+  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
+  fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
+};
+
+// Human-readable summary of a single tag-tidy operation. Rendered
+// alongside the checkbox in the plan panel.
+function OpSummary({ op }) {
+  const chip = (txt) => <code style={{ background: '#f0eccd', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{txt}</code>;
+  if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
+  if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
+  if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;
+  if (op.type === 'add_parent') return <span>Add parent {chip(op.parent)} to every contact tagged {chip(op.child)}</span>;
+  return <span>{op.type}</span>;
+}
+
+const styles = {
+  card: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 8, padding: '18px 20px' },
+  cardTitle: { fontSize: 14, fontWeight: 700, margin: '0 0 10px', color: '#1a1a1a' },
+  categoryToggle: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+    padding: 0, textAlign: 'left',
+  },
+  categoryTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a' },
+  categoryDesc: { fontSize: 12, color: '#888', marginTop: 3, lineHeight: 1.5 },
+  countPill: {
+    background: '#f1f1f1', border: '1px solid #e0e0e0', borderRadius: 12,
+    padding: '2px 9px', fontSize: 11, color: '#666', fontWeight: 600,
+  },
+  subSection: { borderTop: '1px solid #f0f0f0', paddingTop: 14 },
+  subSectionTitle: { fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 },
+  hint: { fontSize: 12, color: '#666', lineHeight: 1.5, margin: 0 },
+  note: { background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4, padding: '8px 12px', fontSize: 12, lineHeight: 1.5, marginTop: 8 },
+  field: { display: 'flex', flexDirection: 'column', gap: 4 },
+  label: { fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
+  eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
+  envHint: { fontSize: 10, color: '#aaa' },
+  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
+  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '1px solid #e8e8e8', borderRadius: 4 },
+  scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+  scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
+  scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },
+  scopesCopyBtn: { background: 'white', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
+  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
+  scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
+  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
+  tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20, flexWrap: 'wrap' },
+  tabBtn: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontFamily: 'Brockmann, sans-serif', fontWeight: 500 },
+  tabBtnActive: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontFamily: 'Brockmann, sans-serif', fontWeight: 700 },
+  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  tagChipOn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  th: { textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 10px', borderBottom: '1px solid #e8e8e8' },
+  td: { fontSize: 13, padding: '10px 10px', borderBottom: '1px solid #f4f4f4', verticalAlign: 'top' },
+  ghostBtn: { background: '#fff', border: '1px solid #ddd', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
+  dangerBtn: { background: '#fff', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
+};

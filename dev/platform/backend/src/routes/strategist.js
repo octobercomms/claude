@@ -1,0 +1,141 @@
+const express = require('express');
+const fs = require('fs');
+const { marked } = require('marked');
+const router = express.Router();
+const pool = require('../db');
+const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess, assertClientAccess } = require('../middleware/clientAccess');
+const strategistReport = require('../services/strategistReport');
+const pdfService = require('../services/pdfService');
+
+router.use(authenticate);
+router.use(loadVisibleClientIds);
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+// List of Strategist reports for a client, newest first. Returns a
+// lightweight summary (no markdown body) so the sidebar list paints
+// fast — fetch the full report via GET /reports/:id.
+router.get('/clients/:clientId/reports', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, period_start, period_end, generated_at, status, trigger,
+              read_at,
+              CASE WHEN markdown IS NULL THEN 0 ELSE LENGTH(markdown) END AS markdown_len,
+              error_message
+         FROM strategist_reports
+        WHERE client_id = $1
+        ORDER BY generated_at DESC
+        LIMIT 50`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Single report including the full markdown body. Verifies the caller can
+// see the underlying client.
+router.get('/reports/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM strategist_reports WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    assertClientAccess(req, rows[0].client_id);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Mark a report as read — used by the dashboard "unread" badge. POST so
+// the GET above stays cacheable.
+router.post('/reports/:id/read', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT client_id FROM strategist_reports WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    assertClientAccess(req, rows[0].client_id);
+    await pool.query(
+      `UPDATE strategist_reports SET read_at = COALESCE(read_at, NOW()) WHERE id = $1`,
+      [req.params.id]
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// PDF rendering — same masthead + footer chrome as the client-facing
+// reports, but body is the Strategist's markdown. Streams the file inline
+// so the browser previews it; the AM can hit ⌘S to keep a copy.
+router.get('/reports/:id/pdf', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT r.*, cl.name AS client_name FROM strategist_reports r JOIN clients cl ON cl.id = r.client_id WHERE r.id = $1`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    const report = rows[0];
+    assertClientAccess(req, report.client_id);
+    if (report.status !== 'completed' || !report.markdown) {
+      return res.status(400).json({ error: 'Report not ready' });
+    }
+
+    const period = `${new Date(report.period_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })} – ${new Date(report.period_end).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+    const markdownHtml = marked.parse(report.markdown, { gfm: true, breaks: false });
+    const html = pdfService.buildStrategistReportHtml({
+      clientName: report.client_name,
+      period,
+      markdownHtml,
+    });
+    const footerLines = [
+      'Internal · Strategist briefing for the AM — not for client distribution.',
+      process.env.REPORT_FOOTER_LINE_2,
+      process.env.REPORT_FOOTER_LINE_3,
+    ].filter(Boolean);
+    const pdfPath = await pdfService.generatePDF(`strategist-${report.id}`, html, { printFooter: true, footerLines });
+
+    const safeClient = String(report.client_name || 'client').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', `inline; filename="strategist-${safeClient}-${report.period_end}.pdf"`);
+    fs.createReadStream(pdfPath).pipe(res);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.delete('/reports/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT client_id FROM strategist_reports WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).end();
+    assertClientAccess(req, rows[0].client_id);
+    await pool.query(`DELETE FROM strategist_reports WHERE id = $1`, [req.params.id]);
+    res.status(204).end();
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+// Kick off a new report. Synchronous so the UI can show the markdown
+// once it returns — Claude usually takes 30-60s. Reasonable to wait.
+router.post('/clients/:clientId/reports/generate', async (req, res) => {
+  const periodDays = Math.max(1, Math.min(90, parseInt(req.body?.period_days, 10) || 7));
+  try {
+    const id = await strategistReport.generate({
+      clientId: req.params.clientId,
+      periodDays,
+      trigger: 'manual',
+    });
+    const { rows } = await pool.query(`SELECT * FROM strategist_reports WHERE id = $1`, [id]);
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+module.exports = router;

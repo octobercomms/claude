@@ -1,0 +1,277 @@
+<?php
+/**
+ * Settings. Expects $banner_cb, $s (settings array), $saved (bool).
+ */
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+$secret_ph = '••••••••••••';
+$field = function ( $key, $label, $type = 'text', $attrs = '' ) use ( $s, $secret_ph ) {
+	$is_secret = HGD_Settings::is_secret( $key );
+	$value     = isset( $s[ $key ] ) ? $s[ $key ] : '';
+	$display   = ( $is_secret && '' !== $value ) ? '' : $value;
+	$ph        = ( $is_secret && '' !== $value ) ? $secret_ph : '';
+	printf(
+		'<label><span>%s</span><input type="%s" name="%s" value="%s" placeholder="%s" %s autocomplete="off" /></label>',
+		esc_html( $label ),
+		esc_attr( $type ),
+		esc_attr( $key ),
+		esc_attr( $display ),
+		esc_attr( $ph ),
+		$attrs // already-trusted attribute string
+	);
+};
+?>
+<div class="wrap hgd-wrap">
+
+	<?php call_user_func( $banner_cb ); ?>
+
+	<div class="hgd-page-head"><h1><?php esc_html_e( 'Settings', 'hillcroft-garden-designer' ); ?></h1></div>
+
+	<?php if ( $saved ) : ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Settings saved.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
+
+	<?php
+	$google_state = isset( $_GET['google'] ) ? sanitize_key( $_GET['google'] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+	if ( 'connected' === $google_state ) : ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Google Calendar connected.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'disconnected' === $google_state ) : ?>
+		<div class="hgd-flash"><?php esc_html_e( 'Google Calendar disconnected.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'denied' === $google_state ) : ?>
+		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Google access was declined.', 'hillcroft-garden-designer' ); ?></div>
+	<?php elseif ( 'error' === $google_state ) : ?>
+		<div class="hgd-flash hgd-flash-error"><?php esc_html_e( 'Could not connect Google Calendar. Check the client id/secret and try again.', 'hillcroft-garden-designer' ); ?></div>
+	<?php endif; ?>
+
+	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<input type="hidden" name="action" value="hgd_save_settings" />
+		<?php wp_nonce_field( 'hgd_save_settings' ); ?>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'API keys', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Stored on this site. Leave a field blank to keep the existing key.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'claude_api_key', __( 'Claude API key', 'hillcroft-garden-designer' ) );
+				$field( 'gemini_api_key', __( 'Google Gemini API key', 'hillcroft-garden-designer' ) );
+				$field( 'flux_api_key', __( 'fal.ai (Flux) API key — optional', 'hillcroft-garden-designer' ) );
+				$field( 'google_maps_api_key', __( 'Google Maps API key', 'hillcroft-garden-designer' ) );
+				$field( 'plantid_api_key', __( 'Plant.id / Kindwise API key', 'hillcroft-garden-designer' ) );
+				$field( 'stripe_secret_key', __( 'Stripe secret key', 'hillcroft-garden-designer' ) );
+				$field( 'stripe_pub_key', __( 'Stripe publishable key', 'hillcroft-garden-designer' ) );
+				$field( 'stripe_webhook_secret', __( 'Stripe webhook signing secret', 'hillcroft-garden-designer' ) );
+				?>
+			</div>
+			<h3><?php esc_html_e( 'AI', 'hillcroft-garden-designer' ); ?></h3>
+			<div class="hgd-grid">
+				<?php $field( 'claude_model', __( 'Claude model', 'hillcroft-garden-designer' ) ); ?>
+				<?php $field( 'gemini_image_model', __( 'Gemini image model', 'hillcroft-garden-designer' ) ); ?>
+				<?php $field( 'flux_model', __( 'Flux/ControlNet model (fal.ai)', 'hillcroft-garden-designer' ) ); ?>
+				<label><span><?php esc_html_e( 'Render style', 'hillcroft-garden-designer' ); ?></span>
+					<select name="render_style">
+						<?php $cur_style = isset( $s['render_style'] ) ? $s['render_style'] : 'watercolour';
+						foreach ( HGD_Settings::render_styles() as $rk => $rl ) : ?>
+							<option value="<?php echo esc_attr( $rk ); ?>" <?php selected( $cur_style, $rk ); ?>><?php echo esc_html( $rl ); ?></option>
+						<?php endforeach; ?>
+					</select></label>
+			</div>
+			<p class="hgd-muted"><?php esc_html_e( 'Claude reads sketches; Gemini generates renders. Flux (fal.ai) is an optional second render engine that uses your plan as a ControlNet structural guide — leave its key blank to keep it off. Render style sets the look of the eye-level concept renders (the watercolour cover and hand-drawn plan keep their own styles). Defaults: claude-sonnet-4-6, gemini-2.5-flash-image, fal-ai/flux-control-lora-canny, watercolour', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Updates', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Connect to the private GitHub repository so this plugin can update itself from the WordPress Updates screen — no manual uploads.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'github_repo', __( 'Repository (owner/repo)', 'hillcroft-garden-designer' ) );
+				$field( 'github_token', __( 'GitHub access token', 'hillcroft-garden-designer' ) );
+				$field( 'github_tag_prefix', __( 'Release tag prefix', 'hillcroft-garden-designer' ) );
+				?>
+				<label class="hgd-checkbox"><input type="checkbox" name="auto_update" value="1" <?php checked( ! empty( $s['auto_update'] ) ); ?> /> <span><?php esc_html_e( 'Enable automatic background updates', 'hillcroft-garden-designer' ); ?></span></label>
+			</div>
+			<p class="hgd-muted"><?php echo esc_html( sprintf( /* translators: %s version */ __( 'Installed version: %s', 'hillcroft-garden-designer' ), HGD_VERSION ) ); ?></p>
+
+			<?php
+			$test = isset( $_GET['update_test'] ) ? get_transient( 'hgd_update_test_' . get_current_user_id() ) : false; // phpcs:ignore WordPress.Security.NonceVerification
+			if ( is_array( $test ) ) {
+				delete_transient( 'hgd_update_test_' . get_current_user_id() );
+				printf(
+					'<div class="hgd-flash %s">%s</div>',
+					empty( $test['ok'] ) ? 'hgd-flash-error' : '',
+					esc_html( $test['message'] )
+				);
+			}
+			?>
+			<p class="hgd-muted"><?php esc_html_e( 'Not seeing updates on Dashboard → Updates? Test the connection to GitHub and see exactly what is happening:', 'hillcroft-garden-designer' ); ?>
+				<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=hgd_test_update' ), 'hgd_test_update' ) ); ?>"><?php esc_html_e( 'Test update connection', 'hillcroft-garden-designer' ); ?></a>
+			</p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Cost tracking', 'hillcroft-garden-designer' ); ?></h2>
+			<div class="hgd-grid">
+				<?php
+				$field( 'soft_monthly_cap_gbp', __( 'Soft monthly spend cap (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'plantid_credits_balance', __( 'Plant-ID credits remaining', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'usd_to_gbp', __( 'USD → GBP rate', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
+				$field( 'eur_to_gbp', __( 'EUR → GBP rate', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
+				$field( 'rate_claude_per_mtok_usd', __( 'Claude ($/M tokens)', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
+				$field( 'rate_gemini_per_image_usd', __( 'Gemini ($/image)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
+				$field( 'rate_flux_per_image_usd', __( 'Flux ($/image)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
+				$field( 'rate_maps_per_1k_usd', __( 'Maps ($/1k calls)', 'hillcroft-garden-designer' ), 'number', 'step="0.01" min="0"' );
+				$field( 'rate_plantid_per_credit_eur', __( 'Plant.id (€/credit)', 'hillcroft-garden-designer' ), 'number', 'step="0.001" min="0"' );
+				?>
+			</div>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Business defaults', 'hillcroft-garden-designer' ); ?></h2>
+			<div class="hgd-grid">
+				<?php
+				$field( 'consultation_fee_gbp', __( 'Consultation fee (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'deposit_pct', __( 'Deposit on signing (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0" max="100"' );
+				$field( 'commencement_pct', __( 'On commencement (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0" max="100"' );
+				$field( 'completion_pct', __( 'On completion (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0" max="100"' );
+				?>
+			</div>
+			<p class="hgd-muted"><?php esc_html_e( 'The consultation fee is charged separately and is never deducted from the project total.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Proposals', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Defaults applied to new proposals. The deposit / commencement / completion split is set under Business defaults above and determines the milestone amounts.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php $field( 'proposal_expiry_days', __( 'Proposal expires after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' ); ?>
+			</div>
+			<label class="hgd-full"><span><?php esc_html_e( 'Default terms &amp; conditions', 'hillcroft-garden-designer' ); ?></span>
+				<textarea name="terms_default" rows="8"><?php echo esc_textarea( isset( $s['terms_default'] ) ? $s['terms_default'] : '' ); ?></textarea></label>
+			<p class="hgd-muted"><?php esc_html_e( 'Pasted into each new proposal’s terms. You can edit the terms per proposal before sending.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Client follow-ups', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'A once-daily job that emails gentle, client-facing reminders. Each reminder is sent at most once per record. Off by default — switch it on when you\'re ready.', 'hillcroft-garden-designer' ); ?></p>
+			<label class="hgd-checkbox"><input type="checkbox" name="followups_enabled" value="1" <?php checked( ! empty( $s['followups_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Enable automatic client follow-up emails', 'hillcroft-garden-designer' ); ?></span></label>
+
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_lead_enabled" value="1" <?php checked( ! empty( $s['followup_lead_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Nudge enquiries with no consultation booked', 'hillcroft-garden-designer' ); ?></span></label>
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_proposal_enabled" value="1" <?php checked( ! empty( $s['followup_proposal_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Remind on unanswered proposals', 'hillcroft-garden-designer' ); ?></span></label>
+			<label class="hgd-checkbox"><input type="checkbox" name="followup_expiring_enabled" value="1" <?php checked( ! empty( $s['followup_expiring_enabled'] ) ); ?> /> <span><?php esc_html_e( 'Final nudge when a proposal is about to expire', 'hillcroft-garden-designer' ); ?></span></label>
+
+			<div class="hgd-grid">
+				<?php
+				$field( 'followup_lead_days', __( 'Nudge leads after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				$field( 'followup_proposal_days', __( 'Remind on proposals after (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				$field( 'followup_expiring_days', __( 'Expiry nudge within (days)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				?>
+			</div>
+			<label class="hgd-full"><span><?php esc_html_e( 'Booking page URL (for lead nudges)', 'hillcroft-garden-designer' ); ?></span>
+				<input type="url" name="booking_page_url" value="<?php echo esc_attr( isset( $s['booking_page_url'] ) ? $s['booking_page_url'] : '' ); ?>" placeholder="https://…" /></label>
+			<p class="hgd-muted"><?php esc_html_e( 'The page your [hgd_booking] form lives on, linked in lead-nudge emails. If left blank, the site home page is used.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Pricing defaults', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Used to seed each new quote and to scale the Better / Best tiers from Good. You can override any of these per quote.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'default_day_rate_gbp', __( 'Default day rate (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'default_wastage_pct', __( 'Default wastage (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_contingency_pct', __( 'Default contingency (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_vat_pct', __( 'Default VAT (%)', 'hillcroft-garden-designer' ), 'number', 'step="0.5" min="0"' );
+				$field( 'default_design_fee_gbp', __( 'Default design fee (£)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'better_uplift_pct', __( 'Better tier uplift (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'best_uplift_pct', __( 'Best tier uplift (%)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				?>
+			</div>
+			<p class="hgd-muted"><?php esc_html_e( 'Set VAT to 20 if you are VAT-registered. Uplift % scales plant + material quantities (and labour days) when seeding Better / Best from Good.', 'hillcroft-garden-designer' ); ?></p>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Booking &amp; calendar', 'hillcroft-garden-designer' ); ?></h2>
+			<p class="hgd-muted"><?php esc_html_e( 'Embed the public booking form on any page with this shortcode:', 'hillcroft-garden-designer' ); ?> <code class="hgd-code">[hgd_booking]</code></p>
+
+			<h3><?php esc_html_e( 'Google Calendar (optional)', 'hillcroft-garden-designer' ); ?></h3>
+			<p class="hgd-muted"><?php esc_html_e( 'Connect a personal Gmail calendar to hide clashing times and auto-add paid consultations. Booking works fine without this.', 'hillcroft-garden-designer' ); ?></p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'google_client_id', __( 'Google OAuth client ID', 'hillcroft-garden-designer' ) );
+				$field( 'google_client_secret', __( 'Google OAuth client secret', 'hillcroft-garden-designer' ) );
+				$field( 'google_calendar_id', __( 'Calendar ID (or “primary”)', 'hillcroft-garden-designer' ) );
+				?>
+			</div>
+			<p class="hgd-muted">
+				<?php
+				printf(
+					/* translators: %s redirect URI */
+					esc_html__( 'Authorised redirect URI for your Google OAuth client: %s', 'hillcroft-garden-designer' ),
+					'<code class="hgd-code">' . esc_html( HGD_Google_Calendar::redirect_uri() ) . '</code>'
+				);
+				?>
+			</p>
+			<p>
+				<?php if ( HGD_Google_Calendar::is_connected() ) : ?>
+					<span class="hgd-status hgd-status-booked"><?php esc_html_e( 'Connected', 'hillcroft-garden-designer' ); ?></span>
+					&nbsp;
+					<a class="hgd-pill hgd-pill-ghost" href="<?php echo esc_url( wp_nonce_url( add_query_arg( 'action', 'hgd_google_disconnect', admin_url( 'admin-post.php' ) ), 'hgd_google_disconnect' ) ); ?>"><?php esc_html_e( 'Disconnect', 'hillcroft-garden-designer' ); ?></a>
+				<?php elseif ( '' !== $s['google_client_id'] && '' !== $s['google_client_secret'] ) : ?>
+					<span class="hgd-status hgd-status-lead"><?php esc_html_e( 'Not connected', 'hillcroft-garden-designer' ); ?></span>
+					&nbsp;
+					<a class="hgd-pill" href="<?php echo esc_url( HGD_Google_Calendar::auth_url() ); ?>"><?php esc_html_e( 'Connect Google Calendar', 'hillcroft-garden-designer' ); ?></a>
+					<span class="hgd-muted"><?php esc_html_e( '(save the client id/secret first)', 'hillcroft-garden-designer' ); ?></span>
+				<?php else : ?>
+					<span class="hgd-muted"><?php esc_html_e( 'Enter and save a client id and secret to enable the connect button.', 'hillcroft-garden-designer' ); ?></span>
+				<?php endif; ?>
+			</p>
+
+			<h3><?php esc_html_e( 'Availability', 'hillcroft-garden-designer' ); ?></h3>
+			<?php
+			$selected_days = array_filter( array_map( 'intval', explode( ',', (string) $s['avail_days'] ) ) );
+			$day_names     = array(
+				1 => __( 'Mon', 'hillcroft-garden-designer' ),
+				2 => __( 'Tue', 'hillcroft-garden-designer' ),
+				3 => __( 'Wed', 'hillcroft-garden-designer' ),
+				4 => __( 'Thu', 'hillcroft-garden-designer' ),
+				5 => __( 'Fri', 'hillcroft-garden-designer' ),
+				6 => __( 'Sat', 'hillcroft-garden-designer' ),
+				7 => __( 'Sun', 'hillcroft-garden-designer' ),
+			);
+			?>
+			<p class="hgd-muted"><?php esc_html_e( 'Days you take consultations:', 'hillcroft-garden-designer' ); ?></p>
+			<p class="hgd-booking-days">
+				<?php foreach ( $day_names as $num => $label ) : ?>
+					<label class="hgd-checkbox" style="display:inline-flex;margin-right:14px;">
+						<input type="checkbox" name="avail_days[]" value="<?php echo esc_attr( $num ); ?>" <?php checked( in_array( $num, $selected_days, true ) ); ?> />
+						<span><?php echo esc_html( $label ); ?></span>
+					</label>
+				<?php endforeach; ?>
+			</p>
+			<div class="hgd-grid">
+				<?php
+				$field( 'avail_start', __( 'Day starts (HH:MM)', 'hillcroft-garden-designer' ), 'time' );
+				$field( 'avail_end', __( 'Day ends (HH:MM)', 'hillcroft-garden-designer' ), 'time' );
+				$field( 'slot_minutes', __( 'Slot length (minutes)', 'hillcroft-garden-designer' ), 'number', 'step="5" min="15"' );
+				$field( 'buffer_minutes', __( 'Buffer between slots (minutes)', 'hillcroft-garden-designer' ), 'number', 'step="5" min="0"' );
+				$field( 'booking_lead_days', __( 'Earliest booking (days ahead)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="0"' );
+				$field( 'booking_window_days', __( 'Booking window (days ahead)', 'hillcroft-garden-designer' ), 'number', 'step="1" min="1"' );
+				?>
+			</div>
+		</div>
+
+		<div class="hgd-panel">
+			<h2><?php esc_html_e( 'Brand colours', 'hillcroft-garden-designer' ); ?></h2>
+			<div class="hgd-grid">
+				<?php
+				$field( 'brand_olive', __( 'Olive (brand)', 'hillcroft-garden-designer' ) );
+				$field( 'brand_charcoal', __( 'Charcoal', 'hillcroft-garden-designer' ) );
+				$field( 'brand_cream', __( 'Cream', 'hillcroft-garden-designer' ) );
+				?>
+			</div>
+		</div>
+
+		<div class="hgd-form-actions">
+			<button type="submit" class="hgd-pill"><?php esc_html_e( 'Save settings', 'hillcroft-garden-designer' ); ?></button>
+		</div>
+	</form>
+
+</div>

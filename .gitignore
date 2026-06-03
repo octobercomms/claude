@@ -21,3 +21,7 @@ npm-debug.log*
 # Editor
 .vscode/
 .idea/
+
+# Runtime artefacts — generated reports, not source
+dev/platform/backend/pdfs/
+*.zip

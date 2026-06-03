@@ -1,0 +1,150 @@
+const axios = require('axios');
+
+const authType = 'apikey';
+
+// Amazon SP-API requires a registered developer app
+// See: https://developer-docs.amazon.com/sp-api/docs/registering-your-application
+
+function getAuthUrl(state) {
+  const params = new URLSearchParams({
+    application_id: process.env.AMAZON_CLIENT_ID,
+    state,
+    version: 'beta',
+  });
+  return `https://sellercentral.amazon.co.uk/apps/authorize/consent?${params}`;
+}
+
+async function exchangeCode(code) {
+  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', new URLSearchParams({
+    grant_type: 'authorization_code',
+    code,
+    client_id: process.env.AMAZON_CLIENT_ID,
+    client_secret: process.env.AMAZON_CLIENT_SECRET,
+    redirect_uri: process.env.AMAZON_REDIRECT_URI || '',
+  }), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+
+  return {
+    access_token: data.access_token,
+    refresh_token: data.refresh_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  };
+}
+
+async function refreshToken(credentials) {
+  const { data } = await axios.post('https://api.amazon.com/auth/o2/token', {
+    grant_type: 'refresh_token',
+    refresh_token: credentials.refresh_token,
+    client_id: process.env.AMAZON_CLIENT_ID,
+    client_secret: process.env.AMAZON_CLIENT_SECRET,
+  }, {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  });
+
+  return {
+    ...credentials,
+    access_token: data.access_token,
+    expires_at: Date.now() + data.expires_in * 1000,
+  };
+}
+
+async function checkTokenValidity(credentials) {
+  if (!credentials) throw new Error('No credentials');
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
+  }
+  // Exchange refresh token for access token to verify it works
+  try {
+    const refreshed = await refreshToken(credentials);
+    return refreshed;
+  } catch (err) {
+    throw new Error(`Amazon token exchange failed: ${err.message}`);
+  }
+}
+
+async function fetchData(credentials, params) {
+  if (!credentials.refresh_token) {
+    throw new Error('Amazon SP-API requires a Refresh Token — generate one via the Solution Provider Portal → Manage Authorizations → Authorize app');
+  }
+
+  const { startDate, endDate } = params;
+  // The connector's marketplace is saved on its own credentials. Reading it
+  // only from params meant every connector fell back to the UK marketplace +
+  // EU endpoint — so a US connector's North-America token hit the EU endpoint
+  // and returned a 403.
+  const marketplace = String(credentials.marketplace || params.marketplace || 'uk').trim().toLowerCase();
+
+  const marketplaceIds = {
+    uk: 'A1F83G8C2ARO7P',
+    us: 'ATVPDKIKX0DER',
+    ca: 'A2EUQ1WTGCTBG2',
+    fr: 'A13V1IB3VIYZZH',
+    de: 'A1PA6795UKMFR9',
+    it: 'APJ6JRA9NG5V4',
+    es: 'A1RKKUPIHCS9HS',
+    eu: 'A1PA6795UKMFR9',
+  };
+
+  // Regional endpoints — must match the marketplace
+  const regionalEndpoint = ['us', 'ca', 'mx', 'br'].includes(marketplace)
+    ? 'https://sellingpartnerapi-na.amazon.com'
+    : 'https://sellingpartnerapi-eu.amazon.com';
+
+  const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
+  let creds = credentials;
+  if (!creds.access_token || (creds.expires_at && Date.now() > creds.expires_at - 60000)) {
+    creds = await refreshToken(creds);
+  }
+
+  // SP-API order metrics — period total plus a daily breakdown.
+  const interval = `${startDate}T00:00:00+00:00--${endDate}T23:59:59+00:00`;
+  const getMetrics = (granularity) => axios.get(
+    `${regionalEndpoint}/sales/v1/orderMetrics`,
+    {
+      headers: {
+        Authorization: `Bearer ${creds.access_token}`,
+        'x-amz-access-token': creds.access_token,
+      },
+      params: { marketplaceIds: marketplaceId, interval, granularity },
+    }
+  );
+
+  try {
+    const { data } = await getMetrics('Total');
+    // Daily granularity is best-effort — never let it fail the whole call.
+    let daily = [];
+    try {
+      const dayRes = await getMetrics('Day');
+      daily = dayRes.data.payload || [];
+    } catch (dayErr) {
+      console.warn('[Amazon] daily orderMetrics fetch failed:', dayErr.response?.status, dayErr.message);
+    }
+    // SP-API returns { payload: [{ orderCount, totalSales: { amount,
+    // currencyCode }, averageUnitPrice, … }] } — one entry for the Total
+    // granularity. Map to the canonical { summary: { total_revenue,
+    // total_orders, avg_order_value, … } } shape that the metric catalog
+    // and downstream consumers read from. Without this, every Amazon
+    // section rendered £0 / 0 regardless of actual sales.
+    const totalEntry = (data.payload || [])[0] || {};
+    const revenue = parseFloat(totalEntry.totalSales?.amount || 0);
+    const orders = parseInt(totalEntry.orderCount || 0);
+    return {
+      ...data,
+      summary: {
+        total_revenue: revenue.toFixed(2),
+        total_orders: orders,
+        avg_order_value: orders > 0 ? (revenue / orders).toFixed(2) : '0.00',
+        currency: totalEntry.totalSales?.currencyCode,
+      },
+      daily,
+    };
+  } catch (err) {
+    const status = err.response?.status;
+    const detail = err.response?.data?.errors?.[0]?.message || err.response?.data || err.message;
+    if (status === 403) throw new Error(`Amazon SP-API 403: App does not have permission to access this data. Ensure your Amazon Developer app has been granted the required SP-API roles (Selling Partner Insights) and that the seller has authorised the app.`);
+    throw new Error(`Amazon SP-API error (${status}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
+  }
+}
+
+module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData };
