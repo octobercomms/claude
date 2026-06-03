@@ -1,13 +1,13 @@
 // Export an AI Data Analyst chat message as a downloadable PDF or
-// DOCX. The assistant already returns markdown (headings, GFM tables,
-// lists, code blocks, blockquotes, etc.), so the conversion is:
+// DOCX, styled to match the templated weekly/monthly reports.
 //
 //   markdown ─marked─► HTML ─puppeteer─► PDF
 //                          └─html-to-docx─► DOCX
 //
-// PDF reuses the same puppeteer + footer config as the scheduled
-// reports, just without the multi-section masthead. DOCX is produced
-// in-memory and streamed back — no disk persistence.
+// Both render the same branded HTML — October masthead with logo,
+// "Report for <client>" title block, the same Brockmann typography
+// and 12pt/9pt body/table sizes that the scheduled reports use.
+// Streaming output only — nothing persisted to disk.
 
 const { marked } = require('marked');
 const htmlToDocx = require('html-to-docx');
@@ -19,66 +19,62 @@ function escapeHtml(s) {
   return String(s ?? '').replace(/[<>&"']/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-// Wrap the rendered markdown in a self-contained HTML doc with a
-// branded masthead, period/title line, and the same body typography as
-// the scheduled reports. Used as input for both puppeteer (PDF) and
-// html-to-docx (DOCX).
-function buildExportHtml({ title, clientName, body, generatedAt }) {
-  const dateStr = (generatedAt || new Date()).toLocaleString('en-GB', { dateStyle: 'long', timeStyle: 'short' });
-  return `<!doctype html>
-<html><head><meta charset="utf-8"><title>${escapeHtml(title)}</title>
-<style>
-  @page { size: A4; margin: 18mm 18mm 22mm 18mm; }
-  body { font-family: Arial, sans-serif; color: #111; font-size: 11pt; line-height: 1.5; margin: 0; }
-  .masthead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1pt solid #000; padding-bottom: 8pt; margin-bottom: 16pt; }
-  .masthead .logo { font-size: 14pt; font-weight: 700; letter-spacing: 0.5px; }
-  .masthead .logo .sub { font-size: 7pt; font-weight: 400; color: #808080; text-transform: uppercase; letter-spacing: 2px; display: block; margin-top: 2pt; }
-  .masthead .meta { text-align: right; }
-  .masthead .meta .title { font-size: 14pt; font-weight: 700; }
-  .masthead .meta .when { font-size: 9pt; color: #808080; margin-top: 2pt; }
-  h1 { font-size: 16pt; margin: 18pt 0 8pt; }
-  h2 { font-size: 13pt; margin: 14pt 0 6pt; }
-  h3 { font-size: 11pt; margin: 12pt 0 4pt; }
-  p { margin: 6pt 0; }
-  ul, ol { margin: 6pt 0; padding-left: 20pt; }
-  li { margin: 2pt 0; }
-  table { border-collapse: collapse; width: 100%; margin: 8pt 0; font-size: 10pt; }
-  th { background: #f3f3f3; padding: 5pt 8pt; border: 0.5pt solid #ccc; text-align: left; font-weight: 700; }
-  td { padding: 5pt 8pt; border: 0.5pt solid #eee; vertical-align: top; }
-  code { background: #f6f6f6; padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 10pt; }
-  pre { background: #f6f6f6; padding: 10pt; border-radius: 4px; overflow: auto; font-family: monospace; font-size: 10pt; }
-  blockquote { border-left: 3pt solid #E7CD41; padding: 2pt 10pt; margin: 6pt 0; color: #555; font-style: italic; }
-  hr { border: none; border-top: 1pt solid #eee; margin: 10pt 0; }
-  a { color: #1a56db; text-decoration: underline; }
-</style></head>
-<body>
-  <div class="masthead">
-    <div class="logo">OCTOBER<span class="sub">Communications</span></div>
-    <div class="meta">
-      <div class="title">${escapeHtml(title || 'AI Data Analyst — Report')}</div>
-      <div class="when">${escapeHtml(clientName ? `${clientName} · ` : '')}${escapeHtml(dateStr)}</div>
+// Self-contained branded HTML doc — same shell as
+// pdfService.buildTemplateReportHtml so PDF and DOCX exports inherit
+// the platform's masthead + typography. The body is the marked-
+// rendered markdown from the assistant's reply.
+function buildBrandedHtml({ title, clientName, body, generatedAt }) {
+  const dateStr = (generatedAt || new Date()).toLocaleString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+  const logo = pdfService.getLogoDataUri();
+  const headerHtml = `<div class="report-head">
+    <div class="report-head-l">${logo ? `<img src="${logo}" style="height:36px;display:block;">` : ''}</div>
+    <div class="report-head-r">
+      <div class="report-head-title">${escapeHtml(title || 'AI Data Analyst Report')}</div>
+      <div class="report-head-period">${escapeHtml(clientName || '')} · ${escapeHtml(dateStr)}</div>
     </div>
-  </div>
-  ${body}
-</body></html>`;
+  </div>`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>${pdfService.getPageCSS()}</style>
+</head>
+<body>
+<div class="page">
+<div class="report-content">
+${headerHtml}
+${body}
+</div>
+</div>
+</body>
+</html>`;
 }
 
 async function markdownToPdfBuffer(markdown, opts = {}) {
   const body = marked.parse(markdown || '');
-  const html = buildExportHtml({ ...opts, body });
+  const html = buildBrandedHtml({ ...opts, body });
   return pdfService.generatePDFBuffer(html);
 }
 
 async function markdownToDocxBuffer(markdown, opts = {}) {
   const body = marked.parse(markdown || '');
-  const html = buildExportHtml({ ...opts, body });
-  // html-to-docx accepts a UA-style HTML string and returns a Buffer.
-  // orientation/margins below mirror the PDF page setup.
-  return htmlToDocx(html, null, {
+  const html = buildBrandedHtml({ ...opts, body });
+  // html-to-docx returns Buffer in Node when invoked without browser
+  // globals, BUT some versions return ArrayBuffer that Express then
+  // serialises wrongly — Word opens the result as corrupt. Wrap
+  // defensively: if we get something that isn't a Buffer already,
+  // copy the bytes into one.
+  const out = await htmlToDocx(html, null, {
+    orientation: 'portrait',
     margins: { top: 1100, right: 1100, bottom: 1300, left: 1100 },
     pageNumber: false,
     table: { row: { cantSplit: true } },
   });
+  if (Buffer.isBuffer(out)) return out;
+  if (out instanceof ArrayBuffer) return Buffer.from(out);
+  if (out && typeof out.arrayBuffer === 'function') return Buffer.from(await out.arrayBuffer());
+  if (out && out.byteLength != null) return Buffer.from(out);
+  throw new Error('html-to-docx returned unexpected type: ' + (out && out.constructor?.name));
 }
 
 module.exports = { markdownToPdfBuffer, markdownToDocxBuffer };
