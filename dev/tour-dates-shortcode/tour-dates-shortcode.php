@@ -47,6 +47,16 @@ add_shortcode('tour_dates', function($atts) {
     $checkout = wc_get_checkout_url();
 
     ob_start(); ?>
+    <style>
+    @media (max-width: 767px) {
+        table.tdt thead { display: none; }
+        table.tdt tr { display: block; border-top: 2px solid currentColor; padding: 1.75em 0; }
+        table.tdt td { display: block; padding: 0; }
+        table.tdt td.date-col { font-weight: bold; margin-bottom: 1.25em; }
+        table.tdt td.occ-col { padding: 1.25em 0 0; border-top: 1px solid rgba(0,0,0,0.1); }
+        table.tdt td.occ-col::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: 0.6em; }
+    }
+    </style>
     <table class="tdt">
         <thead>
             <tr>
@@ -68,7 +78,7 @@ add_shortcode('tour_dates', function($atts) {
                     $dep       = $occs[$occ]['pay-deposit'] ?? null;
                     $full      = $occs[$occ]['pay-in-full'] ?? null;
                 ?>
-                <td class="occ-col">
+                <td class="occ-col" data-label="<?php echo esc_attr($is_double ? 'Double occupancy' : 'Single occupancy'); ?>">
                     <?php if ($full || $dep): ?>
                         <span class="price-note"><?php echo esc_html($note); ?></span>
                         <?php if ($full): ?>
