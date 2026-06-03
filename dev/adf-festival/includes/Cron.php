@@ -57,6 +57,9 @@ final class Cron {
         // AI Stories connector runs every day.
         $this->run_ai_stories();
 
+        // Daily ticket sales report (if any sold today).
+        $this->run_sales_report();
+
         // Monthly digest: only on the first Monday of the month.
         if ((bool) Settings::get('digest_enabled', true) && self::is_first_monday()) {
             $this->run_digest();
@@ -142,6 +145,33 @@ final class Cron {
             'excerpt' => wp_trim_words(wp_strip_all_tags($post->post_content), 30),
             'image'   => get_the_post_thumbnail_url($post, 'medium') ?: '',
         ];
+    }
+
+    /* ----------------------------------------------------------------------
+     * Daily ticket sales report
+     * ------------------------------------------------------------------- */
+
+    public function run_sales_report(): void {
+        $stats = \ADF\Ticketing\Orders::stats();
+        if ($stats['today_tickets'] <= 0) {
+            return;
+        }
+        $to = (string) (Settings::get('report_email', '') ?: get_option('admin_email'));
+        if ($to === '') {
+            return;
+        }
+        $currency = strtoupper((string) Settings::get('currency', 'usd'));
+        $rows = '';
+        foreach (\ADF\Ticketing\Orders::event_summary() as $row) {
+            $rows .= '<tr><td>' . esc_html(get_the_title((int) $row->event_id)) . '</td><td>' . (int) $row->tickets . '</td><td>' . esc_html($currency . ' ' . number_format((float) $row->revenue, 2)) . '</td></tr>';
+        }
+        $html = '<h2>' . esc_html__('ADF ticket sales — today', 'adf-festival') . '</h2>'
+            . '<p>' . sprintf(/* translators: 1: tickets 2: revenue */ esc_html__('Today: %1$d tickets, %2$s.', 'adf-festival'), $stats['today_tickets'], esc_html($currency . ' ' . number_format($stats['today_revenue'], 2))) . '</p>'
+            . '<p>' . sprintf(/* translators: 1: tickets 2: revenue */ esc_html__('All time: %1$d tickets, %2$s.', 'adf-festival'), $stats['tickets'], esc_html($currency . ' ' . number_format($stats['revenue'], 2))) . '</p>'
+            . '<table border="1" cellpadding="6" cellspacing="0"><tr><th>Event</th><th>Tickets</th><th>Revenue</th></tr>' . $rows . '</table>';
+
+        BrevoConnector::send('monthly_digest', ['email' => $to], [], __('ADF daily ticket sales', 'adf-festival'), $html);
+        AuditLog::record('sales_report_sent', 0, 'report', (string) $stats['today_tickets']);
     }
 
     /* ----------------------------------------------------------------------

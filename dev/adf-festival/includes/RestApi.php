@@ -82,6 +82,23 @@ final class RestApi {
             'args'                => ['opportunity_id' => ['required' => true, 'sanitize_callback' => 'absint']],
         ]);
 
+        // Event checkout (public, Stripe).
+        register_rest_route(self::NS, '/ticket-promo', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'ticket_promo'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/ticket-intent', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'ticket_intent'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/ticket-confirm', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'ticket_confirm'],
+            'permission_callback' => '__return_true',
+        ]);
+
         // Public map feed for Elementor/JetEngine or the fallback shortcode.
         register_rest_route(self::NS, '/map', [
             'methods'             => 'GET',
@@ -250,6 +267,123 @@ final class RestApi {
         return new \WP_REST_Response($out, 200);
     }
 
+    /* ----------------------------------------------------------------- *
+     * Event checkout (Stripe only)
+     * ----------------------------------------------------------------- */
+
+    /**
+     * Resolve + price a checkout request. Returns [type, qty, unit, subtotal,
+     * discount, total, promo] or a \WP_Error.
+     */
+    private function price_checkout(\WP_REST_Request $req) {
+        $event_id = absint($req->get_param('event_id'));
+        $type_key = sanitize_key((string) $req->get_param('type_key'));
+        $qty      = max(1, min(10, (int) $req->get_param('qty')));
+
+        $type = \ADF\Ticketing\TicketTypes::type($event_id, $type_key);
+        if (! $type) {
+            return new \WP_Error('adf_bad_type', __('Unknown ticket type.', 'adf-festival'), ['status' => 400]);
+        }
+        $avail = \ADF\Ticketing\TicketTypes::availability($event_id, $type);
+        if ($avail['state'] !== 'available') {
+            return new \WP_Error('adf_unavailable', __('Those tickets are not currently on sale.', 'adf-festival'), ['status' => 409]);
+        }
+
+        $unit     = \ADF\Ticketing\TicketTypes::effective_price($type);
+        $subtotal = round($unit * $qty, 2);
+        $discount = 0.0;
+        $promo    = null;
+        $code     = trim((string) $req->get_param('promo_code'));
+        if ($code !== '') {
+            $res = \ADF\Ticketing\Promo::validate($code, $event_id, $subtotal);
+            if (is_wp_error($res)) {
+                return $res;
+            }
+            $discount = (float) $res['discount_amount'];
+            $promo    = ['code' => strtoupper($code), 'promo_id' => $res['promo_id']];
+        }
+        $total = max(0, round($subtotal - $discount, 2));
+
+        return compact('event_id', 'type', 'qty', 'unit', 'subtotal', 'discount', 'total', 'promo');
+    }
+
+    public function ticket_promo(\WP_REST_Request $req): \WP_REST_Response {
+        $priced = $this->price_checkout($req);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], 400);
+        }
+        return new \WP_REST_Response([
+            'discount' => $priced['discount'],
+            'total'    => $priced['total'],
+        ], 200);
+    }
+
+    public function ticket_intent(\WP_REST_Request $req): \WP_REST_Response {
+        if (! \ADF\Connectors\StripeConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
+        }
+        $priced = $this->price_checkout($req);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+
+        $cents = (int) round($priced['total'] * 100);
+        if ($cents < 50) {
+            // Free/comp orders skip Stripe — create immediately.
+            $order = \ADF\Ticketing\Orders::create([
+                'event_id' => $priced['event_id'], 'type' => $priced['type'], 'qty' => $priced['qty'],
+                'email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name')),
+                'unit_price' => $priced['unit'], 'discount' => $priced['discount'], 'total' => $priced['total'],
+                'promo' => $priced['promo'],
+            ], '', 'free', 'public');
+            if (is_wp_error($order)) {
+                return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
+            }
+            return new \WP_REST_Response(['free' => true, 'tickets' => $order['tickets']], 200);
+        }
+
+        $intent = \ADF\Connectors\StripeConnector::create_payment_intent($cents, (string) \ADF\Settings::get('currency', 'usd'), '', [
+            'kind'     => 'ticket',
+            'event_id' => $priced['event_id'],
+            'type_key' => $priced['type']['key'],
+            'qty'      => $priced['qty'],
+            'email'    => sanitize_email((string) $req->get_param('email')),
+            'name'     => sanitize_text_field((string) $req->get_param('name')),
+            'promo'    => $priced['promo']['code'] ?? '',
+        ]);
+        if (($intent['id'] ?? '') === '') {
+            return new \WP_REST_Response(['error' => 'payment_init_failed'], 502);
+        }
+        return new \WP_REST_Response([
+            'client_secret' => $intent['client_secret'],
+            'intent_id'     => $intent['id'],
+            'amount'        => $cents,
+        ], 200);
+    }
+
+    public function ticket_confirm(\WP_REST_Request $req): \WP_REST_Response {
+        $intent_id = sanitize_text_field((string) $req->get_param('intent_id'));
+        $pi = \ADF\Connectors\StripeConnector::retrieve_payment_intent($intent_id);
+        if (($pi['status'] ?? '') !== 'succeeded') {
+            return new \WP_REST_Response(['error' => 'payment_incomplete'], 402);
+        }
+        // Re-price server-side from the (verified) request to avoid trusting client totals.
+        $priced = $this->price_checkout($req);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], 400);
+        }
+        $order = \ADF\Ticketing\Orders::create([
+            'event_id' => $priced['event_id'], 'type' => $priced['type'], 'qty' => $priced['qty'],
+            'email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name')),
+            'unit_price' => $priced['unit'], 'discount' => $priced['discount'], 'total' => $priced['total'],
+            'promo' => $priced['promo'],
+        ], $intent_id, 'stripe', 'public');
+        if (is_wp_error($order)) {
+            return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
+        }
+        return new \WP_REST_Response(['ok' => true, 'tickets' => $order['tickets']], 200);
+    }
+
     public function map_pins(\WP_REST_Request $req): \WP_REST_Response {
         $cats = array_filter(array_map('sanitize_key', explode(',', (string) $req->get_param('categories'))));
         return new \WP_REST_Response(MapsConnector::pins($cats), 200);
@@ -267,7 +401,13 @@ final class RestApi {
         $object = $event['data']['object'] ?? [];
 
         if ($type === 'payment_intent.succeeded') {
-            Submission::confirm_payment((string) ($object['id'] ?? ''));
+            $meta = (array) ($object['metadata'] ?? []);
+            if (($meta['kind'] ?? '') === 'ticket') {
+                // Backup ticket-order creation (idempotent on payment_id).
+                $this->create_ticket_order_from_meta((string) ($object['id'] ?? ''), $meta);
+            } else {
+                Submission::confirm_payment((string) ($object['id'] ?? ''));
+            }
         } elseif ($type === 'charge.refunded') {
             $intent = (string) ($object['payment_intent'] ?? '');
             $post   = $intent ? Submission::find_by_intent($intent) : 0;
@@ -279,6 +419,39 @@ final class RestApi {
         // in pending_payment for the user to retry.
 
         return new \WP_REST_Response(['received' => true], 200);
+    }
+
+    /**
+     * Reconstruct + create a ticket order from PaymentIntent metadata (webhook
+     * safety net when the client never calls /ticket-confirm). Idempotent.
+     */
+    private function create_ticket_order_from_meta(string $intent_id, array $meta): void {
+        if ($intent_id === '' || \ADF\Ticketing\Orders::by_payment($intent_id)) {
+            return;
+        }
+        $event_id = (int) ($meta['event_id'] ?? 0);
+        $type = \ADF\Ticketing\TicketTypes::type($event_id, (string) ($meta['type_key'] ?? ''));
+        if (! $type) {
+            return;
+        }
+        $qty      = max(1, (int) ($meta['qty'] ?? 1));
+        $unit     = \ADF\Ticketing\TicketTypes::effective_price($type);
+        $subtotal = round($unit * $qty, 2);
+        $discount = 0.0;
+        $promo    = null;
+        if (! empty($meta['promo'])) {
+            $res = \ADF\Ticketing\Promo::validate((string) $meta['promo'], $event_id, $subtotal);
+            if (! is_wp_error($res)) {
+                $discount = (float) $res['discount_amount'];
+                $promo    = ['code' => strtoupper((string) $meta['promo']), 'promo_id' => $res['promo_id']];
+            }
+        }
+        \ADF\Ticketing\Orders::create([
+            'event_id' => $event_id, 'type' => $type, 'qty' => $qty,
+            'email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? '')),
+            'unit_price' => $unit, 'discount' => $discount, 'total' => max(0, round($subtotal - $discount, 2)),
+            'promo' => $promo,
+        ], $intent_id, 'stripe', 'public');
     }
 
     /* ----------------------------------------------------------------- *

@@ -55,6 +55,8 @@ final class Settings {
             'brevo_lists'     => [],
             // Digest: first Monday each month (§5).
             'digest_enabled'  => true,
+            // Daily ticket sales report recipient (blank = site admin email).
+            'report_email'    => '',
             // Volunteer reminders (email always; SMS via Brevo when enabled).
             'sms_enabled'      => false,
             'sms_sender'       => 'ADF',

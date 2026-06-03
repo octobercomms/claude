@@ -141,6 +141,7 @@ final class Settings {
             'brevo_templates'  => $brevo_templates,
             'brevo_lists'      => $brevo_lists,
             'digest_enabled'   => ! empty($in['digest_enabled']),
+            'report_email'     => sanitize_email((string) ($in['report_email'] ?? '')),
             'sms_enabled'      => ! empty($in['sms_enabled']),
             'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? 'ADF')),
             'reminder_offsets' => $offsets,

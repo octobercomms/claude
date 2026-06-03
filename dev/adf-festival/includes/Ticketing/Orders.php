@@ -257,6 +257,50 @@ final class Orders {
         return add_query_arg(['adf_ticket' => $token], home_url('/'));
     }
 
+    /* ------------------------------------------------------------------ *
+     * Reporting
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Overall + today's sales stats (paid orders, active tickets).
+     *
+     * @return array{tickets:int,revenue:float,today_tickets:int,today_revenue:float}
+     */
+    public static function stats(): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $today = current_time('Y-m-d');
+
+        $tickets = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active'");
+        $revenue = (float) $wpdb->get_var("SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid'");
+        $today_tickets = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND DATE(o.created_at)=%s",
+            $today
+        ));
+        $today_revenue = (float) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND DATE(created_at)=%s",
+            $today
+        ));
+        return compact('tickets', 'revenue') + ['today_tickets' => $today_tickets, 'today_revenue' => $today_revenue];
+    }
+
+    /**
+     * Per-event sales summary.
+     *
+     * @return array<int,object>
+     */
+    public static function event_summary(): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        return $wpdb->get_results(
+            "SELECT o.event_id, COUNT(ti.id) AS tickets, COALESCE(SUM(o.total),0) AS revenue
+             FROM {$o} o LEFT JOIN {$t} ti ON ti.order_id = o.id AND ti.status='active'
+             WHERE o.status='paid' GROUP BY o.event_id ORDER BY revenue DESC"
+        ) ?: [];
+    }
+
     /** @return array<int,array<string,mixed>> */
     private static function ticket_dtos(array $tickets): array {
         return array_map(static fn($t) => [

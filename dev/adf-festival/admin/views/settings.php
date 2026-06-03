@@ -99,8 +99,9 @@ use ADF\Connectors\BrevoConnector;
         </p>
         <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'adf-festival'); ?></p>
 
-        <h2><?php esc_html_e('Digest', 'adf-festival'); ?></h2>
+        <h2><?php esc_html_e('Digest & reports', 'adf-festival'); ?></h2>
         <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'adf-festival'); ?></label></p>
+        <p><label><?php esc_html_e('Daily ticket sales report to', 'adf-festival'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'adf-festival'); ?></span></p>
 
         <h2 id="updates"><?php esc_html_e('Updates (GitHub)', 'adf-festival'); ?></h2>
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged adf-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define ADF_GITHUB_TOKEN in wp-config.php).', 'adf-festival'); ?></p>
