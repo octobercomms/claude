@@ -288,7 +288,7 @@ cron.schedule('*/15 * * * *', async () => {
 cron.schedule('0 7 * * 1', async () => {
   try {
     const { rows: clients } = await pool.query(
-      `SELECT id, name FROM clients
+      `SELECT id, name, strategist_recipients FROM clients
         WHERE active = true
           AND EXISTS (
             SELECT 1 FROM connectors c
@@ -297,11 +297,40 @@ cron.schedule('0 7 * * 1', async () => {
                AND c.connector_type IN ('meta_ads', 'google_ads')
           )`
     );
+    const emailService = require('./emailService');
+    const platformUrl = process.env.PLATFORM_URL || '';
+    const envRecipients = (process.env.STRATEGIST_RECIPIENTS || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
     for (const cl of clients) {
       try {
-        await strategistReport.generate({ clientId: cl.id, periodDays: 7, trigger: 'weekly' });
+        const reportId = await strategistReport.generate({ clientId: cl.id, periodDays: 7, trigger: 'weekly' });
+        // Pull the parsed recommendations + the row's markdown so we can
+        // email them as a punchlist at the top. Both can be empty in
+        // edge cases — the email still goes out as the briefing alone.
+        const { rows: rows1 } = await pool.query(
+          `SELECT period_start, period_end, markdown FROM strategist_reports WHERE id = $1`,
+          [reportId]
+        );
+        const r = rows1[0] || {};
+        const { rows: actionRows } = await pool.query(
+          `SELECT text FROM strategist_recommendations WHERE report_id = $1 ORDER BY position ASC`,
+          [reportId]
+        );
+        const recipients = (cl.strategist_recipients || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+        const to = recipients.length ? recipients : envRecipients;
+        if (!to.length) {
+          console.warn(`[strategist] no recipients for ${cl.name} — set strategist_recipients on the client or STRATEGIST_RECIPIENTS env var`);
+          continue;
+        }
+        const period = r.period_start && r.period_end ? `${r.period_start} – ${r.period_end}` : '';
+        const reportUrl = platformUrl ? `${platformUrl}/clients/${cl.id}/ads?tab=strategist&report=${reportId}` : null;
+        await emailService.sendStrategistBriefing({
+          to, clientName: cl.name, period,
+          markdown: r.markdown || '_Briefing was generated but had no content._',
+          recommendations: actionRows.map(a => a.text),
+          reportUrl,
+        });
       } catch (err) {
-        console.error(`[strategist] weekly generation failed for ${cl.name}:`, err.message);
+        console.error(`[strategist] weekly generation/email failed for ${cl.name}:`, err.message);
       }
     }
   } catch (err) {

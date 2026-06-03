@@ -14,6 +14,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   const [selected, setSelected] = useState(null);
   const [generating, setGenerating] = useState(false);
   const [period, setPeriod] = useState(7);
+  const [actions, setActions] = useState([]);
 
   useEffect(() => {
     api.get(`/strategist/clients/${clientId}/reports`)
@@ -22,11 +23,25 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   }, [clientId, toast]);
 
   useEffect(() => {
-    if (!selectedId) { setSelected(null); return; }
+    if (!selectedId) { setSelected(null); setActions([]); return; }
     api.get(`/strategist/reports/${selectedId}`)
       .then(setSelected)
       .catch(e => toast(e.message, 'error'));
+    api.get(`/strategist/reports/${selectedId}/actions`)
+      .then(setActions)
+      .catch(() => setActions([]));
   }, [selectedId, toast]);
+
+  async function toggleAction(action) {
+    const next = !action.done;
+    setActions(prev => prev.map(a => a.id === action.id ? { ...a, done: next, done_at: next ? new Date().toISOString() : null } : a));
+    try {
+      await api.patch(`/strategist/actions/${action.id}`, { done: next });
+    } catch (e) {
+      setActions(prev => prev.map(a => a.id === action.id ? { ...a, done: action.done, done_at: action.done_at } : a));
+      toast(e.message, 'error');
+    }
+  }
 
   useEffect(() => {
     if (selected && selected.status === 'completed' && !selected.read_at) {
@@ -154,6 +169,28 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     ↓ Save PDF
                   </button>
                 </div>
+                {actions.length > 0 && (
+                  <div style={{ border: '1px solid #E7CD41', background: '#fffbe6', padding: '12px 16px', borderRadius: 6, marginBottom: 18 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                      Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
+                    </div>
+                    <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+                      {actions.map(a => (
+                        <li key={a.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0e7c0' }}>
+                          <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 3, cursor: 'pointer' }} />
+                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? '#999' : '#111', textDecoration: a.done ? 'line-through' : 'none' }}>
+                            {a.text}
+                            {a.done && a.done_at && (
+                              <div style={{ fontSize: 11, color: '#999', marginTop: 2, textDecoration: 'none' }}>
+                                ✓ done {new Date(a.done_at).toLocaleDateString('en-GB')}
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                )}
                 <div style={styles.md}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                     {selected.markdown || ''}
