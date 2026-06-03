@@ -1,0 +1,232 @@
+<?php
+declare(strict_types=1);
+
+namespace ADF;
+
+use ADF\Connectors\BrevoConnector;
+use ADF\Connectors\ClaudeConnector;
+
+defined('ABSPATH') || exit;
+
+/**
+ * Scheduled jobs:
+ *   - Monthly digest (§5) — first Monday of each month.
+ *   - AI Stories connector (§6) — daily.
+ *
+ * We schedule a daily tick and gate the monthly digest internally so we do not
+ * depend on a bespoke "first Monday" cron schedule.
+ */
+final class Cron {
+
+    public const HOOK_DAILY    = 'adf_daily_cron';
+    public const HOOK_DIGEST   = 'adf_monthly_digest';
+    public const HOOK_HOURLY   = 'adf_hourly_cron';
+
+    public static function schedule(): void {
+        if (! wp_next_scheduled(self::HOOK_DAILY)) {
+            wp_schedule_event(time() + HOUR_IN_SECONDS, 'daily', self::HOOK_DAILY);
+        }
+        if (! wp_next_scheduled(self::HOOK_HOURLY)) {
+            wp_schedule_event(time() + MINUTE_IN_SECONDS * 5, 'hourly', self::HOOK_HOURLY);
+        }
+    }
+
+    public static function unschedule(): void {
+        foreach ([self::HOOK_DAILY, self::HOOK_DIGEST, self::HOOK_HOURLY] as $hook) {
+            $ts = wp_next_scheduled($hook);
+            if ($ts) {
+                wp_unschedule_event($ts, $hook);
+            }
+        }
+    }
+
+    public function init(): void {
+        add_action(self::HOOK_DAILY, [$this, 'run_daily']);
+        add_action(self::HOOK_DIGEST, [$this, 'run_digest']);
+        add_action(self::HOOK_HOURLY, [$this, 'run_hourly']);
+    }
+
+    /**
+     * Hourly tick — volunteer reminder scan (§reminders).
+     */
+    public function run_hourly(): void {
+        Reminders::run_due();
+    }
+
+    public function run_daily(): void {
+        // AI Stories connector runs every day.
+        $this->run_ai_stories();
+
+        // Monthly digest: only on the first Monday of the month.
+        if ((bool) Settings::get('digest_enabled', true) && self::is_first_monday()) {
+            $this->run_digest();
+        }
+    }
+
+    public static function is_first_monday(): bool {
+        $now = current_time('timestamp');
+        return (int) wp_date('N', $now) === 1 && (int) wp_date('j', $now) <= 7;
+    }
+
+    /* ----------------------------------------------------------------------
+     * Monthly digest (§5)
+     * ------------------------------------------------------------------- */
+
+    public function run_digest(): void {
+        $lists       = (array) Settings::get('brevo_lists', []);
+        $digest_list = (int) ($lists['adf_monthly_digest'] ?? 0);
+
+        $stories = $this->recent_stories();
+        $events  = $this->upcoming_events();
+        $featured = $this->featured_listings();
+
+        $params = [
+            'stories'  => array_map([$this, 'summarise_post'], $stories),
+            'events'   => array_map([$this, 'summarise_post'], $events),
+            'featured' => array_map([$this, 'summarise_post'], $featured),
+            'month'    => wp_date('F Y'),
+        ];
+
+        $sent = BrevoConnector::send_to_list('monthly_digest', $digest_list, $params);
+        AuditLog::record('monthly_digest_sent', 0, 'digest', $sent ? 'ok' : 'failed');
+
+        // Reset the featured-in-email flag on included listings (§5).
+        foreach ($featured as $post) {
+            Fields::set($post->ID, 'featured_in_email', false);
+        }
+    }
+
+    /** @return \WP_Post[] */
+    private function recent_stories(): array {
+        return get_posts([
+            'post_type'      => PostTypes::slug('story'),
+            'post_status'    => 'publish',
+            'posts_per_page' => 20,
+            'date_query'     => [['after' => '30 days ago']],
+            'meta_query'     => [['key' => Fields::key('status'), 'value' => Fields::STATUS_APPROVED]],
+        ]);
+    }
+
+    /** @return \WP_Post[] */
+    private function upcoming_events(): array {
+        return get_posts([
+            'post_type'      => PostTypes::slug('event'),
+            'post_status'    => 'publish',
+            'posts_per_page' => 20,
+            'meta_query'     => [
+                [
+                    'key'     => '_adf_start_datetime',
+                    'value'   => [current_time('mysql'), gmdate('Y-m-d H:i:s', strtotime('+30 days'))],
+                    'compare' => 'BETWEEN',
+                    'type'    => 'DATETIME',
+                ],
+            ],
+        ]);
+    }
+
+    /** @return \WP_Post[] */
+    private function featured_listings(): array {
+        return get_posts([
+            'post_type'      => PostTypes::listing_slugs(),
+            'post_status'    => 'publish',
+            'posts_per_page' => 50,
+            'meta_query'     => [['key' => Fields::key('featured_in_email'), 'value' => '1']],
+        ]);
+    }
+
+    private function summarise_post(\WP_Post $post): array {
+        return [
+            'id'      => $post->ID,
+            'title'   => get_the_title($post),
+            'url'     => get_permalink($post),
+            'excerpt' => wp_trim_words(wp_strip_all_tags($post->post_content), 30),
+            'image'   => get_the_post_thumbnail_url($post, 'medium') ?: '',
+        ];
+    }
+
+    /* ----------------------------------------------------------------------
+     * AI Stories connector (§6)
+     * ------------------------------------------------------------------- */
+
+    public function run_ai_stories(): void {
+        if (! ClaudeConnector::is_ready()) {
+            return;
+        }
+        $sources = (array) Settings::get('ai_source_urls', []);
+        foreach ($sources as $url) {
+            $this->process_source((string) $url);
+        }
+    }
+
+    private function process_source(string $url): void {
+        $items = $this->fetch_feed_items($url);
+        $seen  = (array) get_option('adf_ai_seen_guids', []);
+
+        foreach ($items as $item) {
+            $guid = $item['guid'];
+            if (in_array($guid, $seen, true)) {
+                continue;
+            }
+            $seen[] = $guid;
+
+            $result = ClaudeConnector::editorialize($item['content']);
+            if ($result === null) {
+                continue; // transient error — retry next run (not marked seen permanently)
+            }
+            if (! empty($result['skip'])) {
+                AuditLog::record('ai_story_skipped', 0, 'story', $guid);
+                continue;
+            }
+
+            $post_id = wp_insert_post([
+                'post_type'    => PostTypes::slug('story'),
+                'post_status'  => 'draft',
+                'post_title'   => $result['headline'],
+                'post_content' => $result['body'],
+            ], true);
+            if (is_wp_error($post_id)) {
+                continue;
+            }
+            $post_id = (int) $post_id;
+
+            Fields::set($post_id, 'listing_type', 'story');
+            Fields::set($post_id, 'status', Fields::STATUS_PENDING_REVIEW);
+            Fields::set($post_id, 'paid_tier', Fields::TIER_FREE);
+            Fields::set($post_id, 'submission_date', current_time('mysql'));
+            update_post_meta($post_id, '_adf_author_type', 'ai_generated');
+            update_post_meta($post_id, '_adf_ai_source_url', $item['link']);
+            update_post_meta($post_id, '_adf_ai_generated_date', current_time('mysql'));
+
+            AuditLog::record('ai_story_created', $post_id, 'story', $item['link']);
+        }
+
+        // Keep the seen list bounded.
+        update_option('adf_ai_seen_guids', array_slice(array_unique($seen), -500));
+    }
+
+    /**
+     * Fetch RSS items (preferred) using WordPress' bundled SimplePie.
+     *
+     * @return array<int,array{guid:string,link:string,content:string}>
+     */
+    private function fetch_feed_items(string $url): array {
+        if (! function_exists('fetch_feed')) {
+            include_once ABSPATH . WPINC . '/feed.php';
+        }
+        $feed = fetch_feed($url);
+        if (is_wp_error($feed)) {
+            Logger::log('AI source feed error', ['url' => $url, 'error' => $feed->get_error_message()]);
+            return [];
+        }
+        $items = $feed->get_items(0, 10);
+        $out = [];
+        foreach ($items as $item) {
+            $out[] = [
+                'guid'    => (string) $item->get_id(),
+                'link'    => (string) $item->get_permalink(),
+                'content' => wp_strip_all_tags((string) ($item->get_content() ?: $item->get_description())),
+            ];
+        }
+        return $out;
+    }
+}
