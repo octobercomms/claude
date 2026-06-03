@@ -368,8 +368,10 @@ class AIPDF_PDF_Generator {
 	}
 
 	/**
-	 * Split an HTML string of <h3>/<p> elements into N columns,
-	 * keeping each section (heading + its paragraphs) together.
+	 * Split an HTML string of <h3>/<p> elements into N balanced columns,
+	 * newspaper-style: individual paragraphs flow across column boundaries so
+	 * a single section may span two columns. The only constraint is that a
+	 * column never ends on a heading (which would orphan it from its body).
 	 */
 	private static function split_into_cols( $html, $num_cols = 3 ) {
 		preg_match_all( '/<(p|h3)[^>]*>.*?<\/\1>/s', $html, $matches );
@@ -380,23 +382,15 @@ class AIPDF_PDF_Generator {
 			return $result;
 		}
 
-		// Group elements into sections: heading + all following <p>s until next heading.
-		$sections = [];
-		$current  = '';
-		foreach ( $elements as $el ) {
-			if ( strpos( $el, '<h3' ) !== false && $current !== '' ) {
-				$sections[] = $current;
-				$current    = $el;
-			} else {
-				$current .= $el;
-			}
-		}
-		if ( $current !== '' ) $sections[] = $current;
-
-		// Weight by character count of plain text + fixed bonus per heading for its margin.
-		$weights = array_map( function( $s ) {
-			return strlen( strip_tags( $s ) ) + ( strpos( $s, '<h3' ) !== false ? 80 : 0 );
-		}, $sections );
+		// Weight each element by its estimated rendered height in lines, since
+		// every wrapped line is a fixed height. ~38 chars per line for a ~54mm
+		// column at 6pt monospace (deliberately conservative to avoid overflow).
+		$cpl     = 38;
+		$weights = array_map( function( $el ) use ( $cpl ) {
+			$lines = max( 1, (int) ceil( strlen( strip_tags( $el ) ) / $cpl ) );
+			if ( strpos( $el, '<h3' ) !== false ) $lines += 2; // top margin + taller face
+			return $lines;
+		}, $elements );
 
 		$total  = array_sum( $weights );
 		$target = $total / $num_cols;
@@ -405,10 +399,13 @@ class AIPDF_PDF_Generator {
 		$col        = 0;
 		$col_weight = 0;
 
-		foreach ( $sections as $i => $section ) {
-			$cols[ $col ] .= $section;
+		foreach ( $elements as $i => $el ) {
+			$cols[ $col ] .= $el;
 			$col_weight   += $weights[ $i ];
-			if ( $col < $num_cols - 1 && $col_weight >= $target ) {
+			$is_heading    = strpos( $el, '<h3' ) !== false;
+			// Advance once this column has its share — but never break right after
+			// a heading, so the heading stays attached to its first paragraph.
+			if ( $col < $num_cols - 1 && $col_weight >= $target && ! $is_heading ) {
 				$col++;
 				$col_weight = 0;
 			}
