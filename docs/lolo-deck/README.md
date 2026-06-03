@@ -80,6 +80,11 @@ python generate_deck.py /path/to/characters --logo lolo-logo.png
 | `-t`, `--title` | `Costume Character Presentation` | Cover page title (editable). |
 | `-o`, `--output` | `<input-folder-name>.pdf` | Output PDF path. |
 | `--logo` | _(type wordmark)_ | Optional logo image used on cover + footers. |
+| `--reference-first` | off | Put each character's reference/sketch in the top-left cell. Found by keyword (`reference`/`ref`/`sketch`/`concept`) or as the odd-one-out by filename family (e.g. one `theme-park` shot among five `LOLO Beijing` renders). |
+| `--reference-keyword TEXT` | — | Force the reference to be the image whose filename contains `TEXT` (implies `--reference-first`). |
+
+> The bundled Mac wrappers (`mac/`) run with `--reference-first` enabled by
+> default, so the reference shot lands top-left automatically.
 
 ## Implementation notes
 

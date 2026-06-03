@@ -49,6 +49,10 @@ GRID_COLS = 3
 GRID_ROWS = 2
 IMAGES_PER_PAGE = GRID_COLS * GRID_ROWS
 
+# Filename markers that flag an image as the reference/sketch (case-insensitive,
+# matched as substrings) when --reference-first is used.
+DEFAULT_REF_KEYWORDS = ("reference", "ref", "sketch", "concept")
+
 # Colours
 INK = (0.10, 0.10, 0.10)          # near-black for type
 MUTED = (0.55, 0.55, 0.55)        # placeholder / secondary text
@@ -102,6 +106,58 @@ def humanise(folder_name: str) -> str:
     name = name.replace("_", " ").replace("-", " ")
     name = " ".join(name.split())
     return name.title() if name else folder_name
+
+
+def _filename_signature(path: Path) -> str:
+    """A rough 'name family' for an image: its leading non-digit text.
+
+    ``"LOLO Beijing 14-07-15.png"`` -> ``"lolo beijing"`` and
+    ``"theme-park-scaled.jpeg"`` -> ``"theme park scaled"``. Used to spot the
+    odd-one-out (the reference) among a set of similarly-named renders.
+    """
+    chars = []
+    for ch in path.stem.lower():
+        if ch.isdigit():
+            break
+        chars.append(ch)
+    sig = "".join(chars)
+    return " ".join(sig.replace("_", " ").replace("-", " ").split())
+
+
+def order_images(images, reference_first: bool, reference_keyword: str = None):
+    """Return *images* reordered so the reference/sketch is first, if asked.
+
+    With ``reference_first`` enabled the reference is located by, in order:
+      1. an explicit ``reference_keyword`` substring in the filename, else
+      2. one of the DEFAULT_REF_KEYWORDS, else
+      3. the "odd one out" — the single image whose filename family differs
+         from the majority (e.g. one ``theme-park`` shot among five
+         ``LOLO Beijing`` renders).
+    If none of these single one out, the original filename order is kept.
+    """
+    if not reference_first or len(images) < 2:
+        return images
+
+    keywords = [reference_keyword] if reference_keyword else list(DEFAULT_REF_KEYWORDS)
+    for kw in keywords:
+        if not kw:
+            continue
+        kw = kw.lower()
+        for i, img in enumerate(images):
+            if kw in img.name.lower():
+                return [images[i]] + images[:i] + images[i + 1:]
+
+    # Odd-one-out: the lone image not matching the dominant name family.
+    from collections import Counter
+    sigs = [_filename_signature(p) for p in images]
+    counts = Counter(sigs)
+    dominant, dom_count = counts.most_common(1)[0]
+    if dom_count < len(images):  # not all identical -> there is an odd one
+        for i, sig in enumerate(sigs):
+            if sig != dominant:
+                return [images[i]] + images[:i] + images[i + 1:]
+
+    return images
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +329,8 @@ def _wrap(c, text, font, size, max_width):
 # ---------------------------------------------------------------------------
 
 def build_deck(input_dir: Path, output: Path, title: str,
-               logo_path: Path = None) -> int:
+               logo_path: Path = None, reference_first: bool = False,
+               reference_keyword: str = None) -> int:
     characters = find_characters(input_dir)
     if not characters:
         print(f"No character subfolders found in {input_dir}", file=sys.stderr)
@@ -293,6 +350,7 @@ def build_deck(input_dir: Path, output: Path, title: str,
 
     for folder_name, images in characters:
         display = humanise(folder_name)
+        images = order_images(images, reference_first, reference_keyword)
         count = len(images)
         note = ""
         if count != IMAGES_PER_PAGE:
@@ -323,6 +381,16 @@ def main(argv=None):
         "--logo", type=Path, default=None,
         help="Optional LOLO logo image; if omitted the LOLO wordmark is set "
              "in type.")
+    parser.add_argument(
+        "--reference-first", action="store_true",
+        help="Place each character's reference/sketch image in the first "
+             "(top-left) grid cell. The reference is found by keyword "
+             "(reference/ref/sketch/concept) or as the odd-one-out by "
+             "filename.")
+    parser.add_argument(
+        "--reference-keyword", default=None,
+        help="Override the reference detection: the image whose filename "
+             "contains this text goes first (implies --reference-first).")
     args = parser.parse_args(argv)
 
     input_dir = args.input
@@ -332,8 +400,12 @@ def main(argv=None):
 
     output = args.output or Path(f"{input_dir.resolve().name}.pdf")
 
+    reference_first = args.reference_first or bool(args.reference_keyword)
+
     print(f"Building deck from: {input_dir}")
-    return build_deck(input_dir, output, args.title, args.logo)
+    return build_deck(input_dir, output, args.title, args.logo,
+                      reference_first=reference_first,
+                      reference_keyword=args.reference_keyword)
 
 
 if __name__ == "__main__":

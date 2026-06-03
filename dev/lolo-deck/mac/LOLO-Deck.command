@@ -65,7 +65,7 @@ OUT="$HOME/Desktop/$TITLE.pdf"
 echo
 echo "Building \"$TITLE\" ..."
 echo
-python3 "$SCRIPT" "$FOLDER" --title "$TITLE" -o "$OUT"
+python3 "$SCRIPT" "$FOLDER" --title "$TITLE" --reference-first -o "$OUT"
 
 echo
 echo "Done!  Saved to: $OUT"
