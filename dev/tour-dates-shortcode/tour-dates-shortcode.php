@@ -50,11 +50,11 @@ add_shortcode('tour_dates', function($atts) {
     <style>
     @media (max-width: 767px) {
         table.tdt thead { display: none; }
-        table.tdt tr { display: block; border-top: 2px solid currentColor; padding: 1em 0; }
+        table.tdt tr { display: block; border-top: 2px solid currentColor; padding: 1.75em 0; }
         table.tdt td { display: block; padding: 0; }
-        table.tdt td.date-col { font-weight: bold; margin-bottom: 0.75em; }
-        table.tdt td.occ-col { padding: 0.75em 0 0; border-top: 1px solid rgba(0,0,0,0.1); }
-        table.tdt td.occ-col::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: 0.4em; }
+        table.tdt td.date-col { font-weight: bold; margin-bottom: 1.25em; }
+        table.tdt td.occ-col { padding: 1.25em 0 0; border-top: 1px solid rgba(0,0,0,0.1); }
+        table.tdt td.occ-col::before { content: attr(data-label); display: block; font-weight: 600; margin-bottom: 0.6em; }
     }
     </style>
     <table class="tdt">
