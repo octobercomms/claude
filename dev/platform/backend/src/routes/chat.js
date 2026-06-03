@@ -704,6 +704,14 @@ router.post('/:clientId', async (req, res) => {
     const history = historyRes.rows.reverse();
 
     const userText = message?.trim() || '';
+    // /report prefix marks this turn as a structured-report request:
+    // the AM wants a downloadable PDF/Word artefact at the end, not
+    // a conversational reply. We strip the prefix before sending to
+    // Claude and append a per-turn system nudge to format the
+    // response as a proper short report (title, sections, data
+    // tables) rather than a chat answer.
+    const reportRequested = /^\/report(\s|$)/i.test(userText);
+    const cleanedUserText = reportRequested ? userText.replace(/^\/report\s*/i, '').trim() : userText;
     await pool.query(
       'INSERT INTO client_chat_messages (client_id, role, content) VALUES ($1, $2, $3)',
       [clientId, 'user', userText + (image ? ` [image: ${image.name}]` : '')]
@@ -715,9 +723,9 @@ router.post('/:clientId', async (req, res) => {
           image.mediaType === 'application/pdf'
             ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: image.base64 } }
             : { type: 'image', source: { type: 'base64', media_type: image.mediaType, data: image.base64 } },
-          ...(userText ? [{ type: 'text', text: userText }] : []),
+          ...(cleanedUserText ? [{ type: 'text', text: cleanedUserText }] : []),
         ]
-      : userText;
+      : cleanedUserText;
 
     // Agentic loop with tool use
     let messages = [
@@ -727,11 +735,19 @@ router.post('/:clientId', async (req, res) => {
     const toolsUsed = [];
     let finalText = '';
 
+    // Per-turn system prompt suffix when /report was requested:
+    // instruct Claude to format the reply as a self-contained short
+    // report — title (H1), 1-3 sections (H2), inline data tables,
+    // brief executive summary at the top, no chat-style preamble.
+    const reportSuffix = reportRequested
+      ? '\n\nThis turn is a /report request. Format your reply as a self-contained short report ready to be exported as a PDF / Word document:\n- Start with a Markdown H1 title that names what the report covers.\n- A short Executive Summary paragraph (2-4 sentences) directly under the title.\n- 2-5 H2 sections with the analysis and supporting data.\n- Use GFM tables for data — they render cleanly in both PDF and Word.\n- No chat preamble like "Here you go" or "Let me know if you need anything else". The reply IS the report body.'
+      : '';
+
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const response = await getClaude().messages.create({
         model: MODEL,
-        max_tokens: 2048,
-        system: buildSystemPrompt(client, connectorsRes.rows),
+        max_tokens: reportRequested ? 4096 : 2048,
+        system: buildSystemPrompt(client, connectorsRes.rows) + reportSuffix,
         tools: TOOLS,
         messages,
       });
@@ -775,6 +791,52 @@ router.post('/:clientId', async (req, res) => {
     res.json(rows[0]);
   } catch (err) {
     console.error('[Chat] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Export an assistant message as a downloadable PDF or DOCX.
+// Reads the message from client_chat_messages, runs it through
+// services/chatExport, and streams the bytes back with a sensible
+// filename. Available on any assistant message — the /report
+// command just nudges the formatting, doesn't change the export
+// surface.
+router.get('/:clientId/messages/:msgId/export.:format(pdf|docx)', async (req, res) => {
+  const { clientId, msgId, format } = req.params;
+  try {
+    const [msgRes, clientRes] = await Promise.all([
+      pool.query(
+        `SELECT id, role, content, created_at FROM client_chat_messages
+         WHERE id = $1 AND client_id = $2`,
+        [msgId, clientId]
+      ),
+      pool.query('SELECT name FROM clients WHERE id = $1', [clientId]),
+    ]);
+    if (!msgRes.rows.length) return res.status(404).json({ error: 'Message not found' });
+    const msg = msgRes.rows[0];
+    if (msg.role !== 'assistant') return res.status(400).json({ error: 'Only assistant messages can be exported' });
+    const clientName = clientRes.rows[0]?.name || 'Client';
+    const chatExport = require('../services/chatExport');
+    // Derive a title from the first H1 in the markdown, falling back
+    // to "AI Data Analyst — Report".
+    const titleMatch = (msg.content || '').match(/^#\s+(.+?)\s*$/m);
+    const title = titleMatch ? titleMatch[1] : 'AI Data Analyst — Report';
+    const generatedAt = new Date(msg.created_at);
+    const safeSlug = (clientName + '-' + title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+    const filename = `${safeSlug}.${format}`;
+
+    if (format === 'pdf') {
+      const buf = await chatExport.markdownToPdfBuffer(msg.content || '', { title, clientName, generatedAt });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      return res.send(buf);
+    }
+    const buf = await chatExport.markdownToDocxBuffer(msg.content || '', { title, clientName, generatedAt });
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(buf);
+  } catch (err) {
+    console.error('[Chat export] failed:', err);
     res.status(500).json({ error: err.message });
   }
 });

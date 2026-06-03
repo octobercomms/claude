@@ -88,6 +88,32 @@ export default function ClientChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, sending]);
 
+  // Download an assistant message as PDF or DOCX. Fetches with the
+  // user's bearer token (api.raw adds the Authorization header),
+  // pipes the resulting Blob through an object URL + anchor click so
+  // the browser saves it with the server-provided Content-Disposition
+  // filename.
+  async function downloadMessage(msgId, format) {
+    try {
+      const res = await api.raw(`/chat/${id}/messages/${msgId}/export.${format}`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get('content-disposition') || '';
+      const m = cd.match(/filename="([^"]+)"/);
+      const filename = m ? m[1] : `report.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast(`Download failed: ${err.message}`, 'error');
+    }
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
@@ -245,6 +271,15 @@ export default function ClientChatPage() {
                     {new Date(msg.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
+                {/* Per-message download buttons — assistant only, and
+                    only on saved messages (msg.id from the DB, not the
+                    optimistic placeholder we render mid-send). */}
+                {msg.role === 'assistant' && msg.id && !msg.isError && (
+                  <div style={s.downloadRow}>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} style={s.downloadBtn} title="Download as PDF">↓ PDF</button>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} style={s.downloadBtn} title="Download as Word">↓ Word</button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -272,12 +307,15 @@ export default function ClientChatPage() {
               ))}
             </div>
           )}
+          {/^\/report(\s|$)/i.test(input) && (
+            <div style={s.reportHint}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
+          )}
           <div style={{ display: 'flex', gap: 8 }}>
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask Claude to check data, investigate an issue, or log a decision…"
+              placeholder="Ask Claude to check data, investigate an issue, or log a decision… Type /report to format the reply as a downloadable PDF/Word report."
               style={s.textarea}
               rows={2}
               disabled={sending}
@@ -360,6 +398,9 @@ const s = {
   markdownBody: {
     lineHeight: 1.5,
   },
+  downloadRow: { display: 'flex', gap: 6, marginTop: 6, paddingLeft: 4 },
+  downloadBtn: { background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '3px 8px', fontSize: 11, color: '#555', cursor: 'pointer' },
+  reportHint: { fontSize: 11, color: '#888', marginTop: 4, paddingLeft: 4 },
   toolsUsed: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
   toolChip: { fontSize: 10, padding: '2px 7px', background: '#f0f4ff', color: '#3355cc', borderRadius: 10, fontWeight: 500 },
   inputRow: { display: 'flex', gap: 10, paddingTop: 12, borderTop: '1px solid #e8e8e8', marginTop: 'auto' },
