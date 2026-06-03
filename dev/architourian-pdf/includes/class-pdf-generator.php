@@ -357,11 +357,11 @@ class AIPDF_PDF_Generator {
 			$line = trim( $line );
 			if ( $line === '' ) continue;
 			if ( preg_match( '/^\d+[)\.]\s+\S/', $line ) ) {
-				$output .= '<h3 style="font-size:7pt;font-weight:bold;margin:2.5mm 0 0.8mm 0;padding:0;font-family:ttnooks,\'TT Nooks\',Georgia,serif;">' . esc_html( $line ) . '</h3>';
+				$output .= '<h3 class="tc-h3">' . esc_html( $line ) . '</h3>';
 			} elseif ( preg_match( '/^[–—]/', $line ) ) {
-				$output .= '<p style="font-size:6pt;margin:0 0 0.5mm 0;line-height:1.2;padding-left:2mm;">' . esc_html( $line ) . '</p>';
+				$output .= '<p class="tc-p-bullet">' . esc_html( $line ) . '</p>';
 			} else {
-				$output .= '<p style="font-size:6pt;margin:0 0 0.8mm 0;line-height:1.2;">' . esc_html( $line ) . '</p>';
+				$output .= '<p class="tc-p">' . esc_html( $line ) . '</p>';
 			}
 		}
 		return $output;
@@ -453,6 +453,13 @@ class AIPDF_PDF_Generator {
 		.day-body ul li { font-size: 10.5pt; line-height: 1.5; margin-bottom: 2mm; padding-left: 5mm; text-indent: -5mm; }
 		.day-body ul li::before { content: "\2013\00a0"; }
 		.day-body p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
+
+		/* ── Terms & Conditions — class selectors beat global * and h3!important ── */
+		h3.tc-h3 { font-size: 7pt !important; font-weight: bold !important;
+		           margin: 2.5mm 0 0.8mm 0 !important; padding: 0 !important;
+		           font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
+		p.tc-p        { font-size: 6pt !important; line-height: 1.2 !important; margin: 0 0 0.8mm 0 !important; }
+		p.tc-p-bullet { font-size: 6pt !important; line-height: 1.2 !important; margin: 0 0 0.5mm 0 !important; padding-left: 2mm !important; }
 		</style>';
 	}
 
