@@ -39,10 +39,11 @@ final class PostTypes {
         'product'     => ['slug' => 'adf_product',     'external' => false, 'listing' => true,  'label' => 'Product'],
         'event'       => ['slug' => 'events',          'external' => true,  'listing' => true,  'label' => 'Event'],
         'story'       => ['slug' => 'adf_story',       'external' => false, 'listing' => true,  'label' => 'Story'],
-        'ad'          => ['slug' => 'adf_ad',          'external' => false, 'listing' => true,  'label' => 'Ad'],
+        // Ads are managed as campaigns/creatives in custom tables (see ADF\Ads),
+        // not as a listing CPT.
         // Supporting records (not public listings, not in the approval queue).
+        // Tickets/orders are relational tables (see ADF\Ticketing), not a CPT.
         'account'     => ['slug' => 'adf_account',     'external' => false, 'listing' => false, 'label' => 'Account'],
-        'ticket'      => ['slug' => 'adf_ticket',      'external' => false, 'listing' => false, 'label' => 'Ticket'],
         'volunteer'   => ['slug' => 'volunteer',       'external' => true,  'listing' => false, 'label' => 'Volunteer'],
     ];
 
@@ -104,11 +105,9 @@ final class PostTypes {
         register_post_type(self::slug('destination'), $this->args('Destination', 'Destinations', 'dashicons-location', $supports_default));
         register_post_type(self::slug('product'), $this->args('Product', 'Products', 'dashicons-products', $supports_default));
         register_post_type(self::slug('story'), $this->args('Story', 'Stories', 'dashicons-edit-page', $supports_default));
-        register_post_type(self::slug('ad'), $this->args('Ad', 'Ads', 'dashicons-megaphone', ['title', 'thumbnail', 'author']));
 
         // Supporting records: not publicly queryable.
         register_post_type(self::slug('account'), $this->args('Account', 'Accounts', 'dashicons-id', ['title', 'author'], false));
-        register_post_type(self::slug('ticket'), $this->args('Ticket', 'Tickets', 'dashicons-tickets-alt', ['title', 'author'], false));
     }
 
     /**

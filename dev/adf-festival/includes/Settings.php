@@ -47,11 +47,16 @@ final class Settings {
             // AI Stories connector source URLs (RSS preferred) (§6).
             'ai_source_urls'  => [],
             'ai_model'        => 'claude-sonnet-4-20250514',
+            // Editable "tone of voice" training for the AI Stories layer.
+            'ai_voice_guide'  => '',
+            'ai_examples'     => [],
             // Brevo transactional template IDs keyed by trigger name (§5).
             'brevo_templates' => [],
             'brevo_lists'     => [],
             // Digest: first Monday each month (§5).
             'digest_enabled'  => true,
+            // Daily ticket sales report recipient (blank = site admin email).
+            'report_email'    => '',
             // Volunteer reminders (email always; SMS via Brevo when enabled).
             'sms_enabled'      => false,
             'sms_sender'       => 'ADF',
@@ -59,6 +64,15 @@ final class Settings {
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
+            // Ad booking packages + promo codes.
+            'ad_packages'      => [],
+            'ad_promo_codes'   => [],
+            // Ad syndication (hub/partner).
+            'ad_site_mode'     => 'hub',
+            'ad_api_key'       => '',
+            'ad_hub_url'       => '',
+            'ad_hub_api_key'   => '',
+            'ad_known_partners' => [],
         ];
     }
 

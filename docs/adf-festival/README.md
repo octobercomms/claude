@@ -169,6 +169,12 @@ through Claude with the ADF editorial prompt, discards `SKIP` responses, and
 saves keepers as `adf_story` drafts (`author_type = ai_generated`, source URL
 stored for attribution) into the Stories approval queue.
 
+**Tone-of-voice training (Settings → AI Stories):** the voice is tuned in the
+admin, not hard-coded. A **house style guide** and **example pieces** are sent to
+Claude as the system prompt + voice references on every generation
+(`ClaudeConnector::system_prompt()`), and a **Test the voice** box runs a pasted
+source through the live prompt so you can iterate until it sounds like ADF.
+
 The **monthly digest** compiles recent stories + upcoming events + listings
 flagged `featured_in_email`, sends through Brevo to the digest list, and resets
 the flags.
@@ -181,7 +187,46 @@ the flags.
 |---|---|
 | `[adf_account_dashboard]` | The gated member dashboard (place on `/my-account/`) |
 | `[adf_volunteer_signup opportunity="ID"]` | Shift table + signup form on an opportunity page |
+| `[adf_event_checkout event_id="ID"]` | Public Stripe ticket checkout for an event |
+| `[adf_checkin]` | Door check-in PWA (events → PIN → venue → QR scan) |
+| `[adf_ad format="mpu|leaderboard|skyscraper"]` | An ad slot (served + tracked via REST) |
+| `[adf_ad_book]` | Self-serve ad booking form (Stripe) |
 | `[adf_design_map]` | Fallback Destinations map (Elementor/JetEngine preferred) |
+
+## Ticketing (relational)
+
+Events (the adopted `events` CPT) carry **ticket types** as meta — price, sale
+price, "admits N" group size, per-type capacity + sale windows, plus an
+event-wide sale close, check-in venues and a check-in PIN — edited via a meta box
+on the event. Sales are stored relationally in `adf_orders` / `adf_tickets` /
+`adf_checkins` / `adf_promo_codes` (`ADF\Ticketing`):
+
+- **Checkout** (`[adf_event_checkout]`, Stripe only): server always re-prices;
+  `/ticket-intent` → confirm card → `/ticket-confirm` creates the order + tickets
+  (each a unique 64-hex token). A webhook backup creates the order if the client
+  never confirms. Promo codes (percent/fixed, event-scoped, expiry, max-uses).
+- **Admin → Registrations**: manual comp/paid order entry, cancel + Stripe refund,
+  CSV export; **Promo Codes** CRUD; sales totals on the dashboard + a daily report.
+- **Check-in PWA** (`[adf_checkin]`): PIN-gated (no WP login for door staff),
+  camera QR scanning (html5-qrcode bundled locally) with valid/already/invalid
+  overlays + manual token fallback; every scan logged.
+
+## Ads (`ADF\Ads`)
+
+Campaigns + per-format creatives, random in-date, cap-aware rotation, and
+impression/click tracking **with dedup** live in `adf_ad_campaigns` /
+`adf_ad_creatives` / `adf_ad_tracking` / `adf_ad_bookings`.
+
+- **Serving**: `[adf_ad]` renders an empty slot filled via `/ad-render` (survives
+  page caching); clicks redirect through a tracked URL.
+- **Self-serve booking** (`[adf_ad_book]`): creative uploads + package + promo +
+  Stripe → booking marked *paid* by the webhook → an admin **Activates** it
+  (payment ≠ auto-live, by design), which creates the live campaign.
+- **Admin**: campaign CRUD with a media-library creative picker (full manual
+  entry), Ad Bookings review (activate/decline), and a per-campaign report.
+- **Hub/partner syndication**: in hub mode this site exposes an API-key-gated
+  `/ad` endpoint; partner sites pull + serve ads (cached) with clicks/impressions
+  tracked back on the hub. Configured under Settings → Ad syndication.
 
 ---
 

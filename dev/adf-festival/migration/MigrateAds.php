@@ -3,24 +3,19 @@ declare(strict_types=1);
 
 namespace ADF\Migration;
 
-use ADF\PostTypes;
-use ADF\Fields;
-use ADF\Logger;
+use ADF\Ads\Schema;
 
 defined('ABSPATH') || exit;
 
 /**
- * Migrate the legacy Ad Manager plugin (oc-ad-manager) into `adf_ad` (§9).
+ * Migrate the legacy Ad Manager (oc-ad-manager) custom tables into ADF's ad
+ * tables (§9). The legacy schema maps almost 1:1:
+ *   ocad_campaigns → adf_ad_campaigns
+ *   ocad_ads       → adf_ad_creatives
+ *   ocad_tracking  → adf_ad_tracking
  *
- * The old plugin stores data in CUSTOM TABLES, not a CPT:
- *   - {prefix}ocad_campaigns  campaign (name, client_name, url, status, caps…)
- *   - {prefix}ocad_ads        creatives per campaign (format, image_url, alt_text)
- *   - {prefix}ocad_tracking   impression/click events (type column)
- *   - {prefix}ocad_bookings   purchase records (stripe_payment_intent_id, amount…)
- *
- * This importer reads those tables, creating one `adf_ad` per campaign with the
- * first creative's image, aggregated impression/click counts, and the Stripe
- * payment-intent from the matching booking. Idempotent via `_adf_migrated_from`.
+ * Campaign ids are remapped to the new auto-increment ids; creatives + tracking
+ * follow. Idempotent: a campaign whose name+created_at already exists is skipped.
  *
  * Usage: wp adf migrate-ads [--prefix=wp_] [--dry-run]
  */
@@ -31,82 +26,77 @@ final class MigrateAds {
         $dry_run = isset($assoc['dry-run']);
         $prefix  = $assoc['prefix'] ?? $wpdb->prefix;
 
-        $campaigns_t = $prefix . 'ocad_campaigns';
-        $ads_t       = $prefix . 'ocad_ads';
-        $tracking_t  = $prefix . 'ocad_tracking';
-        $bookings_t  = $prefix . 'ocad_bookings';
+        $c_t = $prefix . 'ocad_campaigns';
+        $a_t = $prefix . 'ocad_ads';
+        $t_t = $prefix . 'ocad_tracking';
 
-        if (! self::table_exists($campaigns_t)) {
-            \WP_CLI::warning("Campaigns table '{$campaigns_t}' not found. The old plugin may be deactivated, or pass --prefix.");
+        if (! self::table_exists($c_t)) {
+            \WP_CLI::warning("Campaigns table '{$c_t}' not found. Pass --prefix if needed.");
             return;
         }
 
-        $campaigns = $wpdb->get_results("SELECT * FROM {$campaigns_t}");
+        $campaigns = $wpdb->get_results("SELECT * FROM {$c_t}");
         \WP_CLI::log(sprintf('Found %d campaign(s).', is_array($campaigns) ? count($campaigns) : 0));
         $created = 0; $skipped = 0;
 
         foreach (($campaigns ?: []) as $c) {
-            $marker = 'ocad_campaigns:' . $c->id;
-            if (self::already_migrated($marker)) {
+            if (self::campaign_exists((string) $c->name, (string) ($c->created_at ?? ''))) {
                 $skipped++;
                 continue;
             }
-
-            // First creative for the image + format/placement.
-            $creative = self::table_exists($ads_t)
-                ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$ads_t} WHERE campaign_id = %d ORDER BY id ASC LIMIT 1", $c->id))
-                : null;
-
-            // Aggregate tracking counts.
-            $impressions = self::table_exists($tracking_t)
-                ? (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$tracking_t} WHERE campaign_id = %d AND type = 'impression'", $c->id))
-                : 0;
-            $clicks = self::table_exists($tracking_t)
-                ? (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$tracking_t} WHERE campaign_id = %d AND type = 'click'", $c->id))
-                : 0;
-
-            // Matching booking (for the Stripe payment-intent + amount).
-            $booking = self::table_exists($bookings_t)
-                ? $wpdb->get_row($wpdb->prepare("SELECT * FROM {$bookings_t} WHERE campaign_id = %d ORDER BY id DESC LIMIT 1", $c->id))
-                : null;
-
-            \WP_CLI::log(sprintf(' • %s (campaign #%d)%s', $c->name, $c->id, $dry_run ? ' [dry-run]' : ''));
+            \WP_CLI::log(sprintf(' • %s%s', $c->name, $dry_run ? ' [dry-run]' : ''));
             if ($dry_run) {
                 continue;
             }
 
-            $new_id = wp_insert_post([
-                'post_type'   => PostTypes::slug('ad'),
-                'post_status' => 'publish',
-                'post_title'  => (string) $c->name,
-                'post_date'   => (string) ($c->created_at ?? current_time('mysql')),
-            ], true);
-            if (is_wp_error($new_id)) {
-                Logger::log('migrate-ads insert failed', ['error' => $new_id->get_error_message()]);
-                continue;
-            }
-            $new_id = (int) $new_id;
+            $wpdb->insert(Schema::campaigns(), [
+                'name'                 => (string) $c->name,
+                'client_name'          => (string) ($c->client_name ?? ''),
+                'url'                  => (string) ($c->url ?? ''),
+                'status'               => (string) ($c->status ?? 'active'),
+                'start_date'           => $c->start_date ?? null,
+                'end_date'             => $c->end_date ?? null,
+                'max_impressions'      => $c->max_impressions ?? null,
+                'max_clicks'           => $c->max_clicks ?? null,
+                'restrict_impressions' => (int) ($c->restrict_impressions ?? 0),
+                'restrict_clicks'      => (int) ($c->restrict_clicks ?? 0),
+                'created_at'           => (string) ($c->created_at ?? current_time('mysql', true)),
+            ]);
+            $new_id = (int) $wpdb->insert_id;
 
-            update_post_meta($new_id, '_adf_ad_name', (string) $c->name);
-            update_post_meta($new_id, '_adf_client_name', (string) ($c->client_name ?? ''));
-            update_post_meta($new_id, '_adf_destination_url', (string) ($c->url ?? ($booking->destination_url ?? '')));
-            update_post_meta($new_id, '_adf_image', $creative ? (string) $creative->image_url : '');
-            update_post_meta($new_id, '_adf_placement', $creative ? (string) $creative->format : '');
-            update_post_meta($new_id, '_adf_impressions', $impressions);
-            update_post_meta($new_id, '_adf_clicks', $clicks);
-            update_post_meta($new_id, '_adf_start_date', (string) ($c->created_at ?? ''));
-            if ($booking) {
-                update_post_meta($new_id, '_adf_stripe_payment_intent_id', (string) ($booking->stripe_payment_intent_id ?? ''));
-                update_post_meta($new_id, '_adf_amount_cents', (int) ($booking->amount_cents ?? 0));
+            // Creatives, remapping legacy ad id → new creative id for tracking.
+            $ad_map = [];
+            if (self::table_exists($a_t)) {
+                foreach (($wpdb->get_results($wpdb->prepare("SELECT * FROM {$a_t} WHERE campaign_id = %d", $c->id)) ?: []) as $ad) {
+                    $wpdb->insert(Schema::creatives(), [
+                        'campaign_id' => $new_id,
+                        'format'      => (string) $ad->format,
+                        'image_url'   => (string) $ad->image_url,
+                        'alt_text'    => (string) ($ad->alt_text ?? ''),
+                        'created_at'  => (string) ($ad->created_at ?? current_time('mysql', true)),
+                    ]);
+                    $ad_map[(int) $ad->id] = (int) $wpdb->insert_id;
+                }
             }
-            Fields::set($new_id, 'listing_type', 'ad');
-            Fields::set($new_id, 'status', Fields::STATUS_APPROVED);
-            Fields::set($new_id, 'paid_tier', Fields::TIER_FEATURED);
-            update_post_meta($new_id, '_adf_migrated_from', $marker);
+
+            // Tracking rows.
+            if (self::table_exists($t_t)) {
+                foreach (($wpdb->get_results($wpdb->prepare("SELECT * FROM {$t_t} WHERE campaign_id = %d", $c->id)) ?: []) as $tr) {
+                    $wpdb->insert(Schema::tracking(), [
+                        'campaign_id' => $new_id,
+                        'ad_id'       => $ad_map[(int) $tr->ad_id] ?? 0,
+                        'type'        => (string) $tr->type,
+                        'ip_hash'     => $tr->ip_hash ?? null,
+                        'ua_hash'     => $tr->user_agent_hash ?? null,
+                        'source_url'  => $tr->source_url ?? null,
+                        'created_at'  => (string) ($tr->created_at ?? current_time('mysql', true)),
+                    ]);
+                }
+            }
             $created++;
         }
 
-        \WP_CLI::success(sprintf('Ads migration complete. Created %d, skipped %d (already migrated).', $created, $skipped));
+        \WP_CLI::success(sprintf('Ads migration complete. Imported %d campaign(s), skipped %d.', $created, $skipped));
     }
 
     private static function table_exists(string $table): bool {
@@ -114,15 +104,11 @@ final class MigrateAds {
         return (string) $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table)) === $table;
     }
 
-    private static function already_migrated(string $marker): bool {
-        $found = get_posts([
-            'post_type'      => PostTypes::slug('ad'),
-            'posts_per_page' => 1,
-            'fields'         => 'ids',
-            'meta_key'       => '_adf_migrated_from',
-            'meta_value'     => $marker,
-            'no_found_rows'  => true,
-        ]);
-        return ! empty($found);
+    private static function campaign_exists(string $name, string $created_at): bool {
+        global $wpdb;
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Schema::campaigns() . " WHERE name = %s AND created_at = %s",
+            $name, $created_at
+        )) > 0;
     }
 }
