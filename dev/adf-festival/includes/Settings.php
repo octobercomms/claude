@@ -67,6 +67,12 @@ final class Settings {
             // Ad booking packages + promo codes.
             'ad_packages'      => [],
             'ad_promo_codes'   => [],
+            // Ad syndication (hub/partner).
+            'ad_site_mode'     => 'hub',
+            'ad_api_key'       => '',
+            'ad_hub_url'       => '',
+            'ad_hub_api_key'   => '',
+            'ad_known_partners' => [],
         ];
     }
 

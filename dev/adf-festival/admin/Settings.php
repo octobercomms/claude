@@ -29,6 +29,18 @@ final class Settings {
         add_action('admin_post_adf_save_settings', [$this, 'save']);
         add_action('admin_post_adf_test_updater', [$this, 'test_updater']);
         add_action('admin_post_adf_test_voice', [$this, 'test_voice']);
+        add_action('admin_post_adf_regen_ad_key', [$this, 'regen_ad_key']);
+    }
+
+    /** Generate a fresh hub API key. */
+    public function regen_ad_key(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('adf_regen_ad_key');
+        Config::update(['ad_api_key' => bin2hex(random_bytes(24))]);
+        wp_safe_redirect(admin_url('admin.php?page=adf-settings#syndication'));
+        exit;
     }
 
     /**
@@ -173,6 +185,10 @@ final class Settings {
             'github_token'     => trim((string) ($in['github_token'] ?? '')),
             'ad_packages'      => $ad_packages,
             'ad_promo_codes'   => $ad_promos,
+            'ad_site_mode'     => ($in['ad_site_mode'] ?? 'hub') === 'partner' ? 'partner' : 'hub',
+            'ad_api_key'       => ($in['ad_site_mode'] ?? 'hub') === 'hub' && (string) Config::get('ad_api_key', '') === '' ? bin2hex(random_bytes(24)) : (string) Config::get('ad_api_key', ''),
+            'ad_hub_url'       => esc_url_raw((string) ($in['ad_hub_url'] ?? '')),
+            'ad_hub_api_key'   => sanitize_text_field((string) ($in['ad_hub_api_key'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=adf-settings')));

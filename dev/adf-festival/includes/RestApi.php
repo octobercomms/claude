@@ -117,6 +117,10 @@ final class RestApi {
         register_rest_route(self::NS, '/ad-render', [
             'methods' => 'GET', 'callback' => [$this, 'ad_render'], 'permission_callback' => '__return_true',
         ]);
+        // Hub syndication endpoint — partners pull ads from here (API-key gated).
+        register_rest_route(self::NS, '/ad', [
+            'methods' => 'GET', 'callback' => [$this, 'ad_syndicate'], 'permission_callback' => [$this, 'hub_api_key'],
+        ]);
         register_rest_route(self::NS, '/ad-promo', [
             'methods' => 'GET', 'callback' => [$this, 'ad_promo'], 'permission_callback' => '__return_true',
         ]);
@@ -464,6 +468,44 @@ final class RestApi {
         $res    = new \WP_REST_Response(['html' => $html], 200);
         $res->header('Cache-Control', 'no-store');
         return $res;
+    }
+
+    /** Hub mode + matching API key. */
+    public function hub_api_key(\WP_REST_Request $req): bool {
+        if (\ADF\Settings::get('ad_site_mode', 'hub') !== 'hub') {
+            return false;
+        }
+        $key = (string) \ADF\Settings::get('ad_api_key', '');
+        $sent = (string) ($req->get_header('x_adf_api_key') ?: $req->get_param('api_key'));
+        return $key !== '' && hash_equals($key, $sent);
+    }
+
+    /**
+     * Hub: return the chosen ad as JSON for a partner site, log the impression
+     * on the hub, and register the partner domain.
+     */
+    public function ad_syndicate(\WP_REST_Request $req): \WP_REST_Response {
+        $format = sanitize_key((string) $req->get_param('format'));
+        $source = esc_url_raw((string) $req->get_param('source'));
+        $ad = \ADF\Ads\Campaigns::active_for_format($format);
+        if (! $ad) {
+            return new \WP_REST_Response([], 200);
+        }
+        \ADF\Ads\Tracking::log((int) $ad->id, (int) $ad->creative_id, 'impression', $source);
+        if ($source !== '') {
+            \ADF\Ads\Partner::register_partner($source);
+        }
+        $dim = \ADF\Ads\Formats::dimensions($format);
+        return new \WP_REST_Response([
+            'ad_id'       => (int) $ad->creative_id,
+            'campaign_id' => (int) $ad->id,
+            'format'      => $format,
+            'image_url'   => (string) $ad->image_url,
+            'alt_text'    => (string) $ad->alt_text,
+            'click_url'   => add_query_arg(['adf_ad_click' => (int) $ad->creative_id, 'c' => (int) $ad->id], home_url('/')),
+            'width'       => (int) $dim['w'],
+            'height'      => (int) $dim['h'],
+        ], 200);
     }
 
     public function ad_promo(\WP_REST_Request $req): \WP_REST_Response {

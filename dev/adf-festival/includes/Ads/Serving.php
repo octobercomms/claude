@@ -55,6 +55,10 @@ final class Serving {
      * when nothing eligible.
      */
     public static function render_html(string $format, string $source = ''): string {
+        // Partner sites proxy to their configured hub.
+        if (Partner::is_partner()) {
+            return Partner::render_ad($format, $source);
+        }
         $ad = Campaigns::active_for_format($format);
         if (! $ad) {
             return '';
