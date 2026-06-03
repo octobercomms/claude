@@ -25,6 +25,9 @@ final class Plugin {
     public function init(): void {
         load_plugin_textdomain('adf-festival', false, dirname(ADF_BASENAME) . '/languages');
 
+        // Auto-build new/changed tables after an update (no reactivation needed).
+        Activator::maybe_upgrade();
+
         // Data layer.
         PostTypes::get_instance()->init();
         Fields::get_instance()->init();

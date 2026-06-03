@@ -10,23 +10,43 @@ use ADF\Connectors\BrevoConnector;
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Settings saved.', 'adf-festival'); ?></p></div>
     <?php endif; ?>
 
-    <h2><?php esc_html_e('API keys', 'adf-festival'); ?></h2>
-    <p class="description"><?php esc_html_e('For security these are defined as constants in wp-config.php, never stored in the database. Status:', 'adf-festival'); ?></p>
-    <table class="widefat striped" style="max-width:640px">
-        <tbody>
-        <?php foreach ($secrets as $key => $const) :
-            $set = defined($const); ?>
-            <tr>
-                <td><code><?php echo esc_html($const); ?></code></td>
-                <td style="color:<?php echo $set ? '#1a7f37' : '#b32d2e'; ?>"><?php echo $set ? esc_html__('Configured', 'adf-festival') : esc_html__('Not set', 'adf-festival'); ?></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="adf_save_settings">
         <?php wp_nonce_field('adf_save_settings'); ?>
+
+        <h2><?php esc_html_e('API keys', 'adf-festival'); ?></h2>
+        <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are saved to the database.', 'adf-festival'); ?></p>
+        <?php
+        $labels = [
+            'stripe_publishable_key' => __('Stripe publishable key', 'adf-festival'),
+            'stripe_secret_key'      => __('Stripe secret key', 'adf-festival'),
+            'stripe_webhook_secret'  => __('Stripe webhook secret', 'adf-festival'),
+            'brevo_api_key'          => __('Brevo API key', 'adf-festival'),
+            'claude_api_key'         => __('Claude API key', 'adf-festival'),
+            'google_maps_key'        => __('Google Maps key', 'adf-festival'),
+        ];
+        ?>
+        <table class="form-table" style="max-width:720px">
+            <?php foreach ($secrets as $key => $const) :
+                $is_const = \ADF\Settings::secret_is_constant($key);
+                $value    = $is_const ? '' : (string) ($cfg[$key] ?? '');
+                ?>
+                <tr>
+                    <th scope="row"><label for="adf-sec-<?php echo esc_attr($key); ?>"><?php echo esc_html($labels[$key] ?? $key); ?></label></th>
+                    <td>
+                        <?php if ($is_const) : ?>
+                            <input type="text" class="regular-text" value="••••••••••" disabled>
+                            <p class="description"><?php printf(/* translators: %s: constant */ esc_html__('Locked — defined by the %s constant in wp-config.php.', 'adf-festival'), '<code>' . esc_html($const) . '</code>'); ?></p>
+                        <?php else : ?>
+                            <span class="adf-secret-wrap">
+                                <input type="password" id="adf-sec-<?php echo esc_attr($key); ?>" class="regular-text adf-secret" name="secret_<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($value); ?>" autocomplete="off" spellcheck="false">
+                                <button type="button" class="button adf-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'adf-festival'); ?>" title="<?php esc_attr_e('Show / hide', 'adf-festival'); ?>"><span class="dashicons dashicons-visibility"></span></button>
+                            </span>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
 
         <h2><?php esc_html_e('Tier pricing', 'adf-festival'); ?></h2>
         <p class="description"><?php esc_html_e('Amounts in your chosen currency. Leave 0 for free.', 'adf-festival'); ?></p>
@@ -136,8 +156,11 @@ use ADF\Connectors\BrevoConnector;
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged adf-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define ADF_GITHUB_TOKEN in wp-config.php).', 'adf-festival'); ?></p>
         <p><label><?php esc_html_e('Repository', 'adf-festival'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
         <?php $token_const = defined('ADF_GITHUB_TOKEN') && ADF_GITHUB_TOKEN; ?>
-        <p><label><?php esc_html_e('GitHub token', 'adf-festival'); ?>
-            <input type="password" name="github_token" class="regular-text" autocomplete="off" value="<?php echo esc_attr((string) ($cfg['github_token'] ?? '')); ?>" <?php echo $token_const ? 'disabled placeholder="Set via ADF_GITHUB_TOKEN constant"' : ''; ?>></label></p>
+        <p><label><?php esc_html_e('GitHub token', 'adf-festival'); ?></label><br>
+            <span class="adf-secret-wrap">
+                <input type="password" name="github_token" class="regular-text adf-secret" autocomplete="off" value="<?php echo esc_attr((string) ($cfg['github_token'] ?? '')); ?>" <?php echo $token_const ? 'disabled placeholder="Set via ADF_GITHUB_TOKEN constant"' : ''; ?>>
+                <?php if (! $token_const) : ?><button type="button" class="button adf-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'adf-festival'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+            </span></p>
 
         <?php submit_button(); ?>
     </form>
@@ -180,4 +203,24 @@ use ADF\Connectors\BrevoConnector;
     <?php $diag = get_transient('adf_updater_diag'); if (is_array($diag)) { delete_transient('adf_updater_diag'); ?>
         <div class="notice <?php echo $diag['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin-top:10px"><p><?php echo esc_html($diag['message']); ?></p></div>
     <?php } ?>
+
+    <style>
+        .adf-secret-wrap { display: inline-flex; align-items: center; gap: 4px; }
+        .adf-secret-toggle { display: inline-flex !important; align-items: center; padding: 0 6px !important; }
+        .adf-secret-toggle .dashicons { width: 18px; height: 18px; font-size: 18px; }
+    </style>
+    <script>
+    (function () {
+        document.querySelectorAll('.adf-secret-toggle').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var input = btn.parentNode.querySelector('input');
+                var icon = btn.querySelector('.dashicons');
+                if (!input) { return; }
+                var show = input.type === 'password';
+                input.type = show ? 'text' : 'password';
+                if (icon) { icon.classList.toggle('dashicons-visibility', !show); icon.classList.toggle('dashicons-hidden', show); }
+            });
+        });
+    })();
+    </script>
 </div>
