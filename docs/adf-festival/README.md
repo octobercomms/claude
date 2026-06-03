@@ -107,13 +107,16 @@ dev/adf-festival/
   includes/                   Core classes (ADF\…)
     PostTypes, Fields, Settings, Account, Submission, Invoice,
     Tickets, Volunteers, VolunteerSignups, Reminders, Cron,
-    RestApi, AuditLog, Logger, Activator, Plugin
+    RestApi, AuditLog, Logger, Updater, Activator, Plugin
     Connectors/               Stripe, Brevo (email+SMS), Claude, Maps
   admin/                      Admin menu, settings, views (ADF\Admin\…)
   frontend/                   Dashboard + templates (ADF\Frontend\…)
   assets/                     css/ js/
   migration/                  WP-CLI importers (ADF\Migration\…)
+  bin/build-zip.sh            Packages the installable zip (used by CI)
 ```
+
+> The release workflow lives at repo root: `.github/workflows/adf-festival-release.yml`.
 
 Classes autoload from the `ADF\` root namespace; the top-level sub-namespaces
 `Admin`, `Frontend`, `Migration` map to their folders, everything else to
@@ -202,6 +205,26 @@ and does not recreate event posts.
 > verified the new plugin, then deactivate them (the brief's retire step).
 
 ---
+
+## Updates & releases (GitHub self-updater)
+
+The plugin updates itself from GitHub Releases, surfaced through WordPress's
+normal **Dashboard → Updates** screen (one-click install) — mirroring the
+Hillcroft Garden Designer setup.
+
+- **Cutting a release:** bump `Version:` in `adf-festival-plugin.php` and merge to
+  `main`. The workflow `.github/workflows/adf-festival-release.yml` reads the
+  header, runs `composer install --no-dev`, builds the zip
+  (`bin/build-zip.sh`, top folder `adf-festival-plugin/`, `vendor/` bundled),
+  and publishes a release tagged `adf-v<version>`. No manual tag push needed.
+- **On the site:** `includes/Updater.php` polls the Releases API for the newest
+  `adf-v*` tag and offers it. Because this is a private repo, set a fine-grained
+  token (Contents: read) under **ADF Festival → Settings → Updates**, or define
+  `ADF_GITHUB_TOKEN` in `wp-config.php`. A "Test update connection" button
+  diagnoses token/scope/release issues. Downloads handle GitHub's redirect to
+  signed storage without leaking the auth header.
+- Because the release zip already contains `vendor/`, sites updating this way
+  never need to run Composer.
 
 ## Notable deviations from the original brief
 

@@ -27,6 +27,21 @@ final class Settings {
 
     public function init(): void {
         add_action('admin_post_adf_save_settings', [$this, 'save']);
+        add_action('admin_post_adf_test_updater', [$this, 'test_updater']);
+    }
+
+    /**
+     * Run the updater connection diagnosis and stash the result for display.
+     */
+    public function test_updater(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('adf_test_updater');
+        $updater = new \ADF\Updater(ADF_BASENAME, ADF_VERSION, \ADF\Updater::repo(), \ADF\Updater::token());
+        set_transient('adf_updater_diag', $updater->diagnose(), 60);
+        wp_safe_redirect(admin_url('admin.php?page=adf-settings#updates'));
+        exit;
     }
 
     public function render(): void {
@@ -94,6 +109,8 @@ final class Settings {
             'sms_enabled'      => ! empty($in['sms_enabled']),
             'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? 'ADF')),
             'reminder_offsets' => $offsets,
+            'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
+            'github_token'     => trim((string) ($in['github_token'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=adf-settings')));

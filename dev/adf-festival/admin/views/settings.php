@@ -94,6 +94,22 @@ use ADF\Connectors\BrevoConnector;
         <h2><?php esc_html_e('Digest', 'adf-festival'); ?></h2>
         <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'adf-festival'); ?></label></p>
 
+        <h2 id="updates"><?php esc_html_e('Updates (GitHub)', 'adf-festival'); ?></h2>
+        <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged adf-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define ADF_GITHUB_TOKEN in wp-config.php).', 'adf-festival'); ?></p>
+        <p><label><?php esc_html_e('Repository', 'adf-festival'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
+        <?php $token_const = defined('ADF_GITHUB_TOKEN') && ADF_GITHUB_TOKEN; ?>
+        <p><label><?php esc_html_e('GitHub token', 'adf-festival'); ?>
+            <input type="password" name="github_token" class="regular-text" autocomplete="off" value="<?php echo esc_attr((string) ($cfg['github_token'] ?? '')); ?>" <?php echo $token_const ? 'disabled placeholder="Set via ADF_GITHUB_TOKEN constant"' : ''; ?>></label></p>
+
         <?php submit_button(); ?>
     </form>
+
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:-8px">
+        <input type="hidden" name="action" value="adf_test_updater">
+        <?php wp_nonce_field('adf_test_updater'); ?>
+        <?php submit_button(__('Test update connection', 'adf-festival'), 'secondary', 'submit', false); ?>
+    </form>
+    <?php $diag = get_transient('adf_updater_diag'); if (is_array($diag)) { delete_transient('adf_updater_diag'); ?>
+        <div class="notice <?php echo $diag['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin-top:10px"><p><?php echo esc_html($diag['message']); ?></p></div>
+    <?php } ?>
 </div>

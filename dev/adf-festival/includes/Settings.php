@@ -56,6 +56,9 @@ final class Settings {
             'sms_enabled'      => false,
             'sms_sender'       => 'ADF',
             'reminder_offsets' => ['week', '48h', 'morning'],
+            // GitHub self-updater (token may also be a wp-config constant).
+            'github_repo'      => 'octobercomms/claude',
+            'github_token'     => '',
         ];
     }
 

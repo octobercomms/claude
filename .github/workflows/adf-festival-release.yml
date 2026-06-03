@@ -1,0 +1,78 @@
+# Auto-publishes a GitHub Release for the ADF Festival plugin whenever a new
+# version lands on `main`. The release IS the build: the Action reads the version
+# from the plugin header and, if no release exists for it yet, runs Composer,
+# builds the zip, and creates the tag + release itself (no manual tag push).
+#
+# The plugin's built-in self-updater (includes/Updater.php) then offers that
+# release to the live site as a one-click update.
+#
+# Because the plugin depends on the Stripe PHP SDK via Composer, this workflow
+# runs `composer install --no-dev` so `vendor/` is bundled into the zip — sites
+# updating via the self-updater never run Composer themselves.
+#
+# Uses the runner's preinstalled PHP/Composer and the first-party GitHub CLI, so
+# it depends on no third-party action being allow-listed.
+name: ADF Festival — Release
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'dev/adf-festival/**'
+      - '.github/workflows/adf-festival-release.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read plugin version
+        id: ver
+        working-directory: dev/adf-festival
+        run: |
+          V="$(grep -m1 -E '^\s*\*\s*Version:' adf-festival-plugin.php | sed -E 's/.*Version:\s*//' | tr -d '[:space:]')"
+          if [ -z "$V" ]; then echo "::error::Could not read version from plugin header"; exit 1; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "tag=adf-v$V" >> "$GITHUB_OUTPUT"
+
+      - name: Skip if this release already exists
+        id: exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "${{ steps.ver.outputs.tag }}" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release ${{ steps.ver.outputs.tag }} already exists — nothing to do."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install Composer dependencies (bundled into the zip)
+        if: steps.exists.outputs.exists == 'false'
+        working-directory: dev/adf-festival
+        run: composer install --no-dev --optimize-autoloader --no-interaction --no-progress
+
+      - name: Build plugin zip
+        if: steps.exists.outputs.exists == 'false'
+        working-directory: dev/adf-festival
+        run: |
+          chmod +x bin/build-zip.sh
+          bin/build-zip.sh "$GITHUB_WORKSPACE/dist"
+
+      - name: Create tag + release with the zip asset
+        if: steps.exists.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ steps.ver.outputs.tag }}" \
+            "$GITHUB_WORKSPACE/dist/adf-festival-plugin-${{ steps.ver.outputs.version }}.zip" \
+            -R "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "ADF Festival ${{ steps.ver.outputs.version }}" \
+            --generate-notes

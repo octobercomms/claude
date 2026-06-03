@@ -42,6 +42,9 @@ final class Plugin {
         }
         Dashboard::get_instance()->init();
 
+        // GitHub self-updater (offers releases in the WP Updates screen).
+        (new Updater(ADF_BASENAME, ADF_VERSION, Updater::repo(), Updater::token()))->init();
+
         // Shared asset registration (used by dashboard + map).
         add_action('wp_enqueue_scripts', [$this, 'register_assets']);
         add_action('admin_enqueue_scripts', [$this, 'register_admin_assets']);
