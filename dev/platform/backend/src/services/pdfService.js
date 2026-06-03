@@ -755,8 +755,37 @@ ${getPageCSS()}
 </html>`;
 }
 
+// Render `htmlContent` to a PDF and return the bytes as a Buffer rather
+// than writing to disk. Used by ad-hoc exports (chat → /report download)
+// that don't need a long-lived file. Same puppeteer config as
+// generatePDF — only the output target differs.
+async function generatePDFBuffer(htmlContent, options = {}) {
+  const { printFooter = false, footerLines = [] } = options;
+  const browser = await puppeteer.launch({
+    headless: 'new',
+    args: ['--no-sandbox', '--disable-setuid-sandbox'],
+  });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+    const buffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      displayHeaderFooter: printFooter,
+      headerTemplate: printFooter ? '<div></div>' : undefined,
+      footerTemplate: printFooter ? buildPrintFooterTemplate(footerLines) : undefined,
+      margin: printFooter
+        ? { top: '0', right: '0', bottom: '30mm', left: '0' }
+        : { top: '0', right: '0', bottom: '0', left: '0' },
+    });
+    return buffer;
+  } finally {
+    await browser.close();
+  }
+}
+
 module.exports = {
-  generatePDF, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml,
+  generatePDF, generatePDFBuffer, buildMonthlyReportHtml, buildWeeklyReportHtml, buildTemplateReportHtml,
   buildStrategistReportHtml,
   // Exposed for callers that need to build bespoke PDFs (Strategist) using
   // the same fonts / page chrome as the standard reports.
