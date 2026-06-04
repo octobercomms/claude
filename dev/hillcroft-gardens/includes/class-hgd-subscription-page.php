@@ -71,6 +71,10 @@ class HGD_Subscription_Page {
 		if ( ! self::is_configured() ) {
 			return new WP_Error( 'hgd_not_configured', __( 'Plans are not yet available for sign-up.', 'hillcroft-garden-designer' ), array( 'status' => 503 ) );
 		}
+		// Throttle — each call creates a pending row + a Stripe Checkout Session.
+		if ( ! HGD_Rate_Limit::check( 'subscription_checkout', 10, 10 * MINUTE_IN_SECONDS ) ) {
+			return new WP_Error( 'hgd_rate_limited', __( 'Too many attempts. Please wait a moment and try again.', 'hillcroft-garden-designer' ), array( 'status' => 429 ) );
+		}
 
 		$plan_key = sanitize_text_field( (string) $request->get_param( 'plan_key' ) );
 		$plan     = HGD_Subscription::plan( $plan_key );
@@ -93,7 +97,7 @@ class HGD_Subscription_Page {
 		// A recurring Price for this plan (created + cached on first use).
 		$price_id = HGD_Stripe::ensure_price( $plan_key, (string) $plan['label'], (int) round( $amount * 100 ), $interval );
 		if ( is_wp_error( $price_id ) ) {
-			return new WP_Error( 'hgd_stripe_failed', $price_id->get_error_message(), array( 'status' => 502 ) );
+			return new WP_Error( 'hgd_stripe_failed', __( 'Sorry — we couldn\'t start your sign-up just now. Please try again shortly.', 'hillcroft-garden-designer' ), array( 'status' => 502 ) );
 		}
 
 		// Pending local record — promoted to active by the webhook on payment.
@@ -137,7 +141,7 @@ class HGD_Subscription_Page {
 
 		if ( is_wp_error( $session ) ) {
 			HGD_Subscription::update( $sub_id, array( 'status' => 'canceled' ) );
-			return new WP_Error( 'hgd_stripe_failed', $session->get_error_message(), array( 'status' => 502 ) );
+			return new WP_Error( 'hgd_stripe_failed', __( 'Sorry — we couldn\'t start your sign-up just now. Please try again shortly.', 'hillcroft-garden-designer' ), array( 'status' => 502 ) );
 		}
 
 		HGD_Subscription::update( $sub_id, array(
@@ -223,9 +227,18 @@ class HGD_Subscription_Page {
 	public static function rest_manage_link( $request ) {
 		$email = sanitize_email( (string) $request->get_param( 'email' ) );
 		if ( is_email( $email ) ) {
-			$sub = HGD_Subscription::latest_manageable_for_email( $email );
-			if ( $sub ) {
-				self::send_manage_link( $sub );
+			// Throttle to stop this endpoint being used to email-bomb a known
+			// subscriber or burn the site's mail quota. The per-email cap is the
+			// real defence (it holds across rotating source IPs); the per-IP cap
+			// blunts blind spraying. Either way the response stays neutral so we
+			// neither confirm the address nor reveal the throttle.
+			$ip_ok    = HGD_Rate_Limit::check( 'manage_link_ip', 12, HOUR_IN_SECONDS );
+			$email_ok = HGD_Rate_Limit::check( 'manage_link_email', 3, HOUR_IN_SECONDS, $email );
+			if ( $ip_ok && $email_ok ) {
+				$sub = HGD_Subscription::latest_manageable_for_email( $email );
+				if ( $sub ) {
+					self::send_manage_link( $sub );
+				}
 			}
 		}
 

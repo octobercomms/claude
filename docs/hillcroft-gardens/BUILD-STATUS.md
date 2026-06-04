@@ -190,6 +190,51 @@ The full original brief is now delivered end to end across 10 releases.
   `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
   passthrough, tamper and double-encrypt cases. No schema change.
 
+## ✅ 1.20.0 — Security audit + hardening
+
+Full security audit (threat model: unauthenticated external attacker + low-priv user). The structural
+posture was already strong — parameterised SQL throughout; all 46 admin handlers gated by
+`guard()` (capability) + `check_admin_referer` (nonce); IDOR-proof `proposal/pay` (ownership check +
+server-derived amount); `hash_equals` webhook verification; encrypted secrets; finfo+allowlist+
+`.htaccess` file uploads; fixed-host remote fetches (no SSRF); enumeration-resistant manage-link.
+
+Findings remediated (root cause: no resource throttling on unauthenticated side-effect endpoints):
+
+- **H1** — `/subscription/manage-link` email-bombing. New `HGD_Rate_Limit` (transient buckets;
+  CF-Connecting-IP/REMOTE_ADDR, *not* spoofable XFF). Capped **per-email (3/h)** + per-IP (12/h);
+  response stays neutral so the throttle isn't revealed and the address isn't confirmed.
+- **M1** — `/booking/create` + `/subscription/checkout` throttled (10 / 10 min) — they create rows +
+  Stripe intents/sessions.
+- **M2** — forms `/start` (15/10min) and `/upload` (40/10min) throttled (only `/submit` was) —
+  submission-row + disk-exhaustion vectors.
+- **M3** — public lead form throttled (6/10min), pretend-success on limit so bots get no signal.
+- **L1** — raw Stripe/Woo error text no longer relayed to clients; a friendly message is shown and the
+  detail goes to `HGD_Log`.
+- **L2/L3** (token DB-equality vs hash_equals; weak logged-out `wp_rest` nonce) — documented as
+  accepted: tokens are 64-char CSPRNG; the nonce gap is mitigated by the new rate limits.
+
+No schema change.
+
+## ✅ 1.19.0 — Production-hardening polish
+
+Applied a "production-feel" pass (loading/error states, resilient forms, error visibility, fallbacks)
+to the public surfaces. Most was already covered (booking/subscription widgets disable submit while
+pending, show loading/error/empty states, and the manage-token flow already renders a friendly 404).
+Three genuine gaps closed:
+
+- **Server-side error logging** — new `HGD_Log` (error/warning → PHP error log, with a `hgd_log`
+  action as the seam to forward to Sentry/Slack/etc.). Wired into the Stripe `handle_response()`
+  chokepoint (every API call: transport + API errors, no secrets logged), the webhook
+  signature-rejection path, and the booking Woo/DB failure paths. Previously these failed silently.
+- **Broken-image fallback** — concept-render `<img>` on the client proposal portal and the keepsake
+  now swap to a styled `.hgd-img-fallback` placeholder via `onerror` instead of a broken-image icon.
+- **Completed 1.18.0's font self-hosting** — found three hardcoded Google Fonts `<link>`s still in the
+  standalone proposal/keepsake/plant-book templates (the wp_enqueue swap missed them). Repointed to
+  the bundled `fonts.css` (added an italic-600 face the keepsake needs, reusing the variable italic
+  file). The forms renderer's font stays external — it's a user-configurable family, not a brand font.
+
+No schema change.
+
 ## ✅ 1.18.0 — Self-hosted brand fonts
 
 - Cormorant Garamond + DM Sans bundled as latin-subset woff2 (`assets/fonts/`, 3 files ≈ 98KB,

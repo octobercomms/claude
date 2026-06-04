@@ -329,9 +329,7 @@ class HGD_Documents {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title><?php echo esc_html( $title . ' — ' . get_bloginfo( 'name' ) ); ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="<?php echo esc_url( HGD_URL . 'assets/fonts/fonts.css' ); ?>" rel="stylesheet" />
 <style>
 :root{--hgd-olive:<?php echo esc_html( $p['olive'] ); ?>;--hgd-charcoal:<?php echo esc_html( $p['charcoal'] ); ?>;--hgd-cream:<?php echo esc_html( $p['cream'] ); ?>;--hgd-paper:#FBF9F3;--hgd-green:#9FA145;--hgd-line:rgba(73,74,32,.18);}
 *{box-sizing:border-box;}
@@ -386,6 +384,7 @@ h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;color:va
 /* Keepsake gallery + tables */
 .k-gallery{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 22px;}
 .k-gallery img{width:100%;height:auto;border-radius:8px;display:block;border:1px solid var(--hgd-line);}
+.hgd-img-fallback{display:flex;align-items:center;justify-content:center;min-height:160px;padding:24px;border-radius:8px;background:var(--hgd-cream,#f1efe6);color:var(--hgd-charcoal,#494a20);border:1px dashed var(--hgd-line);font-size:13px;text-align:center;}
 .k-table{width:100%;border-collapse:collapse;margin:0 0 8px;}
 .k-table td{padding:10px 0;border-bottom:1px solid var(--hgd-line);}
 .k-table td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
@@ -674,7 +673,7 @@ h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;color:va
 								if ( ! $url ) { continue; }
 								$shown++;
 								?>
-								<img src="<?php echo esc_url( $url ); ?>" alt="<?php esc_attr_e( 'Garden concept render', 'hillcroft-garden-designer' ); ?>" />
+								<img src="<?php echo esc_url( $url ); ?>" alt="<?php esc_attr_e( 'Garden concept render', 'hillcroft-garden-designer' ); ?>" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'hgd-img-fallback',textContent:this.alt||'Image unavailable'}));" />
 							<?php endforeach; ?>
 						</div>
 					</div>
@@ -772,9 +771,7 @@ h1,h2,h3{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;color:va
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title><?php echo esc_html( sprintf( __( '%s — a year in your garden', 'hillcroft-garden-designer' ), $title ) . ' — ' . get_bloginfo( 'name' ) ); ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="<?php echo esc_url( HGD_URL . 'assets/fonts/fonts.css' ); ?>" rel="stylesheet" />
 <style>
 :root{--hgd-olive:<?php echo esc_html( $p['olive'] ); ?>;--hgd-charcoal:<?php echo esc_html( $p['charcoal'] ); ?>;--hgd-cream:<?php echo esc_html( $p['cream'] ); ?>;}
 *{box-sizing:border-box;}
