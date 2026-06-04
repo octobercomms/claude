@@ -17,6 +17,7 @@ import ClientOutreachPage from './pages/ClientOutreachPage';
 import ClientSalesTrafficPage from './pages/ClientSalesTrafficPage';
 import ClientSocialPage from './pages/ClientSocialPage';
 import ClientAudiencesPage from './pages/ClientAudiencesPage';
+import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
@@ -54,6 +55,7 @@ export default function App() {
             <Route path="clients/:id/sales-traffic" element={<ClientSalesTrafficPage />} />
             <Route path="clients/:id/social" element={<ClientSocialPage />} />
             <Route path="clients/:id/audiences" element={<ClientAudiencesPage />} />
+            <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />

@@ -1,0 +1,146 @@
+// AEO tracker API — /api/ai-visibility. Mirrors the standard
+// authenticated-per-tenant pattern.
+
+const express = require('express');
+const pool = require('../db');
+const { authenticate } = require('../middleware/auth');
+const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
+const users = require('../services/users');
+const aiVisibility = require('../services/aiVisibility');
+
+const router = express.Router();
+router.use(authenticate);
+router.use(loadVisibleClientIds);
+router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+router.param('promptId', async (req, res, next, id) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM ai_visibility_prompts WHERE id = $1', [id]);
+    if (rows.length && !users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this prompt' });
+    }
+    next();
+  } catch (err) { next(err); }
+});
+
+router.get('/clients/:clientId/prompts', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, prompt, category, active, created_at
+         FROM ai_visibility_prompts WHERE client_id = $1 ORDER BY created_at ASC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/prompts', async (req, res) => {
+  const { prompt, category } = req.body || {};
+  if (!prompt) return res.status(400).json({ error: 'prompt required' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO ai_visibility_prompts (client_id, prompt, category) VALUES ($1, $2, $3) RETURNING *`,
+      [req.params.clientId, prompt.slice(0, 240), category || null]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/prompts/:promptId', async (req, res) => {
+  const { prompt, category, active } = req.body || {};
+  try {
+    const { rows } = await pool.query(
+      `UPDATE ai_visibility_prompts
+          SET prompt = COALESCE($1, prompt),
+              category = COALESCE($2, category),
+              active = COALESCE($3, active)
+        WHERE id = $4 RETURNING *`,
+      [prompt ? prompt.slice(0, 240) : null, category ?? null, active ?? null, req.params.promptId]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/prompts/:promptId', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM ai_visibility_prompts WHERE id = $1`, [req.params.promptId]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Generate a starter set of prompts via Claude — AM picks which to
+// keep, then bulk-creates the survivors.
+router.post('/clients/:clientId/prompts/generate', async (req, res) => {
+  try {
+    const prompts = await aiVisibility.generatePromptsForClient(req.params.clientId);
+    res.json({ prompts });
+  } catch (err) {
+    console.error('[aeo] generate failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Bulk-create prompts. Used after the generate step.
+router.post('/clients/:clientId/prompts/bulk', async (req, res) => {
+  const { prompts } = req.body || {};
+  if (!Array.isArray(prompts) || !prompts.length) return res.status(400).json({ error: 'prompts array required' });
+  try {
+    const created = [];
+    for (const p of prompts) {
+      const text = String(p?.prompt || p || '').trim();
+      if (!text) continue;
+      const { rows } = await pool.query(
+        `INSERT INTO ai_visibility_prompts (client_id, prompt, category) VALUES ($1, $2, $3) RETURNING id, prompt`,
+        [req.params.clientId, text.slice(0, 240), (p?.category || null)]
+      );
+      created.push(rows[0]);
+    }
+    res.json({ created });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Manual trigger — runs every active prompt across every engine.
+router.post('/clients/:clientId/run', async (req, res) => {
+  try {
+    const results = await aiVisibility.runAllForClient(req.params.clientId);
+    res.json({ results });
+  } catch (err) {
+    console.error('[aeo] run failed:', err.message);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Latest runs — used by the AM-facing list view.
+router.get('/clients/:clientId/runs', async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, prompt_text, engine, response_text, brand_mentioned, brand_position,
+              competitor_mentions, sentiment, fetched_at
+         FROM ai_visibility_runs
+        WHERE client_id = $1
+        ORDER BY fetched_at DESC
+        LIMIT $2`,
+      [req.params.clientId, limit]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/summary', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const summary = await aiVisibility.summarise(req.params.clientId, { days });
+    res.json(summary);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/trend', async (req, res) => {
+  try {
+    const weeks = Math.min(parseInt(req.query.weeks) || 12, 52);
+    const trend = await aiVisibility.getTrend(req.params.clientId, { weeks });
+    res.json(trend);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+module.exports = router;

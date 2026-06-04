@@ -97,6 +97,20 @@ cron.schedule('30 * * * *', async () => {
   }
 });
 
+// AI Visibility (AEO): Monday 05:00. Runs every active prompt across
+// every supported engine for every client that has prompts configured.
+// Builds a moving weekly share-of-voice trend per client without
+// touching the AM's morning workflow.
+cron.schedule('0 5 * * 1', async () => {
+  try {
+    const aiVisibility = require('./aiVisibility');
+    const summary = await aiVisibility.runAllClients();
+    console.log(`[AEO] weekly run across ${summary.length} clients`);
+  } catch (err) {
+    console.error('[AEO] weekly run failed:', err.message);
+  }
+});
+
 // Competitor tracker: Sunday 06:00. For every client with at least
 // one entry in social_competitors, ask Apify for their top recent
 // reels and store them. Same rows are fed into next-batch generation
