@@ -196,4 +196,59 @@ async function getAccessReport(credentials) {
   return { granted, missing, limitations };
 }
 
-module.exports = { authType, checkTokenValidity, fetchData, getAccessReport, REQUIRED_SCOPES };
+// Walk every order in the last `days` and return one row per customer
+// with their shipping/billing postcode and lifetime stats. Used by the
+// Audience Insights service to build the first-party postcode
+// distribution without polluting the regular reporting pipeline.
+async function fetchCustomerPostcodes(credentials, { days = 365, maxPages = 80 } = {}) {
+  const { shop_domain, access_token } = credentials;
+  const headers = { 'X-Shopify-Access-Token': access_token };
+  const startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  let url = `https://${shop_domain}/admin/api/2024-01/orders.json`;
+  let params = {
+    status: 'any',
+    created_at_min: `${startDate}T00:00:00Z`,
+    limit: 250,
+    fields: 'id,created_at,total_price,customer,shipping_address,billing_address',
+  };
+  const byCustomer = new Map();
+  for (let page = 0; page < maxPages && url; page++) {
+    const res = await axios.get(url, { headers, params });
+    for (const o of (res.data.orders || [])) {
+      const cid = o.customer?.id || o.customer?.email || null;
+      const postcode = (o.shipping_address?.zip || o.billing_address?.zip || '').toUpperCase().trim();
+      if (!cid || !postcode) continue;
+      const district = parsePostcodeDistrict(postcode);
+      if (!district) continue;
+      const existing = byCustomer.get(cid);
+      const revenue = Number(o.total_price || 0);
+      if (existing) {
+        existing.order_count += 1;
+        existing.revenue += revenue;
+      } else {
+        byCustomer.set(cid, { customer_id: cid, postcode_district: district, order_count: 1, revenue });
+      }
+    }
+    const link = res.headers.link || res.headers.Link || '';
+    const next = link.split(',').find(s => s.includes('rel="next"'));
+    const match = next && next.match(/<([^>]+)>/);
+    url = match ? match[1] : null;
+    params = undefined;
+  }
+  return [...byCustomer.values()];
+}
+
+// UK postcode → district. EH1 2AB → EH1; SW1A 1AA → SW1A. Outward part
+// is everything before the space. Robust to missing space (SW1A1AA).
+function parsePostcodeDistrict(zip) {
+  if (!zip || typeof zip !== 'string') return null;
+  const s = zip.toUpperCase().trim();
+  // With space: take part before space.
+  const sp = s.indexOf(' ');
+  if (sp > 0) return s.slice(0, sp);
+  // Without space: outward is 2-4 chars matching letter(s)+digit+optional-letter.
+  const m = s.match(/^([A-Z]{1,2}\d[A-Z\d]?)/);
+  return m ? m[1] : null;
+}
+
+module.exports = { authType, checkTokenValidity, fetchData, getAccessReport, REQUIRED_SCOPES, fetchCustomerPostcodes, parsePostcodeDistrict };
