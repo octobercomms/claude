@@ -11,6 +11,7 @@ import Button from '../components/ui/Button';
 import Chip from '../components/ui/Chip';
 import EmptyState from '../components/ui/EmptyState';
 import Sparkline from '../components/Sparkline';
+import SuiteTabs from '../components/SuiteTabs';
 
 const ENGINE_LABEL = {
   claude: 'Claude',
@@ -111,12 +112,16 @@ export default function ClientAIVisibilityPage() {
       <header className="hero">
         <div className="client-name">{client?.name}</div>
         <h1 className="display mt-2">
-          AI <span className="text-accent">Visibility</span>
+          <span className="text-accent">Organic</span>
         </h1>
-        <p className="body mt-4">
-          Where this brand shows up when real users ask Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews questions in your category. The new SEO — answer engine optimisation.
-        </p>
       </header>
+      <SuiteTabs tabs={[
+        { to: `/clients/${id}/seo`,           label: 'SEO' },
+        { to: `/clients/${id}/ai-visibility`, label: 'AI Visibility' },
+      ]} />
+      <p className="body mt-4 mb-6">
+        Where this brand shows up when real users ask Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews questions in your category. The new SEO — answer engine optimisation.
+      </p>
 
       <div className="metric-grid">
         <div className="metric-card accent">

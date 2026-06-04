@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
+import SuiteTabs from '../components/SuiteTabs';
 
 // Banner shown above the SEO tab listing the data sources that are
 // gated until DataForSEO drops the $100/mo Backlinks + LLM Mentions
@@ -604,10 +605,18 @@ export default function ClientSEOPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
-    <div>
+    <div className="suite-organic">
       <DfsAvailabilityBanner />
+      <header className="hero">
+        <div className="client-name">{client?.name}</div>
+        <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
+      </header>
+      <SuiteTabs tabs={[
+        { to: `/clients/${id}/seo`,           label: 'SEO' },
+        { to: `/clients/${id}/ai-visibility`, label: 'AI Visibility' },
+      ]} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Organic — {client?.name}</h1>
+        <h2 className="h2" style={{ margin: 0 }}>SEO</h2>
         {activeTab === 'keywords' && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>

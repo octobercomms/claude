@@ -11,6 +11,7 @@ import Section from '../components/ui/Section';
 import Button from '../components/ui/Button';
 import Chip from '../components/ui/Chip';
 import EmptyState from '../components/ui/EmptyState';
+import SuiteTabs from '../components/SuiteTabs';
 
 export default function ClientAudiencesPage() {
   const { id } = useParams();
@@ -90,12 +91,16 @@ export default function ClientAudiencesPage() {
       <header className="hero">
         <div className="client-name">{client?.name}</div>
         <h1 className="display mt-2">
-          Audience <span className="text-accent">Insights</span>
+          <span className="text-accent">Paid</span>
         </h1>
-        <p className="body mt-4">
-          Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.
-        </p>
       </header>
+      <SuiteTabs tabs={[
+        { to: `/clients/${id}/ads`,       label: 'Paid' },
+        { to: `/clients/${id}/audiences`, label: 'Audiences' },
+      ]} />
+      <p className="body mt-4 mb-6">
+        Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.
+      </p>
 
       <div className="metric-grid">
         <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />

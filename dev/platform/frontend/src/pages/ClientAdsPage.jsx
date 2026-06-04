@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import { useParams, Link } from 'react-router-dom';
+import SuiteTabs from '../components/SuiteTabs';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -161,7 +162,15 @@ export default function ClientAdsPage() {
   );
 
   return (
-    <div>
+    <div className="suite-paid">
+      <header className="hero">
+        <div className="client-name">{/* legacy header — TODO: thread client name */}</div>
+        <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
+      </header>
+      <SuiteTabs tabs={[
+        { to: `/clients/${id}/ads`,       label: 'Paid' },
+        { to: `/clients/${id}/audiences`, label: 'Audiences' },
+      ]} />
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
         {[['performance', 'Performance'], ['strategist', 'Strategist'], ['creative', 'Creative']].map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{
