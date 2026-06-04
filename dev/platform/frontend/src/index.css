@@ -27,10 +27,10 @@
   --sidebar-subtle: #6e6e76;
   --sidebar-border: #26262b;
 
-  /* Default accent (overridden by suite scope). Terracotta = Social. */
-  --accent: #D35E32;
-  --accent-soft: rgba(211, 94, 50, 0.08);
-  --accent-on: #ffffff;
+  /* Default accent (overridden by suite scope). Brand yellow. */
+  --accent: #E7CD41;
+  --accent-soft: rgba(231, 205, 65, 0.12);
+  --accent-on: #1a1a1a;
 
   /* Type — Brockmann everywhere. */
   --font: 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
@@ -48,12 +48,17 @@
 }
 
 /* ─── Suite scopes ───────────────────────────────────────────────── */
+/* Monochromatic yellow-olive family — complements the existing brand
+   yellow #E7CD41 that's still in legacy components, so the whole
+   platform reads as one coherent design rather than a fight between
+   the new accents and the brand. Lighter shades on the hero suites
+   (Social / Paid), darker on the working / utility suites. */
 
-.suite-social  { --accent: #D35E32; --accent-soft: rgba(211, 94, 50, 0.08); --accent-on: #ffffff; }
-.suite-organic { --accent: #7C812D; --accent-soft: rgba(124, 129, 45, 0.10); --accent-on: #ffffff; }
-.suite-paid    { --accent: #FFBB06; --accent-soft: rgba(255, 187, 6, 0.10); --accent-on: #1a1a1a; }
-.suite-email   { --accent: #71C6A8; --accent-soft: rgba(113, 198, 168, 0.10); --accent-on: #1a1a1a; }
-.suite-press   { --accent: #AD4738; --accent-soft: rgba(173, 71, 56, 0.10); --accent-on: #ffffff; }
+.suite-social  { --accent: #E7CD41; --accent-soft: rgba(231, 205, 65, 0.12);  --accent-on: #1a1a1a; }
+.suite-paid    { --accent: #C4AF37; --accent-soft: rgba(196, 175, 55, 0.12);  --accent-on: #1a1a1a; }
+.suite-organic { --accent: #9C8B2C; --accent-soft: rgba(156, 139, 44, 0.12);  --accent-on: #ffffff; }
+.suite-email   { --accent: #736620; --accent-soft: rgba(115, 102, 32, 0.12);  --accent-on: #ffffff; }
+.suite-press   { --accent: #4A4215; --accent-soft: rgba(74, 66, 21, 0.12);    --accent-on: #ffffff; }
 
 /* ─── Shell ──────────────────────────────────────────────────────── */
 
@@ -129,8 +134,8 @@ button { font-family: inherit; }
    the first thing the AM reads. */
 .hero { margin-bottom: var(--s7); }
 .hero .client-name {
-  font-size: 13px; font-weight: 600; color: var(--text-subtle);
-  letter-spacing: 0.2px; margin: 0;
+  font-size: 26px; font-weight: 600; color: var(--text-subtle);
+  letter-spacing: -0.2px; line-height: 1.1; margin: 0;
 }
 .hero .display { margin-top: var(--s2); }
 .hero .body { margin-top: var(--s4); max-width: 640px; }

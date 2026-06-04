@@ -99,15 +99,16 @@ export default function ClientBrandPage() {
   const byKind = (k) => assets.filter(a => a.kind === k);
 
   return (
-    <div>
-      <div style={{ marginBottom: 22 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Brand — {client?.name || ''}</h1>
-        <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', maxWidth: 740, lineHeight: 1.5 }}>
+    <div className="suite-press">
+      <header className="hero">
+        <div className="client-name">{client?.name || ''}</div>
+        <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
+        <p className="body mt-4">
           Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
           Both the Social and Ad Creative generators pull these as reference so output stays on-brand
           rather than AI-generic.
         </p>
-      </div>
+      </header>
 
       {/* Filter chips */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>

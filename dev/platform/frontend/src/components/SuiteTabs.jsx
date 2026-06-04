@@ -1,25 +1,30 @@
-// Suite tab bar — used at the top of pages that share a suite, e.g.
-// Organic > [Organic / AI Visibility] and Paid > [Paid / Audiences].
-// Each tab is a route, so clicking navigates. Active state is decided
-// by URL match. Lives inside whichever suite scope the parent page
-// sets so the underline picks up the suite accent.
+// Shared suite tab strip. Each tab can either:
+//   - take an absolute `to` path (route navigation), or
+//   - take an `onClick` callback (internal state switch on the same page)
+//
+// Used wherever a page is conceptually one of several siblings under a
+// suite — e.g. Organic = SEO + AI Visibility; Paid = Performance +
+// Strategist + Creative + Audiences. The visual is one strip, the
+// underlying mechanism can mix routes and state.
 
 import React from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 export default function SuiteTabs({ tabs }) {
   const navigate = useNavigate();
-  const { pathname } = useLocation();
   return (
     <div className="tabs">
       {tabs.map(t => {
-        const active = pathname === t.to;
+        const handle = () => {
+          if (t.to) navigate(t.to);
+          else if (t.onClick) t.onClick();
+        };
         return (
           <button
-            key={t.to}
+            key={t.key || t.label}
             type="button"
-            className={`tab ${active ? 'active' : ''}`}
-            onClick={() => navigate(t.to)}
+            className={`tab ${t.active ? 'active' : ''}`}
+            onClick={handle}
           >
             {t.label}
           </button>

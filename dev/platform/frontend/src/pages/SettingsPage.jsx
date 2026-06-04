@@ -406,8 +406,10 @@ export default function SettingsPage() {
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 16 }}>Settings</h1>
+    <div className="suite-social">
+      <header className="hero">
+        <h1 className="display">Settings</h1>
+      </header>
 
       <div style={styles.tabStrip}>
         {[

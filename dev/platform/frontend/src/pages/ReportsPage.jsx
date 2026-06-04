@@ -77,10 +77,14 @@ export default function ReportsPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Reports</h1>
-        <button onClick={() => setShowTrigger(true)} style={styles.btn}>+ Trigger Report</button>
+    <div className="suite-social">
+      <header className="hero">
+        <div className="row between wrap center">
+          <h1 className="display">Reports</h1>
+          <button onClick={() => setShowTrigger(true)} className="btn btn-primary">+ Trigger Report</button>
+        </div>
+      </header>
+      <div style={{ display: 'none' }}>
       </div>
 
       {showTrigger && (

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -255,6 +255,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
 export default function ClientSEOPage() {
   const toast = useToast();
   const { id } = useParams();
+  const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [keywords, setKeywords] = useState([]);
   const [tags, setTags] = useState([]);
@@ -590,7 +591,12 @@ export default function ClientSEOPage() {
       })
     : filtered;
 
-  const [activeTab, setActiveTab] = useState('keywords');
+  const [activeTab, setActiveTab] = useState(() => {
+    // Restore inner tab from ?tab= query so SuiteTabs back-navigation
+    // from AI Visibility lands the AM where they left off.
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['keywords','gsc','aio','gaps','planning','authority','backlinks'].includes(q) ? q : 'keywords';
+  });
 
   useEffect(() => {
     if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {
@@ -611,12 +617,8 @@ export default function ClientSEOPage() {
         <div className="client-name">{client?.name}</div>
         <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
       </header>
-      <SuiteTabs tabs={[
-        { to: `/clients/${id}/seo`,           label: 'SEO' },
-        { to: `/clients/${id}/ai-visibility`, label: 'AI Visibility' },
-      ]} />
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h2 className="h2" style={{ margin: 0 }}>SEO</h2>
+      <div className="row between center mb-4 wrap" style={{ gap: 12 }}>
+        <div />
         {activeTab === 'keywords' && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
@@ -628,25 +630,19 @@ export default function ClientSEOPage() {
         )}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
-        {[
-          ['keywords', 'Keywords'],
-          ['gsc', 'Search Console'],
-          ['aio', 'AI Overviews'],
-          ['gaps', 'Content Gaps'],
-          ['planning', 'Planning'],
-          ['authority', 'Authority'],
-          ['backlinks', 'Backlinks'],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setActiveTab(key)} style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-            fontWeight: activeTab === key ? 700 : 400, color: activeTab === key ? '#1a1a1a' : '#888',
-            borderBottom: activeTab === key ? '2px solid #1a1a1a' : '2px solid transparent',
-            marginBottom: -2,
-          }}>{label}</button>
-        ))}
-      </div>
+      {/* Tabs — class-based, suite-coloured. AI Visibility is the only
+          tab that routes to a separate page; the rest are internal
+          state on this page. */}
+      <SuiteTabs tabs={[
+        { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',   onClick: () => setActiveTab('keywords') },
+        { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',        onClick: () => setActiveTab('gsc') },
+        { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',        onClick: () => setActiveTab('aio') },
+        { key: 'ai_visibility', label: 'AI Visibility',  active: false,                       to: `/clients/${id}/ai-visibility` },
+        { key: 'gaps',          label: 'Content Gaps',   active: activeTab === 'gaps',       onClick: () => setActiveTab('gaps') },
+        { key: 'planning',      label: 'Planning',       active: activeTab === 'planning',   onClick: () => setActiveTab('planning') },
+        { key: 'authority',     label: 'Authority',      active: activeTab === 'authority',  onClick: () => setActiveTab('authority') },
+        { key: 'backlinks',     label: 'Backlinks',      active: activeTab === 'backlinks',  onClick: () => setActiveTab('backlinks') },
+      ]} />
 
       {historyKeyword && (
         <KeywordHistoryModal

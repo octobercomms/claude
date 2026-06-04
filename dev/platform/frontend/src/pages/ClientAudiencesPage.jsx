@@ -95,8 +95,10 @@ export default function ClientAudiencesPage() {
         </h1>
       </header>
       <SuiteTabs tabs={[
-        { to: `/clients/${id}/ads`,       label: 'Paid' },
-        { to: `/clients/${id}/audiences`, label: 'Audiences' },
+        { key: 'performance', label: 'Performance', active: false, to: `/clients/${id}/ads?tab=performance` },
+        { key: 'strategist',  label: 'Strategist',  active: false, to: `/clients/${id}/ads?tab=strategist` },
+        { key: 'creative',    label: 'Creative',    active: false, to: `/clients/${id}/ads?tab=creative` },
+        { key: 'audiences',   label: 'Audiences',   active: true                                          },
       ]} />
       <p className="body mt-4 mb-6">
         Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.

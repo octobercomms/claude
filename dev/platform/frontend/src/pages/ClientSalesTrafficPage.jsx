@@ -96,8 +96,11 @@ export default function ClientSalesTrafficPage() {
   ];
 
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 16px' }}>Sales &amp; Traffic — {client?.name || ''}</h1>
+    <div className="suite-organic">
+      <header className="hero">
+        <div className="client-name">{client?.name || ''}</div>
+        <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
+      </header>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => selectDays(d)}

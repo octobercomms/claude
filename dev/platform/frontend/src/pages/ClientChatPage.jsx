@@ -202,14 +202,15 @@ export default function ClientChatPage() {
   ];
 
   return (
-    <div style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
+    <div className="suite-organic" style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
 
       {/* Chat panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>AI Data Analyst — {client?.name}</h1>
-            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
+            <div className="client-name" style={{ fontSize: 22 }}>{client?.name}</div>
+            <h1 className="display mt-2" style={{ fontSize: 36 }}>AI <span className="text-accent">Data Analyst</span></h1>
+            <p className="body mt-2">
               Claude can read live connector data, check SEO, detect anomalies, and log decisions.
             </p>
           </div>

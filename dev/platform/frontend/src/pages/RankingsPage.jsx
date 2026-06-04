@@ -162,9 +162,12 @@ export default function RankingsPage() {
   };
 
   return (
-    <div>
+    <div className="suite-organic">
+      <header className="hero">
+        <h1 className="display">Rankings</h1>
+      </header>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Rankings</h1>
+        <div />
         {selectedClient && (
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={handleExport} style={styles.btnGhost}>Export CSV</button>

@@ -37,11 +37,13 @@ export default function ClientsPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
-    <div>
-      <div style={styles.header}>
-        <h1 style={styles.pageTitle}>Clients</h1>
-        <button onClick={() => setShowNew(true)} style={styles.btn}>+ New Client</button>
-      </div>
+    <div className="suite-social">
+      <header className="hero">
+        <div className="row between wrap">
+          <h1 className="display">Clients</h1>
+          <button onClick={() => setShowNew(true)} className="btn btn-primary">+ New Client</button>
+        </div>
+      </header>
 
       {showNew && (
         <div style={styles.newCard}>

@@ -305,11 +305,13 @@ export default function GuidePage() {
     });
   }
   return (
-    <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Guide</h1>
-      <p style={{ fontSize: 13, color: '#666', margin: '6px 0 22px', lineHeight: 1.6 }}>
+    <div className="suite-social">
+      <header className="hero">
+        <h1 className="display">Guide</h1>
+        <p className="body mt-4">
         How each part of the platform works. Click a section to expand. Skim, or jump straight to the page you need help with.
       </p>
+      </header>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
         <button onClick={() => setOpen(new Set(SECTIONS.map(s => s.id)))} style={chip}>Expand all</button>

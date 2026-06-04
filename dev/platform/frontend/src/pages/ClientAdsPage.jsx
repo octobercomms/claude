@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -12,6 +12,7 @@ import { useToast } from '../context/ToastContext';
 // against the same underlying connector data.
 export default function ClientAdsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const [client, setClient] = useState(null);
   const [adsData, setAdsData] = useState(null);
@@ -19,7 +20,10 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  const [tab, setTab] = useState('performance');
+  const [tab, setTab] = useState(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['performance','strategist','creative'].includes(q) ? q : 'performance';
+  });
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -168,18 +172,11 @@ export default function ClientAdsPage() {
         <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
       </header>
       <SuiteTabs tabs={[
-        { to: `/clients/${id}/ads`,       label: 'Paid' },
-        { to: `/clients/${id}/audiences`, label: 'Audiences' },
+        { key: 'performance', label: 'Performance', active: tab === 'performance', onClick: () => setTab('performance') },
+        { key: 'strategist',  label: 'Strategist',  active: tab === 'strategist',  onClick: () => setTab('strategist') },
+        { key: 'creative',    label: 'Creative',    active: tab === 'creative',    onClick: () => setTab('creative') },
+        { key: 'audiences',   label: 'Audiences',   active: false,                  to: `/clients/${id}/audiences` },
       ]} />
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
-        {[['performance', 'Performance'], ['strategist', 'Strategist'], ['creative', 'Creative']].map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-            fontWeight: tab === k ? 700 : 400, color: tab === k ? '#1a1a1a' : '#888',
-            borderBottom: tab === k ? '2px solid #1a1a1a' : '2px solid transparent', marginBottom: -2,
-          }}>{l}</button>
-        ))}
-      </div>
 
       {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}

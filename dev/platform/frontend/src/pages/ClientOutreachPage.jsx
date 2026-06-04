@@ -368,9 +368,13 @@ export default function ClientOutreachPage() {
   const recentCampaigns = campaigns.slice(0, 5);
 
   return (
-    <div>
+    <div className="suite-email">
+      <header className="hero">
+        <div className="client-name">{client?.name}</div>
+        <h1 className="display mt-2"><span className="text-accent">Email</span></h1>
+      </header>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Email — {client?.name}</h1>
+        <div />
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} style={s.btnGhost}>+ Add Contact</button>
           <button onClick={startNewCampaign} style={s.btn}>+ New Campaign</button>

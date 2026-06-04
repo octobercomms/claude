@@ -115,9 +115,19 @@ export default function ClientAIVisibilityPage() {
           <span className="text-accent">Organic</span>
         </h1>
       </header>
+      {/* Same Organic tab strip as ClientSEOPage so the AM sees one
+          consistent set of sub-views. Every tab except AI Visibility
+          navigates back to /clients/:id/seo with an optional ?tab=
+          to restore the inner view. */}
       <SuiteTabs tabs={[
-        { to: `/clients/${id}/seo`,           label: 'SEO' },
-        { to: `/clients/${id}/ai-visibility`, label: 'AI Visibility' },
+        { key: 'keywords',      label: 'Keywords',       active: false, to: `/clients/${id}/seo?tab=keywords` },
+        { key: 'gsc',           label: 'Search Console', active: false, to: `/clients/${id}/seo?tab=gsc` },
+        { key: 'aio',           label: 'AI Overviews',   active: false, to: `/clients/${id}/seo?tab=aio` },
+        { key: 'ai_visibility', label: 'AI Visibility',  active: true                                       },
+        { key: 'gaps',          label: 'Content Gaps',   active: false, to: `/clients/${id}/seo?tab=gaps` },
+        { key: 'planning',      label: 'Planning',       active: false, to: `/clients/${id}/seo?tab=planning` },
+        { key: 'authority',     label: 'Authority',      active: false, to: `/clients/${id}/seo?tab=authority` },
+        { key: 'backlinks',     label: 'Backlinks',      active: false, to: `/clients/${id}/seo?tab=backlinks` },
       ]} />
       <p className="body mt-4 mb-6">
         Where this brand shows up when real users ask Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews questions in your category. The new SEO — answer engine optimisation.
