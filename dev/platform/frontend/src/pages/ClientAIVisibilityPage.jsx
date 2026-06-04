@@ -109,9 +109,11 @@ export default function ClientAIVisibilityPage() {
   return (
     <div className="suite-organic">
       <header className="hero">
-        <div className="caption">AI Visibility · Organic Suite</div>
-        <h1 className="display mt-2">{client?.name}</h1>
-        <p className="body mt-3">
+        <div className="client-name">{client?.name}</div>
+        <h1 className="display mt-2">
+          AI <span className="text-accent">Visibility</span>
+        </h1>
+        <p className="body mt-4">
           Where this brand shows up when real users ask Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews questions in your category. The new SEO — answer engine optimisation.
         </p>
       </header>
@@ -197,7 +199,7 @@ export default function ClientAIVisibilityPage() {
               >
                 <div className="row center">
                   <span className="body-xs text-subtle" style={{ width: 24 }}>#{i + 1}</span>
-                  <span className="body text-white">{c.name}</span>
+                  <span className="body">{c.name}</span>
                 </div>
                 <Chip>{c.mentions} mention{c.mentions === 1 ? '' : 's'}</Chip>
               </div>
@@ -220,7 +222,7 @@ export default function ClientAIVisibilityPage() {
                 }}
               >
                 <input type="checkbox" checked={p.active} onChange={() => togglePrompt(p)} />
-                <div className="body text-white" style={{ flex: 1 }}>{p.prompt}</div>
+                <div className="body" style={{ flex: 1 }}>{p.prompt}</div>
                 <Button variant="ghost" size="sm" onClick={() => deletePrompt(p)}>Delete</Button>
               </div>
             ))}
@@ -253,7 +255,7 @@ export default function ClientAIVisibilityPage() {
                   </div>
                   <span className="body-xs text-subtle">{new Date(r.fetched_at).toLocaleString('en-GB')}</span>
                 </div>
-                <div className="h3 text-white">{r.prompt_text}</div>
+                <div className="h3">{r.prompt_text}</div>
                 <p className="body-sm mt-2" style={{ maxHeight: 180, overflow: 'auto', whiteSpace: 'pre-wrap' }}>
                   {r.response_text?.slice(0, 800)}{r.response_text?.length > 800 ? '…' : ''}
                 </p>
@@ -279,10 +281,10 @@ function SuggestedPanel({ suggested, onSave, onClose }) {
   return (
     <Card variant="accent" className="mb-6">
       <div className="row between center mb-3">
-        <h2 className="h2 text-white">Claude's suggested prompts</h2>
+        <h2 className="h2">Claude's suggested prompts</h2>
         <button type="button" className="modal-close" onClick={onClose}>×</button>
       </div>
-      <p className="body-sm text-white mb-4">
+      <p className="body-sm mb-4">
         Untick anything that doesn't apply, then save.
       </p>
       <div className="stack stack-sm" style={{ maxHeight: 360, overflow: 'auto' }}>
@@ -300,7 +302,7 @@ function SuggestedPanel({ suggested, onSave, onClose }) {
             }}
           >
             <input type="checkbox" checked={selected.has(s)} onChange={() => toggle(s)} />
-            <span className="body text-white">{s}</span>
+            <span className="body">{s}</span>
           </label>
         ))}
       </div>

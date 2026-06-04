@@ -39,6 +39,12 @@ export default function Layout() {
     borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
     letterSpacing: 0.2,
   });
+  const subSubLinkStyle = (isActive) => ({
+    display: 'block', padding: '5px 24px 5px 56px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.6)',
+    textDecoration: 'none', fontSize: 11, fontWeight: isActive ? 600 : 400,
+    borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
+    letterSpacing: 0.2,
+  });
 
   return (
     <div className="app-shell">
@@ -64,10 +70,15 @@ export default function Layout() {
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
                   <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>AI Data Analyst</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
+
+                  {/* Organic > AI Visibility */}
                   <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
-                  <NavLink to={`/clients/${clientId}/ai-visibility`} style={({ isActive }) => subLinkStyle(isActive)}>AI Visibility</NavLink>
+                  <NavLink to={`/clients/${clientId}/ai-visibility`} style={({ isActive }) => subSubLinkStyle(isActive)}>AI Visibility</NavLink>
+
+                  {/* Paid > Audiences */}
                   <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
-                  <NavLink to={`/clients/${clientId}/audiences`} style={({ isActive }) => subLinkStyle(isActive)}>Audiences</NavLink>
+                  <NavLink to={`/clients/${clientId}/audiences`} style={({ isActive }) => subSubLinkStyle(isActive)}>Audiences</NavLink>
+
                   <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Social</NavLink>
                   <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Email</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=forms`} style={subLinkStyle(!!clientMatch && currentTab === 'forms')}>Forms</NavLink>

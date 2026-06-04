@@ -57,11 +57,11 @@ export default function SocialSuiteOverview({
       <header className="hero">
         <div className="row between wrap">
           <div>
-            <div className="caption">Social Suite</div>
+            <div className="client-name">{client?.name || 'Client'}</div>
             <h1 className="display mt-2">
-              {client?.name || 'Client'}
+              Social <span className="text-accent">Suite</span>
             </h1>
-            <p className="body mt-3">
+            <p className="body mt-4">
               Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
             </p>
           </div>
@@ -80,8 +80,8 @@ export default function SocialSuiteOverview({
         <div className="row wrap" style={{ alignItems: 'center', gap: 'var(--s5)' }}>
           <div style={{ flex: '1 1 380px' }}>
             <div className="caption">Next up</div>
-            <h2 className="h1 mt-2 text-white">{next.title}</h2>
-            <p className="body mt-2 text-white">{next.body}</p>
+            <h2 className="h1 mt-2">{next.title}</h2>
+            <p className="body mt-2">{next.body}</p>
           </div>
           {next.action && (
             <Button size="lg" onClick={next.action.onClick}>{next.action.label}</Button>
@@ -113,7 +113,7 @@ function LoopStep({ step, index, done, current }) {
   return (
     <Card variant={variant}>
       <Chip tone={done ? 'success' : current ? 'accent' : 'neutral'}>{dot}</Chip>
-      <div className="h3 mt-2 text-white">{step.label}</div>
+      <div className="h3 mt-2">{step.label}</div>
       <p className="body-xs mt-2">{step.short}</p>
     </Card>
   );

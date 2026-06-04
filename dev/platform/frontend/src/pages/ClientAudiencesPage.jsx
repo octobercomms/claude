@@ -88,9 +88,11 @@ export default function ClientAudiencesPage() {
   return (
     <div className="suite-paid">
       <header className="hero">
-        <div className="caption">Audience Insights · Paid Suite</div>
-        <h1 className="display mt-2">{client?.name}</h1>
-        <p className="body mt-3">
+        <div className="client-name">{client?.name}</div>
+        <h1 className="display mt-2">
+          Audience <span className="text-accent">Insights</span>
+        </h1>
+        <p className="body mt-4">
           Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.
         </p>
       </header>
@@ -104,7 +106,7 @@ export default function ClientAudiencesPage() {
 
       {distribution?.note && (
         <Card variant="accent" className="mb-5">
-          <div className="body text-white">{distribution.note}</div>
+          <div className="body">{distribution.note}</div>
         </Card>
       )}
 
