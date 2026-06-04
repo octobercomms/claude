@@ -612,6 +612,45 @@ router.patch('/clients/:clientId/plans/:planId/schedule', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Phase 2 — preview what's in the Drive folder so the AM can confirm
+// the right files are there before the scheduled publish time.
+router.get('/clients/:clientId/plans/:planId/drive-files', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT drive_folder_url FROM social_post_plans WHERE id = $1 AND client_id = $2`,
+      [req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    if (!rows[0].drive_folder_url) return res.json({ files: [], note: 'No Drive folder set on this plan.' });
+    const socialDrive = require('../services/socialDrive');
+    const files = await socialDrive.listFolder(req.params.clientId, rows[0].drive_folder_url);
+    res.json({ files });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Phase 2 — preview the captions Claude will use per platform, so the
+// AM can sanity-check before publish. Computed on demand, not stored
+// (so the AM can iterate by editing the plan and re-previewing).
+router.post('/clients/:clientId/plans/:planId/preview-captions', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT plan, target_platforms FROM social_post_plans WHERE id = $1 AND client_id = $2`,
+      [req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    const { plan, target_platforms } = rows[0];
+    if (!target_platforms?.length) return res.status(400).json({ error: 'No target platforms set on this plan.' });
+    const socialCaptions = require('../services/socialCaptions');
+    const captions = await socialCaptions.captionsForPlan(plan, target_platforms);
+    res.json({ captions });
+  } catch (err) {
+    console.error('[social caption preview] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/clients/:clientId/plans/:planId/publications', async (req, res) => {
   try {
     const { rows } = await pool.query(

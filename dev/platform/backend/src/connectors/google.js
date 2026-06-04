@@ -8,6 +8,10 @@ const SCOPES = [
   'https://www.googleapis.com/auth/adwords',
   'https://www.googleapis.com/auth/content',
   'https://www.googleapis.com/auth/userinfo.email',
+  // Social autopilot — read media files from the user's nominated
+  // Drive folder once they've finished shooting. drive.readonly is
+  // the right level: we never write to Drive.
+  'https://www.googleapis.com/auth/drive.readonly',
 ].join(' ');
 
 function getAuthUrl(state) {

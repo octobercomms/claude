@@ -19,6 +19,10 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   const [schedule, setSchedule] = useState({ scheduled_at: '', drive_folder_url: '', target_platforms: [] });
   const [scheduleDirty, setScheduleDirty] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [driveFiles, setDriveFiles] = useState(null);
+  const [checkingDrive, setCheckingDrive] = useState(false);
+  const [captionPreview, setCaptionPreview] = useState(null);
+  const [previewingCaptions, setPreviewingCaptions] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -46,6 +50,33 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
       return { ...s, target_platforms: has ? s.target_platforms.filter(x => x !== p) : [...s.target_platforms, p] };
     });
     setScheduleDirty(true);
+  }
+
+  async function checkDrive() {
+    if (!planRowId) return;
+    setCheckingDrive(true);
+    try {
+      const r = await api.get(`/social/clients/${clientId}/plans/${planRowId}/drive-files`);
+      setDriveFiles(r.files || []);
+    } catch (e) {
+      setError(e.message);
+      setDriveFiles([]);
+    } finally {
+      setCheckingDrive(false);
+    }
+  }
+
+  async function previewCaptions() {
+    if (!planRowId) return;
+    setPreviewingCaptions(true);
+    try {
+      const r = await api.post(`/social/clients/${clientId}/plans/${planRowId}/preview-captions`, {});
+      setCaptionPreview(r.captions || {});
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPreviewingCaptions(false);
+    }
   }
 
   async function saveSchedule() {
@@ -316,7 +347,41 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
             </div>
             {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
               <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
-                Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} (once media is in Drive — Phase 2).
+                Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
+              </div>
+            )}
+            {/* Drive folder check + caption preview — visible once the
+                AM has saved a folder URL + platforms, lets them sanity
+                check before the schedule fires. */}
+            {!scheduleDirty && schedule.drive_folder_url && (
+              <div style={{ marginTop: 10 }}>
+                <button type="button" onClick={checkDrive} disabled={checkingDrive} style={styles.smallBtn}>
+                  {checkingDrive ? 'Checking…' : '📁 Check Drive folder'}
+                </button>
+                {driveFiles !== null && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: driveFiles.length ? '#2e7d32' : '#c62828' }}>
+                    {driveFiles.length === 0
+                      ? 'No video / image files found yet. Drop the final media into the folder and re-check.'
+                      : `${driveFiles.length} file${driveFiles.length === 1 ? '' : 's'} found: ${driveFiles.slice(0, 5).map(f => f.name).join(', ')}${driveFiles.length > 5 ? '…' : ''}`}
+                  </div>
+                )}
+              </div>
+            )}
+            {!scheduleDirty && schedule.target_platforms.length > 0 && (
+              <div style={{ marginTop: 10 }}>
+                <button type="button" onClick={previewCaptions} disabled={previewingCaptions} style={styles.smallBtn}>
+                  {previewingCaptions ? 'Generating…' : '✍ Preview captions'}
+                </button>
+                {captionPreview && (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {Object.entries(captionPreview).map(([platform, text]) => (
+                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: '1px solid #eee', borderRadius: 3, fontSize: 12, whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
+                        {text}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
