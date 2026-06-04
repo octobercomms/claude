@@ -16,6 +16,9 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   const [saving, setSaving] = useState(false);
   const [planRowId, setPlanRowId] = useState(planId || null);
   const [attachment, setAttachment] = useState(null);
+  const [schedule, setSchedule] = useState({ scheduled_at: '', drive_folder_url: '', target_platforms: [] });
+  const [scheduleDirty, setScheduleDirty] = useState(false);
+  const [savingSchedule, setSavingSchedule] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -25,9 +28,42 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
       .then(r => {
         setSaved(r.plan);
         setProposed(r.plan);
+        // Pre-fill the autopilot fields from the row so the form
+        // shows existing schedule when the plan is reopened.
+        setSchedule({
+          scheduled_at: r.scheduled_at ? new Date(r.scheduled_at).toISOString().slice(0, 16) : '',
+          drive_folder_url: r.drive_folder_url || '',
+          target_platforms: r.target_platforms || [],
+        });
+        setScheduleDirty(false);
       })
       .catch(e => setError(e.message));
   }, [clientId, planId]);
+
+  function togglePlatform(p) {
+    setSchedule(s => {
+      const has = s.target_platforms.includes(p);
+      return { ...s, target_platforms: has ? s.target_platforms.filter(x => x !== p) : [...s.target_platforms, p] };
+    });
+    setScheduleDirty(true);
+  }
+
+  async function saveSchedule() {
+    if (!planRowId) return;
+    setSavingSchedule(true);
+    try {
+      await api.patch(`/social/clients/${clientId}/plans/${planRowId}/schedule`, {
+        scheduled_at: schedule.scheduled_at ? new Date(schedule.scheduled_at).toISOString() : null,
+        drive_folder_url: schedule.drive_folder_url || null,
+        target_platforms: schedule.target_platforms,
+      });
+      setScheduleDirty(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -235,6 +271,57 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
           </div>
         </div>
 
+        {/* Autopilot — only meaningful after the plan is locked. The
+            scheduler picks the plan up at scheduled_at, reads the
+            Drive folder, generates per-platform captions and posts to
+            every channel in target_platforms. Phase 1 stores the
+            config; publishing arrives in Phase 2-4. */}
+        {planRowId && saved && (
+          <div style={styles.autopilot}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={styles.sectionLabel}>AUTOPILOT</div>
+              {scheduleDirty && (
+                <button type="button" onClick={saveSchedule} disabled={savingSchedule} style={styles.smallBtn}>
+                  {savingSchedule ? 'Saving…' : 'Save schedule'}
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 1 auto' }}>
+                <span style={{ fontSize: 11, color: '#666' }}>Publish at</span>
+                <input
+                  type="datetime-local"
+                  value={schedule.scheduled_at}
+                  onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 3 }}
+                />
+              </label>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
+                <span style={{ fontSize: 11, color: '#666' }}>Google Drive folder (where you'll drop the final media)</span>
+                <input
+                  type="url"
+                  placeholder="https://drive.google.com/drive/folders/..."
+                  value={schedule.drive_folder_url}
+                  onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 3 }}
+                />
+              </label>
+            </div>
+            <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
+              {['instagram', 'facebook', 'linkedin'].map(p => (
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
+                  <input type="checkbox" checked={schedule.target_platforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
+                </label>
+              ))}
+            </div>
+            {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
+              <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
+                Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })} (once media is in Drive — Phase 2).
+              </div>
+            )}
+          </div>
+        )}
+
         {error && <div style={styles.error}>{error}</div>}
 
         <div style={styles.footer}>
@@ -387,4 +474,6 @@ const styles = {
   section: { marginTop: 10 },
   sectionLabel: { fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   sceneCard: { marginTop: 6, padding: '6px 8px', background: '#fff', border: '1px solid #eee', borderRadius: 3 },
+  autopilot: { marginTop: 14, padding: 12, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 },
+  smallBtn: { fontSize: 11, padding: '3px 8px', background: 'white', border: '1px solid #ddd', borderRadius: 3, cursor: 'pointer' },
 };

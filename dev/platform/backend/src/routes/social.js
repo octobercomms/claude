@@ -512,7 +512,8 @@ function handlePlanChatUpload(req, res, next) {
 router.get('/clients/:clientId/plans', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, title, status, updated_at, created_at FROM social_post_plans WHERE client_id = $1 ORDER BY updated_at DESC`,
+      `SELECT id, title, status, scheduled_at, target_platforms, updated_at, created_at
+         FROM social_post_plans WHERE client_id = $1 ORDER BY updated_at DESC`,
       [req.params.clientId]
     );
     res.json(rows);
@@ -522,7 +523,8 @@ router.get('/clients/:clientId/plans', async (req, res) => {
 router.get('/clients/:clientId/plans/:planId', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, client_id, title, plan, status, updated_at FROM social_post_plans WHERE id = $1 AND client_id = $2`,
+      `SELECT id, client_id, title, plan, status, scheduled_at, drive_folder_url, target_platforms, updated_at
+         FROM social_post_plans WHERE id = $1 AND client_id = $2`,
       [req.params.planId, req.params.clientId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
@@ -583,6 +585,43 @@ router.post('/clients/:clientId/plans', async (req, res) => {
       [req.params.clientId, title || plan?.title || 'Untitled plan', JSON.stringify(plan || {}), plan ? 'locked' : 'draft']
     );
     res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Autopilot config — schedule + Drive folder + which platforms. Once
+// set, the publisher cron picks up the plan at scheduled_at, reads the
+// Drive folder, generates per-platform captions, and posts. Phase 1
+// stores the config only; publisher worker lands in Phase 2.
+router.patch('/clients/:clientId/plans/:planId/schedule', async (req, res) => {
+  const { scheduled_at, drive_folder_url, target_platforms } = req.body || {};
+  const ALLOWED = new Set(['instagram', 'facebook', 'linkedin']);
+  const platforms = Array.isArray(target_platforms) ? target_platforms.filter(p => ALLOWED.has(p)) : null;
+  try {
+    const { rows } = await pool.query(
+      `UPDATE social_post_plans
+          SET scheduled_at = COALESCE($1::timestamptz, scheduled_at),
+              drive_folder_url = COALESCE($2, drive_folder_url),
+              target_platforms = COALESCE($3, target_platforms),
+              updated_at = NOW()
+        WHERE id = $4 AND client_id = $5
+        RETURNING id, title, scheduled_at, drive_folder_url, target_platforms`,
+      [scheduled_at ?? null, drive_folder_url ?? null, platforms, req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/plans/:planId/publications', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, platform, scheduled_at, status, caption, posted_at, posted_url, error_message, attempts
+         FROM social_post_publications
+        WHERE plan_id = $1 AND client_id = $2
+        ORDER BY scheduled_at ASC, platform ASC`,
+      [req.params.planId, req.params.clientId]
+    );
+    res.json(rows);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

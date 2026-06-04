@@ -355,6 +355,12 @@ function PlansList({ clientId, clientName, onOpen }) {
               {p.title || '(untitled)'}
             </button>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              {p.scheduled_at && (
+                <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
+                  ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                  {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
+                </span>
+              )}
               <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
               <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
               <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
