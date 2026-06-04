@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
+import SocialSuiteOverview from '../components/SocialSuiteOverview';
 
 // Social Phase 1 — generate 9 posts at a time, grounded in the client's
 // briefing + Google Trends signals. Each post has a hook, caption,
@@ -36,9 +37,13 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
+  // Lifted to page level so the SocialSuiteOverview can read it for
+  // state-aware "where you are in the loop" detection. PlansList
+  // receives the array as a prop instead of fetching its own.
+  const [plans, setPlans] = useState([]);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng, fb, ts, sp, cp] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts, sp, cp, pl] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
@@ -48,7 +53,9 @@ export default function ClientSocialPage() {
       api.get(`/social/clients/${id}/trending-sounds`).catch(() => ({ sounds: [] })),
       api.get(`/social/clients/${id}/sparkline?days=30`).catch(() => []),
       api.get(`/social/clients/${id}/competitor-posts?limit=10`).catch(() => []),
+      api.get(`/social/clients/${id}/plans`).catch(() => []),
     ]);
+    setPlans(pl || []);
     setClient(c);
     setBatches(bs);
     setCompetitors(comp.competitors || []);
@@ -66,7 +73,7 @@ export default function ClientSocialPage() {
       setPosts(p);
     }
   }
-  useEffect(() => { loadAll(); /* eslint-disable-line */ }, [id]);
+  useEffect(() => { loadAll(); /* eslint-disable-line */ }, [id, plansRefreshKey]);
 
   async function selectBatch(batchId) {
     setActiveBatchId(batchId);
@@ -271,11 +278,6 @@ export default function ClientSocialPage() {
               </span>
             )}
           </h1>
-          <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', maxWidth: 760, lineHeight: 1.5 }}>
-            Generate nine posts at a time, grounded in the client's brief and current Google Trends signals.
-            Each post has a hook, caption, hashtags, a visual direction and a frame-by-frame storyboard. Click
-            an image generator beside any post to render the visual.
-          </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" style={primaryBtn} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</button>
@@ -295,9 +297,25 @@ export default function ClientSocialPage() {
         </div>
       </div>
 
+      <SocialSuiteOverview
+        clientId={id}
+        client={client}
+        batches={batches}
+        posts={posts}
+        plans={plans}
+        competitors={competitors}
+        winners={winners}
+        competitorPosts={competitorPosts}
+        onAddCompetitor={() => document.getElementById('competitor-editor-anchor')?.scrollIntoView({ behavior: 'smooth' })}
+        onGenerate={() => setShowBrief(true)}
+        onBulkSchedule={() => setBulkOpen(true)}
+        onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
+        onOpenHookVault={() => setHookVaultOpen(true)}
+      />
+
       <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} />
 
-      <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
+      <div id="competitor-editor-anchor"><CompetitorEditor competitors={competitors} onSave={saveCompetitors} /></div>
 
       <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
 
