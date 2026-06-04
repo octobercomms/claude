@@ -25,6 +25,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   const [previewingCaptions, setPreviewingCaptions] = useState(false);
   const [publications, setPublications] = useState(null);
   const [publishing, setPublishing] = useState(false);
+  const [publishTargets, setPublishTargets] = useState(null);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -106,6 +107,17 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   }
 
   useEffect(() => { if (planRowId) refreshPublications(); /* eslint-disable-next-line */ }, [planRowId]);
+
+  // Resolve the IG / FB Page / LinkedIn handles the publisher will use,
+  // so the AM can sanity-check they're posting to the right account
+  // before they hit Publish. Only fetched once the AM has picked a
+  // platform — no point asking before then.
+  useEffect(() => {
+    if (!planRowId || !schedule.target_platforms.length) { setPublishTargets(null); return; }
+    api.get(`/social/clients/${clientId}/plans/${planRowId}/publish-targets`)
+      .then(setPublishTargets)
+      .catch(() => setPublishTargets(null));
+  }, [clientId, planRowId, schedule.target_platforms.join(',')]);
 
   async function saveSchedule() {
     if (!planRowId) return;
@@ -376,6 +388,19 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
             {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
               <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
                 Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
+              </div>
+            )}
+            {publishTargets && schedule.target_platforms.length > 0 && (
+              <div style={{ marginTop: 6, fontSize: 11, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {schedule.target_platforms.map(p => {
+                  const t = publishTargets[p];
+                  if (!t) return null;
+                  return (
+                    <div key={p} style={{ color: t.ok ? '#2e7d32' : '#c62828' }}>
+                      <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{p}:</span> {t.ok ? `posts as ${t.label}` : t.label}
+                    </div>
+                  );
+                })}
               </div>
             )}
             {/* Drive folder check + caption preview — visible once the

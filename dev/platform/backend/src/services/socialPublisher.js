@@ -290,6 +290,17 @@ async function publishToPlatform({ plan, platform, caption, mediaPlan }) {
         WHERE id = $1`,
       [pubId, result?.posted_url || null]
     );
+    // Mirror this publication into social_posts so the daily engagement
+    // refresh, Winners panel, and framework breakdown all see autopilot
+    // output. Without this the autopilot writes are invisible to the
+    // performance loop and every batch generation is blind to what
+    // worked. Best-effort — never block the publication success on
+    // engagement bookkeeping.
+    try {
+      await linkPublishedPost({ plan, platform, caption, result, mediaPlan });
+    } catch (err) {
+      console.error(`[autopilot] linkPublishedPost ${platform} for plan ${plan.id} failed:`, err.message);
+    }
   } catch (err) {
     const reason = err.response?.data?.error?.message || err.message || 'unknown error';
     // If we've exhausted retries, mark failed; otherwise leave as in_flight
@@ -303,6 +314,97 @@ async function publishToPlatform({ plan, platform, caption, mediaPlan }) {
     );
     console.error(`[autopilot] publish ${platform} for plan ${plan.id} failed (attempt ${attempts}): ${reason}`);
   }
+}
+
+// Sentinel brief value we use to identify the per-client autopilot
+// batch. Listed batches in the Social tab filter this out so the AM
+// only sees real brainstorm batches in the history.
+const AUTOPILOT_BATCH_BRIEF = '__autopilot__';
+
+// One sentinel social_batches row per client hosts autopilot-published
+// posts. Created on first publish, reused thereafter.
+async function getOrCreateAutopilotBatch(clientId) {
+  const { rows } = await pool.query(
+    `SELECT id FROM social_batches WHERE client_id = $1 AND brief = $2 LIMIT 1`,
+    [clientId, AUTOPILOT_BATCH_BRIEF]
+  );
+  if (rows.length) return rows[0].id;
+  const { rows: inserted } = await pool.query(
+    `INSERT INTO social_batches (client_id, brief, exemplars, trends)
+     VALUES ($1, $2, '{}'::jsonb, '{}'::jsonb)
+     RETURNING id`,
+    [clientId, AUTOPILOT_BATCH_BRIEF]
+  );
+  return inserted[0].id;
+}
+
+// Parse a posted URL / id into the (external_id, external_platform)
+// fields social_posts expects, so engagement refresh can fetch insights.
+function deriveExternalRef(platform, result) {
+  if (!result) return { external_id: null, external_platform: platform };
+  if (platform === 'instagram') {
+    // result.id is the IG media id directly — perfect for the Graph API.
+    return { external_id: result.id || null, external_platform: 'instagram' };
+  }
+  if (platform === 'facebook') {
+    // FB post_id is "{page-id}_{post-id}"; we keep the whole string.
+    return { external_id: result.id || null, external_platform: 'facebook' };
+  }
+  if (platform === 'linkedin') {
+    return { external_id: result.id || null, external_platform: 'linkedin' };
+  }
+  return { external_id: null, external_platform: platform };
+}
+
+// Map a planner-domain plan to the social_posts "kind" enum the
+// engagement loop reads. Anything that uses a video file is treated as
+// a reel; multi-image is carousel; otherwise a plain post.
+function pickPostKind(plan, mediaPlan) {
+  if (mediaPlan?.mode === 'carousel') return 'carousel';
+  if (mediaPlan?.mediaKind === 'video') return 'reel';
+  // Honour an explicit kind on the plan if the planner set one.
+  const declared = (plan?.plan?.platforms || []).map(String);
+  if (declared.includes('instagram_story')) return 'story';
+  return 'post';
+}
+
+async function linkPublishedPost({ plan, platform, caption, result, mediaPlan }) {
+  const { external_id, external_platform } = deriveExternalRef(platform, result);
+  const batchId = await getOrCreateAutopilotBatch(plan.client_id);
+  const kind = pickPostKind(plan, mediaPlan);
+  const hook = plan?.plan?.hook?.text || null;
+  const framework = plan?.plan?.framework || null;
+  const hashtags = Array.isArray(plan?.plan?.hashtags) ? plan.plan.hashtags : [];
+  // ON CONFLICT not available (no unique key on external_id) — instead
+  // we dedupe by (plan_id, platform) which is the natural autopilot key.
+  // Re-runs of publishPlan after a retry will UPDATE the existing row
+  // rather than create duplicates.
+  await pool.query(
+    `INSERT INTO social_posts
+       (batch_id, client_id, plan_id, position, kind, platform, hook, caption, hashtags,
+        status, published_url, external_id, external_platform, published_at, framework)
+     SELECT $1, $2, $3, 0, $4, $5, $6, $7, $8, 'published', $9, $10, $11, NOW(), $12
+      WHERE NOT EXISTS (
+        SELECT 1 FROM social_posts WHERE plan_id = $3 AND platform = $5
+      )`,
+    [batchId, plan.client_id, plan.id, kind, platform, hook, caption || null,
+     hashtags, result?.posted_url || null, external_id, external_platform, framework]
+  );
+  // If an earlier attempt already inserted the row, refresh the live
+  // bits — caption may have been regenerated, posted_url may now be
+  // resolved, external_id may have arrived on a retry.
+  await pool.query(
+    `UPDATE social_posts
+        SET caption = $4, hashtags = $5, status = 'published',
+            published_url = COALESCE($6, published_url),
+            external_id = COALESCE($7, external_id),
+            external_platform = $8,
+            published_at = COALESCE(published_at, NOW()),
+            framework = COALESCE($9, framework)
+      WHERE plan_id = $1 AND platform = $2 AND client_id = $3`,
+    [plan.id, platform, plan.client_id, caption || null, hashtags,
+     result?.posted_url || null, external_id, external_platform, framework]
+  );
 }
 
 // Entry point called from the scheduler cron. Sequential rather than

@@ -112,10 +112,14 @@ router.param('id', async (req, res, next, id) => {
 
 router.get('/clients/:clientId/batches', async (req, res) => {
   try {
+    // brief = '__autopilot__' hides the sentinel batch that hosts
+    // autopilot-published posts — it isn't a brainstorm batch and would
+    // confuse the history view.
     const { rows } = await pool.query(
       `SELECT b.*,
               (SELECT COUNT(*)::int FROM social_posts p WHERE p.batch_id = b.id) AS post_count
-       FROM social_batches b WHERE b.client_id = $1
+       FROM social_batches b
+       WHERE b.client_id = $1 AND (b.brief IS NULL OR b.brief <> '__autopilot__')
        ORDER BY b.created_at DESC LIMIT 50`,
       [req.params.clientId]
     );
@@ -641,6 +645,65 @@ router.patch('/clients/:clientId/plans/:planId/schedule', async (req, res) => {
     if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
     res.json(rows[0]);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Resolve the actual accounts the publisher will post to, so the AM
+// can confirm which IG handle / FB Page / LinkedIn member will own each
+// post before they hit Publish. Best-effort — surfaces a friendly note
+// per platform rather than a hard error, since the AM may not have all
+// three connectors set up.
+router.get('/clients/:clientId/plans/:planId/publish-targets', async (req, res) => {
+  const out = { instagram: null, facebook: null, linkedin: null };
+  // Meta
+  try {
+    const { rows } = await pool.query(
+      `SELECT c.credentials, ig.config AS ig_config
+         FROM connectors c
+         LEFT JOIN connectors ig
+           ON ig.client_id = c.client_id AND ig.connector_type = 'instagram_insights'
+         WHERE c.client_id = $1
+           AND c.connector_type IN ('meta_ads', 'instagram_insights')
+           AND c.credentials IS NOT NULL AND c.credentials != '{}'
+         ORDER BY c.connector_type LIMIT 1`,
+      [req.params.clientId]
+    );
+    if (rows.length) {
+      const { decrypt } = require('../utils/encryption');
+      const metaConn = require('../connectors/meta');
+      const creds = decrypt(rows[0].credentials);
+      const preferredIg = rows[0].ig_config?.value || null;
+      const targets = await metaConn.pickPublishingTargets(creds, preferredIg);
+      out.instagram = targets.igBusinessId
+        ? { ok: true, label: targets.pageName + ' / IG ' + targets.igBusinessId }
+        : { ok: false, label: 'No IG Business account attached to the chosen Page.' };
+      out.facebook = { ok: true, label: targets.pageName + ` (Page ${targets.pageId})` };
+    } else {
+      out.instagram = { ok: false, label: 'No Meta connector.' };
+      out.facebook = { ok: false, label: 'No Meta connector.' };
+    }
+  } catch (err) {
+    out.instagram = { ok: false, label: err.message };
+    out.facebook = { ok: false, label: err.message };
+  }
+  // LinkedIn
+  try {
+    const { rows } = await pool.query(
+      `SELECT credentials FROM connectors
+         WHERE client_id = $1 AND connector_type = 'linkedin_organic'
+           AND credentials IS NOT NULL AND credentials != '{}' LIMIT 1`,
+      [req.params.clientId]
+    );
+    if (rows.length) {
+      const { decrypt } = require('../utils/encryption');
+      const liCreds = decrypt(rows[0].credentials);
+      out.linkedin = { ok: true, label: liCreds.member_name || 'LinkedIn member' };
+    } else {
+      out.linkedin = { ok: false, label: 'No LinkedIn connector.' };
+    }
+  } catch (err) {
+    out.linkedin = { ok: false, label: err.message };
+  }
+  res.json(out);
 });
 
 // Phase 2 — preview what's in the Drive folder so the AM can confirm
