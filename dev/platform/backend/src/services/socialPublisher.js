@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const pool = require('./../db');
 const { decrypt } = require('../utils/encryption');
 const meta = require('../connectors/meta');
+const linkedin = require('../connectors/linkedin');
 const socialDrive = require('./socialDrive');
 const socialCaptions = require('./socialCaptions');
 
@@ -72,6 +73,19 @@ async function getMetaCreds(clientId) {
     [clientId]
   );
   if (!rows.length) throw new Error('No Meta connector on this client — connect Meta Ads or Instagram first.');
+  return decrypt(rows[0].credentials);
+}
+
+async function getLinkedInCreds(clientId) {
+  const { rows } = await pool.query(
+    `SELECT credentials FROM connectors
+      WHERE client_id = $1
+        AND connector_type = 'linkedin_organic'
+        AND credentials IS NOT NULL AND credentials != '{}'
+      LIMIT 1`,
+    [clientId]
+  );
+  if (!rows.length) throw new Error('No LinkedIn connector on this client — connect LinkedIn first.');
   return decrypt(rows[0].credentials);
 }
 
@@ -172,15 +186,25 @@ async function publishToPlatform({ plan, platform, caption, mediaUrl, mediaKind,
         });
       }
     } else if (platform === 'linkedin') {
-      // Phase 4 — record as unsupported so the UI can show what's pending
-      // without the cron retrying it forever.
-      await pool.query(
-        `UPDATE social_post_publications
-            SET status = 'unsupported', error_message = $2, updated_at = NOW()
-          WHERE id = $1`,
-        [pubId, 'LinkedIn publishing is not yet wired up — coming in Phase 4.']
-      );
-      return;
+      const creds = await getLinkedInCreds(plan.client_id);
+      // LinkedIn doesn't accept a remote URL — we have to stream the
+      // bytes through. Fetch directly from Drive (sidesteps the media
+      // proxy entirely since we're not handing the URL to a third party).
+      let mediaStream = null, mediaContentType = null, mediaContentLength = null;
+      if (primaryFile) {
+        const upstream = await socialDrive.downloadFile(plan.client_id, primaryFile.id);
+        mediaStream = upstream.data;
+        mediaContentType = upstream.headers['content-type'] || primaryFile.mimeType;
+        mediaContentLength = upstream.headers['content-length'] || primaryFile.size;
+      }
+      result = await linkedin.publishToLinkedIn({
+        credentials: creds,
+        caption,
+        mediaStream,
+        mediaContentType,
+        mediaContentLength,
+        mediaKind,
+      });
     } else {
       throw new Error(`Unknown platform: ${platform}`);
     }

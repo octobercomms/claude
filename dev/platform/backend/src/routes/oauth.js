@@ -8,6 +8,7 @@ const metaConnector = require('../connectors/meta');
 const zohoInventoryConnector = require('../connectors/zoho_inventory');
 const amazonConnector = require('../connectors/amazon');
 const shopifyConnector = require('../connectors/shopify');
+const linkedinConnector = require('../connectors/linkedin');
 const { authenticate } = require('../middleware/auth');
 const users = require('../services/users');
 
@@ -67,7 +68,7 @@ async function gateOAuthStart(req, res, next) {
     res.status(500).send(err.message);
   }
 }
-router.use(['/google/start', '/meta/start', '/shopify/start', '/zoho/start', '/amazon/start', '/meta/reauth', '/oauth/start-url'],
+router.use(['/google/start', '/meta/start', '/shopify/start', '/zoho/start', '/amazon/start', '/linkedin/start', '/meta/reauth', '/linkedin/reauth', '/oauth/start-url'],
   authenticate, gateOAuthStart);
 
 // Returns the provider's OAuth URL (with signed state) as JSON so the
@@ -87,6 +88,7 @@ router.get('/oauth/start-url', async (req, res) => {
     else if (provider === 'meta') url = await metaConnector.getAuthUrl(state);
     else if (provider === 'zoho') url = zohoInventoryConnector.getAuthUrl(state);
     else if (provider === 'amazon') url = amazonConnector.getAuthUrl(state);
+    else if (provider === 'linkedin') url = await linkedinConnector.getAuthUrl(state);
     else return res.status(400).json({ error: `Unknown provider: ${provider}` });
     res.json({ url });
   } catch (err) {
@@ -356,6 +358,60 @@ router.get('/amazon/callback', async (req, res) => {
 // ─── Reauth links ────────────────────────────────────────────────
 
 // Reauth link from email alert (token-less, opens OAuth flow)
+// ─── LinkedIn OAuth ─────────────────────────────────────────────
+
+router.get('/linkedin/start', async (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).send('client_id required');
+  const state = signOAuthState({ client_id });
+  try {
+    const url = await linkedinConnector.getAuthUrl(state);
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
+router.get('/linkedin/callback', async (req, res) => {
+  const { code, state, error, error_description } = req.query;
+  if (error) return res.send(oauthPopupHtml('error', error_description || error));
+  try {
+    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const tokens = await linkedinConnector.exchangeCode(code);
+    const encrypted = encrypt(tokens);
+
+    // Single connector type for LinkedIn — no fan-out like Google / Meta.
+    const { rowCount } = await pool.query(
+      `UPDATE connectors SET credentials = $1, status = 'active', last_checked = NOW(), error_message = NULL
+       WHERE client_id = $2 AND connector_type = 'linkedin_organic'`,
+      [JSON.stringify(encrypted), client_id]
+    );
+    if (rowCount === 0) {
+      await pool.query(
+        `INSERT INTO connectors (client_id, connector_type, credentials, status, last_checked)
+         VALUES ($1, 'linkedin_organic', $2, 'active', NOW())`,
+        [client_id, JSON.stringify(encrypted)]
+      );
+    }
+    res.send(oauthPopupHtml('success', 'LinkedIn connected successfully.', 'linkedin'));
+  } catch (err) {
+    console.error('LinkedIn OAuth callback error:', safeErrSummary(err));
+    res.send(oauthPopupHtml('error', err.response?.data?.error_description || err.message));
+  }
+});
+
+router.get('/linkedin/reauth', async (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).send('client_id required');
+  const state = signOAuthState({ client_id });
+  try {
+    const url = await linkedinConnector.getAuthUrl(state);
+    res.redirect(url);
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+});
+
 router.get('/meta/reauth', async (req, res) => {
   const { client_id } = req.query;
   if (!client_id) return res.status(400).send('client_id required');

@@ -12,7 +12,7 @@ const CONNECTOR_TYPES = [
   'ga4','google_search_console','google_ads','google_merchant_center',
   'meta_ads','instagram_insights','shopify','woocommerce',
   'klaviyo','brevo','shopify_email','amazon_seller',
-  'zoho_inventory','cin7','october_forms',
+  'zoho_inventory','cin7','october_forms','linkedin_organic',
 ];
 
 const CONNECTOR_LABELS = {
@@ -24,18 +24,20 @@ const CONNECTOR_LABELS = {
   amazon_seller: 'Amazon Seller',
   zoho_inventory: 'Zoho Inventory', cin7: 'Cin7',
   october_forms: 'October Forms',
+  linkedin_organic: 'LinkedIn (organic posts)',
 };
 
 const CONNECTOR_GROUPS = [
   { label: 'Google', types: ['ga4','google_search_console','google_ads','google_merchant_center'], oauth: 'google' },
   { label: 'Meta', types: ['meta_ads','instagram_insights'], oauth: 'meta' },
+  { label: 'LinkedIn', types: ['linkedin_organic'], oauth: 'linkedin' },
   { label: 'E-commerce', types: ['shopify','woocommerce','amazon_seller'] },
   { label: 'Email Marketing', types: ['shopify_email','klaviyo','brevo'] },
   { label: 'Inventory', types: ['zoho_inventory','cin7'] },
   { label: 'Forms', types: ['october_forms'] },
 ];
 
-const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory'];
+const OAUTH_TYPES = ['ga4','google_search_console','google_ads','google_merchant_center','meta_ads','instagram_insights','zoho_inventory','linkedin_organic'];
 const SHOPIFY_TYPES = ['shopify','shopify_email'];
 
 export default function ClientDetailPage() {
@@ -224,6 +226,7 @@ export default function ClientDetailPage() {
     if (type.startsWith('google') || type === 'ga4') provider = 'google';
     else if (type === 'zoho_inventory') provider = 'zoho';
     else if (type === 'amazon_seller') provider = 'amazon';
+    else if (type === 'linkedin_organic') provider = 'linkedin';
     else provider = 'meta';
     // Open the popup synchronously so the browser still treats it as
     // a user gesture (post-await opens get blocked). Then fetch the
@@ -646,6 +649,7 @@ const ACCOUNT_LABEL = {
   ga4: 'Property', google_search_console: 'Site', google_ads: 'Customer ID',
   google_merchant_center: 'Merchant ID', meta_ads: 'Ad Account', instagram_insights: 'Instagram',
   zoho_inventory: 'Organisation',
+  linkedin_organic: 'LinkedIn account',
 };
 
 const MANUAL_ENTRY_TYPES = ['google_ads', 'google_merchant_center', 'zoho_inventory'];

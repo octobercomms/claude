@@ -121,12 +121,28 @@ const KEY_GROUPS = [
       values: [
         'ads_read', 'read_insights', 'instagram_basic',
         'instagram_manage_insights', 'pages_read_engagement', 'business_management',
+        'pages_show_list', 'pages_manage_posts', 'instagram_content_publish',
       ],
     },
     keys: [
       { key: 'META_APP_ID', label: 'App ID', placeholder: '1234567890', type: 'text' },
       { key: 'META_APP_SECRET', label: 'App Secret', placeholder: '…', type: 'password' },
       { key: 'META_REDIRECT_URI', label: 'Redirect URI (must match Meta app config)', placeholder: 'https://your-platform.com/auth/meta/callback', type: 'text' },
+    ],
+  },
+  {
+    title: 'LinkedIn',
+    category: 'Ad Platforms',
+    hint: 'Required for the social autopilot to publish to LinkedIn on behalf of a member. Create an app at linkedin.com/developers, attach the "Share on LinkedIn" and "Sign In with LinkedIn using OpenID Connect" products, then add the redirect URL below under Auth → Authorized redirect URLs. Tokens last 60 days — the AM will need to reconnect when they expire.',
+    scopes: {
+      label: 'Required product scopes',
+      help: 'These map to the products attached to the LinkedIn app: "Sign In with LinkedIn using OpenID Connect" gives openid/profile/email, "Share on LinkedIn" gives w_member_social. Company-Page posting (w_organization_social) needs LinkedIn Marketing Developer Platform approval and is a separate review.',
+      values: ['openid', 'profile', 'email', 'w_member_social'],
+    },
+    keys: [
+      { key: 'LINKEDIN_CLIENT_ID', label: 'Client ID', placeholder: '86xxxxxxxxxxxx', type: 'text' },
+      { key: 'LINKEDIN_CLIENT_SECRET', label: 'Client Secret', placeholder: '…', type: 'password' },
+      { key: 'LINKEDIN_REDIRECT_URI', label: 'Redirect URI (must match LinkedIn app config)', placeholder: 'https://your-platform.com/auth/linkedin/callback', type: 'text' },
     ],
   },
   {
