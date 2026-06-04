@@ -1,10 +1,26 @@
-/* App shell — fixed sidebar + main content, collapsing to a drawer on mobile. */
-.app-shell { display: flex; min-height: 100vh; background: #f5f5f5; }
+/* App shell — dark, app-like aesthetic. Near-black background with
+   sidebar pulled from the same palette so the chrome reads as one
+   surface. Suite pages set their own accent. */
+:root {
+  --oc-bg: #0b0b0c;
+  --oc-surface: #141416;
+  --oc-surface-raised: #1c1c1f;
+  --oc-border: #26262b;
+  --oc-border-strong: #3a3a40;
+  --oc-text: #fafafa;
+  --oc-text-muted: #a0a0a8;
+  --oc-text-subtle: #6e6e76;
+  --oc-accent: #D35E32; /* default, overridden per suite */
+}
+html, body { background: var(--oc-bg); color: var(--oc-text); }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+.app-shell { display: flex; min-height: 100vh; background: var(--oc-bg); }
 
 .app-nav {
-  width: 220px;
-  background: #000000;
-  color: #ffffff;
+  width: 240px;
+  background: var(--oc-bg);
+  color: var(--oc-text);
+  border-right: 1px solid var(--oc-border);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -14,7 +30,22 @@
   overflow-y: auto;
 }
 
-.app-main { flex: 1; min-width: 0; padding: 32px; overflow: auto; }
+.app-main { flex: 1; min-width: 0; padding: 32px 40px; overflow: auto; background: var(--oc-bg); color: var(--oc-text); }
+
+/* Generic dark-mode form controls so legacy inline-styled inputs still
+   read on the new shell. Components that supply their own background
+   override this. */
+input, select, textarea, button { font-family: inherit; }
+input[type="text"], input[type="email"], input[type="password"],
+input[type="number"], input[type="search"], input[type="url"],
+input[type="datetime-local"], input[type="date"], input[type="time"],
+select, textarea {
+  background: var(--oc-surface);
+  color: var(--oc-text);
+  border-color: var(--oc-border);
+}
+input::placeholder, textarea::placeholder { color: var(--oc-text-subtle); }
+a { color: var(--oc-text); }
 
 .app-hamburger { display: none; }
 .app-overlay { display: none; }

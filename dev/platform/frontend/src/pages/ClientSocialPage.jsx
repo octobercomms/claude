@@ -6,6 +6,9 @@ import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
+import UiButton from '../components/ui/Button';
+import { palette as UiPalette } from '../styles/tokens';
+const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 
 // Social Phase 1 — generate 9 posts at a time, grounded in the client's
 // briefing + Google Trends signals. Each post has a hook, caption,
@@ -268,33 +271,22 @@ export default function ClientSocialPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
-        <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
-            Social — {client?.name || ''}
-            {client?.social_autopilot_paused && (
-              <span style={{ marginLeft: 10, fontSize: 11, fontWeight: 700, color: '#b86e00', background: '#fff4e1', padding: '3px 8px', borderRadius: 3, textTransform: 'uppercase', verticalAlign: 'middle' }}>
-                Autopilot paused
-              </span>
-            )}
-          </h1>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" style={primaryBtn} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</button>
-          {activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform)) && (
-            <button type="button" style={secondaryBtn} onClick={() => setBulkOpen(true)}>📅 Bulk schedule</button>
-          )}
-          {activeBatchId && (
-            <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
-          )}
-          <button type="button" style={secondaryBtn} onClick={() => setHookVaultOpen(true)}>✦ Hook Vault</button>
-          <button type="button" style={secondaryBtn} onClick={toggleAutopilotPaused}>
-            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-          </button>
-          <button type="button" style={secondaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
-            {generating ? 'Generating…' : 'Generate 9 posts (batch)'}
-          </button>
-        </div>
+      {/* Toolbar — utility actions floating above the hero overview. */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+        <UiButton variant="primary" accent={SUITE_ACCENT_SOCIAL} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
+        {activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform)) && (
+          <UiButton variant="secondary" onClick={() => setBulkOpen(true)}>📅 Bulk schedule</UiButton>
+        )}
+        {activeBatchId && (
+          <UiButton variant="secondary" onClick={shareBatchForApproval}>Share for approval</UiButton>
+        )}
+        <UiButton variant="secondary" onClick={() => setHookVaultOpen(true)}>✦ Hook Vault</UiButton>
+        <UiButton variant="secondary" onClick={toggleAutopilotPaused}>
+          {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+        </UiButton>
+        <UiButton variant="secondary" onClick={() => setShowBrief(true)} disabled={generating}>
+          {generating ? 'Generating…' : 'Generate 9 posts'}
+        </UiButton>
       </div>
 
       <SocialSuiteOverview
@@ -306,6 +298,7 @@ export default function ClientSocialPage() {
         competitors={competitors}
         winners={winners}
         competitorPosts={competitorPosts}
+        sparkline={sparkline}
         onAddCompetitor={() => document.getElementById('competitor-editor-anchor')?.scrollIntoView({ behavior: 'smooth' })}
         onGenerate={() => setShowBrief(true)}
         onBulkSchedule={() => setBulkOpen(true)}
