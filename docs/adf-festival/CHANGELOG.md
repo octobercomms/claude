@@ -5,6 +5,33 @@ The plugin self-updates from GitHub Releases tagged `adf-v<version>`. Bump the
 `readme.txt`) and merge to `main`; the release workflow builds and publishes the
 release automatically.
 
+## 1.3.0 — security hardening
+
+Addresses the findings from the security audit (IDs reference the audit report):
+
+- **ADF-01 (High) — payment-amount tampering on ticket checkout.** `/ticket-confirm`
+  now derives the order solely from the verified PaymentIntent's metadata and
+  rejects any order whose total exceeds the amount actually captured, instead of
+  re-pricing from the (attacker-controllable) request body.
+- **ADF-02 (High) — forged Stripe webhooks.** Unsigned webhook events are now
+  rejected unless `ADF_ALLOW_UNSIGNED_WEBHOOK` is explicitly set (local dev only),
+  closing free-ticket / fake-"paid" forgery when no signing secret is configured.
+- **ADF-03 — check-in PIN brute force.** PIN attempts are throttled per IP+event
+  (lock after 10 failures for 15 min).
+- **ADF-04 — missing rate limiting / unauth upload.** Per-IP rate limits added to
+  the public `ticket-intent`, `ticket-promo`, `volunteer-signup` and `ad-book-intent`
+  endpoints; ad-booking uploads are now size- (≤5 MB) and MIME-checked before
+  hitting the media library.
+- **ADF-05 — secrets at rest.** API keys and the GitHub token are now encrypted in
+  the database with libsodium (`Crypto`), keyed off `ADF_ENCRYPTION_KEY` or the WP
+  salts. wp-config constants remain the recommended, DB-free option.
+- **ADF-06 — confirm-payment authorization.** A listing's payment can only be
+  confirmed by its own submitter.
+- **ADF-07 — log hygiene.** The debug logger redacts sensitive keys and truncates
+  long values (e.g. API response bodies).
+- **ADF-08 — reproducible builds.** `composer.lock` is now committed so release
+  builds pin exact dependency versions.
+
 ## 1.2.0
 
 - **Editable API keys in admin** — Settings → API keys now has fields for the

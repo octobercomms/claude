@@ -169,6 +169,34 @@ final class RestApi {
         return Account::ensure(get_current_user_id());
     }
 
+    /** Best-effort client IP for rate limiting (hashed before storage). */
+    private function client_ip(): string {
+        foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $k) {
+            if (! empty($_SERVER[$k])) {
+                return trim(explode(',', (string) wp_unslash($_SERVER[$k]))[0]);
+            }
+        }
+        return 'unknown';
+    }
+
+    /**
+     * Simple per-IP fixed-window rate limit (ADF-04). Returns false when the
+     * caller has exceeded $limit requests in $window seconds for $bucket.
+     */
+    private function rl(string $bucket, int $limit = 20, int $window = MINUTE_IN_SECONDS): bool {
+        $key = 'adf_rl_' . $bucket . '_' . md5($this->client_ip());
+        $n   = (int) get_transient($key);
+        if ($n >= $limit) {
+            return false;
+        }
+        set_transient($key, $n + 1, $window);
+        return true;
+    }
+
+    private function too_many(): \WP_REST_Response {
+        return new \WP_REST_Response(['error' => 'rate_limited'], 429);
+    }
+
     /* ----------------------------------------------------------------- *
      * Handlers
      * ----------------------------------------------------------------- */
@@ -244,6 +272,11 @@ final class RestApi {
         if (($intent['status'] ?? '') !== 'succeeded') {
             return new \WP_REST_Response(['error' => 'payment_not_complete', 'status' => $intent['status'] ?? 'unknown'], 402);
         }
+        // ADF-06: only the listing's own submitter may advance it.
+        $listing = Submission::find_by_intent($intent_id);
+        if ($listing && (int) Fields::get($listing, 'submitter_account_id') !== $this->account_id()) {
+            return new \WP_REST_Response(['error' => 'forbidden'], 403);
+        }
         Submission::confirm_payment($intent_id);
         return new \WP_REST_Response(['ok' => true], 200);
     }
@@ -266,6 +299,9 @@ final class RestApi {
     }
 
     public function volunteer_signup(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('volunteer', 10)) {
+            return $this->too_many();
+        }
         $account_id = is_user_logged_in() ? Account::ensure(get_current_user_id()) : 0;
 
         $result = Volunteers::signup(
@@ -338,6 +374,9 @@ final class RestApi {
     }
 
     public function ticket_promo(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('promo', 20)) {
+            return $this->too_many();
+        }
         $priced = $this->price_checkout($req);
         if (is_wp_error($priced)) {
             return new \WP_REST_Response(['error' => $priced->get_error_message()], 400);
@@ -349,6 +388,9 @@ final class RestApi {
     }
 
     public function ticket_intent(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('ticket_intent', 15)) {
+            return $this->too_many();
+        }
         if (! \ADF\Connectors\StripeConnector::is_ready()) {
             return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
         }
@@ -397,21 +439,19 @@ final class RestApi {
         if (($pi['status'] ?? '') !== 'succeeded') {
             return new \WP_REST_Response(['error' => 'payment_incomplete'], 402);
         }
-        // Re-price server-side from the (verified) request to avoid trusting client totals.
-        $priced = $this->price_checkout($req);
-        if (is_wp_error($priced)) {
-            return new \WP_REST_Response(['error' => $priced->get_error_message()], 400);
+        // ADF-01: trust ONLY the PaymentIntent — its metadata was set server-side
+        // at /ticket-intent and amount_received is what Stripe actually captured.
+        // The confirm request body is NOT used to price or shape the order.
+        $meta = (array) ($pi['metadata'] ?? []);
+        if (($meta['kind'] ?? '') !== 'ticket') {
+            return new \WP_REST_Response(['error' => 'not_a_ticket_payment'], 400);
         }
-        $order = \ADF\Ticketing\Orders::create([
-            'event_id' => $priced['event_id'], 'type' => $priced['type'], 'qty' => $priced['qty'],
-            'email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name')),
-            'unit_price' => $priced['unit'], 'discount' => $priced['discount'], 'total' => $priced['total'],
-            'promo' => $priced['promo'],
-        ], $intent_id, 'stripe', 'public');
-        if (is_wp_error($order)) {
-            return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
+        $paid   = (int) ($pi['amount_received'] ?? $pi['amount'] ?? 0);
+        $result = $this->create_ticket_order_from_meta($intent_id, $meta, $paid);
+        if (! is_array($result)) {
+            return new \WP_REST_Response(['error' => 'order_failed'], 400);
         }
-        return new \WP_REST_Response(['ok' => true, 'tickets' => $order['tickets']], 200);
+        return new \WP_REST_Response(['ok' => true, 'tickets' => $result['tickets']], 200);
     }
 
     /* ----------------------------------------------------------------- *
@@ -424,8 +464,17 @@ final class RestApi {
 
     private function checkin_pin_guard(\WP_REST_Request $req): int {
         $event_id = absint($req->get_param('event_id'));
-        $pin      = (string) $req->get_param('pin');
-        return \ADF\Ticketing\CheckIn::pin_ok($event_id, $pin) ? $event_id : 0;
+        // ADF-03: throttle PIN attempts per IP+event to stop brute-forcing the PIN.
+        $key  = 'adf_pinfail_' . md5($this->client_ip() . '|' . $event_id);
+        if ((int) get_transient($key) >= 10) {
+            return 0; // locked for the window
+        }
+        if (! \ADF\Ticketing\CheckIn::pin_ok($event_id, (string) $req->get_param('pin'))) {
+            set_transient($key, (int) get_transient($key) + 1, 15 * MINUTE_IN_SECONDS);
+            return 0;
+        }
+        delete_transient($key);
+        return $event_id;
     }
 
     public function checkin_venues(\WP_REST_Request $req): \WP_REST_Response {
@@ -514,6 +563,11 @@ final class RestApi {
     }
 
     public function ad_book_intent(\WP_REST_Request $req): \WP_REST_Response {
+        // ADF-04: this endpoint is callable anonymously (nonce only) and uploads
+        // files — throttle it hard to prevent media-library/storage abuse.
+        if (! $this->rl('adbook', 5, 5 * MINUTE_IN_SECONDS)) {
+            return $this->too_many();
+        }
         if (! \ADF\Connectors\StripeConnector::is_ready()) {
             return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
         }
@@ -540,9 +594,18 @@ final class RestApi {
         require_once ABSPATH . 'wp-admin/includes/image.php';
         $atts = ['image_mpu' => 0, 'image_leaderboard' => 0, 'image_skyscraper' => 0];
         $map = ['image_mpu' => 'image_mpu', 'image_leaderboard' => 'image_leaderboard', 'image_skyscraper' => 'image_skyscraper'];
+        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         $any = false;
         foreach ($map as $field => $col) {
             if (! empty($_FILES[$field]['name'])) {
+                // ADF-04: enforce size + type before handing to the media library.
+                if ((int) ($_FILES[$field]['size'] ?? 0) > 5 * MB_IN_BYTES) {
+                    return new \WP_REST_Response(['error' => 'file_too_large'], 400);
+                }
+                $check = wp_check_filetype_and_ext((string) $_FILES[$field]['tmp_name'], (string) $_FILES[$field]['name']);
+                if (empty($check['type']) || ! in_array($check['type'], $allowed, true)) {
+                    return new \WP_REST_Response(['error' => 'invalid_image'], 400);
+                }
                 $id = media_handle_upload($field, 0);
                 if (! is_wp_error($id)) {
                     $atts[$col] = (int) $id;
@@ -604,7 +667,8 @@ final class RestApi {
             $meta = (array) ($object['metadata'] ?? []);
             if (($meta['kind'] ?? '') === 'ticket') {
                 // Backup ticket-order creation (idempotent on payment_id).
-                $this->create_ticket_order_from_meta((string) ($object['id'] ?? ''), $meta);
+                $paid = (int) ($object['amount_received'] ?? $object['amount'] ?? 0);
+                $this->create_ticket_order_from_meta((string) ($object['id'] ?? ''), $meta, $paid);
             } elseif (($meta['kind'] ?? '') === 'ad_booking') {
                 \ADF\Ads\Bookings::mark_paid((string) ($object['id'] ?? ''));
             } else {
@@ -627,14 +691,25 @@ final class RestApi {
      * Reconstruct + create a ticket order from PaymentIntent metadata (webhook
      * safety net when the client never calls /ticket-confirm). Idempotent.
      */
-    private function create_ticket_order_from_meta(string $intent_id, array $meta): void {
-        if ($intent_id === '' || \ADF\Ticketing\Orders::by_payment($intent_id)) {
-            return;
+    /**
+     * Create a ticket order from a verified PaymentIntent's metadata. Shared by
+     * /ticket-confirm and the Stripe webhook. Idempotent on payment_id.
+     *
+     * @param int $amount_paid Captured amount in cents; when >= 0 the order total
+     *                         must not exceed it (ADF-01 anti-tampering guard).
+     * @return array{order_id:int,tickets:array}|null
+     */
+    private function create_ticket_order_from_meta(string $intent_id, array $meta, int $amount_paid = -1): ?array {
+        if ($intent_id === '') {
+            return null;
+        }
+        if (($existing = \ADF\Ticketing\Orders::by_payment($intent_id))) {
+            return ['order_id' => (int) $existing->id, 'tickets' => \ADF\Ticketing\Orders::ticket_dtos_for($intent_id)];
         }
         $event_id = (int) ($meta['event_id'] ?? 0);
         $type = \ADF\Ticketing\TicketTypes::type($event_id, (string) ($meta['type_key'] ?? ''));
         if (! $type) {
-            return;
+            return null;
         }
         $qty      = max(1, (int) ($meta['qty'] ?? 1));
         $unit     = \ADF\Ticketing\TicketTypes::effective_price($type);
@@ -648,12 +723,21 @@ final class RestApi {
                 $promo    = ['code' => strtoupper((string) $meta['promo']), 'promo_id' => $res['promo_id']];
             }
         }
-        \ADF\Ticketing\Orders::create([
+        $total = max(0, round($subtotal - $discount, 2));
+
+        // ADF-01: never issue an order worth more than was actually captured.
+        if ($amount_paid >= 0 && (int) round($total * 100) > $amount_paid) {
+            \ADF\Logger::log('Ticket order rejected — amount mismatch', ['intent' => $intent_id, 'total_cents' => (int) round($total * 100), 'paid' => $amount_paid]);
+            return null;
+        }
+
+        $order = \ADF\Ticketing\Orders::create([
             'event_id' => $event_id, 'type' => $type, 'qty' => $qty,
             'email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? '')),
-            'unit_price' => $unit, 'discount' => $discount, 'total' => max(0, round($subtotal - $discount, 2)),
+            'unit_price' => $unit, 'discount' => $discount, 'total' => $total,
             'promo' => $promo,
         ], $intent_id, 'stripe', 'public');
+        return is_wp_error($order) ? null : $order;
     }
 
     /* ----------------------------------------------------------------- *

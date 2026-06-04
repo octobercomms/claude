@@ -87,7 +87,8 @@ final class Settings {
                 return constant($const);
             }
             $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
-            return $all[$key] ?? ($default ?? '');
+            // Secrets are stored encrypted at rest (ADF-05); decrypt transparently.
+            return Crypto::decrypt((string) ($all[$key] ?? ($default ?? '')));
         }
         $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
         return $all[$key] ?? $default;

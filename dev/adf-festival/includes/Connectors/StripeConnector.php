@@ -102,9 +102,15 @@ final class StripeConnector {
     public static function parse_webhook(string $payload, string $sig_header): ?array {
         $secret = (string) Settings::get('stripe_webhook_secret', '');
         if ($secret === '') {
-            // No signing secret configured — accept but log (dev convenience).
-            Logger::log('Stripe webhook received without signing secret configured');
-            return json_decode($payload, true) ?: null;
+            // ADF-02: never trust an unsigned webhook in production — a forged
+            // payment_intent.succeeded could mint free tickets / mark bookings paid.
+            // Opt-in escape hatch for local development only.
+            if (defined('ADF_ALLOW_UNSIGNED_WEBHOOK') && ADF_ALLOW_UNSIGNED_WEBHOOK) {
+                Logger::log('Stripe webhook accepted UNSIGNED (ADF_ALLOW_UNSIGNED_WEBHOOK enabled)');
+                return json_decode($payload, true) ?: null;
+            }
+            Logger::log('Stripe webhook rejected — no signing secret configured');
+            return null;
         }
 
         if (self::use_sdk() && class_exists('\\Stripe\\Webhook')) {

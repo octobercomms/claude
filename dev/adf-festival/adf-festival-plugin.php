@@ -3,7 +3,7 @@
  * Plugin Name: ADF Festival
  * Plugin URI:  https://atlantadesignfestival.net
  * Description: Consolidated operations platform for the Atlanta Design Festival — accounts, listings (directory, destinations, products, events, stories, ads), submission/approval, Stripe payments, Brevo email, ticketing, volunteers and the AI Stories editorial connector. Replaces the Ad Manager and Event Tickets plugins.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
@@ -31,7 +31,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('ADF_VERSION', '1.2.0');
+define('ADF_VERSION', '1.3.0');
 // Bump when the DB schema changes so tables auto-(re)build on upgrade without a
 // manual deactivate/reactivate. dbDelta makes the install routines idempotent.
 define('ADF_DB_VERSION', '2');
