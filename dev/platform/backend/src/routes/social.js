@@ -623,6 +623,129 @@ router.post('/clients/:clientId/plans', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Bulk-schedule N brainstorm posts at once. The AM picks posts from a
+// batch, a cadence (which days of the week, what time), and target
+// platforms / Drive folder shared across all of them. We materialise
+// one social_post_plans row per post and stagger scheduled_at across
+// the cadence days starting from start_at.
+router.post('/clients/:clientId/bulk-schedule', async (req, res) => {
+  const {
+    post_ids, target_platforms, drive_folder_url,
+    start_at, days_of_week, time_of_day,
+  } = req.body || {};
+  if (!Array.isArray(post_ids) || !post_ids.length) {
+    return res.status(400).json({ error: 'post_ids required' });
+  }
+  const ALLOWED = new Set(['instagram', 'facebook', 'linkedin']);
+  const platforms = (target_platforms || []).filter(p => ALLOWED.has(p));
+  if (!platforms.length) return res.status(400).json({ error: 'target_platforms must include at least one of instagram / facebook / linkedin' });
+  if (!Array.isArray(days_of_week) || !days_of_week.length) {
+    return res.status(400).json({ error: 'days_of_week (0=Sun..6=Sat) is required' });
+  }
+  const validDays = days_of_week.map(Number).filter(d => Number.isInteger(d) && d >= 0 && d <= 6);
+  if (!validDays.length) return res.status(400).json({ error: 'days_of_week must be 0-6 integers' });
+  const [hhStr, mmStr] = String(time_of_day || '10:00').split(':');
+  const hh = Math.max(0, Math.min(23, parseInt(hhStr, 10) || 10));
+  const mm = Math.max(0, Math.min(59, parseInt(mmStr, 10) || 0));
+  const startDate = start_at ? new Date(start_at) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+  if (isNaN(startDate)) return res.status(400).json({ error: 'start_at must be a valid date' });
+
+  try {
+    // Pull the brainstorm posts. Reject any that don't belong to this client.
+    const { rows: posts } = await pool.query(
+      `SELECT id, kind, platform, hook, caption, hashtags, visual_concept, storyboard, framework
+         FROM social_posts WHERE client_id = $1 AND id = ANY($2::uuid[])
+         ORDER BY position ASC, created_at ASC`,
+      [req.params.clientId, post_ids]
+    );
+    if (posts.length !== post_ids.length) {
+      return res.status(400).json({ error: 'One or more post_ids do not belong to this client.' });
+    }
+
+    // Generate one slot per post, walking forward day-by-day and picking
+    // the time on each day_of_week match. Time interpreted in server tz.
+    const slots = [];
+    const cursor = new Date(startDate);
+    cursor.setHours(hh, mm, 0, 0);
+    let safety = 0;
+    while (slots.length < posts.length && safety < 365) {
+      if (validDays.includes(cursor.getDay())) {
+        slots.push(new Date(cursor));
+      }
+      cursor.setDate(cursor.getDate() + 1);
+      cursor.setHours(hh, mm, 0, 0);
+      safety++;
+    }
+    if (slots.length < posts.length) {
+      return res.status(400).json({ error: 'Could not generate enough schedule slots — pick more days or a longer horizon.' });
+    }
+
+    // Materialise one plan per post inside a transaction so a partial
+    // failure doesn't leave half a schedule on the books.
+    const dbClient = await pool.connect();
+    const created = [];
+    try {
+      await dbClient.query('BEGIN');
+      for (let i = 0; i < posts.length; i++) {
+        const post = posts[i];
+        const planJson = brainstormToPlan(post);
+        const title = (post.hook || post.caption || '(scheduled post)').slice(0, 80);
+        const { rows } = await dbClient.query(
+          `INSERT INTO social_post_plans
+             (client_id, title, plan, status, scheduled_at, drive_folder_url, target_platforms)
+           VALUES ($1, $2, $3, 'locked', $4, $5, $6)
+           RETURNING id, title, scheduled_at, target_platforms`,
+          [req.params.clientId, title, JSON.stringify(planJson), slots[i].toISOString(),
+           drive_folder_url || null, platforms]
+        );
+        created.push(rows[0]);
+        // Mark the brainstorm post itself as scheduled so the grid
+        // shows the AM which ones have been queued.
+        await dbClient.query(
+          `UPDATE social_posts SET status = 'scheduled', updated_at = NOW() WHERE id = $1`,
+          [post.id]
+        );
+      }
+      await dbClient.query('COMMIT');
+    } catch (err) {
+      await dbClient.query('ROLLBACK');
+      throw err;
+    } finally {
+      dbClient.release();
+    }
+    res.json({ plans: created });
+  } catch (err) {
+    console.error('[social bulk-schedule] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Map a brainstorm social_posts row into the plan JSON shape that the
+// autopilot publisher + caption preview already understand.
+function brainstormToPlan(post) {
+  const scenes = Array.isArray(post.storyboard)
+    ? post.storyboard.map((s, i) => ({
+        number: s.frame || i + 1,
+        name: s.style ? `Style ${s.style}` : `Scene ${i + 1}`,
+        style_code: s.style || undefined,
+        shot: s.shot || '',
+        bullets: [s.on_screen_text, s.voiceover].filter(Boolean),
+        duration_seconds: s.duration_sec || undefined,
+      }))
+    : [];
+  return {
+    version: 1,
+    title: (post.hook || post.caption || '').slice(0, 120),
+    platforms: [post.platform],
+    framework: post.framework || undefined,
+    hook: { text: post.hook || '' },
+    caption: post.caption || '',
+    hashtags: post.hashtags || [],
+    visual_concept: post.visual_concept || undefined,
+    scenes,
+  };
+}
+
 // Autopilot config — schedule + Drive folder + which platforms. Once
 // set, the publisher cron picks up the plan at scheduled_at, reads the
 // Drive folder, generates per-platform captions, and posts. Phase 1

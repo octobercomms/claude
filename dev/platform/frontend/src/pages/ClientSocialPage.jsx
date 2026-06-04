@@ -30,6 +30,7 @@ export default function ClientSocialPage() {
   const [refreshingSounds, setRefreshingSounds] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(null); // { planId } | null
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
+  const [bulkOpen, setBulkOpen] = useState(false);
 
   async function loadAll() {
     const [c, bs, comp, ws, eng, fb, ts] = await Promise.all([
@@ -237,6 +238,9 @@ export default function ClientSocialPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" style={primaryBtn} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</button>
+          {activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform)) && (
+            <button type="button" style={secondaryBtn} onClick={() => setBulkOpen(true)}>📅 Bulk schedule</button>
+          )}
           {activeBatchId && (
             <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
           )}
@@ -308,6 +312,160 @@ export default function ClientSocialPage() {
           onSaved={() => setPlansRefreshKey(k => k + 1)}
         />
       )}
+      {bulkOpen && (
+        <BulkScheduleModal
+          clientId={id}
+          posts={posts.filter(p => ['instagram','facebook','linkedin'].includes(p.platform))}
+          onClose={() => setBulkOpen(false)}
+          onScheduled={() => { setBulkOpen(false); setPlansRefreshKey(k => k + 1); loadPostsAndStatus(); }}
+        />
+      )}
+    </div>
+  );
+
+  async function loadPostsAndStatus() {
+    if (!activeBatchId) return;
+    try {
+      const p = await api.get(`/social/clients/${id}/posts?batch_id=${activeBatchId}`);
+      setPosts(p);
+    } catch {}
+  }
+}
+
+function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
+  // Default-select every autopilot-supported post. The AM untiCKS what
+  // they don't want rather than starting from zero.
+  const [selected, setSelected] = useState(() => new Set(posts.map(p => p.id)));
+  const [targetPlatforms, setTargetPlatforms] = useState(['instagram']);
+  const [driveFolderUrl, setDriveFolderUrl] = useState('');
+  // Default cadence: Mon/Wed/Fri at 10am, starting tomorrow.
+  const [daysOfWeek, setDaysOfWeek] = useState([1, 3, 5]);
+  const [timeOfDay, setTimeOfDay] = useState('10:00');
+  const [startAt, setStartAt] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(10, 0, 0, 0);
+    return d.toISOString().slice(0, 10);
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+
+  function toggle(id) {
+    setSelected(s => { const next = new Set(s); next.has(id) ? next.delete(id) : next.add(id); return next; });
+  }
+  function togglePlatform(p) {
+    setTargetPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p]);
+  }
+  function toggleDay(d) {
+    setDaysOfWeek(prev => prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d].sort());
+  }
+
+  async function submit() {
+    if (!selected.size) { setError('Pick at least one post.'); return; }
+    if (!targetPlatforms.length) { setError('Pick at least one platform.'); return; }
+    if (!daysOfWeek.length) { setError('Pick at least one day of the week.'); return; }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await api.post(`/social/clients/${clientId}/bulk-schedule`, {
+        post_ids: [...selected],
+        target_platforms: targetPlatforms,
+        drive_folder_url: driveFolderUrl || null,
+        start_at: new Date(`${startAt}T${timeOfDay}:00`).toISOString(),
+        days_of_week: daysOfWeek,
+        time_of_day: timeOfDay,
+      });
+      onScheduled();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', borderRadius: 8, width: 720, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <h2 style={{ margin: 0, fontSize: 18 }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ fontSize: 12, color: '#666', marginBottom: 14 }}>
+          Each ticked post becomes its own plan. The autopilot picks them up one per scheduled slot — fetches captions, reads the Drive folder, posts to the platforms below.
+        </div>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
+          <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+            {posts.map(p => (
+              <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 12 }}>
+                <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 600 }}>{p.hook || p.caption?.slice(0, 60) || '(no hook)'}</div>
+                  <div style={{ color: '#888', fontSize: 11 }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              {['instagram','facebook','linkedin'].map(p => (
+                <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
+                  <input type="checkbox" checked={targetPlatforms.includes(p)} onChange={() => togglePlatform(p)} /> {p}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
+            <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
+              placeholder="https://drive.google.com/drive/folders/…"
+              style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {dayLabels.map((label, i) => (
+                <button key={i} type="button" onClick={() => toggleDay(i)}
+                  style={{
+                    flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
+                    background: daysOfWeek.includes(i) ? '#1a1a1a' : 'white',
+                    color: daysOfWeek.includes(i) ? 'white' : '#666',
+                    border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer',
+                  }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
+              <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
+              <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
+                style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+            </div>
+          </div>
+        </div>
+
+        {error && <div style={{ padding: '8px 12px', background: '#fff0f0', color: '#c62828', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          <button type="button" onClick={onClose} style={secondaryBtn}>Cancel</button>
+          <button type="button" onClick={submit} disabled={submitting} style={primaryBtn}>
+            {submitting ? 'Scheduling…' : `Schedule ${selected.size} post${selected.size !== 1 ? 's' : ''}`}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
