@@ -22,6 +22,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 const Anthropic = require('@anthropic-ai/sdk');
+const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -33,12 +34,19 @@ function claudeClient() {
 // the structured content. downloadfor.press is WordPress + Elementor so
 // we strip the Elementor header / footer / lead-capture form first,
 // then take what's left of the single-post Elementor block.
+//
+// SSRF-hardened: the AM-supplied URL is gated by assertPublicHttpUrl
+// (no localhost / private / link-local IPs, no in-URL credentials, DNS
+// resolved before fetching) and redirects are disabled — otherwise a
+// public-looking host can 302-redirect us to 169.254.169.254 and still
+// look fine to the pre-fetch check.
 async function fetchAndParse(url) {
-  if (!url || !/^https?:\/\//i.test(url)) throw new Error('Provide a full http(s) URL.');
+  await assertPublicHttpUrl(url);
   const { data: html } = await axios.get(url, {
     timeout: 15000,
-    maxRedirects: 5,
+    maxRedirects: 0,
     headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OctoberPlatform/1.0; +https://platform.octobercomms.com)' },
+    validateStatus: s => s >= 200 && s < 300,
   });
   const $ = cheerio.load(html);
 

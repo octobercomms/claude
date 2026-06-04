@@ -148,6 +148,14 @@ router.post('/trigger', async (req, res) => {
   if (!client_id || !report_type) {
     return res.status(400).json({ error: 'client_id and report_type required' });
   }
+  // Authorisation: reject if the caller can't see this client.
+  // Without this check a viewer assigned to client A could trigger
+  // report generation for client B (cost abuse + cross-tenant data
+  // collection from B's connectors into a report row B's recipients
+  // can't see but B's data still gets pulled).
+  if (!users.canAccessClient(req.visibleClientIds, client_id)) {
+    return res.status(403).json({ error: 'Not authorised for this client' });
+  }
   try {
     const client = await pool.query('SELECT * FROM clients WHERE id = $1', [client_id]);
     if (!client.rows.length) return res.status(404).json({ error: 'Client not found' });
@@ -177,6 +185,15 @@ router.post('/trigger', async (req, res) => {
 // Delete report
 router.delete('/:id', async (req, res) => {
   try {
+    // Fetch the report's client_id and verify the caller can see it
+    // before deleting. Without this guard, any authenticated viewer
+    // could delete reports belonging to any client by enumerating
+    // report UUIDs.
+    const { rows } = await pool.query('SELECT client_id FROM reports WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this report' });
+    }
     await pool.query('DELETE FROM reports WHERE id = $1', [req.params.id]);
     res.status(204).end();
   } catch (err) {
@@ -189,6 +206,14 @@ router.post('/:id/resend', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM reports WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Report not found' });
+    // Authorisation: caller must be able to see the report's client.
+    // Otherwise any viewer could trigger an email send to another
+    // client's configured report recipients — both a confidentiality
+    // leak (re-delivering PII / metrics) and a spoofable annoyance
+    // (recipient sees "Why am I getting Tuesday's report on Friday?").
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised for this report' });
+    }
     if (rows[0].status !== 'generated' && rows[0].status !== 'sent') {
       return res.status(400).json({ error: 'Report must be generated before resending' });
     }

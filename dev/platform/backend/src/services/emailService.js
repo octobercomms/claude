@@ -353,8 +353,8 @@ function buildFullReportEmailHtml({ clientName, period, periodLabel, sections })
 function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }) {
   const metricRows = metrics.slice(0, 8).map((m, i) => `
     <tr style="${i === 0 ? 'background:#fff2cc;' : i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
-      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#666;">${m.label}</td>
-      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${m.value}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#666;">${escapeHtml(m.label)}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${escapeHtml(m.value)}</td>
     </tr>`).join('');
 
   return `<!DOCTYPE html>
@@ -375,8 +375,8 @@ function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }
                   <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
                 </td>
                 <td style="vertical-align:bottom;text-align:right;">
-                  <div style="font-size:15px;font-weight:700;color:#000;">Report for ${clientName}</div>
-                  <div style="font-size:13px;color:#808080;margin-top:2px;">${period}</div>
+                  <div style="font-size:15px;font-weight:700;color:#000;">Report for ${escapeHtml(clientName)}</div>
+                  <div style="font-size:13px;color:#808080;margin-top:2px;">${escapeHtml(period)}</div>
                 </td>
               </tr>
             </table>
@@ -434,8 +434,8 @@ function buildMonthlyEmailHtml({ clientName, period, summaryHtml, metrics = [] }
 function buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics = [] }) {
   const metricRows = metrics.slice(0, 8).map((m, i) => `
     <tr style="${i === 0 ? 'background:#fff2cc;' : i % 2 === 1 ? 'background:#f7f7f7;' : ''}">
-      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#333;">${m.label}</td>
-      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${m.value}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:13px;color:#333;">${escapeHtml(m.label)}</td>
+      <td style="padding:6px 10px;border:1px solid #000;font-size:${i === 0 ? '16px' : '13px'};font-weight:${i === 0 ? '700' : '400'};text-align:right;">${escapeHtml(m.value)}</td>
     </tr>`).join('');
 
   return `<!DOCTYPE html>
@@ -456,8 +456,8 @@ function buildWeeklyEmailHtml({ clientName, weekLabel, summaryText, metrics = []
                   <img src="cid:${LOGO_CID}" height="55" alt="October" style="display:block;">
                 </td>
                 <td style="vertical-align:bottom;text-align:right;">
-                  <div style="font-size:15px;font-weight:700;color:#000;">${clientName} — Weekly Snapshot</div>
-                  <div style="font-size:13px;color:#808080;margin-top:2px;">w/c ${weekLabel}</div>
+                  <div style="font-size:15px;font-weight:700;color:#000;">${escapeHtml(clientName)} — Weekly Snapshot</div>
+                  <div style="font-size:13px;color:#808080;margin-top:2px;">w/c ${escapeHtml(weekLabel)}</div>
                 </td>
               </tr>
             </table>

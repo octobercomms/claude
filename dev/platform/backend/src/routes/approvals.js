@@ -135,6 +135,21 @@ router.post('/public/:token/respond', async (req, res) => {
     if (link.expires_at && new Date(link.expires_at) < new Date()) {
       return res.status(410).json({ error: 'Approval link has expired' });
     }
+
+    // Bind the post / ad creative to the link's declared scope. Without
+    // this, anyone who knows the public token can mark ANY post or ad
+    // creative as approved by supplying its UUID in the body — including
+    // posts from other clients' batches that this token was never meant
+    // to authorise.
+    if (post_id) {
+      const inScope = await postIsInLinkScope(link, post_id);
+      if (!inScope) return res.status(403).json({ error: 'post_id is not part of this approval link.' });
+    }
+    if (ad_creative_id) {
+      const inScope = await adCreativeIsInLinkScope(link, ad_creative_id);
+      if (!inScope) return res.status(403).json({ error: 'ad_creative_id is not part of this approval link.' });
+    }
+
     const { rows: row } = await pool.query(
       `INSERT INTO approval_responses (link_id, post_id, ad_creative_id, decision, comment, reviewer_name)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
@@ -142,6 +157,9 @@ router.post('/public/:token/respond', async (req, res) => {
     );
     // Reflect approvals onto the underlying row so the AM sees the
     // status update on the Social / Paid card without polling responses.
+    // The scope binding above guarantees post_id / ad_creative_id belong
+    // to a batch the link's client owns, so the UPDATE can't reach into
+    // another tenant's data.
     if (decision === 'approved' && post_id) {
       await pool.query("UPDATE social_posts SET status = 'approved' WHERE id = $1 AND status = 'draft'", [post_id]);
     } else if (decision === 'approved' && ad_creative_id) {
@@ -152,6 +170,36 @@ router.post('/public/:token/respond', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Verify a post belongs to whichever set the approval link authorises:
+// - 'social_batch' scope: post must live inside link.scope_id batch
+// - 'post_list' scope: post must appear in link.post_ids
+// - 'ad_creative_batch' scope: no posts allowed at all
+async function postIsInLinkScope(link, postId) {
+  if (link.scope === 'social_batch') {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM social_posts WHERE id = $1 AND batch_id = $2 LIMIT 1`,
+      [postId, link.scope_id]
+    );
+    return rows.length > 0;
+  }
+  if (link.scope === 'post_list') {
+    const ids = Array.isArray(link.post_ids) ? link.post_ids : [];
+    return ids.includes(postId);
+  }
+  return false;
+}
+
+async function adCreativeIsInLinkScope(link, adCreativeId) {
+  if (link.scope === 'ad_creative_batch') {
+    const { rows } = await pool.query(
+      `SELECT 1 FROM ad_creatives WHERE id = $1 AND batch_id = $2 LIMIT 1`,
+      [adCreativeId, link.scope_id]
+    );
+    return rows.length > 0;
+  }
+  return false;
+}
 
 // ─── AM SIDE (auth required) ──────────────────────────────────────────────
 router.use(authenticate);

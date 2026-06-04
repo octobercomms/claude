@@ -53,7 +53,20 @@ router.get('/media-proxy/:planId/:fileId', async (req, res) => {
       [planId]
     );
     if (!rows.length) return res.status(404).send('Plan not found');
+    if (!rows[0].drive_folder_url) return res.status(404).send('Plan has no Drive folder');
+
+    // Defence in depth: the HMAC already binds planId + fileId, but if
+    // JWT_SECRET ever leaks an attacker could mint tokens for ANY Drive
+    // file the connected Google account can see — across every client.
+    // List the plan's folder and confirm fileId is actually in it,
+    // limiting the blast radius of a leaked secret to whatever's
+    // currently in this one folder.
     const socialDrive = require('../services/socialDrive');
+    const files = await socialDrive.listFolder(rows[0].client_id, rows[0].drive_folder_url);
+    if (!files.some(f => f.id === fileId)) {
+      return res.status(404).send('File is not in this plan\'s Drive folder');
+    }
+
     const upstream = await socialDrive.downloadFile(rows[0].client_id, fileId);
     if (upstream.headers['content-type']) res.setHeader('Content-Type', upstream.headers['content-type']);
     if (upstream.headers['content-length']) res.setHeader('Content-Length', upstream.headers['content-length']);
