@@ -53,6 +53,40 @@ function verifyOAuthState(state) {
   return payload;
 }
 
+// Claim a state token as used — returns true if this is the first time
+// we've seen it, false if it was already burned. Each OAuth callback
+// must consume the state exactly once: a successful verify followed by
+// a failed claim (false) means an attacker is replaying a captured
+// state within the 30-min window and we refuse the flow even though
+// the signature is otherwise valid.
+async function claimStateOnce(state) {
+  const hash = crypto.createHash('sha256').update(state).digest('hex');
+  try {
+    const { rowCount } = await pool.query(
+      `INSERT INTO oauth_used_states (state_hash) VALUES ($1) ON CONFLICT DO NOTHING`,
+      [hash]
+    );
+    return rowCount === 1;
+  } catch (err) {
+    // If the nonce store is unreachable, fail closed — refusing the
+    // callback is safer than processing a possibly-replayed state.
+    console.error('[oauth] claimStateOnce DB error:', err.message);
+    return false;
+  }
+}
+
+// Single entry point every callback uses: verifies the signature +
+// expiry, then atomically claims the state hash so a second callback
+// with the same state is rejected. Returns the decoded payload on
+// success, null otherwise.
+async function consumeOAuthState(state) {
+  const payload = verifyOAuthState(state);
+  if (!payload) return null;
+  const claimed = await claimStateOnce(state);
+  if (!claimed) return null;
+  return payload;
+}
+
 // Visibility check before initiating any OAuth — caller must be allowed
 // to attach connectors to the targeted client.
 async function gateOAuthStart(req, res, next) {
@@ -111,7 +145,7 @@ router.get('/google/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
     const tokens = await googleConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
@@ -161,7 +195,7 @@ router.get('/meta/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
     const tokens = await metaConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 
@@ -223,7 +257,7 @@ router.get('/shopify/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id, connector_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id, connector_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
 
     // Load existing connector credentials — per-connector app credentials take
     // precedence over global platform settings, and we preserve them when
@@ -283,7 +317,7 @@ router.get('/zoho/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
 
   try {
-    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
     // Zoho returns the issuing data centre as `accounts-server` — the code
     // is only redeemable there.
     const tokens = await zohoInventoryConnector.exchangeCode(code, req.query['accounts-server']);
@@ -318,7 +352,7 @@ router.get('/amazon/callback', async (req, res) => {
   if (error) return res.send(oauthPopupHtml('error', error));
   if (!spapi_oauth_code) return res.send(oauthPopupHtml('error', 'No OAuth code received from Amazon'));
   try {
-    const { client_id, connector_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id, connector_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
     const tokens = await amazonConnector.exchangeCode(spapi_oauth_code);
     const creds = encrypt({ ...tokens, seller_id: selling_partner_id });
 
@@ -376,7 +410,7 @@ router.get('/linkedin/callback', async (req, res) => {
   const { code, state, error, error_description } = req.query;
   if (error) return res.send(oauthPopupHtml('error', error_description || error));
   try {
-    const { client_id } = (verifyOAuthState(state) || (() => { throw new Error('Invalid or expired OAuth state'); })());
+    const { client_id } = ((await consumeOAuthState(state)) || (() => { throw new Error('Invalid, expired, or already-used OAuth state'); })());
     const tokens = await linkedinConnector.exchangeCode(code);
     const encrypted = encrypt(tokens);
 

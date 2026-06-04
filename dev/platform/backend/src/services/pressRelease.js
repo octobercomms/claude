@@ -77,11 +77,16 @@ async function fetchAndParse(url) {
   // Collect images observed in the body (deduped, absolutised) so the
   // AM can pick a hero or attach a couple inline. The og:image comes
   // first since the publisher chose it as the canonical hero.
+  // Reject anything that isn't https — the URLs end up in <img src>
+  // tags in outbound journalist emails, and we don't want to embed
+  // links to private/internal hosts (e.g. http://169.254.169.254/...)
+  // that a malicious press page might have included.
   const images = [];
   const seen = new Set();
   const pushImg = (src, alt) => {
     const abs = absoluteUrl(src, url);
     if (!abs || seen.has(abs)) return;
+    if (!/^https:\/\//i.test(abs)) return;                              // https only
     if (/logo|icon|sprite|placeholder|cubisly/i.test(abs)) return;     // skip chrome
     seen.add(abs);
     images.push({ src: abs, alt: alt || '' });

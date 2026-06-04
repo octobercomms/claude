@@ -10,14 +10,36 @@ const { getSetting } = require('../utils/settings');
 // contact, the signature verifies on-the-fly in the public route.
 // clientId is encoded so the unsubscribe only affects that client's
 // membership row, not the journalist's other client relationships.
+// Includes an `exp` epoch so a leaked token expires; the verifier in
+// routes/unsubscribe.js accepts the timestamped form AND the legacy
+// deterministic form for backwards-compat with already-sent emails.
 function unsubscribeUrl(contactId, clientId) {
   const base = (process.env.PLATFORM_URL || '').replace(/\/$/, '');
   if (!base || !process.env.JWT_SECRET) return null;
-  const payload = clientId ? `unsub:${contactId}:${clientId}` : `unsub:${contactId}`;
+  // 365-day expiry — journalists sometimes unsubscribe months after the
+  // first send, but a 5-year-old leaked URL shouldn't still work.
+  const exp = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+  const payload = clientId ? `unsub:${contactId}:${clientId}:${exp}` : `unsub:${contactId}::${exp}`;
   const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 32);
-  const params = new URLSearchParams({ c: contactId, s: sig });
+  const params = new URLSearchParams({ c: contactId, s: sig, e: String(exp) });
   if (clientId) params.set('cl', clientId);
   return `${base}/api/unsubscribe?${params.toString()}`;
+}
+
+// HMAC token binding sendId + kind to the JWT_SECRET, used on the open
+// pixel and click tracker. Without this, an attacker can enumerate
+// outreach_sends UUIDs by hitting /track/open/<uuid> and learning which
+// returns 200 — confirming both delivery and the existence of a send
+// row for that recipient. The signature is short (24 hex chars) so it
+// doesn't blow out the email URL length but still has ~96 bits of
+// entropy. dest is only signed for click tokens so the tracker can also
+// refuse open redirects to URLs not present at send time.
+function signTrackToken({ sendId, kind, dest = null }) {
+  if (!process.env.JWT_SECRET) return '';
+  const payload = dest
+    ? `track:${kind}:${sendId}:${dest}`
+    : `track:${kind}:${sendId}`;
+  return crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 24);
 }
 
 function fillTemplate(text, contact) {
@@ -59,7 +81,13 @@ function rewriteLinksForTracking(html, sendId) {
       if (url.startsWith(base + '/api/')) return match;
       const encoded = Buffer.from(url, 'utf8').toString('base64')
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      const tracked = `${base}/api/outreach/track/click/${encodeURIComponent(sendId)}?u=${encoded}`;
+      // Sign (sendId + destination URL) so the tracker can refuse
+      // forged tracking links. Without the sig the endpoint will fall
+      // back to PLATFORM_URL instead of redirecting to an attacker
+      // payload — closes the open-redirect path attackers used to
+      // launder phishing URLs through the platform's domain.
+      const sig = signTrackToken({ sendId, kind: 'click', dest: url });
+      const tracked = `${base}/api/outreach/track/click/${encodeURIComponent(sendId)}?u=${encoded}&s=${sig}`;
       return `<a ${before}href=${quote}${tracked}${quote}${after}>`;
     });
 }
@@ -75,7 +103,8 @@ function htmlBody(textBody, trackingSendId, contactId, clientId) {
   }
   if (trackingSendId) html = rewriteLinksForTracking(html, trackingSendId);
   if (trackingSendId && process.env.PLATFORM_URL) {
-    html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${trackingSendId}" width="1" height="1" alt="" style="display:none">`;
+    const sig = signTrackToken({ sendId: trackingSendId, kind: 'open' });
+    html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${trackingSendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
   }
   return html;
 }
@@ -232,7 +261,8 @@ async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, fol
     html = rewriteLinksForTracking(html, sendId);
     // Append the open pixel — buildEmailHtml doesn't know about send_id.
     if (sendId && process.env.PLATFORM_URL) {
-      html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}" width="1" height="1" alt="" style="display:none">`;
+      const sig = signTrackToken({ sendId, kind: 'open' });
+      html += `<img src="${process.env.PLATFORM_URL}/api/outreach/track/open/${sendId}?s=${sig}" width="1" height="1" alt="" style="display:none">`;
     }
     text = (cached.intro || '') + `\n\nPress release: ${release.source_url || ''}`;
   } else {

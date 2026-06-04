@@ -82,6 +82,21 @@ cron.schedule('0 8 * * *', async () => {
   }
 });
 
+// OAuth used-state cleanup: hourly. Removes nonce rows older than 1
+// hour (well past the 30-min state lifetime) so the replay-protection
+// table stays small. Without this, every OAuth start leaves a row
+// behind forever.
+cron.schedule('30 * * * *', async () => {
+  try {
+    const { rowCount } = await pool.query(
+      `DELETE FROM oauth_used_states WHERE used_at < NOW() - INTERVAL '1 hour'`
+    );
+    if (rowCount) console.log(`[OAuth] cleaned ${rowCount} expired state nonces`);
+  } catch (err) {
+    console.error('[OAuth] state cleanup failed:', err.message);
+  }
+});
+
 // Daily connector health check: 07:30 AM
 cron.schedule('30 7 * * *', async () => {
   console.log('[Scheduler] Running connector health check...');

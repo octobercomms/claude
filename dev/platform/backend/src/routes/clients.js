@@ -92,6 +92,13 @@ router.post('/', adminOnly, async (req, res) => {
 
 // Update client
 router.put('/:id', async (req, res) => {
+  // EXPLICIT ALLOWLIST — do not add fields here without considering
+  // whether non-admin viewers should be allowed to mutate them. Any
+  // field destructured below becomes writable by anyone with access to
+  // this client (viewers assigned to the client, plus admins). Examples
+  // of fields that must NEVER be added here: `id`, `owner_id`,
+  // `social_autopilot_paused` (has its own admin-only route),
+  // `ads_margin` (already on its own route), connector arrays.
   const { name, slug, active, briefing_field, monthly_focus, report_recipients, report_schedule, report_sections, section_instructions, domain, strategist_recipients } = req.body;
   try {
     const current = await pool.query('SELECT * FROM clients WHERE id = $1', [req.params.id]);

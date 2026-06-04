@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const router = express.Router();
 const pool = require('../db');
@@ -11,15 +12,35 @@ const icypeas = require('../services/icypeas');
 const outreachAi = require('../services/outreachAi');
 const outreachSender = require('../services/outreachSender');
 
+// Verifier for the track-link HMAC. Returns true if the supplied
+// signature matches what outreachSender would have produced for this
+// (kind, sendId, dest) tuple. Without a signature an attacker can hit
+// /track/open/<arbitrary-uuid> to enumerate which sends exist, or
+// craft /track/click/<any>?u=<attacker-url> to use our domain as an
+// open-redirect launderer. Timing-safe comparison.
+function verifyTrackSig({ sendId, kind, dest = null, sig }) {
+  if (!sig || !process.env.JWT_SECRET) return false;
+  const payload = dest ? `track:${kind}:${sendId}:${dest}` : `track:${kind}:${sendId}`;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 24);
+  try { return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(String(sig))); }
+  catch { return false; }
+}
+
 // Public — open-tracking pixel, loaded directly by recipients' email
 // clients. Per-IP rate-limited so the endpoint can't be brute-forced
 // against UUIDs to mark sends as opened en masse.
 const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120, skipSuccessfulRequests: false });
 const TRACK_PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 router.get('/track/open/:sendId', pixelLimiter, async (req, res) => {
-  try {
-    await pool.query('UPDATE outreach_sends SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL', [req.params.sendId]);
-  } catch { /* always return the pixel */ }
+  // Hard-require a valid HMAC signature — bare UUID hits don't record
+  // an open. Always return the 1x1 pixel so the recipient's mail
+  // client doesn't render a broken-image placeholder, but skip the DB
+  // write when the signature is missing / wrong.
+  if (verifyTrackSig({ sendId: req.params.sendId, kind: 'open', sig: req.query.s })) {
+    try {
+      await pool.query('UPDATE outreach_sends SET opened_at = NOW() WHERE id = $1 AND opened_at IS NULL', [req.params.sendId]);
+    } catch { /* always return the pixel */ }
+  }
   res.set('Content-Type', 'image/gif');
   res.set('Cache-Control', 'no-store');
   res.send(TRACK_PIXEL);
@@ -38,8 +59,18 @@ router.get('/track/click/:sendId', clickLimiter, async (req, res) => {
     const norm = raw.replace(/-/g, '+').replace(/_/g, '/');
     url = Buffer.from(norm, 'base64').toString('utf8');
   } catch { /* fall through to safety redirect */ }
-  // Only allow http(s) destinations — never let an attacker forge a
-  // tracking link that 302s to javascript: or data:.
+
+  // Hard-require a valid HMAC bound to (sendId + destination URL).
+  // Without this, an attacker forges a tracking link with an arbitrary
+  // `u=<attacker-url>` and we 302 to it — laundering phishing through
+  // our domain. If the sig is missing or wrong we send the user to
+  // PLATFORM_URL (a safe known destination) and don't record a click.
+  const sigValid = verifyTrackSig({ sendId: req.params.sendId, kind: 'click', dest: url, sig: req.query.s });
+  if (!sigValid) {
+    return res.redirect(302, process.env.PLATFORM_URL || '/');
+  }
+  // Belt-and-braces scheme check — even with a valid sig, refuse
+  // anything that isn't http(s).
   if (!/^https?:\/\//i.test(url)) {
     return res.redirect(302, process.env.PLATFORM_URL || '/');
   }

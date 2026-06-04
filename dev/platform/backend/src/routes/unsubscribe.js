@@ -18,11 +18,28 @@ function sign(payload) {
   return crypto.createHmac('sha256', process.env.JWT_SECRET).update(payload).digest('hex').slice(0, 32);
 }
 
-function verifySig(contactId, clientId, sig) {
+// Accept the new timestamped form (preferred) AND the legacy
+// deterministic form so unsubscribe links in emails already in the wild
+// keep working through the rollout. Once the legacy footprint expires
+// (campaigns are mostly < 30 days active), the fallback can be removed.
+function verifySig(contactId, clientId, sig, exp) {
   if (!contactId || !sig || !process.env.JWT_SECRET) return false;
-  const payload = clientId ? `unsub:${contactId}:${clientId}` : `unsub:${contactId}`;
-  const expected = sign(payload);
-  try { return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig)); }
+  // New form: includes an `e=<epoch>` query param + signs over it.
+  if (exp) {
+    const expNum = parseInt(exp, 10);
+    if (!expNum || expNum < Math.floor(Date.now() / 1000)) return false;
+    const payload = clientId
+      ? `unsub:${contactId}:${clientId}:${expNum}`
+      : `unsub:${contactId}::${expNum}`;
+    const expected = sign(payload);
+    try {
+      if (crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return true;
+    } catch { /* fall through to legacy check */ }
+  }
+  // Legacy form: deterministic HMAC, no expiry. Accepted until rollover.
+  const legacyPayload = clientId ? `unsub:${contactId}:${clientId}` : `unsub:${contactId}`;
+  const legacyExpected = sign(legacyPayload);
+  try { return crypto.timingSafeEqual(Buffer.from(legacyExpected), Buffer.from(sig)); }
   catch { return false; }
 }
 
@@ -65,8 +82,8 @@ async function markUnsubscribed(contactId, clientId) {
 
 // GET — public landing page. Lightweight HTML, no dependencies.
 router.get('/', async (req, res) => {
-  const { c, s, cl } = req.query;
-  if (!verifySig(c, cl, s)) {
+  const { c, s, cl, e } = req.query;
+  if (!verifySig(c, cl, s, e)) {
     return res.status(400).type('html').send(page('Invalid link',
       'This unsubscribe link is not valid or has been tampered with. If you wanted to unsubscribe, please reply to the email you received and we\'ll remove you manually.'));
   }
@@ -88,8 +105,8 @@ router.get('/', async (req, res) => {
 // POST — Gmail / Yahoo one-click (RFC 8058). Same logic, just no
 // rendered page; respond 200 to signal success.
 router.post('/', async (req, res) => {
-  const { c, s, cl } = req.query;
-  if (!verifySig(c, cl, s)) return res.status(400).end();
+  const { c, s, cl, e } = req.query;
+  if (!verifySig(c, cl, s, e)) return res.status(400).end();
   try {
     await markUnsubscribed(c, cl);
     res.status(200).end();
