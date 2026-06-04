@@ -1,20 +1,13 @@
-// Social suite overview — the app-like landing card. Dark surface,
-// terracotta accent (the Social suite colour), big bold typography,
-// a hero metric row, then the 6-step loop with one state-aware next
-// action surfaced as the primary CTA.
-//
-// Per-client dismissible: after dismiss the explainer hides but the
-// loop + next-action stay so the AM still sees where they are.
+// Social suite overview — terracotta-accented landing card. The
+// .suite-social scope is applied higher up in ClientSocialPage so this
+// component just consumes --accent. Two-tone: white text + terracotta
+// accent. No inline styles.
 
 import React, { useState, useEffect } from 'react';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
-import { palette, space, type, radius, shadow } from '../styles/tokens';
 import Sparkline from './Sparkline';
-
-const ACCENT = palette.suite.social;
-const SOFT = palette.suiteSoft.social;
 
 const STEPS = [
   { key: 'competitors', label: 'Competitors',  short: 'Brainstorms get smarter when Claude can see who you\'re benchmarking against.' },
@@ -28,7 +21,7 @@ const STEPS = [
 export default function SocialSuiteOverview({
   clientId, client, batches, posts, plans, competitors, winners,
   competitorPosts, sparkline,
-  onAddCompetitor, onGenerate, onBulkSchedule, onOpenPlan, onOpenHookVault,
+  onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const storageKey = `social-overview-dismissed-${clientId}`;
@@ -36,7 +29,6 @@ export default function SocialSuiteOverview({
   function dismiss() { localStorage.setItem(storageKey, '1'); setCollapsed(true); }
   function expand() { localStorage.removeItem(storageKey); setCollapsed(false); }
 
-  // State detection
   const hasCompetitors = (competitors?.length || 0) > 0;
   const hasBrainstorm = (batches?.length || 0) > 0 && (posts?.length || 0) > 0;
   const scheduledPlans = (plans || []).filter(p => p.scheduled_at);
@@ -47,7 +39,6 @@ export default function SocialSuiteOverview({
   const status = { competitors: hasCompetitors, brainstorm: hasBrainstorm, schedule: hasScheduled, media: hasDriveFolder, publish: hasPosted, learn: hasWinners };
   const currentKey = STEPS.find(s => !status[s.key])?.key || 'humming';
 
-  // Hero metrics derived from existing data — no new queries.
   const totalReach30 = (sparkline || []).reduce((n, p) => n + (Number(p.reach) || 0), 0);
   const totalInteractions30 = (sparkline || []).reduce((n, p) => n + (Number(p.interactions) || 0), 0);
   const publishedCount = (plans || []).reduce((n, p) => {
@@ -56,105 +47,89 @@ export default function SocialSuiteOverview({
   }, 0);
   const heaterCount = (winners || []).filter(w => w.is_heater).length;
 
-  const next = nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault, batchesCount: batches?.length || 0, scheduledCount: scheduledPlans.length });
+  const next = nextAction({
+    currentKey, onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault,
+    batchesCount: batches?.length || 0, scheduledCount: scheduledPlans.length,
+  });
 
   return (
-    <div style={{ marginBottom: space[7] }}>
-      {/* HERO — display title + accent rule + lead in */}
-      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: space[5], gap: space[6], flexWrap: 'wrap' }}>
-        <div>
-          <div style={{ ...type.caption, color: ACCENT }}>Social Suite</div>
-          <div style={{ ...type.display, color: palette.text, marginTop: space[2] }}>
-            {client?.name || 'Client'}
+    <div className="mb-7">
+      <header className="hero">
+        <div className="row between wrap">
+          <div>
+            <div className="caption">Social Suite</div>
+            <h1 className="display mt-2">
+              {client?.name || 'Client'}
+            </h1>
+            <p className="body mt-3">
+              Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
+            </p>
           </div>
-          <div style={{ ...type.body, color: palette.textMuted, marginTop: space[2], maxWidth: 540 }}>
-            Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
-          </div>
+          {client?.social_autopilot_paused && <Chip tone="warning">Autopilot paused</Chip>}
         </div>
-        {client?.social_autopilot_paused && (
-          <Chip tone="warning" style={{ alignSelf: 'flex-start' }}>Autopilot paused</Chip>
-        )}
+      </header>
+
+      <div className="metric-grid">
+        <HeroMetric label="Reach · 30d"      value={formatNum(totalReach30)} sparkline={(sparkline || []).map(p => p.reach)} />
+        <HeroMetric label="Engagement · 30d" value={formatNum(totalInteractions30)} sparkline={(sparkline || []).map(p => p.interactions)} />
+        <HeroMetric label="Published"        value={publishedCount} />
+        <HeroMetric label="🔥 Heaters"       value={heaterCount} accent />
       </div>
 
-      {/* METRIC ROW — hero numbers for this client */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: space[3], marginBottom: space[5] }}>
-        <HeroMetric label="Reach · 30d"        value={formatNum(totalReach30)} sparkline={(sparkline || []).map(p => p.reach)} />
-        <HeroMetric label="Engagement · 30d"   value={formatNum(totalInteractions30)} sparkline={(sparkline || []).map(p => p.interactions)} />
-        <HeroMetric label="Published"          value={publishedCount} />
-        <HeroMetric label="🔥 Heaters"         value={heaterCount} />
-      </div>
-
-      {/* NEXT ACTION — the single most-important thing the AM should do */}
-      <Card padding={space[5]} style={{ background: SOFT, border: `1px solid ${ACCENT}33` }}>
-        <div style={{ display: 'flex', gap: space[5], alignItems: 'center', flexWrap: 'wrap' }}>
+      <Card variant="accent">
+        <div className="row wrap" style={{ alignItems: 'center', gap: 'var(--s5)' }}>
           <div style={{ flex: '1 1 380px' }}>
-            <div style={{ ...type.caption, color: ACCENT }}>Next up</div>
-            <div style={{ ...type.h1, color: palette.text, marginTop: space[2] }}>{next.title}</div>
-            <div style={{ ...type.body, color: palette.textMuted, marginTop: space[2] }}>{next.body}</div>
+            <div className="caption">Next up</div>
+            <h2 className="h1 mt-2 text-white">{next.title}</h2>
+            <p className="body mt-2 text-white">{next.body}</p>
           </div>
           {next.action && (
-            <Button variant="primary" accent={ACCENT} size="lg" onClick={next.action.onClick}>
-              {next.action.label}
-            </Button>
+            <Button size="lg" onClick={next.action.onClick}>{next.action.label}</Button>
           )}
         </div>
       </Card>
 
-      {/* LOOP — six steps, completed in green-mint, current in accent */}
-      <div style={{ marginTop: space[6] }}>
-        <div style={{ ...type.caption, color: palette.textSubtle, marginBottom: space[3] }}>The loop</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: space[2] }}>
-          {STEPS.map((s, i) => {
-            const done = status[s.key];
-            const current = s.key === currentKey;
-            const bg = done ? 'rgba(113,198,168,0.10)' : current ? SOFT : palette.surface;
-            const border = done ? palette.success : current ? ACCENT : palette.border;
-            const dot = done ? '✓' : (i + 1);
-            const dotBg = done ? palette.success : current ? ACCENT : palette.surfaceRaised;
-            const dotFg = done || current ? palette.textOnAccent : palette.textMuted;
-            return (
-              <div key={s.key} style={{
-                background: bg, border: `1px solid ${border}`,
-                borderRadius: radius.md, padding: space[4],
-                position: 'relative', minHeight: 86,
-              }}>
-                <div style={{
-                  width: 22, height: 22, borderRadius: radius.pill,
-                  background: dotBg, color: dotFg,
-                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 11, fontWeight: 700, marginBottom: space[2],
-                }}>{dot}</div>
-                <div style={{ ...type.h3, color: palette.text }}>{s.label}</div>
-                <div style={{ ...type.bodyXs, color: palette.textMuted, marginTop: 4, lineHeight: 1.4 }}>{s.short}</div>
-              </div>
-            );
-          })}
+      <div className="mt-6">
+        <div className="caption caption-muted mb-3">The loop</div>
+        <div className="grid grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
+          {STEPS.map((s, i) => (
+            <LoopStep key={s.key} step={s} index={i} done={status[s.key]} current={s.key === currentKey} />
+          ))}
         </div>
       </div>
 
-      {/* EXPLAINER — collapsible learn-more */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: space[3] }}>
-        {collapsed ? (
-          <button type="button" onClick={expand} style={ghostLink}>Show how this works</button>
-        ) : (
-          <button type="button" onClick={dismiss} style={ghostLink}>Hide loop description</button>
-        )}
+      <div className="row end mt-3">
+        {collapsed
+          ? <Button variant="ghost" size="sm" onClick={expand}>Show how this works</Button>
+          : <Button variant="ghost" size="sm" onClick={dismiss}>Hide loop description</Button>}
       </div>
     </div>
   );
 }
 
-function HeroMetric({ label, value, sparkline }) {
+function LoopStep({ step, index, done, current }) {
+  const variant = done ? 'outline' : current ? 'accent' : 'default';
+  const dot = done ? '✓' : index + 1;
   return (
-    <Card padding={space[4]}>
-      <div style={{ ...type.caption, color: palette.textSubtle }}>{label}</div>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: space[2] }}>
-        <div style={{ ...type.metric, color: palette.text }}>{value}</div>
+    <Card variant={variant}>
+      <Chip tone={done ? 'success' : current ? 'accent' : 'neutral'}>{dot}</Chip>
+      <div className="h3 mt-2 text-white">{step.label}</div>
+      <p className="body-xs mt-2">{step.short}</p>
+    </Card>
+  );
+}
+
+function HeroMetric({ label, value, sparkline, accent }) {
+  return (
+    <div className={`metric-card ${accent ? 'accent' : ''}`}>
+      <div className="caption">{label}</div>
+      <div className="metric-row">
+        <div className="metric">{value}</div>
         {Array.isArray(sparkline) && sparkline.length > 1 && (
-          <Sparkline values={sparkline} width={70} height={22} stroke={ACCENT} />
+          <Sparkline values={sparkline} width={70} height={22} />
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
@@ -163,7 +138,7 @@ function nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, o
     case 'competitors':
       return {
         title: 'Add 3-6 competitors to start',
-        body: 'Brainstorms get sharper when Claude can see whose hooks to model against. Paste a handle or two — you can change them anytime.',
+        body: 'Brainstorms get sharper when Claude can see whose hooks to model against.',
         action: { label: 'Add competitors →', onClick: () => onAddCompetitor?.() },
       };
     case 'brainstorm':
@@ -211,9 +186,3 @@ function formatNum(n) {
   if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
   return String(Math.round(v));
 }
-
-const ghostLink = {
-  background: 'none', border: 'none', color: palette.textSubtle,
-  fontSize: 11, cursor: 'pointer', textDecoration: 'underline',
-  padding: 0,
-};

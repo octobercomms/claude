@@ -1,106 +1,464 @@
-/* App shell — dark, app-like aesthetic. Near-black background with
-   sidebar pulled from the same palette so the chrome reads as one
-   surface. Suite pages set their own accent. */
+/* October Marketing Intelligence — single source of truth for visual
+   styling. Every component imports semantic classes from here. Inline
+   styles are forbidden in new code; legacy inline styles get migrated
+   when their owning page is next touched.
+
+   Two-tone discipline: every page lives in a suite scope. The suite
+   class sets --accent and (optionally) flips the bg/fg pairing.
+   Inside a page, only white, the accent, and the dark shell tones
+   are allowed. No third colour leaks through.
+
+   Inspired by the coffee-app reference the AM shared: two colours per
+   surface, thick lines, large display headings, lighter body. Caveat
+   carries the hand-drawn hero moments; Brockmann (the brand face) and
+   Inter (fallback) carry everything else.
+*/
+
+/* ─── Fonts ──────────────────────────────────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;500;600;700;800&display=swap');
+
 :root {
+  /* Shell tones — used outside every suite to set the chrome. */
   --oc-bg: #0b0b0c;
   --oc-surface: #141416;
   --oc-surface-raised: #1c1c1f;
-  --oc-border: #26262b;
-  --oc-border-strong: #3a3a40;
   --oc-text: #fafafa;
   --oc-text-muted: #a0a0a8;
   --oc-text-subtle: #6e6e76;
-  --oc-accent: #D35E32; /* default, overridden per suite */
-}
-html, body { background: var(--oc-bg); color: var(--oc-text); }
-body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
-.app-shell { display: flex; min-height: 100vh; background: var(--oc-bg); }
 
-.app-nav {
-  width: 240px;
+  /* Default accent (overridden by suite scope). Terracotta is the
+     Social accent and the safest fallback. */
+  --accent: #D35E32;
+  --accent-soft: rgba(211, 94, 50, 0.14);
+  --accent-on: #ffffff;   /* text colour when bg = --accent */
+
+  /* Type */
+  --font-body: 'Inter', 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Inter', 'Brockmann', sans-serif;
+  --font-hand: 'Caveat', cursive;
+
+  /* Spacing scale — 4pt base. */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+  --s9: 56px; --s10: 72px;
+
+  /* Radii — thick / app-like. */
+  --r-sm: 8px;  --r-md: 14px;  --r-lg: 20px;  --r-pill: 999px;
+
+  /* Borders — chunky as the reference shows. */
+  --border-w: 2px;
+}
+
+/* ─── Suite scopes ───────────────────────────────────────────────── */
+/*
+   Apply ONE of these classes high in the page tree (usually the route
+   root). Every nested .card / .btn / .chip auto-themes to the right
+   accent — no per-component prop drilling needed.
+*/
+
+.suite-social  { --accent: #D35E32; --accent-soft: rgba(211, 94, 50, 0.14); --accent-on: #ffffff; }
+.suite-organic { --accent: #7C812D; --accent-soft: rgba(124, 129, 45, 0.16); --accent-on: #ffffff; }
+.suite-paid    { --accent: #FFBB06; --accent-soft: rgba(255, 187, 6, 0.14); --accent-on: #0b0b0c; }
+.suite-email   { --accent: #71C6A8; --accent-soft: rgba(113, 198, 168, 0.16); --accent-on: #0b0b0c; }
+.suite-press   { --accent: #AD4738; --accent-soft: rgba(173, 71, 56, 0.16); --accent-on: #ffffff; }
+
+/* ─── Shell ──────────────────────────────────────────────────────── */
+
+html, body {
   background: var(--oc-bg);
   color: var(--oc-text);
-  border-right: 1px solid var(--oc-border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow-y: auto;
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
 }
 
-.app-main { flex: 1; min-width: 0; padding: 32px 40px; overflow: auto; background: var(--oc-bg); color: var(--oc-text); }
+* { box-sizing: border-box; }
 
-/* Generic dark-mode form controls so legacy inline-styled inputs still
-   read on the new shell. Components that supply their own background
-   override this. */
-input, select, textarea, button { font-family: inherit; }
+a { color: var(--oc-text); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+button { font-family: inherit; }
+
+/* App layout — sidebar + main. */
+.app-shell { display: flex; min-height: 100vh; background: var(--oc-bg); }
+.app-nav {
+  width: 240px; background: var(--oc-bg); color: var(--oc-text);
+  border-right: var(--border-w) solid var(--oc-surface);
+  display: flex; flex-direction: column; flex-shrink: 0;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.app-main {
+  flex: 1; min-width: 0; padding: var(--s8) var(--s8);
+  overflow: auto; background: var(--oc-bg); color: var(--oc-text);
+}
+
+/* ─── Type system ────────────────────────────────────────────────── */
+
+.display {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 800;
+  line-height: 1.0;
+  letter-spacing: -1.6px;
+  color: var(--oc-text);
+  margin: 0;
+}
+.display .hand {
+  font-family: var(--font-hand);
+  font-weight: 700;
+  font-size: 1.0em;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+.h1 {
+  font-family: var(--font-display);
+  font-size: 36px; font-weight: 800; line-height: 1.1;
+  letter-spacing: -0.8px; color: var(--oc-text); margin: 0;
+}
+.h2 {
+  font-family: var(--font-display);
+  font-size: 24px; font-weight: 700; line-height: 1.2;
+  letter-spacing: -0.3px; color: var(--oc-text); margin: 0;
+}
+.h3 {
+  font-family: var(--font-body);
+  font-size: 16px; font-weight: 700; line-height: 1.3;
+  color: var(--oc-text); margin: 0;
+}
+.body { font-size: 15px; font-weight: 400; line-height: 1.55; color: var(--oc-text-muted); margin: 0; }
+.body-sm { font-size: 13px; font-weight: 400; line-height: 1.5; color: var(--oc-text-muted); margin: 0; }
+.body-xs { font-size: 11px; font-weight: 400; line-height: 1.4; color: var(--oc-text-muted); margin: 0; }
+.caption {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--accent); margin: 0;
+}
+.caption-muted { color: var(--oc-text-subtle); }
+
+.text-accent { color: var(--accent); }
+.text-muted  { color: var(--oc-text-muted); }
+.text-subtle { color: var(--oc-text-subtle); }
+.text-white  { color: #ffffff; }
+
+/* Hero metric — extra-large number for the top-of-page tiles. */
+.metric {
+  font-family: var(--font-display);
+  font-size: 40px; font-weight: 800; line-height: 1.05;
+  letter-spacing: -0.8px; color: var(--oc-text);
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--oc-surface);
+  border: var(--border-w) solid var(--oc-surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--s5);
+  color: var(--oc-text);
+}
+.card.raised {
+  background: var(--oc-surface-raised);
+  border-color: var(--oc-text-subtle);
+}
+/* Accent card — thick accent border, soft accent background. Used for
+   the next-action / hero callout where the suite identity should sing. */
+.card.accent {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.card.outline {
+  background: transparent;
+  border-color: var(--accent);
+}
+
+/* Section block — caption overline + h2 title + optional right action. */
+.section { margin-top: var(--s8); }
+.section + .section { margin-top: var(--s8); }
+.section-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--s4); margin-bottom: var(--s4); flex-wrap: wrap;
+}
+
+/* Hero (page intro). */
+.hero { margin-bottom: var(--s7); }
+.hero .caption { color: var(--accent); }
+.hero .display { margin-top: var(--s2); }
+.hero .body { margin-top: var(--s3); max-width: 620px; }
+
+/* ─── Metric grid ─────────────────────────────────────────────────── */
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s5);
+}
+.metric-card {
+  background: var(--oc-surface);
+  border: var(--border-w) solid var(--oc-surface-raised);
+  border-radius: var(--r-md);
+  padding: var(--s4);
+}
+.metric-card .caption {
+  color: var(--oc-text-subtle);
+}
+.metric-card .metric {
+  margin-top: var(--s2);
+}
+.metric-card.accent .metric { color: var(--accent); }
+.metric-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--s3);
+  margin-top: var(--s2);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 18px;
+  font-family: var(--font-body);
+  font-size: 13px; font-weight: 600;
+  border-radius: var(--r-pill);
+  cursor: pointer;
+  border: var(--border-w) solid transparent;
+  transition: filter 0.15s ease, transform 0.05s ease;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn-sm { padding: 6px 14px; font-size: 12px; }
+.btn-lg { padding: 13px 22px; font-size: 15px; }
+
+.btn-primary {
+  background: var(--accent); color: var(--accent-on);
+  border-color: var(--accent);
+}
+.btn-primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+.btn-secondary {
+  background: transparent; color: var(--oc-text);
+  border-color: var(--oc-surface-raised);
+}
+.btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+
+.btn-ghost {
+  background: transparent; color: var(--oc-text-muted);
+  border-color: transparent; padding: 6px 10px;
+}
+.btn-ghost:hover:not(:disabled) { color: var(--oc-text); }
+
+.btn-danger {
+  background: transparent; color: var(--oc-text-muted);
+  border-color: var(--oc-surface-raised);
+}
+.btn-danger:hover:not(:disabled) { border-color: #E16060; color: #E16060; }
+
+/* ─── Chips ──────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.1px;
+  border-radius: var(--r-pill);
+  border: var(--border-w) solid transparent;
+}
+.chip-neutral { background: var(--oc-surface-raised); color: var(--oc-text-muted); border-color: var(--oc-surface-raised); }
+.chip-accent  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+.chip-outline { background: transparent; color: var(--accent); border-color: var(--accent); }
+.chip-success { background: rgba(113,198,168,0.16); color: #71C6A8; border-color: rgba(113,198,168,0.4); }
+.chip-warning { background: rgba(255,187,6,0.16); color: #FFBB06; border-color: rgba(255,187,6,0.4); }
+.chip-danger  { background: rgba(225,96,96,0.16); color: #E16060; border-color: rgba(225,96,96,0.4); }
+
+/* ─── Tables ─────────────────────────────────────────────────────── */
+
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left; padding: 12px var(--s3);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--oc-text-subtle);
+  border-bottom: var(--border-w) solid var(--oc-surface-raised);
+}
+.table td {
+  padding: 12px var(--s3);
+  font-size: 14px; color: var(--oc-text-muted);
+  border-bottom: var(--border-w) solid var(--oc-surface-raised);
+}
+.table tr:last-child td { border-bottom: none; }
+.table td.num, .table th.num { text-align: right; }
+.table td.strong { color: var(--oc-text); font-weight: 700; }
+
+/* ─── Empty state ────────────────────────────────────────────────── */
+
+.empty {
+  text-align: center;
+  padding: var(--s9) var(--s5);
+  background: var(--oc-surface);
+  border: var(--border-w) solid var(--oc-surface-raised);
+  border-radius: var(--r-md);
+}
+.empty-icon {
+  width: 64px; height: 64px; border-radius: var(--r-pill);
+  background: var(--accent-soft); color: var(--accent);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 28px; margin-bottom: var(--s4);
+  border: var(--border-w) solid var(--accent);
+}
+.empty .h2 { color: var(--oc-text); }
+.empty .body { max-width: 440px; margin: var(--s2) auto var(--s5); }
+
+/* ─── Tab bar ────────────────────────────────────────────────────── */
+
+.tabs {
+  display: flex; gap: var(--s6);
+  border-bottom: var(--border-w) solid var(--oc-surface-raised);
+  margin: var(--s5) 0 var(--s6);
+}
+.tab {
+  background: none; border: none;
+  padding: var(--s3) 0;
+  border-bottom: var(--border-w) solid transparent;
+  margin-bottom: calc(var(--border-w) * -1);
+  color: var(--oc-text-muted);
+  font-size: 16px; font-weight: 600;
+  cursor: pointer;
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.tab.active { color: var(--oc-text); border-bottom-color: var(--accent); }
+
+/* ─── Form controls ──────────────────────────────────────────────── */
+
+.input, .select, .textarea {
+  width: 100%; padding: 10px var(--s3);
+  background: var(--oc-surface);
+  color: var(--oc-text);
+  border: var(--border-w) solid var(--oc-surface-raised);
+  border-radius: var(--r-sm);
+  font-size: 14px; font-family: inherit;
+}
+.input:focus, .select:focus, .textarea:focus {
+  outline: none; border-color: var(--accent);
+}
+.input::placeholder, .textarea::placeholder { color: var(--oc-text-subtle); }
+.textarea { min-height: 80px; resize: vertical; }
+
+/* Generic dark-mode form-control defaults so legacy inline-styled
+   inputs still read on the new shell. */
 input[type="text"], input[type="email"], input[type="password"],
 input[type="number"], input[type="search"], input[type="url"],
 input[type="datetime-local"], input[type="date"], input[type="time"],
 select, textarea {
   background: var(--oc-surface);
   color: var(--oc-text);
-  border-color: var(--oc-border);
+  border-color: var(--oc-surface-raised);
+  font-family: inherit;
 }
-input::placeholder, textarea::placeholder { color: var(--oc-text-subtle); }
-a { color: var(--oc-text); }
+
+.field { margin-bottom: var(--s4); }
+.field-label {
+  display: block; margin-bottom: 6px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--oc-text-subtle);
+}
+
+/* ─── Layout primitives ──────────────────────────────────────────── */
+
+.grid { display: grid; gap: var(--s4); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+
+.row { display: flex; gap: var(--s3); }
+.row.center { align-items: center; }
+.row.between { justify-content: space-between; }
+.row.end { justify-content: flex-end; }
+.row.wrap { flex-wrap: wrap; }
+
+.stack { display: flex; flex-direction: column; }
+.stack > * + * { margin-top: var(--s3); }
+.stack-sm > * + * { margin-top: var(--s2); }
+.stack-lg > * + * { margin-top: var(--s5); }
+
+.spacer { flex: 1; }
+
+.mt-0  { margin-top: 0 !important; }
+.mt-2  { margin-top: var(--s2); }
+.mt-3  { margin-top: var(--s3); }
+.mt-4  { margin-top: var(--s4); }
+.mt-5  { margin-top: var(--s5); }
+.mt-6  { margin-top: var(--s6); }
+.mt-7  { margin-top: var(--s7); }
+.mb-0  { margin-bottom: 0; }
+.mb-2  { margin-bottom: var(--s2); }
+.mb-3  { margin-bottom: var(--s3); }
+.mb-4  { margin-bottom: var(--s4); }
+.mb-5  { margin-bottom: var(--s5); }
+.mb-6  { margin-bottom: var(--s6); }
+.mb-7  { margin-bottom: var(--s7); }
+
+/* ─── Modal ──────────────────────────────────────────────────────── */
+
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--s4);
+}
+.modal {
+  background: var(--oc-surface);
+  border: var(--border-w) solid var(--oc-surface-raised);
+  border-radius: var(--r-lg);
+  padding: var(--s7);
+  width: 560px; max-width: 92vw; max-height: 90vh;
+  overflow: auto;
+}
+.modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--s5);
+}
+.modal-close {
+  background: none; border: none; color: var(--oc-text-muted);
+  font-size: 22px; cursor: pointer;
+}
+.modal-close:hover { color: var(--oc-text); }
+
+/* ─── Mobile ─────────────────────────────────────────────────────── */
 
 .app-hamburger { display: none; }
 .app-overlay { display: none; }
 
 @media (max-width: 768px) {
-  /* Sidebar becomes an off-canvas drawer */
+  .app-main { padding: 60px var(--s4) var(--s5); }
   .app-nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 200;
-    width: 240px;
-    height: 100vh;
-    transform: translateX(-100%);
+    position: fixed; top: 0; left: 0; z-index: 200;
+    width: 260px; transform: translateX(-100%);
     transition: transform 0.2s ease;
   }
-  .app-nav.open {
-    transform: translateX(0);
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35);
-  }
-
-  .app-main { padding: 60px 14px 24px; }
-
+  .app-nav.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4); }
   .app-hamburger {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    top: 10px;
-    left: 10px;
-    z-index: 210;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 6px;
-    background: #000000;
-    color: #ffffff;
-    font-size: 20px;
-    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    position: fixed; top: 10px; left: 10px; z-index: 210;
+    width: 42px; height: 42px;
+    border: var(--border-w) solid var(--oc-surface-raised);
+    border-radius: var(--r-sm);
+    background: var(--oc-surface); color: var(--oc-text);
+    font-size: 20px; cursor: pointer;
   }
-
   .app-overlay.open {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.45);
-    z-index: 190;
+    display: block; position: fixed; inset: 0;
+    background: rgba(0, 0, 0, 0.55); z-index: 190;
   }
+  .display { font-size: 38px; letter-spacing: -1px; }
+  .h1 { font-size: 28px; }
+  .h2 { font-size: 20px; }
+  .metric { font-size: 32px; }
+  .grid-2 { grid-template-columns: 1fr; }
+}
 
-  /* Retrofit responsiveness onto the app's inline-styled layouts */
-  [style*="grid-template-columns"] { grid-template-columns: 1fr !important; }
-  [style*="display: flex"] { flex-wrap: wrap; }
-  table { display: block; overflow-x: auto; }
+/* ─── Marketing home (legacy public site) ────────────────────────── */
 
-  /* Marketing homepage */
+@media (max-width: 768px) {
   .home nav { padding-left: 16px !important; padding-right: 16px !important; }
   .home section, .home footer { padding-left: 18px !important; padding-right: 18px !important; }
   .home-navlink, .home-brandtext { display: none !important; }

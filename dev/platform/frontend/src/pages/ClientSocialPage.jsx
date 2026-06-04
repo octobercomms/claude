@@ -314,7 +314,7 @@ export default function ClientSocialPage() {
   }
 
   return (
-    <div>
+    <div className="suite-social">
       {/* Toolbar — utility actions floating above the hero overview. */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
         <UiButton variant="primary" accent={SUITE_ACCENT_SOCIAL} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>

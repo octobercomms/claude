@@ -1,30 +1,25 @@
-// Big-number metric tile. Used on suite overview pages to surface
-// the headline number for that suite (reach, sessions, replies, etc).
-// Optional delta + sparkline. Accent colour matches the parent suite.
+// MetricCard — caption + big-number + optional sparkline / delta. The
+// headline-number tile on every suite landing page. Class-based.
 
 import React from 'react';
-import Card from './Card';
-import { palette, space, type } from '../../styles/tokens';
 
 export default function MetricCard({
-  label, value, delta = null, deltaPositive = null, accent = palette.suite.social,
-  sparkline = null, raised = false,
+  label, value, accent = false, sparkline = null, delta = null, deltaPositive = null,
 }) {
-  const deltaColour = deltaPositive == null
-    ? palette.textSubtle
-    : deltaPositive ? palette.success : palette.danger;
+  const cls = ['metric-card', accent ? 'accent' : ''].filter(Boolean).join(' ');
+  const deltaClass = deltaPositive == null ? 'text-subtle' : deltaPositive ? 'text-accent' : 'text-muted';
   return (
-    <Card raised={raised} padding={space[5]}>
-      <div style={{ ...type.caption, color: palette.textSubtle }}>{label}</div>
-      <div style={{ marginTop: space[3], display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: space[3] }}>
-        <div style={{ ...type.metric, color: palette.text }}>{value ?? '—'}</div>
-        {sparkline && <div style={{ opacity: 0.85 }}>{sparkline}</div>}
+    <div className={cls}>
+      <div className="caption">{label}</div>
+      <div className="metric-row">
+        <div className="metric">{value ?? '—'}</div>
+        {sparkline}
       </div>
       {delta != null && (
-        <div style={{ ...type.bodyXs, color: deltaColour, marginTop: space[2], fontWeight: 600 }}>
+        <div className={`body-xs mt-2 ${deltaClass}`}>
           {deltaPositive === true ? '↑' : deltaPositive === false ? '↓' : '•'} {delta}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

@@ -1,24 +1,19 @@
-// Labelled section. Caption-style overline + bold title, optional
-// trailing action (right-aligned button or chip). Used wherever a
-// suite page splits into named blocks ("Top performers", "Recent
-// activity", etc).
+// Section — labelled block with caption overline + h2 title and an
+// optional right-aligned action slot.
 
 import React from 'react';
-import { palette, space, type } from '../../styles/tokens';
 
-export default function Section({
-  title, caption, action, marginTop = space[7], children,
-}) {
+export default function Section({ title, caption, action, children, className = '' }) {
   return (
-    <div style={{ marginTop }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: space[3] }}>
+    <section className={['section', className].filter(Boolean).join(' ')}>
+      <div className="section-head">
         <div>
-          {caption && <div style={{ ...type.caption, color: palette.textSubtle }}>{caption}</div>}
-          {title && <div style={{ ...type.h2, color: palette.text, marginTop: caption ? 4 : 0 }}>{title}</div>}
+          {caption && <div className="caption">{caption}</div>}
+          {title && <h2 className="h2 mt-2">{title}</h2>}
         </div>
         {action && <div>{action}</div>}
       </div>
       {children}
-    </div>
+    </section>
   );
 }

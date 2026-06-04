@@ -1,14 +1,6 @@
-// Audience Insights page for the Paid suite. Three sections:
-//   1. Hero — Paid-suite yellow accent, headline metrics for first-party
-//      reach + revenue concentration.
-//   2. First-party postcode distribution — top revenue districts from
-//      the client's Shopify orders, with a "Refresh" button that walks
-//      every order in the last year.
-//   3. Saved segments — AM-defined audiences with edit / delete /
-//      Meta CSV export.
-//
-// Demographic overlay (income, age, household type) hooks land in a
-// follow-up commit once the ONS data is bootstrapped.
+// Audience Insights — Paid suite. Yellow accent flows through the
+// .suite-paid scope; every class inside this page resolves --accent
+// to #FFBB06. No inline styles.
 
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -19,10 +11,6 @@ import Section from '../components/ui/Section';
 import Button from '../components/ui/Button';
 import Chip from '../components/ui/Chip';
 import EmptyState from '../components/ui/EmptyState';
-import { palette, space, type } from '../styles/tokens';
-
-const ACCENT = palette.suite.paid;
-const SOFT = palette.suiteSoft.paid;
 
 export default function ClientAudiencesPage() {
   const { id } = useParams();
@@ -32,7 +20,7 @@ export default function ClientAudiencesPage() {
   const [segments, setSegments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [editing, setEditing] = useState(null);   // { id?, name, description, filters } | null
+  const [editing, setEditing] = useState(null);
 
   useEffect(() => {
     Promise.all([
@@ -50,11 +38,8 @@ export default function ClientAudiencesPage() {
       const d = await api.get(`/audiences/clients/${id}/postcode-distribution?refresh=1`);
       setDistribution(d);
       toast('Postcode distribution refreshed.', 'success');
-    } catch (e) {
-      toast(`Refresh failed: ${e.message}`, 'error');
-    } finally {
-      setRefreshing(false);
-    }
+    } catch (e) { toast(`Refresh failed: ${e.message}`, 'error'); }
+    finally { setRefreshing(false); }
   }
 
   async function saveSegment(payload) {
@@ -62,15 +47,10 @@ export default function ClientAudiencesPage() {
       const url = payload.id ? `/audiences/segments/${payload.id}` : `/audiences/clients/${id}/segments`;
       const method = payload.id ? 'put' : 'post';
       const seg = await api[method](url, payload);
-      setSegments(prev => {
-        const next = payload.id ? prev.map(s => s.id === seg.id ? seg : s) : [seg, ...prev];
-        return next;
-      });
+      setSegments(prev => payload.id ? prev.map(s => s.id === seg.id ? seg : s) : [seg, ...prev]);
       setEditing(null);
       toast('Segment saved.', 'success');
-    } catch (e) {
-      toast(`Save failed: ${e.message}`, 'error');
-    }
+    } catch (e) { toast(`Save failed: ${e.message}`, 'error'); }
   }
 
   async function deleteSegment(seg) {
@@ -78,13 +58,10 @@ export default function ClientAudiencesPage() {
     try {
       await api.delete(`/audiences/segments/${seg.id}`);
       setSegments(prev => prev.filter(s => s.id !== seg.id));
-    } catch (e) {
-      toast(`Delete failed: ${e.message}`, 'error');
-    }
+    } catch (e) { toast(`Delete failed: ${e.message}`, 'error'); }
   }
 
   function exportSegment(seg) {
-    // Direct browser navigation gets the CSV downloaded.
     const token = localStorage.getItem('token');
     fetch(`/api/audiences/segments/${seg.id}/export.csv`, {
       headers: { Authorization: `Bearer ${token}` },
@@ -109,33 +86,28 @@ export default function ClientAudiencesPage() {
   const concentration = totalRevenue > 0 ? Math.round((top10Revenue / totalRevenue) * 100) : 0;
 
   return (
-    <div>
-      {/* HERO */}
-      <div style={{ marginBottom: space[6] }}>
-        <div style={{ ...type.caption, color: ACCENT }}>Audience Insights · Paid Suite</div>
-        <div style={{ ...type.display, color: palette.text, marginTop: space[2] }}>
-          {client?.name}
-        </div>
-        <div style={{ ...type.body, color: palette.textMuted, marginTop: space[2], maxWidth: 600 }}>
-          Build targetable audiences from your first-party data. Today: postcode distribution from Shopify orders + named segments exportable as Meta Custom Audiences. Demographic overlay (income, age, household type) ships next.
-        </div>
-      </div>
+    <div className="suite-paid">
+      <header className="hero">
+        <div className="caption">Audience Insights · Paid Suite</div>
+        <h1 className="display mt-2">{client?.name}</h1>
+        <p className="body mt-3">
+          Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.
+        </p>
+      </header>
 
-      {/* METRIC ROW */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: space[3], marginBottom: space[5] }}>
-        <HeroMetric label="Customers · 12m"     value={formatNum(totalCustomers)} />
-        <HeroMetric label="Orders · 12m"        value={formatNum(totalOrders)} />
-        <HeroMetric label="Revenue · 12m"       value={`£${formatNum(totalRevenue)}`} />
-        <HeroMetric label="Top-10 concentration" value={`${concentration}%`} />
+      <div className="metric-grid">
+        <Metric label="Customers · 12m"      value={formatNum(totalCustomers)} />
+        <Metric label="Orders · 12m"         value={formatNum(totalOrders)} />
+        <Metric label="Revenue · 12m"        value={`£${formatNum(totalRevenue)}`} accent />
+        <Metric label="Top-10 concentration" value={`${concentration}%`} />
       </div>
 
       {distribution?.note && (
-        <Card padding={space[4]} style={{ marginBottom: space[5], background: SOFT, border: `1px solid ${ACCENT}33` }}>
-          <div style={{ ...type.body, color: palette.text }}>{distribution.note}</div>
+        <Card variant="accent" className="mb-5">
+          <div className="body text-white">{distribution.note}</div>
         </Card>
       )}
 
-      {/* POSTCODE DISTRIBUTION */}
       <Section
         caption="First-party data"
         title="Where your customers are"
@@ -150,52 +122,47 @@ export default function ClientAudiencesPage() {
             icon="📍"
             title="No first-party data yet"
             body="Connect Shopify and the system will walk every order to map postcode concentration."
-            action={null}
-            accent={ACCENT}
           />
         ) : (
-          <Card padding={space[4]}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <Card>
+            <table className="table">
               <thead>
-                <tr style={{ borderBottom: `1px solid ${palette.border}` }}>
-                  <th style={th}>Postcode</th>
-                  <th style={th}>Customers</th>
-                  <th style={th}>Orders</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Revenue</th>
-                  <th style={{ ...th, textAlign: 'right' }}>Share</th>
+                <tr>
+                  <th>Postcode</th>
+                  <th className="num">Customers</th>
+                  <th className="num">Orders</th>
+                  <th className="num">Revenue</th>
+                  <th className="num">Share</th>
                 </tr>
               </thead>
               <tbody>
                 {top10.map(p => {
                   const share = totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0;
                   return (
-                    <tr key={p.postcode_district} style={{ borderBottom: `1px solid ${palette.border}` }}>
-                      <td style={td}>
-                        <Chip tone="accent" style={{ color: ACCENT, background: SOFT }}>{p.postcode_district}</Chip>
-                      </td>
-                      <td style={td}>{formatNum(p.customer_count)}</td>
-                      <td style={td}>{formatNum(p.order_count)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: palette.text, fontWeight: 700 }}>£{formatNum(p.revenue)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: palette.textMuted }}>{share.toFixed(1)}%</td>
+                    <tr key={p.postcode_district}>
+                      <td><Chip tone="accent">{p.postcode_district}</Chip></td>
+                      <td className="num">{formatNum(p.customer_count)}</td>
+                      <td className="num">{formatNum(p.order_count)}</td>
+                      <td className="num strong">£{formatNum(p.revenue)}</td>
+                      <td className="num">{share.toFixed(1)}%</td>
                     </tr>
                   );
                 })}
               </tbody>
             </table>
-            <div style={{ ...type.bodyXs, color: palette.textSubtle, marginTop: space[3] }}>
-              Showing top 10 of {postcodes.length} postcodes by revenue. Computed{' '}
-              {distribution?.computed_at ? new Date(distribution.computed_at).toLocaleString('en-GB') : 'never'}.
-            </div>
+            <p className="body-xs text-subtle mt-3">
+              Showing top 10 of {postcodes.length} postcodes by revenue.
+              {' '}Computed {distribution?.computed_at ? new Date(distribution.computed_at).toLocaleString('en-GB') : 'never'}.
+            </p>
           </Card>
         )}
       </Section>
 
-      {/* SAVED SEGMENTS */}
       <Section
         caption="Saved audiences"
         title="Segments"
         action={(
-          <Button variant="primary" accent={ACCENT} onClick={() => setEditing({ name: '', description: '', filters: {} })}>
+          <Button onClick={() => setEditing({ name: '', description: '', filters: {} })}>
             + New segment
           </Button>
         )}
@@ -206,21 +173,20 @@ export default function ClientAudiencesPage() {
             title="No segments yet"
             body="Define a named audience (e.g. 'High-value SW postcodes') and export it as a Meta Custom Audience CSV."
             action={{ label: 'Create first segment', onClick: () => setEditing({ name: '', description: '', filters: {} }) }}
-            accent={ACCENT}
           />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: space[3] }}>
+          <div className="grid grid-auto">
             {segments.map(s => (
-              <Card key={s.id} padding={space[4]}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: space[3] }}>
-                  <div style={{ ...type.h3, color: palette.text }}>{s.name}</div>
-                  <Chip tone="neutral" style={{ textTransform: 'uppercase' }}>{s.source.replace('_', ' ')}</Chip>
+              <Card key={s.id}>
+                <div className="row between">
+                  <h3 className="h3">{s.name}</h3>
+                  <Chip>{s.source.replace('_', ' ')}</Chip>
                 </div>
-                {s.description && <div style={{ ...type.bodySm, color: palette.textMuted, marginTop: space[2] }}>{s.description}</div>}
-                <div style={{ ...type.bodyXs, color: palette.textSubtle, marginTop: space[3] }}>
-                  Estimated reach: <span style={{ color: ACCENT, fontWeight: 700 }}>{formatNum(s.estimated_reach || 0)} customers</span>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: space[4], flexWrap: 'wrap' }}>
+                {s.description && <p className="body-sm mt-3">{s.description}</p>}
+                <p className="body-xs text-subtle mt-3">
+                  Estimated reach: <span className="text-accent" style={{ fontWeight: 700 }}>{formatNum(s.estimated_reach || 0)} customers</span>
+                </p>
+                <div className="row mt-5 wrap">
                   <Button variant="secondary" size="sm" onClick={() => setEditing(s)}>Edit</Button>
                   <Button variant="secondary" size="sm" onClick={() => exportSegment(s)}>↓ Meta CSV</Button>
                   <Button variant="danger" size="sm" onClick={() => deleteSegment(s)}>Delete</Button>
@@ -232,13 +198,17 @@ export default function ClientAudiencesPage() {
       </Section>
 
       {editing && (
-        <SegmentEditor
-          initial={editing}
-          postcodes={postcodes}
-          onClose={() => setEditing(null)}
-          onSave={saveSegment}
-        />
+        <SegmentEditor initial={editing} postcodes={postcodes} onClose={() => setEditing(null)} onSave={saveSegment} />
       )}
+    </div>
+  );
+}
+
+function Metric({ label, value, accent }) {
+  return (
+    <div className={`metric-card ${accent ? 'accent' : ''}`}>
+      <div className="caption">{label}</div>
+      <div className="metric mt-2">{value}</div>
     </div>
   );
 }
@@ -254,8 +224,7 @@ function SegmentEditor({ initial, postcodes, onClose, onSave }) {
     if (!name.trim()) return;
     const dList = districts.split(/[,\s]+/).map(s => s.trim().toUpperCase()).filter(Boolean);
     onSave({
-      id: initial.id,
-      name: name.trim(),
+      id: initial.id, name: name.trim(),
       description: description.trim() || null,
       filters: {
         postcode_districts: dList.length ? dList : undefined,
@@ -266,62 +235,47 @@ function SegmentEditor({ initial, postcodes, onClose, onSave }) {
   }
 
   return (
-    <div style={modalBackdrop}>
-      <Card raised padding={space[6]} style={{ width: 560, maxWidth: '92vw' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: space[5] }}>
-          <div style={{ ...type.h2, color: palette.text }}>{initial.id ? 'Edit segment' : 'New segment'}</div>
-          <button type="button" onClick={onClose} style={closeBtn}>×</button>
+    <div className="modal-backdrop">
+      <div className="modal suite-paid">
+        <div className="modal-head">
+          <h2 className="h2">{initial.id ? 'Edit segment' : 'New segment'}</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: space[4] }}>
-          <Field label="Name">
-            <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. High-value SW postcodes" style={input} autoFocus />
-          </Field>
-          <Field label="Description (optional)">
-            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Why this audience matters, who it's for…" style={{ ...input, minHeight: 64, resize: 'vertical' }} />
-          </Field>
-          <Field label="Postcode districts (comma- or space-separated)">
-            <input type="text" value={districts} onChange={e => setDistricts(e.target.value)} placeholder="SW3, SW7, NW3, W11" style={input} />
-            {postcodes.length > 0 && (
-              <div style={{ ...type.bodyXs, color: palette.textSubtle, marginTop: 4 }}>
-                Your top 8 by revenue: {postcodes.slice(0, 8).map(p => p.postcode_district).join(', ')}
-              </div>
-            )}
-          </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: space[4] }}>
-            <Field label="Min revenue per postcode (£)">
-              <input type="number" min="0" value={minRevenue} onChange={e => setMinRevenue(e.target.value)} placeholder="0" style={input} />
-            </Field>
-            <Field label="Min customers per postcode">
-              <input type="number" min="0" value={minCustomers} onChange={e => setMinCustomers(e.target.value)} placeholder="0" style={input} />
-            </Field>
+        <div className="field">
+          <label className="field-label">Name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. High-value SW postcodes" autoFocus />
+        </div>
+        <div className="field">
+          <label className="field-label">Description (optional)</label>
+          <textarea className="textarea" value={description} onChange={e => setDescription(e.target.value)} placeholder="Why this audience matters…" />
+        </div>
+        <div className="field">
+          <label className="field-label">Postcode districts (comma- or space-separated)</label>
+          <input className="input" value={districts} onChange={e => setDistricts(e.target.value)} placeholder="SW3, SW7, NW3, W11" />
+          {postcodes.length > 0 && (
+            <p className="body-xs text-subtle mt-2">
+              Your top 8 by revenue: {postcodes.slice(0, 8).map(p => p.postcode_district).join(', ')}
+            </p>
+          )}
+        </div>
+        <div className="grid grid-2">
+          <div className="field">
+            <label className="field-label">Min revenue per postcode (£)</label>
+            <input className="input" type="number" min="0" value={minRevenue} onChange={e => setMinRevenue(e.target.value)} placeholder="0" />
+          </div>
+          <div className="field">
+            <label className="field-label">Min customers per postcode</label>
+            <input className="input" type="number" min="0" value={minCustomers} onChange={e => setMinCustomers(e.target.value)} placeholder="0" />
           </div>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: space[6] }}>
+        <div className="row end mt-6">
           <Button variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button variant="primary" accent={ACCENT} onClick={submit} disabled={!name.trim()}>
+          <Button onClick={submit} disabled={!name.trim()}>
             {initial.id ? 'Save changes' : 'Create segment'}
           </Button>
         </div>
-      </Card>
+      </div>
     </div>
-  );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <div style={{ ...type.caption, color: palette.textSubtle, marginBottom: 6 }}>{label}</div>
-      {children}
-    </div>
-  );
-}
-
-function HeroMetric({ label, value }) {
-  return (
-    <Card padding={space[4]}>
-      <div style={{ ...type.caption, color: palette.textSubtle }}>{label}</div>
-      <div style={{ ...type.metric, color: palette.text, marginTop: space[2] }}>{value}</div>
-    </Card>
   );
 }
 
@@ -331,9 +285,3 @@ function formatNum(n) {
   if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
   return String(Math.round(v));
 }
-
-const th = { textAlign: 'left', padding: '10px 12px', fontSize: 11, color: palette.textSubtle, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700 };
-const td = { padding: '10px 12px', fontSize: 13, color: palette.textMuted };
-const input = { width: '100%', padding: '8px 10px', background: palette.surface, color: palette.text, border: `1px solid ${palette.border}`, borderRadius: 6, fontSize: 13, fontFamily: 'inherit' };
-const modalBackdrop = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
-const closeBtn = { background: 'none', border: 'none', color: palette.textMuted, fontSize: 22, cursor: 'pointer' };
