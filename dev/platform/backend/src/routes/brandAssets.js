@@ -34,6 +34,12 @@ router.get('/file/:clientId/:filename', authenticate, loadVisibleClientIds, asyn
   const filePath = path.join(UPLOAD_ROOT, req.params.clientId, req.params.filename);
   if (!filePath.startsWith(UPLOAD_ROOT + path.sep)) return res.status(400).send('Invalid path');
   if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+  // nosniff forbids the browser from guessing a different Content-Type
+  // than the server sends — without it an uploaded file whose stored
+  // mime is "image/png" but whose first bytes look like HTML can still
+  // render as HTML and execute script. With nosniff, the browser
+  // refuses to render mismatched content.
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.sendFile(filePath);
 });
 
@@ -53,15 +59,26 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
   },
 });
+// Mime allowlist. SVG is deliberately omitted — SVG files can carry
+// <script> tags that execute when the file is rendered inline through
+// the asset-serve route, giving an authenticated AM stored XSS on
+// other AMs viewing the brand library. PNG/JPEG/WebP cover everything
+// the brand kit actually needs.
 const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 },    // 100MB — B-roll clips are bigger
   fileFilter: (req, file, cb) => {
-    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml',
+    if (file.mimetype === 'image/svg+xml') {
+      return cb(new Error('SVG uploads are blocked — convert to PNG/JPEG. SVG can carry inline scripts.'));
+    }
+    const allowed = ['image/png', 'image/jpeg', 'image/webp',
                      'video/mp4', 'video/quicktime', 'video/webm',
                      'font/woff', 'font/woff2', 'font/ttf', 'application/font-woff',
                      'application/octet-stream', 'application/pdf'];
-    if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
+    // The startsWith fallback for image/* and video/* deliberately
+    // re-applies the SVG exclusion above; anything matching image/*
+    // that isn't image/svg+xml is fine.
+    if (allowed.includes(file.mimetype) || (file.mimetype.startsWith('image/') && file.mimetype !== 'image/svg+xml') || file.mimetype.startsWith('video/')) cb(null, true);
     else cb(new Error(`Unsupported file type: ${file.mimetype}`));
   },
 });

@@ -97,6 +97,25 @@ cron.schedule('30 * * * *', async () => {
   }
 });
 
+// Error digest: 09:00 daily. Rolls up the last 24h of error_log into
+// one fingerprint-grouped email so the operator sees what broke
+// without grepping logs. Skips silently when there are zero errors.
+// Also prunes rows older than 30 days to bound table growth.
+cron.schedule('0 9 * * *', async () => {
+  try {
+    const errorTracker = require('./errorTracker');
+    const summary = await errorTracker.recentSummary({ hours: 24 });
+    const to = (process.env.ALERT_EMAIL || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+    if (to.length && summary.groups.length) {
+      await emailService.sendErrorDigest({ to, hours: 24, summary });
+    }
+    const pruned = await errorTracker.prune({ olderThanDays: 30 });
+    if (pruned) console.log(`[errors] pruned ${pruned} rows older than 30 days`);
+  } catch (err) {
+    console.error('[errors] digest failed:', err.message);
+  }
+});
+
 // Daily connector health check: 07:30 AM
 cron.schedule('30 7 * * *', async () => {
   console.log('[Scheduler] Running connector health check...');

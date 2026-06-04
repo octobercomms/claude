@@ -653,4 +653,50 @@ async function sendAutopilotDigest({ to, dateLabel, perClient }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest };
+// Daily error-tracker digest. Aggregated by fingerprint so a hot bug
+// firing thousands of times shows as one row, with a count and the
+// most recent example. Designed to be skimmed in under 30 seconds.
+async function sendErrorDigest({ to, hours, summary }) {
+  if (!to?.length) return;
+  if (!summary?.groups?.length) return; // nothing to say, stay silent
+  const total = summary.total || 0;
+  const rows = summary.groups.map(g => `
+    <tr>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;text-align:right;color:#666;">${g.count}</td>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;color:#888;text-transform:uppercase;">${escapeHtmlLocal(g.source)}</td>
+      <td style="padding:6px 10px;font-size:12px;border-bottom:1px solid #eee;">
+        <div style="font-weight:600;color:#1a1a1a;">${escapeHtmlLocal((g.message || '').slice(0, 200))}</div>
+        ${g.last_context?.route ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escapeHtmlLocal(g.last_context.route)}</div>` : ''}
+        ${g.last_context?.url ? `<div style="font-size:11px;color:#888;margin-top:2px;">${escapeHtmlLocal(g.last_context.url)}</div>` : ''}
+      </td>
+      <td style="padding:6px 10px;font-size:11px;color:#888;border-bottom:1px solid #eee;white-space:nowrap;">${new Date(g.last_seen).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}</td>
+    </tr>`).join('');
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:780px;margin:0 auto;padding:20px">
+      <h2 style="margin:0">Errors — last ${hours}h</h2>
+      <p style="color:#666;font-size:13px">${total} occurrences across ${summary.groups.length} distinct fingerprints.</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:8px">
+        <thead><tr style="background:#f5f5f5">
+          <th style="text-align:right;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Count</th>
+          <th style="text-align:left;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Source</th>
+          <th style="text-align:left;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Message</th>
+          <th style="text-align:left;padding:6px 10px;font-size:11px;color:#666;text-transform:uppercase">Last seen</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <p style="color:#aaa;font-size:11px;margin-top:32px">October Marketing Intelligence — error digest</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `Errors — ${total} in last ${hours}h (${summary.groups.length} groups)`,
+    html,
+  });
+}
+
+function escapeHtmlLocal(str) {
+  return String(str ?? '').replace(/[<>&'"]/g, c =>
+    ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest };

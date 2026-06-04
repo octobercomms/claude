@@ -6,12 +6,33 @@ const rateLimit = require('express-rate-limit');
 const path = require('path');
 const db = require('./db');
 const { decrypt, assertKeyValid } = require('./utils/encryption');
+const errorTracker = require('./services/errorTracker');
 
 // Validate ENCRYPTION_KEY at boot so an operator running with a non-hex
 // value sees the error immediately rather than the first time a
 // connector is decrypted.
 try { assertKeyValid(); }
 catch (err) { console.error('FATAL:', err.message); process.exit(1); }
+
+// Process-level safety nets. Without these, an unhandled promise
+// rejection from any async path (a forgotten await in a cron job, an
+// axios error past the catch, etc.) goes to stderr only and we find
+// out from a user. Funnel them through errorTracker so the daily
+// digest catches them.
+process.on('unhandledRejection', (reason) => {
+  const msg = reason?.message || String(reason || 'unhandledRejection');
+  console.error('[unhandledRejection]', msg);
+  errorTracker.recordError({ source: 'backend', message: msg, stack: reason?.stack, context: { kind: 'unhandledRejection' } })
+    .catch(() => {});
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err.message);
+  errorTracker.recordError({ source: 'backend', message: err.message, stack: err.stack, context: { kind: 'uncaughtException' } })
+    .catch(() => {});
+  // Don't exit — pm2 would restart us; a single bad request shouldn't
+  // bounce the whole process. If we ever see corruption-class errors
+  // here (out-of-memory, EBADF) we'd reconsider.
+});
 
 async function loadSettingsFromDb() {
   try {
@@ -110,7 +131,22 @@ app.use('/api/sales-traffic', require('./routes/salesTraffic'));
 app.use('/api/strategist', require('./routes/strategist'));
 app.use('/api/october-forms', require('./routes/octoberForms'));
 app.use('/api/waitlist', require('./routes/waitlist'));
+app.use('/api/_internal', require('./routes/internal'));
 app.use('/auth', require('./routes/oauth'));
+
+// Express error handler — catches anything thrown inside a route that
+// wasn't caught by the route's own try/catch. Without it Express logs
+// a generic message and the error never reaches errorTracker.
+app.use((err, req, res, next) => {
+  errorTracker.recordError({
+    source: 'backend',
+    message: err.message,
+    stack: err.stack,
+    context: { route: `${req.method} ${req.path}`, status: err.status || 500 },
+  }).catch(() => {});
+  if (res.headersSent) return next(err);
+  res.status(err.status || 500).json({ error: err.message || 'Internal error' });
+});
 
 // Serve PDFs
 app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.join(__dirname, '../pdfs')));

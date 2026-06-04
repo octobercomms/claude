@@ -37,6 +37,10 @@ router.get('/public/:token/file/:filename', async (req, res) => {
     const filePath = path.join(UPLOAD_ROOT, rows[0].client_id, req.params.filename);
     if (!filePath.startsWith(UPLOAD_ROOT + path.sep)) return res.status(400).send('Invalid path');
     if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+    // nosniff + a strict Content-Disposition so an HTML file disguised
+    // as image bytes can't execute script in the journalist's browser
+    // (this route serves to unauthenticated reviewers).
+    res.setHeader('X-Content-Type-Options', 'nosniff');
     res.sendFile(filePath);
   } catch (err) { res.status(500).send(err.message); }
 });
