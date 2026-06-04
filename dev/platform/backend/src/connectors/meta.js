@@ -19,12 +19,16 @@ async function resolveRedirectUri() {
 async function getAuthUrl(state) {
   // Meta renamed `instagram_insights` to `instagram_manage_insights` on the
   // Facebook Login / Graph API flow — the old name now returns
-  // "Invalid Scope" from the consent dialog. We only read Ads / Instagram
-  // data so we request the read-only scopes (no ads_management).
+  // "Invalid Scope" from the consent dialog. We request read-only scopes
+  // for Ads + insights, plus the two write scopes the social autopilot
+  // needs to publish (pages_manage_posts for FB Pages, instagram_content_publish
+  // for IG Business). pages_show_list lets us enumerate the AM's Pages so
+  // the publisher can pick the right Page access token per client.
   const scopes = [
     'ads_read', 'read_insights',
     'instagram_basic', 'instagram_manage_insights',
     'pages_read_engagement', 'business_management',
+    'pages_show_list', 'pages_manage_posts', 'instagram_content_publish',
   ].join(',');
   const appId = (await getSetting('META_APP_ID')) || process.env.META_APP_ID;
   const redirectUri = await resolveRedirectUri();
@@ -266,6 +270,9 @@ async function getAccessReport(credentials) {
     instagram_insights: 'Instagram insights',
     pages_read_engagement: 'Page engagement',
     business_management: 'Business assets',
+    pages_show_list: 'Page list (autopilot)',
+    pages_manage_posts: 'Publish to Facebook (autopilot)',
+    instagram_content_publish: 'Publish to Instagram (autopilot)',
   };
   const { data } = await axios.get(`${BASE_URL}/me/permissions`, {
     params: { access_token: credentials.access_token },
@@ -281,4 +288,111 @@ async function getAccessReport(credentials) {
   };
 }
 
-module.exports = { authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity, fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights, parseSocialUrl, shortcodeToMediaId };
+// ─── Publishing (social autopilot) ────────────────────────────────────────
+//
+// IG Business + FB Page publishing both go through the Graph API. The Page
+// access token (not the user token) is what the publish endpoints need, so
+// we always look up the Page first and use its scoped token.
+
+// Find the first Page accessible to this user that owns an IG Business
+// account. For multi-Page clients we'd let the AM pick; for now the
+// MVP picks the first match. Returns { pageId, pageName, pageAccessToken,
+// igBusinessId, igUsername }.
+async function pickPublishingTargets(credentials) {
+  const { data } = await axios.get(`${BASE_URL}/me/accounts`, {
+    params: {
+      access_token: credentials.access_token,
+      fields: 'id,name,access_token,instagram_business_account',
+      limit: 100,
+    },
+  });
+  const pages = data.data || [];
+  if (!pages.length) throw new Error('No Facebook Pages found on this Meta connection — the user must be an admin of at least one Page.');
+  // Prefer the first Page that has IG attached; fall back to the first Page.
+  const withIg = pages.find(p => p.instagram_business_account?.id);
+  const page = withIg || pages[0];
+  return {
+    pageId: page.id,
+    pageName: page.name,
+    pageAccessToken: page.access_token,
+    igBusinessId: page.instagram_business_account?.id || null,
+  };
+}
+
+// Publish to a Facebook Page. The Graph API has separate /photos and
+// /videos endpoints; we choose by mime type. Returns { id, posted_url }.
+async function publishToFacebookPage({ pageId, pageAccessToken, caption, mediaUrl, mediaKind }) {
+  if (!mediaUrl) {
+    // Text-only post. FB allows /feed with a message, no media.
+    const { data } = await axios.post(`${BASE_URL}/${pageId}/feed`, null, {
+      params: { access_token: pageAccessToken, message: caption || '' },
+    });
+    return { id: data.id, posted_url: `https://www.facebook.com/${data.id}` };
+  }
+  if (mediaKind === 'video') {
+    const { data } = await axios.post(`${BASE_URL}/${pageId}/videos`, null, {
+      params: { access_token: pageAccessToken, file_url: mediaUrl, description: caption || '' },
+    });
+    return { id: data.id, posted_url: `https://www.facebook.com/${data.id}` };
+  }
+  // Default to photo for image/*.
+  const { data } = await axios.post(`${BASE_URL}/${pageId}/photos`, null, {
+    params: { access_token: pageAccessToken, url: mediaUrl, caption: caption || '' },
+  });
+  return { id: data.post_id || data.id, posted_url: `https://www.facebook.com/${data.post_id || data.id}` };
+}
+
+// Publish to an Instagram Business account. Two-step: create a container,
+// then publish. Video containers report a "status_code" while transcoding
+// and must be polled to FINISHED before publish_media can be called.
+async function publishToInstagram({ igBusinessId, pageAccessToken, caption, mediaUrl, mediaKind }) {
+  if (!igBusinessId) throw new Error('No Instagram Business account attached to this Page.');
+  if (!mediaUrl) throw new Error('Instagram posts require media — text-only is not supported by the Graph API.');
+
+  const isVideo = mediaKind === 'video';
+  const containerParams = isVideo
+    ? { access_token: pageAccessToken, media_type: 'REELS', video_url: mediaUrl, caption: caption || '' }
+    : { access_token: pageAccessToken, image_url: mediaUrl, caption: caption || '' };
+
+  const { data: container } = await axios.post(`${BASE_URL}/${igBusinessId}/media`, null, { params: containerParams });
+  const containerId = container.id;
+
+  // For videos, poll the container until FINISHED (Meta transcodes for ~10-60s).
+  if (isVideo) {
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < 5 * 60_000) {
+      const { data: status } = await axios.get(`${BASE_URL}/${containerId}`, {
+        params: { access_token: pageAccessToken, fields: 'status_code,status' },
+      });
+      if (status.status_code === 'FINISHED') break;
+      if (status.status_code === 'ERROR' || status.status_code === 'EXPIRED') {
+        throw new Error(`Instagram container failed: ${status.status || status.status_code}`);
+      }
+      await new Promise(r => setTimeout(r, 5_000));
+    }
+  }
+
+  const { data: published } = await axios.post(`${BASE_URL}/${igBusinessId}/media_publish`, null, {
+    params: { access_token: pageAccessToken, creation_id: containerId },
+  });
+  const mediaId = published.id;
+
+  // Resolve the permalink so we can store a clickable URL.
+  let permalink = null;
+  try {
+    const { data: m } = await axios.get(`${BASE_URL}/${mediaId}`, {
+      params: { access_token: pageAccessToken, fields: 'permalink' },
+    });
+    permalink = m.permalink || null;
+  } catch (err) {
+    // Non-fatal — the post is up, we just don't have the link yet.
+  }
+  return { id: mediaId, posted_url: permalink };
+}
+
+module.exports = {
+  authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
+  fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights,
+  parseSocialUrl, shortcodeToMediaId,
+  pickPublishingTargets, publishToFacebookPage, publishToInstagram,
+};

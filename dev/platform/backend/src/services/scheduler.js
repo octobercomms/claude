@@ -6,6 +6,7 @@ const emailService = require('./emailService');
 const outreachSender = require('./outreachSender');
 const outreachReplies = require('./outreachReplies');
 const social = require('./social');
+const socialPublisher = require('./socialPublisher');
 const usageTracking = require('./usageTracking');
 const strategistReport = require('./strategistReport');
 
@@ -52,6 +53,21 @@ cron.schedule('0 2 * * *', async () => {
 cron.schedule('0 7 * * *', async () => {
   console.log('[Scheduler] Refreshing social engagement…');
   await runSocialEngagementRefresh();
+});
+
+// Social autopilot publisher: every 5 minutes. Picks up any plan whose
+// scheduled_at has passed and pushes it to its target platforms (Meta
+// today, LinkedIn in Phase 4). Idempotent — re-runs just retry failed
+// rows, completed ones are skipped.
+cron.schedule('*/5 * * * *', async () => {
+  try {
+    const result = await socialPublisher.publishDuePlans();
+    if (result.processed) {
+      console.log(`[Autopilot] published ${result.ok}/${result.processed} due plans (failed: ${result.failed})`);
+    }
+  } catch (err) {
+    console.error('[Autopilot] publishDuePlans failed:', err.message);
+  }
 });
 
 // Daily connector health check: 07:30 AM

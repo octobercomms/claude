@@ -34,6 +34,37 @@ const users = require('../services/users');
 
 const router = express.Router();
 
+// Public, signed media proxy for the social autopilot. Meta's publish
+// endpoints (image_url / video_url) need a URL they can fetch from the
+// open web, but Drive files aren't public. This route streams the file
+// from Drive after verifying an HMAC signature scoped to (planId, fileId,
+// expiry). Lives above the auth middleware so Meta can hit it without a
+// Bearer token.
+router.get('/media-proxy/:planId/:fileId', async (req, res) => {
+  const socialPublisher = require('../services/socialPublisher');
+  try {
+    const { planId, fileId } = req.params;
+    const { exp, sig } = req.query;
+    if (!socialPublisher.verifyMediaToken(planId, fileId, exp, sig)) {
+      return res.status(403).send('Invalid or expired media token');
+    }
+    const { rows } = await pool.query(
+      `SELECT client_id, drive_folder_url FROM social_post_plans WHERE id = $1`,
+      [planId]
+    );
+    if (!rows.length) return res.status(404).send('Plan not found');
+    const socialDrive = require('../services/socialDrive');
+    const upstream = await socialDrive.downloadFile(rows[0].client_id, fileId);
+    if (upstream.headers['content-type']) res.setHeader('Content-Type', upstream.headers['content-type']);
+    if (upstream.headers['content-length']) res.setHeader('Content-Length', upstream.headers['content-length']);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    upstream.data.pipe(res);
+  } catch (err) {
+    console.error('[social media-proxy] failed:', err.message);
+    res.status(500).send('Media proxy error');
+  }
+});
+
 // Public-style printable brief — accepts a short-lived signed token via
 // query string so window.open works from the AM's browser. Lives above
 // router.use(authenticate) so the route handler runs without a Bearer
@@ -647,6 +678,38 @@ router.post('/clients/:clientId/plans/:planId/preview-captions', async (req, res
     res.json({ captions });
   } catch (err) {
     console.error('[social caption preview] failed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3 — manually trigger publish for a plan. Same code path as the
+// cron; useful when the AM wants to push immediately without waiting for
+// the next 5-minute cron tick. The endpoint returns once every platform
+// has been attempted (sync), so the UI can show results straight away.
+router.post('/clients/:clientId/plans/:planId/publish-now', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, client_id, title, plan, scheduled_at, drive_folder_url, target_platforms
+         FROM social_post_plans
+        WHERE id = $1 AND client_id = $2`,
+      [req.params.planId, req.params.clientId]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
+    const plan = rows[0];
+    if (!plan.target_platforms?.length) return res.status(400).json({ error: 'No target platforms set on this plan.' });
+    // Treat the manual trigger as "schedule = now" so the publisher row's
+    // scheduled_at is sensible. We don't overwrite the stored scheduled_at.
+    if (!plan.scheduled_at) plan.scheduled_at = new Date().toISOString();
+    const socialPublisher = require('../services/socialPublisher');
+    await socialPublisher.publishPlan(plan);
+    const { rows: pubs } = await pool.query(
+      `SELECT platform, status, caption, posted_at, posted_url, error_message, attempts
+         FROM social_post_publications WHERE plan_id = $1 ORDER BY platform`,
+      [plan.id]
+    );
+    res.json({ publications: pubs });
+  } catch (err) {
+    console.error('[social publish-now] failed:', err);
     res.status(500).json({ error: err.message });
   }
 });

@@ -23,6 +23,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
   const [checkingDrive, setCheckingDrive] = useState(false);
   const [captionPreview, setCaptionPreview] = useState(null);
   const [previewingCaptions, setPreviewingCaptions] = useState(false);
+  const [publications, setPublications] = useState(null);
+  const [publishing, setPublishing] = useState(false);
   const scrollRef = useRef(null);
   const fileInputRef = useRef(null);
 
@@ -78,6 +80,32 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
       setPreviewingCaptions(false);
     }
   }
+
+  async function publishNow() {
+    if (!planRowId) return;
+    if (!confirm('Publish to the selected platforms now? This pushes live posts to Instagram / Facebook — there is no undo from the platform side.')) return;
+    setPublishing(true);
+    try {
+      const r = await api.post(`/social/clients/${clientId}/plans/${planRowId}/publish-now`, {});
+      setPublications(r.publications || []);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPublishing(false);
+    }
+  }
+
+  async function refreshPublications() {
+    if (!planRowId) return;
+    try {
+      const r = await api.get(`/social/clients/${clientId}/plans/${planRowId}/publications`);
+      setPublications(r || []);
+    } catch (e) {
+      // Non-fatal — empty status panel is fine.
+    }
+  }
+
+  useEffect(() => { if (planRowId) refreshPublications(); /* eslint-disable-next-line */ }, [planRowId]);
 
   async function saveSchedule() {
     if (!planRowId) return;
@@ -378,6 +406,34 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
                       <div key={platform} style={{ padding: '8px 10px', background: 'white', border: '1px solid #eee', borderRadius: 3, fontSize: 12, whiteSpace: 'pre-wrap' }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
                         {text}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {/* Phase 3 — manual publish + live publication status. Once
+                the AM is happy with Drive + captions they can either wait
+                for the scheduler cron or kick it off now. Status rows
+                show each platform's outcome with the live post URL. */}
+            {!scheduleDirty && schedule.target_platforms.length > 0 && (
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
+                <button type="button" onClick={publishNow} disabled={publishing} style={{ ...styles.smallBtn, background: '#1a1a1a', color: 'white', borderColor: '#1a1a1a' }}>
+                  {publishing ? 'Publishing…' : '🚀 Publish now'}
+                </button>
+                <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>
+                  Or wait — the scheduler will pick this up at the time above.
+                </span>
+                {publications && publications.length > 0 && (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {publications.map(pub => (
+                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 3, fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
+                        <span style={{ color: pub.status === 'posted' ? '#2e7d32' : pub.status === 'failed' ? '#c62828' : '#666' }}>
+                          {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
+                        </span>
+                        {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: '#1976d2' }}>view →</a>}
+                        {pub.error_message && <span style={{ color: '#c62828', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
                       </div>
                     ))}
                   </div>
