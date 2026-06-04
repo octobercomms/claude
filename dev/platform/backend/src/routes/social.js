@@ -497,6 +497,69 @@ router.get('/clients/:clientId/competitor-posts', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Competitor LANDING-PAGE diff (Phase E — Opinly-substitute) ─────
+//
+// Sibling endpoints to the social scrape above. The AM curates a list
+// of competitor URLs to watch; the weekly cron fetches each, extracts
+// semantic content, and stores a diff vs the previous snapshot.
+
+router.get('/clients/:clientId/competitor-pages', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, url, label, active, created_at FROM competitor_pages
+        WHERE client_id = $1 ORDER BY created_at ASC`,
+      [req.params.clientId]
+    );
+    res.json(rows);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/competitor-pages', async (req, res) => {
+  const { url, label } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO competitor_pages (client_id, url, label) VALUES ($1, $2, $3)
+       ON CONFLICT (client_id, url) DO UPDATE SET label = COALESCE(EXCLUDED.label, competitor_pages.label), active = true
+       RETURNING *`,
+      [req.params.clientId, url, label || null]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/competitor-pages/:pageId', async (req, res) => {
+  try {
+    // Resolve to client + access check inline since this isn't under :clientId.
+    const { rows } = await pool.query('SELECT client_id FROM competitor_pages WHERE id = $1', [req.params.pageId]);
+    if (!rows.length) return res.status(404).end();
+    if (!users.canAccessClient(req.visibleClientIds, rows[0].client_id)) {
+      return res.status(403).json({ error: 'Not authorised' });
+    }
+    await pool.query('DELETE FROM competitor_pages WHERE id = $1', [req.params.pageId]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/competitor-page-changes', async (req, res) => {
+  try {
+    const competitorPages = require('../services/competitorPages');
+    const changes = await competitorPages.getRecentChanges(req.params.clientId, { limit: 25 });
+    res.json(changes);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/competitor-pages/refresh', async (req, res) => {
+  try {
+    const competitorPages = require('../services/competitorPages');
+    const results = await competitorPages.scrapeClient(req.params.clientId);
+    res.json({ results });
+  } catch (err) {
+    console.error('[social competitor-pages refresh] failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Manual trigger — runs the same code path as the Sunday cron for just
 // this client. Useful when the AM adds a new competitor mid-week and
 // wants the panel populated now rather than waiting.

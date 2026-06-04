@@ -111,6 +111,23 @@ cron.schedule('0 5 * * 1', async () => {
   }
 });
 
+// Competitor page diff: Sunday 06:30. Sibling to the social
+// competitor scrape — walks every configured competitor_pages URL,
+// fetches the HTML, extracts semantic blocks, stores a diff vs the
+// previous snapshot. Cheap (HTTP fetch + cheerio parse, no third-
+// party APIs). Surfaces 'Nike rewrote their hero this week' on the
+// AM's Monday morning planner.
+cron.schedule('30 6 * * 0', async () => {
+  try {
+    const competitorPages = require('./competitorPages');
+    const summary = await competitorPages.scrapeAllClients();
+    const changed = summary.filter(s => s.changed).length;
+    console.log(`[CompetitorPages] weekly scrape: ${changed} pages changed across ${summary.length} watched`);
+  } catch (err) {
+    console.error('[CompetitorPages] weekly scrape failed:', err.message);
+  }
+});
+
 // Competitor tracker: Sunday 06:00. For every client with at least
 // one entry in social_competitors, ask Apify for their top recent
 // reels and store them. Same rows are fed into next-batch generation

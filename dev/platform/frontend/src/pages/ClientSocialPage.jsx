@@ -30,6 +30,9 @@ export default function ClientSocialPage() {
   const [sparkline, setSparkline] = useState([]);
   const [competitorPosts, setCompetitorPosts] = useState([]);
   const [refreshingCompetitors, setRefreshingCompetitors] = useState(false);
+  const [competitorPages, setCompetitorPages] = useState([]);
+  const [competitorChanges, setCompetitorChanges] = useState([]);
+  const [refreshingPages, setRefreshingPages] = useState(false);
   const [engagement, setEngagement] = useState({});
   const [mediaByPost, setMediaByPost] = useState({});
   const [shareUrl, setShareUrl] = useState(null);
@@ -46,7 +49,7 @@ export default function ClientSocialPage() {
   const [plans, setPlans] = useState([]);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng, fb, ts, sp, cp, pl] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts, sp, cp, pl, cpages, cchanges] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
@@ -57,8 +60,12 @@ export default function ClientSocialPage() {
       api.get(`/social/clients/${id}/sparkline?days=30`).catch(() => []),
       api.get(`/social/clients/${id}/competitor-posts?limit=10`).catch(() => []),
       api.get(`/social/clients/${id}/plans`).catch(() => []),
+      api.get(`/social/clients/${id}/competitor-pages`).catch(() => []),
+      api.get(`/social/clients/${id}/competitor-page-changes`).catch(() => []),
     ]);
     setPlans(pl || []);
+    setCompetitorPages(cpages || []);
+    setCompetitorChanges(cchanges || []);
     setClient(c);
     setBatches(bs);
     setCompetitors(comp.competitors || []);
@@ -227,6 +234,43 @@ export default function ClientSocialPage() {
       toast(`Refresh failed: ${e.message}`, 'error');
     } finally {
       setRefreshingCompetitors(false);
+    }
+  }
+
+  async function refreshCompetitorPages() {
+    setRefreshingPages(true);
+    try {
+      await api.post(`/social/clients/${id}/competitor-pages/refresh`, {});
+      const cchanges = await api.get(`/social/clients/${id}/competitor-page-changes`);
+      setCompetitorChanges(cchanges || []);
+      toast('Landing-page diff refreshed.', 'success');
+    } catch (e) {
+      toast(`Refresh failed: ${e.message}`, 'error');
+    } finally {
+      setRefreshingPages(false);
+    }
+  }
+
+  async function addCompetitorPage(url, label) {
+    try {
+      const page = await api.post(`/social/clients/${id}/competitor-pages`, { url, label });
+      setCompetitorPages(prev => {
+        if (prev.some(p => p.id === page.id)) return prev.map(p => p.id === page.id ? page : p);
+        return [...prev, page];
+      });
+    } catch (e) {
+      toast(`Could not add: ${e.message}`, 'error');
+    }
+  }
+
+  async function removeCompetitorPage(pageId) {
+    if (!confirm('Stop tracking this URL?')) return;
+    try {
+      await api.delete(`/social/competitor-pages/${pageId}`);
+      setCompetitorPages(prev => prev.filter(p => p.id !== pageId));
+      setCompetitorChanges(prev => prev.filter(c => c.page_id !== pageId));
+    } catch (e) {
+      toast(`Delete failed: ${e.message}`, 'error');
     }
   }
 
