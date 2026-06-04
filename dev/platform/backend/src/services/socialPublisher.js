@@ -128,10 +128,12 @@ async function getPreferredIgId(clientId) {
   return rows[0]?.config?.value || null;
 }
 
-// Pick up every plan whose scheduled_at is due, hasn't been published yet
-// (no completed publication rows), and has at least one target platform.
-// Skips paused clients so the AM can hit the kill switch without
-// touching individual plans.
+// Pick up every plan whose scheduled_at is due and has at least one
+// target platform that hasn't finished (no pub row yet, or pub in
+// 'pending' / 'pending_drive'). Skips plans currently mid-publish on
+// any platform (in_flight) so we don't race a parallel worker / prior
+// tick. Skips paused or inactive clients so the AM kill switch covers
+// every plan in one click.
 async function findDuePlans() {
   const { rows } = await pool.query(
     `SELECT p.id, p.client_id, p.title, p.plan, p.scheduled_at,
@@ -144,10 +146,18 @@ async function findDuePlans() {
         AND array_length(p.target_platforms, 1) > 0
         AND c.active = true
         AND c.social_autopilot_paused = false
+        AND EXISTS (
+          SELECT 1 FROM unnest(p.target_platforms) AS plat
+           WHERE NOT EXISTS (
+             SELECT 1 FROM social_post_publications pub
+              WHERE pub.plan_id = p.id
+                AND pub.platform = plat
+                AND pub.status IN ('posted', 'failed')
+           )
+        )
         AND NOT EXISTS (
           SELECT 1 FROM social_post_publications pub
-           WHERE pub.plan_id = p.id
-             AND pub.status IN ('posted', 'in_flight')
+           WHERE pub.plan_id = p.id AND pub.status = 'in_flight'
         )
       ORDER BY p.scheduled_at ASC
       LIMIT 25`
@@ -227,6 +237,29 @@ async function markDeferred({ plan, platform, giveUp }) {
 }
 
 async function publishToPlatform({ plan, platform, caption, mediaPlan }) {
+  // Guard against republishing a platform that already shipped. The
+  // cron's findDuePlans excludes plans whose target platforms are all
+  // terminal — but Publish now (manual) calls publishPlan directly and
+  // bypasses that filter. Without this skip, a manual retry after a
+  // partial success would re-post to the platforms that already
+  // succeeded — duplicate content on the user's feed.
+  const { rows: existing } = await pool.query(
+    `SELECT status, attempts FROM social_post_publications
+      WHERE plan_id = $1 AND platform = $2 LIMIT 1`,
+    [plan.id, platform]
+  );
+  if (existing[0]?.status === 'posted') return;
+
+  // Manual retry of a previously-failed pub should get a fresh budget
+  // of attempts, not pile on top of the exhausted counter. Reset to 0
+  // here so the upsert's `+ 1` lands at attempts=1 again.
+  if (existing[0]?.status === 'failed') {
+    await pool.query(
+      `UPDATE social_post_publications SET attempts = 0 WHERE plan_id = $1 AND platform = $2`,
+      [plan.id, platform]
+    );
+  }
+
   // Claim or upsert the row. ON CONFLICT lets us retry transient failures
   // without creating duplicate rows.
   const mediaRefs = mediaPlan.files.map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType }));
