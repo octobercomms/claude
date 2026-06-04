@@ -833,16 +833,20 @@ function HelpCard({ title, children }) {
 
 // Escape a single value for CSV — double-quote and escape inner quotes if the
 // value contains anything CSV-sensitive.
+// Page-local style shorthand. All values now flow from the global
+// design tokens (--accent, --border-w, etc) so this page picks up the
+// suite-email accent automatically and matches every other page's
+// border / radius / padding.
 const s = {
-  card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 16 },
-  btn: { padding: '9px 22px', fontSize: 13, fontWeight: 700, background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' },
-  btnGhost: { padding: '9px 22px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap' },
-  input: { padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit' },
-  tableWrap: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, overflow: 'hidden' },
+  card: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, padding: 20 },
+  btn: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  btnGhost: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#1a1a1a', border: '2px solid #1a1a1a', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  input: { padding: '10px 12px', fontSize: 13, border: '2px solid #1a1a1a', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
+  tableWrap: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
-  td: { padding: '11px 16px', borderBottom: '1px solid #f5f5f5', fontSize: 13, verticalAlign: 'middle' },
-  chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px', textTransform: 'capitalize' },
+  th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
+  td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3', fontSize: 13, verticalAlign: 'middle' },
+  chip: { fontSize: 11, background: '#f3f3f3', borderRadius: 999, padding: '3px 10px', textTransform: 'capitalize', fontWeight: 600 },
   del: { background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' },
 };
 

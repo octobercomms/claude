@@ -652,7 +652,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 14, padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
@@ -1101,7 +1101,7 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 14, background: '#fafafa' }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
                 </div>
@@ -1138,7 +1138,7 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 6, background: '#fafafa' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 14, background: '#fafafa' }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
@@ -1329,7 +1329,7 @@ function TagsManager() {
         </div>
 
         {plan && plan.operations && plan.operations.length > 0 && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 6, background: '#fffdf2' }}>
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 14, background: '#fffdf2' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
@@ -1545,7 +1545,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
-              <div style={{ maxHeight: 460, overflowY: 'auto', border: '1px solid #eee', borderRadius: 6, padding: 0 }}>
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: '1px solid #eee', borderRadius: 14, padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
                     <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 700, marginBottom: 6 }}>
@@ -1601,7 +1601,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
 
         {phase === 'done' && (
           <div>
-            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 6, color: '#1b5e20', fontSize: 13 }}>
+            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 14, color: '#1b5e20', fontSize: 13 }}>
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
@@ -1633,14 +1633,14 @@ function contactLabel(s) {
 
 const tidyStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
   hint: { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 },
-  summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 14, fontSize: 13, marginTop: 12 },
+  summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
-  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   ghostBtn: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
   fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
@@ -1658,7 +1658,7 @@ function OpSummary({ op }) {
 }
 
 const styles = {
-  card: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 8, padding: '18px 20px' },
+  card: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, padding: '18px 20px' },
   cardTitle: { fontSize: 14, fontWeight: 700, margin: '0 0 10px', color: '#1a1a1a' },
   categoryToggle: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -1680,8 +1680,8 @@ const styles = {
   input: { padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
   eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
   envHint: { fontSize: 10, color: '#aaa' },
-  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
-  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '1px solid #e8e8e8', borderRadius: 4 },
+  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
+  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '2px solid #1a1a1a', borderRadius: 4 },
   scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
   scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },

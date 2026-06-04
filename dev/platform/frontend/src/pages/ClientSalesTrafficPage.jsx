@@ -206,8 +206,8 @@ export default function ClientSalesTrafficPage() {
 }
 
 const s = {
-  card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 16 },
-  cardTitle: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  input: { padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit' },
+  card: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, padding: 20 },
+  cardTitle: { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12 },
+  input: { padding: '10px 12px', fontSize: 13, border: '2px solid #1a1a1a', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
   empty: { color: '#888', fontSize: 13, padding: '20px 0', margin: 0 },
 };

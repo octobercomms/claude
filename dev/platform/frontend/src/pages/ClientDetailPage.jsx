@@ -544,7 +544,7 @@ export default function ClientDetailPage() {
                 const tpl = templateSummary[rt];
                 const sections = tpl?.sections || [];
                 return (
-                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '1px solid #eee', borderRadius: 6, background: '#fafafa' }}>
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '1px solid #eee', borderRadius: 14, background: '#fafafa' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
                       <button type="button" onClick={() => setTemplateChatType(rt)} style={{ ...styles.btnSm, padding: '4px 10px' }}>
@@ -945,7 +945,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   }
 
   return (
-    <div style={{ padding: '10px 16px', background: '#f9f9f9', borderRadius: 4, border: '1px solid #e8e8e8' }}>
+    <div style={{ padding: '10px 16px', background: '#f9f9f9', borderRadius: 4, border: '2px solid #1a1a1a' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
@@ -1214,7 +1214,7 @@ function ShopifyModal({ onConfirm, onClose }) {
           </label>
         </div>
         {useOwnApp && (
-          <div style={{ marginTop: 12, padding: '12px 14px', background: '#f9f9f9', border: '1px solid #e8e8e8', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ marginTop: 12, padding: '12px 14px', background: '#f9f9f9', border: '2px solid #1a1a1a', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ margin: '0 0 4px', fontSize: 12, color: '#666', lineHeight: 1.5 }}>
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>
@@ -1284,16 +1284,16 @@ function getCredentialFields(type) {
 }
 
 const styles = {
-  card: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
+  card: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
   grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e8e8e8', paddingBottom: 0 },
   tab: { padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
   tabActive: { color: '#1a1a1a', fontWeight: 600, borderBottomColor: '#1a1a1a' },
   input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, outline: 'none', width: '100%' },
-  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
+  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
   btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
   btnSm: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
   help: { fontSize: 12, color: '#666', margin: '4px 0 8px', lineHeight: 1.5 },
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: 'white', borderRadius: 8, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
+  modal: { background: 'white', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
 };

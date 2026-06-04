@@ -200,16 +200,16 @@ function fmtDate(d) {
 }
 
 const styles = {
-  card: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, padding: 24, marginBottom: 24 },
+  card: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, padding: 24, marginBottom: 24 },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 },
-  btn: { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap' },
-  tableWrap: { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden' },
+  label: { fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2 },
+  input: { padding: '10px 12px', border: '2px solid #1a1a1a', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', background: '#fff' },
+  btn: { background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  btnGhost: { background: '#fff', color: '#1a1a1a', border: '2px solid #1a1a1a', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
+  btnSm: { background: '#fff', color: '#1a1a1a', border: '2px solid #1a1a1a', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, textDecoration: 'none', display: 'inline-block', whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  tableWrap: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
-  td: { padding: '11px 16px', borderBottom: '1px solid #f5f5f5', verticalAlign: 'middle' },
-  typeBadge: (t) => ({ background: t === 'monthly' ? '#e3f2fd' : '#e8f5e9', color: t === 'monthly' ? '#1565c0' : '#2e7d32', padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600 }),
+  th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
+  td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3', verticalAlign: 'middle' },
+  typeBadge: (t) => ({ background: t === 'monthly' ? 'rgba(231,205,65,0.15)' : 'rgba(156,139,44,0.15)', color: t === 'monthly' ? '#7a6500' : '#5d6020', padding: '3px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, border: '1px solid currentColor' }),
 };

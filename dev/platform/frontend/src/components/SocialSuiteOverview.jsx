@@ -54,20 +54,10 @@ export default function SocialSuiteOverview({
 
   return (
     <div className="mb-7">
-      <header className="hero">
-        <div className="row between wrap">
-          <div>
-            <div className="client-name">{client?.name || 'Client'}</div>
-            <h1 className="display mt-2">
-              Social <span className="text-accent">Suite</span>
-            </h1>
-            <p className="body mt-4">
-              Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
-            </p>
-          </div>
-          {client?.social_autopilot_paused && <Chip tone="warning">Autopilot paused</Chip>}
-        </div>
-      </header>
+      <p className="body mb-5" style={{ maxWidth: 640 }}>
+        Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
+        {client?.social_autopilot_paused && ' Autopilot is paused — toggle from the top bar.'}
+      </p>
 
       <div className="metric-grid">
         <HeroMetric label="Reach · 30d"      value={formatNum(totalReach30)} sparkline={(sparkline || []).map(p => p.reach)} />

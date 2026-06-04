@@ -329,7 +329,7 @@ export default function GuidePage() {
 
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 6, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ border: '1px solid #eee', borderRadius: 14, background: '#fff', overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
         width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? '#fafafa' : '#fff',
         border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
