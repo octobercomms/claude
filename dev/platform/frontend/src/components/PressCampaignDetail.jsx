@@ -133,7 +133,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           <input value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="filter by name, outlet or beat…"
             style={{ ...styles.input, marginBottom: 10 }} />
-          <div style={{ maxHeight: 520, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+          <div style={{ maxHeight: 520, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
             {!filteredContacts.length && <div style={{ padding: 14, color: '#888', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
             {groupKeys.map(beat => (
               <div key={beat}>
@@ -168,7 +168,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               PATCH /press/releases/:id; re-previews so the change is
               visible in the iframe immediately. */}
           {release && (
-            <div style={{ marginBottom: 12, padding: 12, border: '1px solid #eee', borderRadius: 6, background: '#fafafa' }}>
+            <div style={{ marginBottom: 12, padding: 12, border: '2px solid var(--accent)', borderRadius: 6, background: '#fafafa' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 First email — subject
               </div>
@@ -183,7 +183,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                     if (previewing) preview(previewing, true);
                   } catch (err) { toast(err.message, 'error'); }
                 }}
-                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' }}
               />
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: '#444', cursor: 'pointer' }}>
                 <input
@@ -214,12 +214,12 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                 <div style={styles.label}>Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>regenerate</button>
               </div>
-              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '1px solid #eee', borderRadius: 4, background: '#fff' }} sandbox="" />
+              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }} sandbox="" />
               {previewData.follow_ups?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <div style={styles.label}>Follow-ups · day 5 / 10 / 16 if no reply</div>
                   {previewData.follow_ups.map((fu, i) => (
-                    <div key={i} style={{ marginTop: 8, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                    <div key={i} style={{ marginTop: 8, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
                       <div style={{ fontWeight: 700, fontSize: 12 }}>{i + 1}. {fu.subject}</div>
                       <div style={{ fontSize: 12, color: '#444', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{fu.body}</div>
                     </div>
@@ -236,7 +236,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
 const styles = {
   h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
   contactRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' },
   groupHeader: { padding: '6px 10px', background: '#f6f6f6', fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },

@@ -132,7 +132,7 @@ export default function ClientAdsPage() {
 
   function MetricCard({ label, value, sub }) {
     return (
-      <div style={{ background: 'var(--accent-soft)', border: '1px solid #e8e8e8', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
+      <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
         <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>{value ?? '—'}</div>
         {sub && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{sub}</div>}

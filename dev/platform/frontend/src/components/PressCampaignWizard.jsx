@@ -59,7 +59,7 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
         </div>
 
         {parsed && (
-          <div style={{ marginTop: 18, padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 4, maxHeight: 460, overflowY: 'auto' }}>
+          <div style={{ marginTop: 18, padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, maxHeight: 460, overflowY: 'auto' }}>
             <div style={styles.label}>Parsed preview — edit if needed</div>
             <label style={{ ...styles.label, marginTop: 8 }}>Title</label>
             <input value={parsed.title || ''} onChange={e => setParsed({ ...parsed, title: e.target.value })} style={styles.input} />
@@ -78,7 +78,7 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
                 <div style={styles.label}>{parsed.images.length} image{parsed.images.length === 1 ? '' : 's'} found</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                   {parsed.images.slice(0, 6).map((img, i) => (
-                    <img key={i} src={img.src} alt={img.alt} style={{ height: 52, borderRadius: 3, border: '1px solid #ddd' }} />
+                    <img key={i} src={img.src} alt={img.alt} style={{ height: 52, borderRadius: 3, border: '2px solid var(--accent)' }} />
                   ))}
                 </div>
               </div>
@@ -99,5 +99,5 @@ const styles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px', zIndex: 1000, overflowY: 'auto' },
   modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 720, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
 };

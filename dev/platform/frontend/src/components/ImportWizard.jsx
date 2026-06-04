@@ -217,7 +217,7 @@ export default function ImportWizard({
               {rawRows?.totalRows} rows detected. Map each column to one of our contact fields.
               Anything mapped to "ignore" is dropped on import. <strong>Email</strong> is required.
             </p>
-            <div style={{ overflowX: 'auto', border: '1px solid #eee', borderRadius: 6, marginTop: 10 }}>
+            <div style={{ overflowX: 'auto', border: '2px solid var(--accent)', borderRadius: 6, marginTop: 10 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr>
@@ -317,7 +317,7 @@ export default function ImportWizard({
         {step === 3 && !result && (
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
-            <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
+            <div style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
               <div><strong>{builtRows.length}</strong> contacts with a valid email</div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
               {clientIdForAttach && <div>Attach to: <strong>this client</strong></div>}
@@ -385,10 +385,10 @@ const eyebrow = { fontSize: 10, color: '#888', textTransform: 'uppercase', lette
 const closeBtn = { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 };
 const hint = { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 };
 const footer = { display: 'flex', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #eee' };
-const btn = { background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
-const ghostBtn = { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
-const input = { padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' };
-const select = { padding: '5px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, background: '#fff', cursor: 'pointer', width: '100%' };
-const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#444', cursor: 'pointer' };
+const btn = { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+const ghostBtn = { background: '#fff', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
+const input = { padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' };
+const select = { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff', cursor: 'pointer', width: '100%' };
+const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#444', cursor: 'pointer' };
 const tagChipOn = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer' };
 const errBox = { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 };

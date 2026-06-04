@@ -235,7 +235,7 @@ function AssetCard({ asset, onDelete }) {
 
 function PaletteForm({ clientId, onClose, onSaved }) {
   const [name, setName] = useState('');
-  const [colors, setColors] = useState(['#000000', '#ffffff', '#E7CD41']);
+  const [colors, setColors] = useState(['#000000', '#ffffff', 'var(--accent)']);
   const [saving, setSaving] = useState(false);
   async function save() {
     setSaving(true);
@@ -301,13 +301,13 @@ function GuidelineForm({ clientId, onClose, onSaved }) {
 }
 
 const styles = {
-  uploadBar: { display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap', padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 },
-  assetCard: { background: 'var(--accent-soft)', border: '1px solid #eee', borderRadius: 14, overflow: 'hidden' },
+  uploadBar: { display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap', padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6 },
+  assetCard: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
 };
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

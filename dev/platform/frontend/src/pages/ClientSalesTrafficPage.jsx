@@ -123,12 +123,12 @@ export default function ClientSalesTrafficPage() {
         {showCustom && (
           <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
+              style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
             <span style={{ color: '#888', fontSize: 13 }}>to</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              style={{ padding: '5px 8px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13 }} />
+              style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
             <button onClick={applyCustom}
-              style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: '#E7CD41', color: '#1a1a1a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+              style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: 'var(--accent)', color: '#1a1a1a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
           </span>
         )}
         <span style={{ fontSize: 12, color: '#888' }}>{fmtDay(start)} – {fmtDay(end)}</span>

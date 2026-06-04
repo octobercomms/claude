@@ -367,7 +367,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   type="datetime-local"
                   value={schedule.scheduled_at}
                   onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 3 }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 3 }}
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
@@ -377,7 +377,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={schedule.drive_folder_url}
                   onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 3 }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 3 }}
                 />
               </label>
             </div>
@@ -464,7 +464,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {captionPreview && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(captionPreview).map(([platform, text]) => (
-                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: '1px solid #eee', borderRadius: 3, fontSize: 12, whiteSpace: 'pre-wrap' }}>
+                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, fontSize: 12, whiteSpace: 'pre-wrap' }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
                         {text}
                       </div>
@@ -488,7 +488,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {publications && publications.length > 0 && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {publications.map(pub => (
-                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 3, fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
                         <span style={{ color: pub.status === 'posted' ? '#2e7d32' : pub.status === 'failed' ? '#c62828' : '#666' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
@@ -637,25 +637,25 @@ const styles = {
   hint: { fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 },
   split: { display: 'flex', gap: 16, flex: 1, minHeight: 0 },
   chatPane: { flex: 1.2, display: 'flex', flexDirection: 'column', minHeight: 0 },
-  previewPane: { flex: 1, padding: 12, background: '#fafafa', border: '1px solid #eee', borderRadius: 4, overflowY: 'auto', maxHeight: '60vh' },
+  previewPane: { flex: 1, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, overflowY: 'auto', maxHeight: '60vh' },
   previewTitle: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  history: { flex: 1, border: '1px solid #eee', borderRadius: 4, padding: 10, overflowY: 'auto', minHeight: 220, maxHeight: '50vh', background: '#fff' },
+  history: { flex: 1, border: '2px solid var(--accent)', borderRadius: 4, padding: 10, overflowY: 'auto', minHeight: 220, maxHeight: '50vh', background: '#fff' },
   kicker: { fontSize: 13, color: '#666', padding: 4 },
   userMsg: { marginBottom: 10, padding: '6px 10px', background: '#fff7d6', borderRadius: 4 },
   assistantMsg: { marginBottom: 10, padding: '6px 10px', background: '#f4f4f4', borderRadius: 4 },
   msgRole: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 2 },
   msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
   inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
-  textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   attachChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#eef4ff', border: '1px solid #c7d8f5', borderRadius: 4, marginTop: 8, alignSelf: 'flex-start' },
   chipRemove: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666', lineHeight: 1, padding: '0 2px' },
-  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer' },
+  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 4, cursor: 'pointer' },
   error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14, borderTop: '1px solid #eee', paddingTop: 12 },
-  tag: { display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#E7CD41', color: '#000', borderRadius: 3, textTransform: 'uppercase' },
+  tag: { display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'var(--accent)', color: '#000', borderRadius: 3, textTransform: 'uppercase' },
   section: { marginTop: 10 },
   sectionLabel: { fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  sceneCard: { marginTop: 6, padding: '6px 8px', background: '#fff', border: '1px solid #eee', borderRadius: 3 },
-  autopilot: { marginTop: 14, padding: 12, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 },
-  smallBtn: { fontSize: 11, padding: '3px 8px', background: 'white', border: '1px solid #ddd', borderRadius: 3, cursor: 'pointer' },
+  sceneCard: { marginTop: 6, padding: '6px 8px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 3 },
+  autopilot: { marginTop: 14, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 },
+  smallBtn: { fontSize: 11, padding: '3px 8px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, cursor: 'pointer' },
 };

@@ -501,7 +501,7 @@ function StepEmails({ campaign, onBack, onNext }) {
       {steps === null && <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>}
       {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: '#888' }}>No sequence yet — generate one with Claude.</p>}
       {steps && steps.map(stp => (
-        <div key={stp.id} style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 6, padding: 12, marginBottom: 10 }}>
+        <div key={stp.id} style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
@@ -552,10 +552,10 @@ function StepEmails({ campaign, onBack, onNext }) {
             ) : (
               <>
                 <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 4 }}>Subject</div>
-                <div style={{ padding: '8px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
+                <div style={{ padding: '8px 10px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
                   {previewStep.subject || <em style={{ color: '#bbb' }}>(empty)</em>}
                 </div>
-                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '1px solid #eee', borderRadius: 4, background: '#fff' }} sandbox="" />
+                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }} sandbox="" />
               </>
             )}
           </div>
@@ -637,7 +637,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
           />
 
           {/* Stats — informational */}
-          <div style={{ marginTop: 18, padding: 12, background: '#fafafa', border: '1px solid #eee', borderRadius: 6, fontSize: 12, color: '#444', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 18, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, fontSize: 12, color: '#444', lineHeight: 1.7 }}>
             <div style={{ fontWeight: 700, fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
             <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
             {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
@@ -743,7 +743,7 @@ function ExistingTable({ rows, selected, onToggle }) {
 }
 function Tag({ children, onRemove }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f1f1', border: '1px solid #e0e0e0', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f1f1', border: '2px solid var(--accent)', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
       {children}
       <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>
@@ -785,10 +785,10 @@ function Footer({ children }) {
 }
 
 const s = {
-  card: { background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 20 },
+  card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 8, padding: 20 },
   btn: primaryBtn,
   btnGhost: secondaryBtn,
-  input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 },
   th: { padding: '8px 10px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
   td: { padding: '8px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12 },

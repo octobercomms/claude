@@ -824,7 +824,7 @@ function HelpPanel({ dnsCheck }) {
 }
 function HelpCard({ title, children }) {
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '1px solid #e8e8e8', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
+    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
       {children}
     </div>
@@ -948,7 +948,7 @@ function LibraryPicker({ clientId, onAttached }) {
 
       {filtered && !!filtered.length && (
         <>
-          <div style={{ maxHeight: 360, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+          <div style={{ maxHeight: 360, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
             {filtered.map(r => (
               <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />

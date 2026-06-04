@@ -602,7 +602,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
-          <div style={{ maxHeight: 200, overflow: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+          <div style={{ maxHeight: 200, overflow: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
             {posts.map(p => (
               <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 12 }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
@@ -630,7 +630,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
-              style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+              style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
           </div>
         </div>
 
@@ -644,7 +644,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
                     flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
                     background: daysOfWeek.includes(i) ? '#1a1a1a' : 'white',
                     color: daysOfWeek.includes(i) ? 'white' : '#666',
-                    border: '1px solid #ddd', borderRadius: 4, cursor: 'pointer',
+                    border: '2px solid var(--accent)', borderRadius: 4, cursor: 'pointer',
                   }}>{label}</button>
               ))}
             </div>
@@ -653,12 +653,12 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
             </div>
           </div>
         </div>
@@ -716,9 +716,9 @@ function HookVaultModal({ clientId, onClose, onUse }) {
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search hooks…"
-            style={{ flex: 1, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 }} />
+            style={{ flex: 1, padding: '6px 10px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 13 }} />
           <select value={framework} onChange={e => setFramework(e.target.value)}
-            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }}>
+            style={{ padding: '6px 10px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }}>
             <option value="">All frameworks</option>
             <option value="Hook-Story-Offer">Hook-Story-Offer</option>
             <option value="AIDA">AIDA</option>
@@ -735,7 +735,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {hooks.map((h, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
                 <div style={{ flex: 1, marginRight: 12 }}>
                   <div style={{ fontSize: 13, color: '#1a1a1a', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
                   <div style={{ fontSize: 11, color: '#888', marginTop: 3, display: 'flex', gap: 8 }}>
@@ -827,12 +827,12 @@ function PlansList({ clientId, clientName, onOpen }) {
   if (!plans.length) return null;
 
   return (
-    <div style={{ marginBottom: 22, padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 }}>
+    <div style={{ marginBottom: 22, padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Locked plans
         </div>
-        <div style={{ display: 'flex', gap: 0, border: '1px solid #ddd', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 0, border: '2px solid var(--accent)', borderRadius: 4, overflow: 'hidden' }}>
           {['list', 'calendar'].map(v => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
@@ -856,7 +856,7 @@ function PlansList({ clientId, clientName, onOpen }) {
           const eng = p.engagement || {};
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 4 }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 4 }}>
               <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: '#1a1a1a' }}>
                 {p.title || '(untitled)'}
               </button>
@@ -894,14 +894,14 @@ function PlansList({ clientId, clientName, onOpen }) {
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: '#666', border: '1px solid #ddd', borderRadius: 3, cursor: 'pointer' }}>
+                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: '#666', border: '2px solid var(--accent)', borderRadius: 3, cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
               </div>
             </div>
           );
@@ -946,9 +946,9 @@ function PlansCalendar({ plans, onOpen }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
+        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
         <div style={{ fontWeight: 700, fontSize: 13 }}>{monthLabel}</div>
-        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
+        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
@@ -1013,7 +1013,7 @@ function CompetitorEditor({ competitors, onSave }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && add()}
             placeholder="instagram:handle"
-            style={{ padding: '4px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, marginLeft: 6 }}
+            style={{ padding: '4px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginLeft: 6 }}
           />
           <button onClick={add} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, marginLeft: 4 }}>Add</button>
           <button onClick={() => setEditing(false)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, marginLeft: 4 }}>Done</button>
@@ -1063,7 +1063,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   const [open, setOpen] = React.useState(false);
   const visible = open ? sounds : sounds.slice(0, 5);
   return (
-    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
+    <div style={{ background: '#fff', border: '2px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Trending TikTok sounds
@@ -1071,7 +1071,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <span style={{ fontSize: 11, color: '#999' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', borderRadius: 999, cursor: 'pointer' }}>
+        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', borderRadius: 999, cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
@@ -1084,7 +1084,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '1px solid #e8e8e8', borderRadius: 999, color: '#1a1a1a', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '2px solid var(--accent)', borderRadius: 999, color: '#1a1a1a', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
               {s.use_count && <span style={{ color: '#888', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
@@ -1204,7 +1204,7 @@ const STYLE_COLOURS = {
   D: { bg: '#eef2ff', fg: '#3949ab', label: 'Screen' },
   E: { bg: '#e4f4e8', fg: '#1d7a3a', label: 'B-roll' },
   F: { bg: '#f4eafd', fg: '#5e2d8c', label: 'Prop' },
-  G: { bg: '#E7CD41', fg: '#1a1a1a', label: 'CTA' },
+  G: { bg: 'var(--accent)', fg: '#1a1a1a', label: 'CTA' },
 };
 
 function StyleBadge({ code, duration }) {
@@ -1330,13 +1330,13 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           {videos.map(v => (
             <div key={v.id} style={{ position: 'relative' }}>
               <video src={v.url} controls style={{ width: 180, borderRadius: 4, background: '#000' }} />
-              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
             </div>
           ))}
           {audios.map(a => (
             <div key={a.id} style={{ position: 'relative', width: 220 }}>
               <audio src={a.url} controls style={{ width: '100%' }} />
-              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
             </div>
           ))}
         </div>
@@ -1382,11 +1382,11 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       </div>
 
       {showPublish && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div style={{ fontSize: 11, color: '#666', marginBottom: 6, lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
-          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, boxSizing: 'border-box', marginBottom: 8 }} />
+          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, boxSizing: 'border-box', marginBottom: 8 }} />
           <button onClick={() => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }}
             style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={!publishUrl.trim()}>
             Save & pull insights
@@ -1428,7 +1428,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       )}
 
       {showImg && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
@@ -1444,7 +1444,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             value={styleBrief}
             onChange={e => setStyleBrief(e.target.value)}
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }}
           />
           {err && <div style={{ color: '#c62828', fontSize: 11, marginBottom: 6 }}>{err}</div>}
           <button onClick={generateImage} style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={generating}>
@@ -1458,31 +1458,31 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
 
 const styles = {
   h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  competitorBar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4, marginBottom: 6 },
-  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', background: '#fff', border: '1px solid #ddd', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
+  competitorBar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 6 },
+  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
   chipClose: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', color: '#999' },
-  batchRow: { padding: 10, border: '1px solid #eee', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
+  batchRow: { padding: 10, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
   batchRowActive: { background: '#fffceb', borderColor: COLORS.yellow },
-  card: { padding: 14, background: '#fff', border: '1px solid #eee', borderRadius: 6 },
+  card: { padding: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 6 },
   field: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   platformPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
   kindPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#f4eafd', color: '#5e2d8c', textTransform: 'uppercase', letterSpacing: 0.4 },
   statusPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eee', color: '#666', textTransform: 'uppercase', letterSpacing: 0.4 },
   hashtag: { display: 'inline-block', fontSize: 11, color: '#3949ab', marginRight: 6 },
-  thumb: { width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' },
+  thumb: { width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '2px solid var(--accent)' },
   thSm: { textAlign: 'left', padding: '5px 6px', fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
   tdSm: { padding: '5px 6px', verticalAlign: 'top', fontSize: 11, color: '#333', lineHeight: 1.4 },
   providerOn: { padding: '5px 12px', fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700 },
-  providerOff: { padding: '5px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
-  input: { padding: '5px 8px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4 },
+  providerOff: { padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
+  input: { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4 },
 };
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  pill: { padding: '5px 12px', fontSize: 12, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999, textTransform: 'capitalize' },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  pill: { padding: '5px 12px', fontSize: 12, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999, textTransform: 'capitalize' },
   pillOn: { padding: '5px 12px', fontSize: 12, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700, textTransform: 'capitalize' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 };

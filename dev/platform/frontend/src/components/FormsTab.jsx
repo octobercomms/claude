@@ -283,7 +283,7 @@ export default function FormsTab({ clientId, connectors }) {
 
 function Kpi({ label, value, accent = false }) {
   return (
-    <div style={{ padding: '12px 14px', border: '1px solid #eee', borderRadius: 6, background: accent ? '#fffbe6' : '#fafafa' }}>
+    <div style={{ padding: '12px 14px', border: '2px solid var(--accent)', borderRadius: 6, background: accent ? '#fffbe6' : '#fafafa' }}>
       <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
     </div>
@@ -308,7 +308,7 @@ function FunnelBars({ steps }) {
               </span>
             </div>
             <div style={{ height: 14, background: '#f3f3f3', borderRadius: 3, overflow: 'hidden' }}>
-              <div style={{ width: `${w}%`, height: '100%', background: '#E7CD41' }} />
+              <div style={{ width: `${w}%`, height: '100%', background: 'var(--accent)' }} />
             </div>
           </div>
         );
@@ -408,11 +408,11 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
   );
 }
 
-const cardStyle = { background: 'white', border: '1px solid #e8e8e8', borderRadius: 6, padding: 20 };
-const dateInputStyle = { padding: '5px 8px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 };
+const cardStyle = { background: 'white', border: '2px solid var(--accent)', borderRadius: 6, padding: 20 };
+const dateInputStyle = { padding: '5px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 };
 const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
 const tdStyle = { padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' };
 const statusPill = { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, textTransform: 'capitalize' };
-const btnSmStyle = { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
+const btnSmStyle = { background: '#fff', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
 const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const modalStyle = { background: 'white', borderRadius: 8, padding: 24, width: '100%', maxWidth: 720, maxHeight: '90vh', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' };

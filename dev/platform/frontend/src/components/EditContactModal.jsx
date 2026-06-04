@@ -225,7 +225,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       )}
 
       {!!events.length && (
-        <div style={{ maxHeight: 420, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+        <div style={{ maxHeight: 420, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
           {events.map((e, i) => (
             <div key={i} style={eventRow}>
               <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
@@ -278,10 +278,10 @@ function shorten(u) {
 }
 
 const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
-const statBox = { padding: '12px 14px', background: '#fafafa', border: '1px solid #eee', borderRadius: 6, textAlign: 'center' };
+const statBox = { padding: '12px 14px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
 const iconBadge = { width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
-const resubBtn = { background: '#fff', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', whiteSpace: 'nowrap' };
+const resubBtn = { background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (
@@ -307,7 +307,7 @@ const styles = {
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e8e8e8' },
-  input: { padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
+  input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   btn: primaryBtn,
   btnGhost: secondaryBtn,
   tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20 },

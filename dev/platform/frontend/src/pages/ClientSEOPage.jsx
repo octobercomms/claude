@@ -231,7 +231,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
-            padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '1px solid #ddd',
+            padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '2px solid var(--accent)',
             background: range === v ? '#1a1a1a' : '#fff', color: range === v ? '#fff' : '#555',
           }}>{l}</button>
         ))}
@@ -697,7 +697,7 @@ export default function ClientSEOPage() {
       })()}
 
       {/* Position buckets */}
-      <div style={{ display: 'flex', border: '1px solid #e8e8e8', borderRadius: 6, overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
+      <div style={{ display: 'flex', border: '2px solid var(--accent)', borderRadius: 6, overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
         {[
           { key: 'all', label: 'All' },
           { key: 'top3', label: 'Top 3' },
@@ -807,7 +807,7 @@ export default function ClientSEOPage() {
         <div style={{ display: 'flex' }}>
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
-              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '1px solid #ddd',
+              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '2px solid var(--accent)',
               background: kwView === v ? '#1a1a1a' : '#fff', color: kwView === v ? '#fff' : '#444',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
             }}>{label}</button>

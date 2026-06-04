@@ -261,7 +261,7 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 12, color: '#888' }}>No brand assets uploaded yet.</div>}
-        <div style={{ maxHeight: 220, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 }}>
+        <div style={{ maxHeight: 220, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
           {assets.map(a => (
             <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedAssets.has(a.id)} onChange={() => toggle(a.id)} />
@@ -357,7 +357,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       </div>
 
       {showRender && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div style={styles.field}>PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
@@ -372,7 +372,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
           </div>
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '1px solid #ddd', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }} />
           <button onClick={go} style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={rendering || !aspects.size}>
             {rendering ? 'Rendering…' : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`}
           </button>
@@ -408,25 +408,25 @@ function aspectStyle(ratio) {
 
 const styles = {
   h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  batchRow: { padding: 10, border: '1px solid #eee', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
+  batchRow: { padding: 10, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
   batchRowActive: { background: '#fffceb', borderColor: COLORS.yellow },
-  card: { padding: 14, background: '#fff', border: '1px solid #eee', borderRadius: 6 },
+  card: { padding: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 6 },
   field: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   framePill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
   anglePill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#f4eafd', color: '#5e2d8c', textTransform: 'uppercase', letterSpacing: 0.4 },
-  thumb: { objectFit: 'cover', borderRadius: 4, border: '1px solid #ddd' },
+  thumb: { objectFit: 'cover', borderRadius: 4, border: '2px solid var(--accent)' },
   thumbBadge: { position: 'absolute', bottom: 2, left: 2, padding: '1px 6px', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, borderRadius: 3, fontWeight: 700, letterSpacing: 0.4 },
-  thumbX: { position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#fff', border: '1px solid #ddd', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#c62828' },
+  thumbX: { position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#c62828' },
   fanOutBtn: { position: 'absolute', bottom: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: '#1a1a1a', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#fff', fontWeight: 700 },
   providerOn: { padding: '5px 12px', fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700 },
-  providerOff: { padding: '5px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
+  providerOff: { padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
 };
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

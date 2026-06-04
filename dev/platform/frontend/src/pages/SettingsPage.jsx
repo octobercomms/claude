@@ -652,7 +652,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '1px solid #eee', borderRadius: 14, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
@@ -717,7 +717,7 @@ function ProviderCard({ entry }) {
     statusColour = '#1d7a3a';
   }
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 4, padding: 12, position: 'relative' }}>
+    <div style={{ border: '2px solid var(--accent)', borderRadius: 4, padding: 12, position: 'relative' }}>
       <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
       <div style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
       {body}
@@ -1101,7 +1101,7 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 14, background: '#fafafa' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
                 </div>
@@ -1138,7 +1138,7 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '1px solid #e0e0e0', borderRadius: 14, background: '#fafafa' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
@@ -1545,7 +1545,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
-              <div style={{ maxHeight: 460, overflowY: 'auto', border: '1px solid #eee', borderRadius: 14, padding: 0 }}>
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 14, padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
                     <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 700, marginBottom: 6 }}>
@@ -1638,10 +1638,10 @@ const tidyStyles = {
   eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
   hint: { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 },
-  summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
+  summary: { background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
   fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
 };
@@ -1668,7 +1668,7 @@ const styles = {
   categoryTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a' },
   categoryDesc: { fontSize: 12, color: '#888', marginTop: 3, lineHeight: 1.5 },
   countPill: {
-    background: '#f1f1f1', border: '1px solid #e0e0e0', borderRadius: 12,
+    background: '#f1f1f1', border: '2px solid var(--accent)', borderRadius: 12,
     padding: '2px 9px', fontSize: 11, color: '#666', fontWeight: 600,
   },
   subSection: { borderTop: '1px solid #f0f0f0', paddingTop: 14 },
@@ -1677,25 +1677,25 @@ const styles = {
   note: { background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4, padding: '8px 12px', fontSize: 12, lineHeight: 1.5, marginTop: 8 },
   field: { display: 'flex', flexDirection: 'column', gap: 4 },
   label: { fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { padding: '8px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
-  eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
+  input: { padding: '8px 10px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
+  eyeBtn: { background: 'none', border: '2px solid var(--accent)', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
   envHint: { fontSize: 10, color: '#aaa' },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
   scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '2px solid var(--accent)', borderRadius: 4 },
   scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
   scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },
-  scopesCopyBtn: { background: 'var(--accent-soft)', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
-  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'var(--accent-soft)', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
+  scopesCopyBtn: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
+  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
   scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
-  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'var(--accent-soft)', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
+  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 3, padding: '2px 6px', color: '#444' },
   tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20, flexWrap: 'wrap' },
   tabBtn: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontFamily: 'Brockmann, sans-serif', fontWeight: 500 },
   tabBtnActive: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontFamily: 'Brockmann, sans-serif', fontWeight: 700 },
-  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: 'var(--accent-soft)', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
   tagChipOn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
   th: { textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 10px', borderBottom: '1px solid #e8e8e8' },
   td: { fontSize: 13, padding: '10px 10px', borderBottom: '1px solid #f4f4f4', verticalAlign: 'top' },
-  ghostBtn: { background: 'var(--accent-soft)', border: '1px solid #ddd', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
+  ghostBtn: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
   dangerBtn: { background: 'var(--accent-soft)', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
 };

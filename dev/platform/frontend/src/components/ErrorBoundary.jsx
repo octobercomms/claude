@@ -68,7 +68,7 @@ export default class ErrorBoundary extends React.Component {
 
 const styles = {
   wrap: { minHeight: '100vh', background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 },
-  card: { background: '#fff', border: '1px solid #eee', borderRadius: 8, padding: '32px 36px', maxWidth: 560, boxShadow: '0 2px 16px rgba(0,0,0,0.04)' },
+  card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 8, padding: '32px 36px', maxWidth: 560, boxShadow: '0 2px 16px rgba(0,0,0,0.04)' },
   brand: { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 18 },
   h1: { margin: '0 0 12px', fontSize: 22, color: '#1a1a1a' },
   p: { margin: '0 0 20px', fontSize: 14, color: '#555', lineHeight: 1.6 },
@@ -77,5 +77,5 @@ const styles = {
   pre: { fontSize: 11, color: '#555', background: '#f5f5f5', padding: 12, borderRadius: 4, overflow: 'auto', marginTop: 8, whiteSpace: 'pre-wrap', wordBreak: 'break-word' },
   row: { display: 'flex', gap: 8 },
   primary: { background: '#1a1a1a', color: '#fff', border: 'none', borderRadius: 4, padding: '10px 18px', fontSize: 13, cursor: 'pointer' },
-  secondary: { background: '#fff', color: '#555', border: '1px solid #ddd', borderRadius: 4, padding: '10px 18px', fontSize: 13, cursor: 'pointer' },
+  secondary: { background: '#fff', color: '#555', border: '2px solid var(--accent)', borderRadius: 4, padding: '10px 18px', fontSize: 13, cursor: 'pointer' },
 };

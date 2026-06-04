@@ -331,7 +331,7 @@ export function AIOverviewsTab({ clientId }) {
       </div>
 
       {trend.length >= 2 && (
-        <div style={{ height: 200, marginBottom: 24, border: '1px solid #eee', borderRadius: 4, padding: 12 }}>
+        <div style={{ height: 200, marginBottom: 24, border: '2px solid var(--accent)', borderRadius: 4, padding: 12 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} />
@@ -378,7 +378,7 @@ export function AIOverviewsTab({ clientId }) {
 
 function SummaryCard({ label, value, pct }) {
   return (
-    <div style={{ flex: 1, padding: '14px 16px', border: '1px solid #eee', borderRadius: 4, background: '#fff' }}>
+    <div style={{ flex: 1, padding: '14px 16px', border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }}>
       <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: '#888', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
       <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
     </div>
@@ -444,7 +444,7 @@ export function ContentGapsTab({ clientId }) {
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
 
-      <div style={{ background: '#fafafa', border: '1px solid #eee', borderRadius: 4, padding: 14, marginBottom: 18 }}>
+      <div style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, padding: 14, marginBottom: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {competitors.map(c => (
@@ -461,7 +461,7 @@ export function ContentGapsTab({ clientId }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addCompetitor()}
             placeholder="competitor.com"
-            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4 }}
+            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
             disabled={competitors.length >= 5}
           />
           <button onClick={addCompetitor} style={secondaryBtn} disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
@@ -546,7 +546,7 @@ export function PlanningTab({ clientId }) {
           onChange={e => setKeyword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4 }}
+          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
         />
         <button onClick={run} style={primaryBtn} disabled={loading || !keyword.trim()}>
           {loading ? 'Generating…' : 'Generate brief'}
@@ -617,16 +617,16 @@ const styles = {
   thSmall: { padding: '6px 8px', fontSize: 10, textAlign: 'left', fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee', whiteSpace: 'nowrap', background: '#fafafa' },
   tdSmall: { padding: '6px 8px', fontSize: 12, verticalAlign: 'middle' },
   smallTable: { width: '100%', borderCollapse: 'collapse', background: '#fff' },
-  tableScroll: { maxHeight: 480, overflowY: 'auto', border: '1px solid #eee', borderRadius: 4 },
+  tableScroll: { maxHeight: 480, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 },
   rowHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
   h2: { fontSize: 18, fontWeight: 700, margin: '0 0 4px' },
   h3: { fontSize: 13, fontWeight: 700, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' },
-  rangeBtn: { padding: '4px 10px', fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#555', cursor: 'pointer', marginLeft: 4, borderRadius: 4 },
+  rangeBtn: { padding: '4px 10px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', marginLeft: 4, borderRadius: 4 },
   rangeBtnActive: { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' },
   error: { background: '#fdecea', color: '#c62828', fontSize: 12, padding: 10, borderRadius: 4 },
   tagYes: { display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#e4f4e8', color: '#1d7a3a' },
   tagNo: { display: 'inline-block', fontSize: 11, color: '#888' },
-  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#fff', border: '1px solid #ddd', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
+  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
   chipClose: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', color: '#999' },
   briefBlock: { marginBottom: 14 },
   briefLabel: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },

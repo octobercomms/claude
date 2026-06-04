@@ -103,7 +103,7 @@ function DecisionForm({ onRespond }) {
   return (
     <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
       <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment / change notes"
-        style={{ width: '100%', padding: 8, fontSize: 12, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', minHeight: 60 }} />
+        style={{ width: '100%', padding: 8, fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', minHeight: 60 }} />
       <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
         <button onClick={() => onRespond('approved', comment)} style={{ ...styles.btn, background: '#1d7a3a', color: '#fff' }}>Approve</button>
         <button onClick={() => onRespond('changes_requested', comment)} style={{ ...styles.btn, background: '#fff4d6', color: '#8a6500' }}>Request changes</button>
@@ -175,9 +175,9 @@ const styles = {
   client: { fontSize: 14, color: '#666' },
   expires: { fontSize: 12, color: '#999', marginTop: 4 },
   nameBar: { maxWidth: 1100, margin: '0 auto 18px', display: 'flex', alignItems: 'center', gap: 10 },
-  nameInput: { padding: '6px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, width: 240 },
+  nameInput: { padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, width: 240 },
   grid: { maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 },
-  card: { background: '#fff', border: '1px solid #eee', borderRadius: 6, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
+  card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 6, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
   pill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
   btn: { padding: '6px 14px', fontSize: 12, border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 600 },
   error: { color: '#c62828', padding: 20, background: '#fdecea', borderRadius: 4, maxWidth: 600, margin: '40px auto' },

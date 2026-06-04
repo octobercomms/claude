@@ -29,22 +29,22 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: '10px 24px', color: isActive ? '#E7CD41' : '#ffffff',
+    display: 'block', padding: '10px 24px', color: isActive ? 'var(--accent)' : '#ffffff',
     textDecoration: 'none', fontSize: 13, fontWeight: isActive ? 600 : 400,
-    borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
+    borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
   });
 
   const subLinkStyle = (isActive) => ({
-    display: 'block', padding: '7px 24px 7px 36px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.75)',
+    display: 'block', padding: '7px 24px 7px 36px', color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.75)',
     textDecoration: 'none', fontSize: 12, fontWeight: isActive ? 600 : 400,
-    borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
+    borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
   const subSubLinkStyle = (isActive) => ({
-    display: 'block', padding: '5px 24px 5px 56px', color: isActive ? '#E7CD41' : 'rgba(255,255,255,0.6)',
+    display: 'block', padding: '5px 24px 5px 56px', color: isActive ? 'var(--accent)' : 'rgba(255,255,255,0.6)',
     textDecoration: 'none', fontSize: 11, fontWeight: isActive ? 600 : 400,
-    borderLeft: `2px solid ${isActive ? '#E7CD41' : 'transparent'}`,
+    borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
 
@@ -168,7 +168,7 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '80px 20px', zIndex: 1100 },
   modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 };

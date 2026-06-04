@@ -544,7 +544,7 @@ export default function ClientDetailPage() {
                 const tpl = templateSummary[rt];
                 const sections = tpl?.sections || [];
                 return (
-                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '1px solid #eee', borderRadius: 14, background: '#fafafa' }}>
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
                       <button type="button" onClick={() => setTemplateChatType(rt)} style={{ ...styles.btnSm, padding: '4px 10px' }}>
@@ -1289,10 +1289,10 @@ const styles = {
   tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e8e8e8', paddingBottom: 0 },
   tab: { padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
   tabActive: { color: '#1a1a1a', fontWeight: 600, borderBottomColor: '#1a1a1a' },
-  input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 14, outline: 'none', width: '100%' },
+  input: { padding: '9px 12px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 14, outline: 'none', width: '100%' },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
-  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
+  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
   help: { fontSize: 12, color: '#666', margin: '4px 0 8px', lineHeight: 1.5 },
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },

@@ -53,6 +53,6 @@ const styles = {
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
   hint: { fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 },
-  textarea: { width: '100%', minHeight: 200, padding: '10px 12px', fontSize: 13, lineHeight: 1.6, border: '1px solid #ddd', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  textarea: { width: '100%', minHeight: 200, padding: '10px 12px', fontSize: 13, lineHeight: 1.6, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
 };

@@ -21,8 +21,8 @@ const MD_COMPONENTS = {
       <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>{children}</table>
     </div>
   ),
-  th: ({ children }) => <th style={{ border: '1px solid #ddd', background: '#f3f3f3', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
-  td: ({ children }) => <td style={{ border: '1px solid #eee', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
+  th: ({ children }) => <th style={{ border: '2px solid var(--accent)', background: '#f3f3f3', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
+  td: ({ children }) => <td style={{ border: '2px solid var(--accent)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
   code: ({ inline, children }) => inline
     ? <code style={{ background: '#f4f4f4', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
     : <code style={{ display: 'block', background: '#f6f6f6', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
@@ -300,7 +300,7 @@ export default function ClientChatPage() {
           {attachedFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {attachedFiles.map((f, i) => (
-                <span key={i} style={{ fontSize: 12, background: '#f5f5f5', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span key={i} style={{ fontSize: 12, background: '#f5f5f5', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                   📎 {f.name}
                   <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
@@ -380,7 +380,7 @@ export default function ClientChatPage() {
 }
 
 const suggestionStyle = {
-  padding: '10px 14px', background: 'white', border: '1px solid #e0e0e0',
+  padding: '10px 14px', background: 'white', border: '2px solid var(--accent)',
   borderRadius: 8, cursor: 'pointer', fontSize: 12, color: '#444',
   textAlign: 'left', lineHeight: 1.4,
 };
@@ -390,7 +390,7 @@ const s = {
   avatarDot: { width: 28, height: 28, borderRadius: '50%', background: '#1a1a1a', flexShrink: 0, marginRight: 8, marginTop: 2 },
   bubble: { padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.6, border: '1px solid transparent' },
   bubbleUser: { background: '#1a1a1a', color: 'white', borderBottomRightRadius: 3 },
-  bubbleAssistant: { background: 'white', color: '#1a1a1a', border: '1px solid #e8e8e8', borderBottomLeftRadius: 3 },
+  bubbleAssistant: { background: 'white', color: '#1a1a1a', border: '2px solid var(--accent)', borderBottomLeftRadius: 3 },
   timestamp: { fontSize: 10, opacity: 0.5, marginTop: 4, textAlign: 'right' },
   // Tame react-markdown defaults to look right inside a chat bubble.
   // Removes the big top/bottom margins on headings, pulls list bullets
@@ -400,14 +400,14 @@ const s = {
     lineHeight: 1.5,
   },
   downloadRow: { display: 'flex', gap: 6, marginTop: 6, paddingLeft: 4 },
-  downloadBtn: { background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '3px 8px', fontSize: 11, color: '#555', cursor: 'pointer' },
+  downloadBtn: { background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '3px 8px', fontSize: 11, color: '#555', cursor: 'pointer' },
   reportHint: { fontSize: 11, color: '#888', marginTop: 4, paddingLeft: 4 },
   toolsUsed: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
   toolChip: { fontSize: 10, padding: '2px 7px', background: '#f0f4ff', color: '#3355cc', borderRadius: 10, fontWeight: 500 },
   inputRow: { display: 'flex', gap: 10, paddingTop: 12, borderTop: '1px solid #e8e8e8', marginTop: 'auto' },
-  textarea: { flex: 1, padding: '10px 14px', border: '1px solid #e0e0e0', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none' },
-  sendBtn: { padding: '10px 22px', background: '#E7CD41', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', fontSize: 14, fontWeight: 700, alignSelf: 'flex-end' },
-  btnGhost: { padding: '6px 14px', background: '#fff', border: '1px solid #ddd', borderRadius: 999, cursor: 'pointer', fontSize: 12, color: '#1a1a1a', fontWeight: 600 },
+  textarea: { flex: 1, padding: '10px 14px', border: '2px solid var(--accent)', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none' },
+  sendBtn: { padding: '10px 22px', background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', fontSize: 14, fontWeight: 700, alignSelf: 'flex-end' },
+  btnGhost: { padding: '6px 14px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', fontSize: 12, color: '#1a1a1a', fontWeight: 600 },
   sidebar: { width: 260, flexShrink: 0, borderLeft: '1px solid #e8e8e8', paddingLeft: 20, overflowY: 'auto' },
   logEntry: { padding: '8px 10px', borderRadius: 4, marginBottom: 8 },
   deleteBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 11, padding: '0 2px', lineHeight: 1 },

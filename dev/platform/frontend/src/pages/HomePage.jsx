@@ -8,7 +8,7 @@ import { Link } from 'react-router-dom';
 // patterns/ so the brand team can drop in finals later by replacing
 // the files at those paths.
 
-const YELLOW = '#E7CD41';
+const YELLOW = 'var(--accent)';
 const BLACK = '#0d0d0d';
 const WHITE = '#ffffff';
 const MUTED = 'rgba(255,255,255,0.55)';

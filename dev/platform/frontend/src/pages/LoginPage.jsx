@@ -90,11 +90,11 @@ const styles = {
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 11, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
   input: {
-    padding: '10px 12px', border: '1px solid #e0e0e0', borderRadius: 4,
+    padding: '10px 12px', border: '2px solid var(--accent)', borderRadius: 4,
     fontSize: 14, outline: 'none', fontFamily: 'Brockmann, sans-serif',
   },
   btn: {
-    padding: '12px', background: '#E7CD41', color: '#1a1a1a', border: 'none',
+    padding: '12px', background: 'var(--accent)', color: '#1a1a1a', border: 'none',
     borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 4,
     fontFamily: 'Brockmann, sans-serif', letterSpacing: 0.5,
   },
