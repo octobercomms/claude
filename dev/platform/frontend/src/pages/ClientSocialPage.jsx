@@ -33,6 +33,7 @@ export default function ClientSocialPage() {
   const [plannerOpen, setPlannerOpen] = useState(null); // { planId } | null
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [hookVaultOpen, setHookVaultOpen] = useState(false);
 
   async function loadAll() {
     const [c, bs, comp, ws, eng, fb, ts, sp] = await Promise.all([
@@ -266,6 +267,7 @@ export default function ClientSocialPage() {
           {activeBatchId && (
             <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
           )}
+          <button type="button" style={secondaryBtn} onClick={() => setHookVaultOpen(true)}>✦ Hook Vault</button>
           <button type="button" style={secondaryBtn} onClick={toggleAutopilotPaused}>
             {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
           </button>
@@ -333,8 +335,16 @@ export default function ClientSocialPage() {
           clientId={id}
           clientName={client?.name}
           planId={plannerOpen.planId}
+          seedHook={plannerOpen.seedHook}
           onClose={() => setPlannerOpen(null)}
           onSaved={() => setPlansRefreshKey(k => k + 1)}
+        />
+      )}
+      {hookVaultOpen && (
+        <HookVaultModal
+          clientId={id}
+          onClose={() => setHookVaultOpen(false)}
+          onUse={(hook) => { setHookVaultOpen(false); setPlannerOpen({ planId: null, seedHook: hook }); }}
         />
       )}
       {bulkOpen && (
@@ -490,6 +500,89 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             {submitting ? 'Scheduling…' : `Schedule ${selected.size} post${selected.size !== 1 ? 's' : ''}`}
           </button>
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Searchable library of every hook this client has used. Sorted by
+// best engagement per hook, framework-filterable, with a "use this →"
+// that opens the planner chat with the hook pre-seeded as the brief.
+// Search runs server-side via ILIKE so a vault with thousands of hooks
+// stays snappy.
+function HookVaultModal({ clientId, onClose, onUse }) {
+  const [hooks, setHooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [framework, setFramework] = useState('');
+  const [search, setSearch] = useState('');
+  // Debounce typing so we don't fire 8 requests for "carousel"
+  const [searchDebounced, setSearchDebounced] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(search), 200);
+    return () => clearTimeout(t);
+  }, [search]);
+  useEffect(() => {
+    setLoading(true);
+    const params = new URLSearchParams();
+    if (framework) params.set('framework', framework);
+    if (searchDebounced) params.set('q', searchDebounced);
+    api.get(`/social/clients/${clientId}/hooks?${params.toString()}`)
+      .then(r => setHooks(r || []))
+      .catch(() => setHooks([]))
+      .finally(() => setLoading(false));
+  }, [clientId, framework, searchDebounced]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+      <div style={{ background: 'white', borderRadius: 8, width: 760, maxWidth: '90vw', maxHeight: '90vh', overflow: 'auto', padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18 }}>Hook Vault</h2>
+            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
+          </div>
+          <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search hooks…"
+            style={{ flex: 1, padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 }} />
+          <select value={framework} onChange={e => setFramework(e.target.value)}
+            style={{ padding: '6px 10px', border: '1px solid #ddd', borderRadius: 4, fontSize: 12 }}>
+            <option value="">All frameworks</option>
+            <option value="Hook-Story-Offer">Hook-Story-Offer</option>
+            <option value="AIDA">AIDA</option>
+            <option value="PAS">PAS</option>
+            <option value="UGC">UGC</option>
+          </select>
+        </div>
+        {loading ? (
+          <div style={{ color: '#888', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
+        ) : !hooks.length ? (
+          <div style={{ color: '#888', padding: 20, textAlign: 'center', fontSize: 12 }}>
+            No hooks yet. Generate a brainstorm batch — every hook you save lands here.
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {hooks.map((h, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#fafafa', border: '1px solid #eee', borderRadius: 4 }}>
+                <div style={{ flex: 1, marginRight: 12 }}>
+                  <div style={{ fontSize: 13, color: '#1a1a1a', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
+                  <div style={{ fontSize: 11, color: '#888', marginTop: 3, display: 'flex', gap: 8 }}>
+                    {h.framework && <span>{h.framework}</span>}
+                    <span>·</span>
+                    <span>{h.platform} / {h.kind}</span>
+                    {h.best_reach > 0 && (<><span>·</span><span>best {formatNum(h.best_reach)} reach</span></>)}
+                    {h.use_count > 1 && (<><span>·</span><span>used {h.use_count}×</span></>)}
+                  </div>
+                </div>
+                <button type="button" onClick={() => onUse(h.hook)}
+                  style={{ background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  Use this →
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

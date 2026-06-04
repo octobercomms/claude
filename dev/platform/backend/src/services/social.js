@@ -302,6 +302,61 @@ async function getRecentWinners(clientId, { days = 90, limit = 5 } = {}) {
     .slice(0, limit);
 }
 
+// Aggregated hook library for a client. Pulls every hook that appears
+// on any social_posts row, deduplicates, attaches the post's framework
+// + the best engagement we've recorded for any usage of that hook.
+// Used by the Hook Vault UI to surface what's worked so the AM can
+// reuse a proven opener as the seed for a new plan.
+async function getHookVault(clientId, { framework = null, search = null, limit = 100 } = {}) {
+  const params = [clientId];
+  let extra = '';
+  if (framework) { params.push(framework); extra += ` AND p.framework = $${params.length}`; }
+  if (search) { params.push(`%${search}%`); extra += ` AND p.hook ILIKE $${params.length}`; }
+  params.push(limit);
+  const { rows } = await pool.query(
+    `WITH latest AS (
+       SELECT DISTINCT ON (e.post_id)
+         e.post_id, e.reach, e.impressions, e.likes, e.comments, e.shares, e.saves, e.views
+       FROM social_post_engagement e
+       ORDER BY e.post_id, e.fetched_at DESC
+     ),
+     joined AS (
+       SELECT TRIM(p.hook) AS hook,
+              p.framework, p.platform, p.kind,
+              COALESCE(l.reach, l.impressions, l.views, 0) AS reach_like,
+              COALESCE(l.likes, 0) + COALESCE(l.comments, 0)
+                + COALESCE(l.shares, 0) + COALESCE(l.saves, 0) AS interactions
+         FROM social_posts p
+         LEFT JOIN latest l ON l.post_id = p.id
+        WHERE p.client_id = $1
+          AND p.hook IS NOT NULL
+          AND TRIM(p.hook) <> ''
+          ${extra}
+     )
+     SELECT hook,
+            (ARRAY_AGG(framework ORDER BY reach_like DESC NULLS LAST))[1] AS framework,
+            (ARRAY_AGG(platform ORDER BY reach_like DESC NULLS LAST))[1] AS platform,
+            (ARRAY_AGG(kind ORDER BY reach_like DESC NULLS LAST))[1] AS kind,
+            COUNT(*)::int AS use_count,
+            MAX(reach_like)::bigint AS best_reach,
+            MAX(interactions)::bigint AS best_interactions
+       FROM joined
+      GROUP BY hook
+      ORDER BY best_reach DESC NULLS LAST, use_count DESC
+      LIMIT $${params.length}`,
+    params
+  );
+  return rows.map(r => ({
+    hook: r.hook,
+    framework: r.framework,
+    platform: r.platform,
+    kind: r.kind,
+    use_count: r.use_count,
+    best_reach: Number(r.best_reach || 0),
+    best_interactions: Number(r.best_interactions || 0),
+  }));
+}
+
 // Daily reach sparkline for a single client's last N days. Returns one
 // point per day (max reach across that day's snapshots, aggregated
 // across all posts). Used by the Analytics summary chips so the AM
@@ -474,7 +529,7 @@ async function getFrameworkBreakdown(clientId, { days = 90 } = {}) {
 }
 
 module.exports = {
-  generateBatch, getRecentWinners, getReachSparkline,
+  generateBatch, getRecentWinners, getReachSparkline, getHookVault,
   refreshEngagement, loadMetaCredentials,
   getRecentTrendingSounds, refreshTrendingSounds, getFrameworkBreakdown,
 };

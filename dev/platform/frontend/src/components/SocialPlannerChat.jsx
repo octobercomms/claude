@@ -6,9 +6,12 @@ import { primaryBtn, secondaryBtn } from '../styles/theme';
 // chat on the left, live plan preview on the right, lock & save when ready.
 // Locked plans persist server-side and can be downloaded as PDF / Word.
 
-export default function SocialPlannerChat({ clientId, clientName, planId, onClose, onSaved }) {
+export default function SocialPlannerChat({ clientId, clientName, planId, seedHook, onClose, onSaved }) {
   const [history, setHistory] = useState([]);
-  const [input, setInput] = useState('');
+  // When seeded from the Hook Vault, drop the hook into the input box
+  // so the AM can extend it before sending (or just hit send to let
+  // Claude work from the hook as the opening directive).
+  const [input, setInput] = useState(seedHook ? `Plan a new post that opens with this hook:\n\n"${seedHook}"\n\nWork the angle from there.` : '');
   const [sending, setSending] = useState(false);
   const [proposed, setProposed] = useState(null);
   const [saved, setSaved] = useState(null);

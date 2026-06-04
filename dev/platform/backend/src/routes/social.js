@@ -486,6 +486,20 @@ router.get('/clients/:clientId/sparkline', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Hook Vault — every hook this client has used, deduplicated, ranked
+// by the best engagement we've recorded for any usage. Filterable by
+// framework + free-text search. Used by the Hook Vault drawer so the
+// AM can reuse a proven opener as the seed for a new plan.
+router.get('/clients/:clientId/hooks', async (req, res) => {
+  try {
+    const framework = req.query.framework || null;
+    const search = req.query.q || null;
+    const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+    const hooks = await social.getHookVault(req.params.clientId, { framework, search, limit });
+    res.json(hooks);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/clients/:clientId/framework-breakdown', async (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days) || 90, 365);
