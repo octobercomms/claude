@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.18.0
+Stable tag: 1.19.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -34,6 +34,9 @@ WordPress Updates screen.
    token so the plugin can update itself.
 
 == Changelog ==
+
+= 1.19.0 =
+* Production-hardening polish. Three improvements that make failures visible and the customer-facing pages more robust: (1) **Server-side error logging** — payment and Stripe-webhook failures are now recorded to the server log (with a `hgd_log` hook so a site can forward them to its own monitoring), so a problem no longer happens silently. (2) **Broken-image fallback** — if a concept-render image fails to load on the client proposal or the keepsake, it shows a tidy "Garden concept render" placeholder instead of a broken-image icon. (3) **Completed the self-hosted-fonts work from 1.18.0** — the standalone proposal, keepsake and plant-book pages were still loading Google Fonts directly; they now use the bundled fonts too, so those pages make no third-party request either.
 
 = 1.18.0 =
 * Brand fonts are now self-hosted. Cormorant Garamond and DM Sans ship with the plugin (as small latin-subset woff2 files) and are served from your own site, so the admin screens — and the public booking and maintenance-plan pages — no longer call Google Fonts. That removes a third-party request (better privacy/GDPR and no dependency on Google being reachable) and renders the on-brand type consistently. Both fonts are licensed under the SIL Open Font License 1.1 (bundled in assets/fonts/LICENSE.txt).

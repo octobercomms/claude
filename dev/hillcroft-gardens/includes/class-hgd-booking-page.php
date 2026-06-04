@@ -127,6 +127,7 @@ class HGD_Booking_Page {
 		) );
 
 		if ( ! $booking_id ) {
+			HGD_Log::error( 'booking.create', 'could not persist booking row' );
 			return new WP_Error( 'hgd_save_failed', __( 'Could not start your booking. Please try again.', 'hillcroft-garden-designer' ), array( 'status' => 500 ) );
 		}
 
@@ -135,6 +136,7 @@ class HGD_Booking_Page {
 			$booking = HGD_Booking::get( $booking_id );
 			$order   = HGD_Woo::create_consultation_order( $booking ? $booking : array( 'id' => $booking_id, 'name' => $name, 'email' => $email, 'phone' => $phone, 'address' => $address, 'postcode' => $postcode ) );
 			if ( is_wp_error( $order ) ) {
+				HGD_Log::error( 'booking.woo', 'order creation failed: ' . $order->get_error_message(), array( 'booking_id' => (int) $booking_id ) );
 				HGD_Booking::update( $booking_id, array( 'status' => 'cancelled' ) );
 				return new WP_Error( 'hgd_woo_failed', $order->get_error_message(), array( 'status' => 502 ) );
 			}
@@ -181,6 +183,12 @@ class HGD_Booking_Page {
 		$secret  = (string) HGD_Settings::get( 'stripe_webhook_secret', '' );
 
 		if ( ! HGD_Stripe::verify_webhook( $payload, $sig, $secret ) ) {
+			// Rejected before any handler runs — log it (a misconfigured signing
+			// secret looks like total silence otherwise). No payload/secret logged.
+			HGD_Log::warning( 'stripe.webhook', 'signature verification failed', array(
+				'has_signature' => '' !== (string) $sig,
+				'has_secret'    => '' !== $secret,
+			) );
 			return new WP_REST_Response( array( 'error' => 'invalid signature' ), 400 );
 		}
 

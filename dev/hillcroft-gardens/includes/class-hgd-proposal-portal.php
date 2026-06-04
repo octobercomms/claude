@@ -157,7 +157,7 @@ class HGD_Proposal_Portal {
 							$url = wp_get_attachment_image_url( (int) $r['attachment_id'], 'large' );
 							if ( ! $url ) { continue; }
 							?>
-							<img src="<?php echo esc_url( $url ); ?>" alt="<?php esc_attr_e( 'Garden concept render', 'hillcroft-garden-designer' ); ?>" />
+							<img src="<?php echo esc_url( $url ); ?>" alt="<?php esc_attr_e( 'Garden concept render', 'hillcroft-garden-designer' ); ?>" loading="lazy" onerror="this.onerror=null;this.replaceWith(Object.assign(document.createElement('div'),{className:'hgd-img-fallback',textContent:this.alt||'Image unavailable'}));" />
 						<?php endforeach; ?>
 					</div>
 					<?php
@@ -298,9 +298,7 @@ class HGD_Proposal_Portal {
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title><?php echo esc_html( $title . ' — ' . get_bloginfo( 'name' ) ); ?></title>
-<link rel="preconnect" href="https://fonts.googleapis.com" />
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet" />
+<link href="<?php echo esc_url( HGD_URL . 'assets/fonts/fonts.css' ); ?>" rel="stylesheet" />
 <style>
 :root{--hgd-olive:<?php echo esc_html( $olive ); ?>;--hgd-charcoal:<?php echo esc_html( $charcoal ); ?>;--hgd-cream:<?php echo esc_html( $cream ); ?>;--hgd-paper:#FBF9F3;--hgd-green:#9FA145;--hgd-line:rgba(73,74,32,.16);}
 *{box-sizing:border-box;}
@@ -319,6 +317,7 @@ h2{font-size:1.7rem;}
 .hgd-portal-intro p{margin:.5em 0;}
 .hgd-portal-gallery{display:grid;grid-template-columns:1fr;gap:14px;}
 .hgd-portal-gallery img{width:100%;height:auto;border-radius:12px;display:block;}
+.hgd-img-fallback{display:flex;align-items:center;justify-content:center;min-height:160px;padding:24px;border-radius:12px;background:var(--hgd-cream,#f1efe6);color:var(--hgd-charcoal,#494a20);border:1px dashed var(--hgd-line,rgba(73,74,32,.16));font-size:14px;text-align:center;}
 .hgd-portal-keepsakes{margin:16px 0 0;font-size:.95rem;}
 .hgd-portal-keepsakes a{color:var(--hgd-olive);font-weight:500;text-decoration:none;border-bottom:1px solid var(--hgd-line);}
 .hgd-portal-keepsakes a:hover{border-bottom-color:var(--hgd-olive);}

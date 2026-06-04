@@ -55,7 +55,7 @@ class HGD_Stripe {
 			'timeout' => 20,
 		) );
 
-		return self::handle_response( $response );
+		return self::handle_response( $response, 'stripe.payment_intent.create' );
 	}
 
 	/**
@@ -81,7 +81,7 @@ class HGD_Stripe {
 			'timeout' => 20,
 		) );
 
-		return self::handle_response( $response );
+		return self::handle_response( $response, 'stripe.payment_intent.retrieve' );
 	}
 
 	// -------------------------------------------------------------------------
@@ -118,7 +118,7 @@ class HGD_Stripe {
 			$args['body'] = $body;
 		}
 
-		return self::handle_response( wp_remote_request( $url, $args ) );
+		return self::handle_response( wp_remote_request( $url, $args ), 'stripe.api ' . $method . ' ' . $path );
 	}
 
 	/**
@@ -260,14 +260,22 @@ class HGD_Stripe {
 		return self::request( 'DELETE', '/subscriptions/' . rawurlencode( $id ) );
 	}
 
-	private static function handle_response( $response ) {
+	private static function handle_response( $response, $context = 'stripe.api' ) {
 		if ( is_wp_error( $response ) ) {
+			// Transport failure (timeout, DNS, TLS) — never reached Stripe.
+			HGD_Log::error( $context, 'request failed: ' . $response->get_error_message() );
 			return $response;
 		}
 		$code = wp_remote_retrieve_response_code( $response );
 		$data = json_decode( wp_remote_retrieve_body( $response ), true );
 		if ( $code < 200 || $code >= 300 ) {
 			$msg = isset( $data['error']['message'] ) ? $data['error']['message'] : sprintf( 'Stripe error (%d).', $code );
+			// Log the safe parts of Stripe's error — message + machine codes, no secrets/payload.
+			HGD_Log::error( $context, $msg, array(
+				'status' => (int) $code,
+				'type'   => isset( $data['error']['type'] ) ? $data['error']['type'] : '',
+				'code'   => isset( $data['error']['code'] ) ? $data['error']['code'] : '',
+			) );
 			return new WP_Error( 'hgd_stripe_error', $msg );
 		}
 		return is_array( $data ) ? $data : array();

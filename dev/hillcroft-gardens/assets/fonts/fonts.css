@@ -23,6 +23,14 @@
   src:url('cormorant-garamond-italic.woff2') format('woff2');
 }
 @font-face{
+  /* The keepsake template uses italic 600; the italic file is a variable font that covers it. */
+  font-family:'Cormorant Garamond';
+  font-style:italic;
+  font-weight:600;
+  font-display:swap;
+  src:url('cormorant-garamond-italic.woff2') format('woff2');
+}
+@font-face{
   font-family:'DM Sans';
   font-style:normal;
   font-weight:400;

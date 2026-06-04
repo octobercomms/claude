@@ -190,6 +190,26 @@ The full original brief is now delivered end to end across 10 releases.
   `all()`, which would now rewrite secrets in plaintext). Unit-tested the crypto round-trip,
   passthrough, tamper and double-encrypt cases. No schema change.
 
+## ✅ 1.19.0 — Production-hardening polish
+
+Applied a "production-feel" pass (loading/error states, resilient forms, error visibility, fallbacks)
+to the public surfaces. Most was already covered (booking/subscription widgets disable submit while
+pending, show loading/error/empty states, and the manage-token flow already renders a friendly 404).
+Three genuine gaps closed:
+
+- **Server-side error logging** — new `HGD_Log` (error/warning → PHP error log, with a `hgd_log`
+  action as the seam to forward to Sentry/Slack/etc.). Wired into the Stripe `handle_response()`
+  chokepoint (every API call: transport + API errors, no secrets logged), the webhook
+  signature-rejection path, and the booking Woo/DB failure paths. Previously these failed silently.
+- **Broken-image fallback** — concept-render `<img>` on the client proposal portal and the keepsake
+  now swap to a styled `.hgd-img-fallback` placeholder via `onerror` instead of a broken-image icon.
+- **Completed 1.18.0's font self-hosting** — found three hardcoded Google Fonts `<link>`s still in the
+  standalone proposal/keepsake/plant-book templates (the wp_enqueue swap missed them). Repointed to
+  the bundled `fonts.css` (added an italic-600 face the keepsake needs, reusing the variable italic
+  file). The forms renderer's font stays external — it's a user-configurable family, not a brand font.
+
+No schema change.
+
 ## ✅ 1.18.0 — Self-hosted brand fonts
 
 - Cormorant Garamond + DM Sans bundled as latin-subset woff2 (`assets/fonts/`, 3 files ≈ 98KB,
