@@ -24,6 +24,8 @@ export default function ClientSocialPage() {
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [winners, setWinners] = useState([]);
   const [sparkline, setSparkline] = useState([]);
+  const [competitorPosts, setCompetitorPosts] = useState([]);
+  const [refreshingCompetitors, setRefreshingCompetitors] = useState(false);
   const [engagement, setEngagement] = useState({});
   const [mediaByPost, setMediaByPost] = useState({});
   const [shareUrl, setShareUrl] = useState(null);
@@ -36,7 +38,7 @@ export default function ClientSocialPage() {
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng, fb, ts, sp] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts, sp, cp] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
@@ -45,6 +47,7 @@ export default function ClientSocialPage() {
       api.get(`/social/clients/${id}/framework-breakdown?days=90`).catch(() => []),
       api.get(`/social/clients/${id}/trending-sounds`).catch(() => ({ sounds: [] })),
       api.get(`/social/clients/${id}/sparkline?days=30`).catch(() => []),
+      api.get(`/social/clients/${id}/competitor-posts?limit=10`).catch(() => []),
     ]);
     setClient(c);
     setBatches(bs);
@@ -53,6 +56,7 @@ export default function ClientSocialPage() {
     setFrameworkBreakdown(fb || []);
     setTrendingSounds(ts.sounds || []);
     setSparkline(sp || []);
+    setCompetitorPosts(cp || []);
     const eMap = {};
     for (const e of (eng || [])) eMap[e.post_id] = e;
     setEngagement(eMap);
@@ -202,6 +206,20 @@ export default function ClientSocialPage() {
     }
   }
 
+  async function refreshCompetitorPosts() {
+    setRefreshingCompetitors(true);
+    try {
+      await api.post(`/social/clients/${id}/competitor-posts/refresh`, {});
+      const cp = await api.get(`/social/clients/${id}/competitor-posts?limit=10`);
+      setCompetitorPosts(cp || []);
+      toast('Competitor scrape refreshed.', 'success');
+    } catch (e) {
+      toast(`Refresh failed: ${e.message}`, 'error');
+    } finally {
+      setRefreshingCompetitors(false);
+    }
+  }
+
   async function toggleAutopilotPaused() {
     const next = !client?.social_autopilot_paused;
     try {
@@ -284,6 +302,12 @@ export default function ClientSocialPage() {
       <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
 
       <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+      <CompetitorTrackerPanel
+        posts={competitorPosts}
+        refreshing={refreshingCompetitors}
+        onRefresh={refreshCompetitorPosts}
+        hasCompetitors={competitors.length > 0}
+      />
 
       {shareUrl && (
         <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
@@ -972,6 +996,53 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
         ))}
       </div>
       <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
+    </div>
+  );
+}
+
+// Competitor scrape surface. Every Sunday at 06:00 the cron pulls the
+// latest reels from each client's social_competitors handles via Apify
+// and lands them here. Hidden entirely when the client has no
+// competitors configured (the AM is told to add some on the
+// CompetitorEditor below). Sorted by view count, top 6 shown inline.
+function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }) {
+  if (!hasCompetitors) return null;
+  const top = posts.slice(0, 6);
+  return (
+    <div style={{ background: '#f5f3ff', border: '1px solid #d9d0f0', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#5b3d8e', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Competitor tracker — top recent posts
+        </div>
+        <button type="button" onClick={onRefresh} disabled={refreshing}
+          style={{ fontSize: 11, padding: '3px 10px', background: 'white', color: '#5b3d8e', border: '1px solid #d9d0f0', borderRadius: 3, cursor: 'pointer' }}>
+          {refreshing ? 'Scraping…' : '↻ Refresh now'}
+        </button>
+      </div>
+      {top.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#888' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+          {top.map(p => (
+            <a key={p.id} href={p.post_url} target="_blank" rel="noreferrer"
+              style={{ display: 'block', padding: 10, background: 'white', border: '1px solid #e5deef', borderRadius: 4, textDecoration: 'none', color: 'inherit' }}>
+              <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
+                <span>@{p.handle} · {p.platform}</span>
+                {p.view_count && <span style={{ color: '#5b3d8e', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
+              </div>
+              <div style={{ fontSize: 12, color: '#1a1a1a', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
+                {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
+              </div>
+              <div style={{ fontSize: 11, color: '#666' }}>
+                {p.likes_count ? `${formatNum(p.likes_count)} ♡` : ''}
+                {p.likes_count && p.comments_count ? ' · ' : ''}
+                {p.comments_count ? `${formatNum(p.comments_count)} 💬` : ''}
+              </div>
+            </a>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
     </div>
   );
 }

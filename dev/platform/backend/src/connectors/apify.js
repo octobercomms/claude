@@ -11,6 +11,8 @@ const { getSetting } = require('../utils/settings');
 
 const BASE_URL = 'https://api.apify.com/v2';
 const TRENDING_SOUNDS_ACTOR = 'clockworks~tiktok-scraper';
+const IG_SCRAPER_ACTOR = 'apify~instagram-scraper';
+const TIKTOK_SCRAPER_ACTOR = 'clockworks~tiktok-scraper';
 
 async function getToken() {
   const t = await getSetting('APIFY_API_TOKEN');
@@ -68,6 +70,70 @@ async function fetchTrendingSounds({ region = 'GB', limit = 25 } = {}) {
   return sounds;
 }
 
+// Pull the latest posts (reels + feed) for a public Instagram handle.
+// resultsLimit caps how many we ask the scraper to return — the
+// competitor tracker cron uses 5. Returns a normalised shape with
+// view_count / likes_count / hook + the raw shortcode for permalink.
+async function fetchInstagramUserPosts(handle, { limit = 5 } = {}) {
+  const cleaned = String(handle).replace(/^@/, '').trim();
+  if (!cleaned) return [];
+  const input = {
+    directUrls: [`https://www.instagram.com/${encodeURIComponent(cleaned)}/`],
+    resultsType: 'posts',
+    resultsLimit: limit,
+    addParentData: false,
+  };
+  const items = await runActorSync(IG_SCRAPER_ACTOR, input, { timeoutSec: 300 });
+  return (Array.isArray(items) ? items : [])
+    .filter(it => it && (it.shortCode || it.id))
+    .slice(0, limit)
+    .map(it => ({
+      external_id: String(it.id || it.shortCode),
+      post_url: it.url || (it.shortCode ? `https://www.instagram.com/p/${it.shortCode}/` : null),
+      thumbnail_url: it.displayUrl || it.thumbnailUrl || null,
+      caption: it.caption || '',
+      hook: firstLine(it.caption),
+      view_count: Number(it.videoViewCount || it.videoPlayCount || 0) || null,
+      likes_count: Number(it.likesCount || 0) || null,
+      comments_count: Number(it.commentsCount || 0) || null,
+      posted_at: it.timestamp ? new Date(it.timestamp) : null,
+    }));
+}
+
+// Same shape for TikTok. Returns the top recent videos for a handle.
+async function fetchTikTokUserPosts(handle, { limit = 5 } = {}) {
+  const cleaned = String(handle).replace(/^@/, '').trim();
+  if (!cleaned) return [];
+  const input = {
+    profiles: [cleaned],
+    resultsPerPage: limit,
+    shouldDownloadVideos: false,
+    shouldDownloadCovers: false,
+  };
+  const items = await runActorSync(TIKTOK_SCRAPER_ACTOR, input, { timeoutSec: 300 });
+  return (Array.isArray(items) ? items : [])
+    .filter(it => it && (it.id || it.videoId))
+    .slice(0, limit)
+    .map(it => ({
+      external_id: String(it.id || it.videoId),
+      post_url: it.webVideoUrl || (it.id ? `https://www.tiktok.com/@${cleaned}/video/${it.id}` : null),
+      thumbnail_url: it.videoMeta?.coverUrl || it.covers?.default || null,
+      caption: it.text || it.desc || '',
+      hook: firstLine(it.text || it.desc),
+      view_count: Number(it.playCount || it.stats?.playCount || 0) || null,
+      likes_count: Number(it.diggCount || it.stats?.diggCount || 0) || null,
+      comments_count: Number(it.commentCount || it.stats?.commentCount || 0) || null,
+      posted_at: it.createTimeISO ? new Date(it.createTimeISO) : (it.createTime ? new Date(it.createTime * 1000) : null),
+    }));
+}
+
+function firstLine(text) {
+  if (!text) return null;
+  const t = String(text).trim();
+  const line = t.split(/\n/)[0].trim();
+  return line.slice(0, 240) || null;
+}
+
 async function testCredentials() {
   try {
     const token = await getToken();
@@ -78,4 +144,4 @@ async function testCredentials() {
   }
 }
 
-module.exports = { runActorSync, fetchTrendingSounds, testCredentials };
+module.exports = { runActorSync, fetchTrendingSounds, fetchInstagramUserPosts, fetchTikTokUserPosts, testCredentials };

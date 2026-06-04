@@ -136,6 +136,20 @@ async function generateBatch({ clientId, brief, platforms }) {
   const competitorList = (c.social_competitors || []).filter(Boolean);
   const platformList = Array.isArray(platforms) && platforms.length ? platforms : ['instagram', 'tiktok'];
 
+  // Pull the top recent competitor posts the weekly Sunday scrape
+  // landed. Surfaces them in the prompt as exemplars so the batch
+  // generator can lift the angle / structure of what the competitive
+  // set is actually shipping rather than guessing from handles alone.
+  const { rows: competitorPosts } = await pool.query(
+    `SELECT handle, platform, hook, view_count, likes_count
+       FROM competitor_posts
+      WHERE client_id = $1
+        AND fetched_at >= NOW() - INTERVAL '14 days'
+      ORDER BY view_count DESC NULLS LAST
+      LIMIT 8`,
+    [clientId]
+  );
+
   const userPrompt = `Client: ${c.name}
 About the brand: ${c.briefing_field || '(no briefing — work from the brief below alone)'}
 This month's focus: ${c.monthly_focus || '(none)'}
@@ -145,6 +159,11 @@ ${brief || '(no extra brief — propose a balanced batch)'}
 
 Platforms in scope: ${platformList.join(', ')}
 Competitor handles (use as style/voice reference if helpful): ${competitorList.length ? competitorList.join(', ') : '(none configured)'}
+
+${competitorPosts.length
+  ? `What competitors are actually shipping right now (top scraped posts from the last 14 days — lift the angle / hook structure, don't copy verbatim):
+${competitorPosts.map((p, i) => `${i + 1}. [@${p.handle} · ${p.platform}${p.view_count ? ` · ${Number(p.view_count).toLocaleString()} views` : ''}] "${p.hook || '(no hook captured)'}"`).join('\n')}`
+  : '(no scraped competitor posts yet — Sunday\'s cron will populate this)'}
 
 ${trends ? `Currently rising signals (Google Trends, last 30 days, UK): ${trends.rising.map(r => r.label).filter(Boolean).join(', ') || '(no rising queries)'}` : '(no trend signal available — proceed without)'}
 

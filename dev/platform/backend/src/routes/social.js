@@ -486,6 +486,31 @@ router.get('/clients/:clientId/sparkline', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Competitor Tracker — the latest scraped posts for this client's
+// configured social_competitors handles. Sorted by view count desc.
+router.get('/clients/:clientId/competitor-posts', async (req, res) => {
+  try {
+    const competitorTracker = require('../services/competitorTracker');
+    const limit = Math.min(parseInt(req.query.limit) || 25, 100);
+    const posts = await competitorTracker.getRecentCompetitorPosts(req.params.clientId, { limit });
+    res.json(posts);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Manual trigger — runs the same code path as the Sunday cron for just
+// this client. Useful when the AM adds a new competitor mid-week and
+// wants the panel populated now rather than waiting.
+router.post('/clients/:clientId/competitor-posts/refresh', async (req, res) => {
+  try {
+    const competitorTracker = require('../services/competitorTracker');
+    const results = await competitorTracker.scrapeClient(req.params.clientId);
+    res.json({ results });
+  } catch (err) {
+    console.error('[social competitor refresh] failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // Hook Vault — every hook this client has used, deduplicated, ranked
 // by the best engagement we've recorded for any usage. Filterable by
 // framework + free-text search. Used by the Hook Vault drawer so the

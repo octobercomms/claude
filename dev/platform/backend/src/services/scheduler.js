@@ -97,6 +97,22 @@ cron.schedule('30 * * * *', async () => {
   }
 });
 
+// Competitor tracker: Sunday 06:00. For every client with at least
+// one entry in social_competitors, ask Apify for their top recent
+// reels and store them. Same rows are fed into next-batch generation
+// alongside the brand's own Winners — so each Monday morning brainstorm
+// is grounded in what the competitive set shipped over the last week.
+cron.schedule('0 6 * * 0', async () => {
+  try {
+    const competitorTracker = require('./competitorTracker');
+    const summary = await competitorTracker.scrapeAllClients();
+    const total = summary.reduce((n, s) => n + s.posts, 0);
+    console.log(`[Competitor] weekly scrape: ${total} posts across ${summary.length} clients`);
+  } catch (err) {
+    console.error('[Competitor] weekly scrape failed:', err.message);
+  }
+});
+
 // Error digest: 09:00 daily. Rolls up the last 24h of error_log into
 // one fingerprint-grouped email so the operator sees what broke
 // without grepping logs. Skips silently when there are zero errors.
