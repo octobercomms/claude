@@ -143,14 +143,15 @@ button { font-family: inherit; }
 /* ─── Cards ──────────────────────────────────────────────────────── */
 
 .card {
-  background: var(--surface);
-  border: var(--border-w) solid var(--border-neutral);
+  background: var(--accent-soft);
+  border: var(--border-w) solid var(--accent);
   border-radius: var(--r-md);
   padding: var(--s5);
   color: var(--text);
 }
 .card.raised { background: var(--surface-raised); }
 .card.accent { background: var(--accent-soft); border-color: var(--accent); }
+.card.plain { background: var(--surface); border-color: var(--border-neutral); }
 .card.filled { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
 .card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .caption { color: var(--accent-on); }
 .card.outline { background: transparent; border-color: var(--accent); }
@@ -171,15 +172,15 @@ button { font-family: inherit; }
   margin-bottom: var(--s5);
 }
 .metric-card {
-  background: var(--surface);
-  border: var(--border-w) solid var(--border-neutral);
+  background: var(--accent-soft);
+  border: var(--border-w) solid var(--accent);
   border-radius: var(--r-md);
   padding: var(--s4);
 }
-.metric-card.accent { border-color: var(--accent); }
-.metric-card.accent .metric { color: var(--accent); }
-.metric-card .caption { color: var(--text-subtle); }
-.metric-card .metric { margin-top: var(--s2); }
+.metric-card.accent { background: var(--accent); border-color: var(--accent); }
+.metric-card.accent .metric, .metric-card.accent .caption { color: var(--accent-on); }
+.metric-card .caption { color: var(--text); opacity: 0.7; }
+.metric-card .metric { margin-top: var(--s2); color: var(--text); }
 .metric-row {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: var(--s3); margin-top: var(--s2);
@@ -210,10 +211,10 @@ button { font-family: inherit; }
 .btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
 
 .btn-secondary {
-  background: var(--surface); color: var(--text);
-  border-color: var(--border-neutral);
+  background: var(--surface); color: var(--accent);
+  border-color: var(--accent);
 }
-.btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.btn-secondary:hover:not(:disabled) { background: var(--accent-soft); }
 
 .btn-ghost {
   background: transparent; color: var(--text-muted);
@@ -251,8 +252,8 @@ button { font-family: inherit; }
   text-align: left; padding: 12px var(--s3);
   font-size: 11px; font-weight: 600;
   letter-spacing: 1.2px; text-transform: uppercase;
-  color: var(--text-subtle);
-  border-bottom: var(--border-w) solid var(--border-neutral);
+  color: var(--accent);
+  border-bottom: var(--border-w) solid var(--accent);
 }
 .table td {
   padding: 12px var(--s3);
@@ -268,8 +269,8 @@ button { font-family: inherit; }
 .empty {
   text-align: center;
   padding: var(--s9) var(--s5);
-  background: var(--surface);
-  border: var(--border-w) solid var(--border-neutral);
+  background: var(--accent-soft);
+  border: var(--border-w) solid var(--accent);
   border-radius: var(--r-md);
 }
 .empty-icon {
@@ -284,7 +285,7 @@ button { font-family: inherit; }
 
 .tabs {
   display: flex; gap: var(--s6);
-  border-bottom: var(--border-w) solid var(--border-neutral);
+  border-bottom: var(--border-w) solid var(--accent);
   margin: var(--s5) 0 var(--s6);
 }
 .tab {
@@ -380,7 +381,7 @@ select, textarea {
 }
 .modal {
   background: var(--surface);
-  border: var(--border-w) solid var(--border-neutral);
+  border: var(--border-w) solid var(--accent);
   border-radius: var(--r-lg);
   padding: var(--s7);
   width: 560px; max-width: 92vw; max-height: 90vh;

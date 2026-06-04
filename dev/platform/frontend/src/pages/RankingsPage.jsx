@@ -373,18 +373,18 @@ export default function RankingsPage() {
 }
 
 const styles = {
-  card: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, padding: 20, marginBottom: 20 },
+  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20, marginBottom: 20 },
   field: { display: 'flex', flexDirection: 'column', gap: 6 },
   label: { fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
   input: { padding: '9px 12px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13 },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  btnGhost: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
+  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
+  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
   chip: { background: '#f0f0f0', borderRadius: 10, padding: '2px 8px', fontSize: 11, color: '#555' },
-  tableWrap: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, overflow: 'hidden' },
+  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
   th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
   td: { padding: '11px 16px', borderBottom: '1px solid #f5f5f5', verticalAlign: 'middle' },
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: 'white', borderRadius: 14, padding: 28, width: '100%', maxWidth: 600, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
+  modal: { background: 'var(--accent-soft)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 600, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
 };

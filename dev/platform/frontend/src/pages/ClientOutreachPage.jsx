@@ -824,7 +824,7 @@ function HelpPanel({ dnsCheck }) {
 }
 function HelpCard({ title, children }) {
   return (
-    <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
+    <div style={{ background: 'var(--accent-soft)', border: '1px solid #e8e8e8', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
       {children}
     </div>
@@ -838,11 +838,11 @@ function HelpCard({ title, children }) {
 // suite-email accent automatically and matches every other page's
 // border / radius / padding.
 const s = {
-  card: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, padding: 20 },
+  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20 },
   btn: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  btnGhost: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: '#fff', color: '#1a1a1a', border: '2px solid #1a1a1a', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  input: { padding: '10px 12px', fontSize: 13, border: '2px solid #1a1a1a', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
-  tableWrap: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, overflow: 'hidden' },
+  btnGhost: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
+  input: { padding: '10px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
+  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
   td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3', fontSize: 13, verticalAlign: 'middle' },

@@ -101,16 +101,17 @@ export default function ClientSalesTrafficPage() {
         <div className="client-name">{client?.name || ''}</div>
         <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
       </header>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 20 }}>
+      {/* Date range — top-left under the hero on every page that has one. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => selectDays(d)}
-            style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid #ddd', background: activeKey === 'd' + d ? '#1a1a1a' : '#fff', color: activeKey === 'd' + d ? '#fff' : '#333', fontSize: 13, cursor: 'pointer' }}>
+            style={{ padding: '8px 16px', borderRadius: 999, border: '2px solid #1a1a1a', background: activeKey === 'd' + d ? '#1a1a1a' : '#fff', color: activeKey === 'd' + d ? '#fff' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             {d}d
           </button>
         ))}
         <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
           onChange={e => selectPreset(e.target.value)}
-          style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #ddd', fontSize: 13, cursor: 'pointer' }}>
+          style={{ padding: '8px 14px', borderRadius: 999, border: '2px solid #1a1a1a', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
           <option value="">Period…</option>
           <option value="mtd">Month to date</option>
           <option value="ytd">Year to date</option>
@@ -206,8 +207,8 @@ export default function ClientSalesTrafficPage() {
 }
 
 const s = {
-  card: { background: '#fff', border: '2px solid #1a1a1a', borderRadius: 14, padding: 20 },
+  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20 },
   cardTitle: { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12 },
-  input: { padding: '10px 12px', fontSize: 13, border: '2px solid #1a1a1a', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
+  input: { padding: '10px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
   empty: { color: '#888', fontSize: 13, padding: '20px 0', margin: 0 },
 };

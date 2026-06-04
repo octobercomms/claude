@@ -132,7 +132,7 @@ export default function ClientAdsPage() {
 
   function MetricCard({ label, value, sub }) {
     return (
-      <div style={{ background: '#fff', border: '1px solid #e8e8e8', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
+      <div style={{ background: 'var(--accent-soft)', border: '1px solid #e8e8e8', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
         <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>{value ?? '—'}</div>
         {sub && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{sub}</div>}
@@ -181,29 +181,22 @@ export default function ClientAdsPage() {
       {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {tab === 'performance' && <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>Ads Performance — {client?.name}</h1>
-          <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666' }}>
-            Live spend, ROAS, and campaign data from Google Ads and Meta Ads.{' '}
-            <Link to={`/clients/${id}/chat`} style={{ color: '#1a1a1a', fontWeight: 600 }}>Ask the AI Data Analyst →</Link>
-          </p>
+      {/* Date range — top-left under the page hero. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
+        {[7, 14, 30, 90].map(d => (
+          <button key={d} onClick={() => handlePeriodChange(d)}
+            style={{ padding: '8px 16px', borderRadius: 999, border: '2px solid #1a1a1a', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {d}d
+          </button>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#fff', border: '2px solid #1a1a1a', borderRadius: 999 }}>
+          <span style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Gross Margin</span>
+          <input type="number" min="0" max="100" step="1" value={adsMarginInput}
+            onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
+            style={{ width: 48, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+          <span style={{ fontSize: 12, color: '#888' }}>%</span>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#f9f9f9', border: '1px solid #e0e0e0', borderRadius: 6 }}>
-            <span style={{ fontSize: 12, color: '#666', whiteSpace: 'nowrap' }}>Gross Margin</span>
-            <input type="number" min="0" max="100" step="1" value={adsMarginInput}
-              onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
-              style={{ width: 48, padding: '4px 6px', border: '1px solid #ddd', borderRadius: 4, fontSize: 13, textAlign: 'right' }} />
-            <span style={{ fontSize: 12, color: '#666' }}>%</span>
-          </div>
-          {[7, 14, 30, 90].map(d => (
-            <button key={d} onClick={() => handlePeriodChange(d)}
-              style={{ padding: '6px 14px', borderRadius: 999, border: '1px solid #ddd', background: days === d ? '#E7CD41' : '#fff', color: '#1a1a1a', fontSize: 13, fontWeight: days === d ? 700 : 600, cursor: 'pointer' }}>
-              {d}d
-            </button>
-          ))}
-        </div>
+        <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Data Analyst →</Link>
       </div>
 
       {!loading && !noConnectors && (

@@ -652,7 +652,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: '#fff', border: '1px solid #eee', borderRadius: 14, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: 'var(--accent-soft)', border: '1px solid #eee', borderRadius: 14, padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
@@ -1633,7 +1633,7 @@ function contactLabel(s) {
 
 const tidyStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 14, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
@@ -1641,7 +1641,7 @@ const tidyStyles = {
   summary: { background: '#fafafa', border: '1px solid #eee', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: '#fff', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '1px solid #ddd', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
   fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
 };
@@ -1658,7 +1658,7 @@ function OpSummary({ op }) {
 }
 
 const styles = {
-  card: { background: 'white', border: '2px solid #1a1a1a', borderRadius: 14, padding: '18px 20px' },
+  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: '18px 20px' },
   cardTitle: { fontSize: 14, fontWeight: 700, margin: '0 0 10px', color: '#1a1a1a' },
   categoryToggle: {
     display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -1681,21 +1681,21 @@ const styles = {
   eyeBtn: { background: 'none', border: '1px solid #ddd', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
   envHint: { fontSize: 10, color: '#aaa' },
   btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
-  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '2px solid #1a1a1a', borderRadius: 4 },
+  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '2px solid var(--accent)', borderRadius: 4 },
   scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
   scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },
-  scopesCopyBtn: { background: 'white', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
-  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
+  scopesCopyBtn: { background: 'var(--accent-soft)', border: '1px solid #ddd', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
+  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'var(--accent-soft)', border: '1px solid #e0e0e0', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
   scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
-  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'white', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
+  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'var(--accent-soft)', border: '1px solid #e0e0e0', borderRadius: 3, padding: '2px 6px', color: '#444' },
   tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20, flexWrap: 'wrap' },
   tabBtn: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontFamily: 'Brockmann, sans-serif', fontWeight: 500 },
   tabBtnActive: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontFamily: 'Brockmann, sans-serif', fontWeight: 700 },
-  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
+  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #ddd', background: 'var(--accent-soft)', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
   tagChipOn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
   th: { textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 10px', borderBottom: '1px solid #e8e8e8' },
   td: { fontSize: 13, padding: '10px 10px', borderBottom: '1px solid #f4f4f4', verticalAlign: 'top' },
-  ghostBtn: { background: '#fff', border: '1px solid #ddd', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
-  dangerBtn: { background: '#fff', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
+  ghostBtn: { background: 'var(--accent-soft)', border: '1px solid #ddd', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
+  dangerBtn: { background: 'var(--accent-soft)', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
 };

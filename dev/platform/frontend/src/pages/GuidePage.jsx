@@ -329,7 +329,7 @@ export default function GuidePage() {
 
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
-    <div style={{ border: '1px solid #eee', borderRadius: 14, background: '#fff', overflow: 'hidden' }}>
+    <div style={{ border: '1px solid #eee', borderRadius: 14, background: 'var(--accent-soft)', overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
         width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? '#fafafa' : '#fff',
         border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
@@ -368,7 +368,7 @@ function WorkflowDiagram({ workflow }) {
           <React.Fragment key={i}>
             <div style={{
               flex: '1 1 130px', minWidth: 120, maxWidth: 200,
-              padding: '10px 12px', background: '#fff', border: '1px solid #ddd', borderRadius: 4,
+              padding: '10px 12px', background: 'var(--accent-soft)', border: '1px solid #ddd', borderRadius: 4,
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
               <div style={{
@@ -395,6 +395,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 11, border: '1px solid #ddd', background: '#fff', color: '#555',
+  padding: '5px 12px', fontSize: 11, border: '1px solid #ddd', background: 'var(--accent-soft)', color: '#555',
   cursor: 'pointer', borderRadius: 999, fontWeight: 600,
 };
