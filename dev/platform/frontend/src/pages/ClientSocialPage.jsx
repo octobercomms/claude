@@ -6,6 +6,7 @@ import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
+import SuiteTabs from '../components/SuiteTabs';
 import UiButton from '../components/ui/Button';
 import { palette as UiPalette } from '../styles/tokens';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
@@ -43,6 +44,10 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
+  const [socialTab, setSocialTab] = useState(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['overview','brainstorm','plans','performance','competitors'].includes(q) ? q : 'overview';
+  });
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
   // receives the array as a prop instead of fetching its own.
@@ -315,54 +320,107 @@ export default function ClientSocialPage() {
 
   return (
     <div className="suite-social">
-      {/* Toolbar — utility actions floating above the hero overview. */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-        <UiButton variant="primary" accent={SUITE_ACCENT_SOCIAL} onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
-        {activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform)) && (
-          <UiButton variant="secondary" onClick={() => setBulkOpen(true)}>📅 Bulk schedule</UiButton>
-        )}
-        {activeBatchId && (
-          <UiButton variant="secondary" onClick={shareBatchForApproval}>Share for approval</UiButton>
-        )}
-        <UiButton variant="secondary" onClick={() => setHookVaultOpen(true)}>✦ Hook Vault</UiButton>
-        <UiButton variant="secondary" onClick={toggleAutopilotPaused}>
-          {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-        </UiButton>
-        <UiButton variant="secondary" onClick={() => setShowBrief(true)} disabled={generating}>
-          {generating ? 'Generating…' : 'Generate 9 posts'}
-        </UiButton>
-      </div>
+      {/* HERO — always visible across tabs. Tab-specific actions sit
+          inside each tab's section head instead of a global toolbar. */}
+      <header className="hero">
+        <div className="row between wrap">
+          <div>
+            <div className="client-name">{client?.name || ''}</div>
+            <h1 className="display mt-2"><span className="text-accent">Social</span></h1>
+          </div>
+          <div className="row wrap">
+            <UiButton variant="primary" onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
+            <UiButton variant="secondary" onClick={toggleAutopilotPaused}>
+              {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+            </UiButton>
+          </div>
+        </div>
+      </header>
 
-      <SocialSuiteOverview
-        clientId={id}
-        client={client}
-        batches={batches}
-        posts={posts}
-        plans={plans}
-        competitors={competitors}
-        winners={winners}
-        competitorPosts={competitorPosts}
-        sparkline={sparkline}
-        onAddCompetitor={() => document.getElementById('competitor-editor-anchor')?.scrollIntoView({ behavior: 'smooth' })}
-        onGenerate={() => setShowBrief(true)}
-        onBulkSchedule={() => setBulkOpen(true)}
-        onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
-        onOpenHookVault={() => setHookVaultOpen(true)}
-      />
+      <SuiteTabs tabs={[
+        { key: 'overview',     label: 'Overview',     active: socialTab === 'overview',     onClick: () => setSocialTab('overview') },
+        { key: 'brainstorm',   label: 'Brainstorm',   active: socialTab === 'brainstorm',   onClick: () => setSocialTab('brainstorm') },
+        { key: 'plans',        label: 'Plans',        active: socialTab === 'plans',        onClick: () => setSocialTab('plans') },
+        { key: 'performance',  label: 'Performance',  active: socialTab === 'performance',  onClick: () => setSocialTab('performance') },
+        { key: 'competitors',  label: 'Competitors',  active: socialTab === 'competitors',  onClick: () => setSocialTab('competitors') },
+      ]} />
 
-      <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} />
+      {/* OVERVIEW — hero metrics, loop, next-up, plus a recap of what's
+          most worth looking at. */}
+      {socialTab === 'overview' && (
+        <SocialSuiteOverview
+          clientId={id}
+          client={client}
+          batches={batches}
+          posts={posts}
+          plans={plans}
+          competitors={competitors}
+          winners={winners}
+          competitorPosts={competitorPosts}
+          sparkline={sparkline}
+          onAddCompetitor={() => setSocialTab('competitors')}
+          onGenerate={() => { setSocialTab('brainstorm'); setShowBrief(true); }}
+          onBulkSchedule={() => setBulkOpen(true)}
+          onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
+          onOpenHookVault={() => setHookVaultOpen(true)}
+        />
+      )}
 
-      <div id="competitor-editor-anchor"><CompetitorEditor competitors={competitors} onSave={saveCompetitors} /></div>
+      {/* BRAINSTORM — past batches sidebar + 9-post grid + generate. */}
+      {socialTab === 'brainstorm' && (
+        <BrainstormTab
+          batches={batches}
+          posts={posts}
+          activeBatchId={activeBatchId}
+          onSelectBatch={selectBatch}
+          onDeleteBatch={deleteBatch}
+          onGenerate={() => setShowBrief(true)}
+          onBulkSchedule={() => setBulkOpen(true)}
+          onShareForApproval={shareBatchForApproval}
+          generating={generating}
+          engagement={engagement}
+          mediaByPost={mediaByPost}
+          updatePost={updatePost}
+          deletePost={deletePost}
+          publishPost={publishPost}
+          refreshInsights={refreshInsights}
+          renderTemplates={renderTemplates}
+          generateMedia={generateMedia}
+          deleteMedia={deleteMedia}
+        />
+      )}
 
-      <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
+      {/* PLANS — list / calendar of locked plans. */}
+      {socialTab === 'plans' && (
+        <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} />
+      )}
 
-      <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
-      <CompetitorTrackerPanel
-        posts={competitorPosts}
-        refreshing={refreshingCompetitors}
-        onRefresh={refreshCompetitorPosts}
-        hasCompetitors={competitors.length > 0}
-      />
+      {/* PERFORMANCE — Winners, framework breakdown, Hook Vault entry. */}
+      {socialTab === 'performance' && (
+        <div className="stack-lg">
+          <div className="row end">
+            <UiButton variant="secondary" onClick={() => setHookVaultOpen(true)}>✦ Open Hook Vault</UiButton>
+          </div>
+          <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+        </div>
+      )}
+
+      {/* COMPETITORS — editor, social scrape, landing-page diff,
+          trending sounds (sounds are competitor-adjacent grounding). */}
+      {socialTab === 'competitors' && (
+        <div className="stack-lg">
+          <div id="competitor-editor-anchor">
+            <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
+          </div>
+          <CompetitorTrackerPanel
+            posts={competitorPosts}
+            refreshing={refreshingCompetitors}
+            onRefresh={refreshCompetitorPosts}
+            hasCompetitors={competitors.length > 0}
+          />
+          <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
+        </div>
+      )}
 
       {shareUrl && (
         <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
@@ -376,39 +434,6 @@ export default function ClientSocialPage() {
           onSubmit={generate} submitting={generating}
         />
       )}
-
-      <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22, marginTop: 18 }}>
-        <div>
-          <div style={styles.h3}>Past batches</div>
-          {!batches.length && <div style={{ color: '#888', fontSize: 13 }}>Nothing yet — click Generate to start.</div>}
-          {batches.map(b => (
-            <div key={b.id} style={{ ...styles.batchRow, ...(b.id === activeBatchId ? styles.batchRowActive : {}) }} onClick={() => selectBatch(b.id)}>
-              <div style={{ fontWeight: 600, fontSize: 13 }}>{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>{b.post_count} posts</div>
-              {b.brief && <div style={{ fontSize: 11, color: '#999', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
-              {b.id === activeBatchId && (
-                <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} style={{ ...dangerBtn, padding: '3px 10px', fontSize: 11, marginTop: 6 }}>Delete batch</button>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <div>
-          {!posts.length && <div style={{ color: '#888', padding: 20 }}>Pick a batch on the left, or generate a new one.</div>}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
-            {posts.map(p => (
-              <PostCard key={p.id} post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
-                onChange={patch => updatePost(p.id, patch)}
-                onDelete={() => deletePost(p.id)}
-                onPublish={(url) => publishPost(p.id, url)}
-                onRefreshInsights={() => refreshInsights(p.id)}
-                onRenderTemplates={() => renderTemplates(p.id)}
-                onGenerateMedia={(kind) => generateMedia(p.id, kind)}
-                onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
-            ))}
-          </div>
-        </div>
-      </div>
       {plannerOpen && (
         <SocialPlannerChat
           clientId={id}
@@ -444,6 +469,73 @@ export default function ClientSocialPage() {
       setPosts(p);
     } catch {}
   }
+}
+
+// Brainstorm tab — the 9-post idea generator. Past batches on the
+// left, the active batch's post cards on the right, plus the
+// brainstorm-only actions (Generate / Bulk schedule / Share for
+// approval) in the section head.
+function BrainstormTab({
+  batches, posts, activeBatchId, onSelectBatch, onDeleteBatch,
+  onGenerate, onBulkSchedule, onShareForApproval, generating,
+  engagement, mediaByPost, updatePost, deletePost, publishPost,
+  refreshInsights, renderTemplates, generateMedia, deleteMedia,
+}) {
+  const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
+  return (
+    <div>
+      <div className="row between center wrap mb-4">
+        <div>
+          <div className="caption">Brainstorm</div>
+          <div className="h2 mt-2">9-post batches</div>
+        </div>
+        <div className="row wrap">
+          {hasAutopilotSupported && (
+            <UiButton variant="secondary" onClick={onBulkSchedule}>📅 Bulk schedule</UiButton>
+          )}
+          {activeBatchId && (
+            <UiButton variant="secondary" onClick={onShareForApproval}>Share for approval</UiButton>
+          )}
+          <UiButton variant="primary" onClick={onGenerate} disabled={generating}>
+            {generating ? 'Generating…' : 'Generate 9 posts'}
+          </UiButton>
+        </div>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: 22 }}>
+        <div>
+          <div className="caption caption-muted mb-3">Past batches</div>
+          {!batches.length && <div className="body-sm text-subtle">Nothing yet — click Generate to start.</div>}
+          <div className="stack stack-sm">
+            {batches.map(b => (
+              <div key={b.id} className="card" style={{ padding: 10, cursor: 'pointer', borderColor: b.id === activeBatchId ? 'var(--accent)' : 'var(--border-neutral)' }} onClick={() => onSelectBatch(b.id)}>
+                <div className="h3">{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+                <div className="body-xs text-subtle mt-2">{b.post_count} posts</div>
+                {b.brief && <div className="body-xs mt-2" style={{ lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
+                {b.id === activeBatchId && (
+                  <button onClick={(e) => { e.stopPropagation(); onDeleteBatch(b.id); }} className="btn btn-danger btn-sm mt-3">Delete batch</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div>
+          {!posts.length && <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left, or generate a new one.</p></div>}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+            {posts.map(p => (
+              <PostCard key={p.id} post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+                onChange={patch => updatePost(p.id, patch)}
+                onDelete={() => deletePost(p.id)}
+                onPublish={(url) => publishPost(p.id, url)}
+                onRefreshInsights={() => refreshInsights(p.id)}
+                onRenderTemplates={() => renderTemplates(p.id)}
+                onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+                onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
