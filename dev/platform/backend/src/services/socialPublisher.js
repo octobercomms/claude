@@ -60,6 +60,31 @@ function pickPrimaryMedia(driveFiles) {
   return { file: null, mediaKind: null };
 }
 
+// Decide how to publish a plan based on what's in the Drive folder + the
+// plan's declared platforms. Three modes:
+//   - 'carousel'  → 2+ images, no video, and plan.platforms hints at it
+//                   ('carousel', 'instagram_feed'). Publishes multi-image
+//                   posts to each platform that supports them.
+//   - 'video'     → first video file, single post (reels on IG).
+//   - 'image'     → first image file, single post.
+// Returns { mode, files: [...], mediaKind }.
+function pickMediaPlan(driveFiles, plan) {
+  if (!driveFiles?.length) return { mode: 'none', files: [], mediaKind: null };
+  const images = driveFiles.filter(f => (f.mimeType || '').startsWith('image/'));
+  const videos = driveFiles.filter(f => (f.mimeType || '').startsWith('video/'));
+  const declared = Array.isArray(plan?.platforms) ? plan.platforms.map(String) : [];
+  const carouselDeclared = declared.includes('carousel') || declared.includes('instagram_feed');
+  // Carousel needs 2+ images AND a hint that the plan was scoped that way.
+  // We never auto-promote a reel storyboard to a carousel — that would
+  // change the creative intent.
+  if (carouselDeclared && images.length >= 2 && videos.length === 0) {
+    return { mode: 'carousel', files: images.slice(0, 10), mediaKind: 'image' };
+  }
+  if (videos.length) return { mode: 'video', files: [videos[0]], mediaKind: 'video' };
+  if (images.length) return { mode: 'image', files: [images[0]], mediaKind: 'image' };
+  return { mode: 'none', files: [], mediaKind: null };
+}
+
 // Look up the Meta connector credentials for a client. Any of meta_ads /
 // instagram_insights works — they share the same OAuth token. Refreshes
 // nothing (Meta long-lived tokens don't auto-refresh) but checks validity.
@@ -87,6 +112,20 @@ async function getLinkedInCreds(clientId) {
   );
   if (!rows.length) throw new Error('No LinkedIn connector on this client — connect LinkedIn first.');
   return decrypt(rows[0].credentials);
+}
+
+// Look up the preferred Instagram Business id the AM picked on the
+// instagram_insights connector card. When set, the Meta publisher will
+// route through the Page that owns that IG account instead of falling
+// back to the first Page-with-IG. Lets multi-Page clients pick.
+async function getPreferredIgId(clientId) {
+  const { rows } = await pool.query(
+    `SELECT config FROM connectors
+      WHERE client_id = $1 AND connector_type = 'instagram_insights'
+      LIMIT 1`,
+    [clientId]
+  );
+  return rows[0]?.config?.value || null;
 }
 
 // Pick up every plan whose scheduled_at is due, hasn't been published yet
@@ -128,8 +167,12 @@ async function publishPlan(plan) {
       console.warn(`[autopilot] Drive listing failed for plan ${plan.id}: ${err.message}`);
     }
   }
-  const { file: primaryFile, mediaKind } = pickPrimaryMedia(driveFiles);
-  const mediaUrl = primaryFile ? signMediaUrl({ planId: plan.id, fileId: primaryFile.id }) : null;
+  // pickMediaPlan inspects the plan + folder and chooses one of:
+  // - carousel (2+ images, plan declares carousel intent)
+  // - video (first video)
+  // - image (first image)
+  // - none (folder empty)
+  const mediaPlan = pickMediaPlan(driveFiles, plan.plan);
 
   // Generate per-platform captions from the locked plan.
   let captions = {};
@@ -141,13 +184,14 @@ async function publishPlan(plan) {
 
   // Per platform: claim a publication row, attempt publish, record result.
   for (const platform of plan.target_platforms) {
-    await publishToPlatform({ plan, platform, caption: captions[platform] || '', mediaUrl, mediaKind, primaryFile });
+    await publishToPlatform({ plan, platform, caption: captions[platform] || '', mediaPlan });
   }
 }
 
-async function publishToPlatform({ plan, platform, caption, mediaUrl, mediaKind, primaryFile }) {
+async function publishToPlatform({ plan, platform, caption, mediaPlan }) {
   // Claim or upsert the row. ON CONFLICT lets us retry transient failures
   // without creating duplicate rows.
+  const mediaRefs = mediaPlan.files.map(f => ({ id: f.id, name: f.name, mimeType: f.mimeType }));
   const { rows: upsert } = await pool.query(
     `INSERT INTO social_post_publications (plan_id, client_id, platform, scheduled_at, status, caption, media_refs, attempts)
      VALUES ($1, $2, $3, $4, 'in_flight', $5, $6, 1)
@@ -161,7 +205,7 @@ async function publishToPlatform({ plan, platform, caption, mediaUrl, mediaKind,
     [
       plan.id, plan.client_id, platform, plan.scheduled_at,
       caption || null,
-      JSON.stringify(primaryFile ? [{ id: primaryFile.id, name: primaryFile.name, mimeType: primaryFile.mimeType }] : []),
+      JSON.stringify(mediaRefs),
     ]
   );
   const pubId = upsert[0].id;
@@ -171,40 +215,71 @@ async function publishToPlatform({ plan, platform, caption, mediaUrl, mediaKind,
     let result;
     if (platform === 'instagram' || platform === 'facebook') {
       const creds = await getMetaCreds(plan.client_id);
-      const targets = await meta.pickPublishingTargets(creds);
-      if (platform === 'instagram') {
-        result = await meta.publishToInstagram({
-          igBusinessId: targets.igBusinessId,
-          pageAccessToken: targets.pageAccessToken,
-          caption, mediaUrl, mediaKind,
-        });
+      const preferredIg = await getPreferredIgId(plan.client_id);
+      const targets = await meta.pickPublishingTargets(creds, preferredIg);
+      if (mediaPlan.mode === 'carousel') {
+        const imageUrls = mediaPlan.files.map(f => signMediaUrl({ planId: plan.id, fileId: f.id }));
+        if (platform === 'instagram') {
+          result = await meta.publishCarouselToInstagram({
+            igBusinessId: targets.igBusinessId,
+            pageAccessToken: targets.pageAccessToken,
+            caption, imageUrls,
+          });
+        } else {
+          result = await meta.publishMultiPhotoToFacebook({
+            pageId: targets.pageId,
+            pageAccessToken: targets.pageAccessToken,
+            caption, imageUrls,
+          });
+        }
       } else {
-        result = await meta.publishToFacebookPage({
-          pageId: targets.pageId,
-          pageAccessToken: targets.pageAccessToken,
-          caption, mediaUrl, mediaKind,
-        });
+        const primaryFile = mediaPlan.files[0] || null;
+        const mediaUrl = primaryFile ? signMediaUrl({ planId: plan.id, fileId: primaryFile.id }) : null;
+        if (platform === 'instagram') {
+          result = await meta.publishToInstagram({
+            igBusinessId: targets.igBusinessId,
+            pageAccessToken: targets.pageAccessToken,
+            caption, mediaUrl, mediaKind: mediaPlan.mediaKind,
+          });
+        } else {
+          result = await meta.publishToFacebookPage({
+            pageId: targets.pageId,
+            pageAccessToken: targets.pageAccessToken,
+            caption, mediaUrl, mediaKind: mediaPlan.mediaKind,
+          });
+        }
       }
     } else if (platform === 'linkedin') {
       const creds = await getLinkedInCreds(plan.client_id);
-      // LinkedIn doesn't accept a remote URL — we have to stream the
-      // bytes through. Fetch directly from Drive (sidesteps the media
-      // proxy entirely since we're not handing the URL to a third party).
-      let mediaStream = null, mediaContentType = null, mediaContentLength = null;
-      if (primaryFile) {
-        const upstream = await socialDrive.downloadFile(plan.client_id, primaryFile.id);
-        mediaStream = upstream.data;
-        mediaContentType = upstream.headers['content-type'] || primaryFile.mimeType;
-        mediaContentLength = upstream.headers['content-length'] || primaryFile.size;
+      if (mediaPlan.mode === 'carousel') {
+        // LinkedIn doesn't take URLs — open one stream per image and
+        // hand them to the carousel publisher.
+        const images = [];
+        for (const f of mediaPlan.files) {
+          const upstream = await socialDrive.downloadFile(plan.client_id, f.id);
+          images.push({
+            stream: upstream.data,
+            contentType: upstream.headers['content-type'] || f.mimeType,
+            contentLength: upstream.headers['content-length'] || f.size,
+          });
+        }
+        result = await linkedin.publishCarouselToLinkedIn({ credentials: creds, caption, images });
+      } else {
+        const primaryFile = mediaPlan.files[0] || null;
+        let mediaStream = null, mediaContentType = null, mediaContentLength = null;
+        if (primaryFile) {
+          const upstream = await socialDrive.downloadFile(plan.client_id, primaryFile.id);
+          mediaStream = upstream.data;
+          mediaContentType = upstream.headers['content-type'] || primaryFile.mimeType;
+          mediaContentLength = upstream.headers['content-length'] || primaryFile.size;
+        }
+        result = await linkedin.publishToLinkedIn({
+          credentials: creds,
+          caption,
+          mediaStream, mediaContentType, mediaContentLength,
+          mediaKind: mediaPlan.mediaKind,
+        });
       }
-      result = await linkedin.publishToLinkedIn({
-        credentials: creds,
-        caption,
-        mediaStream,
-        mediaContentType,
-        mediaContentLength,
-        mediaKind,
-      });
     } else {
       throw new Error(`Unknown platform: ${platform}`);
     }
@@ -252,5 +327,5 @@ async function publishDuePlans() {
 module.exports = {
   publishDuePlans, publishPlan,
   signMediaUrl, verifyMediaToken,
-  pickPrimaryMedia,
+  pickPrimaryMedia, pickMediaPlan,
 };

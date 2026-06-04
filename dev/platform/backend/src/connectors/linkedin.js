@@ -234,6 +234,29 @@ async function publishToLinkedIn({ credentials, caption, mediaStream, mediaConte
   });
 }
 
+// Multi-image post. LinkedIn's ugcPosts API accepts multiple media URNs
+// under shareMediaCategory=IMAGE — they render as a swipeable carousel
+// in the feed. Caller supplies one stream per image; we register +
+// upload each, then create the post referencing all asset URNs.
+async function publishCarouselToLinkedIn({ credentials, caption, images }) {
+  if (!images?.length) throw new Error('LinkedIn carousel requires at least 1 image.');
+  const accessToken = credentials.access_token;
+  const memberUrn = await getMemberUrn(credentials);
+  const assetUrns = [];
+  for (const img of images) {
+    const { assetUrn, uploadUrl } = await registerMediaUpload({ accessToken, memberUrn, kind: 'image' });
+    await uploadMediaBytes({
+      uploadUrl, accessToken,
+      stream: img.stream, contentType: img.contentType, contentLength: img.contentLength,
+    });
+    assetUrns.push(assetUrn);
+  }
+  return createUgcPost({
+    accessToken, memberUrn, caption,
+    mediaCategory: 'IMAGE', mediaAssets: assetUrns,
+  });
+}
+
 async function fetchData() {
   // No reporting today — the social autopilot uses LinkedIn write-only.
   // Adding read-side metrics is a future task.
@@ -243,5 +266,5 @@ async function fetchData() {
 module.exports = {
   authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
   listAccounts, getAccessReport, fetchData,
-  publishToLinkedIn, getMemberUrn,
+  publishToLinkedIn, publishCarouselToLinkedIn, getMemberUrn,
 };

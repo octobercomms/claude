@@ -1,5 +1,6 @@
 const cron = require('node-cron');
 const pool = require('../db');
+const { decrypt } = require('../utils/encryption');
 const reportService = require('./reportService');
 const dataForSEO = require('../connectors/dataforseo');
 const emailService = require('./emailService');
@@ -191,6 +192,38 @@ async function runWeeklyAIOChecks() {
 
 async function runConnectorHealthCheck() {
   try {
+    // Proactively re-check LinkedIn tokens — they expire after ~60 days
+    // with no refresh, and we only learn from the publisher otherwise
+    // (which fails noisily mid-publish). Flip status to 'expired' so the
+    // generic alert below picks it up and the AM gets a reconnect prompt
+    // before the next scheduled post.
+    try {
+      const linkedinConnector = require('../connectors/linkedin');
+      const { rows: liRows } = await pool.query(
+        `SELECT id, client_id, credentials FROM connectors
+          WHERE connector_type = 'linkedin_organic' AND status = 'active'
+            AND credentials IS NOT NULL AND credentials != '{}'`
+      );
+      for (const row of liRows) {
+        try {
+          const creds = decrypt(row.credentials);
+          // Treat expires_at in the past as instant fail without an API
+          // round-trip — the token's already dead.
+          if (creds?.expires_at && Date.now() > creds.expires_at) {
+            throw new Error('Token expired (60-day lifetime reached). Reconnect LinkedIn.');
+          }
+          await linkedinConnector.checkTokenValidity(creds);
+        } catch (tokenErr) {
+          await pool.query(
+            `UPDATE connectors SET status = 'expired', error_message = $1 WHERE id = $2`,
+            [tokenErr.message, row.id]
+          );
+        }
+      }
+    } catch (err) {
+      console.error('[Scheduler] LinkedIn token check failed:', err.message);
+    }
+
     const { rows } = await pool.query(
       `SELECT con.connector_type, con.status, con.error_message, con.store_label,
               cl.name as client_name

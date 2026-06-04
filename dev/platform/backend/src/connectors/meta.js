@@ -294,11 +294,13 @@ async function getAccessReport(credentials) {
 // access token (not the user token) is what the publish endpoints need, so
 // we always look up the Page first and use its scoped token.
 
-// Find the first Page accessible to this user that owns an IG Business
-// account. For multi-Page clients we'd let the AM pick; for now the
-// MVP picks the first match. Returns { pageId, pageName, pageAccessToken,
-// igBusinessId, igUsername }.
-async function pickPublishingTargets(credentials) {
+// Find the Page + IG Business Account to publish to. For a single-Page
+// client this is automatic. For multi-Page clients the AM picks their
+// IG account in the Connectors tab — we honour that selection by walking
+// /me/accounts and matching the IG business id, which transitively
+// identifies the right Page (one Page owns each IG business account).
+// Returns { pageId, pageName, pageAccessToken, igBusinessId, allPages }.
+async function pickPublishingTargets(credentials, preferredIgId = null) {
   const { data } = await axios.get(`${BASE_URL}/me/accounts`, {
     params: {
       access_token: credentials.access_token,
@@ -308,14 +310,23 @@ async function pickPublishingTargets(credentials) {
   });
   const pages = data.data || [];
   if (!pages.length) throw new Error('No Facebook Pages found on this Meta connection — the user must be an admin of at least one Page.');
-  // Prefer the first Page that has IG attached; fall back to the first Page.
-  const withIg = pages.find(p => p.instagram_business_account?.id);
-  const page = withIg || pages[0];
+  let page;
+  if (preferredIgId) {
+    page = pages.find(p => p.instagram_business_account?.id === String(preferredIgId));
+    if (!page) {
+      const available = pages.filter(p => p.instagram_business_account?.id).map(p => `${p.name} (IG id ${p.instagram_business_account.id})`).join(', ') || '(no Pages have an IG business account attached)';
+      throw new Error(`No Facebook Page found whose IG business account matches the saved selection (${preferredIgId}). Available: ${available}.`);
+    }
+  } else {
+    // Default: first Page with IG attached, else first Page.
+    page = pages.find(p => p.instagram_business_account?.id) || pages[0];
+  }
   return {
     pageId: page.id,
     pageName: page.name,
     pageAccessToken: page.access_token,
     igBusinessId: page.instagram_business_account?.id || null,
+    allPages: pages.map(p => ({ id: p.id, name: p.name, igBusinessId: p.instagram_business_account?.id || null })),
   };
 }
 
@@ -390,9 +401,73 @@ async function publishToInstagram({ igBusinessId, pageAccessToken, caption, medi
   return { id: mediaId, posted_url: permalink };
 }
 
+// Publish a multi-image carousel to Instagram. Three steps: one child
+// container per image, one parent CAROUSEL container referencing them,
+// then media_publish on the parent. IG caps carousels at 10 items.
+async function publishCarouselToInstagram({ igBusinessId, pageAccessToken, caption, imageUrls }) {
+  if (!igBusinessId) throw new Error('No Instagram Business account attached to this Page.');
+  if (!imageUrls?.length) throw new Error('Instagram carousel requires at least 2 image URLs.');
+  const items = imageUrls.slice(0, 10);
+  // Step 1: create one container per child image. is_carousel_item=true
+  // skips the per-image caption — the caption goes on the parent only.
+  const children = [];
+  for (const url of items) {
+    const { data } = await axios.post(`${BASE_URL}/${igBusinessId}/media`, null, {
+      params: { access_token: pageAccessToken, image_url: url, is_carousel_item: true },
+    });
+    children.push(data.id);
+  }
+  // Step 2: parent carousel container.
+  const { data: parent } = await axios.post(`${BASE_URL}/${igBusinessId}/media`, null, {
+    params: {
+      access_token: pageAccessToken,
+      media_type: 'CAROUSEL',
+      children: children.join(','),
+      caption: caption || '',
+    },
+  });
+  // Step 3: publish.
+  const { data: published } = await axios.post(`${BASE_URL}/${igBusinessId}/media_publish`, null, {
+    params: { access_token: pageAccessToken, creation_id: parent.id },
+  });
+  let permalink = null;
+  try {
+    const { data: m } = await axios.get(`${BASE_URL}/${published.id}`, {
+      params: { access_token: pageAccessToken, fields: 'permalink' },
+    });
+    permalink = m.permalink || null;
+  } catch {}
+  return { id: published.id, posted_url: permalink };
+}
+
+// Multi-photo Facebook post. Each photo uploads with published=false
+// (returns the photo id), then one feed post attaches them all with the
+// caption.
+async function publishMultiPhotoToFacebook({ pageId, pageAccessToken, caption, imageUrls }) {
+  if (!imageUrls?.length) throw new Error('Facebook multi-photo requires at least 1 image URL.');
+  const mediaIds = [];
+  for (const url of imageUrls) {
+    const { data } = await axios.post(`${BASE_URL}/${pageId}/photos`, null, {
+      params: { access_token: pageAccessToken, url, published: false },
+    });
+    mediaIds.push(data.id);
+  }
+  // attached_media is an array — Graph accepts it as repeated query
+  // params (attached_media[0]={...}&attached_media[1]={...}). axios
+  // serializes nested objects with brackets by default when keys are
+  // strings — we build it explicitly for predictability.
+  const params = { access_token: pageAccessToken, message: caption || '' };
+  mediaIds.forEach((id, i) => {
+    params[`attached_media[${i}]`] = JSON.stringify({ media_fbid: id });
+  });
+  const { data } = await axios.post(`${BASE_URL}/${pageId}/feed`, null, { params });
+  return { id: data.id, posted_url: `https://www.facebook.com/${data.id}` };
+}
+
 module.exports = {
   authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
   fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights,
   parseSocialUrl, shortcodeToMediaId,
   pickPublishingTargets, publishToFacebookPage, publishToInstagram,
+  publishCarouselToInstagram, publishMultiPhotoToFacebook,
 };
