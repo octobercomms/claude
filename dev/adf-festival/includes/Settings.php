@@ -77,15 +77,34 @@ final class Settings {
     }
 
     /**
-     * Read a secret (constant first, then option), or a config value.
+     * Read a secret (wp-config.php constant first for security, then the value
+     * entered in admin settings), or a non-secret config value.
      */
     public static function get(string $key, $default = null) {
         if (isset(self::SECRET_CONSTANTS[$key])) {
             $const = self::SECRET_CONSTANTS[$key];
-            return defined($const) ? constant($const) : ($default ?? '');
+            if (defined($const) && (string) constant($const) !== '') {
+                return constant($const);
+            }
+            $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
+            return $all[$key] ?? ($default ?? '');
         }
         $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
         return $all[$key] ?? $default;
+    }
+
+    /**
+     * True when a secret is pinned by a wp-config.php constant (so the admin
+     * field should be locked).
+     */
+    public static function secret_is_constant(string $key): bool {
+        $const = self::SECRET_CONSTANTS[$key] ?? '';
+        return $const !== '' && defined($const) && (string) constant($const) !== '';
+    }
+
+    /** Map of secret key => constant name (for the settings UI). */
+    public static function secret_keys(): array {
+        return self::SECRET_CONSTANTS;
     }
 
     public static function all(): array {

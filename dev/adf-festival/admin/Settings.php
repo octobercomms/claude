@@ -107,6 +107,20 @@ final class Settings {
 
         $in = wp_unslash($_POST);
 
+        // API keys: store any that aren't pinned by a wp-config.php constant.
+        $secrets = [];
+        foreach (array_keys(Config::secret_keys()) as $key) {
+            if (Config::secret_is_constant($key)) {
+                continue;
+            }
+            if (array_key_exists('secret_' . $key, $in)) {
+                $secrets[$key] = sanitize_text_field((string) $in['secret_' . $key]);
+            }
+        }
+        if ($secrets) {
+            Config::update($secrets);
+        }
+
         // Pricing (dollars in the form -> cents stored).
         $pricing = [];
         foreach (PostTypes::listing_types() as $type) {

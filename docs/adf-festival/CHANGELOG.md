@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `adf-v<version>`. Bump the
 `readme.txt`) and merge to `main`; the release workflow builds and publishes the
 release automatically.
 
+## 1.2.0
+
+- **Editable API keys in admin** — Settings → API keys now has fields for the
+  Stripe / Brevo / Claude / Google Maps keys with a show/hide (eye) toggle. A
+  wp-config.php constant still wins where defined and locks its field; otherwise
+  the entered key is stored in the database.
+- **Automatic table upgrades** — a DB-version check (`ADF_DB_VERSION`) builds any
+  new/changed tables on load via idempotent `dbDelta`, so updates no longer need a
+  manual deactivate/reactivate. (1.0.0 → 1.2.0 sites get the ticketing/ads tables
+  automatically.)
+- **Bundled QR libraries** — `qrcode.min.js` (qrcodejs) and `html5-qrcode.min.js`
+  are now shipped, so printed tickets render scannable QR codes and the check-in
+  camera scanner works out of the box (no external CDN).
+
 ## 1.1.0
 
 Major feature release — full Event Tickets + Ad Manager parity, backend manual
