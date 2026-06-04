@@ -211,6 +211,25 @@ router.get('/:id/focus-history', async (req, res) => {
 });
 
 // Update ads margin
+// Per-client autopilot kill switch. When paused, the publisher cron
+// skips every plan belonging to this client. Plans stay on the books —
+// they just don't fire until the toggle is flipped back. Useful when a
+// client account is being audited or the AM wants to re-review content
+// without unscheduling individual plans.
+router.patch('/:id/social-autopilot-paused', async (req, res) => {
+  const paused = !!req.body?.paused;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE clients SET social_autopilot_paused = $1 WHERE id = $2 RETURNING id, social_autopilot_paused',
+      [paused, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.patch('/:id/ads-margin', async (req, res) => {
   const { ads_margin } = req.body;
   if (ads_margin == null) return res.status(400).json({ error: 'ads_margin is required' });

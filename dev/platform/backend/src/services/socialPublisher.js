@@ -130,16 +130,20 @@ async function getPreferredIgId(clientId) {
 
 // Pick up every plan whose scheduled_at is due, hasn't been published yet
 // (no completed publication rows), and has at least one target platform.
-// Returns the rows ready to publish.
+// Skips paused clients so the AM can hit the kill switch without
+// touching individual plans.
 async function findDuePlans() {
   const { rows } = await pool.query(
     `SELECT p.id, p.client_id, p.title, p.plan, p.scheduled_at,
             p.drive_folder_url, p.target_platforms
        FROM social_post_plans p
+       JOIN clients c ON c.id = p.client_id
       WHERE p.scheduled_at IS NOT NULL
         AND p.scheduled_at <= NOW()
         AND p.target_platforms IS NOT NULL
         AND array_length(p.target_platforms, 1) > 0
+        AND c.active = true
+        AND c.social_autopilot_paused = false
         AND NOT EXISTS (
           SELECT 1 FROM social_post_publications pub
            WHERE pub.plan_id = p.id
@@ -174,6 +178,23 @@ async function publishPlan(plan) {
   // - none (folder empty)
   const mediaPlan = pickMediaPlan(driveFiles, plan.plan);
 
+  // Drive-empty grace period: if the AM set a folder but no media is in
+  // it yet, defer the publish (status='pending_drive') and let the cron
+  // pick it up again later instead of burning attempts on a doomed
+  // upload. Give a 24h window from scheduled_at; after that, the row is
+  // marked failed and we stop retrying. Same logic for every target
+  // platform — if media is mandatory and missing, defer them all
+  // together so the AM sees one coherent state rather than per-platform
+  // half-failures.
+  if (plan.drive_folder_url && mediaPlan.mode === 'none') {
+    const ageMs = Date.now() - new Date(plan.scheduled_at).getTime();
+    const giveUp = ageMs > 24 * 60 * 60 * 1000;
+    for (const platform of plan.target_platforms) {
+      await markDeferred({ plan, platform, giveUp });
+    }
+    return;
+  }
+
   // Generate per-platform captions from the locked plan.
   let captions = {};
   try {
@@ -186,6 +207,23 @@ async function publishPlan(plan) {
   for (const platform of plan.target_platforms) {
     await publishToPlatform({ plan, platform, caption: captions[platform] || '', mediaPlan });
   }
+}
+
+async function markDeferred({ plan, platform, giveUp }) {
+  const status = giveUp ? 'failed' : 'pending_drive';
+  const msg = giveUp
+    ? 'Gave up after 24h — Drive folder still empty at publish time.'
+    : 'Waiting on Drive folder — drop the final media in and the autopilot will pick it up on the next cron tick.';
+  await pool.query(
+    `INSERT INTO social_post_publications
+       (plan_id, client_id, platform, scheduled_at, status, error_message, attempts)
+     VALUES ($1, $2, $3, $4, $5, $6, 0)
+     ON CONFLICT (plan_id, platform) DO UPDATE
+       SET status = EXCLUDED.status,
+           error_message = EXCLUDED.error_message,
+           updated_at = NOW()`,
+    [plan.id, plan.client_id, platform, plan.scheduled_at, status, msg]
+  );
 }
 
 async function publishToPlatform({ plan, platform, caption, mediaPlan }) {

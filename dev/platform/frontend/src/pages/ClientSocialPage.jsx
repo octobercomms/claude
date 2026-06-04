@@ -197,6 +197,17 @@ export default function ClientSocialPage() {
     }
   }
 
+  async function toggleAutopilotPaused() {
+    const next = !client?.social_autopilot_paused;
+    try {
+      const r = await api.patch(`/clients/${id}/social-autopilot-paused`, { paused: next });
+      setClient(c => ({ ...c, social_autopilot_paused: r.social_autopilot_paused }));
+      toast(next ? 'Autopilot paused — no plans will publish until you resume.' : 'Autopilot resumed.', 'success');
+    } catch (e) {
+      toast(`Could not toggle: ${e.message}`, 'error');
+    }
+  }
+
   async function publishPost(postId, url) {
     try {
       const { post } = await api.post(`/social/posts/${postId}/publish`, { published_url: url });
@@ -229,7 +240,14 @@ export default function ClientSocialPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 22 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Social — {client?.name || ''}</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>
+            Social — {client?.name || ''}
+            {client?.social_autopilot_paused && (
+              <span style={{ marginLeft: 10, fontSize: 11, fontWeight: 700, color: '#b86e00', background: '#fff4e1', padding: '3px 8px', borderRadius: 3, textTransform: 'uppercase', verticalAlign: 'middle' }}>
+                Autopilot paused
+              </span>
+            )}
+          </h1>
           <p style={{ fontSize: 13, color: '#666', margin: '6px 0 0', maxWidth: 760, lineHeight: 1.5 }}>
             Generate nine posts at a time, grounded in the client's brief and current Google Trends signals.
             Each post has a hook, caption, hashtags, a visual direction and a frame-by-frame storyboard. Click
@@ -244,6 +262,9 @@ export default function ClientSocialPage() {
           {activeBatchId && (
             <button type="button" style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
           )}
+          <button type="button" style={secondaryBtn} onClick={toggleAutopilotPaused}>
+            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+          </button>
           <button type="button" style={secondaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
             {generating ? 'Generating…' : 'Generate 9 posts (batch)'}
           </button>
@@ -480,6 +501,9 @@ function formatNum(n) {
 function PlansList({ clientId, clientName, onOpen }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [editingPlanId, setEditingPlanId] = useState(null);
+  const [editDraft, setEditDraft] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -488,6 +512,31 @@ function PlansList({ clientId, clientName, onOpen }) {
       .catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [clientId]);
+
+  function beginEdit(plan) {
+    const iso = plan.scheduled_at ? new Date(plan.scheduled_at).toISOString().slice(0, 16) : '';
+    setEditDraft(iso);
+    setEditingPlanId(plan.id);
+  }
+
+  async function saveEdit(planId) {
+    setSavingEdit(true);
+    try {
+      await api.patch(`/social/clients/${clientId}/plans/${planId}/schedule`, {
+        scheduled_at: editDraft ? new Date(editDraft).toISOString() : null,
+      });
+      // Refetch so the list reflects the new time + any status changes
+      // (e.g. failed publications dropping off if scheduled_at moved
+      // forward).
+      const r = await api.get(`/social/clients/${clientId}/plans`);
+      setPlans(r);
+      setEditingPlanId(null);
+    } catch (e) {
+      alert(`Reschedule failed: ${e.message}`);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
 
   async function downloadPlan(planId, format) {
     try {
@@ -543,10 +592,26 @@ function PlansList({ clientId, clientName, onOpen }) {
                     {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
                   </span>
                 )}
-                {p.scheduled_at && !pubs.some(x => x.status === 'posted') && (
-                  <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
+                {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
+                  <button type="button" onClick={() => beginEdit(p)}
+                    style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3, border: 'none', cursor: 'pointer' }}
+                    title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
+                  </button>
+                )}
+                {editingPlanId === p.id && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <input type="datetime-local" value={editDraft} onChange={e => setEditDraft(e.target.value)}
+                      style={{ fontSize: 11, padding: '2px 4px', border: '1px solid #1a56db', borderRadius: 3 }} />
+                    <button type="button" onClick={() => saveEdit(p.id)} disabled={savingEdit}
+                      style={{ fontSize: 11, padding: '2px 8px', background: '#1a56db', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+                      {savingEdit ? '…' : 'Save'}
+                    </button>
+                    <button type="button" onClick={() => setEditingPlanId(null)}
+                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: '#666', border: '1px solid #ddd', borderRadius: 3, cursor: 'pointer' }}>
+                      Cancel
+                    </button>
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
