@@ -302,31 +302,63 @@ async function loadMetaCredentials(clientId) {
   return decrypt(rows[0].credentials);
 }
 
-// Pull a fresh engagement snapshot for a single post. IG only for now —
-// returns null + a reason for any other platform.
+// Pull a fresh engagement snapshot for a single post. Dispatches by
+// platform: IG via Graph media insights, FB via Page-post insights +
+// reaction summaries, LinkedIn via socialActions (likes + comments only,
+// member-level posts don't expose impressions). Other platforms (TikTok,
+// YouTube) fall through to a skipped result.
 async function refreshEngagement(post) {
-  if (!post.external_id || post.external_platform !== 'instagram') {
-    return { skipped: true, reason: 'Only Instagram engagement is auto-fetched. Paste platform numbers manually for other networks.' };
+  if (!post.external_id) return { skipped: true, reason: 'No external_id on this post — engagement fetch needs it.' };
+  if (post.external_platform === 'instagram') {
+    const creds = await loadMetaCredentials(post.client_id);
+    if (!creds) return { skipped: true, reason: 'No active Meta connector for this client.' };
+    const insights = await meta.fetchInstagramMediaInsights(creds, post.external_id);
+    const views = insights.plays ?? insights.video_views ?? null;
+    const watch = insights.ig_reels_video_view_total_time ?? null;
+    await pool.query(
+      `INSERT INTO social_post_engagement
+         (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       ON CONFLICT (post_id, fetched_at) DO NOTHING`,
+      [post.id, insights.impressions ?? null, insights.reach ?? null, views,
+       insights.likes ?? null, insights.comments ?? null, insights.shares ?? null,
+       insights.saved ?? null, watch, JSON.stringify(insights)]
+    );
+    return { ok: true, insights };
   }
-  const creds = await loadMetaCredentials(post.client_id);
-  if (!creds) return { skipped: true, reason: 'No active Meta connector for this client.' };
-  const insights = await meta.fetchInstagramMediaInsights(creds, post.external_id);
-  const reach = insights.reach ?? null;
-  const impressions = insights.impressions ?? null;
-  const views = insights.plays ?? insights.video_views ?? null;
-  const likes = insights.likes ?? null;
-  const comments = insights.comments ?? null;
-  const shares = insights.shares ?? null;
-  const saves = insights.saved ?? null;
-  const watch = insights.ig_reels_video_view_total_time ?? null;
-  await pool.query(
-    `INSERT INTO social_post_engagement
-       (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-     ON CONFLICT (post_id, fetched_at) DO NOTHING`,
-    [post.id, impressions, reach, views, likes, comments, shares, saves, watch, JSON.stringify(insights)]
-  );
-  return { ok: true, insights };
+  if (post.external_platform === 'facebook') {
+    const creds = await loadMetaCredentials(post.client_id);
+    if (!creds) return { skipped: true, reason: 'No active Meta connector for this client.' };
+    const e = await meta.fetchFacebookPostEngagement(creds, post.external_id);
+    await pool.query(
+      `INSERT INTO social_post_engagement
+         (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
+       VALUES ($1, $2, $3, NULL, $4, $5, $6, NULL, NULL, $7)
+       ON CONFLICT (post_id, fetched_at) DO NOTHING`,
+      [post.id, e.impressions, e.reach, e.likes, e.comments, e.shares, JSON.stringify(e.raw)]
+    );
+    return { ok: true, insights: e };
+  }
+  if (post.external_platform === 'linkedin') {
+    const { rows } = await pool.query(
+      `SELECT credentials FROM connectors
+        WHERE client_id = $1 AND connector_type = 'linkedin_organic' AND status = 'active' LIMIT 1`,
+      [post.client_id]
+    );
+    if (!rows.length) return { skipped: true, reason: 'No active LinkedIn connector for this client.' };
+    const linkedinConn = require('../connectors/linkedin');
+    const creds = decrypt(rows[0].credentials);
+    const e = await linkedinConn.fetchPostEngagement(creds, post.external_id);
+    await pool.query(
+      `INSERT INTO social_post_engagement
+         (post_id, impressions, reach, views, likes, comments, shares, saves, watch_time_sec, raw)
+       VALUES ($1, NULL, NULL, NULL, $2, $3, NULL, NULL, NULL, $4)
+       ON CONFLICT (post_id, fetched_at) DO NOTHING`,
+      [post.id, e.likes, e.comments, JSON.stringify(e.raw)]
+    );
+    return { ok: true, insights: e };
+  }
+  return { skipped: true, reason: `Engagement auto-fetch is not implemented for ${post.external_platform}. Paste numbers manually.` };
 }
 
 // Return the latest cached set of trending sounds for a client. Falls

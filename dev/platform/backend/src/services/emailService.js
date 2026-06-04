@@ -609,4 +609,48 @@ async function sendStrategistBriefing({ to, clientName, period, markdown, recomm
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing };
+// Daily roll-up of yesterday's autopilot publishes. One email per
+// invocation listing every client's results so the AM can scan
+// successes + failures in one place instead of scrolling each plan.
+async function sendAutopilotDigest({ to, dateLabel, perClient }) {
+  if (!to?.length) return;
+  const totalPosted = perClient.reduce((n, c) => n + c.posted.length, 0);
+  const totalFailed = perClient.reduce((n, c) => n + c.failed.length, 0);
+  if (totalPosted + totalFailed === 0) return; // nothing to say
+
+  const blocks = perClient.map(c => {
+    const okRows = c.posted.map(p => `
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;color:#666;text-transform:capitalize">${p.platform}</td>
+        <td style="padding:6px 12px;font-size:12px">${p.title || '(untitled plan)'}</td>
+        <td style="padding:6px 12px;font-size:12px">${p.posted_url ? `<a href="${p.posted_url}">view →</a>` : '—'}</td>
+      </tr>`).join('');
+    const failRows = c.failed.map(p => `
+      <tr>
+        <td style="padding:6px 12px;font-size:12px;color:#666;text-transform:capitalize">${p.platform}</td>
+        <td style="padding:6px 12px;font-size:12px">${p.title || '(untitled plan)'}</td>
+        <td style="padding:6px 12px;font-size:12px;color:#c62828">${p.error_message || 'failed'}</td>
+      </tr>`).join('');
+    return `
+      <h3 style="margin:24px 0 8px;color:#1a1a1a">${c.clientName}</h3>
+      ${c.posted.length ? `<table style="width:100%;border-collapse:collapse">${okRows}</table>` : ''}
+      ${c.failed.length ? `<div style="margin-top:8px;font-size:11px;color:#c62828;font-weight:700">Failed</div>
+         <table style="width:100%;border-collapse:collapse">${failRows}</table>` : ''}`;
+  }).join('');
+
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:700px;margin:0 auto;padding:20px">
+      <h2 style="margin:0">Autopilot — ${dateLabel}</h2>
+      <p style="color:#666;font-size:13px">${totalPosted} posted${totalFailed ? `, ${totalFailed} failed` : ''}.</p>
+      ${blocks}
+      <p style="color:#aaa;font-size:11px;margin-top:32px">October Marketing Intelligence — social autopilot digest</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to,
+    subject: `Autopilot ${dateLabel} — ${totalPosted} posted${totalFailed ? `, ${totalFailed} failed` : ''}`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest };

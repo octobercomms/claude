@@ -263,8 +263,33 @@ async function fetchData() {
   return { note: 'LinkedIn read-side metrics not implemented.' };
 }
 
+// Engagement counts for a published UGC post. /v2/socialActions surfaces
+// like + comment counts for member-level posts under the default API
+// product. Impressions / reach require organization-level scopes
+// (rw_organization_admin + LMDP approval) so those stay null — the AM
+// can read them off LinkedIn's native post analytics if needed.
+async function fetchPostEngagement(credentials, ugcUrn) {
+  if (!ugcUrn) throw new Error('LinkedIn engagement fetch needs the ugcPost URN.');
+  try {
+    const { data } = await axios.get(`${BASE_URL}/v2/socialActions/${encodeURIComponent(ugcUrn)}`, {
+      headers: { Authorization: `Bearer ${credentials.access_token}`, 'X-Restli-Protocol-Version': '2.0.0' },
+    });
+    return {
+      impressions: null,
+      reach: null,
+      likes: data?.likesSummary?.totalLikes ?? null,
+      comments: data?.commentsSummary?.aggregatedTotalComments ?? null,
+      shares: null,
+      raw: data,
+    };
+  } catch (err) {
+    const msg = err.response?.data?.message || err.message;
+    throw new Error(`LinkedIn engagement fetch failed: ${msg}`);
+  }
+}
+
 module.exports = {
   authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
-  listAccounts, getAccessReport, fetchData,
+  listAccounts, getAccessReport, fetchData, fetchPostEngagement,
   publishToLinkedIn, publishCarouselToLinkedIn, getMemberUrn,
 };

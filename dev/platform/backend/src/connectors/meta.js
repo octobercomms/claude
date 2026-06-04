@@ -154,9 +154,39 @@ async function fetchInstagramData(credentials, params) {
   return insights;
 }
 
-// Single-media insights — used by the Social performance loop to track a
-// published post's engagement over time. Available metrics vary by media
-// type, so we request a broad union and discard the ones the API rejects.
+// Facebook Page post engagement — used by the autopilot's Winners loop
+// once a post is live. Page posts surface impressions / reach via the
+// /insights edge; reactions / comments / shares are on the post object
+// itself (summary fields). Two requests in parallel, results merged
+// into the same shape socialPostEngagement stores.
+async function fetchFacebookPostEngagement(credentials, postId) {
+  const [insightsRes, postRes] = await Promise.all([
+    axios.get(`${BASE_URL}/${postId}/insights`, {
+      params: {
+        access_token: credentials.access_token,
+        metric: 'post_impressions,post_impressions_unique',
+      },
+    }).catch(err => ({ data: { error: err.response?.data?.error?.message || err.message } })),
+    axios.get(`${BASE_URL}/${postId}`, {
+      params: {
+        access_token: credentials.access_token,
+        fields: 'likes.summary(true).limit(0),comments.summary(true).limit(0),shares,reactions.summary(true).limit(0)',
+      },
+    }).catch(err => ({ data: { error: err.response?.data?.error?.message || err.message } })),
+  ]);
+  const out = {};
+  for (const entry of (insightsRes.data?.data || [])) {
+    out[entry.name] = entry.values?.[0]?.value;
+  }
+  return {
+    impressions: out.post_impressions ?? null,
+    reach: out.post_impressions_unique ?? null,
+    likes: postRes.data?.reactions?.summary?.total_count ?? postRes.data?.likes?.summary?.total_count ?? null,
+    comments: postRes.data?.comments?.summary?.total_count ?? null,
+    shares: postRes.data?.shares?.count ?? null,
+    raw: { insights: insightsRes.data, post: postRes.data },
+  };
+}
 async function fetchInstagramMediaInsights(credentials, mediaId) {
   // Two metric sets: feed/carousel and reels. We try the richer reel set
   // first; the API returns a generic error if a metric doesn't apply, so
@@ -467,6 +497,7 @@ async function publishMultiPhotoToFacebook({ pageId, pageAccessToken, caption, i
 module.exports = {
   authType, getAuthUrl, exchangeCode, refreshToken, checkTokenValidity,
   fetchData, listAccounts, getAccessReport, fetchInstagramMediaInsights,
+  fetchFacebookPostEngagement,
   parseSocialUrl, shortcodeToMediaId,
   pickPublishingTargets, publishToFacebookPage, publishToInstagram,
   publishCarouselToInstagram, publishMultiPhotoToFacebook,

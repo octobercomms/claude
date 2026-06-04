@@ -71,6 +71,17 @@ cron.schedule('*/5 * * * *', async () => {
   }
 });
 
+// Social autopilot daily digest: 08:00. Rolls up yesterday's
+// publications across every client into one email so the AM can scan
+// successes + failures in one place without opening each plan.
+cron.schedule('0 8 * * *', async () => {
+  try {
+    await runAutopilotDigest();
+  } catch (err) {
+    console.error('[Autopilot] digest failed:', err.message);
+  }
+});
+
 // Daily connector health check: 07:30 AM
 cron.schedule('30 7 * * *', async () => {
   console.log('[Scheduler] Running connector health check...');
@@ -481,4 +492,48 @@ async function runSocialEngagementRefresh() {
   }
 }
 
-module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runSocialEngagementRefresh, runReportReminderCheck, runOutreachSends };
+// Roll up yesterday's autopilot publications across every active client
+// into a single email. Yesterday = the 24h window ending at the cron
+// time so daily 08:00 captures everything posted the previous calendar
+// day in the platform's timezone.
+async function runAutopilotDigest() {
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const { rows } = await pool.query(
+    `SELECT cl.id AS client_id, cl.name AS client_name,
+            pub.platform, pub.status, pub.posted_url, pub.error_message,
+            p.title AS plan_title
+       FROM social_post_publications pub
+       JOIN social_post_plans p ON p.id = pub.plan_id
+       JOIN clients cl ON cl.id = pub.client_id
+      WHERE cl.active = true
+        AND pub.updated_at >= $1
+        AND pub.status IN ('posted', 'failed')
+      ORDER BY cl.name, pub.updated_at`,
+    [since]
+  );
+  if (!rows.length) {
+    console.log('[Autopilot] digest: nothing to report.');
+    return;
+  }
+  const byClient = new Map();
+  for (const r of rows) {
+    if (!byClient.has(r.client_id)) {
+      byClient.set(r.client_id, { clientName: r.client_name, posted: [], failed: [] });
+    }
+    const entry = byClient.get(r.client_id);
+    const row = { platform: r.platform, title: r.plan_title, posted_url: r.posted_url, error_message: r.error_message };
+    if (r.status === 'posted') entry.posted.push(row);
+    else entry.failed.push(row);
+  }
+  const perClient = [...byClient.values()];
+  const dateLabel = since.toLocaleDateString('en-GB', { dateStyle: 'medium' });
+  const to = (process.env.ALERT_EMAIL || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+  if (!to.length) {
+    console.warn('[Autopilot] digest: ALERT_EMAIL not set — skipping send.');
+    return;
+  }
+  await emailService.sendAutopilotDigest({ to, dateLabel, perClient });
+  console.log(`[Autopilot] digest sent for ${perClient.length} clients.`);
+}
+
+module.exports = { runScheduledReports, runDailyRankChecks, runWeeklyAIOChecks, runSocialEngagementRefresh, runReportReminderCheck, runOutreachSends, runAutopilotDigest };
