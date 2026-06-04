@@ -477,6 +477,15 @@ router.get('/clients/:clientId/winners', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Daily reach + interactions sparkline for the Analytics summary chips.
+router.get('/clients/:clientId/sparkline', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 365);
+    const points = await social.getReachSparkline(req.params.clientId, { days });
+    res.json(points);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/clients/:clientId/framework-breakdown', async (req, res) => {
   try {
     const days = Math.min(parseInt(req.query.days) || 90, 365);

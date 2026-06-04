@@ -277,15 +277,57 @@ async function getRecentWinners(clientId, { days = 90, limit = 5 } = {}) {
      FROM latest l JOIN social_posts p ON p.id = l.post_id`,
     [clientId, days]
   );
-  return rows
+  const scored = rows
     .map(r => {
       const reachLike = r.reach || r.impressions || r.views || 0;
       const interactions = (r.likes || 0) + (r.comments || 0) + (r.shares || 0) + (r.saves || 0);
       const rate = reachLike > 0 ? Math.round((interactions / reachLike) * 1000) / 10 : 0;
-      return { ...r, engagement_rate: rate };
-    })
+      return { ...r, reach_like: reachLike, engagement_rate: rate };
+    });
+
+  // "Heater" detection — any post whose reach is at least 2× the
+  // 30-day median across this client's published posts. Median is more
+  // robust than mean here because one viral post would otherwise drag
+  // the threshold up so high that nothing else qualifies.
+  const reaches = scored.map(r => r.reach_like).filter(n => n > 0).sort((a, b) => a - b);
+  const median = reaches.length ? reaches[Math.floor(reaches.length / 2)] : 0;
+  const heaterThreshold = median * 2;
+  const withHeater = scored.map(r => ({
+    ...r,
+    is_heater: heaterThreshold > 0 && r.reach_like >= heaterThreshold,
+  }));
+
+  return withHeater
     .sort((a, b) => b.engagement_rate - a.engagement_rate)
     .slice(0, limit);
+}
+
+// Daily reach sparkline for a single client's last N days. Returns one
+// point per day (max reach across that day's snapshots, aggregated
+// across all posts). Used by the Analytics summary chips so the AM
+// sees momentum at a glance without opening individual posts.
+async function getReachSparkline(clientId, { days = 30 } = {}) {
+  const { rows } = await pool.query(
+    `WITH daily AS (
+       SELECT DATE_TRUNC('day', e.fetched_at) AS day,
+              SUM(COALESCE(e.reach, e.impressions, e.views, 0)) AS reach,
+              SUM(COALESCE(e.likes, 0) + COALESCE(e.comments, 0)
+                  + COALESCE(e.shares, 0) + COALESCE(e.saves, 0)) AS interactions
+         FROM social_post_engagement e
+         JOIN social_posts p ON p.id = e.post_id
+        WHERE p.client_id = $1
+          AND e.fetched_at >= NOW() - ($2::int || ' days')::interval
+        GROUP BY day
+        ORDER BY day ASC
+     )
+     SELECT day, reach::bigint, interactions::bigint FROM daily`,
+    [clientId, days]
+  );
+  return rows.map(r => ({
+    day: r.day,
+    reach: Number(r.reach || 0),
+    interactions: Number(r.interactions || 0),
+  }));
 }
 
 // Look up the active Meta connector for a client and return decrypted
@@ -432,6 +474,7 @@ async function getFrameworkBreakdown(clientId, { days = 90 } = {}) {
 }
 
 module.exports = {
-  generateBatch, getRecentWinners, refreshEngagement, loadMetaCredentials,
+  generateBatch, getRecentWinners, getReachSparkline,
+  refreshEngagement, loadMetaCredentials,
   getRecentTrendingSounds, refreshTrendingSounds, getFrameworkBreakdown,
 };

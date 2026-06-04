@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 import SocialPlannerChat from '../components/SocialPlannerChat';
+import Sparkline from '../components/Sparkline';
 
 // Social Phase 1 — generate 9 posts at a time, grounded in the client's
 // briefing + Google Trends signals. Each post has a hook, caption,
@@ -22,6 +23,7 @@ export default function ClientSocialPage() {
   const [brief, setBrief] = useState('');
   const [platforms, setPlatforms] = useState(['instagram', 'tiktok']);
   const [winners, setWinners] = useState([]);
+  const [sparkline, setSparkline] = useState([]);
   const [engagement, setEngagement] = useState({});
   const [mediaByPost, setMediaByPost] = useState({});
   const [shareUrl, setShareUrl] = useState(null);
@@ -33,7 +35,7 @@ export default function ClientSocialPage() {
   const [bulkOpen, setBulkOpen] = useState(false);
 
   async function loadAll() {
-    const [c, bs, comp, ws, eng, fb, ts] = await Promise.all([
+    const [c, bs, comp, ws, eng, fb, ts, sp] = await Promise.all([
       api.get(`/clients/${id}`),
       api.get(`/social/clients/${id}/batches`),
       api.get(`/social/clients/${id}/competitors`),
@@ -41,6 +43,7 @@ export default function ClientSocialPage() {
       api.get(`/social/clients/${id}/engagement`).catch(() => []),
       api.get(`/social/clients/${id}/framework-breakdown?days=90`).catch(() => []),
       api.get(`/social/clients/${id}/trending-sounds`).catch(() => ({ sounds: [] })),
+      api.get(`/social/clients/${id}/sparkline?days=30`).catch(() => []),
     ]);
     setClient(c);
     setBatches(bs);
@@ -48,6 +51,7 @@ export default function ClientSocialPage() {
     setWinners(ws || []);
     setFrameworkBreakdown(fb || []);
     setTrendingSounds(ts.sounds || []);
+    setSparkline(sp || []);
     const eMap = {};
     for (const e of (eng || [])) eMap[e.post_id] = e;
     setEngagement(eMap);
@@ -277,7 +281,7 @@ export default function ClientSocialPage() {
 
       <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
 
-      <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} />
+      <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
 
       {shareUrl && (
         <ShareLinkBanner url={shareUrl} onDismiss={() => setShareUrl(null)} />
@@ -504,6 +508,7 @@ function PlansList({ clientId, clientName, onOpen }) {
   const [editingPlanId, setEditingPlanId] = useState(null);
   const [editDraft, setEditDraft] = useState('');
   const [savingEdit, setSavingEdit] = useState(false);
+  const [view, setView] = useState('list');   // 'list' | 'calendar'
 
   useEffect(() => {
     let cancelled = false;
@@ -559,9 +564,25 @@ function PlansList({ clientId, clientName, onOpen }) {
 
   return (
     <div style={{ marginBottom: 22, padding: 14, background: '#fafafa', border: '1px solid #eee', borderRadius: 6 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-        Locked plans
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Locked plans
+        </div>
+        <div style={{ display: 'flex', gap: 0, border: '1px solid #ddd', borderRadius: 4, overflow: 'hidden' }}>
+          {['list', 'calendar'].map(v => (
+            <button key={v} type="button" onClick={() => setView(v)}
+              style={{
+                padding: '4px 10px', fontSize: 11, fontWeight: 600,
+                background: view === v ? '#1a1a1a' : 'white',
+                color: view === v ? 'white' : '#666',
+                border: 'none', cursor: 'pointer', textTransform: 'capitalize',
+              }}>{v}</button>
+          ))}
+        </div>
       </div>
+      {view === 'calendar' ? (
+        <PlansCalendar plans={plans} onOpen={onOpen} />
+      ) : (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {plans.map(p => {
           // Compact per-platform status chips. posted is green, failed
@@ -621,6 +642,78 @@ function PlansList({ clientId, clientName, onOpen }) {
             </div>
           );
         })}
+      </div>
+      )}
+    </div>
+  );
+}
+
+// Monthly grid view of scheduled plans. Click a chip to open the plan
+// in the planner chat. Renders only plans with a scheduled_at; bulk-
+// scheduled brainstorm posts therefore appear; draft plans without a
+// schedule don't (they have no slot to render in).
+function PlansCalendar({ plans, onOpen }) {
+  const [cursor, setCursor] = useState(() => {
+    const d = new Date(); d.setDate(1); return d;
+  });
+  const scheduled = plans.filter(p => p.scheduled_at);
+  const month = cursor.getMonth();
+  const year = cursor.getFullYear();
+  const monthLabel = cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+  const firstDow = new Date(year, month, 1).getDay();   // 0=Sun
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  // Compose 6 rows × 7 cols, padding leading + trailing.
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(new Date(year, month, d));
+  while (cells.length % 7 !== 0) cells.push(null);
+  // Bucket plans by yyyy-mm-dd of scheduled_at.
+  const byDay = new Map();
+  for (const p of scheduled) {
+    const dt = new Date(p.scheduled_at);
+    if (dt.getMonth() !== month || dt.getFullYear() !== year) continue;
+    const k = dt.getDate();
+    if (!byDay.has(k)) byDay.set(k, []);
+    byDay.get(k).push(p);
+  }
+  function shift(n) {
+    const next = new Date(cursor); next.setMonth(next.getMonth() + n); setCursor(next);
+  }
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
+        <div style={{ fontWeight: 700, fontSize: 13 }}>{monthLabel}</div>
+        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
+          <div key={d} style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+        ))}
+        {cells.map((cell, i) => (
+          <div key={i} style={{ minHeight: 70, background: cell ? 'white' : 'transparent', border: cell ? '1px solid #eee' : 'none', borderRadius: 4, padding: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {cell && (
+              <>
+                <div style={{ fontSize: 10, color: '#999', textAlign: 'right' }}>{cell.getDate()}</div>
+                {(byDay.get(cell.getDate()) || []).map(p => {
+                  const pubs = Array.isArray(p.publications) ? p.publications : [];
+                  const allPosted = pubs.length > 0 && pubs.every(x => x.status === 'posted');
+                  const anyFailed = pubs.some(x => x.status === 'failed');
+                  const bg = allPosted ? '#e8f5e9' : anyFailed ? '#ffebee' : '#eef2ff';
+                  const fg = allPosted ? '#2e7d32' : anyFailed ? '#c62828' : '#1a56db';
+                  const t = new Date(p.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                  return (
+                    <button key={p.id} type="button" onClick={() => onOpen(p.id)}
+                      title={p.title || '(untitled)'}
+                      style={{ background: bg, color: fg, border: 'none', borderRadius: 3, padding: '3px 5px', fontSize: 10, fontWeight: 600, textAlign: 'left', cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t} · {(p.title || '').slice(0, 22)}
+                    </button>
+                  );
+                })}
+              </>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -739,12 +832,28 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   );
 }
 
-function WinnersPanel({ winners, frameworkBreakdown }) {
+function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
   if (!winners?.length && !frameworkBreakdown?.length) return null;
+  const reachSeries = (sparkline || []).map(p => p.reach);
+  const interactionSeries = (sparkline || []).map(p => p.interactions);
   return (
     <div style={{ background: '#fffceb', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#7a5a00', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-        Top performers — last 90 days
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: '#7a5a00', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          Top performers — last 90 days
+        </div>
+        {reachSeries.length > 1 && (
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 11, color: '#5d4000' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: '#888' }}>Reach 30d</span>
+              <Sparkline values={reachSeries} width={90} height={22} />
+            </span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: '#888' }}>Engagement 30d</span>
+              <Sparkline values={interactionSeries} width={90} height={22} />
+            </span>
+          </div>
+        )}
       </div>
       {frameworkBreakdown?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
@@ -758,15 +867,18 @@ function WinnersPanel({ winners, frameworkBreakdown }) {
       )}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {winners.map(w => (
-          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: '#fff', border: '1px solid #f0e0a0', borderRadius: 4, textDecoration: 'none', color: 'inherit' }}>
+          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: '#fff', border: '1px solid #f0e0a0', borderRadius: 4, textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+            {w.is_heater && (
+              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#c62828', color: 'white', borderRadius: 3, letterSpacing: 0.5 }}>🔥 HEATER</span>
+            )}
             <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', margin: '4px 0', lineHeight: 1.3 }}>{w.hook || '(no hook)'}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
             <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
             <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#7a5a00' }}>{w.engagement_rate}% engagement</div>
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>The next batch you generate will model these.</div>
+      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
     </div>
   );
 }
