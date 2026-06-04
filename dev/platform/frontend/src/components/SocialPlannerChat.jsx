@@ -412,10 +412,43 @@ export default function SocialPlannerChat({ clientId, clientName, planId, onClos
                   {checkingDrive ? 'Checking…' : '📁 Check Drive folder'}
                 </button>
                 {driveFiles !== null && (
-                  <div style={{ marginTop: 6, fontSize: 11, color: driveFiles.length ? '#2e7d32' : '#c62828' }}>
-                    {driveFiles.length === 0
-                      ? 'No video / image files found yet. Drop the final media into the folder and re-check.'
-                      : `${driveFiles.length} file${driveFiles.length === 1 ? '' : 's'} found: ${driveFiles.slice(0, 5).map(f => f.name).join(', ')}${driveFiles.length > 5 ? '…' : ''}`}
+                  <div style={{ marginTop: 6, fontSize: 11 }}>
+                    {driveFiles.length === 0 ? (
+                      <div style={{ color: '#c62828' }}>No video / image files found yet. Drop the final media into the folder and re-check.</div>
+                    ) : (
+                      <>
+                        <div style={{ color: '#2e7d32', marginBottom: 4 }}>
+                          {driveFiles.length} file{driveFiles.length === 1 ? '' : 's'} found.
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                          {driveFiles.slice(0, 8).map(f => (
+                            <div key={f.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+                              <span style={{ color: '#666' }}>{f.name}</span>
+                              {f.aspect_ratio && (
+                                <span style={{ color: '#888', fontSize: 10 }}>
+                                  {f.width}×{f.height}
+                                  {f.duration_ms ? ` · ${Math.round(f.duration_ms / 1000)}s` : ''}
+                                </span>
+                              )}
+                              {f.warnings?.length > 0 && (
+                                <span style={{ color: '#b86e00', fontSize: 10 }} title={f.warnings.join(' · ')}>⚠</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {/* Surface the warnings inline below so the AM
+                            sees them without having to hover the ⚠. */}
+                        {driveFiles.some(f => f.warnings?.length > 0) && (
+                          <div style={{ marginTop: 6, padding: '6px 8px', background: '#fff8e1', border: '1px solid #ffe0a3', borderRadius: 3 }}>
+                            {driveFiles.filter(f => f.warnings?.length > 0).slice(0, 5).map(f => (
+                              <div key={f.id} style={{ color: '#7c5800', fontSize: 11 }}>
+                                <b>{f.name}</b>: {f.warnings.join(' · ')}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>

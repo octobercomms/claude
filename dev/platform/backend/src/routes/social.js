@@ -546,9 +546,46 @@ function handlePlanChatUpload(req, res, next) {
 
 router.get('/clients/:clientId/plans', async (req, res) => {
   try {
+    // Enriched: for each plan, surface the per-platform publication
+    // statuses + the latest engagement snapshot (per linked social_posts
+    // row) so the AM sees what ran and how it did without opening every
+    // plan. publications_summary is small (3 rows max per plan), and
+    // engagement_summary aggregates likes/comments/reach across all the
+    // platforms a single plan was published to.
     const { rows } = await pool.query(
-      `SELECT id, title, status, scheduled_at, target_platforms, updated_at, created_at
-         FROM social_post_plans WHERE client_id = $1 ORDER BY updated_at DESC`,
+      `SELECT p.id, p.title, p.status, p.scheduled_at, p.target_platforms,
+              p.updated_at, p.created_at,
+              COALESCE((
+                SELECT json_agg(json_build_object(
+                  'platform', pub.platform,
+                  'status', pub.status,
+                  'posted_url', pub.posted_url,
+                  'posted_at', pub.posted_at,
+                  'error_message', pub.error_message
+                ) ORDER BY pub.platform)
+                FROM social_post_publications pub
+                WHERE pub.plan_id = p.id
+              ), '[]'::json) AS publications,
+              COALESCE((
+                SELECT json_build_object(
+                  'reach',     SUM(COALESCE(e.reach, e.impressions, e.views, 0)),
+                  'likes',     SUM(COALESCE(e.likes, 0)),
+                  'comments',  SUM(COALESCE(e.comments, 0)),
+                  'shares',    SUM(COALESCE(e.shares, 0)),
+                  'saves',     SUM(COALESCE(e.saves, 0)),
+                  'fetched_at', MAX(e.fetched_at),
+                  'post_count', COUNT(DISTINCT sp.id)
+                )
+                FROM social_posts sp
+                LEFT JOIN LATERAL (
+                  SELECT * FROM social_post_engagement
+                   WHERE post_id = sp.id ORDER BY fetched_at DESC LIMIT 1
+                ) e ON true
+                WHERE sp.plan_id = p.id
+              ), '{}'::json) AS engagement
+         FROM social_post_plans p
+        WHERE p.client_id = $1
+        ORDER BY p.updated_at DESC`,
       [req.params.clientId]
     );
     res.json(rows);
@@ -830,22 +867,72 @@ router.get('/clients/:clientId/plans/:planId/publish-targets', async (req, res) 
 });
 
 // Phase 2 — preview what's in the Drive folder so the AM can confirm
-// the right files are there before the scheduled publish time.
+// the right files are there before the scheduled publish time. Phase 9
+// adds aspect-ratio guidance per file given the plan's target platforms,
+// so the AM catches a 16:9 video before it ships as an IG Reel.
 router.get('/clients/:clientId/plans/:planId/drive-files', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT drive_folder_url FROM social_post_plans WHERE id = $1 AND client_id = $2`,
+      `SELECT drive_folder_url, target_platforms FROM social_post_plans WHERE id = $1 AND client_id = $2`,
       [req.params.planId, req.params.clientId]
     );
     if (!rows.length) return res.status(404).json({ error: 'Plan not found' });
     if (!rows[0].drive_folder_url) return res.json({ files: [], note: 'No Drive folder set on this plan.' });
     const socialDrive = require('../services/socialDrive');
     const files = await socialDrive.listFolder(req.params.clientId, rows[0].drive_folder_url);
-    res.json({ files });
+    const targetPlatforms = rows[0].target_platforms || [];
+    const enriched = files.map(f => ({ ...f, warnings: aspectWarningsFor(f, targetPlatforms) }));
+    res.json({ files: enriched });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
+
+// Per-platform aspect-ratio recommendations. Returns a list of human
+// warnings (empty when the file fits). We're permissive — anything
+// within 5% of an accepted ratio counts as a match, so a 1080x1080
+// photo doesn't get nagged about being 1.001 instead of 1.000.
+function aspectWarningsFor(file, targetPlatforms) {
+  const warnings = [];
+  if (!file.aspect_ratio || !targetPlatforms?.length) return warnings;
+  const isVideo = (file.mimeType || '').startsWith('video/');
+  const a = file.aspect_ratio;
+  const near = (target) => Math.abs(a - target) / target < 0.05;
+  const ranges = {
+    'IG Reel (9:16)': 9 / 16,
+    'IG square (1:1)': 1,
+    'IG portrait (4:5)': 4 / 5,
+    'IG landscape (1.91:1)': 1.91,
+    'FB landscape (16:9)': 16 / 9,
+    'LinkedIn landscape (1.91:1)': 1.91,
+    'LinkedIn square (1:1)': 1,
+  };
+  if (targetPlatforms.includes('instagram')) {
+    if (isVideo && !near(9 / 16) && !near(1) && !near(4 / 5)) {
+      warnings.push(`Instagram Reels prefers 9:16 (this is ${a}).`);
+    }
+    if (!isVideo && !near(1) && !near(4 / 5) && !near(1.91)) {
+      warnings.push(`Instagram feed prefers 1:1, 4:5, or 1.91:1 (this is ${a}).`);
+    }
+  }
+  if (targetPlatforms.includes('facebook')) {
+    if (isVideo && !near(16 / 9) && !near(1) && !near(9 / 16)) {
+      warnings.push(`Facebook video prefers 16:9, 1:1, or 9:16 (this is ${a}).`);
+    }
+    if (!isVideo && !near(1.91) && !near(1)) {
+      warnings.push(`Facebook image prefers 1.91:1 or 1:1 (this is ${a}).`);
+    }
+  }
+  if (targetPlatforms.includes('linkedin')) {
+    if (isVideo && !near(16 / 9) && !near(1) && !near(9 / 16)) {
+      warnings.push(`LinkedIn video prefers 16:9, 1:1, or 9:16 (this is ${a}).`);
+    }
+    if (!isVideo && !near(1.91) && !near(1)) {
+      warnings.push(`LinkedIn image prefers 1.91:1 or 1:1 (this is ${a}).`);
+    }
+  }
+  return warnings;
+}
 
 // Phase 2 — preview the captions Claude will use per platform, so the
 // AM can sanity-check before publish. Computed on demand, not stored

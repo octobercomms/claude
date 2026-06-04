@@ -57,7 +57,9 @@ async function getGoogleCreds(clientId) {
 
 // List media files (image + video) in a folder. Returns up to 100 most
 // recently modified. Each item: { id, name, mimeType, size, modifiedTime,
-// thumbnailLink, webViewLink }.
+// thumbnailLink, webViewLink, width, height, aspect_ratio, duration_ms }.
+// Dimensions are extracted from Drive's video/imageMediaMetadata so the
+// UI can warn when a file won't fit the target platform's frame.
 async function listFolder(clientId, folderInput) {
   const folderId = parseFolderId(folderInput);
   if (!folderId) throw new Error('Invalid Drive folder URL — paste the full URL from Drive (https://drive.google.com/drive/folders/...).');
@@ -68,14 +70,25 @@ async function listFolder(clientId, folderInput) {
     headers: { Authorization: `Bearer ${creds.access_token}` },
     params: {
       q,
-      fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,webContentLink)',
+      fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,webContentLink,videoMediaMetadata(width,height,durationMillis),imageMediaMetadata(width,height))',
       orderBy: 'modifiedTime desc',
       pageSize: 100,
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
     },
   });
-  return data.files || [];
+  return (data.files || []).map(f => {
+    const meta = f.videoMediaMetadata || f.imageMediaMetadata || null;
+    const width = meta?.width || null;
+    const height = meta?.height || null;
+    const aspect = (width && height) ? Math.round((width / height) * 1000) / 1000 : null;
+    return {
+      ...f,
+      width, height,
+      aspect_ratio: aspect,
+      duration_ms: f.videoMediaMetadata?.durationMillis ? parseInt(f.videoMediaMetadata.durationMillis, 10) : null,
+    };
+  });
 }
 
 // Stream a single file's bytes. Used by Phase 3 to feed Meta / LinkedIn

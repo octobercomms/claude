@@ -470,6 +470,13 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
   );
 }
 
+function formatNum(n) {
+  const v = Number(n || 0);
+  if (v >= 1_000_000) return (v / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'm';
+  if (v >= 1_000) return (v / 1_000).toFixed(1).replace(/\.0$/, '') + 'k';
+  return String(Math.round(v));
+}
+
 function PlansList({ clientId, clientName, onOpen }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -507,24 +514,48 @@ function PlansList({ clientId, clientName, onOpen }) {
         Locked plans
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        {plans.map(p => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 4 }}>
-            <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: '#1a1a1a' }}>
-              {p.title || '(untitled)'}
-            </button>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              {p.scheduled_at && (
-                <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
-                  ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
-                  {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
-                </span>
-              )}
-              <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-              <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
-              <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
+        {plans.map(p => {
+          // Compact per-platform status chips. posted is green, failed
+          // red, in_flight amber, pending grey. Click into the plan to
+          // see the full error / posted URL.
+          const pubs = Array.isArray(p.publications) ? p.publications : [];
+          const eng = p.engagement || {};
+          const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
+          return (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '1px solid #eee', borderRadius: 4 }}>
+              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: '#1a1a1a' }}>
+                {p.title || '(untitled)'}
+              </button>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                {pubs.map(pub => {
+                  const colour = pub.status === 'posted' ? '#2e7d32' : pub.status === 'failed' ? '#c62828' : pub.status === 'in_flight' ? '#b86e00' : '#888';
+                  const bg = pub.status === 'posted' ? '#e8f5e9' : pub.status === 'failed' ? '#ffebee' : pub.status === 'in_flight' ? '#fff4e1' : '#f0f0f0';
+                  const icon = pub.status === 'posted' ? '✓' : pub.status === 'failed' ? '✗' : '·';
+                  return (
+                    <span key={pub.platform} title={pub.error_message || pub.posted_url || pub.status}
+                          style={{ fontSize: 11, color: colour, background: bg, padding: '2px 6px', borderRadius: 3, textTransform: 'capitalize' }}>
+                      {icon} {pub.platform}
+                    </span>
+                  );
+                })}
+                {hasEng && (
+                  <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
+                    {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
+                  </span>
+                )}
+                {p.scheduled_at && !pubs.some(x => x.status === 'posted') && (
+                  <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
+                    ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                    {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
+                  </span>
+                )}
+                <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '1px solid #ddd', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
