@@ -88,6 +88,13 @@ class HGD_Lead_Form {
 			exit;
 		}
 
+		// Throttle submissions per IP — each one creates a client + project row
+		// and sends mail. Pretend success on limit so bots get no signal.
+		if ( ! HGD_Rate_Limit::check( 'lead_form', 6, 10 * MINUTE_IN_SECONDS ) ) {
+			wp_safe_redirect( add_query_arg( 'hgd_enquiry', 'sent', $redirect ) );
+			exit;
+		}
+
 		$name  = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 		$email = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 

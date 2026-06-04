@@ -83,6 +83,12 @@ class HGD_Booking_Page {
 	}
 
 	public static function rest_create( $request ) {
+		// Throttle unauthenticated creation — each call writes a row and opens a
+		// Stripe PaymentIntent / Woo order, so it's a resource-exhaustion vector.
+		if ( ! HGD_Rate_Limit::check( 'booking_create', 10, 10 * MINUTE_IN_SECONDS ) ) {
+			return new WP_Error( 'hgd_rate_limited', __( 'Too many attempts. Please wait a moment and try again.', 'hillcroft-garden-designer' ), array( 'status' => 429 ) );
+		}
+
 		$s   = HGD_Settings::all();
 		$woo = HGD_Woo::is_active();
 
@@ -138,7 +144,7 @@ class HGD_Booking_Page {
 			if ( is_wp_error( $order ) ) {
 				HGD_Log::error( 'booking.woo', 'order creation failed: ' . $order->get_error_message(), array( 'booking_id' => (int) $booking_id ) );
 				HGD_Booking::update( $booking_id, array( 'status' => 'cancelled' ) );
-				return new WP_Error( 'hgd_woo_failed', $order->get_error_message(), array( 'status' => 502 ) );
+				return new WP_Error( 'hgd_woo_failed', __( 'Sorry — we couldn\'t set up your booking payment just now. Please try again shortly.', 'hillcroft-garden-designer' ), array( 'status' => 502 ) );
 			}
 			HGD_Booking::update( $booking_id, array( 'woo_order_id' => (int) $order->get_id() ) );
 			return new WP_REST_Response( array(
@@ -158,7 +164,7 @@ class HGD_Booking_Page {
 
 		if ( is_wp_error( $intent ) ) {
 			HGD_Booking::update( $booking_id, array( 'status' => 'cancelled' ) );
-			return new WP_Error( 'hgd_stripe_failed', $intent->get_error_message(), array( 'status' => 502 ) );
+			return new WP_Error( 'hgd_stripe_failed', __( 'Sorry — we couldn\'t set up the payment just now. Please try again shortly.', 'hillcroft-garden-designer' ), array( 'status' => 502 ) );
 		}
 
 		HGD_Booking::update( $booking_id, array( 'stripe_payment_intent' => sanitize_text_field( $intent['id'] ) ) );

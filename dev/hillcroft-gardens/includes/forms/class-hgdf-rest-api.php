@@ -64,6 +64,10 @@ class HGDF_REST_API {
 	public static function start( WP_REST_Request $req ) {
 		$form_id = self::get_form_or_error( $req->get_param( 'form_id' ) );
 		if ( is_wp_error( $form_id ) ) { return $form_id; }
+		// Throttle submission-row creation per IP+form (storage/DB exhaustion).
+		if ( ! HGDF_Spam::rate_limit_ok( $form_id . ':start', 15, 600 ) ) {
+			return new WP_Error( 'hgd_form_rate_limited', 'Too many submissions', array( 'status' => 429 ) );
+		}
 		$session = HGDF_Schema::clean_id( $req->get_param( 'session' ) );
 		if ( ! $session ) {
 			$session = HGDF_Analytics::visitor_session();
@@ -103,6 +107,11 @@ class HGDF_REST_API {
 		$row   = HGDF_Submission::find_by_token( $token );
 		if ( ! $row ) {
 			return new WP_Error( 'hgd_form_invalid_token', 'Invalid submission token', array( 'status' => 400 ) );
+		}
+		// Throttle uploads per IP+form — each stores a file (≤max_size_mb), so an
+		// unthrottled loop is a disk-exhaustion vector.
+		if ( ! HGDF_Spam::rate_limit_ok( (int) $row['form_id'] . ':upload', 40, 600 ) ) {
+			return new WP_Error( 'hgd_form_rate_limited', 'Too many uploads', array( 'status' => 429 ) );
 		}
 		$question_id = HGDF_Schema::clean_id( $req->get_param( 'question_id' ) );
 		if ( ! $question_id ) {
