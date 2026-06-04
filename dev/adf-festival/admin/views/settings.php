@@ -29,7 +29,7 @@ use ADF\Connectors\BrevoConnector;
         <table class="form-table" style="max-width:720px">
             <?php foreach ($secrets as $key => $const) :
                 $is_const = \ADF\Settings::secret_is_constant($key);
-                $value    = $is_const ? '' : (string) ($cfg[$key] ?? '');
+                $value    = $is_const ? '' : (string) \ADF\Settings::get($key, '');
                 ?>
                 <tr>
                     <th scope="row"><label for="adf-sec-<?php echo esc_attr($key); ?>"><?php echo esc_html($labels[$key] ?? $key); ?></label></th>
@@ -158,7 +158,7 @@ use ADF\Connectors\BrevoConnector;
         <?php $token_const = defined('ADF_GITHUB_TOKEN') && ADF_GITHUB_TOKEN; ?>
         <p><label><?php esc_html_e('GitHub token', 'adf-festival'); ?></label><br>
             <span class="adf-secret-wrap">
-                <input type="password" name="github_token" class="regular-text adf-secret" autocomplete="off" value="<?php echo esc_attr((string) ($cfg['github_token'] ?? '')); ?>" <?php echo $token_const ? 'disabled placeholder="Set via ADF_GITHUB_TOKEN constant"' : ''; ?>>
+                <input type="password" name="github_token" class="regular-text adf-secret" autocomplete="off" value="<?php echo esc_attr(\ADF\Crypto::decrypt((string) ($cfg['github_token'] ?? ''))); ?>" <?php echo $token_const ? 'disabled placeholder="Set via ADF_GITHUB_TOKEN constant"' : ''; ?>>
                 <?php if (! $token_const) : ?><button type="button" class="button adf-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'adf-festival'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
             </span></p>
 

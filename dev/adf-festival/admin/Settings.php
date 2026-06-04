@@ -114,7 +114,8 @@ final class Settings {
                 continue;
             }
             if (array_key_exists('secret_' . $key, $in)) {
-                $secrets[$key] = sanitize_text_field((string) $in['secret_' . $key]);
+                // ADF-05: encrypt at rest.
+                $secrets[$key] = \ADF\Crypto::encrypt(sanitize_text_field((string) $in['secret_' . $key]));
             }
         }
         if ($secrets) {
@@ -196,7 +197,7 @@ final class Settings {
             'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? 'ADF')),
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
-            'github_token'     => trim((string) ($in['github_token'] ?? '')),
+            'github_token'     => \ADF\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
             'ad_packages'      => $ad_packages,
             'ad_promo_codes'   => $ad_promos,
             'ad_site_mode'     => ($in['ad_site_mode'] ?? 'hub') === 'partner' ? 'partner' : 'hub',

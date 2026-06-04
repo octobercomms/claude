@@ -301,6 +301,17 @@ final class Orders {
         ) ?: [];
     }
 
+    /**
+     * Public DTOs of the tickets for a given payment intent (used to return
+     * tickets after an idempotent re-confirm).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function ticket_dtos_for(string $payment_id): array {
+        $order = self::by_payment($payment_id);
+        return $order ? self::ticket_dtos(self::tickets((int) $order->id)) : [];
+    }
+
     /** @return array<int,array<string,mixed>> */
     private static function ticket_dtos(array $tickets): array {
         return array_map(static fn($t) => [

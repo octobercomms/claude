@@ -286,7 +286,7 @@ final class Updater {
         if (defined('ADF_GITHUB_TOKEN') && ADF_GITHUB_TOKEN) {
             return (string) ADF_GITHUB_TOKEN;
         }
-        return (string) (Settings::all()['github_token'] ?? '');
+        return Crypto::decrypt((string) (Settings::all()['github_token'] ?? ''));
     }
 
     public static function repo(): string {
