@@ -9,6 +9,7 @@ import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
+import NewCampaignModal from '../components/NewCampaignModal';
 import PressCampaignDetail from '../components/PressCampaignDetail';
 import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
@@ -131,6 +132,8 @@ export default function ClientOutreachPage() {
   const [newContact, setNewContact] = useState({ name: '', email: '', company: '', role: '', website: '' });
   const [showAddCampaign, setShowAddCampaign] = useState(false);
   const [showPressWizard, setShowPressWizard] = useState(false);
+  const [pressInitialUrl, setPressInitialUrl] = useState('');
+  const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [newCampaign, setNewCampaign] = useState({ name: '', audience_description: '' });
   const [showFinder, setShowFinder] = useState(false);
   const [showLibrary, setShowLibrary] = useState(false);
@@ -362,7 +365,7 @@ export default function ClientOutreachPage() {
         </div>
         <div className="hero-actions">
           <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} className="btn btn-secondary btn-sm">+ Add Contact</button>
-          <button onClick={startNewCampaign} className="btn btn-primary btn-sm">+ New Campaign</button>
+          <button onClick={() => setShowNewCampaign(true)} className="btn btn-primary btn-sm">+ New Campaign</button>
         </div>
       </header>
 
@@ -687,12 +690,33 @@ export default function ClientOutreachPage() {
         );
       })()}
 
+      {showNewCampaign && (
+        <NewCampaignModal
+          clientId={id}
+          onClose={() => setShowNewCampaign(false)}
+          onCreated={(c) => {
+            setShowNewCampaign(false);
+            setCampaigns(prev => [{ ...c, contact_count: 0 }, ...prev]);
+            setTab('campaigns');
+            setWizardCampaignId(c.id);
+          }}
+          onPickPress={(url) => {
+            setShowNewCampaign(false);
+            setPressInitialUrl(url);
+            setTab('campaigns');
+            setShowPressWizard(true);
+          }}
+        />
+      )}
+
       {tab === 'campaigns' && showPressWizard && (
         <PressCampaignWizard
           clientId={id}
-          onClose={() => setShowPressWizard(false)}
+          initialUrl={pressInitialUrl}
+          onClose={() => { setShowPressWizard(false); setPressInitialUrl(''); }}
           onCreated={(release) => {
             setShowPressWizard(false);
+            setPressInitialUrl('');
             refreshCampaigns();
             if (release?.campaign_id) setWizardCampaignId(release.campaign_id);
           }}
@@ -702,8 +726,7 @@ export default function ClientOutreachPage() {
       {tab === 'campaigns' && !wizardCampaignId && (
         <div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={startNewCampaign} className="btn btn-primary">+ New campaign</button>
-            <button onClick={() => setShowPressWizard(true)} className="btn btn-secondary">+ New press release</button>
+            <button onClick={() => setShowNewCampaign(true)} className="btn btn-primary">+ New campaign</button>
           </div>
           <div className="card" style={{ marginTop: 12 }}>
             <table className="table">

@@ -1,22 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
 // Two-step modal: paste downloadfor.press URL → preview parsed release
 // → save. Saving creates both the press_release row and a backing
 // campaign (kind='press_release') in one shot.
-export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
+//
+// `initialUrl` lets the unified NewCampaignModal launch this with the
+// URL already filled in — we auto-fetch on mount so the AM lands
+// directly on the parsed preview.
+export default function PressCampaignWizard({ clientId, initialUrl = '', onClose, onCreated }) {
   const toast = useToast();
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState(initialUrl);
   const [parsed, setParsed] = useState(null);
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  async function doFetch() {
-    if (!url.trim()) return;
+  async function doFetch(seedUrl) {
+    const u = (seedUrl ?? url).trim();
+    if (!u) return;
     setFetching(true);
     try {
-      const p = await api.post('/press/parse', { url: url.trim() });
+      const p = await api.post('/press/parse', { url: u });
       setParsed(p);
     } catch (e) {
       toast(`Could not fetch: ${e.message}`, 'error');
@@ -24,6 +29,13 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
       setFetching(false);
     }
   }
+
+  // Auto-fetch when the modal is opened with a URL already in hand
+  // (i.e. the unified "+ New campaign" modal handed it over).
+  useEffect(() => {
+    if (initialUrl) doFetch(initialUrl);
+    // eslint-disable-next-line
+  }, [initialUrl]);
 
   async function save() {
     if (!parsed) return;
