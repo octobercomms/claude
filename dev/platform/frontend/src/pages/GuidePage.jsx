@@ -305,7 +305,7 @@ export default function GuidePage() {
     });
   }
   return (
-    <div className="suite-social">
+    <div>
       <header className="hero">
         <h1 className="display">Guide</h1>
         <p className="body mt-4">

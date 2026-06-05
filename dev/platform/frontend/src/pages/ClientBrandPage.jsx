@@ -97,7 +97,7 @@ export default function ClientBrandPage() {
   const byKind = (k) => assets.filter(a => a.kind === k);
 
   return (
-    <div className="suite-press">
+    <div className="suite-setup">
       <header className="hero">
         <div className="client-name">{client?.name || ''}</div>
         <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>

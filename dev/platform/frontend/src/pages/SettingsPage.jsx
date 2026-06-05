@@ -406,7 +406,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="suite-social">
+    <div>
       <header className="hero">
         <h1 className="display">Settings</h1>
       </header>

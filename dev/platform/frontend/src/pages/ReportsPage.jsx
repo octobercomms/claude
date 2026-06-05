@@ -77,7 +77,7 @@ export default function ReportsPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
 
   return (
-    <div className="suite-social">
+    <div className="suite-reports">
       <header className="hero">
         <div>
           <h1 className="display">Reports</h1>

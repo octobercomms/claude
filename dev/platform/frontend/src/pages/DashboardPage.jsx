@@ -21,7 +21,7 @@ export default function DashboardPage() {
   const expiredTokens = alerts.expired_meta_tokens || [];
 
   return (
-    <div className="suite-social">
+    <div>
       <header className="hero">
         <h1 className="display">Dashboard</h1>
       </header>

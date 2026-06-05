@@ -202,7 +202,7 @@ export default function ClientChatPage() {
   ];
 
   return (
-    <div className="suite-organic" style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
+    <div className="suite-chat" style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
 
       {/* Chat panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>

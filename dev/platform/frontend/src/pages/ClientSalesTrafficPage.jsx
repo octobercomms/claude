@@ -96,7 +96,7 @@ export default function ClientSalesTrafficPage() {
   ];
 
   return (
-    <div className="suite-organic">
+    <div className="suite-sales">
       <header className="hero">
         <div>
           <div className="client-name">{client?.name || ''}</div>

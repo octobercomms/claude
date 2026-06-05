@@ -287,11 +287,17 @@ export default function ClientDetailPage() {
   if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
   if (!client) return <div style={{ color: '#c62828', padding: 40 }}>Client not found</div>;
 
+  // Pick the suite scope from the active tab so each tab takes its
+  // own section accent. Forms gets the Forms purple; Reports gets the
+  // Reports blue; everything else (Brief / Brand / Connectors) is the
+  // Setup teal.
+  const scopeClass = tab === 'forms' ? 'suite-forms' : tab === 'reports' ? 'suite-reports' : 'suite-setup';
+
   return (
-    <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>{client.name}</h1>
-        <span style={{ fontSize: 12, fontWeight: 600, color: client.active ? '#2e7d32' : '#999' }}>
+    <div className={scopeClass}>
+      <div className="row between center" style={{ marginBottom: 'var(--s6)' }}>
+        <h1 className="h2">{client.name}</h1>
+        <span className={client.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 12 }}>
           {client.active ? 'Active' : 'Inactive'}
         </span>
       </div>

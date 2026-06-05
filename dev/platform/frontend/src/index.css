@@ -59,17 +59,26 @@
 }
 
 /* ─── Suite scopes ───────────────────────────────────────────────── */
-/* Monochromatic yellow-olive family — complements the existing brand
-   yellow #E7CD41 that's still in legacy components, so the whole
-   platform reads as one coherent design rather than a fight between
-   the new accents and the brand. Lighter shades on the hero suites
-   (Social / Paid), darker on the working / utility suites. */
+/* Each section gets its own accent. Apply a scope class
+   (.suite-organic, .suite-paid, etc.) on the top-level page wrapper
+   and every .card / .btn / .chip / .table inside automatically takes
+   the section colour. Dashboard, Settings and Guide stay on the
+   default brand yellow inherited from :root. */
 
-.suite-social  { --accent: #E7CD41; --accent-soft: rgba(231, 205, 65, 0.12);  --accent-on: #1a1a1a; }
-.suite-paid    { --accent: #C4AF37; --accent-soft: rgba(196, 175, 55, 0.12);  --accent-on: #1a1a1a; }
-.suite-organic { --accent: #9C8B2C; --accent-soft: rgba(156, 139, 44, 0.12);  --accent-on: #ffffff; }
-.suite-email   { --accent: #736620; --accent-soft: rgba(115, 102, 32, 0.12);  --accent-on: #ffffff; }
-.suite-press   { --accent: #4A4215; --accent-soft: rgba(74, 66, 21, 0.12);    --accent-on: #ffffff; }
+.suite-sales    { --accent: #20A39E; --accent-soft: rgba(32, 163, 158, 0.12);  --accent-on: #ffffff; }
+.suite-chat     { --accent: #EF5B5B; --accent-soft: rgba(239, 91, 91, 0.12);   --accent-on: #ffffff; }
+.suite-reports  { --accent: #4464AD; --accent-soft: rgba(68, 100, 173, 0.12);  --accent-on: #ffffff; }
+.suite-organic  { --accent: #7F055F; --accent-soft: rgba(127, 5, 95, 0.12);    --accent-on: #ffffff; }
+.suite-paid     { --accent: #046E8F; --accent-soft: rgba(4, 110, 143, 0.12);   --accent-on: #ffffff; }
+.suite-social   { --accent: #FF6542; --accent-soft: rgba(255, 101, 66, 0.12);  --accent-on: #ffffff; }
+.suite-email    { --accent: #B3001B; --accent-soft: rgba(179, 0, 27, 0.12);    --accent-on: #ffffff; }
+.suite-forms    { --accent: #81559B; --accent-soft: rgba(129, 85, 155, 0.12);  --accent-on: #ffffff; }
+.suite-setup    { --accent: #086375; --accent-soft: rgba(8, 99, 117, 0.12);    --accent-on: #ffffff; }
+
+/* Press release / video / brand pages historically shared the email
+   suite — keep that mapping so the existing scope classes still
+   resolve to a sane colour rather than the default yellow. */
+.suite-press    { --accent: #B3001B; --accent-soft: rgba(179, 0, 27, 0.12);    --accent-on: #ffffff; }
 
 /* ─── Shell ──────────────────────────────────────────────────────── */
 
