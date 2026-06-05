@@ -350,7 +350,7 @@ export default function ClientSEOPage() {
     return (
       <React.Fragment key={kw.id}>
       <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
-        <td style={s.td}>
+        <td >
           <div style={{ fontWeight: 600, fontSize: 13 }}>
             {kw.keyword}
             <IntentBadge intent={kw.intent} />
@@ -359,26 +359,27 @@ export default function ClientSEOPage() {
           {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
           {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
         </td>
-        <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
-        <td style={s.td}><span style={s.chip}>{kw.device}</span></td>
-        <td style={s.td} onClick={e => e.stopPropagation()}>
+        <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
+        <td ><span className="chip chip-neutral">{kw.device}</span></td>
+        <td  onClick={e => e.stopPropagation()}>
           {editingTag && editingTag.id === kw.id ? (
             <input autoFocus value={editingTag.value}
               onChange={e => setEditingTag({ id: kw.id, value: e.target.value })}
               onBlur={() => saveTag(kw)}
               onKeyDown={e => { if (e.key === 'Enter') saveTag(kw); if (e.key === 'Escape') setEditingTag(null); }}
               placeholder="tag…"
-              style={{ ...s.input, padding: '4px 8px', width: 120, fontSize: 12 }} />
+              className="input" style={{ padding: '4px 8px', width: 120, fontSize: 12 }} />
           ) : (
             <span onClick={() => setEditingTag({ id: kw.id, value: kw.tag || '' })}
               title="Click to edit tag"
-              style={kw.tag ? { ...s.chip, cursor: 'text' } : { cursor: 'text', color: '#bbb', fontSize: 12 }}>
+              className={kw.tag ? 'chip chip-neutral' : 'text-subtle'}
+              style={{ cursor: 'text', fontSize: 12 }}>
               {kw.tag || '+ tag'}
             </span>
           )}
         </td>
-        <td style={{ ...s.td, fontWeight: 600 }}>{fmtVolume(kw.search_volume)}</td>
-        <td style={s.td}>
+        <td style={{ fontWeight: 600 }}>{fmtVolume(kw.search_volume)}</td>
+        <td >
           <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
           {change !== null && (
             <span className={change > 0 ? 'text-positive' : change < 0 ? 'text-negative' : 'text-subtle'} style={{ marginLeft: 6, fontSize: 11 }}>
@@ -386,10 +387,10 @@ export default function ClientSEOPage() {
             </span>
           )}
         </td>
-        <td style={s.td}>{kw.previous_position || '—'}</td>
-        <td style={{ ...s.td, color: 'var(--accent)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
-        <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
-        <td style={s.td} onClick={e => e.stopPropagation()}>
+        <td >{kw.previous_position || '—'}</td>
+        <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+        <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
+        <td  onClick={e => e.stopPropagation()}>
           <button onClick={() => setHistoryKeyword(kw)} title="Full position history" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, padding: '0 4px' }}>⊞</button>
           <button onClick={() => handleDelete(kw.id)} title="Delete keyword" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
         </td>
@@ -613,11 +614,11 @@ export default function ClientSEOPage() {
         </div>
         {activeTab === 'keywords' && (
           <div className="hero-actions">
-            <button onClick={handleExport} style={s.btnSm}>Export CSV</button>
-            <button onClick={handleClassifyIntent} style={s.btnSm} disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
-            <button onClick={handleCheckAll} style={s.btnSm} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
-            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnSm}>Bulk Import</button>
-            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={{ ...s.btnSm, background: 'var(--accent)', color: 'var(--accent-on)' }}>+ Add Keyword</button>
+            <button onClick={handleExport} className="btn btn-secondary btn-sm">Export CSV</button>
+            <button onClick={handleClassifyIntent} className="btn btn-secondary btn-sm" disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
+            <button onClick={handleCheckAll} className="btn btn-secondary btn-sm" disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} className="btn btn-secondary btn-sm">Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} className="btn btn-secondary btn-sm" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>+ Add Keyword</button>
           </div>
         )}
       </header>
@@ -669,8 +670,8 @@ export default function ClientSEOPage() {
         return (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 16 }}>
             {cards.map(c => (
-              <div key={c.label} style={s.card}>
-                <div style={s.metricLabel}>{c.label}</div>
+              <div key={c.label} className="card">
+                <div className="caption">{c.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a' }}>{c.value}</div>
                   {c.delta != null && c.delta !== 0 && (
@@ -710,30 +711,30 @@ export default function ClientSEOPage() {
 
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-        <select style={{ ...s.input, width: 220, flex: '0 0 auto' }} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
+        <select className="input" style={{ width: 220, flex: '0 0 auto' }} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
           <option value="">All locations</option>
           {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
         </select>
         {tags.length > 0 && (
-          <select style={{ ...s.input, width: 180, flex: '0 0 auto' }} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
+          <select className="input" style={{ width: 180, flex: '0 0 auto' }} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
             <option value="">All tags</option>
             {tags.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
-        <input style={{ ...s.input, flex: 1, minWidth: 0 }} placeholder="Search keywords…" value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="input" style={{ flex: 1, minWidth: 0 }} placeholder="Search keywords…" value={search} onChange={e => setSearch(e.target.value)} />
       </div>
 
       {/* Add keyword form */}
       {showAddForm && (
-        <div style={{ ...s.card, marginBottom: 16 }}>
-          <div style={s.cardTitle}>Add Keyword</div>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="caption">Add Keyword</div>
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 12 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
               {[
-                { label: 'Keyword', el: <input style={s.input} required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} /> },
-                { label: 'Target URL', el: <input style={s.input} value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" /> },
+                { label: 'Keyword', el: <input className="input" required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} /> },
+                { label: 'Target URL', el: <input className="input" value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" /> },
                 { label: 'Location', el: (
-                  <select style={s.input} value={newKw.location_code} onChange={e => {
+                  <select className="input" value={newKw.location_code} onChange={e => {
                     const loc = LOCATIONS.find(l => l.code === Number(e.target.value)) || LOCATIONS[0];
                     setNewKw(p => ({ ...p, location_code: loc.code, location_name: loc.name }));
                   }}>
@@ -741,22 +742,22 @@ export default function ClientSEOPage() {
                   </select>
                 )},
                 { label: 'Device', el: (
-                  <select style={s.input} value={newKw.device} onChange={e => setNewKw(p => ({ ...p, device: e.target.value }))}>
+                  <select className="input" value={newKw.device} onChange={e => setNewKw(p => ({ ...p, device: e.target.value }))}>
                     <option value="desktop">Desktop</option>
                     <option value="mobile">Mobile</option>
                   </select>
                 )},
-                { label: 'Tag', el: <input style={s.input} value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" /> },
+                { label: 'Tag', el: <input className="input" value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" /> },
               ].map(({ label, el }) => (
                 <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={s.label}>{label}</label>
+                  <label className="field-label">{label}</label>
                   {el}
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" style={s.btn}>Add</button>
-              <button type="button" onClick={() => setShowAddForm(false)} style={s.btnGhost}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
@@ -764,28 +765,28 @@ export default function ClientSEOPage() {
 
       {/* Bulk import form */}
       {showBulkForm && (
-        <div style={{ ...s.card, marginBottom: 16 }}>
-          <div style={s.cardTitle}>Bulk Import</div>
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="caption">Bulk Import</div>
           <p style={{ margin: '8px 0 16px', fontSize: 12, color: '#888' }}>One keyword per line. Optional columns: <code>keyword, target_url, tag</code></p>
           <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <textarea style={{ ...s.input, minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+            <textarea className="input" style={{ minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
               placeholder={'enamel mug\nenamel teapot, https://falconenamelware.com/collections, tableware'}
               value={bulkText} onChange={e => setBulkText(e.target.value)} required />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               {[
-                { label: 'Location', el: <select style={s.input} value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>{LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select> },
-                { label: 'Device', el: <select style={s.input} value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select> },
-                { label: 'Default Tag', el: <input style={s.input} value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" /> },
+                { label: 'Location', el: <select className="input" value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>{LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}</select> },
+                { label: 'Device', el: <select className="input" value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}><option value="desktop">Desktop</option><option value="mobile">Mobile</option></select> },
+                { label: 'Default Tag', el: <input className="input" value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" /> },
               ].map(({ label, el }) => (
                 <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <label style={s.label}>{label}</label>
+                  <label className="field-label">{label}</label>
                   {el}
                 </div>
               ))}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button type="submit" style={s.btn} disabled={bulking}>{bulking ? 'Importing…' : 'Import'}</button>
-              <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} style={s.btnGhost}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import'}</button>
+              <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
               {bulkMsg && <span className={bulkMsg.startsWith('Error') ? 'text-negative' : 'text-positive'} style={{ fontSize: 13 }}>{bulkMsg}</span>}
             </div>
           </form>
@@ -805,7 +806,7 @@ export default function ClientSEOPage() {
         </div>
         {kwView === 'current' && (
           <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
-            style={{ ...s.input, width: 190, padding: '6px 10px', fontSize: 13, flex: '0 0 auto' }}>
+            className="input" style={{ width: 190, padding: '6px 10px', fontSize: 13, flex: '0 0 auto' }}>
             <option value="none">No grouping</option>
             <option value="tag">Group by tag</option>
             <option value="url">Group by landing page</option>
@@ -815,21 +816,21 @@ export default function ClientSEOPage() {
 
       {/* Keywords table — current */}
       {kwView === 'current' && (
-      <div style={s.tableWrap}>
-        <table style={s.table}>
+      <div className="card">
+        <table className="table">
           <thead>
             <tr>
               {[['keyword', 'Keyword'], ['location', 'Location'], ['device', 'Device'], ['tag', 'Tag'], ['volume', 'Volume'], ['position', 'Position'], ['prev', 'Prev'], ['best', 'Best'], ['checked', 'Checked']].map(([key, label]) => (
-                <th key={key} style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort(key)}>
+                <th key={key} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort(key)}>
                   {label}{sortKey === key ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
               ))}
-              <th style={s.th}></th>
+              <th ></th>
             </tr>
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={10} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
             ) : groupBy === 'none' ? (
               sorted.map(renderKeywordRow)
             ) : (
@@ -840,7 +841,7 @@ export default function ClientSEOPage() {
                 return (
                   <React.Fragment key={group.label}>
                     <tr onClick={() => toggleGroup(group.label)} style={{ cursor: 'pointer', background: '#eee' }}>
-                      <td colSpan={10} style={{ ...s.td, fontWeight: 700, fontSize: 12 }}>
+                      <td colSpan={10} style={{ fontWeight: 700, fontSize: 12 }}>
                         <span style={{ display: 'inline-block', width: 18, color: '#888' }}>{collapsed ? '▶' : '▼'}</span>
                         {group.label}
                         <span style={{ marginLeft: 10, fontWeight: 400, color: '#888' }}>
@@ -860,23 +861,23 @@ export default function ClientSEOPage() {
 
       {/* Keywords table — by date */}
       {kwView === 'history' && (
-      <div style={{ ...s.tableWrap, overflowX: 'auto' }}>
+      <div className="card" style={{ overflowX: 'auto' }}>
         {rankMatrixLoading ? (
           <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading rank history…</div>
         ) : !rankMatrix || rankMatrix.dates.length === 0 ? (
           <div style={{ padding: 20, color: '#888', fontSize: 13 }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
         ) : (
-          <table style={s.table}>
+          <table className="table">
             <thead>
               <tr>
-                <th style={{ ...s.th, cursor: 'pointer', userSelect: 'none', position: 'sticky', left: 0, background: '#f9f9f9', zIndex: 2 }} onClick={() => toggleSort('keyword')}>
+                <th style={{ cursor: 'pointer', userSelect: 'none', position: 'sticky', left: 0, background: '#f9f9f9', zIndex: 2 }} onClick={() => toggleSort('keyword')}>
                   Keyword{sortKey === 'keyword' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
-                <th style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort('location')}>
+                <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort('location')}>
                   Location{sortKey === 'location' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
                 {rankMatrix.dates.map(d => (
-                  <th key={d} style={{ ...s.th, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => toggleSort(d)}>
+                  <th key={d} style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap', textAlign: 'center' }} onClick={() => toggleSort(d)}>
                     {fmtDay(d)}{sortKey === d ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                   </th>
                 ))}
@@ -890,12 +891,12 @@ export default function ClientSEOPage() {
                 return (
                   <React.Fragment key={kw.id}>
                   <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
-                    <td style={{ ...s.td, position: 'sticky', left: 0, background: expanded ? '#fafafa' : '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
-                    <td style={s.td}><span style={s.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
+                    <td style={{ position: 'sticky', left: 0, background: expanded ? '#fafafa' : '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
+                    <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
                     {rankMatrix.dates.map(d => {
                       const cell = kwHist[d];
                       return (
-                        <td key={d} style={{ ...s.td, textAlign: 'center' }}>
+                        <td key={d} style={{ textAlign: 'center' }}>
                           <PosBox p={cell ? cell.p : null} legacy={cell ? cell.src === 'legacy' : false} />
                         </td>
                       );
@@ -927,36 +928,36 @@ export default function ClientSEOPage() {
       </>}
 
       {activeTab === 'authority' && (
-      <div style={{ ...s.card, marginTop: 0 }}>
-        <div style={s.cardTitle}>Manual SEO Metrics</div>
+      <div className="card" style={{ marginTop: 0 }}>
+        <div className="caption">Manual SEO Metrics</div>
 
         {/* Metrics history table */}
         <div style={{ overflowX: 'auto', marginTop: 12 }}>
-          <table style={s.table}>
+          <table className="table">
             <thead>
               <tr>
                 {['Month', 'Moz DA', 'Authority Score', 'Referring Domains', 'Notes', 'Edit'].map(h => (
-                  <th key={h} style={s.th}>{h}</th>
+                  <th key={h} >{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {seoMetrics.slice(0, 6).length === 0 ? (
-                <tr><td colSpan={6} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No metrics yet — enter values below</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>No metrics yet — enter values below</td></tr>
               ) : seoMetrics.slice(0, 6).map((m, i) => {
                 const monthLabel = m.month
                   ? new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
                   : '—';
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                    <td style={s.td}>{monthLabel}</td>
-                    <td style={s.td}>{m.moz_da ?? '—'}</td>
-                    <td style={s.td}>{m.authority_score ?? '—'}</td>
-                    <td style={s.td}>{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
-                    <td style={{ ...s.td, maxWidth: 200, color: '#666' }}>{m.notes || '—'}</td>
-                    <td style={s.td}>
+                    <td >{monthLabel}</td>
+                    <td >{m.moz_da ?? '—'}</td>
+                    <td >{m.authority_score ?? '—'}</td>
+                    <td >{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
+                    <td style={{ maxWidth: 200, color: '#666' }}>{m.notes || '—'}</td>
+                    <td >
                       <button
-                        style={s.btnSm}
+                        className="btn btn-secondary btn-sm"
                         onClick={() => {
                           const iso = m.month ? m.month.slice(0, 10) : '';
                           setSeoMetricEdit({
@@ -985,20 +986,20 @@ export default function ClientSEOPage() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 2fr', gap: 12 }}>
             {[
-              { label: 'Month', el: <input type="date" style={s.input} value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
-              { label: 'Moz DA', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
-              { label: 'Authority Score', el: <input type="number" min="0" max="100" style={s.input} value={seoMetricEdit.authority_score} onChange={e => setSeoMetricEdit(p => ({ ...p, authority_score: e.target.value }))} placeholder="0–100" /> },
-              { label: 'Referring Domains', el: <input type="number" min="0" style={s.input} value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
-              { label: 'Notes', el: <input style={s.input} value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
+              { label: 'Month', el: <input type="date" className="input" value={seoMetricEdit.month} onChange={e => setSeoMetricEdit(p => ({ ...p, month: e.target.value }))} required /> },
+              { label: 'Moz DA', el: <input type="number" min="0" max="100" className="input" value={seoMetricEdit.moz_da} onChange={e => setSeoMetricEdit(p => ({ ...p, moz_da: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Authority Score', el: <input type="number" min="0" max="100" className="input" value={seoMetricEdit.authority_score} onChange={e => setSeoMetricEdit(p => ({ ...p, authority_score: e.target.value }))} placeholder="0–100" /> },
+              { label: 'Referring Domains', el: <input type="number" min="0" className="input" value={seoMetricEdit.referring_domains} onChange={e => setSeoMetricEdit(p => ({ ...p, referring_domains: e.target.value }))} placeholder="0" /> },
+              { label: 'Notes', el: <input className="input" value={seoMetricEdit.notes} onChange={e => setSeoMetricEdit(p => ({ ...p, notes: e.target.value }))} placeholder="Optional notes…" /> },
             ].map(({ label, el }) => (
               <div key={label} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <label style={s.label}>{label}</label>
+                <label className="field-label">{label}</label>
                 {el}
               </div>
             ))}
           </div>
           <div>
-            <button type="submit" style={s.btn} disabled={savingMetrics}>
+            <button type="submit" className="btn btn-primary" disabled={savingMetrics}>
               {savingMetrics ? 'Saving…' : 'Save Metrics'}
             </button>
           </div>
@@ -1010,14 +1011,14 @@ export default function ClientSEOPage() {
       {activeTab === 'backlinks' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-            <div style={s.cardTitle}>Backlink Profile{backlinks?.domain ? ` — ${backlinks.domain}` : ''}</div>
-            <button onClick={loadBacklinks} style={s.btnGhost} disabled={backlinksLoading}>
+            <div className="caption">Backlink Profile{backlinks?.domain ? ` — ${backlinks.domain}` : ''}</div>
+            <button onClick={loadBacklinks} className="btn btn-secondary" disabled={backlinksLoading}>
               {backlinksLoading ? 'Fetching…' : 'Refresh'}
             </button>
           </div>
 
           {backlinksLoading && !backlinks && (
-            <div style={{ ...s.card, color: '#888', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
+            <div className="card" style={{ color: '#888', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
           )}
 
           {backlinksError && (
@@ -1027,7 +1028,7 @@ export default function ClientSEOPage() {
           )}
 
           {!backlinksError && backlinks?.empty && (
-            <div style={{ ...s.card, color: '#888', fontSize: 13 }}>
+            <div className="card" style={{ color: '#888', fontSize: 13 }}>
               No backlink data returned for <strong>{backlinks.domain}</strong> yet.
             </div>
           )}
@@ -1044,11 +1045,11 @@ export default function ClientSEOPage() {
                 { label: 'Broken Backlinks', val: backlinks.broken_backlinks },
                 { label: 'Spam Score', val: backlinks.spam_score },
               ].map(m => (
-                <div key={m.label} style={s.card}>
-                  <div style={{ ...s.metricVal, color: m.color || '#1a1a1a' }}>
+                <div key={m.label} className="card">
+                  <div className="metric" style={{ color: m.color || '#1a1a1a' }}>
                     {m.val == null ? '—' : Number(m.val).toLocaleString('en-GB')}
                   </div>
-                  <div style={s.metricLabel}>{m.label}</div>
+                  <div className="caption">{m.label}</div>
                 </div>
               ))}
             </div>
@@ -1064,22 +1065,3 @@ export default function ClientSEOPage() {
   );
 }
 
-// Page-local style shorthand aligned to the global design system.
-// All thick 2px borders, chunky radii, suite-accent buttons.
-const s = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20 },
-  cardTitle: { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2 },
-  metricRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' },
-  metricVal: { fontSize: 24, fontWeight: 700, color: '#1a1a1a' },
-  metricLabel: { fontSize: 11, color: '#888' },
-  label: { fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2 },
-  input: { padding: '10px 12px', border: '2px solid var(--accent)', borderRadius: 8, fontSize: 13, width: '100%', fontFamily: 'inherit', background: 'var(--accent-soft)' },
-  btn: { background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  chip: { background: '#f3f3f3', borderRadius: 999, padding: '3px 10px', fontSize: 11, color: '#555', fontWeight: 600 },
-  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden', marginTop: 16 },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
-  td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3', verticalAlign: 'middle' },
-};

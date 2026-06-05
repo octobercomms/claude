@@ -82,7 +82,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
   return (
     <div style={{ padding: '16px 24px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <button onClick={generate} disabled={generating} style={s.btn}>
+        <button onClick={generate} disabled={generating} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
         <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up, final nudge.</span>
@@ -90,17 +90,17 @@ function CampaignSequence({ campaign, onCampaignChange }) {
       {steps && steps.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
           {campaign.status === 'draft' && (
-            <button onClick={launch} disabled={busy} style={s.btn}>{busy ? '…' : '▶ Launch campaign'}</button>
+            <button onClick={launch} disabled={busy} className="btn btn-primary">{busy ? '…' : '▶ Launch campaign'}</button>
           )}
           {campaign.status === 'active' && (
-            <button onClick={() => setCampaignState('pause')} disabled={busy} style={s.btnGhost}>{busy ? '…' : '⏸ Pause'}</button>
+            <button onClick={() => setCampaignState('pause')} disabled={busy} className="btn btn-secondary">{busy ? '…' : '⏸ Pause'}</button>
           )}
           {campaign.status === 'paused' && (
-            <button onClick={() => setCampaignState('resume')} disabled={busy} style={s.btn}>{busy ? '…' : '▶ Resume'}</button>
+            <button onClick={() => setCampaignState('resume')} disabled={busy} className="btn btn-primary">{busy ? '…' : '▶ Resume'}</button>
           )}
-          <input style={{ ...s.input, width: 190 }} placeholder="test@you.com" value={testTo}
+          <input className="input" style={{ width: 190 }} placeholder="test@you.com" value={testTo}
             onChange={e => setTestTo(e.target.value)} />
-          <button onClick={testSend} disabled={busy} style={s.btnGhost}>Test send</button>
+          <button onClick={testSend} disabled={busy} className="btn btn-secondary">Test send</button>
           <span style={{ fontSize: 12, color: '#888' }}>
             {campaign.contact_count || 0} enrolled · {campaign.sent_count || 0} sent · {campaign.opened_count || 0} opened
           </span>
@@ -112,17 +112,17 @@ function CampaignSequence({ campaign, onCampaignChange }) {
         <p style={{ fontSize: 12, color: '#888' }}>No sequence yet — generate one with Claude.</p>
       ) : (
         steps.map(step => (
-          <div key={step.id} style={{ ...s.card, marginBottom: 10 }}>
+          <div key={step.id} className="card" style={{ marginBottom: 10 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
               Step {step.step_number} · sent day {step.delay_days}
             </div>
-            <input style={{ ...s.input, width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+            <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
               value={step.subject || ''} placeholder="Subject"
               onChange={e => updateStep(step.id, 'subject', e.target.value)} />
-            <textarea style={{ ...s.input, width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
+            <textarea className="input" style={{ width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
               value={step.body || ''} placeholder="Email body"
               onChange={e => updateStep(step.id, 'body', e.target.value)} />
-            <button onClick={() => saveStep(step)} style={{ ...s.btn, marginTop: 8 }}>Save step</button>
+            <button onClick={() => saveStep(step)} className="btn btn-primary" style={{ marginTop: 8 }}>Save step</button>
           </div>
         ))
       )}
@@ -408,7 +408,7 @@ export default function ClientOutreachPage() {
               ['Emails Sent', stats?.emails_sent],
               ['Replies', stats?.replies],
             ].map(([label, value]) => (
-              <div key={label} style={s.card}>
+              <div key={label} className="card">
                 <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>{value ?? '—'}</div>
                 <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
               </div>
@@ -417,7 +417,7 @@ export default function ClientOutreachPage() {
 
           {/* System Status + Recent Campaigns */}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 16 }}>
-            <div style={s.card}>
+            <div className="card">
               <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
               {systemStatus.length === 0 ? (
                 <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Loading…</p>
@@ -450,7 +450,7 @@ export default function ClientOutreachPage() {
               <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
             </div>
 
-            <div style={s.card}>
+            <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
                 {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#666', padding: 0 }}>View all →</button>}
@@ -463,7 +463,7 @@ export default function ClientOutreachPage() {
                     {recentCampaigns.map(c => (
                       <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setTab('campaigns')}>
                         <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
-                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}><span style={s.chip}>{c.status}</span></td>
+                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}><span className="chip chip-neutral">{c.status}</span></td>
                         <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: '#888', fontSize: 12 }}>
                           {new Date(c.created_at).toLocaleDateString('en-GB')}
                         </td>
@@ -480,9 +480,9 @@ export default function ClientOutreachPage() {
       {tab === 'contacts' && (
         <div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setShowAddContact(v => !v)} style={s.btn}>{showAddContact ? 'Cancel' : '+ Add contact'}</button>
-            <button onClick={() => setShowLibrary(v => !v)} style={s.btnGhost}>{showLibrary ? 'Close library' : '+ Add from library'}</button>
-            <button onClick={() => setShowFinder(v => !v)} style={s.btnGhost}>{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
+            <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add contact'}</button>
+            <button onClick={() => setShowLibrary(v => !v)} className="btn btn-secondary">{showLibrary ? 'Close library' : '+ Add from library'}</button>
+            <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
           </div>
           {showLibrary && (
             <LibraryPicker clientId={id} onAttached={async () => {
@@ -494,16 +494,16 @@ export default function ClientOutreachPage() {
             }} />
           )}
           {showFinder && (
-            <div style={{ ...s.card, marginTop: 12 }}>
+            <div className="card" style={{ marginTop: 12 }}>
               <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Find companies by audience (Serper)</div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr) auto', gap: 8 }}>
-                <input style={s.input} placeholder="Industry" value={aud.industry}
+                <input className="input" placeholder="Industry" value={aud.industry}
                   onChange={e => setAud(p => ({ ...p, industry: e.target.value }))} />
-                <input style={s.input} placeholder="Location" value={aud.location}
+                <input className="input" placeholder="Location" value={aud.location}
                   onChange={e => setAud(p => ({ ...p, location: e.target.value }))} />
-                <input style={s.input} placeholder="Specialisation" value={aud.specialisation}
+                <input className="input" placeholder="Specialisation" value={aud.specialisation}
                   onChange={e => setAud(p => ({ ...p, specialisation: e.target.value }))} />
-                <button onClick={runSerper} disabled={searching} style={s.btn}>{searching ? 'Searching…' : 'Search'}</button>
+                <button onClick={runSerper} disabled={searching} className="btn btn-primary">{searching ? 'Searching…' : 'Search'}</button>
               </div>
               {serperError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
               {serperDomains.length > 0 && (
@@ -514,18 +514,18 @@ export default function ClientOutreachPage() {
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{d.domain}</div>
                         {d.title && <div style={{ fontSize: 11, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
                       </div>
-                      <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} style={s.btnGhost}>Find emails →</button>
+                      <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} className="btn btn-secondary">Find emails →</button>
                     </div>
                   ))}
                 </div>
               )}
               <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or find emails for a known domain</div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input style={{ ...s.input, flex: 1 }} placeholder="Company domain — e.g. example.com"
+                <input className="input" style={{ flex: 1 }} placeholder="Company domain — e.g. example.com"
                   value={findDomain} onChange={e => setFindDomain(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') runFind(findDomain, 'hunter'); }} />
-                <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} style={s.btn}>{finding ? '…' : 'Hunter'}</button>
-                <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} style={s.btnGhost}>{finding ? '…' : 'Icypeas'}</button>
+                <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Hunter'}</button>
+                <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} className="btn btn-secondary">{finding ? '…' : 'Icypeas'}</button>
               </div>
               {findError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
@@ -533,21 +533,21 @@ export default function ClientOutreachPage() {
               )}
               {foundContacts.length > 0 && (
                 <div style={{ marginTop: 12 }}>
-                  <table style={s.table}>
-                    <thead><tr>{['', 'Name', 'Email', 'Role', 'Confidence'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+                  <table className="table">
+                    <thead><tr>{['', 'Name', 'Email', 'Role', 'Confidence'].map(h => <th key={h} >{h}</th>)}</tr></thead>
                     <tbody>
                       {foundContacts.map((c, i) => (
                         <tr key={i}>
-                          <td style={s.td}><input type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
-                          <td style={s.td}>{c.name || '—'}</td>
-                          <td style={s.td}>{c.email}</td>
-                          <td style={s.td}>{c.role || '—'}</td>
-                          <td style={s.td}>{c.confidence != null ? `${c.confidence}%` : '—'}</td>
+                          <td ><input type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
+                          <td >{c.name || '—'}</td>
+                          <td >{c.email}</td>
+                          <td >{c.role || '—'}</td>
+                          <td >{c.confidence != null ? `${c.confidence}%` : '—'}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <button onClick={addFound} disabled={selected.size === 0} style={{ ...s.btn, marginTop: 10 }}>
+                  <button onClick={addFound} disabled={selected.size === 0} className="btn btn-primary" style={{ marginTop: 10 }}>
                     Add {selected.size} selected
                   </button>
                 </div>
@@ -555,22 +555,22 @@ export default function ClientOutreachPage() {
             </div>
           )}
           {showAddContact && (
-            <form onSubmit={addContact} style={{ ...s.card, marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
+            <form onSubmit={addContact} className="card" style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 10 }}>
               {['name', 'email', 'company', 'role', 'website'].map(f => (
-                <input key={f} style={s.input} placeholder={f[0].toUpperCase() + f.slice(1)} value={newContact[f]}
+                <input key={f} className="input" placeholder={f[0].toUpperCase() + f.slice(1)} value={newContact[f]}
                   required={f === 'email'}
                   onChange={e => setNewContact(p => ({ ...p, [f]: e.target.value }))} />
               ))}
-              <button type="submit" style={{ ...s.btn, gridColumn: '1 / -1', justifySelf: 'start' }}>Add contact</button>
+              <button type="submit" className="btn btn-primary" style={{ gridColumn: '1 / -1', justifySelf: 'start' }}>Add contact</button>
             </form>
           )}
 
           {/* Secondary toolbar: CSV import/export + bulk actions */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-            <button onClick={() => setShowImport(true)} style={s.btnGhost}>↑ Import CSV</button>
-            <button onClick={handleCsvExport} disabled={contacts.length === 0} style={s.btnGhost}>↓ Export CSV</button>
+            <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
+            <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
             {selectedContacts.size > 0 && (
-              <button onClick={handleBulkDelete} style={{ ...s.btnGhost, color: '#c62828', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
+              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: '#c62828', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
             )}
             <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
               CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
@@ -579,46 +579,46 @@ export default function ClientOutreachPage() {
 
           {/* Filters row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 10, marginTop: 12 }}>
-            <input style={s.input} placeholder="Search name / email / company" value={contactFilter.search}
+            <input className="input" placeholder="Search name / email / company" value={contactFilter.search}
               onChange={e => setContactFilter(f => ({ ...f, search: e.target.value }))} />
-            <input style={s.input} list="contact-types-filter" placeholder="Filter by type"
+            <input className="input" list="contact-types-filter" placeholder="Filter by type"
               value={contactFilter.contact_type} onChange={e => setContactFilter(f => ({ ...f, contact_type: e.target.value }))} />
             <datalist id="contact-types-filter">
               {['architect', 'interior_designer', 'journalist', 'editor', 'developer', 'retailer', 'distributor', 'agency'].map(t => <option key={t} value={t} />)}
             </datalist>
-            <input style={s.input} placeholder="Filter by location" value={contactFilter.location}
+            <input className="input" placeholder="Filter by location" value={contactFilter.location}
               onChange={e => setContactFilter(f => ({ ...f, location: e.target.value }))} />
           </div>
 
           {/* Contacts table */}
-          <div style={{ ...s.tableWrap, marginTop: 12 }}>
-            <table style={s.table}>
+          <div className="card" style={{ marginTop: 12 }}>
+            <table className="table">
               <thead>
                 <tr>
-                  <th style={{ ...s.th, width: 32 }}>
+                  <th style={{ width: 32 }}>
                     <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} />
                   </th>
-                  {['Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Added', ''].map(h => <th key={h} style={s.th}>{h}</th>)}
+                  {['Name', 'Email', 'Company', 'Type', 'Location', 'Status', 'Added', ''].map(h => <th key={h} >{h}</th>)}
                 </tr>
               </thead>
               <tbody>
                 {filteredContacts.length === 0 ? (
-                  <tr><td colSpan={9} style={{ ...s.td, textAlign: 'center', color: '#888' }}>
+                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#888' }}>
                     {contacts.length === 0 ? 'No contacts yet — add manually, find new, or import a CSV.' : 'No contacts match these filters.'}
                   </td></tr>
                 ) : filteredContacts.map(c => (
                   <tr key={c.id}>
-                    <td style={s.td}><input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} /></td>
-                    <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
-                    <td style={s.td}>{c.email || '—'}</td>
-                    <td style={s.td}>{c.company || '—'}</td>
-                    <td style={s.td}>{c.contact_type || '—'}</td>
-                    <td style={s.td}>{c.location || '—'}</td>
-                    <td style={s.td}><span style={s.chip}>{c.status}</span></td>
-                    <td style={s.td}>{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
-                    <td style={s.td}>
-                      <button onClick={() => setEditingContact(c)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>Edit</button>
-                      <button onClick={() => deleteContact(c.id)} title="Delete" style={s.del}>×</button>
+                    <td ><input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} /></td>
+                    <td >{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+                    <td >{c.email || '—'}</td>
+                    <td >{c.company || '—'}</td>
+                    <td >{c.contact_type || '—'}</td>
+                    <td >{c.location || '—'}</td>
+                    <td ><span className="chip chip-neutral">{c.status}</span></td>
+                    <td >{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
+                    <td >
+                      <button onClick={() => setEditingContact(c)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }}>Edit</button>
+                      <button onClick={() => deleteContact(c.id)} title="Delete" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
                     </td>
                   </tr>
                 ))}
@@ -693,34 +693,34 @@ export default function ClientOutreachPage() {
       {tab === 'campaigns' && !wizardCampaignId && (
         <div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={startNewCampaign} style={s.btn}>+ New campaign</button>
-            <button onClick={() => setShowPressWizard(true)} style={s.btnGhost}>+ New press release</button>
+            <button onClick={startNewCampaign} className="btn btn-primary">+ New campaign</button>
+            <button onClick={() => setShowPressWizard(true)} className="btn btn-secondary">+ New press release</button>
           </div>
-          <div style={{ ...s.tableWrap, marginTop: 12 }}>
-            <table style={s.table}>
-              <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+          <div className="card" style={{ marginTop: 12 }}>
+            <table className="table">
+              <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
               <tbody>
                 {campaigns.length === 0 ? (
-                  <tr><td colSpan={8} style={{ ...s.td, textAlign: 'center', color: '#888' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
                 ) : campaigns.map(c => (
                   <tr key={c.id}>
-                    <td style={s.td}>
+                    <td >
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
                       {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
-                    <td style={s.td}>{c.brand || '—'}</td>
-                    <td style={s.td}>{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span style={{ ...s.chip, background: '#fffceb', color: '#5d4000', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
-                    <td style={s.td}><span style={s.chip}>{c.status}</span></td>
-                    <td style={s.td}>{c.contact_count || 0}</td>
-                    <td style={s.td}>{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
-                    <td style={s.td}>{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
-                    <td style={s.td}>
-                      <button onClick={() => setWizardCampaignId(c.id)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12 }}>Open wizard</button>
-                      <button onClick={() => duplicateCampaign(c)} style={{ ...s.btnGhost, padding: '4px 10px', fontSize: 12, marginLeft: 4 }}
+                    <td >{c.brand || '—'}</td>
+                    <td >{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span className="chip chip-neutral" style={{ background: '#fffceb', color: '#5d4000', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
+                    <td ><span className="chip chip-neutral">{c.status}</span></td>
+                    <td >{c.contact_count || 0}</td>
+                    <td >{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
+                    <td >{new Date(c.created_at).toLocaleDateString('en-GB')}</td>
+                    <td >
+                      <button onClick={() => setWizardCampaignId(c.id)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }}>Open wizard</button>
+                      <button onClick={() => duplicateCampaign(c)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12, marginLeft: 4 }}
                         title="Make a draft copy of this campaign with the same sequence + audience">
                         Duplicate
                       </button>
-                      <button onClick={() => deleteCampaign(c.id)} title="Delete" style={s.del}>×</button>
+                      <button onClick={() => deleteCampaign(c.id)} title="Delete" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
                     </td>
                   </tr>
                 ))}
@@ -731,7 +731,7 @@ export default function ClientOutreachPage() {
       )}
 
       {tab === 'sending' && (
-        <div style={{ ...s.card, maxWidth: 520 }}>
+        <div className="card" style={{ maxWidth: 520 }}>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Outreach sending</div>
           <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
             How outreach emails for this client are sent. Leave a field blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
@@ -739,11 +739,11 @@ export default function ClientOutreachPage() {
           {[['from_name', 'From name'], ['from_email', 'From email'], ['reply_to', 'Reply-To email']].map(([k, label]) => (
             <div key={k} style={{ marginBottom: 12 }}>
               <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>{label}</label>
-              <input style={{ ...s.input, width: '100%', boxSizing: 'border-box' }} value={sendCfg[k] || ''}
+              <input className="input" style={{ width: '100%', boxSizing: 'border-box' }} value={sendCfg[k] || ''}
                 onChange={e => setSendCfg(p => ({ ...p, [k]: e.target.value }))} />
             </div>
           ))}
-          <button onClick={saveSending} disabled={savingSend} style={s.btn}>{savingSend ? 'Saving…' : 'Save sending settings'}</button>
+          <button onClick={saveSending} disabled={savingSend} className="btn btn-primary">{savingSend ? 'Saving…' : 'Save sending settings'}</button>
           {sendSaved && <span style={{ marginLeft: 10, color: '#2e7d32', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
         </div>
       )}
@@ -836,18 +836,6 @@ function HelpCard({ title, children }) {
 // design tokens (--accent, --border-w, etc) so this page picks up the
 // suite-email accent automatically and matches every other page's
 // border / radius / padding.
-const s = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20 },
-  btn: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  btnGhost: { padding: '10px 18px', fontSize: 13, fontWeight: 600, background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' },
-  input: { padding: '10px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
-  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse' },
-  th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
-  td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3', fontSize: 13, verticalAlign: 'middle' },
-  chip: { fontSize: 11, background: '#f3f3f3', borderRadius: 999, padding: '3px 10px', textTransform: 'capitalize', fontWeight: 600 },
-  del: { background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' },
-};
 
 // Picker that lists workspace contacts not already attached to this client,
 // filterable by tag, with multi-select + attach.
@@ -909,7 +897,7 @@ function LibraryPicker({ clientId, onAttached }) {
   }
 
   return (
-    <div style={{ ...s.card, marginTop: 12 }}>
+    <div className="card" style={{ marginTop: 12 }}>
       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Add from library</div>
       <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
         Pick contacts from the workspace library to attach to this client. They keep existing for
@@ -918,7 +906,7 @@ function LibraryPicker({ clientId, onAttached }) {
 
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name, email or outlet…" style={{ ...s.input, flex: '1 1 200px' }} />
+          placeholder="Search by name, email or outlet…" className="input" style={{ flex: '1 1 200px' }} />
       </div>
       {!!tags.length && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 10 }}>
@@ -963,7 +951,7 @@ function LibraryPicker({ clientId, onAttached }) {
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <div style={{ fontSize: 12, color: '#666' }}>{selected.size} selected</div>
-            <button onClick={attach} disabled={!selected.size || busy} style={s.btn}>
+            <button onClick={attach} disabled={!selected.size || busy} className="btn btn-primary">
               {busy ? 'Attaching…' : `Add ${selected.size || ''} to this client`}
             </button>
           </div>
