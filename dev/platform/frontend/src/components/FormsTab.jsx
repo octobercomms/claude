@@ -241,7 +241,7 @@ export default function FormsTab({ clientId, connectors }) {
                   <tr key={s.id}>
                     <td style={tdStyle}><code style={{ fontSize: 11 }}>{s.id}</code></td>
                     <td style={tdStyle}>
-                      <span style={{ ...statusPill, background: s.status === 'complete' ? '#dcfce7' : '#fef3c7', color: s.status === 'complete' ? '#166534' : '#92400e' }}>
+                      <span style={{ ...statusPill, background: s.status === 'complete' ? '#dcfce7' : 'var(--warning-soft)', color: s.status === 'complete' ? '#166534' : 'var(--warning)' }}>
                         {s.status}
                       </span>
                     </td>
@@ -331,12 +331,12 @@ function Sparkline({ days }) {
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: 160 }}>
         <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#ddd" strokeWidth="1" />
         {series('views', '#a3a3a3')}
-        {series('starts', '#3b82f6')}
+        {series('starts', 'var(--accent)')}
         {series('completes', '#16a34a')}
       </svg>
       <div style={{ display: 'flex', gap: 16, fontSize: 12, marginTop: 6, color: 'var(--text-muted)' }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#a3a3a3', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#3b82f6', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--accent)', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#16a34a', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
         <span style={{ marginLeft: 'auto' }}>{days[0]?.date} → {days[days.length - 1]?.date}</span>
       </div>

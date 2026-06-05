@@ -669,11 +669,11 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
 // muted styling.
 function ReportSection({ title, empty, items, tone }) {
   const palette = tone === 'error'
-    ? { bg: '#fdecea', border: '#f5c6cb', fg: '#7a1a14' }
-    : { bg: '#fffceb', border: '#ddd6a8', fg: '#5a4a00' };
+    ? { bg: 'var(--negative-soft)', border: '#f5c6cb', fg: '#7a1a14' }
+    : { bg: 'var(--warning-soft)', border: 'var(--warning)', fg: 'var(--warning)' };
   if (!items.length) {
     return (
-      <div style={{ marginTop: 14, padding: '8px 12px', background: '#e7f4ea', border: '1px solid #b6dcc1', color: '#1b5e20', borderRadius: 6, fontSize: 12 }}>
+      <div style={{ marginTop: 14, padding: '8px 12px', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', borderRadius: 6, fontSize: 12 }}>
         ✓ {empty}
       </div>
     );
@@ -741,7 +741,7 @@ function ExistingTable({ rows, selected, onToggle }) {
 }
 function Tag({ children, onRemove }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f1f1', border: '2px solid var(--accent)', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
       {children}
       <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>

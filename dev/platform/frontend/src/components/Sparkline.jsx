@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-export default function Sparkline({ values, width = 120, height = 28, stroke = '#1a56db', strokeWidth = 1.5, fill = null }) {
+export default function Sparkline({ values, width = 120, height = 28, stroke = 'var(--accent)', strokeWidth = 1.5, fill = null }) {
   if (!Array.isArray(values) || values.length < 2) {
     return <span style={{ display: 'inline-block', width, height, color: 'var(--text-subtle)', fontSize: 10 }}>—</span>;
   }

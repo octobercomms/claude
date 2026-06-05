@@ -97,7 +97,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
     return (
       <div>
         <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
-        <div style={{ padding: 20, background: '#fff8e1', border: '1px solid #f0d260', borderRadius: 4, color: '#5d4000' }}>
+        <div style={{ padding: 20, background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 4, color: 'var(--warning)' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>This campaign isn't linked to a press release</div>
           <div style={{ fontSize: 13, lineHeight: 1.5 }}>
             It's tagged as a press campaign but has no parsed release attached — usually because it was created
@@ -121,7 +121,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
           {release.dateline && <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
-          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#1a4f9c', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
+          {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: 'var(--accent)', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
       </div>
 
@@ -210,7 +210,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
             <div>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="field-label">Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
-                <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>regenerate</button>
+                <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>regenerate</button>
               </div>
               <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }} sandbox="" />
               {previewData.follow_ups?.length > 0 && (

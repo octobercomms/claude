@@ -433,7 +433,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                                 </span>
                               )}
                               {f.warnings?.length > 0 && (
-                                <span style={{ color: '#b86e00', fontSize: 10 }} title={f.warnings.join(' · ')}>⚠</span>
+                                <span style={{ color: 'var(--warning)', fontSize: 10 }} title={f.warnings.join(' · ')}>⚠</span>
                               )}
                             </div>
                           ))}
@@ -441,7 +441,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         {/* Surface the warnings inline below so the AM
                             sees them without having to hover the ⚠. */}
                         {driveFiles.some(f => f.warnings?.length > 0) && (
-                          <div style={{ marginTop: 6, padding: '6px 8px', background: '#fff8e1', border: '1px solid #ffe0a3', borderRadius: 3 }}>
+                          <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--warning-soft)', border: '1px solid #ffe0a3', borderRadius: 3 }}>
                             {driveFiles.filter(f => f.warnings?.length > 0).slice(0, 5).map(f => (
                               <div key={f.id} style={{ color: '#7c5800', fontSize: 11 }}>
                                 <b>{f.name}</b>: {f.warnings.join(' · ')}

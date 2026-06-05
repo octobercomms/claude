@@ -341,7 +341,7 @@ export default function ImportWizard({
 
         {step === 3 && result && (
           <div>
-            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 6, color: '#1b5e20', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 6, color: 'var(--positive)', fontSize: 13 }}>
               ✓ Imported {result.inserted} new contact{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
               {clientIdForAttach && ` Attached to this client.`}
               {allowClients && attachClients.size > 0 && ` Attached to ${attachClients.size} client${attachClients.size === 1 ? '' : 's'}.`}
@@ -391,4 +391,4 @@ const input = { padding: '7px 10px', fontSize: 13, border: '2px solid var(--acce
 const select = { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)', cursor: 'pointer', width: '100%' };
 const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
 const tagChipOn = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
-const errBox = { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 };
+const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 };

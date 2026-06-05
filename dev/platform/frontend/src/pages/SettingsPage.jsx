@@ -1059,8 +1059,8 @@ function ContactsLibrary() {
           })()}
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 4, color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
 
         {!filtered && <div style={{ marginTop: 16, color: 'var(--text-subtle)' }}>Loading…</div>}
         {filtered && !filtered.length && (
@@ -1327,7 +1327,7 @@ function TagsManager() {
         </div>
 
         {plan && plan.operations && plan.operations.length > 0 && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 14, background: '#fffdf2' }}>
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 14, background: 'var(--warning-soft)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
@@ -1389,8 +1389,8 @@ function TagsManager() {
           </div>
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 4, color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
 
         {!filtered.length ? (
           <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
@@ -1565,7 +1565,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                               <code style={tidyStyles.fieldChip}>{s.field}</code>{' '}
                               <span style={{ color: 'var(--text-subtle)' }}>{s.before ? `"${s.before}"` : <em>empty</em>}</span>
                               {' → '}
-                              <span style={{ color: '#1b5e20', fontWeight: 700 }}>"{s.new_value}"</span>
+                              <span style={{ color: 'var(--positive)', fontWeight: 700 }}>"{s.new_value}"</span>
                             </div>
                             {s.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
                           </div>
@@ -1599,7 +1599,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
 
         {phase === 'done' && (
           <div>
-            <div style={{ padding: 14, background: '#e7f4ea', border: '1px solid #b6dcc1', borderRadius: 14, color: '#1b5e20', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 14, color: 'var(--positive)', fontSize: 13 }}>
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
@@ -1640,8 +1640,8 @@ const tidyStyles = {
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
   btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 },
-  fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
+  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 },
+  fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
 
 // Human-readable summary of a single tag-tidy operation. Rendered

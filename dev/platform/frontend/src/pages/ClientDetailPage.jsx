@@ -883,7 +883,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
   const [diagnosing, setDiagnosing] = React.useState(false);
   const [diagnoseResult, setDiagnoseResult] = React.useState(null);
-  const statusColor = { active: 'var(--positive)', error: 'var(--negative)', expired: '#e65100', disconnected: 'var(--text-subtle)' };
+  const statusColor = { active: 'var(--positive)', error: 'var(--negative)', expired: 'var(--warning)', disconnected: 'var(--text-subtle)' };
 
   async function handleDiagnose() {
     setDiagnosing(true);
@@ -1013,7 +1013,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
-          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: '#e65100' }}>Reset</button>}
+          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--warning)' }}>Reset</button>}
           <button onClick={() => onDelete(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Remove</button>
         </div>
       </div>
@@ -1075,7 +1075,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                     <div style={{ color: 'var(--negative)', marginTop: 2 }}>✗ Cannot access: {diagnoseResult.access.missing.join(', ')}</div>
                   )}
                   {(diagnoseResult.access.limitations || []).map((l, i) => (
-                    <div key={i} style={{ color: '#e65100', marginTop: 3, fontFamily: 'sans-serif', lineHeight: 1.4 }}>⚠ {l}</div>
+                    <div key={i} style={{ color: 'var(--warning)', marginTop: 3, fontFamily: 'sans-serif', lineHeight: 1.4 }}>⚠ {l}</div>
                   ))}
                 </>
               )}

@@ -425,13 +425,13 @@ export default function ClientOutreachPage() {
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
                       <span>SPF record <code style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{dnsCheck.domain}</code></span>
-                      <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                      <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 12 }}>
                         {dnsCheck.spf === 'found' ? '✓ Found' : '⚠ Missing'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
                       <span>DMARC record</span>
-                      <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                      <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600, fontSize: 12 }}>
                         {dnsCheck.dmarc === 'found' ? '✓ Found' : '⚠ Missing'}
                       </span>
                     </div>
@@ -561,7 +561,7 @@ export default function ClientOutreachPage() {
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
             {selectedContacts.size > 0 && (
-              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: 'var(--negative)', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
+              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: 'var(--negative)', borderColor: 'var(--negative)' }}>Delete {selectedContacts.size} selected</button>
             )}
             <span style={{ fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
               CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
@@ -700,7 +700,7 @@ export default function ClientOutreachPage() {
                       {c.audience_description && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
                     <td >{c.brand || '—'}</td>
-                    <td >{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span className="chip chip-neutral" style={{ background: '#fffceb', color: '#5d4000', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
+                    <td >{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span className="chip chip-neutral" style={{ background: 'var(--warning-soft)', color: 'var(--warning)', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
                     <td ><span className="chip chip-neutral">{c.status}</span></td>
                     <td >{c.contact_count || 0}</td>
                     <td >{(c.sent_count || 0)} / {(c.contact_count || 0)}</td>
@@ -795,8 +795,8 @@ function HelpPanel({ dnsCheck }) {
         {dnsCheck && dnsCheck.domain && (
           <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
             Current check for <code>{dnsCheck.domain}</code>:{' '}
-            <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
-            <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
+            <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
+            <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
           </p>
         )}
       </HelpCard>
@@ -916,7 +916,7 @@ function LibraryPicker({ clientId, onAttached }) {
         </div>
       )}
 
-      {err && <div style={{ padding: 8, background: '#fdecea', color: 'var(--negative)', fontSize: 12, borderRadius: 4 }}>{err}</div>}
+      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 4 }}>{err}</div>}
       {!filtered && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
       {filtered && !filtered.length && (
         <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
@@ -935,7 +935,7 @@ function LibraryPicker({ clientId, onAttached }) {
                   <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.email}</div>
                 </div>
                 {(r.tags || []).slice(0, 4).map(t => (
-                  <span key={t} style={{ fontSize: 10, background: '#f1f1f1', borderRadius: 3, padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
+                  <span key={t} style={{ fontSize: 10, background: 'var(--accent-soft)', borderRadius: 3, padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
                 ))}
               </label>
             ))}

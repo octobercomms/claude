@@ -3,10 +3,10 @@ import { api } from '../utils/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const intentColours = {
-  Informational: { bg: '#e8f1ff', fg: '#1a4f9c' },
-  Navigational:  { bg: '#f4eafd', fg: '#5e2d8c' },
-  Commercial:    { bg: '#fff4d6', fg: '#8a6500' },
-  Transactional: { bg: '#e4f4e8', fg: 'var(--positive)' },
+  Informational: { bg: '#e8f1ff', fg: 'var(--accent)' },
+  Navigational:  { bg: '#f4eafd', fg: 'var(--accent)' },
+  Commercial:    { bg: 'var(--warning-soft)', fg: 'var(--warning)' },
+  Transactional: { bg: 'var(--positive-soft)', fg: 'var(--positive)' },
 };
 
 export function IntentBadge({ intent }) {
@@ -58,7 +58,7 @@ export function SerpFeaturePills({ features }) {
       {items.map(label => (
         <span key={label} style={{
           fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3,
-          padding: '1px 5px', borderRadius: 3, background: '#f1f1f1', color: 'var(--text-muted)',
+          padding: '1px 5px', borderRadius: 3, background: 'var(--accent-soft)', color: 'var(--text-muted)',
         }}>{label}</span>
       ))}
       {arr.length > items.length && <span style={{ fontSize: 9, color: 'var(--text-subtle)' }}>+{arr.length - items.length}</span>}
@@ -590,7 +590,7 @@ function BriefSection({ label, children }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div className="caption mb-2">{label}</div>
-      <div style={{ fontSize: 13, color: '#222', lineHeight: 1.6 }}>{children}</div>
+      <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{children}</div>
     </div>
   );
 }
@@ -600,7 +600,7 @@ function BriefList({ label, items }) {
   return (
     <div style={{ marginBottom: 14 }}>
       <div className="caption mb-2">{label}</div>
-      <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, color: '#222', lineHeight: 1.7 }}>
+      <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, color: 'var(--text)', lineHeight: 1.7 }}>
         {items.map((p, i) => <li key={i}>{p}</li>)}
       </ul>
     </div>

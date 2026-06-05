@@ -24,12 +24,12 @@ const MD_COMPONENTS = {
   th: ({ children }) => <th style={{ border: '2px solid var(--accent)', background: 'var(--surface-sunken)', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
   td: ({ children }) => <td style={{ border: '2px solid var(--accent)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
   code: ({ inline, children }) => inline
-    ? <code style={{ background: '#f4f4f4', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
-    : <code style={{ display: 'block', background: '#f6f6f6', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
+    : <code style={{ display: 'block', background: 'var(--surface-raised)', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
   pre: ({ children }) => <pre style={{ background: 'transparent', padding: 0, margin: 0 }}>{children}</pre>,
   blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</blockquote>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '10px 0' }} />,
-  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>{children}</a>,
+  a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>{children}</a>,
 };
 
 const TOOL_LABELS = {
@@ -45,16 +45,16 @@ const TOOL_LABELS = {
 
 const TYPE_COLOURS = {
   decision: 'var(--accent)',
-  investigation: '#e65100',
-  pending: '#6a1b9a',
+  investigation: 'var(--warning)',
+  pending: 'var(--accent)',
   observation: 'var(--positive)',
 };
 
 const TYPE_BG = {
-  decision: '#e3f2fd',
-  investigation: '#fff3e0',
-  pending: '#f3e5f5',
-  observation: '#e8f5e9',
+  decision: 'var(--accent-soft)',
+  investigation: 'var(--warning-soft)',
+  pending: 'var(--accent-soft)',
+  observation: 'var(--positive-soft)',
 };
 
 export default function ClientChatPage() {

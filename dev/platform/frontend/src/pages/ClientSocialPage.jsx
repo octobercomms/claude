@@ -660,7 +660,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
         </div>
 
-        {error && <div style={{ padding: '8px 12px', background: '#fff0f0', color: 'var(--negative)', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ padding: '8px 12px', background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
@@ -859,8 +859,8 @@ function PlansList({ clientId, clientName, onOpen }) {
               </button>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {pubs.map(pub => {
-                  const colour = pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : pub.status === 'in_flight' ? '#b86e00' : 'var(--text-subtle)';
-                  const bg = pub.status === 'posted' ? '#e8f5e9' : pub.status === 'failed' ? '#ffebee' : pub.status === 'in_flight' ? '#fff4e1' : 'var(--surface-sunken)';
+                  const colour = pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : pub.status === 'in_flight' ? 'var(--warning)' : 'var(--text-subtle)';
+                  const bg = pub.status === 'posted' ? 'var(--positive-soft)' : pub.status === 'failed' ? 'var(--negative-soft)' : pub.status === 'in_flight' ? 'var(--warning-soft)' : 'var(--surface-sunken)';
                   const icon = pub.status === 'posted' ? '✓' : pub.status === 'failed' ? '✗' : '·';
                   return (
                     <span key={pub.platform} title={pub.error_message || pub.posted_url || pub.status}
@@ -870,13 +870,13 @@ function PlansList({ clientId, clientName, onOpen }) {
                   );
                 })}
                 {hasEng && (
-                  <span style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3 }}>
+                  <span style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 3 }}>
                     {eng.reach ? `${formatNum(eng.reach)} reach · ` : ''}{formatNum(eng.likes)} ♡ · {formatNum(eng.comments)} 💬{eng.shares ? ` · ${formatNum(eng.shares)} ↗` : ''}
                   </span>
                 )}
                 {p.scheduled_at && !pubs.some(x => x.status === 'posted') && editingPlanId !== p.id && (
                   <button type="button" onClick={() => beginEdit(p)}
-                    style={{ fontSize: 11, color: '#1a56db', background: '#eef2ff', padding: '2px 8px', borderRadius: 3, border: 'none', cursor: 'pointer' }}
+                    style={{ fontSize: 11, color: 'var(--accent)', background: 'var(--accent-soft)', padding: '2px 8px', borderRadius: 3, border: 'none', cursor: 'pointer' }}
                     title="Click to reschedule">
                     ⏰ {new Date(p.scheduled_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     {p.target_platforms?.length ? ` · ${p.target_platforms.join(', ')}` : ''}
@@ -887,7 +887,7 @@ function PlansList({ clientId, clientName, onOpen }) {
                     <input type="datetime-local" value={editDraft} onChange={e => setEditDraft(e.target.value)}
                       style={{ fontSize: 11, padding: '2px 4px', border: '1px solid #1a56db', borderRadius: 3 }} />
                     <button type="button" onClick={() => saveEdit(p.id)} disabled={savingEdit}
-                      style={{ fontSize: 11, padding: '2px 8px', background: '#1a56db', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+                      style={{ fontSize: 11, padding: '2px 8px', background: 'var(--accent)', color: 'white', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
@@ -960,8 +960,8 @@ function PlansCalendar({ plans, onOpen }) {
                   const pubs = Array.isArray(p.publications) ? p.publications : [];
                   const allPosted = pubs.length > 0 && pubs.every(x => x.status === 'posted');
                   const anyFailed = pubs.some(x => x.status === 'failed');
-                  const bg = allPosted ? '#e8f5e9' : anyFailed ? '#ffebee' : '#eef2ff';
-                  const fg = allPosted ? 'var(--positive)' : anyFailed ? 'var(--negative)' : '#1a56db';
+                  const bg = allPosted ? 'var(--positive-soft)' : anyFailed ? 'var(--negative-soft)' : 'var(--accent-soft)';
+                  const fg = allPosted ? 'var(--positive)' : anyFailed ? 'var(--negative)' : 'var(--accent)';
                   const t = new Date(p.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                   return (
                     <button key={p.id} type="button" onClick={() => onOpen(p.id)}
@@ -1016,7 +1016,7 @@ function CompetitorEditor({ competitors, onSave }) {
           <button onClick={() => setEditing(false)} className="btn btn-secondary btn-sm">Done</button>
         </>
       ) : (
-        <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: '#1a4f9c', cursor: 'pointer', fontSize: 12, marginLeft: 6 }}>edit</button>
+        <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, marginLeft: 6 }}>edit</button>
       )}
     </div>
   );
@@ -1072,7 +1072,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
-          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>
+          <button onClick={() => setOpen(o => !o)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>
             {open ? 'collapse' : `show all ${sounds.length}`}
           </button>
         )}
@@ -1081,7 +1081,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '2px solid var(--accent)', borderRadius: 999, color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 11, padding: '4px 10px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 999, color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
               {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
@@ -1098,13 +1098,13 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
   const reachSeries = (sparkline || []).map(p => p.reach);
   const interactionSeries = (sparkline || []).map(p => p.interactions);
   return (
-    <div style={{ background: '#fffceb', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
+    <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#7a5a00', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Top performers — last 90 days
         </div>
         {reachSeries.length > 1 && (
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 11, color: '#5d4000' }}>
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 11, color: 'var(--warning)' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--text-subtle)' }}>Reach 30d</span>
               <Sparkline values={reachSeries} width={90} height={22} />
@@ -1119,7 +1119,7 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
       {frameworkBreakdown?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {frameworkBreakdown.map(b => (
-            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 999, color: '#5d4000' }}>
+            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 999, color: 'var(--warning)' }}>
               <strong>{b.framework}</strong>: {b.avg_engagement_rate}% engagement
               <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
             </span>
@@ -1135,7 +1135,7 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
             <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
-            <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#7a5a00' }}>{w.engagement_rate}% engagement</div>
+            <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: 'var(--warning)' }}>{w.engagement_rate}% engagement</div>
           </a>
         ))}
       </div>
@@ -1196,11 +1196,11 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
 // confirm it follows the A → B → C → B → … → G grammar.
 const STYLE_COLOURS = {
   A: { bg: 'var(--text)', fg: 'var(--surface)',    label: 'Hook' },
-  B: { bg: '#fff4d6', fg: '#8a6500', label: 'Talk' },
+  B: { bg: 'var(--warning-soft)', fg: 'var(--warning)', label: 'Talk' },
   C: { bg: 'var(--accent-soft)',    fg: 'var(--text-muted)',    label: 'Word' },
-  D: { bg: '#eef2ff', fg: '#3949ab', label: 'Screen' },
-  E: { bg: '#e4f4e8', fg: 'var(--positive)', label: 'B-roll' },
-  F: { bg: '#f4eafd', fg: '#5e2d8c', label: 'Prop' },
+  D: { bg: 'var(--accent-soft)', fg: 'var(--accent)', label: 'Screen' },
+  E: { bg: 'var(--positive-soft)', fg: 'var(--positive)', label: 'B-roll' },
+  F: { bg: '#f4eafd', fg: 'var(--accent)', label: 'Prop' },
   G: { bg: 'var(--accent)', fg: 'var(--text)', label: 'CTA' },
 };
 
@@ -1223,7 +1223,7 @@ function StyleBadge({ code, duration }) {
 function ShareLinkBanner({ url, onDismiss }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+    <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
       <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
       <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
       <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
@@ -1291,7 +1291,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
 
       <div style={{ marginTop: 10 }}>
         <div className="caption mb-2">CAPTION</div>
-        <div style={{ fontSize: 13, lineHeight: 1.5, color: '#222', whiteSpace: 'pre-wrap' }}>{post.caption}</div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--text)', whiteSpace: 'pre-wrap' }}>{post.caption}</div>
       </div>
 
       {(post.hashtags || []).length > 0 && (
@@ -1311,14 +1311,14 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       )}
 
       {engagement && (
-        <div style={{ marginTop: 10, padding: '6px 10px', background: '#fffceb', border: '1px solid #f0d260', borderRadius: 4, fontSize: 11, color: '#5d4000', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ marginTop: 10, padding: '6px 10px', background: 'var(--warning-soft)', border: '1px solid #f0d260', borderRadius: 4, fontSize: 11, color: 'var(--warning)', display: 'flex', gap: 12, flexWrap: 'wrap' }}>
           {engagement.reach != null && <span><strong>{engagement.reach.toLocaleString()}</strong> reach</span>}
           {engagement.views != null && <span><strong>{engagement.views.toLocaleString()}</strong> views</span>}
           {engagement.likes != null && <span><strong>{engagement.likes.toLocaleString()}</strong> likes</span>}
           {engagement.comments != null && <span><strong>{engagement.comments.toLocaleString()}</strong> comments</span>}
           {engagement.shares != null && <span><strong>{engagement.shares.toLocaleString()}</strong> shares</span>}
           {engagement.saves != null && <span><strong>{engagement.saves.toLocaleString()}</strong> saves</span>}
-          <button onClick={onRefreshInsights} style={{ background: 'none', border: 'none', color: '#7a5a00', textDecoration: 'underline', cursor: 'pointer', fontSize: 11, padding: 0 }}>refresh</button>
+          <button onClick={onRefreshInsights} style={{ background: 'none', border: 'none', color: 'var(--warning)', textDecoration: 'underline', cursor: 'pointer', fontSize: 11, padding: 0 }}>refresh</button>
         </div>
       )}
 

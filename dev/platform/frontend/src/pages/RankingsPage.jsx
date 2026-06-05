@@ -323,7 +323,7 @@ export default function RankingsPage() {
                     <td ><span className="chip chip-neutral">{kw.device}</span></td>
                     <td >{kw.tag ? <span className="chip chip-neutral">{kw.tag}</span> : '—'}</td>
                     <td >
-                      <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? 'var(--text)' : '#ccc' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? 'var(--text)' : 'var(--text-subtle)' }}>
                         {kw.current_position || '—'}
                       </span>
                       {change !== null && (

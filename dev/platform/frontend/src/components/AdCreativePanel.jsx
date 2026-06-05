@@ -159,7 +159,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
       </div>
 
       {shareUrl && (
-        <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
           <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
           <input value={shareUrl} readOnly onFocus={e => e.target.select()}
             style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: 'var(--surface)', fontFamily: 'monospace' }} />
@@ -170,7 +170,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
       )}
 
       {!assets.length && (
-        <div style={{ background: '#fffceb', border: '1px solid #f0d260', padding: 12, borderRadius: 6, fontSize: 12, color: '#5d4000', marginBottom: 16 }}>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 6, fontSize: 12, color: 'var(--warning)', marginBottom: 16 }}>
           No brand assets uploaded yet — visit the <strong>Brand</strong> tab on the sidebar and add logos, product photos, palette
           and guidelines so generations look on-brand.
         </div>
@@ -328,7 +328,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
       <div style={{ marginTop: 8 }}>
         <div className="field">CTA</div>
-        <div style={{ fontSize: 12, color: '#1a4f9c', fontWeight: 700 }}>{creative.cta}</div>
+        <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>{creative.cta}</div>
       </div>
 
       <div style={{ marginTop: 10 }}>

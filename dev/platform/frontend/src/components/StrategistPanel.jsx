@@ -198,7 +198,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
               <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
             )}
             {selected && selected.status === 'failed' && (
-              <div style={{ padding: 12, background: '#fdecea', border: '1px solid #f5c6cb', borderRadius: 4, color: 'var(--negative)', fontSize: 13 }}>
+              <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 4, color: 'var(--negative)', fontSize: 13 }}>
                 Generation failed: {selected.error_message || 'unknown error'}
               </div>
             )}
