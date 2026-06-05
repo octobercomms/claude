@@ -188,7 +188,7 @@ button { font-family: inherit; }
 .card.accent { background: var(--accent-soft); border-color: var(--accent); }
 .card.plain { background: var(--surface); border-color: var(--border-neutral); }
 .card.filled { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
-.card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .caption { color: var(--accent-on); }
+.card.filled .display, .card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .body-sm, .card.filled .body-xs, .card.filled .caption { color: var(--accent-on); }
 .card.outline { background: transparent; border-color: var(--accent); }
 
 /* Status modifiers. Swap the accent for a semantic colour on the
