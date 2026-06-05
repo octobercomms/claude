@@ -313,12 +313,12 @@ export default function GuidePage() {
       </p>
       </header>
 
-      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
-        <button onClick={() => setOpen(new Set(SECTIONS.map(s => s.id)))} style={chip}>Expand all</button>
-        <button onClick={() => setOpen(new Set())} style={chip}>Collapse all</button>
+      <div className="row wrap mb-5">
+        <button onClick={() => setOpen(new Set(SECTIONS.map(s => s.id)))} className="btn btn-secondary btn-sm">Expand all</button>
+        <button onClick={() => setOpen(new Set())} className="btn btn-secondary btn-sm">Collapse all</button>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div className="stack stack-sm">
         {SECTIONS.map(s => (
           <AccordionItem key={s.id} section={s} isOpen={open.has(s.id)} onToggle={() => toggle(s.id)} />
         ))}
@@ -329,21 +329,21 @@ export default function GuidePage() {
 
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
-    <div style={{ border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--accent-soft)', overflow: 'hidden' }}>
+    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? 'var(--surface-raised)' : 'var(--surface)',
+        width: '100%', textAlign: 'left', padding: '16px 20px', background: 'transparent',
         border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
       }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{section.title}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 3, lineHeight: 1.4 }}>{section.summary}</div>
+          <div className="h3">{section.title}</div>
+          <div className="body-sm text-muted mt-2">{section.summary}</div>
         </div>
-        <span style={{ fontSize: 18, color: 'var(--text-subtle)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
+        <span className="text-muted" style={{ fontSize: 18, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
-        <div style={{ padding: '4px 16px 16px 16px', borderTop: '1px solid #eee' }}>
+        <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--accent)' }}>
           {section.workflow && <WorkflowDiagram workflow={section.workflow} />}
-          <ul style={{ margin: 0, padding: '8px 0 0 18px', fontSize: 13, color: 'var(--text)', lineHeight: 1.65 }}>
+          <ul className="body-sm" style={{ margin: 0, padding: '8px 0 0 18px', lineHeight: 1.65 }}>
             {section.body.map((line, i) => (
               <li key={i} style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: bolden(line) }} />
             ))}
