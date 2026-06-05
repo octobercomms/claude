@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Small modal for "draft + accept" flows where Claude writes something and
 // the user reviews / edits before saving. Used by Complete with Claude
@@ -37,8 +36,8 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
           onChange={e => setText(e.target.value)}
         />
         <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={secondaryBtn}>Cancel</button>
-          <button type="button" onClick={handleAccept} disabled={saving || !text.trim()} style={primaryBtn}>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button type="button" onClick={handleAccept} disabled={saving || !text.trim()} className="btn btn-primary">
             {saving ? 'Saving…' : 'Accept and Save'}
           </button>
         </div>

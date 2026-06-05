@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Live report preview — runs the same template resolver as a real
 // report against fresh connector data and renders the resulting HTML in
@@ -112,10 +111,10 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
             <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="input" />
           </div>
           <div style={styles.controlGroup}>
-            <button type="button" onClick={() => run({ force: false })} style={primaryBtn} disabled={loading}>
+            <button type="button" onClick={() => run({ force: false })} className="btn btn-primary" disabled={loading}>
               {loading ? 'Building…' : result ? 'Re-render' : 'Build preview'}
             </button>
-            <button type="button" onClick={() => run({ force: true })} style={secondaryBtn} disabled={loading} title="Discard cache and re-pull all data + re-prompt Claude">
+            <button type="button" onClick={() => run({ force: true })} className="btn btn-secondary" disabled={loading} title="Discard cache and re-pull all data + re-prompt Claude">
               Refresh data
             </button>
           </div>

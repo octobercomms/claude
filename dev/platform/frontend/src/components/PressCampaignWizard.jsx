@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Two-step modal: paste downloadfor.press URL → preview parsed release
 // → save. Saving creates both the press_release row and a backing
@@ -55,7 +54,7 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
           <input value={url} onChange={e => setUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && doFetch()}
             placeholder="https://downloadfor.press/press-releases/your-release-slug/"
             className="input" style={{ flex: 1 }} />
-          <button onClick={doFetch} disabled={fetching || !url.trim()} style={primaryBtn}>{fetching ? 'Fetching…' : 'Fetch'}</button>
+          <button onClick={doFetch} disabled={fetching || !url.trim()} className="btn btn-primary">{fetching ? 'Fetching…' : 'Fetch'}</button>
         </div>
 
         {parsed && (
@@ -87,8 +86,8 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
         )}
 
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 16 }}>
-          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
-          {parsed && <button style={primaryBtn} onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Create campaign'}</button>}
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          {parsed && <button className="btn btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Create campaign'}</button>}
         </div>
       </div>
     </div>

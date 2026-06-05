@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
-
 // Two-column edit modal — Contact Details on the left, More Info on the right,
 // matching the original WordPress plugin layout.
 const STATUS_OPTIONS = ['new', 'active', 'unsubscribed', 'bounced', 'do_not_contact'];
@@ -308,8 +306,6 @@ const styles = {
   grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e8e8e8' },
   input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
-  btn: primaryBtn,
-  btnGhost: secondaryBtn,
   tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20 },
   tabBtn: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontWeight: 500 },
   tabBtnActive: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontWeight: 700 },

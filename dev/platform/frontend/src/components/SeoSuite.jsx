@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { primaryBtn, secondaryBtn, COLORS } from '../styles/theme';
 
 const intentColours = {
   Informational: { bg: '#e8f1ff', fg: '#1a4f9c' },
@@ -319,7 +318,7 @@ export function AIOverviewsTab({ clientId }) {
             Auto-refreshes weekly.
           </p>
         </div>
-        <button onClick={runCheckNow} style={primaryBtn} disabled={checking}>
+        <button onClick={runCheckNow} className="btn btn-primary" disabled={checking}>
           {checking ? 'Checking…' : 'Check now'}
         </button>
       </div>
@@ -338,7 +337,7 @@ export function AIOverviewsTab({ clientId }) {
               <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
               <Tooltip />
               <Line dataKey="present_count" name="AIO present" stroke="#1a1a1a" strokeWidth={1.5} dot={{ r: 2 }} />
-              <Line dataKey="cited_count" name="Brand cited" stroke={COLORS.yellow} strokeWidth={1.5} dot={{ r: 2 }} />
+              <Line dataKey="cited_count" name="Brand cited" stroke={'var(--accent)'} strokeWidth={1.5} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -464,11 +463,11 @@ export function ContentGapsTab({ clientId }) {
             style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
             disabled={competitors.length >= 5}
           />
-          <button onClick={addCompetitor} style={secondaryBtn} disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
+          <button onClick={addCompetitor} className="btn btn-secondary" disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
         </div>
       </div>
 
-      <button onClick={runGapAnalysis} style={primaryBtn} disabled={loading || !competitors.length}>
+      <button onClick={runGapAnalysis} className="btn btn-primary" disabled={loading || !competitors.length}>
         {loading ? 'Analysing…' : 'Run gap analysis'}
       </button>
 
@@ -548,7 +547,7 @@ export function PlanningTab({ clientId }) {
           placeholder="e.g. how to season enamel cookware"
           style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
         />
-        <button onClick={run} style={primaryBtn} disabled={loading || !keyword.trim()}>
+        <button onClick={run} className="btn btn-primary" disabled={loading || !keyword.trim()}>
           {loading ? 'Generating…' : 'Generate brief'}
         </button>
       </div>

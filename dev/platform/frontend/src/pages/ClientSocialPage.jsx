@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
@@ -664,8 +663,8 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
         {error && <div style={{ padding: '8px 12px', background: '#fff0f0', color: '#c62828', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <button type="button" onClick={onClose} style={secondaryBtn}>Cancel</button>
-          <button type="button" onClick={submit} disabled={submitting} style={primaryBtn}>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button type="button" onClick={submit} disabled={submitting} className="btn btn-primary">
             {submitting ? 'Scheduling…' : `Schedule ${selected.size} post${selected.size !== 1 ? 's' : ''}`}
           </button>
         </div>
@@ -1013,8 +1012,8 @@ function CompetitorEditor({ competitors, onSave }) {
             placeholder="instagram:handle"
             style={{ padding: '4px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginLeft: 6 }}
           />
-          <button onClick={add} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, marginLeft: 4 }}>Add</button>
-          <button onClick={() => setEditing(false)} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 11, marginLeft: 4 }}>Done</button>
+          <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
+          <button onClick={() => setEditing(false)} className="btn btn-secondary btn-sm">Done</button>
         </>
       ) : (
         <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: '#1a4f9c', cursor: 'pointer', fontSize: 12, marginLeft: 6 }}>edit</button>
@@ -1047,8 +1046,8 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmi
           ))}
         </div>
         <div style={modalStyles.footer}>
-          <button type="button" style={secondaryBtn} onClick={onClose}>Cancel</button>
-          <button type="button" style={primaryBtn} onClick={onSubmit} disabled={submitting || !platforms.length}>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button type="button" className="btn btn-primary" onClick={onSubmit} disabled={submitting || !platforms.length}>
             {submitting ? 'Generating…' : 'Generate'}
           </button>
         </div>
@@ -1341,7 +1340,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       )}
 
       <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        <button onClick={() => setOpen(o => !o)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        <button onClick={() => setOpen(o => !o)} className="btn btn-secondary btn-sm">
           {open ? 'Hide storyboard' : `Storyboard (${(post.storyboard || []).length} frames)`}
         </button>
         <button onClick={async () => {
@@ -1349,33 +1348,33 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             const { url } = await api.get(`/social/posts/${post.id}/brief-url`);
             window.open(url, '_blank');
           } catch (e) { alert(`Could not open brief: ${e.message}`); }
-        }} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        }} className="btn btn-secondary btn-sm">
           Production brief
         </button>
-        <button onClick={() => setShowImg(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        <button onClick={() => setShowImg(s => !s)} className="btn btn-secondary btn-sm">
           {showImg ? 'Cancel image' : 'Generate image'}
         </button>
-        <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        <button onClick={() => handleGenerateMedia('voiceover')} disabled={renderingMedia === 'voiceover'} className="btn btn-secondary btn-sm">
           {renderingMedia === 'voiceover' ? 'Rendering…' : 'Generate voiceover'}
         </button>
-        <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        <button onClick={() => handleGenerateMedia('video')} disabled={renderingMedia === 'video'} className="btn btn-secondary btn-sm">
           {renderingMedia === 'video' ? 'Rendering UGC…' : 'Generate UGC video'}
         </button>
         {(post.storyboard || []).some(f => ['A', 'C', 'G'].includes(f.style)) && (
           <button onClick={async () => {
             setRenderingMedia('templates');
             try { await onRenderTemplates(); } finally { setRenderingMedia(null); }
-          }} disabled={renderingMedia === 'templates'} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+          }} disabled={renderingMedia === 'templates'} className="btn btn-secondary btn-sm">
             {renderingMedia === 'templates' ? 'Rendering A/C/G…' : 'Render A/C/G clips'}
           </button>
         )}
         {post.status !== 'published' && (
-          <button onClick={() => setShowPublish(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+          <button onClick={() => setShowPublish(s => !s)} className="btn btn-secondary btn-sm">
             {showPublish ? 'Cancel' : 'Mark published'}
           </button>
         )}
         {post.published_url && (
-          <a href={post.published_url} target="_blank" rel="noreferrer" style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12, textDecoration: 'none', display: 'inline-block' }}>View live ↗</a>
+          <a href={post.published_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">View live ↗</a>
         )}
       </div>
 
@@ -1386,7 +1385,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           </div>
           <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, boxSizing: 'border-box', marginBottom: 8 }} />
           <button onClick={() => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }}
-            style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={!publishUrl.trim()}>
+            className="btn btn-primary btn-sm" disabled={!publishUrl.trim()}>
             Save & pull insights
           </button>
         </div>
@@ -1445,7 +1444,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }}
           />
           {err && <div style={{ color: '#c62828', fontSize: 11, marginBottom: 6 }}>{err}</div>}
-          <button onClick={generateImage} style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={generating}>
+          <button onClick={generateImage} className="btn btn-primary btn-sm" disabled={generating}>
             {generating ? 'Rendering…' : `Render with ${provider}`}
           </button>
         </div>

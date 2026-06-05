@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Conversational social post planner. Pattern matches ReportTemplateChat:
 // chat on the left, live plan preview on the right, lock & save when ready.
@@ -324,7 +323,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   style={styles.attachBtn}
                   title="Attach an example post / brand guidelines (PDF or image)"
                 >📎</button>
-                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} style={primaryBtn}>
+                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} className="btn btn-primary">
                   {sending ? 'Sending…' : 'Send'}
                 </button>
               </div>
@@ -507,18 +506,18 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
         {error && <div className="callout callout-danger">{error}</div>}
 
         <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={secondaryBtn}>Close</button>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Close</button>
           {planRowId && saved && !proposedDiffers && (
             <>
-              <button type="button" onClick={() => downloadPlan('pdf')} style={secondaryBtn}>↓ PDF</button>
-              <button type="button" onClick={() => downloadPlan('docx')} style={secondaryBtn}>↓ Word</button>
+              <button type="button" onClick={() => downloadPlan('pdf')} className="btn btn-secondary">↓ PDF</button>
+              <button type="button" onClick={() => downloadPlan('docx')} className="btn btn-secondary">↓ Word</button>
             </>
           )}
           <button
             type="button"
             onClick={lockAndSave}
             disabled={!proposed || !proposedDiffers || saving || sending}
-            style={primaryBtn}
+            className="btn btn-primary"
           >
             {saving ? 'Saving…' : planRowId ? 'Save changes' : 'Lock & Save'}
           </button>

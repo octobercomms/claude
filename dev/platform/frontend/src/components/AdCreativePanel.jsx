@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
-
 // Ad Creative panel on the Paid page. Generates batches of ad concepts
 // (headline + body + CTA + visual direction) using Claude, then renders
 // image variants per concept across multiple aspect ratios so the AM can
@@ -152,9 +150,9 @@ export default function AdCreativePanel({ clientId, clientName }) {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {activeBatchId && (
-            <button style={secondaryBtn} onClick={shareBatchForApproval}>Share for approval</button>
+            <button className="btn btn-secondary" onClick={shareBatchForApproval}>Share for approval</button>
           )}
-          <button style={primaryBtn} onClick={() => setShowBrief(true)} disabled={generating}>
+          <button className="btn btn-primary" onClick={() => setShowBrief(true)} disabled={generating}>
             {generating ? 'Generating…' : 'Generate ad concepts'}
           </button>
         </div>
@@ -197,7 +195,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
               <div style={{ fontSize: 11, color: '#888' }}>{b.creative_count} concepts · {b.platform}</div>
               {b.brief && <div style={{ fontSize: 11, color: '#999', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
               {b.id === activeBatchId && (
-                <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} style={{ ...dangerBtn, padding: '3px 10px', fontSize: 11, marginTop: 6 }}>Delete batch</button>
+                <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
               )}
             </div>
           ))}
@@ -272,8 +270,8 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
         </div>
 
         <div style={modalStyles.footer}>
-          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
-          <button style={primaryBtn} onClick={() => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) })} disabled={submitting}>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={() => onSubmit({ brief, platform, count, asset_ids: Array.from(selectedAssets) })} disabled={submitting}>
             {submitting ? 'Generating…' : 'Generate'}
           </button>
         </div>
@@ -351,7 +349,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       )}
 
       <div style={{ marginTop: 12 }}>
-        <button onClick={() => setShowRender(s => !s)} style={{ ...secondaryBtn, padding: '5px 12px', fontSize: 12 }}>
+        <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
           {showRender ? 'Cancel' : 'Render images'}
         </button>
       </div>
@@ -373,7 +371,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }} />
-          <button onClick={go} style={{ ...primaryBtn, padding: '5px 14px', fontSize: 12 }} disabled={rendering || !aspects.size}>
+          <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || !aspects.size}>
             {rendering ? 'Rendering…' : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`}
           </button>
         </div>
@@ -409,7 +407,7 @@ function aspectStyle(ratio) {
 const styles = {
   h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
   batchRow: { padding: 10, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
-  batchRowActive: { background: '#fffceb', borderColor: COLORS.yellow },
+  batchRowActive: { background: '#fffceb', borderColor: 'var(--accent)' },
   card: { padding: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 6 },
   field: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
   framePill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },

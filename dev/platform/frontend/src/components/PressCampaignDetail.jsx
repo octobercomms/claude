@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn, dangerBtn } from '../styles/theme';
-
 // Detail view for a single press_release campaign. Opened when the AM
 // clicks a press-flavoured campaign in the Campaigns tab. Two
 // halves: pick journalists on the left (grouped by their beat /
@@ -98,7 +96,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   if (loadError) {
     return (
       <div>
-        <button onClick={onExit} style={{ ...secondaryBtn, padding: '5px 14px', fontSize: 12, marginBottom: 14 }}>← Back to campaigns</button>
+        <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
         <div style={{ padding: 20, background: '#fff8e1', border: '1px solid #f0d260', borderRadius: 4, color: '#5d4000' }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>This campaign isn't linked to a press release</div>
           <div style={{ fontSize: 13, lineHeight: 1.5 }}>
@@ -116,7 +114,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
   return (
     <div>
-      <button onClick={onExit} style={{ ...secondaryBtn, padding: '5px 14px', fontSize: 12, marginBottom: 14 }}>← Back to campaigns</button>
+      <button onClick={onExit} className="btn btn-secondary btn-sm">← Back to campaigns</button>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
@@ -147,7 +145,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                       </div>
                       <div style={{ fontSize: 11, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
                     </div>
-                    <button onClick={(e) => { e.preventDefault(); preview(c.id); }} type="button" style={{ ...secondaryBtn, padding: '3px 10px', fontSize: 11 }}>preview</button>
+                    <button onClick={(e) => { e.preventDefault(); preview(c.id); }} type="button" className="btn btn-secondary btn-sm">preview</button>
                   </label>
                 ))}
               </div>
@@ -155,7 +153,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
             <div style={{ fontSize: 12, color: '#666' }}>{selected.size} selected</div>
-            <button onClick={send} disabled={!selected.size || sending} style={primaryBtn}>
+            <button onClick={send} disabled={!selected.size || sending} className="btn btn-primary">
               {sending ? 'Queueing…' : `Send to ${selected.size}`}
             </button>
           </div>

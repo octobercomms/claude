@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 // Modal — conversational template builder for a client's weekly or monthly
 // report. The AM describes what they want; Claude proposes a JSON template
@@ -193,7 +192,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                 >
                   📎
                 </button>
-                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} style={primaryBtn}>
+                <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} className="btn btn-primary">
                   {sending ? 'Sending…' : 'Send'}
                 </button>
               </div>
@@ -222,12 +221,12 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
         {error && <div className="callout callout-danger">{error}</div>}
 
         <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={secondaryBtn}>Close</button>
+          <button type="button" onClick={onClose} className="btn btn-secondary">Close</button>
           <button
             type="button"
             onClick={lockAndSave}
             disabled={!proposed || !proposedDiffers || saving || sending}
-            style={primaryBtn}
+            className="btn btn-primary"
             title={sending ? 'Wait for Claude to finish' : !proposed ? 'No draft yet' : !proposedDiffers ? 'No changes to lock' : 'Save this template as the locked blueprint'}
           >
             {saving ? 'Saving…' : 'Lock & Save'}

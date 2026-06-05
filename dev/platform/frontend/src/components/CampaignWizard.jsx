@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { COLORS, primaryBtn, secondaryBtn, stepDotStyle } from '../styles/theme';
-
 // 5-step Campaign Wizard. The component manages step state locally and
 // persists each step's data to the backend on Next so the user can resume
 // a draft campaign mid-flow if they leave.
@@ -80,7 +78,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
       </div>
 
       {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
-      <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: `1px solid ${COLORS.lightGrey}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
         {STEPS.map(({ key, label }, idx) => {
           // Click freely up to the high-water mark — both back and
           // forward — so reopening a draft doesn't force re-entering
@@ -97,14 +95,14 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
                   cursor: reachable ? 'pointer' : 'default',
                   padding: '6px 8px', fontSize: 13,
                   fontWeight: step === key ? 700 : 500,
-                  color: reachable ? COLORS.dark : COLORS.mutedText,
+                  color: reachable ? 'var(--text)' : 'var(--text-subtle)',
                   flexShrink: 0,
                 }}>
-                <span style={stepDotStyle(reachable)}>{key}</span>
+                <span className={`chip ${reachable ? 'chip-accent' : 'chip-neutral'}`} style={{ width: 24, height: 24, justifyContent: 'center', marginRight: 8, fontSize: 12, fontWeight: 700 }}>{key}</span>
                 {label}
               </button>
               {idx < STEPS.length - 1 && (
-                <div style={{ flex: 1, height: 1, background: COLORS.lightGrey, margin: '0 4px' }} />
+                <div style={{ flex: 1, height: 1, background: 'var(--accent-soft)', margin: '0 4px' }} />
               )}
             </React.Fragment>
           );
@@ -366,8 +364,8 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       <H>Find Contacts</H>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setMode('find')} style={{ ...s.tabBtn, ...(mode === 'find' ? s.tabBtnActive : {}) }}>Find new contacts</button>
-        <button onClick={() => setMode('existing')} style={{ ...s.tabBtn, ...(mode === 'existing' ? s.tabBtnActive : {}) }}>Existing contacts</button>
+        <button onClick={() => setMode('find')} className={`btn btn-sm ${mode === 'find' ? 'btn-primary' : 'btn-secondary'}`}>Find new contacts</button>
+        <button onClick={() => setMode('existing')} className={`btn btn-sm ${mode === 'existing' ? 'btn-primary' : 'btn-secondary'}`}>Existing contacts</button>
       </div>
 
       {mode === 'find' && (
@@ -786,13 +784,9 @@ function Footer({ children }) {
 
 const s = {
   card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 8, padding: 20 },
-  btn: primaryBtn,
-  btnGhost: secondaryBtn,
   input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
   table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 },
   th: { padding: '8px 10px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
   td: { padding: '8px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12 },
   chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px' },
-  tabBtn: { ...secondaryBtn, padding: '6px 16px' },
-  tabBtnActive: { ...primaryBtn, padding: '6px 16px' },
 };

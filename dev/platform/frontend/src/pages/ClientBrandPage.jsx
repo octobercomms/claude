@@ -2,8 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import { primaryBtn, secondaryBtn, dangerBtn, COLORS } from '../styles/theme';
-
 const KINDS = [
   { value: 'logo',          label: 'Logo',         description: 'PNG, SVG, JPEG. Used as overlay reference and watermark.' },
   { value: 'product_image', label: 'Product image', description: 'Hero shots, lifestyle photography — used as visual reference for generation.' },
@@ -127,8 +125,8 @@ export default function ClientBrandPage() {
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
         <BulkUploadButton label="+ Bulk upload B-roll" disabled={uploadingKind === 'b_roll_clip'} onPick={files => handleBulkUpload(files, 'b_roll_clip')} accept="video/*" />
         <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/*" />
-        <button style={secondaryBtn} onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
-        <button style={secondaryBtn} onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
+        <button className="btn btn-secondary" onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
+        <button className="btn btn-secondary" onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
       </div>
 
       {showPaletteForm && (
@@ -167,7 +165,7 @@ function UploadButton({ label, onPick, accept, disabled }) {
   const ref = useRef();
   return (
     <>
-      <button style={secondaryBtn} onClick={() => ref.current?.click()} disabled={disabled}>
+      <button className="btn btn-secondary" onClick={() => ref.current?.click()} disabled={disabled}>
         {disabled ? 'Uploading…' : label}
       </button>
       <input ref={ref} type="file" accept={accept} style={{ display: 'none' }}
@@ -180,7 +178,7 @@ function BulkUploadButton({ label, onPick, accept, disabled }) {
   const ref = useRef();
   return (
     <>
-      <button style={secondaryBtn} onClick={() => ref.current?.click()} disabled={disabled}>
+      <button className="btn btn-secondary" onClick={() => ref.current?.click()} disabled={disabled}>
         {disabled ? 'Uploading…' : label}
       </button>
       <input ref={ref} type="file" accept={accept} multiple style={{ display: 'none' }}
@@ -227,7 +225,7 @@ function AssetCard({ asset, onDelete }) {
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
         <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
-        <button onClick={onDelete} style={{ ...dangerBtn, padding: '3px 10px', fontSize: 11, marginTop: 8 }}>Delete</button>
+        <button onClick={onDelete} className="btn btn-danger btn-sm">Delete</button>
       </div>
     </div>
   );
@@ -256,13 +254,13 @@ function PaletteForm({ clientId, onClose, onSaved }) {
           <div key={i} style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
             <input type="color" value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={{ width: 40, height: 32 }} />
             <input value={c} onChange={e => { const next = [...colors]; next[i] = e.target.value; setColors(next); }} style={modalStyles.input} />
-            <button onClick={() => setColors(colors.filter((_, j) => j !== i))} style={{ ...secondaryBtn, padding: '4px 10px', fontSize: 12 }}>×</button>
+            <button onClick={() => setColors(colors.filter((_, j) => j !== i))} className="btn btn-secondary btn-sm">×</button>
           </div>
         ))}
-        <button onClick={() => setColors([...colors, '#cccccc'])} style={{ ...secondaryBtn, padding: '4px 12px', fontSize: 12, marginTop: 4 }}>+ Add colour</button>
+        <button onClick={() => setColors([...colors, '#cccccc'])} className="btn btn-secondary btn-sm">+ Add colour</button>
         <div style={modalStyles.footer}>
-          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
-          <button style={primaryBtn} onClick={save} disabled={saving || !colors.length}>{saving ? 'Saving…' : 'Save palette'}</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving || !colors.length}>{saving ? 'Saving…' : 'Save palette'}</button>
         </div>
       </div>
     </div>
@@ -292,8 +290,8 @@ function GuidelineForm({ clientId, onClose, onSaved }) {
         <textarea style={{ ...modalStyles.input, minHeight: 140, resize: 'vertical', fontFamily: 'inherit' }} value={body} onChange={e => setBody(e.target.value)}
           placeholder="Brand voice, do's and don'ts, key messaging pillars, terminology to use or avoid…" />
         <div style={modalStyles.footer}>
-          <button style={secondaryBtn} onClick={onClose}>Cancel</button>
-          <button style={primaryBtn} onClick={save} disabled={saving || !body.trim()}>{saving ? 'Saving…' : 'Save guideline'}</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-primary" onClick={save} disabled={saving || !body.trim()}>{saving ? 'Saving…' : 'Save guideline'}</button>
         </div>
       </div>
     </div>
