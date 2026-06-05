@@ -503,11 +503,17 @@ button { font-family: inherit; }
   border-left: var(--border-w) solid var(--accent-soft);
   padding-left: var(--s5); overflow-y: auto;
 }
-@media (max-width: 720px) {
+.chat-shell {
+  display: flex; gap: var(--s6);
+  flex: 1; align-items: stretch; min-height: 0;
+}
+@media (max-width: 768px) {
+  .chat-shell { flex-direction: column; gap: var(--s4); }
   .chat-sidebar {
-    width: 100%; border-left: none;
+    width: 100%; max-height: 240px;
+    border-left: none;
     border-top: var(--border-w) solid var(--accent-soft);
-    padding-left: 0; padding-top: var(--s4); margin-top: var(--s4);
+    padding-left: 0; padding-top: var(--s4);
   }
 }
 
@@ -770,11 +776,67 @@ select, textarea {
     display: block; position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.45); z-index: 190;
   }
+
+  /* Type scale shrinks for narrow screens */
   .display { font-size: 36px; letter-spacing: -1px; }
   .h1 { font-size: 26px; }
   .h2 { font-size: 19px; }
   .metric { font-size: 28px; }
+  .hero .client-name { font-size: 18px; }
+
+  /* Layout primitives collapse to single column */
   .grid-2 { grid-template-columns: 1fr; }
+
+  /* Hero stops being a flex row when actions are present — actions
+     stack below the title and the buttons grow to fill the width. */
+  .hero:has(> .hero-actions) {
+    flex-direction: column; align-items: stretch;
+  }
+  .hero-actions {
+    justify-content: flex-start; width: 100%;
+    margin-top: var(--s3);
+  }
+  .hero-actions .btn { flex: 1; }
+
+  /* Tab strips scroll horizontally instead of wrapping into multiple
+     rows that push the page content down. */
+  .tabs {
+    flex-wrap: nowrap; overflow-x: auto;
+    margin-left: calc(-1 * var(--s4));
+    margin-right: calc(-1 * var(--s4));
+    padding: 0 var(--s4);
+    -webkit-overflow-scrolling: touch;
+  }
+  .tab { flex-shrink: 0; }
+
+  /* Modal goes near-full-width and starts from the top so long forms
+     are reachable on small screens. */
+  .modal-backdrop { padding: var(--s3); align-items: flex-start; }
+  .modal {
+    width: 100%; max-width: 100%;
+    max-height: calc(100vh - var(--s5));
+    padding: var(--s5) var(--s4);
+  }
+
+  /* Tables horizontal-scroll inside their card wrapper. */
+  .card > .table, .card-stat .table { overflow-x: auto; display: block; }
+  .table { font-size: 13px; }
+  .table td, .table th { padding: var(--s2) var(--s3); }
+
+  /* Section header stacks: title left → action below, full width. */
+  .section-head { flex-direction: column; align-items: stretch; }
+  .section-head > * + * { margin-top: var(--s3); }
+
+  /* Sequence builder: collapse the numbered rail to a small badge to
+     reclaim horizontal space for the step body. */
+  .sequence-step { grid-template-columns: 36px 1fr; gap: var(--s2); }
+  .sequence-step-num { width: 28px; height: 28px; font-size: 13px; margin-top: var(--s2); }
+  .sequence-add-slot { margin-left: 36px; }
+
+  /* Suite-overview flow already collapses via its own media query;
+     bento card padding shrinks to keep the visible area larger. */
+  .card { padding: var(--s4); }
+  .metric-card { padding: var(--s3); }
 }
 
 /* ─── Marketing home (legacy public site) ────────────────────────── */
@@ -783,4 +845,15 @@ select, textarea {
   .home nav { padding-left: 16px !important; padding-right: 16px !important; }
   .home section, .home footer { padding-left: 18px !important; padding-right: 18px !important; }
   .home-navlink, .home-brandtext { display: none !important; }
+  /* Force every marketing grid to single column. Inline-styled
+     grids on HomePage all use multi-column track templates that
+     don't collapse cleanly on narrow screens; flatten them so the
+     content reads top-down. */
+  .home div[style*="grid-template-columns"] {
+    grid-template-columns: 1fr !important;
+    gap: 24px !important;
+  }
+  .home div[style*="repeat(auto-fit"] {
+    grid-template-columns: 1fr !important;
+  }
 }

@@ -53,7 +53,7 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ fontFamily: FONT, color: WHITE, background: BLACK, lineHeight: 1.5 }}>
+    <div className="home" style={{ fontFamily: FONT, color: WHITE, background: BLACK, lineHeight: 1.5 }}>
 
       {/* Header bar */}
       <header style={styles.topBar}>

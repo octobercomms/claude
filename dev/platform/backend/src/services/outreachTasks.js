@@ -10,6 +10,12 @@ const prospectState = require('./outreachProspectState');
 // Create a task for a (campaign, contact, sequence-step) combination.
 // Idempotent against the same step — re-running enroll doesn't
 // double-up.
+//
+// For linkedin_message tasks we ask the auto-sender if it can deliver
+// before we commit the task to the queue. If yes, we still write the
+// row (for audit) but mark it completed and advance the prospect
+// state immediately. If no, we leave it pending for the AM to do
+// manually.
 async function enqueue({ campaignId, contactId, sequenceId, channel, taskType, prompt, dueAt, assignedTo }) {
   const { rows: existing } = await pool.query(
     `SELECT id FROM outreach_tasks
@@ -27,7 +33,41 @@ async function enqueue({ campaignId, contactId, sequenceId, channel, taskType, p
     [campaignId, contactId, sequenceId, channel, taskType,
      prompt || null, dueAt || null, assignedTo || null]
   );
-  return rows[0];
+  const task = rows[0];
+
+  // Try auto-send for linkedin_message. No-ops today (the connector
+  // doesn't carry the messaging scope yet); pre-wired so the moment
+  // we get partner approval, the existing tasks auto-fire.
+  if (channel === 'linkedin_message') {
+    try {
+      const linkedinAuto = require('./linkedinAutoSender');
+      const { rows: cRows } = await pool.query(
+        `SELECT c.linkedin_url, c.email, cmp.client_id
+           FROM outreach_contacts c
+           JOIN outreach_campaigns cmp ON cmp.id = $1
+          WHERE c.id = $2`,
+        [campaignId, contactId]
+      );
+      const ctx = cRows[0];
+      const result = await linkedinAuto.tryAutoSend({
+        clientId: ctx.client_id, contact: ctx, prompt,
+      });
+      if (result.sent) {
+        await pool.query(
+          `UPDATE outreach_tasks
+              SET status = 'completed', completed_at = NOW()
+            WHERE id = $1`,
+          [task.id]
+        );
+        await prospectState.advance(campaignId, contactId);
+        await prospectState.markEvent(campaignId, contactId, 'task_completed');
+        return { ...task, status: 'completed', auto_sent: true };
+      }
+    } catch (err) {
+      // Auto-send failed — leave the task pending for manual action.
+    }
+  }
+  return task;
 }
 
 // AM marks a task done — bumps the per-prospect state to the next

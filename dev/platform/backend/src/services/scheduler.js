@@ -39,6 +39,31 @@ cron.schedule('30 6 * * 1', async () => {
   await runWeeklyAIOChecks();
 });
 
+// Backlinks refresh: every Monday at 07:30 UTC, after the AIO check.
+// Gated on DataForSEO availability — until 1 July 2026 the Backlinks
+// API requires a $100/mo commitment we don't hold, so this job no-ops
+// until isUnlocked() flips. Once unlocked, walks every active client
+// with a domain and refreshes their backlink profile so the Organic
+// → Backlinks tab shows fresh numbers without a manual click.
+cron.schedule('30 7 * * 1', async () => {
+  const { isUnlocked } = require('./dfsAvailability');
+  if (!isUnlocked()) return;
+  console.log('[Scheduler] Running weekly backlinks refresh…');
+  try {
+    const pool = require('../db');
+    const dataforseo = require('../connectors/dataforseo');
+    const { rows } = await pool.query(
+      "SELECT id, domain FROM clients WHERE active = TRUE AND domain IS NOT NULL AND domain != ''"
+    );
+    for (const c of rows) {
+      try { await dataforseo.fetchBacklinkData(c.domain); }
+      catch (err) {
+        console.warn(`[Backlinks] ${c.domain}: ${err.message}`);
+      }
+    }
+  } catch (err) { console.error('[Backlinks] weekly refresh failed:', err.message); }
+});
+
 // Usage snapshots: 02:00 daily. Polls each pay-per-use provider's
 // balance/usage endpoint and writes a row to usage_snapshots so the
 // Settings "Costs this month" panel has fresh numbers.

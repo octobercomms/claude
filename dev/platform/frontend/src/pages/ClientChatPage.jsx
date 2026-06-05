@@ -250,7 +250,7 @@ export default function ClientChatPage() {
       )}
 
       {tab === 'chat' && (
-      <div style={{ display: 'flex', gap: 24, flex: 1, alignItems: 'stretch', minHeight: 0 }}>
+      <div className="chat-shell">
 
       {/* Chat panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
