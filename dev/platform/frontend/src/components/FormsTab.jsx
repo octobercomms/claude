@@ -168,7 +168,7 @@ export default function FormsTab({ clientId, connectors }) {
       </div>
 
       {error && (
-        <div style={{ ...cardStyle, background: '#fff5f5', borderColor: '#fecaca', color: '#991b1b' }}>
+        <div style={{ ...cardStyle, background: 'var(--negative-soft)', borderColor: 'var(--negative)', color: 'var(--negative)' }}>
           <strong>Error:</strong> {error}
         </div>
       )}
@@ -241,7 +241,7 @@ export default function FormsTab({ clientId, connectors }) {
                   <tr key={s.id}>
                     <td style={tdStyle}><code style={{ fontSize: 11 }}>{s.id}</code></td>
                     <td style={tdStyle}>
-                      <span style={{ ...statusPill, background: s.status === 'complete' ? '#dcfce7' : 'var(--warning-soft)', color: s.status === 'complete' ? '#166534' : 'var(--warning)' }}>
+                      <span style={{ ...statusPill, background: s.status === 'complete' ? 'var(--positive-soft)' : 'var(--warning-soft)', color: s.status === 'complete' ? 'var(--positive)' : 'var(--warning)' }}>
                         {s.status}
                       </span>
                     </td>
@@ -283,7 +283,7 @@ export default function FormsTab({ clientId, connectors }) {
 
 function Kpi({ label, value, accent = false }) {
   return (
-    <div style={{ padding: '12px 14px', border: '2px solid var(--accent)', borderRadius: 6, background: accent ? '#fffbe6' : 'var(--surface-raised)' }}>
+    <div style={{ padding: '12px 14px', border: '2px solid var(--accent)', borderRadius: 6, background: accent ? 'var(--warning-soft)' : 'var(--surface-raised)' }}>
       <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
     </div>
@@ -330,14 +330,14 @@ function Sparkline({ days }) {
     <div>
       <svg viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" style={{ width: '100%', height: 160 }}>
         <line x1={P} y1={H - P} x2={W - P} y2={H - P} stroke="#ddd" strokeWidth="1" />
-        {series('views', '#a3a3a3')}
+        {series('views', 'var(--text-subtle)')}
         {series('starts', 'var(--accent)')}
-        {series('completes', '#16a34a')}
+        {series('completes', 'var(--positive)')}
       </svg>
       <div style={{ display: 'flex', gap: 16, fontSize: 12, marginTop: 6, color: 'var(--text-muted)' }}>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#a3a3a3', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--text-subtle)', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--accent)', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
-        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#16a34a', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
+        <span><span style={{ display: 'inline-block', width: 10, height: 2, background: 'var(--positive)', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
         <span style={{ marginLeft: 'auto' }}>{days[0]?.date} → {days[days.length - 1]?.date}</span>
       </div>
     </div>

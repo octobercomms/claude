@@ -1641,13 +1641,13 @@ const tidyStyles = {
   btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
   ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 },
-  fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
+  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
 function OpSummary({ op }) {
-  const chip = (txt) => <code style={{ background: '#f0eccd', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{txt}</code>;
+  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{txt}</code>;
   if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
   if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
   if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;

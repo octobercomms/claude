@@ -232,7 +232,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                   </button>
                 </div>
                 {actions.length > 0 && (
-                  <div style={{ border: '1px solid #E7CD41', background: '#fffbe6', padding: '12px 16px', borderRadius: 6, marginBottom: 18 }}>
+                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', padding: '12px 16px', borderRadius: 6, marginBottom: 18 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
@@ -240,7 +240,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                       {actions.map(a => (
                         <li key={a.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0e7c0' }}>
                           <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 3, cursor: 'pointer' }} />
-                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : '#111', textDecoration: a.done ? 'line-through' : 'none' }}>
+                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : 'var(--text)', textDecoration: a.done ? 'line-through' : 'none' }}>
                             {a.text}
                             {a.done && a.done_at && (
                               <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2, textDecoration: 'none' }}>

@@ -1153,13 +1153,13 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
   if (!hasCompetitors) return null;
   const top = posts.slice(0, 6);
   return (
-    <div style={{ background: '#f5f3ff', border: '1px solid #d9d0f0', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
+    <div style={{ background: 'var(--accent-soft)', border: '1px solid #d9d0f0', padding: '12px 14px', borderRadius: 6, marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#5b3d8e', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Competitor tracker — top recent posts
         </div>
         <button type="button" onClick={onRefresh} disabled={refreshing}
-          style={{ fontSize: 11, padding: '3px 10px', background: 'white', color: '#5b3d8e', border: '1px solid #d9d0f0', borderRadius: 3, cursor: 'pointer' }}>
+          style={{ fontSize: 11, padding: '3px 10px', background: 'white', color: 'var(--accent)', border: '1px solid #d9d0f0', borderRadius: 3, cursor: 'pointer' }}>
           {refreshing ? 'Scraping…' : '↻ Refresh now'}
         </button>
       </div>
@@ -1172,7 +1172,7 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
               style={{ display: 'block', padding: 10, background: 'white', border: '1px solid #e5deef', borderRadius: 4, textDecoration: 'none', color: 'inherit' }}>
               <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
                 <span>@{p.handle} · {p.platform}</span>
-                {p.view_count && <span style={{ color: '#5b3d8e', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
+                {p.view_count && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
                 {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
@@ -1200,7 +1200,7 @@ const STYLE_COLOURS = {
   C: { bg: 'var(--accent-soft)',    fg: 'var(--text-muted)',    label: 'Word' },
   D: { bg: 'var(--accent-soft)', fg: 'var(--accent)', label: 'Screen' },
   E: { bg: 'var(--positive-soft)', fg: 'var(--positive)', label: 'B-roll' },
-  F: { bg: '#f4eafd', fg: 'var(--accent)', label: 'Prop' },
+  F: { bg: 'var(--accent-soft)', fg: 'var(--accent)', label: 'Prop' },
   G: { bg: 'var(--accent)', fg: 'var(--text)', label: 'CTA' },
 };
 

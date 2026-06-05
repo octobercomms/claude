@@ -669,7 +669,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
 // muted styling.
 function ReportSection({ title, empty, items, tone }) {
   const palette = tone === 'error'
-    ? { bg: 'var(--negative-soft)', border: '#f5c6cb', fg: '#7a1a14' }
+    ? { bg: 'var(--negative-soft)', border: 'var(--negative)', fg: 'var(--negative)' }
     : { bg: 'var(--warning-soft)', border: 'var(--warning)', fg: 'var(--warning)' };
   if (!items.length) {
     return (

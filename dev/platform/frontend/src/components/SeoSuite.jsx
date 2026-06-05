@@ -3,8 +3,8 @@ import { api } from '../utils/api';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 
 const intentColours = {
-  Informational: { bg: '#e8f1ff', fg: 'var(--accent)' },
-  Navigational:  { bg: '#f4eafd', fg: 'var(--accent)' },
+  Informational: { bg: 'var(--accent-soft)', fg: 'var(--accent)' },
+  Navigational:  { bg: 'var(--accent-soft)', fg: 'var(--accent)' },
   Commercial:    { bg: 'var(--warning-soft)', fg: 'var(--warning)' },
   Transactional: { bg: 'var(--positive-soft)', fg: 'var(--positive)' },
 };

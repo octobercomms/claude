@@ -188,11 +188,11 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       </div>
 
       {bounce && (
-        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: '#9c2a2a', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
             <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
-            {bounce.reason && <div style={{ fontSize: 11, color: '#7a3636', marginTop: 4 }}>{bounce.reason}</div>}
-            <div style={{ fontSize: 11, color: '#7a3636', marginTop: 4 }}>
+            {bounce.reason && <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
+            <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>
               This contact is suppressed across every client until cleared.
             </div>
           </div>
@@ -207,7 +207,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Unsubscribed</div>
           {unsubByClient.map(m => (
             <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #f0d260', marginTop: 4 }}>
-              <span>{m.client_name} <span style={{ color: '#8a6800', marginLeft: 6 }}>· {fmtTime(m.unsubscribed_at)}</span></span>
+              <span>{m.client_name} <span style={{ color: 'var(--warning)', marginLeft: 6 }}>· {fmtTime(m.unsubscribed_at)}</span></span>
               <button onClick={() => resubscribe(m.client_id)} disabled={working === `resub-${m.client_id}`} style={resubBtn}>
                 {working === `resub-${m.client_id}` ? 'Re-subscribing…' : 'Re-subscribe'}
               </button>
@@ -263,7 +263,7 @@ function iconFor(t) {
   return { sent: '✉', opened: '👁', clicked: '🔗', replied: '↩' }[t] || '·';
 }
 function badgeColor(t) {
-  return { sent: '#e8eef6', opened: 'var(--positive-soft)', clicked: '#fff4e0', replied: '#f6e8f6' }[t] || 'var(--surface-sunken)';
+  return { sent: 'var(--accent-soft)', opened: 'var(--positive-soft)', clicked: 'var(--warning-soft)', replied: 'var(--accent-soft)' }[t] || 'var(--surface-sunken)';
 }
 function labelFor(e) {
   return { sent: 'Email sent', opened: 'Email opened', clicked: 'Link clicked', replied: 'Reply received' }[e.type] || e.type;

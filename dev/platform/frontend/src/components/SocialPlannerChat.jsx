@@ -443,7 +443,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         {driveFiles.some(f => f.warnings?.length > 0) && (
                           <div style={{ marginTop: 6, padding: '6px 8px', background: 'var(--warning-soft)', border: '1px solid #ffe0a3', borderRadius: 3 }}>
                             {driveFiles.filter(f => f.warnings?.length > 0).slice(0, 5).map(f => (
-                              <div key={f.id} style={{ color: '#7c5800', fontSize: 11 }}>
+                              <div key={f.id} style={{ color: 'var(--warning)', fontSize: 11 }}>
                                 <b>{f.name}</b>: {f.warnings.join(' · ')}
                               </div>
                             ))}
@@ -492,7 +492,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                         <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
                         </span>
-                        {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: '#1976d2' }}>view →</a>}
+                        {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: 'var(--accent)' }}>view →</a>}
                         {pub.error_message && <span style={{ color: 'var(--negative)', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
                       </div>
                     ))}
