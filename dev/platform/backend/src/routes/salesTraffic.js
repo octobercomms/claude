@@ -74,6 +74,16 @@ router.get('/:clientId', async (req, res) => {
           errors.push(`${ga4.store_label || 'ga4'}: ${err.message}`);
         }
       }));
+      // Materialise every day in the requested range as a zero row if GA4
+      // didn't return one. Previously the chart silently compressed to the
+      // last contiguous block GA4 had data for — so a YTD query on a
+      // property whose tracking was off for the first 4 months looked like
+      // "the chart only shows one month". Now the chart spans the full
+      // range and gaps are visibly zero.
+      for (let t = new Date(startDate + 'T00:00:00Z').getTime(); t <= new Date(endDate + 'T00:00:00Z').getTime(); t += 86400000) {
+        const iso = new Date(t).toISOString().slice(0, 10);
+        if (!dailyMap[iso]) dailyMap[iso] = { date: iso, sessions: 0, users: 0, revenue: 0, orders: 0 };
+      }
       const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
       result.trafficTrend = daily.map(d => ({ date: d.date, sessions: d.sessions, users: d.users }));
       result.salesTrend = daily.map(d => ({ date: d.date, revenue: Math.round(d.revenue), orders: d.orders }));
@@ -85,6 +95,21 @@ router.get('/:clientId', async (req, res) => {
       result.kpis.conversionRate = tSessions ? (tOrders / tSessions) * 100 : 0;
       result.kpis.revenue = Math.round(tRevenue);
       result.kpis.orders = tOrders;
+      // Diagnostic note when GA4 returns data for fewer days than asked.
+      // This catches the most common cause of a short chart: the property
+      // started collecting data later than the start of the range, or
+      // tracking was offline for stretches. Without this note AMs were
+      // assuming the platform had a bug rather than the property having
+      // gaps.
+      const daysWithData = daily.filter(d => d.sessions > 0 || d.users > 0 || d.revenue > 0).length;
+      const daysRequested = daily.length;
+      if (daysWithData && daysRequested - daysWithData >= 7) {
+        const firstReal = daily.find(d => d.sessions > 0 || d.users > 0 || d.revenue > 0);
+        result.notes.push(
+          `GA4 has data for ${daysWithData} of ${daysRequested} days in range` +
+          (firstReal ? ` — earliest day with traffic is ${firstReal.date}` : '')
+        );
+      }
       for (const e of errors) result.notes.push(`GA4: ${e}`);
     } else {
       result.notes.push('No GA4 connector — connect GA4 for traffic and trend data.');

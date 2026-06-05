@@ -159,6 +159,12 @@ async function fetchGA4Data(credentials, params) {
 
 // Single-range GA4 report for the Sales & Traffic dashboard — daily rows
 // split by channel, so trends and source breakdowns can be derived.
+//
+// keepEmptyRows: true makes GA4 return rows for date×channel combinations
+// even when every metric is zero. Without this, days with zero traffic on
+// every channel are silently dropped — which on a sparse / new property
+// looks identical to a truncated date range. We'd rather plot zeros than
+// have the chart silently compress to the last month with traffic.
 async function fetchGA4Daily(credentials, { propertyId, startDate, endDate }) {
   const creds = await getValidToken(credentials);
   if (!propertyId) throw new Error('GA4 property not selected — choose one on the Connectors tab.');
@@ -169,6 +175,7 @@ async function fetchGA4Daily(credentials, { propertyId, startDate, endDate }) {
         dateRanges: [{ startDate, endDate }],
         metrics: [{ name: 'sessions' }, { name: 'activeUsers' }, { name: 'transactions' }, { name: 'totalRevenue' }],
         dimensions: [{ name: 'date' }, { name: 'sessionDefaultChannelGroup' }],
+        keepEmptyRows: true,
         limit: 100000,
       },
       { headers: { Authorization: `Bearer ${creds.access_token}` } }
