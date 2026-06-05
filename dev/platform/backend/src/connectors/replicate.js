@@ -10,6 +10,13 @@ const { getSetting } = require('../utils/settings');
 
 const FLUX_MODEL = 'black-forest-labs/flux-1.1-pro';
 
+// Video models. Seedance is the cheap / fast default for text-to-video
+// (~$0.40 per 5s 480p clip). Wan 2.2 I2V is the image-to-video path so
+// we can animate a Flux still that already matches the brand. Both are
+// hosted on Replicate under the same prediction API as Flux.
+const VIDEO_T2V_MODEL = 'bytedance/seedance-1-pro';
+const VIDEO_I2V_MODEL = 'wavespeedai/wan-2.2-i2v-a14b';
+
 async function client() {
   const token = await getSetting('REPLICATE_API_TOKEN');
   if (!token) throw new Error('REPLICATE_API_TOKEN not set in Settings');
@@ -52,6 +59,35 @@ async function generate({ prompt, reference_image, aspect_ratio = '1:1', seed })
   return { url: out, model: FLUX_MODEL, prediction_id: data.id };
 }
 
+// Generate a short video clip. If `reference_image` is supplied we use
+// the image-to-video model so the still composition carries through;
+// otherwise pure text-to-video. Same poll-the-prediction shape as
+// `generate`, but with a longer ceiling — Seedance / Wan typically
+// finish 5s clips in 30-90s, so we wait up to 5 minutes total.
+async function generateVideo({ prompt, reference_image, aspect_ratio = '16:9', duration = 5, seed }) {
+  const api = await client();
+  const useI2V = !!reference_image;
+  const model = useI2V ? VIDEO_I2V_MODEL : VIDEO_T2V_MODEL;
+  const input = useI2V
+    ? { prompt, image: reference_image, num_frames: Math.round(duration * 16), ...(seed != null ? { seed } : {}) }
+    : { prompt, aspect_ratio, duration, resolution: '480p', ...(seed != null ? { seed } : {}) };
+
+  let { data } = await api.post(`/models/${model}/predictions`, { input },
+    { headers: { Prefer: 'wait=60' } });
+
+  const deadline = Date.now() + 4 * 60_000;
+  while (data.status === 'starting' || data.status === 'processing') {
+    if (Date.now() > deadline) throw new Error('Replicate video generation timed out');
+    await new Promise(r => setTimeout(r, 3000));
+    ({ data } = await api.get(`/predictions/${data.id}`));
+  }
+  if (data.status !== 'succeeded') {
+    throw new Error(`Replicate video generation failed: ${data.error || data.status}`);
+  }
+  const out = Array.isArray(data.output) ? data.output[0] : data.output;
+  return { url: out, model, prediction_id: data.id, duration };
+}
+
 async function testCredentials() {
   try {
     const api = await client();
@@ -62,4 +98,4 @@ async function testCredentials() {
   }
 }
 
-module.exports = { generate, testCredentials };
+module.exports = { generate, generateVideo, testCredentials };

@@ -56,7 +56,10 @@ router.get('/clients/:clientId/creatives', async (req, res) => {
     const { rows } = await pool.query(
       `SELECT c.*,
               COALESCE(json_agg(
-                json_build_object('id', i.id, 'provider', i.provider, 'aspect_ratio', i.aspect_ratio, 'url', i.url)
+                json_build_object(
+                  'id', i.id, 'provider', i.provider, 'aspect_ratio', i.aspect_ratio,
+                  'url', i.url, 'media_type', i.media_type, 'duration_seconds', i.duration_seconds
+                )
                 ORDER BY i.created_at
               ) FILTER (WHERE i.id IS NOT NULL), '[]') AS images
        FROM ad_creatives c
@@ -128,9 +131,15 @@ router.delete('/batches/:id', async (req, res) => {
 // turn and persist as ad_creative_images. Variations can be appended
 // later — each call adds new rows rather than replacing.
 router.post('/creatives/:id/images', async (req, res) => {
-  const { provider = 'replicate', aspect_ratios = ['1:1'], style_brief, seed } = req.body || {};
+  const {
+    provider = 'replicate', aspect_ratios = ['1:1'], style_brief, seed,
+    media_type = 'image', duration, from_image_id,
+  } = req.body || {};
   if (!Array.isArray(aspect_ratios) || !aspect_ratios.length) {
     return res.status(400).json({ error: 'aspect_ratios array required' });
+  }
+  if (media_type !== 'image' && media_type !== 'video') {
+    return res.status(400).json({ error: 'media_type must be image or video' });
   }
   try {
     const { rows } = await pool.query('SELECT * FROM ad_creatives WHERE id = $1', [req.params.id]);
@@ -142,6 +151,41 @@ router.post('/creatives/:id/images', async (req, res) => {
       `Direct-response ad creative. Headline overlay: "${creative.headline}". CTA: "${creative.cta}".`,
       style_brief ? `Style: ${style_brief}` : '',
     ].filter(Boolean).join('\n');
+
+    if (media_type === 'video') {
+      // Video only on Replicate (Ideogram + Adobe don't do video). Cap
+      // duration at 10s — anything longer can run several minutes and
+      // costs ~$1+ per render.
+      const clipDuration = Math.min(Math.max(parseInt(duration) || 5, 5), 10);
+      let referenceImage = null;
+      if (from_image_id) {
+        const { rows: ir } = await pool.query(
+          'SELECT url FROM ad_creative_images WHERE id = $1 AND creative_id = $2',
+          [from_image_id, creative.id]
+        );
+        if (ir.length) referenceImage = ir[0].url;
+      }
+      const generated = [];
+      for (const aspect of aspect_ratios) {
+        try {
+          const result = await replicate.generateVideo({
+            prompt: promptBase, aspect_ratio: aspect, duration: clipDuration,
+            reference_image: referenceImage, seed,
+          });
+          const { rows: row } = await pool.query(
+            `INSERT INTO ad_creative_images
+             (creative_id, provider, aspect_ratio, url, prompt, media_type, duration_seconds)
+             VALUES ($1, $2, $3, $4, $5, 'video', $6) RETURNING *`,
+            [creative.id, 'replicate-video', aspect, result.url, promptBase, clipDuration]
+          );
+          generated.push(row[0]);
+        } catch (err) {
+          console.error(`[ad-creative] video ${aspect} generation failed:`, err.message);
+          generated.push({ aspect_ratio: aspect, error: err.message });
+        }
+      }
+      return res.status(201).json({ creative_id: creative.id, images: generated });
+    }
 
     const generator = provider === 'ideogram' ? ideogram : provider === 'adobe' ? adobe : replicate;
     const generated = [];

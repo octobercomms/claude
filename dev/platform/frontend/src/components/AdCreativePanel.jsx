@@ -282,10 +282,17 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
 
 function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut }) {
   const [showRender, setShowRender] = useState(false);
+  const [mode, setMode] = useState('image'); // image | video
   const [provider, setProvider] = useState('replicate');
   const [aspects, setAspects] = useState(new Set(['1:1']));
+  const [videoAspect, setVideoAspect] = useState('9:16');
+  const [duration, setDuration] = useState(5);
+  const [fromImageId, setFromImageId] = useState('');
   const [styleBrief, setStyleBrief] = useState('');
   const [rendering, setRendering] = useState(false);
+
+  // Images on this creative that can seed an image-to-video render.
+  const seedableImages = (creative.images || []).filter(i => (i.media_type || 'image') === 'image');
 
   function toggleAspect(a) {
     setAspects(prev => {
@@ -296,10 +303,20 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
   }
 
   async function go() {
-    if (!aspects.size) return;
     setRendering(true);
     try {
-      await onRender({ provider, aspect_ratios: Array.from(aspects), style_brief: styleBrief });
+      if (mode === 'video') {
+        await onRender({
+          media_type: 'video',
+          aspect_ratios: [videoAspect],
+          duration,
+          from_image_id: fromImageId || undefined,
+          style_brief: styleBrief,
+        });
+      } else {
+        if (!aspects.size) return;
+        await onRender({ provider, aspect_ratios: Array.from(aspects), style_brief: styleBrief });
+      }
       setShowRender(false);
     } finally {
       setRendering(false);
@@ -350,29 +367,71 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
       <div style={{ marginTop: 12 }}>
         <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
-          {showRender ? 'Cancel' : 'Render images'}
+          {showRender ? 'Cancel' : 'Render'}
         </button>
       </div>
 
       {showRender && (
         <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
-          <div className="field">PROVIDER</div>
+          <div className="field">MODE</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            {['replicate', 'ideogram', 'adobe'].map(p => (
-              <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
+            {['image', 'video'].map(m => (
+              <button key={m} onClick={() => setMode(m)} type="button" className={`btn ${mode === m ? "btn-primary" : "btn-secondary"} btn-sm`}>{m}</button>
             ))}
           </div>
-          <div className="field">ASPECT RATIOS</div>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-            {['1:1', '4:5', '9:16', '16:9'].map(a => (
-              <button key={a} onClick={() => toggleAspect(a)} type="button" className={`btn ${aspects.has(a) ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
-            ))}
-          </div>
+
+          {mode === 'image' && <>
+            <div className="field">PROVIDER</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['replicate', 'ideogram', 'adobe'].map(p => (
+                <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
+              ))}
+            </div>
+            <div className="field">ASPECT RATIOS</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+              {['1:1', '4:5', '9:16', '16:9'].map(a => (
+                <button key={a} onClick={() => toggleAspect(a)} type="button" className={`btn ${aspects.has(a) ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
+              ))}
+            </div>
+          </>}
+
+          {mode === 'video' && <>
+            <div className="field">ASPECT</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {['1:1', '9:16', '16:9'].map(a => (
+                <button key={a} onClick={() => setVideoAspect(a)} type="button" className={`btn ${videoAspect === a ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
+              ))}
+            </div>
+            <div className="field">DURATION</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              {[5, 10].map(d => (
+                <button key={d} onClick={() => setDuration(d)} type="button" className={`btn ${duration === d ? "btn-primary" : "btn-secondary"} btn-sm`}>{d}s</button>
+              ))}
+            </div>
+            {seedableImages.length > 0 && (
+              <>
+                <div className="field">SEED FROM IMAGE (OPTIONAL)</div>
+                <select value={fromImageId} onChange={e => setFromImageId(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  <option value="">Text-to-video (Seedance)</option>
+                  {seedableImages.map(i => (
+                    <option key={i.id} value={i.id}>Image-to-video from {i.aspect_ratio} ({i.provider})</option>
+                  ))}
+                </select>
+              </>
+            )}
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 8, lineHeight: 1.4 }}>
+              ~${(duration === 5 ? 0.40 : 0.80).toFixed(2)} per render via Replicate. Takes 30–90s.
+            </div>
+          </>}
+
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
-          <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || !aspects.size}>
-            {rendering ? 'Rendering…' : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`}
+          <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || (mode === 'image' && !aspects.size)}>
+            {rendering
+              ? (mode === 'video' ? 'Rendering video…' : 'Rendering…')
+              : (mode === 'video' ? `Render ${duration}s video` : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`)}
           </button>
         </div>
       )}
@@ -382,14 +441,20 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
 function ImageThumb({ img, onDelete, onFanOut }) {
   const [hovered, setHovered] = useState(false);
+  const isVideo = img.media_type === 'video';
+  const thumbStyle = { objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)", ...aspectStyle(img.aspect_ratio) };
   return (
     <div style={{ position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <a href={img.url} target="_blank" rel="noreferrer">
-        <img src={img.url} alt="" style={{ objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)", ...aspectStyle(img.aspect_ratio) }} />
+        {isVideo
+          ? <video src={img.url} muted loop autoPlay playsInline style={thumbStyle} />
+          : <img src={img.url} alt="" style={thumbStyle} />}
       </a>
-      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 'var(--r-sm)', fontWeight: 700 }}>{img.aspect_ratio}</div>
+      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 'var(--r-sm)', fontWeight: 700 }}>
+        {isVideo ? `▶ ${img.aspect_ratio}${img.duration_seconds ? ` · ${img.duration_seconds}s` : ''}` : img.aspect_ratio}
+      </div>
       <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--accent)", cursor: "pointer", fontSize: 12, lineHeight: 1 }}>×</button>
-      {hovered && onFanOut && (
+      {!isVideo && hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
           style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}>↔</button>
       )}
