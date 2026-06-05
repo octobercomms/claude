@@ -735,6 +735,16 @@ select, textarea {
    (report template designer, social planner). 560px crammed two
    columns into a strip — these need room to breathe. */
 .modal-wide { width: 1120px; }
+/* Near-fullscreen for modals that render full documents inline (report
+   preview iframe). 95vw caps the side gutters; column layout so the
+   iframe can flex-grow to take the remaining height. */
+.modal-fullscreen {
+  width: 95vw; max-width: 95vw;
+  height: 92vh; max-height: 92vh;
+  display: flex; flex-direction: column;
+  padding: var(--s5);
+}
+.modal-fullscreen > .modal-head { flex: 0 0 auto; }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--s5);

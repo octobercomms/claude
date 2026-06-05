@@ -77,7 +77,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal modal-wide" onClick={e => e.stopPropagation()}>
+      <div className="modal modal-fullscreen" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
