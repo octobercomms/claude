@@ -716,10 +716,19 @@ function ProviderCard({ entry }) {
     );
     statusColour = 'var(--positive)';
   }
+  // Same status-coloured-bento pattern as the Connectors tab — the
+  // whole tile turns green when balance / usage came back cleanly,
+  // red on error, amber on missing creds, default accent for "no
+  // data yet". The AM can spot a broken provider from across the
+  // page, not just by reading the inline label.
+  const statusClass =
+    !s ? '' :
+    s.status === 'error' ? 'danger' :
+    s.status === 'no_credentials' ? 'warning' :
+    'success';
   return (
-    <div style={{ border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12, position: 'relative' }}>
-      <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
+    <div className={`card ${statusClass}`} style={{ padding: 12 }}>
+      <div className="caption mb-2">{entry.label}</div>
       {body}
     </div>
   );

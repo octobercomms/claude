@@ -950,8 +950,17 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
     }
   }
 
+  // Whole-row colour follows the connector status — green if active,
+  // red on error, amber when the auth token has expired. Makes the
+  // Connectors tab readable at a glance instead of forcing the AM to
+  // squint at the little status word next to each row.
+  const statusClass =
+    connector.status === 'active' ? 'success' :
+    connector.status === 'error' ? 'danger' :
+    connector.status === 'expired' ? 'warning' : '';
+
   return (
-    <div style={{ padding: '10px 16px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--accent)' }}>
+    <div className={`card ${statusClass}`} style={{ padding: '10px 16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>

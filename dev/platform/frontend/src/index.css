@@ -191,6 +191,13 @@ button { font-family: inherit; }
 .card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .caption { color: var(--accent-on); }
 .card.outline { background: transparent; border-color: var(--accent); }
 
+/* Status modifiers. Swap the accent for a semantic colour on the
+   whole card so a connected / errored bento reads at a glance from
+   across the screen, not just from the inline status badge. */
+.card.success { background: var(--positive-soft); border-color: var(--positive); }
+.card.danger  { background: var(--negative-soft); border-color: var(--negative); }
+.card.warning { background: var(--warning-soft);  border-color: var(--warning); }
+
 /* Section: caption overline + h2 title + optional right action. */
 .section { margin-top: var(--s8); }
 .section-head {
