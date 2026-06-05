@@ -12,7 +12,11 @@ const KINDS = [
   { value: 'prop_image',    label: 'Prop image',   description: 'Photos for Style F — drawings, notebooks, material samples, hands holding objects. Bulk upload supported.' },
 ];
 
-export default function ClientBrandPage() {
+// `embedded` true means this page is rendered inside ClientDetailPage's
+// Setup → Brand tab, where the parent owns the hero + tab strip. In
+// that mode we drop our own hero so the AM doesn't see two "October
+// Communications" overlines stacked on top of each other.
+export default function ClientBrandPage({ embedded = false } = {}) {
   const { id } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
@@ -97,16 +101,20 @@ export default function ClientBrandPage() {
   const byKind = (k) => assets.filter(a => a.kind === k);
 
   return (
-    <div className="suite-setup">
-      <header className="hero">
-        <div className="client-name">{client?.name || ''}</div>
-        <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
-        <p className="body mt-4">
-          Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
-          Both the Social and Ad Creative generators pull these as reference so output stays on-brand
-          rather than AI-generic.
-        </p>
-      </header>
+    <div className={embedded ? '' : 'suite-setup'}>
+      {!embedded && (
+        <header className="hero">
+          <div>
+            <div className="client-name">{client?.name || ''}</div>
+            <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
+          </div>
+        </header>
+      )}
+      <p className="body mb-5">
+        Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
+        Both the Social and Ad Creative generators pull these as reference so output stays on-brand
+        rather than AI-generic.
+      </p>
 
       {/* Filter chips */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>

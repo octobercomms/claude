@@ -206,20 +206,22 @@ export default function ClientChatPage() {
 
       {/* Chat panel */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+        <header className="hero">
           <div>
-            <div className="client-name" style={{ fontSize: 22 }}>{client?.name}</div>
-            <h1 className="display mt-2" style={{ fontSize: 36 }}>AI <span className="text-accent">Data Analyst</span></h1>
-            <p className="body mt-2">
+            <div className="client-name">{client?.name}</div>
+            <h1 className="display mt-2">AI <span className="text-accent">Data Analyst</span></h1>
+            <p className="body mt-4">
               Claude can read live connector data, check SEO, detect anomalies, and log decisions.
             </p>
           </div>
           {messages.length > 0 && (
-            <button onClick={handleClear} disabled={clearing} className="btn btn-secondary">
+            <div className="hero-actions">
+            <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
               {clearing ? 'Clearing…' : 'Clear history'}
             </button>
+            </div>
           )}
-        </div>
+        </header>
 
         <div className="chat-thread">
           {messages.length === 0 && !sending && (

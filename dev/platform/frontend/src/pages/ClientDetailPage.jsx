@@ -292,33 +292,33 @@ export default function ClientDetailPage() {
   // Reports blue; everything else (Brief / Brand / Connectors) is the
   // Setup teal.
   const scopeClass = tab === 'forms' ? 'suite-forms' : tab === 'reports' ? 'suite-reports' : 'suite-setup';
+  const pageTitle = tab === 'forms' ? 'Forms' : tab === 'reports' ? 'Reports' : 'Setup';
 
   return (
     <div className={scopeClass}>
-      <div className="row between center" style={{ marginBottom: 'var(--s6)' }}>
-        <h1 className="h2">{client.name}</h1>
-        <span className={client.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 12 }}>
-          {client.active ? 'Active' : 'Inactive'}
-        </span>
-      </div>
+      <header className="hero">
+        <div>
+          <div className="client-name">{client.name}</div>
+          <h1 className="display mt-2"><span className="text-accent">{pageTitle}</span></h1>
+        </div>
+        <div className="hero-actions">
+          <span className={`chip ${client.active ? 'chip-success' : 'chip-neutral'}`}>
+            {client.active ? 'Active' : 'Inactive'}
+          </span>
+        </div>
+      </header>
 
       {['details', 'brand', 'connectors'].includes(tab) && (
-        <div>
-          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>Setup</div>
-          <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
-            {[['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
-              <button key={key} onClick={() => setSearchParams({ tab: key })} style={{
-                background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-                fontWeight: tab === key ? 700 : 400, color: tab === key ? 'var(--text)' : 'var(--text-subtle)',
-                borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent', marginBottom: -2,
-              }}>{label}</button>
-            ))}
-          </div>
+        <div className="tabs">
+          {[['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
+            <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
+              className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
+          ))}
         </div>
       )}
 
       {tab === 'brand' && (
-        <ClientBrandPage />
+        <ClientBrandPage embedded />
       )}
 
       {tab === 'details' && (
