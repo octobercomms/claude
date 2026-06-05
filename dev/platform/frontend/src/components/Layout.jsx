@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
-import { primaryBtn, secondaryBtn } from '../styles/theme';
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -133,25 +132,33 @@ function ChangePasswordModal({ onClose }) {
   }
 
   return (
-    <div style={modalStyles.overlay} onClick={onClose}>
-      <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Change password</h2>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
+        <div className="modal-head">
+          <h2 className="h2">Change password</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
+        </div>
         {done ? (
-          <div style={{ padding: '10px 0', color: '#2e7d32' }}>Password updated.</div>
+          <div className="text-positive">Password updated.</div>
         ) : (
           <>
-            <label style={modalStyles.label}>Current password</label>
-            <input type="password" autoFocus value={current} onChange={e => setCurrent(e.target.value)} style={modalStyles.input} />
-            <label style={modalStyles.label}>New password</label>
-            <input type="password" value={next} onChange={e => setNext(e.target.value)} style={modalStyles.input} />
-            <label style={modalStyles.label}>Confirm new password</label>
-            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') save(); }}
-              style={modalStyles.input} />
-            {error && <div style={modalStyles.error}>{error}</div>}
-            <div style={modalStyles.footer}>
-              <button type="button" style={secondaryBtn} onClick={onClose}>Cancel</button>
-              <button type="button" style={primaryBtn} onClick={save} disabled={saving || !current || !next || !confirm}>
+            <div className="field">
+              <label className="field-label">Current password</label>
+              <input className="input" type="password" autoFocus value={current} onChange={e => setCurrent(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="field-label">New password</label>
+              <input className="input" type="password" value={next} onChange={e => setNext(e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="field-label">Confirm new password</label>
+              <input className="input" type="password" value={confirm} onChange={e => setConfirm(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') save(); }} />
+            </div>
+            {error && <div className="chip chip-danger" style={{ width: '100%', justifyContent: 'flex-start' }}>{error}</div>}
+            <div className="row end mt-5">
+              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={save} disabled={saving || !current || !next || !confirm}>
                 {saving ? 'Saving…' : 'Update password'}
               </button>
             </div>
@@ -161,15 +168,6 @@ function ChangePasswordModal({ onClose }) {
     </div>
   );
 }
-
-const modalStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '80px 20px', zIndex: 1100 },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 420, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-  error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
-};
 
 const styles = {
   shell: { display: 'flex', minHeight: '100vh', background: '#f5f5f5' },

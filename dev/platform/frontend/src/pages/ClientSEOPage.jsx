@@ -51,58 +51,49 @@ function DfsAvailabilityBanner() {
 
   if (!avail.unlocked) {
     return (
-      <div style={{
-        marginBottom: 16, padding: '12px 16px', background: '#fffdf2',
-        border: '1px solid #ddd6a8', borderRadius: 6, fontSize: 13, color: '#5a4a00',
-      }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>
-          Coming {when} — DataForSEO Backlinks &amp; LLM Mentions
-        </div>
-        <div style={{ lineHeight: 1.5 }}>
+      <div className="card mb-4">
+        <div className="caption">Coming {when}</div>
+        <div className="h3 mt-2">DataForSEO Backlinks &amp; LLM Mentions</div>
+        <p className="body-sm mt-3">
           These data sources need a paid commitment with DataForSEO that we don't currently hold.
           On {when} both APIs move to pay-as-you-go and the platform will start pulling them
           automatically. Until then the following won't appear:
-        </div>
-        <ul style={{ margin: '6px 0 6px 18px', padding: 0, lineHeight: 1.55 }}>
+        </p>
+        <ul className="body-sm" style={{ margin: '8px 0 8px 18px', padding: 0 }}>
           {avail.gated_features.map(f => <li key={f}>{f}</li>)}
         </ul>
-        <div style={{ fontSize: 12, color: '#7a6500' }}>
+        <p className="body-xs text-subtle mt-2">
           Implementation checklist + Phase E PR plan:{' '}
           <button onClick={downloadChecklist}
-            style={{ background: 'none', border: 'none', padding: 0, color: '#5a4a00', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
             ↓ download {DOC_FILENAME}
           </button>
-        </div>
+        </p>
       </div>
     );
   }
 
   if (dismissed) return null;
   return (
-    <div style={{
-      marginBottom: 16, padding: '12px 16px', background: '#e7f4ea',
-      border: '1px solid #b6dcc1', borderRadius: 6, fontSize: 13, color: '#1b5e20',
-      display: 'flex', alignItems: 'flex-start', gap: 12,
-    }}>
+    <div className="card mb-4" style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 700, marginBottom: 4 }}>
-          ✓ DataForSEO Backlinks &amp; LLM Mentions are now available
-        </div>
-        <div style={{ lineHeight: 1.5 }}>
+        <div className="caption">Now available</div>
+        <div className="h3 mt-2">✓ DataForSEO Backlinks &amp; LLM Mentions</div>
+        <p className="body-sm mt-3">
           {avail.post_unlock_message || 'Backlinks + LLM Mentions are now pay-as-you-go.'}
-        </div>
-        <div style={{ marginTop: 6, fontSize: 12 }}>
+        </p>
+        <p className="body-xs text-subtle mt-2">
           Open <code>docs/{DOC_FILENAME}</code> in the repo — or{' '}
           <button onClick={downloadChecklist}
-            style={{ background: 'none', border: 'none', padding: 0, color: '#1b5e20', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
+            style={{ background: 'none', border: 'none', padding: 0, color: 'var(--accent)', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>
             ↓ download {DOC_FILENAME}
           </button>{' '}
           for the day-of checklist + Phase E PR order.
-        </div>
+        </p>
       </div>
       <button
         onClick={() => { try { localStorage.setItem(DFS_DISMISS_KEY, '1'); } catch {} setDismissed(true); }}
-        style={{ background: 'none', border: '1px solid #b6dcc1', color: '#1b5e20', borderRadius: 4, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>
+        className="btn btn-secondary btn-sm">
         Dismiss
       </button>
     </div>
@@ -143,19 +134,21 @@ const LOCATIONS = [
   { name: 'South Africa', code: 2710, flag: '🇿🇦' },
 ];
 
-// Position pill: green for top 10, orange for 11-100. Legacy data shows
-// italic + lighter, live DataForSEO data shows bold.
+// Position pill: ranked in top 10 takes a filled accent chip, lower
+// positions show as a thin outline. Legacy data renders italic + lighter
+// weight; live DataForSEO data is bold.
 function PosBox({ p, legacy }) {
-  if (p == null) return <span style={{ color: '#bbb' }}>—</span>;
+  if (p == null) return <span className="text-subtle">—</span>;
   const top = p <= 10;
   return (
     <span style={{
       display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '3px 8px',
-      borderRadius: 5, fontSize: 13,
+      borderRadius: 999, fontSize: 13,
       fontWeight: legacy ? 500 : 700,
       fontStyle: legacy ? 'italic' : 'normal',
-      background: top ? '#e4f4e8' : '#fcecd9',
-      color: top ? '#1d7a3a' : '#9a5a13',
+      background: top ? 'var(--accent)' : 'transparent',
+      border: top ? '2px solid var(--accent)' : '2px solid var(--accent-soft)',
+      color: top ? 'var(--accent-on)' : 'var(--text)',
     }}>{p}</span>
   );
 }
@@ -164,8 +157,9 @@ function fmtDay(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' });
 }
 
-// Minimal trend line for the summary cards.
-function Sparkline({ data, color = '#3355cc', reverse = false }) {
+// Minimal trend line for the summary cards. Always strokes in the
+// current suite accent so it stays within the two-tone palette.
+function Sparkline({ data, reverse = false }) {
   const pts = (data || []).filter(v => v != null);
   if (pts.length < 2) return <div style={{ height: 32, marginTop: 8 }} />;
   return (
@@ -173,7 +167,7 @@ function Sparkline({ data, color = '#3355cc', reverse = false }) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
           <YAxis hide reversed={reverse} domain={['dataMin', 'dataMax']} />
-          <Line type="monotone" dataKey="v" stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+          <Line type="monotone" dataKey="v" stroke="var(--accent)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -233,7 +227,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
             padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '2px solid var(--accent)',
-            background: range === v ? '#1a1a1a' : '#fff', color: range === v ? '#fff' : '#555',
+            background: range === v ? 'var(--accent)' : '#fff', color: range === v ? 'var(--accent-on)' : '#555',
           }}>{l}</button>
         ))}
       </div>
@@ -360,7 +354,7 @@ export default function ClientSEOPage() {
           <div style={{ fontWeight: 600, fontSize: 13 }}>
             {kw.keyword}
             <IntentBadge intent={kw.intent} />
-            {kw.aio_present && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 3, background: kw.aio_brand_cited ? '#e4f4e8' : '#fef3c7', color: kw.aio_brand_cited ? '#1d7a3a' : '#92400e' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
+            {kw.aio_present && <span className={`chip chip-${kw.aio_brand_cited ? 'success' : 'warning'}`} style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
           </div>
           {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
           {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
@@ -387,17 +381,17 @@ export default function ClientSEOPage() {
         <td style={s.td}>
           <PosBox p={kw.current_position} legacy={kw.current_source === 'legacy'} />
           {change !== null && (
-            <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? '#2e7d32' : change < 0 ? '#c62828' : '#888' }}>
+            <span className={change > 0 ? 'text-positive' : change < 0 ? 'text-negative' : 'text-subtle'} style={{ marginLeft: 6, fontSize: 11 }}>
               {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
             </span>
           )}
         </td>
         <td style={s.td}>{kw.previous_position || '—'}</td>
-        <td style={{ ...s.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+        <td style={{ ...s.td, color: 'var(--accent)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
         <td style={s.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
         <td style={s.td} onClick={e => e.stopPropagation()}>
-          <button onClick={() => setHistoryKeyword(kw)} title="Full position history" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 14, padding: '0 4px' }}>⊞</button>
-          <button onClick={() => handleDelete(kw.id)} title="Delete keyword" style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+          <button onClick={() => setHistoryKeyword(kw)} title="Full position history" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, padding: '0 4px' }}>⊞</button>
+          <button onClick={() => handleDelete(kw.id)} title="Delete keyword" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
         </td>
       </tr>
       {expanded && (
@@ -680,7 +674,7 @@ export default function ClientSEOPage() {
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
                   <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a' }}>{c.value}</div>
                   {c.delta != null && c.delta !== 0 && (
-                    <span style={{ fontSize: 12, fontWeight: 600, color: c.delta > 0 ? '#2e7d32' : '#c62828' }}>
+                    <span className={c.delta > 0 ? 'text-positive' : 'text-negative'} style={{ fontSize: 12 }}>
                       {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
                     </span>
                   )}
@@ -705,8 +699,8 @@ export default function ClientSEOPage() {
           <button key={b.key} onClick={() => setBucket(b.key)} style={{
             flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
             borderLeft: i ? '1px solid #eee' : 'none',
-            background: bucket === b.key ? '#1a1a1a' : '#fff',
-            color: bucket === b.key ? '#fff' : '#444',
+            background: bucket === b.key ? 'var(--accent)' : '#fff',
+            color: bucket === b.key ? 'var(--accent-on)' : '#444',
           }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{bucketCounts[b.key]}</div>
             <div style={{ fontSize: 11, opacity: 0.85 }}>{b.label}</div>
@@ -792,7 +786,7 @@ export default function ClientSEOPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button type="submit" style={s.btn} disabled={bulking}>{bulking ? 'Importing…' : 'Import'}</button>
               <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} style={s.btnGhost}>Cancel</button>
-              {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{bulkMsg}</span>}
+              {bulkMsg && <span className={bulkMsg.startsWith('Error') ? 'text-negative' : 'text-positive'} style={{ fontSize: 13 }}>{bulkMsg}</span>}
             </div>
           </form>
         </div>
@@ -804,7 +798,7 @@ export default function ClientSEOPage() {
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
               padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '2px solid var(--accent)',
-              background: kwView === v ? '#1a1a1a' : '#fff', color: kwView === v ? '#fff' : '#444',
+              background: kwView === v ? 'var(--accent)' : '#fff', color: kwView === v ? 'var(--accent-on)' : '#444',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
             }}>{label}</button>
           ))}
@@ -1027,7 +1021,7 @@ export default function ClientSEOPage() {
           )}
 
           {backlinksError && (
-            <div style={{ ...s.card, color: '#c62828', fontSize: 13 }}>
+            <div className="card text-negative" style={{ fontSize: 13 }}>
               Couldn't load backlink data: {backlinksError}
             </div>
           )}
@@ -1045,8 +1039,8 @@ export default function ClientSEOPage() {
                 { label: 'Total Backlinks', val: backlinks.backlinks_total },
                 { label: 'Referring Domains', val: backlinks.referring_domains },
                 { label: 'Referring IPs', val: backlinks.referring_ips },
-                { label: 'New Backlinks', val: backlinks.new_backlinks, color: '#2e7d32' },
-                { label: 'Lost Backlinks', val: backlinks.lost_backlinks, color: '#c62828' },
+                { label: 'New Backlinks', val: backlinks.new_backlinks, color: 'var(--positive)' },
+                { label: 'Lost Backlinks', val: backlinks.lost_backlinks, color: 'var(--negative)' },
                 { label: 'Broken Backlinks', val: backlinks.broken_backlinks },
                 { label: 'Spam Score', val: backlinks.spam_score },
               ].map(m => (

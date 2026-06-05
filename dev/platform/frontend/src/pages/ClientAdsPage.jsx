@@ -209,13 +209,13 @@ export default function ClientAdsPage() {
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>
           {showGoogleTab && (
-            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'google' ? '2px solid #4285f4' : '2px solid transparent', marginBottom: -2 }}>
-              Google Ads {!hasGoogle && <span style={{ color: '#c62828', fontSize: 12, marginLeft: 4 }}>⚠</span>}
+            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'google' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+              Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
           {showMetaTab && (
-            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'meta' ? '2px solid #1877f2' : '2px solid transparent', marginBottom: -2 }}>
-              Meta Ads {!hasMeta && <span style={{ color: '#c62828', fontSize: 12, marginLeft: 4 }}>⚠</span>}
+            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+              Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
         </div>
@@ -224,7 +224,7 @@ export default function ClientAdsPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>Loading ads data…</div>
       ) : adsData?.error ? (
-        <div style={{ color: '#c62828', padding: 20, fontSize: 14 }}>Error: {adsData.error}</div>
+        <div className="text-negative" style={{ padding: 20, fontSize: 14 }}>Error: {adsData.error}</div>
       ) : noConnectors ? (
         <div style={{ textAlign: 'center', padding: 60, color: '#888', fontSize: 14 }}>
           No active Google Ads or Meta Ads connectors found for this client.<br />
@@ -251,7 +251,7 @@ export default function ClientAdsPage() {
               {googleEntries.map((g, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
                   {g.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{g.store_label}</div>}
-                  {g.error ? <div style={{ color: '#c62828', fontSize: 13, marginBottom: 8 }}>{g.error}</div> : (
+                  {g.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{g.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                         <MetricCard label="Spend" value={fmtCurrency(g.spend)} />
@@ -279,7 +279,7 @@ export default function ClientAdsPage() {
                                     <td style={{ padding: '8px 12px' }}>{c.name}</td>
                                     <td style={{ padding: '8px 12px' }}>{fmtCurrency(c.spend)}</td>
                                     <td style={{ padding: '8px 12px' }}>{c.convValue > 0 ? fmtCurrency(c.convValue) : '—'}</td>
-                                    <td style={{ padding: '8px 12px', color: profit != null ? (profit >= 0 ? '#2e7d32' : '#c62828') : undefined, fontWeight: profit != null ? 600 : undefined }}>{profit != null ? fmtCurrency(profit) : '—'}</td>
+                                    <td style={{ padding: '8px 12px' }} className={profit != null ? (profit >= 0 ? 'text-positive' : 'text-negative') : ''}>{profit != null ? fmtCurrency(profit) : '—'}</td>
                                     <td style={{ padding: '8px 12px' }}>{roas ? `${roas}x` : '—'}</td>
                                     <td style={{ padding: '8px 12px' }}>{fmt(c.clicks)}</td>
                                     <td style={{ padding: '8px 12px' }}>{fmt(c.conversions)}</td>
@@ -316,7 +316,7 @@ export default function ClientAdsPage() {
               {metaEntries.map((m, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
                   {m.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{m.store_label}</div>}
-                  {m.error ? <div style={{ color: '#c62828', fontSize: 13, marginBottom: 8 }}>{m.error}</div> : (
+                  {m.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{m.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
                         <MetricCard label="Spend" value={fmtCurrency(m.spend)} />

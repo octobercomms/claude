@@ -32,6 +32,17 @@
   --accent-soft: rgba(231, 205, 65, 0.12);
   --accent-on: #1a1a1a;
 
+  /* Sanctioned semantic colours — the only third-tier hues allowed
+     across the platform. Used for up/down deltas, profit/loss,
+     new/lost backlinks, success/error toasts. Everything else has
+     to stay inside the two-tone palette. */
+  --positive: #2e7d32;
+  --positive-soft: rgba(56, 142, 60, 0.10);
+  --negative: #c62828;
+  --negative-soft: rgba(198, 40, 40, 0.10);
+  --warning: #b86e00;
+  --warning-soft: rgba(255, 187, 6, 0.16);
+
   /* Type — Brockmann everywhere. */
   --font: 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 
@@ -256,9 +267,16 @@ button { font-family: inherit; }
 .chip-neutral { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
 .chip-accent  { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .chip-outline { background: transparent; color: var(--accent); border-color: var(--accent); }
-.chip-success { background: rgba(56,142,60,0.10);  color: #2e7d32; border-color: #2e7d32; }
-.chip-warning { background: rgba(255,187,6,0.16);  color: #b86e00; border-color: #b86e00; }
-.chip-danger  { background: rgba(198,40,40,0.10);  color: #C62828; border-color: #C62828; }
+.chip-success { background: var(--positive-soft); color: var(--positive); border-color: var(--positive); }
+.chip-warning { background: var(--warning-soft);  color: var(--warning);  border-color: var(--warning); }
+.chip-danger  { background: var(--negative-soft); color: var(--negative); border-color: var(--negative); }
+
+/* Standalone semantic text helpers — for delta numbers, profit, etc.
+   Don't add more colour utilities; if it needs to be coloured, it's
+   either accent (suite signal) or one of these three (semantic). */
+.text-positive { color: var(--positive); font-weight: 600; }
+.text-negative { color: var(--negative); font-weight: 600; }
+.text-warning  { color: var(--warning); font-weight: 600; }
 
 /* ─── Tables ─────────────────────────────────────────────────────── */
 
