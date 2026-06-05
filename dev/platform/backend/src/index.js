@@ -8,6 +8,16 @@ const db = require('./db');
 const { decrypt, assertKeyValid } = require('./utils/encryption');
 const errorTracker = require('./services/errorTracker');
 
+// Force DNS lookups to prefer IPv4. Node 18 changed the default DNS
+// result order to 'verbatim' (use whatever the resolver returns,
+// usually IPv6 first). Many origins answer differently on IPv4 vs
+// IPv6 — e.g. architourian.com on 20i hosting served a "Security
+// Verification" anti-bot challenge over IPv6 while normal Apache
+// served traffic correctly on IPv4. Browsers + curl prefer IPv4
+// by default; matching that behaviour fixes a whole class of
+// connector 401/403 quirks without per-origin patching.
+require('dns').setDefaultResultOrder('ipv4first');
+
 // Validate ENCRYPTION_KEY at boot so an operator running with a non-hex
 // value sees the error immediately rather than the first time a
 // connector is decrypted.

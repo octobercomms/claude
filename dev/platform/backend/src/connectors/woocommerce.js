@@ -119,17 +119,31 @@ async function getOutboundIp() {
 
 // Probe the bare WP REST root with no auth. If THIS 401s too, the
 // blocker is server-side (security plugin / WAF), not WooCommerce
-// credentials.
+// credentials. Also resolves the origin's address family so the
+// diagnose can flag IPv4 vs IPv6 quirks — 20i + a few other hosts
+// answer differently per family.
 async function probeWpRest(credentials) {
   const base = credentials.store_url.replace(/\/$/, '');
+  let resolvedAddress = null;
+  let resolvedFamily = null;
+  try {
+    const host = new URL(base).hostname;
+    const dns = require('dns').promises;
+    const addr = await dns.lookup(host);
+    resolvedAddress = addr.address;
+    resolvedFamily = addr.family;
+  } catch { /* ignore */ }
   try {
     const res = await axios.get(`${base}/wp-json/`, {
       timeout: 15000,
       validateStatus: () => true,
     });
-    return { status: res.status, headers: res.headers, body: res.data };
+    return {
+      status: res.status, headers: res.headers, body: res.data,
+      resolvedAddress, resolvedFamily,
+    };
   } catch (err) {
-    return { status: 0, error: err.message };
+    return { status: 0, error: err.message, resolvedAddress, resolvedFamily };
   }
 }
 
@@ -162,6 +176,12 @@ async function checkTokenValidity(credentials) {
       // value to whitelist on the WAF dashboard.
       const ip = await getOutboundIp();
       if (ip) hints.push(`Whitelist this platform IP: ${ip}`);
+      // Flag IPv6-vs-IPv4 origin resolution so we can spot quirks
+      // like 20i hosting answering bot challenges on v6 while v4
+      // works fine.
+      if (probe.resolvedAddress && probe.resolvedFamily) {
+        hints.push(`Origin resolved to ${probe.resolvedAddress} (IPv${probe.resolvedFamily}).`);
+      }
       const body = qp.data || res.data;
       const headers = qp.headers || res.headers || {};
       throw new Error(`401 Unauthorized — ${explain401(body, headers)}${hints.length ? ' · ' + hints.join(' ') : ''}`);
