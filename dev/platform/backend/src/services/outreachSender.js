@@ -196,6 +196,13 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   const gate = await outreachVerification.shouldSend(contact.id).catch(() => ({ ok: true }));
   if (!gate.ok) throw new Error(`Send blocked: ${gate.reason}`);
 
+  // Phase 2: respect the per-prospect state machine. If the prospect
+  // replied on any channel, was unsubscribed, or was manually paused,
+  // don't send.
+  const prospectState = require('./outreachProspectState');
+  const active = await prospectState.isActive(send.campaign_id, contact.id).catch(() => true);
+  if (!active) throw new Error('Send blocked: prospect no longer active in this cadence');
+
   // Phase 1: per-client mailbox rotation. If the client has any
   // mailboxes configured, pick the next eligible one and use its
   // from/reply-to; otherwise fall back to the legacy single-sender
@@ -258,6 +265,12 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
       }
     } catch (err) { /* swallow — non-fatal */ }
   }
+
+  // Phase 2: advance the per-prospect state machine to the next step.
+  // Best-effort; downstream cron picks up the next pending send.
+  try {
+    await prospectState.advance(send.campaign_id, contact.id);
+  } catch (err) { /* swallow — non-fatal */ }
   return result;
 }
 

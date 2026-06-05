@@ -13,6 +13,7 @@ const outreachAi = require('../services/outreachAi');
 const outreachSender = require('../services/outreachSender');
 const outreachVerification = require('../services/outreachVerification');
 const outreachMailboxes = require('../services/outreachMailboxes');
+const outreachTasks = require('../services/outreachTasks');
 
 // Verifier for the track-link HMAC. Returns true if the supplied
 // signature matches what outreachSender would have produced for this
@@ -1792,13 +1793,27 @@ router.post('/campaigns/:id/launch', async (req, res) => {
         'INSERT INTO outreach_campaign_contacts (campaign_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
         [req.params.id, contact.id]
       );
+      // Phase 2: initialise the per-prospect state machine and route
+      // non-email steps into the task queue instead of outreach_sends.
+      const prospectState = require('../services/outreachProspectState');
+      const outreachTasks = require('../services/outreachTasks');
+      await prospectState.ensure(req.params.id, contact.id);
       for (const step of steps) {
         const scheduledAt = new Date(now + (step.delay_days || 0) * 86400000);
-        await pool.query(
-          `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
-           VALUES ($1, $2, $3, 'pending', $4)`,
-          [req.params.id, contact.id, step.id, scheduledAt]
-        );
+        const channel = step.channel || 'email';
+        if (channel === 'email') {
+          await pool.query(
+            `INSERT INTO outreach_sends (campaign_id, contact_id, sequence_id, status, scheduled_at)
+             VALUES ($1, $2, $3, 'pending', $4)`,
+            [req.params.id, contact.id, step.id, scheduledAt]
+          );
+        } else {
+          await outreachTasks.enqueue({
+            campaignId: req.params.id, contactId: contact.id, sequenceId: step.id,
+            channel, taskType: step.step_type || 'send',
+            prompt: step.body || null, dueAt: scheduledAt,
+          });
+        }
       }
       enrolled++;
     }
@@ -1948,6 +1963,39 @@ router.put('/mailboxes/:id', authenticate, async (req, res) => {
   values.push(req.params.id);
   await pool.query(`UPDATE outreach_mailboxes SET ${fields.join(', ')} WHERE id = $${values.length}`, values);
   res.json({ ok: true });
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 2: per-user task queue (LinkedIn + manual steps)
+// ─────────────────────────────────────────────────────────────────────────
+
+router.get('/tasks', authenticate, async (req, res) => {
+  try {
+    const visible = await loadVisibleClientIds(req.user);
+    const rows = await outreachTasks.listForUser(req.user.id, visible);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/tasks/:id/complete', authenticate, async (req, res) => {
+  try {
+    const r = await outreachTasks.complete(req.params.id, req.user.id);
+    if (!r) return res.status(409).json({ error: 'Task already completed or skipped' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/tasks/:id/skip', authenticate, async (req, res) => {
+  try {
+    await outreachTasks.skip(req.params.id, req.user.id, req.body?.reason);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.delete('/mailboxes/:id', authenticate, async (req, res) => {

@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import MailboxesPanel from '../components/MailboxesPanel';
+import OutreachTasksPanel from '../components/OutreachTasksPanel';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
@@ -388,9 +389,14 @@ export default function ClientOutreachPage() {
         { key: 'dashboard', label: 'Dashboard',                                                  active: tab === 'dashboard', onClick: () => setTab('dashboard') },
         { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,            active: tab === 'campaigns', onClick: () => setTab('campaigns') },
         { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,             active: tab === 'contacts',  onClick: () => setTab('contacts') },
+        { key: 'tasks',     label: 'Tasks',                                                      active: tab === 'tasks',     onClick: () => setTab('tasks') },
         { key: 'sending',   label: 'Sending',                                                    active: tab === 'sending',   onClick: () => setTab('sending') },
         { key: 'help',      label: 'Help',                                                       active: tab === 'help',      onClick: () => setTab('help') },
       ]} />
+
+      {tab === 'tasks' && (
+        <OutreachTasksPanel />
+      )}
 
       {tab === 'overview' && (
         <SuiteOverview

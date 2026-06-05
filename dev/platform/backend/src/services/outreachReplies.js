@@ -69,6 +69,16 @@ async function pollReplies() {
           );
           if (rows.length) matched += 1;
 
+          // Phase 2: feed the reply into the per-prospect state
+          // machine — auto-pauses the sequence so we don't keep
+          // chasing someone who already responded.
+          if (rows.length) {
+            const prospectState = require('./outreachProspectState');
+            for (const r of rows) {
+              await prospectState.markEvent(r.campaign_id, r.contact_id, 'replied').catch(() => {});
+            }
+          }
+
           // Best-effort classify — never let it block the poll.
           if (rows.length && body) {
             try {
