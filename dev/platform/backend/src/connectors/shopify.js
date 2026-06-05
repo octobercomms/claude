@@ -87,6 +87,27 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
     if (orderRefund > 0) { refundTotal += orderRefund; refundedOrders++; }
   }
 
+  // Per-day breakdown so the Sales & Traffic chart can plot real ecom
+  // activity rather than GA4's heavily-undercounted transactions. Net of
+  // refunds so spike days don't look bigger than they actually were once
+  // returns came back through.
+  const dailyMap = {};
+  for (const o of orders) {
+    const date = (o.created_at || '').slice(0, 10);
+    if (!date) continue;
+    let refund = 0;
+    for (const r of (o.refunds || [])) {
+      for (const t of (r.transactions || [])) {
+        if (t.kind === 'refund') refund += parseFloat(t.amount || 0);
+      }
+    }
+    const net = parseFloat(o.total_price || 0) - refund;
+    const d = dailyMap[date] || (dailyMap[date] = { date, revenue: 0, orders: 0 });
+    d.revenue += net;
+    d.orders += 1;
+  }
+  const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+
   // Product-level breakdown from line items.
   const products = {};
   for (const o of orders) {
@@ -112,6 +133,7 @@ async function fetchAnalyticsData(credentials, startDate, endDate) {
       refunded_orders: refundedOrders,
       net_revenue: (totalRevenue - refundTotal).toFixed(2),
       financial_status_breakdown: financialBreakdown,
+      daily,
     },
     top_products: topProducts,
     orders: orders.slice(0, 50), // Include first 50 for detail

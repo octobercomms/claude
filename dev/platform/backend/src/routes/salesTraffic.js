@@ -122,6 +122,7 @@ router.get('/:clientId', async (req, res) => {
       // Mixed-currency multi-store clients would need fxRates here too
       // (same pattern as the renderer in PR #307); not yet a need.
       let revenue = 0, orders = 0;
+      const ecomDailyMap = {};
       await Promise.all(ecomConnectors.map(async (ecom) => {
         try {
           const creds = decrypt(ecom.credentials);
@@ -130,16 +131,48 @@ router.get('/:clientId', async (req, res) => {
           const summary = (data && data.summary) || data || {};
           revenue += Number(summary.total_revenue || summary.revenue || 0);
           orders += Number(summary.total_orders || summary.orders || 0);
+          // Roll up per-day ecom revenue/orders across every store, so the
+          // chart reflects the real source of truth instead of GA4's
+          // undercounted transactions metric. GA4 typically captures 30–70%
+          // of actual orders because of consent banners, ad blockers, and
+          // GTM misfires — a chart drawn from it makes Jan-Apr look empty
+          // even when the client did thousands in sales.
+          for (const d of (summary.daily || [])) {
+            const entry = ecomDailyMap[d.date] || (ecomDailyMap[d.date] = { date: d.date, revenue: 0, orders: 0 });
+            entry.revenue += Number(d.revenue || 0);
+            entry.orders += Number(d.orders || 0);
+          }
         } catch (err) {
           result.notes.push(`${ecom.connector_type}${ecom.store_label ? ' (' + ecom.store_label + ')' : ''}: ${err.message}`);
         }
       }));
       if (revenue) result.kpis.revenue = Math.round(revenue);
       if (orders) result.kpis.orders = orders;
+      // Rebuild salesTrend from ecom data when available — keep the same
+      // per-day rows we materialised for GA4 (so the X axis still spans the
+      // full requested range with zero days visible), but overwrite the
+      // revenue/orders values with the ecom numbers per day.
+      if (Object.keys(ecomDailyMap).length) {
+        result.salesTrend = (result.trafficTrend.length
+          ? result.trafficTrend.map(d => d.date)
+          : Object.keys(ecomDailyMap).sort()
+        ).map(date => {
+          const e = ecomDailyMap[date];
+          return { date, revenue: Math.round(e?.revenue || 0), orders: e?.orders || 0 };
+        });
+      }
     } else {
       result.notes.push('No ecommerce connector — revenue figures are taken from GA4.');
     }
 
+    // Conversion rate uses the FINAL order count (ecom if present, GA4
+    // otherwise) divided by GA4 sessions. Computing it before the ecom
+    // override produced wildly understated CR values — e.g. 96 real
+    // orders / 49,716 sessions presents as 0.19% but GA4's transactions
+    // count was so low the displayed CR read 0.04%.
+    result.kpis.conversionRate = result.kpis.sessions
+      ? ((result.kpis.orders || 0) / result.kpis.sessions) * 100
+      : 0;
     result.kpis.aov = result.kpis.orders ? Math.round((result.kpis.revenue || 0) / result.kpis.orders) : 0;
     res.json(result);
   } catch (err) {

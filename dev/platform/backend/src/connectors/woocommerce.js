@@ -283,6 +283,22 @@ async function fetchData(credentials, params) {
     return sum + orderTotal + refundTotal;
   }, 0);
 
+  // Per-day buckets — date_created is ISO in the site's timezone with no
+  // offset, so slicing the first 10 chars gives the local-store date.
+  // Used by the Sales & Traffic dashboard for the daily chart (GA4
+  // undercounts transactions; ecom is the source of truth).
+  const dailyMap = {};
+  for (const o of orders) {
+    const date = (o.date_created || '').slice(0, 10);
+    if (!date) continue;
+    const orderTotal = parseFloat(o.total || 0);
+    const refundTotal = (o.refunds || []).reduce((r, ref) => r + parseFloat(ref.total || 0), 0);
+    const d = dailyMap[date] || (dailyMap[date] = { date, revenue: 0, orders: 0 });
+    d.revenue += orderTotal + refundTotal;
+    d.orders += 1;
+  }
+  const daily = Object.values(dailyMap).sort((a, b) => a.date.localeCompare(b.date));
+
   return {
     period: { start: startDate, end: endDate },
     summary: {
@@ -291,6 +307,7 @@ async function fetchData(credentials, params) {
       avg_order_value: orders.length ? (totalRevenue / orders.length).toFixed(2) : '0.00',
       truncated: truncated || undefined,
       auth_mode: mode,
+      daily,
     },
     orders: orders.slice(0, 50),
     top_products: productsRes.data.slice(0, 10),
