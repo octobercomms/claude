@@ -261,15 +261,15 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
   const proposedDiffers = proposed && JSON.stringify(proposed) !== JSON.stringify(saved);
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={styles.modal}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="modal">
         <div style={styles.header}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
             Social post plan — {clientName}
           </h2>
           <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
-        <p style={styles.hint}>
+        <p className="body-sm text-muted">
           Describe the post idea (platform, audience, angle). Claude proposes a structured plan with scenes, equipment, captions and approval gates. Iterate, then lock to save and download.
         </p>
 
@@ -302,7 +302,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             )}
             <div style={styles.inputRow}>
               <textarea
-                style={styles.textarea}
+                className="textarea"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
@@ -504,7 +504,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
           </div>
         )}
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && <div className="callout callout-danger">{error}</div>}
 
         <div style={styles.footer}>
           <button type="button" onClick={onClose} style={secondaryBtn}>Close</button>

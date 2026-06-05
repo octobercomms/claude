@@ -129,10 +129,10 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginTop: 18 }}>
         <div>
-          <div style={styles.h3}>Pick journalists</div>
+          <div className="h3">Pick journalists</div>
           <input value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="filter by name, outlet or beat…"
-            style={{ ...styles.input, marginBottom: 10 }} />
+            className="input" style={{ marginBottom: 10 }} />
           <div style={{ maxHeight: 520, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
             {!filteredContacts.length && <div style={{ padding: 14, color: '#888', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
             {groupKeys.map(beat => (
@@ -162,7 +162,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
         </div>
 
         <div>
-          <div style={styles.h3}>Preview {previewData?.contact ? `· ${previewData.contact.name || previewData.contact.email}` : ''}</div>
+          <div className="h3">Preview {previewData?.contact ? `· ${previewData.contact.name || previewData.contact.email}` : ''}</div>
 
           {/* Editable first-email subject + embed toggle. Persists via
               PATCH /press/releases/:id; re-previews so the change is
@@ -211,13 +211,13 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           {previewData && (
             <div>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={styles.label}>Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
+                <div className="field-label">Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>regenerate</button>
               </div>
               <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }} sandbox="" />
               {previewData.follow_ups?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
-                  <div style={styles.label}>Follow-ups · day 5 / 10 / 16 if no reply</div>
+                  <div className="field-label">Follow-ups · day 5 / 10 / 16 if no reply</div>
                   {previewData.follow_ups.map((fu, i) => (
                     <div key={i} style={{ marginTop: 8, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
                       <div style={{ fontWeight: 700, fontSize: 12 }}>{i + 1}. {fu.subject}</div>

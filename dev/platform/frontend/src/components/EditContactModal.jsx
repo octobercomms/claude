@@ -57,14 +57,14 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
   }, [onClose]);
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <form onClick={e => e.stopPropagation()} onSubmit={save} style={styles.modal}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal">
         <div style={styles.header}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
           <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
 
-        <div style={styles.tabStrip}>
+        <div className="tabs">
           <button type="button" onClick={() => setTab('details')}
             style={tab === 'details' ? styles.tabBtnActive : styles.tabBtn}>Details</button>
           <button type="button" onClick={() => setTab('activity')}
@@ -82,22 +82,22 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         <div style={styles.grid}>
           <Section title="Contact Details">
             <Field label="First Name">
-              <input style={styles.input} value={form.first_name} onChange={e => update('first_name', e.target.value)} />
+              <input className="input" value={form.first_name} onChange={e => update('first_name', e.target.value)} />
             </Field>
             <Field label="Last Name">
-              <input style={styles.input} value={form.last_name} onChange={e => update('last_name', e.target.value)} />
+              <input className="input" value={form.last_name} onChange={e => update('last_name', e.target.value)} />
             </Field>
             <Field label="Email">
-              <input type="email" style={styles.input} value={form.email} onChange={e => update('email', e.target.value)} required />
+              <input type="email" className="input" value={form.email} onChange={e => update('email', e.target.value)} required />
             </Field>
             <Field label="Company / Practice">
-              <input style={styles.input} value={form.company} onChange={e => update('company', e.target.value)} />
+              <input className="input" value={form.company} onChange={e => update('company', e.target.value)} />
             </Field>
             <Field label="Title">
-              <input style={styles.input} value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Principal Architect" />
+              <input className="input" value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Principal Architect" />
             </Field>
             <Field label="Contact Type">
-              <input style={styles.input} list="contact-types" value={form.contact_type}
+              <input className="input" list="contact-types" value={form.contact_type}
                 onChange={e => update('contact_type', e.target.value)} placeholder="architect / journalist / …" />
               <datalist id="contact-types">
                 {['architect', 'interior_designer', 'journalist', 'editor', 'developer', 'retailer', 'distributor', 'agency'].map(t => <option key={t} value={t} />)}
@@ -107,30 +107,30 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
 
           <Section title="More Info">
             <Field label="Location">
-              <input style={styles.input} value={form.location} onChange={e => update('location', e.target.value)} placeholder="e.g. London, UK" />
+              <input className="input" value={form.location} onChange={e => update('location', e.target.value)} placeholder="e.g. London, UK" />
             </Field>
             <Field label="LinkedIn URL">
-              <input style={styles.input} value={form.linkedin_url} onChange={e => update('linkedin_url', e.target.value)} placeholder="https://linkedin.com/in/…" />
+              <input className="input" value={form.linkedin_url} onChange={e => update('linkedin_url', e.target.value)} placeholder="https://linkedin.com/in/…" />
             </Field>
             <Field label="Source">
-              <input style={styles.input} value={form.source} onChange={e => update('source', e.target.value)} placeholder="hunter / icypeas / manual / csv" />
+              <input className="input" value={form.source} onChange={e => update('source', e.target.value)} placeholder="hunter / icypeas / manual / csv" />
             </Field>
             <Field label="Status">
-              <select style={styles.input} value={form.status} onChange={e => update('status', e.target.value)}>
+              <select className="input" value={form.status} onChange={e => update('status', e.target.value)}>
                 {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>)}
               </select>
             </Field>
             <Field label="Notes" full>
-              <textarea style={{ ...styles.input, minHeight: 100, resize: 'vertical' }} value={form.notes} onChange={e => update('notes', e.target.value)} />
+              <textarea className="input" style={{ minHeight: 100, resize: 'vertical' }} value={form.notes} onChange={e => update('notes', e.target.value)} />
             </Field>
           </Section>
         </div>
         )}
 
         <div style={styles.footer}>
-          <button type="button" onClick={onClose} style={styles.btnGhost}>{tab === 'activity' ? 'Close' : 'Cancel'}</button>
+          <button type="button" onClick={onClose} className="btn btn-secondary">{tab === 'activity' ? 'Close' : 'Cancel'}</button>
           {tab !== 'activity' && (
-            <button type="submit" disabled={saving} style={styles.btn}>{saving ? 'Saving…' : 'Save Contact'}</button>
+            <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save Contact'}</button>
           )}
         </div>
       </form>

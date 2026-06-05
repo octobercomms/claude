@@ -23,16 +23,16 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
   }
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={styles.modal}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="modal">
         <div style={styles.header}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h2>
           <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
-        {hint && <p style={styles.hint}>{hint}</p>}
+        {hint && <p className="body-sm text-muted">{hint}</p>}
         <textarea
           autoFocus
-          style={styles.textarea}
+          className="textarea"
           value={text}
           onChange={e => setText(e.target.value)}
         />

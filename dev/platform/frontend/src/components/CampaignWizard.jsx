@@ -74,7 +74,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <button onClick={onExit} style={s.btnGhost}>← Campaigns</button>
+        <button onClick={onExit} className="btn btn-secondary">← Campaigns</button>
         <div style={{ fontWeight: 700, fontSize: 16 }}>{campaign.name || 'New campaign'}</div>
         <div style={{ width: 100 }} />
       </div>
@@ -128,45 +128,45 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
 function StepCampaignDetails({ campaign, updateCampaign, busy, onNext }) {
   const type = campaign.campaign_type || 'outreach';
   return (
-    <div style={s.card}>
+    <div className="card">
       <H>Campaign Details</H>
       <Grid2>
         <Field label="Campaign name">
-          <input style={s.input} value={campaign.name || ''} onChange={e => updateCampaign({ name: e.target.value })} placeholder="e.g. ADF 2026 Tour Submissions" />
+          <input className="input" value={campaign.name || ''} onChange={e => updateCampaign({ name: e.target.value })} placeholder="e.g. ADF 2026 Tour Submissions" />
         </Field>
         <Field label="Brand">
-          <input style={s.input} value={campaign.brand || ''} onChange={e => updateCampaign({ brand: e.target.value })} placeholder="e.g. October Comms" />
+          <input className="input" value={campaign.brand || ''} onChange={e => updateCampaign({ brand: e.target.value })} placeholder="e.g. October Comms" />
         </Field>
         <Field label="Type">
-          <select style={s.input} value={type} onChange={e => updateCampaign({ campaign_type: e.target.value })}>
+          <select className="input" value={type} onChange={e => updateCampaign({ campaign_type: e.target.value })}>
             <option value="outreach">Outreach</option>
             <option value="press_release">Press Release</option>
           </select>
         </Field>
         <div />
         <Field label="From name">
-          <input style={s.input} value={campaign.from_name || ''} onChange={e => updateCampaign({ from_name: e.target.value })} placeholder="e.g. James Nelson" />
+          <input className="input" value={campaign.from_name || ''} onChange={e => updateCampaign({ from_name: e.target.value })} placeholder="e.g. James Nelson" />
         </Field>
         <Field label="From email">
-          <input style={s.input} value={campaign.from_email || ''} onChange={e => updateCampaign({ from_email: e.target.value })} placeholder="james@brand.example" />
+          <input className="input" value={campaign.from_email || ''} onChange={e => updateCampaign({ from_email: e.target.value })} placeholder="james@brand.example" />
         </Field>
         <Field label="Reply-To email">
-          <input style={s.input} value={campaign.reply_to || ''} onChange={e => updateCampaign({ reply_to: e.target.value })} placeholder="replies@octobercomms.com" />
+          <input className="input" value={campaign.reply_to || ''} onChange={e => updateCampaign({ reply_to: e.target.value })} placeholder="replies@octobercomms.com" />
         </Field>
         <div />
         {type === 'press_release' && (
           <Field label="Press release URL" full>
-            <input style={s.input} value={campaign.press_release_url || ''} onChange={e => updateCampaign({ press_release_url: e.target.value })} placeholder="https://…" />
+            <input className="input" value={campaign.press_release_url || ''} onChange={e => updateCampaign({ press_release_url: e.target.value })} placeholder="https://…" />
           </Field>
         )}
         {type === 'outreach' && (
           <Field label="Coupon code (optional)">
-            <input style={s.input} value={campaign.coupon_code || ''} onChange={e => updateCampaign({ coupon_code: e.target.value })} placeholder="e.g. WELCOME20" />
+            <input className="input" value={campaign.coupon_code || ''} onChange={e => updateCampaign({ coupon_code: e.target.value })} placeholder="e.g. WELCOME20" />
           </Field>
         )}
       </Grid2>
       <Footer>
-        <button disabled={busy || !campaign.name} onClick={onNext} style={s.btn}>{busy ? 'Saving…' : 'Next: Audience →'}</button>
+        <button disabled={busy || !campaign.name} onClick={onNext} className="btn btn-primary">{busy ? 'Saving…' : 'Next: Audience →'}</button>
       </Footer>
     </div>
   );
@@ -213,14 +213,14 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
   }
 
   return (
-    <div style={s.card}>
+    <div className="card">
       <H>Audience</H>
       <Field label="Describe the audience in plain English" full>
-        <textarea style={{ ...s.input, minHeight: 80, resize: 'vertical' }} value={audience} onChange={e => setAudience(e.target.value)}
+        <textarea className="input" style={{ minHeight: 80, resize: 'vertical' }} value={audience} onChange={e => setAudience(e.target.value)}
           placeholder="e.g. Small to mid-size architecture firms in Atlanta working on residential and commercial projects" />
       </Field>
       <Field label="Extra instructions for Claude (optional)" full>
-        <textarea style={{ ...s.input, minHeight: 60, resize: 'vertical' }} value={extra} onChange={e => setExtra(e.target.value)}
+        <textarea className="input" style={{ minHeight: 60, resize: 'vertical' }} value={extra} onChange={e => setExtra(e.target.value)}
           placeholder="e.g. Prioritise firms with sustainability focus" />
       </Field>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, marginTop: 4, flexWrap: 'wrap' }}>
@@ -230,13 +230,13 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
         </label>
         <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
           Contacts per domain
-          <select style={{ ...s.input, padding: '4px 6px', fontSize: 12 }} value={perDomain} onChange={e => setPerDomain(parseInt(e.target.value, 10))}>
+          <select className="input" style={{ padding: '4px 6px', fontSize: 12 }} value={perDomain} onChange={e => setPerDomain(parseInt(e.target.value, 10))}>
             <option value={10}>10</option>
             <option value={25}>25</option>
             <option value={50}>50</option>
           </select>
         </label>
-        <button onClick={refine} disabled={refining || !audience.trim()} style={s.btn}>
+        <button onClick={refine} disabled={refining || !audience.trim()} className="btn btn-primary">
           {refining ? 'Refining…' : (refined ? '↻ Re-refine with Claude' : '✦ Refine with Claude')}
         </button>
       </div>
@@ -275,13 +275,13 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
       )}
 
       <Footer>
-        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
         <button onClick={async () => {
           if (refined) {
             await api.put(`/outreach/campaigns/${campaign.id}`, { refined_audience: refined, audience_description: audience });
           }
           onNext();
-        }} disabled={!refined} style={s.btn}>
+        }} disabled={!refined} className="btn btn-primary">
           Next: Find Contacts →
         </button>
       </Footer>
@@ -362,7 +362,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
   const totalSelected = selectedFound.size + selectedExisting.size;
 
   return (
-    <div style={s.card}>
+    <div className="card">
       <H>Find Contacts</H>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
@@ -376,7 +376,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
             <div style={{ fontSize: 13, color: '#444' }}>
               Searching domains <strong>{batchIdx * 8 + 1}</strong>–<strong>{Math.min((batchIdx + 1) * 8, allDomains.length)}</strong> of {allDomains.length}
             </div>
-            <button onClick={searchNext} disabled={searching || nextBatch.length === 0} style={s.btn}>
+            <button onClick={searchNext} disabled={searching || nextBatch.length === 0} className="btn btn-primary">
               {searching ? 'Searching…' : nextBatch.length === 0 ? 'No more domains' : `Search next ${nextBatch.length} ${nextBatch.length === 1 ? 'domain' : 'domains'}`}
             </button>
             <span style={{ fontSize: 12, color: '#888' }}>Hunter.io + Icypeas in parallel, deduped by email.</span>
@@ -393,11 +393,11 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       {mode === 'existing' && (
         <div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 12 }}>
-            <input style={s.input} placeholder="Search name / email / company" value={filter.search}
+            <input className="input" placeholder="Search name / email / company" value={filter.search}
               onChange={e => setFilter(f => ({ ...f, search: e.target.value }))} />
-            <input style={s.input} placeholder="Contact type — e.g. architect" value={filter.contact_type}
+            <input className="input" placeholder="Contact type — e.g. architect" value={filter.contact_type}
               onChange={e => setFilter(f => ({ ...f, contact_type: e.target.value }))} />
-            <input style={s.input} placeholder="Location keyword" value={filter.location}
+            <input className="input" placeholder="Location keyword" value={filter.location}
               onChange={e => setFilter(f => ({ ...f, location: e.target.value }))} />
           </div>
           {existing.length === 0 ? (
@@ -409,9 +409,9 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       )}
 
       <Footer>
-        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
         <span style={{ fontSize: 12, color: '#666' }}>{totalSelected} selected</span>
-        <button onClick={saveAndContinue} disabled={saving || totalSelected === 0} style={s.btn}>
+        <button onClick={saveAndContinue} disabled={saving || totalSelected === 0} className="btn btn-primary">
           {saving ? 'Saving…' : 'Next: Write Emails →'}
         </button>
       </Footer>
@@ -490,10 +490,10 @@ function StepEmails({ campaign, onBack, onNext }) {
   }
 
   return (
-    <div style={s.card}>
+    <div className="card">
       <H>Write Emails</H>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <button onClick={generate} disabled={generating} style={s.btn}>
+        <button onClick={generate} disabled={generating} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
         <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up at day 4, final nudge at day 9.</span>
@@ -505,20 +505,20 @@ function StepEmails({ campaign, onBack, onNext }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
-          <input style={{ ...s.input, width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
+          <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
             value={stp.subject || ''} placeholder="Subject"
             onChange={e => updateStep(stp.id, 'subject', e.target.value)} />
-          <textarea style={{ ...s.input, width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
+          <textarea className="input" style={{ width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
             value={stp.body || ''} placeholder="Email body — use {{first_name}}, {{company}}"
             onChange={e => updateStep(stp.id, 'body', e.target.value)} />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginTop: 8 }}>
-            <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} style={s.btn}>
+            <button onClick={() => saveStep(stp)} disabled={savingStep === stp.id} className="btn btn-primary">
               {savingStep === stp.id ? 'Saving…' : 'Save step'}
             </button>
-            <button onClick={() => openPreview(stp)} style={s.btnGhost} title="See how this step looks to a recipient">
+            <button onClick={() => openPreview(stp)} className="btn btn-secondary" title="See how this step looks to a recipient">
               Preview as contact
             </button>
-            <button onClick={() => sendTest(stp)} disabled={testingStep === stp.id} style={s.btnGhost}
+            <button onClick={() => sendTest(stp)} disabled={testingStep === stp.id} className="btn btn-secondary"
               title="Send a [TEST]-prefixed copy of this step to an email of your choice">
               {testingStep === stp.id ? 'Sending…' : 'Send test to me'}
             </button>
@@ -526,8 +526,8 @@ function StepEmails({ campaign, onBack, onNext }) {
         </div>
       ))}
       <Footer>
-        <button onClick={onBack} style={s.btnGhost}>← Back</button>
-        <button onClick={onNext} disabled={!steps || steps.length === 0} style={s.btn}>Next: Launch →</button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
+        <button onClick={onNext} disabled={!steps || steps.length === 0} className="btn btn-primary">Next: Launch →</button>
       </Footer>
 
       {previewStep && (
@@ -603,7 +603,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
   const stats = report?.stats || {};
 
   return (
-    <div style={s.card}>
+    <div className="card">
       <H>Pre-send report</H>
       <p style={{ fontSize: 13, color: '#555', marginTop: 0 }}>Quick check before the campaign goes out — blockers stop the launch, warnings are worth a look.</p>
 
@@ -654,11 +654,11 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
       )}
 
       <Footer>
-        <button onClick={onBack} style={s.btnGhost}>← Back</button>
+        <button onClick={onBack} className="btn btn-secondary">← Back</button>
         <button onClick={launch}
           disabled={busy || loading || !campaign.contact_count || blockers.length > 0}
           title={blockers.length ? 'Resolve blockers before launching' : undefined}
-          style={s.btn}>
+          className="btn btn-primary">
           {busy ? 'Launching…' : '▶ Launch campaign'}
         </button>
       </Footer>
@@ -705,17 +705,17 @@ function mergeUniqueByEmail(list) {
 }
 function ResultsTable({ rows, selected, onToggle }) {
   return (
-    <table style={s.table}>
-      <thead><tr>{['', 'Name', 'Email', 'Title', 'Company', 'Source'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+    <table className="table">
+      <thead><tr>{['', 'Name', 'Email', 'Title', 'Company', 'Source'].map(h => <th key={h} >{h}</th>)}</tr></thead>
       <tbody>
         {rows.map((c, i) => (
           <tr key={i}>
-            <td style={s.td}><input type="checkbox" checked={selected.has(i)} onChange={() => onToggle(i)} /></td>
-            <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
-            <td style={s.td}>{c.email}</td>
-            <td style={s.td}>{c.title || c.role || '—'}</td>
-            <td style={s.td}>{c.company || c.website || '—'}</td>
-            <td style={s.td}><span style={s.chip}>{c.source || '—'}</span></td>
+            <td ><input type="checkbox" checked={selected.has(i)} onChange={() => onToggle(i)} /></td>
+            <td >{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+            <td >{c.email}</td>
+            <td >{c.title || c.role || '—'}</td>
+            <td >{c.company || c.website || '—'}</td>
+            <td ><span className="chip chip-neutral">{c.source || '—'}</span></td>
           </tr>
         ))}
       </tbody>
@@ -724,17 +724,17 @@ function ResultsTable({ rows, selected, onToggle }) {
 }
 function ExistingTable({ rows, selected, onToggle }) {
   return (
-    <table style={s.table}>
-      <thead><tr>{['', 'Name', 'Email', 'Type', 'Location', 'Company'].map(h => <th key={h} style={s.th}>{h}</th>)}</tr></thead>
+    <table className="table">
+      <thead><tr>{['', 'Name', 'Email', 'Type', 'Location', 'Company'].map(h => <th key={h} >{h}</th>)}</tr></thead>
       <tbody>
         {rows.map(c => (
           <tr key={c.id}>
-            <td style={s.td}><input type="checkbox" checked={selected.has(c.id)} onChange={() => onToggle(c.id)} /></td>
-            <td style={s.td}>{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
-            <td style={s.td}>{c.email}</td>
-            <td style={s.td}>{c.contact_type || '—'}</td>
-            <td style={s.td}>{c.location || '—'}</td>
-            <td style={s.td}>{c.company || '—'}</td>
+            <td ><input type="checkbox" checked={selected.has(c.id)} onChange={() => onToggle(c.id)} /></td>
+            <td >{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+            <td >{c.email}</td>
+            <td >{c.contact_type || '—'}</td>
+            <td >{c.location || '—'}</td>
+            <td >{c.company || '—'}</td>
           </tr>
         ))}
       </tbody>
@@ -752,7 +752,7 @@ function Tag({ children, onRemove }) {
 function AddPill({ onAdd, placeholder }) {
   const [v, setV] = useState('');
   return (
-    <input style={{ ...s.input, marginTop: 8, fontSize: 12, padding: '4px 8px', maxWidth: 220 }}
+    <input className="input" style={{ marginTop: 8, fontSize: 12, padding: '4px 8px', maxWidth: 220 }}
       value={v} placeholder={placeholder}
       onChange={e => setV(e.target.value)}
       onKeyDown={e => {

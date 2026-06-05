@@ -139,14 +139,14 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
       <div style={styles.header}>
         <div>
           <div style={styles.eyebrow}>Internal · for the AM</div>
-          <h2 style={styles.h2}>Strategist briefing</h2>
+          <h2 className="h2">Strategist briefing</h2>
           <p style={styles.lede}>
             A private, structured analyst note on this client's Meta + Google Ads. Compares the last period
             against the previous one and tells you what to action next. Auto-generated every Monday at 07:00.
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <select value={period} onChange={e => setPeriod(parseInt(e.target.value, 10))} style={styles.select}>
+          <select value={period} onChange={e => setPeriod(parseInt(e.target.value, 10))} className="input">
             <option value={7}>Last 7 days</option>
             <option value={14}>Last 14 days</option>
             <option value={30}>Last 30 days</option>

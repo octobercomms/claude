@@ -80,8 +80,8 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
   }, [keywordId]);
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <div style={styles.header}>
           <div>
             <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Full position history</div>
@@ -89,7 +89,7 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
           </div>
           <button onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
-        {err && <div style={styles.error}>{err}</div>}
+        {err && <div className="callout callout-danger">{err}</div>}
         {!rows && !err && <div style={{ padding: 20, color: '#888' }}>Loading…</div>}
         {rows && rows.length === 0 && <div style={{ padding: 20, color: '#888' }}>No history yet — run a rank check to populate.</div>}
         {rows && rows.length > 0 && (
@@ -175,13 +175,13 @@ export function SearchConsoleTab({ clientId }) {
 
   useEffect(() => { load(); /* eslint-disable-line */ }, [days, clientId]);
 
-  if (err) return <div style={styles.error}>{err}</div>;
+  if (err) return <div className="callout callout-danger">{err}</div>;
   if (loading || !queries) return <div style={{ color: '#888', padding: 20 }}>Loading Search Console data…</div>;
 
   return (
     <div>
       <div style={styles.rowHeader}>
-        <h2 style={styles.h2}>Search Console</h2>
+        <h2 className="h2">Search Console</h2>
         <div>
           {[7, 28, 90, 180].map(n => (
             <button key={n} onClick={() => setDays(n)} style={{ ...styles.rangeBtn, ...(days === n ? styles.rangeBtnActive : {}) }}>{n}D</button>
@@ -204,7 +204,7 @@ function GSCSection({ title, rows, keyCol, cap }) {
   const data = (rows || []).slice(0, cap);
   return (
     <div>
-      <h3 style={styles.h3}>{title}</h3>
+      <h3 className="h3">{title}</h3>
       <div style={styles.tableScroll}>
         <table style={styles.smallTable}>
           <thead>
@@ -239,7 +239,7 @@ function GSCSection({ title, rows, keyCol, cap }) {
 function SitemapList({ sitemaps }) {
   return (
     <div>
-      <h3 style={styles.h3}>Sitemaps</h3>
+      <h3 className="h3">Sitemaps</h3>
       <div style={styles.tableScroll}>
         <table style={styles.smallTable}>
           <thead>
@@ -301,7 +301,7 @@ export function AIOverviewsTab({ clientId }) {
     }
   }
 
-  if (err) return <div style={styles.error}>{err}</div>;
+  if (err) return <div className="callout callout-danger">{err}</div>;
   if (!data) return <div style={{ color: '#888', padding: 20 }}>Loading AI Overview data…</div>;
 
   const latest = data.latest || [];
@@ -313,7 +313,7 @@ export function AIOverviewsTab({ clientId }) {
     <div>
       <div style={styles.rowHeader}>
         <div>
-          <h2 style={styles.h2}>AI Overviews</h2>
+          <h2 className="h2">AI Overviews</h2>
           <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
             Tracks whether Google shows an AI Overview for your keywords and whether your brand is cited inside it.
             Auto-refreshes weekly.
@@ -344,7 +344,7 @@ export function AIOverviewsTab({ clientId }) {
         </div>
       )}
 
-      <h3 style={styles.h3}>Per-keyword (latest)</h3>
+      <h3 className="h3">Per-keyword (latest)</h3>
       <div style={styles.tableScroll}>
         <table style={styles.smallTable}>
           <thead>
@@ -439,7 +439,7 @@ export function ContentGapsTab({ clientId }) {
 
   return (
     <div>
-      <h2 style={styles.h2}>Content gaps</h2>
+      <h2 className="h2">Content gaps</h2>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
@@ -472,7 +472,7 @@ export function ContentGapsTab({ clientId }) {
         {loading ? 'Analysing…' : 'Run gap analysis'}
       </button>
 
-      {err && <div style={{ ...styles.error, marginTop: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
 
       {gaps && (
         <div style={{ marginTop: 18 }}>
@@ -534,7 +534,7 @@ export function PlanningTab({ clientId }) {
 
   return (
     <div>
-      <h2 style={styles.h2}>Content planning</h2>
+      <h2 className="h2">Content planning</h2>
       <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
         Generate a content brief for a target keyword. Claude proposes the angle, outline, target intent, headings,
         questions to answer, and meta tags. Edit it, send it to a writer.
@@ -553,7 +553,7 @@ export function PlanningTab({ clientId }) {
         </button>
       </div>
 
-      {err && <div style={{ ...styles.error, marginTop: 14 }}>{err}</div>}
+      {err && <div className="callout callout-danger" style={{ marginTop: 14 }}>{err}</div>}
 
       {brief && (
         <div style={{ marginTop: 22, maxWidth: 760 }}>

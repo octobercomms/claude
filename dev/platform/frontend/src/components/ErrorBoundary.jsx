@@ -45,7 +45,7 @@ export default class ErrorBoundary extends React.Component {
     const msg = String(this.state.error?.message || this.state.error || 'Unknown error');
     return (
       <div style={styles.wrap}>
-        <div style={styles.card}>
+        <div className="card">
           <div style={styles.brand}>October Marketing Intelligence</div>
           <h1 style={styles.h1}>Something went wrong here.</h1>
           <p style={styles.p}>

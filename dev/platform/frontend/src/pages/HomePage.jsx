@@ -113,7 +113,7 @@ export default function HomePage() {
         <div style={styles.container}>
           <div style={styles.threeCol}>
             <div>
-              <h2 style={styles.h2}>
+              <h2 className="h2">
                 one platform.<br/>
                 <span style={{ color: YELLOW }}>every client.</span>
               </h2>
@@ -154,7 +154,7 @@ export default function HomePage() {
       {/* How it works */}
       <section id="how" style={styles.section}>
         <div style={styles.container}>
-          <h2 style={{ ...styles.h2, marginBottom: 36 }}>
+          <h2 className="h2" style={{ marginBottom: 36 }}>
             three things, in sequence.
           </h2>
           <div style={styles.howGrid}>
@@ -171,7 +171,7 @@ export default function HomePage() {
       {/* What it actually does */}
       <section style={styles.section}>
         <div style={styles.container}>
-          <h2 style={{ ...styles.h2, marginBottom: 36 }}>
+          <h2 className="h2" style={{ marginBottom: 36 }}>
             what it actually does.
           </h2>
           <div style={styles.capGrid}>
@@ -192,7 +192,7 @@ export default function HomePage() {
           <div style={styles.aiGrid}>
             <div>
               <div style={styles.eyebrow}>ai data analyst</div>
-              <h2 style={styles.h2}>
+              <h2 className="h2">
                 talk to the<br/>
                 <span style={{ color: YELLOW }}>numbers.</span>
               </h2>
@@ -224,7 +224,7 @@ export default function HomePage() {
       {/* Integrations */}
       <section style={styles.section}>
         <div style={styles.container}>
-          <h2 style={{ ...styles.h2, marginBottom: 36 }}>connects to what you already use.</h2>
+          <h2 className="h2" style={{ marginBottom: 36 }}>connects to what you already use.</h2>
           <div style={styles.integGrid}>
             {INTEGRATIONS.map(name => (
               <div key={name} style={styles.integCell}>{name}</div>
@@ -236,7 +236,7 @@ export default function HomePage() {
       {/* Pricing */}
       <section id="pricing" style={styles.section}>
         <div style={styles.container}>
-          <h2 style={{ ...styles.h2, marginBottom: 8 }}>pricing.</h2>
+          <h2 className="h2" style={{ marginBottom: 8 }}>pricing.</h2>
           <div style={{ ...styles.body, marginBottom: 32, color: YELLOW }}>
             no setup fees. cancel anytime.
           </div>
@@ -268,7 +268,7 @@ export default function HomePage() {
       {/* Waitlist */}
       <section id="waitlist" style={{ ...styles.section, paddingTop: 100, paddingBottom: 100, textAlign: 'center' }}>
         <div style={{ ...styles.container, maxWidth: 620 }}>
-          <h2 style={{ ...styles.h2, textAlign: 'center' }}>
+          <h2 className="h2" style={{ textAlign: 'center' }}>
             get early access.
           </h2>
           <p style={{ ...styles.body, textAlign: 'center', marginBottom: 36 }}>

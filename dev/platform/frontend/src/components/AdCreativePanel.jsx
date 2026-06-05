@@ -189,7 +189,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
 
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22, marginTop: 18 }}>
         <div>
-          <div style={styles.h3}>Past batches</div>
+          <div className="h3">Past batches</div>
           {!batches.length && <div style={{ color: '#888', fontSize: 13 }}>Nothing yet — click Generate.</div>}
           {batches.map(b => (
             <div key={b.id} style={{ ...styles.batchRow, ...(b.id === activeBatchId ? styles.batchRowActive : {}) }} onClick={() => selectBatch(b.id)}>
@@ -309,7 +309,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
   }
 
   return (
-    <div style={styles.card}>
+    <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={styles.framePill}>{creative.framework}</span>
@@ -319,22 +319,22 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={styles.field}>HEADLINE</div>
+        <div className="field">HEADLINE</div>
         <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3, color: '#1a1a1a' }}>{creative.headline}</div>
       </div>
 
       <div style={{ marginTop: 8 }}>
-        <div style={styles.field}>BODY</div>
+        <div className="field">BODY</div>
         <div style={{ fontSize: 13, color: '#333', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
       </div>
 
       <div style={{ marginTop: 8 }}>
-        <div style={styles.field}>CTA</div>
+        <div className="field">CTA</div>
         <div style={{ fontSize: 12, color: '#1a4f9c', fontWeight: 700 }}>{creative.cta}</div>
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={styles.field}>VISUAL CONCEPT</div>
+        <div className="field">VISUAL CONCEPT</div>
         <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{creative.visual_concept}</div>
       </div>
 
@@ -358,13 +358,13 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
       {showRender && (
         <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
-          <div style={styles.field}>PROVIDER</div>
+          <div className="field">PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
             ))}
           </div>
-          <div style={styles.field}>ASPECT RATIOS</div>
+          <div className="field">ASPECT RATIOS</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             {['1:1', '4:5', '9:16', '16:9'].map(a => (
               <button key={a} onClick={() => toggleAspect(a)} type="button" style={aspects.has(a) ? styles.providerOn : styles.providerOff}>{a}</button>

@@ -121,15 +121,15 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
   const proposedDiffers = proposed && JSON.stringify(proposed) !== JSON.stringify(saved);
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={styles.modal}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="modal">
         <div style={styles.header}>
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
             {reportType === 'weekly' ? 'Weekly' : 'Monthly'} report template — {clientName}
           </h2>
           <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
         </div>
-        <p style={styles.hint}>
+        <p className="body-sm text-muted">
           Describe the report you want. Claude will draft a template (sections, layout, sources) on the right.
           Iterate until it's right, then lock to save.
         </p>
@@ -169,7 +169,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             )}
             <div style={styles.inputRow}>
               <textarea
-                style={styles.textarea}
+                className="textarea"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); } }}
@@ -219,7 +219,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
           </div>
         </div>
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && <div className="callout callout-danger">{error}</div>}
 
         <div style={styles.footer}>
           <button type="button" onClick={onClose} style={secondaryBtn}>Close</button>

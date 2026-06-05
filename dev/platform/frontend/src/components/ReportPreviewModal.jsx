@@ -77,14 +77,14 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
   const errorCount = Object.keys(dataErrors).length;
 
   return (
-    <div style={styles.overlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={e => e.stopPropagation()}>
         <div style={styles.header}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
               {reportType === 'weekly' ? 'Weekly' : 'Monthly'} preview — {clientName}
             </h2>
-            <div style={styles.hint}>
+            <div className="body-sm text-muted">
               Same data + narratives the real report would use, rendered inline.
               No PDF, no email. Cached for 10 minutes — click "Refresh data" to re-pull live.
             </div>
@@ -106,10 +106,10 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
             >Monthly</button>
           </div>
           <div style={styles.controlGroup}>
-            <label style={styles.label}>Start</label>
-            <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} style={styles.input} />
-            <label style={styles.label}>End</label>
-            <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} style={styles.input} />
+            <label className="field-label">Start</label>
+            <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="input" />
+            <label className="field-label">End</label>
+            <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="input" />
           </div>
           <div style={styles.controlGroup}>
             <button type="button" onClick={() => run({ force: false })} style={primaryBtn} disabled={loading}>
@@ -139,7 +139,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
           </div>
         )}
 
-        {error && <div style={styles.error}>{error}</div>}
+        {error && <div className="callout callout-danger">{error}</div>}
 
         <div style={styles.frameWrap}>
           {!result && !loading && (
