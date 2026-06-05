@@ -299,21 +299,3 @@ const mdComponents = {
     : <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
 };
 
-const styles = {
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 18, flexWrap: 'wrap' },
-  eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 4 },
-  h2: { margin: 0, fontSize: 22, fontWeight: 700 },
-  lede: { margin: '6px 0 0', fontSize: 13, color: '#666', maxWidth: 620, lineHeight: 1.5 },
-  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' },
-  ghostBtn: { background: '#fff', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' },
-  select: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff', cursor: 'pointer' },
-  empty: { padding: 30, color: '#666', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 8, fontSize: 14, lineHeight: 1.6, textAlign: 'center' },
-  grid: { display: 'grid', gridTemplateColumns: '240px 1fr', gap: 18, alignItems: 'start' },
-  list: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 720, overflowY: 'auto' },
-  listItem: { textAlign: 'left', background: '#fff', border: '2px solid var(--accent)', borderRadius: 6, padding: '10px 12px', cursor: 'pointer', position: 'relative' },
-  listItemActive: { textAlign: 'left', background: '#fffbeb', border: '1px solid #E7CD41', borderRadius: 6, padding: '10px 12px', cursor: 'pointer', position: 'relative' },
-  unreadDot: { width: 8, height: 8, borderRadius: 4, background: 'var(--accent)' },
-  delBtn: { position: 'absolute', top: 4, right: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 16, lineHeight: 1, padding: '2px 4px' },
-  body: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 8, padding: '20px 26px', minHeight: 320 },
-  md: { color: '#1a1a1a' },
-};

@@ -388,6 +388,42 @@ button { font-family: inherit; }
   padding-left: var(--s5); overflow-y: auto;
 }
 
+/* ─── App sidebar nav chrome ─────────────────────────────────────── */
+/* Fixed-width dark rail down the left side. Everything inside the
+   sidebar is "chrome" — it doesn't take the suite accent because
+   the AM is navigating between suites from here. */
+.app-nav-brand {
+  padding: var(--s5) var(--s5) var(--s4);
+  border-bottom: 1px solid var(--sidebar-border);
+}
+.app-nav-brand img { width: 50%; height: auto; display: block; }
+.app-nav-brand .brand-sub {
+  font-size: 18px; color: var(--sidebar-fg);
+  margin-top: var(--s5);
+  letter-spacing: 0.3px; font-weight: 400;
+}
+.app-nav-list {
+  list-style: none; padding: var(--s3) 0; margin: 0; flex: 1;
+}
+.app-nav-footer {
+  padding: var(--s4) var(--s4) var(--s5);
+  border-top: 1px solid var(--sidebar-border);
+}
+.app-nav-footer .user-line {
+  font-size: 11px; color: var(--sidebar-muted);
+  margin-bottom: var(--s3); letter-spacing: 0.2px;
+}
+.app-nav-footer-btn {
+  width: 100%; margin-bottom: var(--s2);
+  padding: var(--s2) var(--s3);
+  background: transparent; color: var(--sidebar-fg);
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--r-sm);
+  cursor: pointer; font-size: 12px;
+  font-family: inherit;
+}
+.app-nav-footer-btn:hover { border-color: var(--sidebar-muted); }
+
 /* ─── Tables ─────────────────────────────────────────────────────── */
 
 .table { width: 100%; border-collapse: collapse; }

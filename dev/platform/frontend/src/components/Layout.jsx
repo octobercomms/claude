@@ -52,12 +52,12 @@ export default function Layout() {
       </button>
       <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
       <nav className={'app-nav' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)}>
-        <div style={styles.navBrand}>
-          <img src="/logo-black.gif" alt="October" style={styles.logo} />
-          <div style={styles.brandSub}>Marketing<br/>Intelligence</div>
+        <div className="app-nav-brand">
+          <img src="/logo-black.gif" alt="October" />
+          <div className="brand-sub">Marketing<br/>Intelligence</div>
         </div>
 
-        <ul style={styles.navList}>
+        <ul className="app-nav-list">
           {[
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/clients', label: 'Clients' },
@@ -91,12 +91,12 @@ export default function Layout() {
           </li>
         </ul>
 
-        <div style={styles.footerBlock}>
-          <div style={styles.userLine}>
+        <div className="app-nav-footer">
+          <div className="user-line">
             Signed in as <strong>{user?.username || '…'}</strong>
           </div>
-          <button onClick={() => setShowPassword(true)} style={styles.footerBtn}>Change password</button>
-          <button onClick={handleLogout} style={styles.footerBtn}>Sign out</button>
+          <button onClick={() => setShowPassword(true)} className="app-nav-footer-btn">Change password</button>
+          <button onClick={handleLogout} className="app-nav-footer-btn">Sign out</button>
         </div>
       </nav>
       <main className="app-main">
@@ -169,28 +169,3 @@ function ChangePasswordModal({ onClose }) {
   );
 }
 
-const styles = {
-  shell: { display: 'flex', minHeight: '100vh', background: '#f5f5f5' },
-  nav: {
-    width: 220, background: '#000000', color: 'white',
-    display: 'flex', flexDirection: 'column', flexShrink: 0,
-    position: 'sticky', top: 0, height: '100vh', overflowY: 'auto',
-  },
-  navBrand: { padding: '20px 20px 16px', borderBottom: '1px solid #1a1a1a' },
-  logo: { width: '50%', height: 'auto', display: 'block' },
-  brandSub: { fontSize: 18, color: '#ffffff', marginTop: 20, letterSpacing: 0.3, fontWeight: 400 },
-  navList: { listStyle: 'none', padding: '12px 0', margin: 0, flex: 1 },
-  footerBlock: { padding: '0 16px 20px', borderTop: '1px solid #1a1a1a', paddingTop: 14 },
-  userLine: { fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 10, letterSpacing: 0.2 },
-  footerBtn: {
-    width: '100%', marginBottom: 6, padding: '8px 12px', background: 'transparent',
-    border: '1px solid #333', color: 'white', borderRadius: 4,
-    cursor: 'pointer', fontSize: 12,
-  },
-  logoutBtn: {
-    margin: '0 16px 20px', padding: '8px 12px', background: 'transparent',
-    border: '1px solid #333', color: 'white', borderRadius: 4,
-    cursor: 'pointer', fontSize: 12,
-  },
-  main: { flex: 1, padding: '32px', overflow: 'auto' },
-};

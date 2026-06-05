@@ -298,15 +298,3 @@ function Field({ label, children, full }) {
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px 20px', zIndex: 1000, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 800, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 28 },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 24, paddingTop: 16, borderTop: '1px solid #e8e8e8' },
-  input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
-  tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20 },
-  tabBtn: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontWeight: 500 },
-  tabBtnActive: { background: 'none', border: 'none', padding: '8px 14px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontWeight: 700 },
-};

@@ -133,11 +133,11 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
           Iterate until it's right, then lock to save.
         </p>
 
-        <div style={styles.split}>
-          <div style={styles.chatPane}>
-            <div style={styles.history} ref={scrollRef}>
+        <div className="row" style={{ gap: 16, flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div className="card" style={{ flex: 1, padding: 10, overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
-                <div style={styles.kicker}>
+                <div className="body-sm text-muted">
                   Tell Claude what to include. Examples:
                   <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
                     <li>"B2C revenue summary across all stores, then B2B, then Google Ads ROAS."</li>
@@ -153,20 +153,20 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                 </div>
               )}
               {history.map((m, i) => (
-                <div key={i} style={m.role === 'user' ? styles.userMsg : styles.assistantMsg}>
-                  <div style={styles.msgRole}>{m.role === 'user' ? 'You' : 'Claude'}</div>
-                  <div style={styles.msgBody}>{m.content}</div>
+                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
+                  <div className="caption mb-2" style={{ fontSize: 10 }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div style={styles.assistantMsg}><div style={styles.msgRole}>Claude</div><div style={styles.msgBody}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 10 }}>Claude</div><div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
-              <div style={styles.attachChip}>
+              <div className="chip chip-accent" style={{ marginTop: 8 }}>
                 <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={styles.chipRemove} title="Remove attachment">×</button>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
-            <div style={styles.inputRow}>
+            <div className="chat-input-row">
               <textarea
                 className="textarea"
                 value={input}
@@ -187,7 +187,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sending || !!attachment}
-                  style={styles.attachBtn}
+                  className="btn btn-secondary btn-sm"
                   title="Attach a sample report (PDF or image) for Claude to recreate"
                 >
                   📎
@@ -199,14 +199,14 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             </div>
           </div>
 
-          <div style={{ ...styles.previewPane, position: 'relative' }}>
-            <div style={styles.previewTitle}>
+          <div className="card" style={{ flex: 1, padding: 12, overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
+            <div className="caption mb-2">
               {sending
                 ? <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><GeneratingDots /> Generating draft…</span>
                 : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked template') : 'No draft yet'}
             </div>
             {sending && (
-              <div style={styles.generatingOverlay} />
+              <div style={{ position: "absolute", inset: 0, background: "rgba(255,255,255,0.6)", display: "flex", alignItems: "center", justifyContent: "center", borderRadius: "var(--r-md)" }} />
             )}
             {proposed ? (
               <TemplatePreview template={proposed} onChange={setProposed} />
@@ -263,16 +263,16 @@ function TemplatePreview({ template, onChange }) {
   return (
     <div style={{ fontSize: 12 }}>
       {sections.map((s, i) => (
-        <div key={s.id || i} style={styles.sectionCard}>
+        <div key={s.id || i} className="card" style={{ padding: "8px 10px", marginBottom: 6 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
             <strong>{s.title || s.id}</strong>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={styles.sectionType}>{s.type}</span>
+              <span className="chip chip-accent" style={{ fontSize: 10 }}>{s.type}</span>
               {onChange && (
                 <button
                   type="button"
                   onClick={() => removeSection(s.id)}
-                  style={styles.removeBtn}
+                  className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 14, padding: "0 4px" }}
                   title="Remove this section"
                 >×</button>
               )}
@@ -308,31 +308,3 @@ function TemplatePreview({ template, onChange }) {
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 20px', zIndex: 1000, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 1080, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 60px)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  hint: { fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 },
-  split: { display: 'flex', gap: 16, flex: 1, minHeight: 0 },
-  chatPane: { flex: 1.2, display: 'flex', flexDirection: 'column', minHeight: 0 },
-  previewPane: { flex: 1, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, overflowY: 'auto', maxHeight: '60vh' },
-  previewTitle: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  history: { flex: 1, border: '2px solid var(--accent)', borderRadius: 4, padding: 10, overflowY: 'auto', minHeight: 220, maxHeight: '50vh', background: '#fff' },
-  kicker: { fontSize: 13, color: '#666', padding: 4 },
-  userMsg: { marginBottom: 10, padding: '6px 10px', background: '#fff7d6', borderRadius: 4 },
-  assistantMsg: { marginBottom: 10, padding: '6px 10px', background: '#f4f4f4', borderRadius: 4 },
-  msgRole: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 2 },
-  msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
-  textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  attachChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#eef4ff', border: '1px solid #c7d8f5', borderRadius: 4, marginTop: 8, alignSelf: 'flex-start' },
-  chipRemove: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666', lineHeight: 1, padding: '0 2px' },
-  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 4, cursor: 'pointer' },
-  generatingOverlay: { position: 'absolute', inset: 0, background: 'rgba(250,250,250,0.55)', borderRadius: 4, pointerEvents: 'none', zIndex: 1 },
-  sectionCard: { marginBottom: 8, padding: '6px 8px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 3 },
-  sectionType: { fontSize: 10, color: '#888', fontFamily: 'monospace', textTransform: 'uppercase' },
-  removeBtn: { background: 'none', border: '2px solid var(--accent)', borderRadius: 3, width: 18, height: 18, padding: 0, fontSize: 13, lineHeight: 1, color: '#888', cursor: 'pointer' },
-  error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14, borderTop: '1px solid #eee', paddingTop: 12 },
-};

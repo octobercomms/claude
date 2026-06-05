@@ -94,27 +94,27 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
         {rows && rows.length > 0 && (
           <>
             <HistoryChart rows={rows} />
-            <div style={styles.historyList}>
+            <div style={{ flex: 1, overflowY: "auto" }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead style={{ position: 'sticky', top: 0, background: '#fafafa', borderBottom: '1px solid #ddd' }}>
                   <tr>
-                    <th style={styles.thSmall}>Date</th>
-                    <th style={styles.thSmall}>Position</th>
-                    <th style={styles.thSmall}>Source</th>
-                    <th style={styles.thSmall}>URL</th>
-                    <th style={styles.thSmall}>SERP features</th>
+                    <th className="caption" style={{ padding: "6px 8px" }}>Date</th>
+                    <th className="caption" style={{ padding: "6px 8px" }}>Position</th>
+                    <th className="caption" style={{ padding: "6px 8px" }}>Source</th>
+                    <th className="caption" style={{ padding: "6px 8px" }}>URL</th>
+                    <th className="caption" style={{ padding: "6px 8px" }}>SERP features</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                      <td style={styles.tdSmall}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
-                      <td style={styles.tdSmall}><strong>{r.position ?? '—'}</strong></td>
-                      <td style={styles.tdSmall}>{r.source || 'dataforseo'}</td>
-                      <td style={{ ...styles.tdSmall, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{r.position ?? '—'}</strong></td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.source || 'dataforseo'}</td>
+                      <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
                         {r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{r.url.replace(/^https?:\/\//, '')}</a> : '—'}
                       </td>
-                      <td style={styles.tdSmall}><SerpFeaturePills features={r.serp_features} /></td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}><SerpFeaturePills features={r.serp_features} /></td>
                     </tr>
                   ))}
                 </tbody>
@@ -179,11 +179,11 @@ export function SearchConsoleTab({ clientId }) {
 
   return (
     <div>
-      <div style={styles.rowHeader}>
+      <div className="row between" style={{ marginBottom: 14 }}>
         <h2 className="h2">Search Console</h2>
         <div>
           {[7, 28, 90, 180].map(n => (
-            <button key={n} onClick={() => setDays(n)} style={{ ...styles.rangeBtn, ...(days === n ? styles.rangeBtnActive : {}) }}>{n}D</button>
+            <button key={n} onClick={() => setDays(n)} className={`btn btn-sm ${days === n ? 'btn-primary' : 'btn-secondary'}`} style={{ marginLeft: 4 }}>{n}D</button>
           ))}
         </div>
       </div>
@@ -204,30 +204,30 @@ function GSCSection({ title, rows, keyCol, cap }) {
   return (
     <div>
       <h3 className="h3">{title}</h3>
-      <div style={styles.tableScroll}>
-        <table style={styles.smallTable}>
+      <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
+        <table className="table">
           <thead>
             <tr>
-              <th style={styles.thSmall}>{keyCol === 'query' ? 'Query' : keyCol === 'page' ? 'Page' : 'Device'}</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Clicks</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Impr.</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>CTR</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Pos.</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>{keyCol === 'query' ? 'Query' : keyCol === 'page' ? 'Page' : 'Device'}</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Clicks</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Impr.</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>CTR</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Pos.</th>
             </tr>
           </thead>
           <tbody>
             {data.map((r, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={{ ...styles.tdSmall, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
                   {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
                 </td>
-                <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{r.clicks.toLocaleString()}</td>
-                <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{r.impressions.toLocaleString()}</td>
-                <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{(r.ctr * 100).toFixed(1)}%</td>
-                <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{r.position.toFixed(1)}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.clicks.toLocaleString()}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.impressions.toLocaleString()}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{(r.ctr * 100).toFixed(1)}%</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.position.toFixed(1)}</td>
               </tr>
             ))}
-            {!data.length && <tr><td colSpan={5} style={{ ...styles.tdSmall, color: '#888' }}>No data.</td></tr>}
+            {!data.length && <tr><td colSpan={5} style={{ padding: "6px 8px", fontSize: 12, color: '#888'  }}>No data.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -239,14 +239,14 @@ function SitemapList({ sitemaps }) {
   return (
     <div>
       <h3 className="h3">Sitemaps</h3>
-      <div style={styles.tableScroll}>
-        <table style={styles.smallTable}>
+      <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
+        <table className="table">
           <thead>
             <tr>
-              <th style={styles.thSmall}>Sitemap</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Submitted</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Indexed</th>
-              <th style={{ ...styles.thSmall, textAlign: 'right' }}>Errors</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Sitemap</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Submitted</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Indexed</th>
+              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Errors</th>
             </tr>
           </thead>
           <tbody>
@@ -255,16 +255,16 @@ function SitemapList({ sitemaps }) {
               const indexed = sm.contents.reduce((s, c) => s + c.indexed, 0);
               return (
                 <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                  <td style={{ ...styles.tdSmall, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
                     <a href={sm.path} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{sm.path.replace(/^https?:\/\//, '')}</a>
                   </td>
-                  <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{submitted.toLocaleString()}</td>
-                  <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{indexed.toLocaleString()}</td>
-                  <td style={{ ...styles.tdSmall, textAlign: 'right', color: sm.errors > 0 ? '#c62828' : '#888' }}>{sm.errors}</td>
+                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{submitted.toLocaleString()}</td>
+                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{indexed.toLocaleString()}</td>
+                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right', color: sm.errors > 0 ? '#c62828' : '#888'  }}>{sm.errors}</td>
                 </tr>
               );
             })}
-            {!sitemaps.length && <tr><td colSpan={4} style={{ ...styles.tdSmall, color: '#888' }}>No sitemaps registered with Search Console.</td></tr>}
+            {!sitemaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: '#888'  }}>No sitemaps registered with Search Console.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -310,7 +310,7 @@ export function AIOverviewsTab({ clientId }) {
 
   return (
     <div>
-      <div style={styles.rowHeader}>
+      <div className="row between" style={{ marginBottom: 14 }}>
         <div>
           <h2 className="h2">AI Overviews</h2>
           <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
@@ -344,30 +344,30 @@ export function AIOverviewsTab({ clientId }) {
       )}
 
       <h3 className="h3">Per-keyword (latest)</h3>
-      <div style={styles.tableScroll}>
-        <table style={styles.smallTable}>
+      <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
+        <table className="table">
           <thead>
             <tr>
-              <th style={styles.thSmall}>Keyword</th>
-              <th style={styles.thSmall}>Intent</th>
-              <th style={styles.thSmall}>AIO present</th>
-              <th style={styles.thSmall}>Brand cited</th>
-              <th style={styles.thSmall}>Snippet</th>
-              <th style={styles.thSmall}>Checked</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Keyword</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Intent</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>AIO present</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Brand cited</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Snippet</th>
+              <th className="caption" style={{ padding: "6px 8px" }}>Checked</th>
             </tr>
           </thead>
           <tbody>
             {latest.map(r => (
               <tr key={r.keyword_id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={styles.tdSmall}><strong>{r.keyword}</strong></td>
-                <td style={styles.tdSmall}><IntentBadge intent={r.intent} /></td>
-                <td style={styles.tdSmall}>{r.present ? <span style={styles.tagYes}>Yes</span> : <span style={styles.tagNo}>No</span>}</td>
-                <td style={styles.tdSmall}>{r.brand_cited ? <span style={styles.tagYes}>Yes</span> : <span style={styles.tagNo}>—</span>}</td>
-                <td style={{ ...styles.tdSmall, maxWidth: 420, color: '#666', fontSize: 11 }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
-                <td style={styles.tdSmall}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{r.keyword}</strong></td>
+                <td style={{ padding: "6px 8px", fontSize: 12 }}><IntentBadge intent={r.intent} /></td>
+                <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.present ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">No</span>}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.brand_cited ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">—</span>}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 420, color: '#666', fontSize: 11  }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12 }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
-            {!latest.length && <tr><td colSpan={6} style={{ ...styles.tdSmall, color: '#888', padding: 20, textAlign: 'center' }}>No AIO data yet — click "Check now" to populate.</td></tr>}
+            {!latest.length && <tr><td colSpan={6} style={{ padding: "6px 8px", fontSize: 12, color: '#888', padding: 20, textAlign: 'center'  }}>No AIO data yet — click "Check now" to populate.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -447,9 +447,9 @@ export function ContentGapsTab({ clientId }) {
         <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {competitors.map(c => (
-            <span key={c} style={styles.competitorChip}>
+            <span key={c} className="chip chip-outline" style={{ fontFamily: "monospace" }}>
               {c}
-              <button onClick={() => removeCompetitor(c)} style={styles.chipClose}>×</button>
+              <button onClick={() => removeCompetitor(c)} className="btn-ghost" style={{ fontSize: 14, padding: "0 2px" }}>×</button>
             </span>
           ))}
           {!competitors.length && <span style={{ color: '#999', fontSize: 12 }}>(none yet)</span>}
@@ -476,14 +476,14 @@ export function ContentGapsTab({ clientId }) {
       {gaps && (
         <div style={{ marginTop: 18 }}>
           <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{gaps.length} keywords found</div>
-          <div style={styles.tableScroll}>
-            <table style={styles.smallTable}>
+          <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
+            <table className="table">
               <thead>
                 <tr>
-                  <th style={styles.thSmall}>Keyword</th>
-                  <th style={{ ...styles.thSmall, textAlign: 'right' }}>Search vol.</th>
-                  <th style={styles.thSmall}>Competitors ranking</th>
-                  <th style={styles.thSmall}>Top position</th>
+                  <th className="caption" style={{ padding: "6px 8px" }}>Keyword</th>
+                  <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Search vol.</th>
+                  <th className="caption" style={{ padding: "6px 8px" }}>Competitors ranking</th>
+                  <th className="caption" style={{ padding: "6px 8px" }}>Top position</th>
                 </tr>
               </thead>
               <tbody>
@@ -492,14 +492,14 @@ export function ContentGapsTab({ clientId }) {
                   const best = positions.length ? Math.min(...positions.map(([, p]) => p)) : null;
                   return (
                     <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                      <td style={styles.tdSmall}><strong>{g.keyword}</strong></td>
-                      <td style={{ ...styles.tdSmall, textAlign: 'right' }}>{g.search_volume?.toLocaleString() || '—'}</td>
-                      <td style={styles.tdSmall}>{(g.competitors || []).join(', ')}</td>
-                      <td style={styles.tdSmall}>{best != null ? `#${best}` : '—'}</td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{g.keyword}</strong></td>
+                      <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{g.search_volume?.toLocaleString() || '—'}</td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{(g.competitors || []).join(', ')}</td>
+                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{best != null ? `#${best}` : '—'}</td>
                     </tr>
                   );
                 })}
-                {!gaps.length && <tr><td colSpan={4} style={{ ...styles.tdSmall, color: '#888', padding: 20, textAlign: 'center' }}>No gaps found.</td></tr>}
+                {!gaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: '#888', padding: 20, textAlign: 'center'  }}>No gaps found.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -564,8 +564,8 @@ export function PlanningTab({ clientId }) {
           <BriefSection label="Pitch">{brief.summary}</BriefSection>
           <BriefSection label="Target length">{brief.suggested_word_count} words</BriefSection>
 
-          <div style={styles.briefBlock}>
-            <div style={styles.briefLabel}>Outline</div>
+          <div style={{ marginBottom: 14 }}>
+            <div className="caption mb-2">Outline</div>
             {(brief.outline || []).map((s, i) => (
               <div key={i} style={{ marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{i + 1}. {s.heading}</div>
@@ -588,8 +588,8 @@ export function PlanningTab({ clientId }) {
 
 function BriefSection({ label, children }) {
   return (
-    <div style={styles.briefBlock}>
-      <div style={styles.briefLabel}>{label}</div>
+    <div style={{ marginBottom: 14 }}>
+      <div className="caption mb-2">{label}</div>
       <div style={{ fontSize: 13, color: '#222', lineHeight: 1.6 }}>{children}</div>
     </div>
   );
@@ -598,8 +598,8 @@ function BriefSection({ label, children }) {
 function BriefList({ label, items }) {
   if (!items?.length) return null;
   return (
-    <div style={styles.briefBlock}>
-      <div style={styles.briefLabel}>{label}</div>
+    <div style={{ marginBottom: 14 }}>
+      <div className="caption mb-2">{label}</div>
       <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, color: '#222', lineHeight: 1.7 }}>
         {items.map((p, i) => <li key={i}>{p}</li>)}
       </ul>
@@ -607,26 +607,3 @@ function BriefList({ label, items }) {
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 880, maxHeight: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: 20, borderBottom: '1px solid #eee' },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  historyList: { flex: 1, overflowY: 'auto', padding: 0 },
-  thSmall: { padding: '6px 8px', fontSize: 10, textAlign: 'left', fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, borderBottom: '1px solid #eee', whiteSpace: 'nowrap', background: '#fafafa' },
-  tdSmall: { padding: '6px 8px', fontSize: 12, verticalAlign: 'middle' },
-  smallTable: { width: '100%', borderCollapse: 'collapse', background: '#fff' },
-  tableScroll: { maxHeight: 480, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 },
-  rowHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-  h2: { fontSize: 18, fontWeight: 700, margin: '0 0 4px' },
-  h3: { fontSize: 13, fontWeight: 700, margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: 0.5, color: '#666' },
-  rangeBtn: { padding: '4px 10px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', marginLeft: 4, borderRadius: 4 },
-  rangeBtnActive: { background: '#1a1a1a', color: '#fff', borderColor: '#1a1a1a' },
-  error: { background: '#fdecea', color: '#c62828', fontSize: 12, padding: 10, borderRadius: 4 },
-  tagYes: { display: 'inline-block', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#e4f4e8', color: '#1d7a3a' },
-  tagNo: { display: 'inline-block', fontSize: 11, color: '#888' },
-  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 10px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
-  chipClose: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', color: '#999' },
-  briefBlock: { marginBottom: 14 },
-  briefLabel: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-};

@@ -272,11 +272,11 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
           Describe the post idea (platform, audience, angle). Claude proposes a structured plan with scenes, equipment, captions and approval gates. Iterate, then lock to save and download.
         </p>
 
-        <div style={styles.split}>
-          <div style={styles.chatPane}>
-            <div style={styles.history} ref={scrollRef}>
+        <div className="row" style={{ gap: 16, flex: 1, minHeight: 0 }}>
+          <div style={{ flex: 1.2, display: "flex", flexDirection: "column", minHeight: 0 }}>
+            <div className="card" style={{ flex: 1, padding: 10, overflowY: "auto", minHeight: 220, maxHeight: "50vh" }} ref={scrollRef}>
               {!history.length && (
-                <div style={styles.kicker}>
+                <div className="body-sm text-muted">
                   Examples:
                   <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
                     <li>"60-second Reel about our new Quiet Luxury collection — Instagram + TikTok. Audience: design-led 35-50s."</li>
@@ -286,20 +286,20 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 </div>
               )}
               {history.map((m, i) => (
-                <div key={i} style={m.role === 'user' ? styles.userMsg : styles.assistantMsg}>
-                  <div style={styles.msgRole}>{m.role === 'user' ? 'You' : 'Claude'}</div>
-                  <div style={styles.msgBody}>{m.content}</div>
+                <div key={i} className={`chat-bubble ${m.role === "user" ? "user" : "assistant"}`} style={{ marginBottom: 10 }}>
+                  <div className="caption mb-2" style={{ fontSize: 10 }}>{m.role === 'user' ? 'You' : 'Claude'}</div>
+                  <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{m.content}</div>
                 </div>
               ))}
-              {sending && <div style={styles.assistantMsg}><div style={styles.msgRole}>Claude</div><div style={styles.msgBody}>Thinking…</div></div>}
+              {sending && <div className="chat-bubble assistant" style={{ marginBottom: 10 }}><div className="caption mb-2" style={{ fontSize: 10 }}>Claude</div><div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>Thinking…</div></div>}
             </div>
             {attachment && (
-              <div style={styles.attachChip}>
+              <div className="chip chip-accent" style={{ marginTop: 8 }}>
                 <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
-                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} style={styles.chipRemove} title="Remove attachment">×</button>
+                <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
-            <div style={styles.inputRow}>
+            <div className="chat-input-row">
               <textarea
                 className="textarea"
                 value={input}
@@ -320,7 +320,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={sending || !!attachment}
-                  style={styles.attachBtn}
+                  className="btn btn-secondary btn-sm"
                   title="Attach an example post / brand guidelines (PDF or image)"
                 >📎</button>
                 <button type="button" onClick={send} disabled={(!input.trim() && !attachment) || sending} className="btn btn-primary">
@@ -330,8 +330,8 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             </div>
           </div>
 
-          <div style={{ ...styles.previewPane, position: 'relative' }}>
-            <div style={styles.previewTitle}>
+          <div className="card" style={{ flex: 1, padding: 12, overflowY: "auto", maxHeight: "60vh", position: "relative" }}>
+            <div className="caption mb-2">
               {sending ? 'Drafting…' : proposed ? (proposedDiffers ? 'Draft — not yet locked' : 'Locked plan') : 'No draft yet'}
             </div>
             {proposed ? (
@@ -350,11 +350,11 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             every channel in target_platforms. Phase 1 stores the
             config; publishing arrives in Phase 2-4. */}
         {planRowId && saved && (
-          <div style={styles.autopilot}>
+          <div className="card" style={{ marginTop: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={styles.sectionLabel}>AUTOPILOT</div>
+              <div className="caption mb-2">AUTOPILOT</div>
               {scheduleDirty && (
-                <button type="button" onClick={saveSchedule} disabled={savingSchedule} style={styles.smallBtn}>
+                <button type="button" onClick={saveSchedule} disabled={savingSchedule} className="btn btn-secondary btn-sm">
                   {savingSchedule ? 'Saving…' : 'Save schedule'}
                 </button>
               )}
@@ -410,7 +410,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 check before the schedule fires. */}
             {!scheduleDirty && schedule.drive_folder_url && (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={checkDrive} disabled={checkingDrive} style={styles.smallBtn}>
+                <button type="button" onClick={checkDrive} disabled={checkingDrive} className="btn btn-secondary btn-sm">
                   {checkingDrive ? 'Checking…' : '📁 Check Drive folder'}
                 </button>
                 {driveFiles !== null && (
@@ -457,7 +457,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             )}
             {!scheduleDirty && schedule.target_platforms.length > 0 && (
               <div style={{ marginTop: 10 }}>
-                <button type="button" onClick={previewCaptions} disabled={previewingCaptions} style={styles.smallBtn}>
+                <button type="button" onClick={previewCaptions} disabled={previewingCaptions} className="btn btn-secondary btn-sm">
                   {previewingCaptions ? 'Generating…' : '✍ Preview captions'}
                 </button>
                 {captionPreview && (
@@ -478,7 +478,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 show each platform's outcome with the live post URL. */}
             {!scheduleDirty && schedule.target_platforms.length > 0 && (
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
-                <button type="button" onClick={publishNow} disabled={publishing} style={{ ...styles.smallBtn, background: '#1a1a1a', color: 'white', borderColor: '#1a1a1a' }}>
+                <button type="button" onClick={publishNow} disabled={publishing} className="btn btn-primary btn-sm">
                   {publishing ? 'Publishing…' : '🚀 Publish now'}
                 </button>
                 <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>
@@ -540,22 +540,22 @@ function PlanPreview({ plan }) {
       )}
       {plan.framework && (
         <div style={{ marginBottom: 8 }}>
-          <span style={styles.tag}>{plan.framework}</span>
+          <span className="chip chip-accent" style={{ fontSize: 10 }}>{plan.framework}</span>
           {plan.framework_rationale && <span style={{ color: '#888', marginLeft: 6 }}>{plan.framework_rationale}</span>}
         </div>
       )}
       {plan.hook?.text && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>HOOK</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">HOOK</div>
           <div style={{ fontWeight: 600 }}>{plan.hook.text}</div>
           {plan.hook.rationale && <div style={{ color: '#888', marginTop: 2 }}>{plan.hook.rationale}</div>}
         </div>
       )}
       {plan.scenes?.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>SCENES</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">SCENES</div>
           {plan.scenes.map(s => (
-            <div key={s.number} style={styles.sceneCard}>
+            <div key={s.number} className="card" style={{ padding: "6px 8px", marginTop: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <strong>Scene {s.number}{s.style_code ? ` [${s.style_code}]` : ''} — {s.name}</strong>
                 <span style={{ color: '#888' }}>{s.duration_seconds ? `${s.duration_seconds}s` : ''}</span>
@@ -578,17 +578,17 @@ function PlanPreview({ plan }) {
           ))}
         </div>
       )}
-      {plan.cta && <div style={styles.section}><div style={styles.sectionLabel}>CTA</div>{plan.cta}</div>}
-      {plan.caption && <div style={styles.section}><div style={styles.sectionLabel}>CAPTION</div>{plan.caption}</div>}
+      {plan.cta && <div style={{ marginTop: 10 }}><div className="caption mb-2">CTA</div>{plan.cta}</div>}
+      {plan.caption && <div style={{ marginTop: 10 }}><div className="caption mb-2">CAPTION</div>{plan.caption}</div>}
       {plan.hashtags?.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>HASHTAGS</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">HASHTAGS</div>
           {plan.hashtags.map(h => h.startsWith('#') ? h : '#' + h).join(' ')}
         </div>
       )}
       {plan.equipment && (plan.equipment.minimum?.length || plan.equipment.ideal?.length) && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>EQUIPMENT</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">EQUIPMENT</div>
           {plan.equipment.minimum?.length > 0 && (
             <div>Min: {plan.equipment.minimum.join(', ')}</div>
           )}
@@ -597,10 +597,10 @@ function PlanPreview({ plan }) {
           )}
         </div>
       )}
-      {plan.talent && <div style={styles.section}><div style={styles.sectionLabel}>TALENT</div>{plan.talent}</div>}
+      {plan.talent && <div style={{ marginTop: 10 }}><div className="caption mb-2">TALENT</div>{plan.talent}</div>}
       {plan.music && (plan.music.mood || plan.music.suggestions?.length) && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>MUSIC</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">MUSIC</div>
           {plan.music.mood && <span>{plan.music.mood}</span>}
           {plan.music.tempo && <span> · {plan.music.tempo}</span>}
           {plan.music.suggestions?.length > 0 && (
@@ -609,16 +609,16 @@ function PlanPreview({ plan }) {
         </div>
       )}
       {plan.reuse_plan?.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>REUSE</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">REUSE</div>
           {plan.reuse_plan.map((r, i) => (
             <div key={i}>{r.platform}{r.duration_seconds ? ` (${r.duration_seconds}s)` : ''}{r.notes ? ` — ${r.notes}` : ''}</div>
           ))}
         </div>
       )}
       {plan.approval_gates?.length > 0 && (
-        <div style={styles.section}>
-          <div style={styles.sectionLabel}>APPROVALS</div>
+        <div style={{ marginTop: 10 }}>
+          <div className="caption mb-2">APPROVALS</div>
           {plan.approval_gates.map((g, i) => (
             <div key={i}>{g.gate} — {g.owner || '—'}</div>
           ))}
@@ -628,33 +628,3 @@ function PlanPreview({ plan }) {
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px 20px', zIndex: 1000, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 1080, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)', display: 'flex', flexDirection: 'column', maxHeight: 'calc(100vh - 60px)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  hint: { fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 },
-  split: { display: 'flex', gap: 16, flex: 1, minHeight: 0 },
-  chatPane: { flex: 1.2, display: 'flex', flexDirection: 'column', minHeight: 0 },
-  previewPane: { flex: 1, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, overflowY: 'auto', maxHeight: '60vh' },
-  previewTitle: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  history: { flex: 1, border: '2px solid var(--accent)', borderRadius: 4, padding: 10, overflowY: 'auto', minHeight: 220, maxHeight: '50vh', background: '#fff' },
-  kicker: { fontSize: 13, color: '#666', padding: 4 },
-  userMsg: { marginBottom: 10, padding: '6px 10px', background: '#fff7d6', borderRadius: 4 },
-  assistantMsg: { marginBottom: 10, padding: '6px 10px', background: '#f4f4f4', borderRadius: 4 },
-  msgRole: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', marginBottom: 2 },
-  msgBody: { fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' },
-  inputRow: { display: 'flex', gap: 8, marginTop: 8, alignItems: 'flex-start' },
-  textarea: { flex: 1, minHeight: 60, maxHeight: 200, padding: '8px 10px', fontSize: 13, lineHeight: 1.5, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  attachChip: { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: '#eef4ff', border: '1px solid #c7d8f5', borderRadius: 4, marginTop: 8, alignSelf: 'flex-start' },
-  chipRemove: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666', lineHeight: 1, padding: '0 2px' },
-  attachBtn: { padding: '6px 10px', fontSize: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 4, cursor: 'pointer' },
-  error: { color: '#c62828', fontSize: 12, marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4 },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14, borderTop: '1px solid #eee', paddingTop: 12 },
-  tag: { display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'var(--accent)', color: '#000', borderRadius: 3, textTransform: 'uppercase' },
-  section: { marginTop: 10 },
-  sectionLabel: { fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  sceneCard: { marginTop: 6, padding: '6px 8px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 3 },
-  autopilot: { marginTop: 14, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 },
-  smallBtn: { fontSize: 11, padding: '3px 8px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, cursor: 'pointer' },
-};
