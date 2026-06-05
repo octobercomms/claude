@@ -48,53 +48,53 @@ export default function ClientsPage() {
       </header>
 
       {showNew && (
-        <div style={styles.newCard}>
+        <div className="card">
           <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>New Client</h3>
-          <form onSubmit={handleCreate} style={styles.form}>
-            {error && <div style={styles.error}>{error}</div>}
-            <div style={styles.row}>
-              <div style={styles.field}>
-                <label style={styles.label}>Client Name</label>
+          <form onSubmit={handleCreate} >
+            {error && <div className="text-negative">{error}</div>}
+            <div >
+              <div className="field">
+                <label className="field-label">Client Name</label>
                 <input
-                  style={styles.input} value={newClient.name} required
+                  className="input" value={newClient.name} required
                   onChange={e => setNewClient(p => ({ ...p, name: e.target.value, slug: autoSlug(e.target.value) }))}
                 />
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Slug</label>
+              <div className="field">
+                <label className="field-label">Slug</label>
                 <input
-                  style={styles.input} value={newClient.slug} required
+                  className="input" value={newClient.slug} required
                   onChange={e => setNewClient(p => ({ ...p, slug: e.target.value }))}
                 />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" style={styles.btn} disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
-              <button type="button" onClick={() => setShowNew(false)} style={styles.btnGhost}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
+              <button type="button" onClick={() => setShowNew(false)} className="btn btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
-      <div style={styles.tableWrap}>
-        <table style={styles.table}>
+      <div className="card">
+        <table className="table">
           <thead>
             <tr>
-              {['Name', 'Slug', 'Status', ''].map(h => <th key={h} style={styles.th}>{h}</th>)}
+              {['Name', 'Slug', 'Status', ''].map(h => <th key={h} >{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {clients.map(c => (
               <tr key={c.id}>
-                <td style={styles.td}><strong>{c.name}</strong></td>
-                <td style={styles.td}><code style={{ fontSize: 12, color: '#888' }}>{c.slug}</code></td>
-                <td style={styles.td}>
-                  <span style={{ color: c.active ? '#2e7d32' : '#999', fontSize: 12, fontWeight: 600 }}>
+                <td ><strong>{c.name}</strong></td>
+                <td><code className="text-subtle" style={{ fontSize: 12 }}>{c.slug}</code></td>
+                <td>
+                  <span className={c.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 12 }}>
                     {c.active ? 'Active' : 'Inactive'}
                   </span>
                 </td>
-                <td style={{ ...styles.td, textAlign: 'right' }}>
-                  <Link to={`/clients/${c.id}/sales-traffic`} style={styles.linkBtn}>Manage →</Link>
+                <td className="num">
+                  <Link to={`/clients/${c.id}/sales-traffic`} className="text-accent" style={{ fontWeight: 600 }}>Manage →</Link>
                 </td>
               </tr>
             ))}
@@ -105,21 +105,3 @@ export default function ClientsPage() {
   );
 }
 
-const styles = {
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
-  pageTitle: { fontSize: 32, fontWeight: 700, margin: 0, letterSpacing: -0.6 },
-  btn: { background: 'var(--accent)', color: 'var(--accent-on)', border: '2px solid var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' },
-  newCard: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 24, marginBottom: 24 },
-  form: { display: 'flex', flexDirection: 'column', gap: 16 },
-  row: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  field: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontSize: 11, fontWeight: 600, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2 },
-  input: { padding: '10px 12px', border: '2px solid var(--accent)', borderRadius: 8, fontSize: 14, fontFamily: 'inherit', background: 'var(--accent-soft)' },
-  error: { color: '#c62828', fontSize: 13, background: '#fff0f0', padding: '10px 14px', borderRadius: 8, border: '2px solid #c62828' },
-  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { padding: '12px 16px', textAlign: 'left', background: '#fafafa', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 1.2, color: '#888', borderBottom: '2px solid #1a1a1a' },
-  td: { padding: '12px 16px', borderBottom: '2px solid #f3f3f3' },
-  linkBtn: { color: '#1a1a1a', textDecoration: 'none', fontWeight: 600, fontSize: 12 },
-};

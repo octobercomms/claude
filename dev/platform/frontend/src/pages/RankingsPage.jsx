@@ -170,36 +170,36 @@ export default function RankingsPage() {
         <div />
         {selectedClient && (
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleExport} style={styles.btnGhost}>Export CSV</button>
-            <button onClick={handleCheckAll} style={styles.btnGhost} disabled={checking}>
+            <button onClick={handleExport} className="btn btn-secondary">Export CSV</button>
+            <button onClick={handleCheckAll} className="btn btn-secondary" disabled={checking}>
               {checking ? 'Checking…' : 'Check All Ranks'}
             </button>
-            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={styles.btnGhost}>Bulk Import</button>
-            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={styles.btn}>+ Add Keyword</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} className="btn btn-secondary">Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} className="btn btn-primary">+ Add Keyword</button>
           </div>
         )}
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
-        <select style={styles.input} value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
+        <select className="input" value={selectedClient} onChange={e => setSelectedClient(e.target.value)}>
           <option value="">Select client…</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
         {selectedClient && (
-          <select style={styles.input} value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
+          <select className="input" value={filterLocation} onChange={e => setFilterLocation(e.target.value)}>
             <option value="">All locations</option>
             {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
           </select>
         )}
         {tags.length > 0 && (
-          <select style={styles.input} value={filterTag} onChange={e => setFilterTag(e.target.value)}>
+          <select className="input" value={filterTag} onChange={e => setFilterTag(e.target.value)}>
             <option value="">All tags</option>
             {tags.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
         )}
         {selectedClient && (
           <input
-            style={{ ...styles.input, flex: 1 }}
+            className="input" style={{ flex: 1 }}
             placeholder="Search keywords…"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -208,83 +208,83 @@ export default function RankingsPage() {
       </div>
 
       {showAddForm && (
-        <div style={styles.card}>
+        <div className="card">
           <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>Add Keyword</h3>
           <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 2fr 1fr 1fr 1fr', gap: 12 }}>
-              <div style={styles.field}>
-                <label style={styles.label}>Keyword</label>
-                <input style={styles.input} required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} />
+              <div className="field">
+                <label className="field-label">Keyword</label>
+                <input className="input" required value={newKw.keyword} onChange={e => setNewKw(p => ({ ...p, keyword: e.target.value }))} />
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Target URL</label>
-                <input style={styles.input} value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" />
+              <div className="field">
+                <label className="field-label">Target URL</label>
+                <input className="input" value={newKw.target_url} onChange={e => setNewKw(p => ({ ...p, target_url: e.target.value }))} placeholder="https://…" />
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Location</label>
-                <select style={styles.input} value={newKw.location_code} onChange={e => {
+              <div className="field">
+                <label className="field-label">Location</label>
+                <select className="input" value={newKw.location_code} onChange={e => {
                   const loc = LOCATIONS.find(l => l.code === Number(e.target.value)) || DEFAULT_LOC;
                   setNewKw(p => ({ ...p, location_code: loc.code, location_name: loc.name }));
                 }}>
                   {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
                 </select>
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Device</label>
-                <select style={styles.input} value={newKw.device} onChange={e => setNewKw(p => ({ ...p, device: e.target.value }))}>
+              <div className="field">
+                <label className="field-label">Device</label>
+                <select className="input" value={newKw.device} onChange={e => setNewKw(p => ({ ...p, device: e.target.value }))}>
                   <option value="desktop">Desktop</option>
                   <option value="mobile">Mobile</option>
                 </select>
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Tag</label>
-                <input style={styles.input} value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" />
+              <div className="field">
+                <label className="field-label">Tag</label>
+                <input className="input" value={newKw.tag} onChange={e => setNewKw(p => ({ ...p, tag: e.target.value }))} placeholder="brand, category…" />
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="submit" style={styles.btn}>Add</button>
-              <button type="button" onClick={() => setShowAddForm(false)} style={styles.btnGhost}>Cancel</button>
+              <button type="submit" className="btn btn-primary">Add</button>
+              <button type="button" onClick={() => setShowAddForm(false)} className="btn btn-secondary">Cancel</button>
             </div>
           </form>
         </div>
       )}
 
       {showBulkForm && (
-        <div style={styles.card}>
+        <div className="card">
           <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Bulk Import Keywords</h3>
           <p style={{ margin: '0 0 16px', fontSize: 12, color: '#888' }}>
             One keyword per line. Optional columns: <code>keyword, target_url, tag</code>
           </p>
           <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <textarea
-              style={{ ...styles.input, minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
+              className="input" style={{ minHeight: 180, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
               placeholder={'enamel mug\nenamel teapot\nenamel dinner set, https://falconenamelware.com/collections/dinner, tableware'}
               value={bulkText}
               onChange={e => setBulkText(e.target.value)}
               required
             />
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div style={styles.field}>
-                <label style={styles.label}>Location</label>
-                <select style={styles.input} value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>
+              <div className="field">
+                <label className="field-label">Location</label>
+                <select className="input" value={bulkLocation} onChange={e => setBulkLocation(e.target.value)}>
                   {LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.flag} {l.name}</option>)}
                 </select>
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Device</label>
-                <select style={styles.input} value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}>
+              <div className="field">
+                <label className="field-label">Device</label>
+                <select className="input" value={bulkDevice} onChange={e => setBulkDevice(e.target.value)}>
                   <option value="desktop">Desktop</option>
                   <option value="mobile">Mobile</option>
                 </select>
               </div>
-              <div style={styles.field}>
-                <label style={styles.label}>Default Tag (if not in line)</label>
-                <input style={styles.input} value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" />
+              <div className="field">
+                <label className="field-label">Default Tag (if not in line)</label>
+                <input className="input" value={bulkTag} onChange={e => setBulkTag(e.target.value)} placeholder="brand, category…" />
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button type="submit" style={styles.btn} disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
-              <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} style={styles.btnGhost}>Cancel</button>
+              <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
+              <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
               {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{bulkMsg}</span>}
             </div>
           </form>
@@ -296,33 +296,33 @@ export default function RankingsPage() {
       ) : !selectedClient ? (
         <div style={{ color: '#888', padding: 40, textAlign: 'center' }}>Select a client to view rankings</div>
       ) : (
-        <div style={styles.tableWrap}>
-          <table style={styles.table}>
+        <div className="card">
+          <table className="table">
             <thead>
               <tr>
                 {['Keyword', 'Location', 'Device', 'Tag', 'Current', 'Previous', 'Best', 'Last Checked', ''].map(h => (
-                  <th key={h} style={styles.th}>{h}</th>
+                  <th key={h} >{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ ...styles.td, textAlign: 'center', color: '#888' }}>No keywords found</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: '#888' }}>No keywords found</td></tr>
               ) : filtered.map(kw => {
                 const change = posChange(kw.current_position, kw.previous_position);
                 const loc = LOCATIONS.find(l => l.code === kw.location_code);
                 return (
                   <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
-                    <td style={styles.td}>
+                    <td >
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
                       {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
                     </td>
-                    <td style={styles.td}>
-                      <span style={styles.chip}>{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span>
+                    <td >
+                      <span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span>
                     </td>
-                    <td style={styles.td}><span style={styles.chip}>{kw.device}</span></td>
-                    <td style={styles.td}>{kw.tag ? <span style={styles.chip}>{kw.tag}</span> : '—'}</td>
-                    <td style={styles.td}>
+                    <td ><span className="chip chip-neutral">{kw.device}</span></td>
+                    <td >{kw.tag ? <span className="chip chip-neutral">{kw.tag}</span> : '—'}</td>
+                    <td >
                       <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? '#1a1a1a' : '#ccc' }}>
                         {kw.current_position || '—'}
                       </span>
@@ -332,11 +332,11 @@ export default function RankingsPage() {
                         </span>
                       )}
                     </td>
-                    <td style={styles.td}>{kw.previous_position || '—'}</td>
-                    <td style={{ ...styles.td, color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
-                    <td style={styles.td}>{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
-                    <td style={styles.td} onClick={e => e.stopPropagation()}>
-                      <button onClick={() => handleDelete(kw.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Delete</button>
+                    <td >{kw.previous_position || '—'}</td>
+                    <td style={{ color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+                    <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
+                    <td  onClick={e => e.stopPropagation()}>
+                      <button onClick={() => handleDelete(kw.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Delete</button>
                     </td>
                   </tr>
                 );
@@ -347,8 +347,8 @@ export default function RankingsPage() {
       )}
 
       {historyModal && (
-        <div style={styles.modalOverlay} onClick={() => setHistoryModal(null)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+        <div  onClick={() => setHistoryModal(null)}>
+          <div  onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15 }}>{historyModal.keyword}</h3>
               <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
@@ -372,19 +372,3 @@ export default function RankingsPage() {
   );
 }
 
-const styles = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20, marginBottom: 20 },
-  field: { display: 'flex', flexDirection: 'column', gap: 6 },
-  label: { fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { padding: '9px 12px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 13 },
-  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '5px 12px', fontSize: 11, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
-  chip: { background: '#f0f0f0', borderRadius: 10, padding: '2px 8px', fontSize: 11, color: '#555' },
-  tableWrap: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13 },
-  th: { padding: '10px 16px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
-  td: { padding: '11px 16px', borderBottom: '1px solid #f5f5f5', verticalAlign: 'middle' },
-  modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: 'var(--accent-soft)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 600, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
-};
