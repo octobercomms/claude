@@ -378,15 +378,13 @@ export default function ClientChatPage() {
         )}
 
         {openEntries.map(entry => (
-          <div key={entry.id} style={{ borderLeft: `3px solid ${TYPE_COLOURS[entry.type]}`, background: TYPE_BG[entry.type] }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: TYPE_COLOURS[entry.type], textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                {entry.type}
-              </span>
+          <div key={entry.id} className={`log-entry ${entry.type || ''}`}>
+            <div className="log-entry-head">
+              <span className="log-entry-type">{entry.type}</span>
               <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 11, padding: "0 2px" }} title="Remove">✕</button>
             </div>
-            <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 4, lineHeight: 1.5 }}>{entry.content}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 6 }}>
+            <div className="log-entry-body">{entry.content}</div>
+            <div className="log-entry-date">
               {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
             </div>
           </div>
@@ -399,9 +397,9 @@ export default function ClientChatPage() {
         )}
 
         {showResolved && resolvedEntries.map(entry => (
-          <div key={entry.id} style={{ opacity: 0.5, textDecoration: 'line-through', borderLeft: '3px solid #ccc' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase' }}>{entry.type}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{entry.content}</div>
+          <div key={entry.id} className="log-entry resolved">
+            <div className="log-entry-type">{entry.type}</div>
+            <div className="log-entry-body">{entry.content}</div>
           </div>
         ))}
       </div>

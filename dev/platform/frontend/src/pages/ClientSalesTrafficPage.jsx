@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import { useCssVar } from '../hooks/useCssVar';
 
 const fmtMoney = n => '£' + Math.round(Number(n || 0)).toLocaleString('en-GB');
 const fmtNum = n => Number(n || 0).toLocaleString('en-GB');
@@ -34,6 +35,13 @@ function recentMonths(count) {
 
 export default function ClientSalesTrafficPage() {
   const { id } = useParams();
+  // Read chart colours from the live suite scope so Recharts strokes
+  // pick up the Sales teal (and any future palette tweak) without
+  // hardcoding hex.
+  const scopeRef = useRef(null);
+  const accent = useCssVar('--accent', '#20A39E', scopeRef);
+  const text = useCssVar('--text', '#1a1a1a', scopeRef);
+  const subtle = useCssVar('--text-subtle', '#888', scopeRef);
   const [tab, setTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
     return ['overview','dashboard'].includes(q) ? q : 'overview';
@@ -102,7 +110,7 @@ export default function ClientSalesTrafficPage() {
   ];
 
   return (
-    <div className="suite-sales">
+    <div className="suite-sales" ref={scopeRef}>
       <header className="hero">
         <div>
           <div className="client-name">{client?.name || ''}</div>
@@ -198,8 +206,8 @@ export default function ClientSalesTrafficPage() {
                     <YAxis yAxisId="o" orientation="right" tick={{ fontSize: 10 }} allowDecimals={false} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
-                    <Line yAxisId="r" type="monotone" dataKey="revenue" name="Revenue" stroke="#1a1a1a" strokeWidth={2} dot={false} />
-                    <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="#E7CD41" strokeWidth={2} dot={false} />
+                    <Line yAxisId="r" type="monotone" dataKey="revenue" name="Revenue" stroke={text} strokeWidth={2} dot={false} />
+                    <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke={accent} strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No sales trend data.</p>}
@@ -213,8 +221,8 @@ export default function ClientSalesTrafficPage() {
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip labelFormatter={fmtDay} />
                     <Legend />
-                    <Line type="monotone" dataKey="sessions" name="Sessions" stroke="#1a1a1a" strokeWidth={2} dot={false} />
-                    <Line type="monotone" dataKey="users" name="Users" stroke="#888" strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="sessions" name="Sessions" stroke={text} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="users" name="Users" stroke={subtle} strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No traffic data.</p>}
@@ -229,7 +237,7 @@ export default function ClientSalesTrafficPage() {
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={120} />
                   <Tooltip />
-                  <Bar dataKey="sessions" name="Sessions" fill="#1a1a1a" />
+                  <Bar dataKey="sessions" name="Sessions" fill={accent} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}

@@ -574,6 +574,7 @@ export default function ClientOutreachPage() {
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
+            <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
             {selectedContacts.size > 0 && (
               <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: 'var(--negative)', borderColor: 'var(--negative)' }}>Delete {selectedContacts.size} selected</button>
             )}
@@ -970,6 +971,31 @@ function LibraryPicker({ clientId, onAttached }) {
         </>
       )}
     </div>
+  );
+}
+
+// Bulk verify — hits the server's verify-all endpoint which walks
+// every contact attached to any campaign on this client and runs the
+// verifier for each. Returns a tally so the AM sees how the pool
+// breaks down (valid / risky / invalid / unknown / errored).
+function VerifyAllButton({ clientId, onDone, disabled }) {
+  const toast = useToast();
+  const [busy, setBusy] = React.useState(false);
+  async function run() {
+    if (!confirm('Verify every contact for this client? Uses Hunter credits for any unverified or stale rows.')) return;
+    setBusy(true);
+    try {
+      const r = await api.post(`/outreach/clients/${clientId}/contacts/verify-all`, {});
+      toast(`Checked ${r.checked} — ${r.valid} valid, ${r.risky} risky, ${r.invalid} invalid, ${r.unknown} unknown${r.errored ? `, ${r.errored} errored` : ''}.`, 'success');
+      if (onDone) onDone();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally { setBusy(false); }
+  }
+  return (
+    <button onClick={run} disabled={disabled || busy} className="btn btn-secondary">
+      {busy ? 'Verifying…' : '✓ Verify all'}
+    </button>
   );
 }
 
