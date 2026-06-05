@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
+import SuiteTabs from '../components/SuiteTabs';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
@@ -380,23 +381,13 @@ export default function ClientOutreachPage() {
         </div>
       </header>
 
-      {/* Tabs — same underline pattern as the SEO and Ads pages */}
-      <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>
-        {[
-          ['dashboard', 'Dashboard'],
-          ['campaigns', campaigns.length ? `Campaigns (${campaigns.length})` : 'Campaigns'],
-          ['contacts', contacts.length ? `Contacts (${contacts.length})` : 'Contacts'],
-          ['sending', 'Sending'],
-          ['help', 'Help'],
-        ].map(([key, label]) => (
-          <button key={key} onClick={() => setTab(key)} style={{
-            background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-            fontWeight: tab === key ? 700 : 400, color: tab === key ? 'var(--text)' : 'var(--text-subtle)',
-            borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent',
-            marginBottom: -2,
-          }}>{label}</button>
-        ))}
-      </div>
+      <SuiteTabs tabs={[
+        { key: 'dashboard', label: 'Dashboard',                                                 active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,           active: tab === 'campaigns', onClick: () => setTab('campaigns') },
+        { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,            active: tab === 'contacts',  onClick: () => setTab('contacts') },
+        { key: 'sending',   label: 'Sending',                                                    active: tab === 'sending',   onClick: () => setTab('sending') },
+        { key: 'help',      label: 'Help',                                                       active: tab === 'help',      onClick: () => setTab('help') },
+      ]} />
 
       {tab === 'dashboard' && (
         <div>

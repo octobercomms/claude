@@ -138,9 +138,9 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
     <div>
       <div className="modal-head">
         <div>
-          <div style={styles.eyebrow}>Internal · for the AM</div>
+          <div className="caption">Internal · for the AM</div>
           <h2 className="h2">Strategist briefing</h2>
-          <p style={styles.lede}>
+          <p className="body mt-3">
             A private, structured analyst note on this client's Meta + Google Ads. Compares the last period
             against the previous one and tells you what to action next. Auto-generated every Monday at 07:00.
           </p>
@@ -151,7 +151,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             <option value={14}>Last 14 days</option>
             <option value={30}>Last 30 days</option>
           </select>
-          <button onClick={generate} disabled={generating} style={generating ? { ...styles.btn, opacity: 0.6 } : styles.btn}>
+          <button onClick={generate} disabled={generating} className="btn btn-primary">
             {generating ? 'Generating…' : '+ Generate report'}
           </button>
         </div>
@@ -159,22 +159,23 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
 
       {!reports && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {reports && reports.length === 0 && !generating && (
-        <div style={styles.empty}>
+        <div className="empty">
           No reports yet for this client. Click <strong>Generate report</strong> to produce the first one — Claude will read the last {period} days of ad performance and write a Manus-style briefing.
         </div>
       )}
 
       {reports && reports.length > 0 && (
         <div className="grid">
-          <div style={styles.list}>
+          <div className="stack stack-sm">
             {reports.map(r => (
               <button key={r.id} onClick={() => setSelectedId(r.id)}
-                style={selectedId === r.id ? styles.listItemActive : styles.listItem}>
+                className={`card ${selectedId === r.id ? '' : 'plain'}`}
+                style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s3) var(--s4)', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <strong style={{ fontSize: 12 }}>
                     {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
                   </strong>
-                  {!r.read_at && r.status === 'completed' && <span style={styles.unreadDot} />}
+                  {!r.read_at && r.status === 'completed' && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "var(--r-pill)", background: "var(--accent)", marginLeft: 6 }} />}
                 </div>
                 <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
                   {r.status === 'generating' && '· Generating…'}
@@ -186,12 +187,12 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     </>
                   )}
                 </div>
-                <button onClick={(e) => destroy(r.id, e)} style={styles.delBtn} title="Delete">×</button>
+                <button onClick={(e) => destroy(r.id, e)} className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px" }} title="Delete">×</button>
               </button>
             ))}
           </div>
 
-          <div style={styles.body}>
+          <div className="card mt-4">
             {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a report on the left.</div>}
             {selected && selected.status === 'generating' && (
               <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
@@ -217,16 +218,16 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                         style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
                       />
                       {recipientsDirty && (
-                        <button onClick={saveRecipients} disabled={savingRecipients} style={styles.ghostBtn}>
+                        <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
                           {savingRecipients ? 'Saving…' : 'Save'}
                         </button>
                       )}
                     </div>
                   </div>
-                  <button onClick={sendBriefingEmail} disabled={emailing || !selected} style={styles.ghostBtn} title="Send this briefing as an email now (uses the recipients above)">
+                  <button onClick={sendBriefingEmail} disabled={emailing || !selected} className="btn btn-secondary btn-sm" title="Send this briefing as an email now (uses the recipients above)">
                     {emailing ? 'Sending…' : '✉ Send to email'}
                   </button>
-                  <button onClick={savePdf} style={styles.ghostBtn} title="Save a PDF copy with the standard report header + footer">
+                  <button onClick={savePdf} className="btn btn-secondary btn-sm" title="Save a PDF copy with the standard report header + footer">
                     ↓ Save PDF
                   </button>
                 </div>
@@ -252,7 +253,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     </ol>
                   </div>
                 )}
-                <div style={styles.md}>
+                <div className="body-sm">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
                     {selected.markdown || ''}
                   </ReactMarkdown>
