@@ -48,12 +48,12 @@ function queryParamGet(credentials, path, extraParams = {}) {
 // human-readable diagnosis the AM can act on. WP returns an error
 // `code` like `woocommerce_rest_cannot_view` or
 // `rest_no_route` — each maps to a specific cause.
-function explain401(body) {
+function explain401(body, headers = {}) {
   const code = body?.code;
   const message = body?.message;
   const hints = [];
   if (code === 'woocommerce_rest_authentication_error' || code === 'woocommerce_rest_cannot_view') {
-    hints.push('Likely an invalid or revoked consumer_key / consumer_secret.');
+    hints.push('Likely an invalid or revoked consumer_key / consumer_secret — regenerate the keys in WooCommerce → Settings → Advanced → REST API.');
   }
   if (code === 'woocommerce_rest_invalid_signature' || code === 'woocommerce_rest_invalid_oauth') {
     hints.push('Authorization header may be stripped by the host; try a different REST mode or regenerate keys.');
@@ -64,10 +64,42 @@ function explain401(body) {
   if (code === 'rest_forbidden') {
     hints.push('The API key user does not have Read access. Regenerate keys for an admin / Shop Manager user.');
   }
+  // Body was HTML rather than JSON — usually means a security plugin
+  // (Wordfence, Sucuri) or a WAF intercepted the request before
+  // WordPress saw it.
+  if (typeof body === 'string' && /<html|<!DOCTYPE/i.test(body)) {
+    const m = body.match(/<title>([^<]+)<\/title>/i);
+    hints.push(`Response was HTML${m ? ` ("${m[1].trim()}")` : ''} — looks like a security plugin or WAF blocking REST API calls. Whitelist the platform IP in Wordfence / Sucuri / your firewall, or temporarily disable to confirm.`);
+  }
+  // Server / firewall fingerprints in the response headers.
+  const server = headers.server || '';
+  const wafHints = [];
+  if (/cloudflare/i.test(server) || headers['cf-ray']) wafHints.push('Cloudflare');
+  if (headers['x-sucuri-id']) wafHints.push('Sucuri');
+  if (headers['x-wf-firewall']) wafHints.push('Wordfence');
+  if (wafHints.length) {
+    hints.push(`Detected: ${wafHints.join(' + ')}. Add the platform server's outbound IP to its allow-list.`);
+  }
   return [
-    message || 'WooCommerce returned 401 Unauthorized',
+    message || `WooCommerce returned 401 Unauthorized${code ? ` (${code})` : ''}`,
     ...hints,
   ].join(' · ');
+}
+
+// Probe the bare WP REST root with no auth. If THIS 401s too, the
+// blocker is server-side (security plugin / WAF), not WooCommerce
+// credentials.
+async function probeWpRest(credentials) {
+  const base = credentials.store_url.replace(/\/$/, '');
+  try {
+    const res = await axios.get(`${base}/wp-json/`, {
+      timeout: 15000,
+      validateStatus: () => true,
+    });
+    return { status: res.status, headers: res.headers, body: res.data };
+  } catch (err) {
+    return { status: 0, error: err.message };
+  }
 }
 
 async function checkTokenValidity(credentials) {
@@ -81,22 +113,30 @@ async function checkTokenValidity(credentials) {
   // path.
   if (res.status === 401) {
     const qp = await queryParamGet(credentials, '/');
-    if (qp.status >= 200 && qp.status < 300) {
-      // Stamp this on the credentials so fetchData uses query-param
-      // auth too without re-discovering — but we can't write to
-      // credentials from here. The fetchData path will discover the
-      // same fallback path the same way.
-      return true;
-    }
+    if (qp.status >= 200 && qp.status < 300) return true;
     if (qp.status === 401) {
-      throw new Error(`401 Unauthorized — ${explain401(qp.data || res.data)}`);
+      // Both auth modes failed — probe the bare WP REST root with no
+      // auth at all to tell credentials problems apart from WAF /
+      // security-plugin blocking.
+      const probe = await probeWpRest(credentials);
+      const hints = [];
+      if (probe.status === 0) {
+        hints.push(`Could not reach the site at all (${probe.error}).`);
+      } else if (probe.status >= 200 && probe.status < 300) {
+        hints.push('The unauthenticated WP REST root works, so the blocker is specifically the WooCommerce / authenticated REST path. Most likely an invalid consumer_key / consumer_secret — regenerate them in WooCommerce → Settings → Advanced → REST API (use an admin or Shop Manager user).');
+      } else {
+        hints.push(`Even unauthenticated /wp-json/ returns ${probe.status} — the blocker is the server, not credentials. Look for security plugins (Wordfence, Sucuri), a CDN / WAF (Cloudflare), or restrictive .htaccess rules that block the REST API.`);
+      }
+      const body = qp.data || res.data;
+      const headers = qp.headers || res.headers || {};
+      throw new Error(`401 Unauthorized — ${explain401(body, headers)}${hints.length ? ' · ' + hints.join(' ') : ''}`);
     }
-    throw new Error(`Query-param fallback returned ${qp.status}: ${qp.data?.message || 'unknown error'}`);
+    throw new Error(`Query-param fallback returned ${qp.status}: ${qp.data?.message || (typeof qp.data === 'string' ? qp.data.slice(0, 120) : 'unknown error')}`);
   }
   if (res.status === 404) {
     throw new Error('404 from /wp-json/wc/v3 — REST API not found. Check the store URL and that WooCommerce is installed + permalinks are not set to Plain.');
   }
-  throw new Error(`WooCommerce returned ${res.status}: ${res.data?.message || 'unknown error'}`);
+  throw new Error(`WooCommerce returned ${res.status}: ${res.data?.message || (typeof res.data === 'string' ? res.data.slice(0, 120) : 'unknown error')}`);
 }
 
 // Like checkTokenValidity but resolves to the auth mode (`'basic'` or
