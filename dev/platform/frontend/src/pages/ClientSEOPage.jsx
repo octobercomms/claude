@@ -227,7 +227,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
             padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '2px solid var(--accent)',
-            background: range === v ? 'var(--accent)' : '#fff', color: range === v ? 'var(--accent-on)' : '#555',
+            background: range === v ? 'var(--accent)' : 'var(--surface)', color: range === v ? 'var(--accent-on)' : 'var(--text-muted)',
           }}>{l}</button>
         ))}
       </div>
@@ -241,7 +241,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
           </LineChart>
         </ResponsiveContainer>
       ) : (
-        <p style={{ color: '#888', fontSize: 12, padding: '24px 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
+        <p style={{ color: 'var(--text-subtle)', fontSize: 12, padding: '24px 0', margin: 0 }}>Not enough rank history yet to chart this keyword.</p>
       )}
     </div>
   );
@@ -349,14 +349,14 @@ export default function ClientSEOPage() {
     const expanded = expandedId === kw.id;
     return (
       <React.Fragment key={kw.id}>
-      <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
+      <tr style={{ cursor: 'pointer', background: expanded ? 'var(--surface-raised)' : undefined }} onClick={() => toggleExpand(kw)}>
         <td >
           <div style={{ fontWeight: 600, fontSize: 13 }}>
             {kw.keyword}
             <IntentBadge intent={kw.intent} />
             {kw.aio_present && <span className={`chip chip-${kw.aio_brand_cited ? 'success' : 'warning'}`} style={{ marginLeft: 6, fontSize: 9, padding: '1px 5px' }}>AIO{kw.aio_brand_cited ? '+CITED' : ''}</span>}
           </div>
-          {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
+          {kw.target_url && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{kw.target_url}</div>}
           {kw.serp_features?.length > 0 && <div style={{ marginTop: 3 }}><SerpFeaturePills features={kw.serp_features} /></div>}
         </td>
         <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
@@ -397,7 +397,7 @@ export default function ClientSEOPage() {
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={10} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+          <td colSpan={10} style={{ padding: 0, background: 'var(--surface-raised)', borderBottom: '1px solid #e8e8e8' }}>
             <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
           </td>
         </tr>
@@ -602,7 +602,7 @@ export default function ClientSEOPage() {
     loadRankMatrix();
   }, []);
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   return (
     <div className="suite-organic">
@@ -673,7 +673,7 @@ export default function ClientSEOPage() {
               <div key={c.label} className="card">
                 <div className="caption">{c.label}</div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: '#1a1a1a' }}>{c.value}</div>
+                  <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>{c.value}</div>
                   {c.delta != null && c.delta !== 0 && (
                     <span className={c.delta > 0 ? 'text-positive' : 'text-negative'} style={{ fontSize: 12 }}>
                       {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
@@ -700,8 +700,8 @@ export default function ClientSEOPage() {
           <button key={b.key} onClick={() => setBucket(b.key)} style={{
             flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
             borderLeft: i ? '1px solid #eee' : 'none',
-            background: bucket === b.key ? 'var(--accent)' : '#fff',
-            color: bucket === b.key ? 'var(--accent-on)' : '#444',
+            background: bucket === b.key ? 'var(--accent)' : 'var(--surface)',
+            color: bucket === b.key ? 'var(--accent-on)' : 'var(--text-muted)',
           }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{bucketCounts[b.key]}</div>
             <div style={{ fontSize: 11, opacity: 0.85 }}>{b.label}</div>
@@ -767,7 +767,7 @@ export default function ClientSEOPage() {
       {showBulkForm && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="caption">Bulk Import</div>
-          <p style={{ margin: '8px 0 16px', fontSize: 12, color: '#888' }}>One keyword per line. Optional columns: <code>keyword, target_url, tag</code></p>
+          <p style={{ margin: '8px 0 16px', fontSize: 12, color: 'var(--text-subtle)' }}>One keyword per line. Optional columns: <code>keyword, target_url, tag</code></p>
           <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <textarea className="input" style={{ minHeight: 160, resize: 'vertical', fontFamily: 'monospace', fontSize: 12 }}
               placeholder={'enamel mug\nenamel teapot, https://falconenamelware.com/collections, tableware'}
@@ -799,7 +799,7 @@ export default function ClientSEOPage() {
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
               padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '2px solid var(--accent)',
-              background: kwView === v ? 'var(--accent)' : '#fff', color: kwView === v ? 'var(--accent-on)' : '#444',
+              background: kwView === v ? 'var(--accent)' : 'var(--surface)', color: kwView === v ? 'var(--accent-on)' : 'var(--text-muted)',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
             }}>{label}</button>
           ))}
@@ -830,7 +830,7 @@ export default function ClientSEOPage() {
           </thead>
           <tbody>
             {sorted.length === 0 ? (
-              <tr><td colSpan={10} style={{ textAlign: 'center', color: '#888' }}>No keywords yet — add one above</td></tr>
+              <tr><td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No keywords yet — add one above</td></tr>
             ) : groupBy === 'none' ? (
               sorted.map(renderKeywordRow)
             ) : (
@@ -840,11 +840,11 @@ export default function ClientSEOPage() {
                 const avg = ranked.length ? Math.round(ranked.reduce((sum, k) => sum + k.current_position, 0) / ranked.length) : null;
                 return (
                   <React.Fragment key={group.label}>
-                    <tr onClick={() => toggleGroup(group.label)} style={{ cursor: 'pointer', background: '#eee' }}>
+                    <tr onClick={() => toggleGroup(group.label)} style={{ cursor: 'pointer', background: 'var(--accent-soft)' }}>
                       <td colSpan={10} style={{ fontWeight: 700, fontSize: 12 }}>
-                        <span style={{ display: 'inline-block', width: 18, color: '#888' }}>{collapsed ? '▶' : '▼'}</span>
+                        <span style={{ display: 'inline-block', width: 18, color: 'var(--text-subtle)' }}>{collapsed ? '▶' : '▼'}</span>
                         {group.label}
-                        <span style={{ marginLeft: 10, fontWeight: 400, color: '#888' }}>
+                        <span style={{ marginLeft: 10, fontWeight: 400, color: 'var(--text-subtle)' }}>
                           {group.keywords.length} keyword{group.keywords.length === 1 ? '' : 's'}{avg !== null ? ` · avg position ${avg}` : ''}
                         </span>
                       </td>
@@ -863,14 +863,14 @@ export default function ClientSEOPage() {
       {kwView === 'history' && (
       <div className="card" style={{ overflowX: 'auto' }}>
         {rankMatrixLoading ? (
-          <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading rank history…</div>
+          <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading rank history…</div>
         ) : !rankMatrix || rankMatrix.dates.length === 0 ? (
-          <div style={{ padding: 20, color: '#888', fontSize: 13 }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
+          <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>No rank history yet — positions appear here once daily checks run or legacy data is imported.</div>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th style={{ cursor: 'pointer', userSelect: 'none', position: 'sticky', left: 0, background: '#f9f9f9', zIndex: 2 }} onClick={() => toggleSort('keyword')}>
+                <th style={{ cursor: 'pointer', userSelect: 'none', position: 'sticky', left: 0, background: 'var(--surface-raised)', zIndex: 2 }} onClick={() => toggleSort('keyword')}>
                   Keyword{sortKey === 'keyword' ? (sortDir === 'asc' ? ' ▲' : ' ▼') : ''}
                 </th>
                 <th style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }} onClick={() => toggleSort('location')}>
@@ -890,8 +890,8 @@ export default function ClientSEOPage() {
                 const expanded = expandedId === kw.id;
                 return (
                   <React.Fragment key={kw.id}>
-                  <tr style={{ cursor: 'pointer', background: expanded ? '#fafafa' : undefined }} onClick={() => toggleExpand(kw)}>
-                    <td style={{ position: 'sticky', left: 0, background: expanded ? '#fafafa' : '#fff', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
+                  <tr style={{ cursor: 'pointer', background: expanded ? 'var(--surface-raised)' : undefined }} onClick={() => toggleExpand(kw)}>
+                    <td style={{ position: 'sticky', left: 0, background: expanded ? 'var(--surface-raised)' : 'var(--surface)', fontWeight: 600, fontSize: 13, zIndex: 1 }}>{kw.keyword}</td>
                     <td ><span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span></td>
                     {rankMatrix.dates.map(d => {
                       const cell = kwHist[d];
@@ -904,7 +904,7 @@ export default function ClientSEOPage() {
                   </tr>
                   {expanded && (
                     <tr>
-                      <td colSpan={2 + rankMatrix.dates.length} style={{ padding: 0, background: '#fafafa', borderBottom: '1px solid #e8e8e8' }}>
+                      <td colSpan={2 + rankMatrix.dates.length} style={{ padding: 0, background: 'var(--surface-raised)', borderBottom: '1px solid #e8e8e8' }}>
                         <ExpandedChart kw={kw} rankMatrix={rankMatrix} range={expandRange} setRange={setExpandRange} />
                       </td>
                     </tr>
@@ -919,7 +919,7 @@ export default function ClientSEOPage() {
       )}
 
       {(kwView === 'current' || (rankMatrix && rankMatrix.dates.length > 0)) && (
-        <p style={{ marginTop: 10, fontSize: 11, color: '#aaa' }}>
+        <p style={{ marginTop: 10, fontSize: 11, color: 'var(--text-subtle)' }}>
           <strong>Bold</strong> = live DataForSEO data · <em>italic</em> = imported legacy data ·
           green = top 10 · orange = 11–100 · click a keyword for its position graph.
         </p>
@@ -943,7 +943,7 @@ export default function ClientSEOPage() {
             </thead>
             <tbody>
               {seoMetrics.slice(0, 6).length === 0 ? (
-                <tr><td colSpan={6} style={{ textAlign: 'center', color: '#888' }}>No metrics yet — enter values below</td></tr>
+                <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No metrics yet — enter values below</td></tr>
               ) : seoMetrics.slice(0, 6).map((m, i) => {
                 const monthLabel = m.month
                   ? new Date(m.month).toLocaleDateString('en-GB', { month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -954,7 +954,7 @@ export default function ClientSEOPage() {
                     <td >{m.moz_da ?? '—'}</td>
                     <td >{m.authority_score ?? '—'}</td>
                     <td >{m.referring_domains != null ? Number(m.referring_domains).toLocaleString('en-GB') : '—'}</td>
-                    <td style={{ maxWidth: 200, color: '#666' }}>{m.notes || '—'}</td>
+                    <td style={{ maxWidth: 200, color: 'var(--text-muted)' }}>{m.notes || '—'}</td>
                     <td >
                       <button
                         className="btn btn-secondary btn-sm"
@@ -979,7 +979,7 @@ export default function ClientSEOPage() {
 
         {/* Inline edit / entry form */}
         <form onSubmit={handleSaveSeoMetrics} style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
             {seoMetricEdit.month
               ? `Editing: ${new Date(seoMetricEdit.month).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}`
               : 'Enter / update metrics'}
@@ -1018,7 +1018,7 @@ export default function ClientSEOPage() {
           </div>
 
           {backlinksLoading && !backlinks && (
-            <div className="card" style={{ color: '#888', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
+            <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Fetching backlink data from DataForSEO…</div>
           )}
 
           {backlinksError && (
@@ -1028,7 +1028,7 @@ export default function ClientSEOPage() {
           )}
 
           {!backlinksError && backlinks?.empty && (
-            <div className="card" style={{ color: '#888', fontSize: 13 }}>
+            <div className="card" style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
               No backlink data returned for <strong>{backlinks.domain}</strong> yet.
             </div>
           )}
@@ -1046,7 +1046,7 @@ export default function ClientSEOPage() {
                 { label: 'Spam Score', val: backlinks.spam_score },
               ].map(m => (
                 <div key={m.label} className="card">
-                  <div className="metric" style={{ color: m.color || '#1a1a1a' }}>
+                  <div className="metric" style={{ color: m.color || 'var(--text)' }}>
                     {m.val == null ? '—' : Number(m.val).toLocaleString('en-GB')}
                   </div>
                   <div className="caption">{m.label}</div>
@@ -1055,7 +1055,7 @@ export default function ClientSEOPage() {
             </div>
           )}
 
-          <p style={{ marginTop: 16, color: '#aaa', fontSize: 12 }}>
+          <p style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 12 }}>
             Live data from DataForSEO for the domain set on the <strong>Details</strong> tab. Each refresh runs a new query.
           </p>
         </div>

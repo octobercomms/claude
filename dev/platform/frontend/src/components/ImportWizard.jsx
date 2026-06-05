@@ -206,7 +206,7 @@ export default function ImportWizard({
             <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={onPickFile} />
             <div style={{ marginTop: 14 }}>
               <button onClick={() => fileRef.current?.click()} style={btn}>Choose CSV file</button>
-              {file && <span style={{ marginLeft: 12, fontSize: 12, color: '#666' }}>{file.name}</span>}
+              {file && <span style={{ marginLeft: 12, fontSize: 12, color: 'var(--text-muted)' }}>{file.name}</span>}
             </div>
           </div>
         )}
@@ -223,7 +223,7 @@ export default function ImportWizard({
                   <tr>
                     {headers.map(h => (
                       <th key={h} style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '1px solid #ddd', minWidth: 140 }}>
-                        <div style={{ fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>{h}</div>
+                        <div style={{ fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{h}</div>
                         <select
                           value={mapping[h] || ''}
                           onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
@@ -241,7 +241,7 @@ export default function ImportWizard({
                   {previewRows.map((row, i) => (
                     <tr key={i}>
                       {row.map((cell, j) => (
-                        <td key={j} style={{ padding: '6px 10px', borderTop: '1px solid #f4f4f4', color: '#666', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <td key={j} style={{ padding: '6px 10px', borderTop: '1px solid #f4f4f4', color: 'var(--text-muted)', whiteSpace: 'nowrap', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {cell}
                         </td>
                       ))}
@@ -252,7 +252,7 @@ export default function ImportWizard({
             </div>
 
             <div style={{ marginTop: 18 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Apply these tags to every imported contact
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
@@ -269,7 +269,7 @@ export default function ImportWizard({
               </div>
               {!!knownTags.length && (
                 <div>
-                  <div style={{ fontSize: 11, color: '#888', marginBottom: 4 }}>Existing tags — click to add:</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 4 }}>Existing tags — click to add:</div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {knownTags.slice(0, 24).filter(t => !tags.has(t.tag)).map(t => (
                       <button key={t.tag} onClick={() => toggleTag(t.tag)} style={tagChip}>
@@ -283,11 +283,11 @@ export default function ImportWizard({
 
             {allowClients && (
               <div style={{ marginTop: 18 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                   Also attach to (optional)
                 </div>
                 {!clients.length
-                  ? <div style={{ fontSize: 12, color: '#888' }}>No clients to choose — contacts will land in the library only.</div>
+                  ? <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No clients to choose — contacts will land in the library only.</div>
                   : (
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                       {clients.map(c => (
@@ -309,7 +309,7 @@ export default function ImportWizard({
               </button>
             </div>
             {!mappingHasEmail && (
-              <div style={{ fontSize: 11, color: '#c62828', marginTop: 6 }}>Map one column to Email to continue.</div>
+              <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 6 }}>Map one column to Email to continue.</div>
             )}
           </div>
         )}
@@ -317,7 +317,7 @@ export default function ImportWizard({
         {step === 3 && !result && (
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
-            <div style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
+            <div style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
               <div><strong>{builtRows.length}</strong> contacts with a valid email</div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
               {clientIdForAttach && <div>Attach to: <strong>this client</strong></div>}
@@ -379,16 +379,16 @@ function splitCsvLine(line) {
 }
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const modal = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const modal = { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 };
-const eyebrow = { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
-const closeBtn = { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 };
-const hint = { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 };
+const eyebrow = { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
+const closeBtn = { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 };
+const hint = { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 };
 const footer = { display: 'flex', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #eee' };
-const btn = { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
-const ghostBtn = { background: '#fff', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
+const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
 const input = { padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' };
-const select = { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff', cursor: 'pointer', width: '100%' };
-const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#444', cursor: 'pointer' };
-const tagChipOn = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer' };
-const errBox = { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 };
+const select = { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)', cursor: 'pointer', width: '100%' };
+const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
+const tagChipOn = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
+const errBox = { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 };

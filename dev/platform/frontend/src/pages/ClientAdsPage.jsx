@@ -134,9 +134,9 @@ export default function ClientAdsPage() {
   function MetricCard({ label, value, sub }) {
     return (
       <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
-        <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
-        <div style={{ fontSize: 24, fontWeight: 700, color: '#1a1a1a' }}>{value ?? '—'}</div>
-        {sub && <div style={{ fontSize: 11, color: '#aaa', marginTop: 2 }}>{sub}</div>}
+        <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{value ?? '—'}</div>
+        {sub && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{sub}</div>}
       </div>
     );
   }
@@ -177,16 +177,16 @@ export default function ClientAdsPage() {
           <div className="hero-actions">
             {[7, 14, 30, 90].map(d => (
               <button key={d} onClick={() => handlePeriodChange(d)}
-                style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: days === d ? 'var(--accent)' : '#fff', color: days === d ? 'var(--accent-on)' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {d}d
               </button>
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999 }}>
-              <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 999 }}>
+              <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
               <input type="number" min="0" max="100" step="1" value={adsMarginInput}
                 onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
                 style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
-              <span style={{ fontSize: 11, color: '#888' }}>%</span>
+              <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>%</span>
             </div>
           </div>
         )}
@@ -209,12 +209,12 @@ export default function ClientAdsPage() {
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>
           {showGoogleTab && (
-            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'google' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'google' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
               Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
           {showMetaTab && (
-            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? '#1a1a1a' : '#888', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
               Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
@@ -222,13 +222,13 @@ export default function ClientAdsPage() {
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#888' }}>Loading ads data…</div>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)' }}>Loading ads data…</div>
       ) : adsData?.error ? (
         <div className="text-negative" style={{ padding: 20, fontSize: 14 }}>Error: {adsData.error}</div>
       ) : noConnectors ? (
-        <div style={{ textAlign: 'center', padding: 60, color: '#888', fontSize: 14 }}>
+        <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)', fontSize: 14 }}>
           No active Google Ads or Meta Ads connectors found for this client.<br />
-          <span style={{ fontSize: 12, color: '#aaa' }}>Connect them on the client's Connectors tab, then return here.</span>
+          <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
         </div>
       ) : (
         <>
@@ -236,7 +236,7 @@ export default function ClientAdsPage() {
             <div>
               {googleEntries.filter(g => !g.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(googleTotal.spend)} />
                     <MetricCard label="Total Revenue" value={googleTotal.revenue > 0 ? fmtCurrency(googleTotal.revenue) : '—'} />
@@ -250,7 +250,7 @@ export default function ClientAdsPage() {
               )}
               {googleEntries.map((g, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
-                  {g.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{g.store_label}</div>}
+                  {g.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{g.store_label}</div>}
                   {g.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{g.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -265,9 +265,9 @@ export default function ClientAdsPage() {
                       {g.campaigns?.length > 0 && (
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                            <thead><tr style={{ background: '#f5f5f5' }}>
+                            <thead><tr style={{ background: 'var(--surface-sunken)' }}>
                               {['Campaign', 'Spend', 'Revenue', 'Profit', 'ROAS', 'Clicks', 'Conv.'].map(h => (
-                                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
+                                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
                               ))}
                             </tr></thead>
                             <tbody>
@@ -301,7 +301,7 @@ export default function ClientAdsPage() {
             <div>
               {metaEntries.filter(m => !m.error).length > 1 && (
                 <div style={{ marginBottom: 28 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>All Countries — Combined</div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <MetricCard label="Total Spend" value={fmtCurrency(metaTotal.spend)} />
                     <MetricCard label="Total Revenue" value={metaTotal.revenue > 0 ? fmtCurrency(metaTotal.revenue) : '—'} />
@@ -315,7 +315,7 @@ export default function ClientAdsPage() {
               )}
               {metaEntries.map((m, i) => (
                 <div key={i} style={{ marginBottom: 28 }}>
-                  {m.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: '#444', marginBottom: 10 }}>{m.store_label}</div>}
+                  {m.store_label && <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 10 }}>{m.store_label}</div>}
                   {m.error ? <div className="text-negative" style={{ fontSize: 13, marginBottom: 8 }}>{m.error}</div> : (
                     <>
                       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -330,9 +330,9 @@ export default function ClientAdsPage() {
                       {m.campaigns?.length > 0 && (
                         <div style={{ overflowX: 'auto' }}>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                            <thead><tr style={{ background: '#f5f5f5' }}>
+                            <thead><tr style={{ background: 'var(--surface-sunken)' }}>
                               {['Campaign', 'Spend', 'Clicks', 'Impressions'].map(h => (
-                                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: '#555', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
+                                <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 600, color: 'var(--text-muted)', borderBottom: '1px solid #e8e8e8' }}>{h}</th>
                               ))}
                             </tr></thead>
                             <tbody>

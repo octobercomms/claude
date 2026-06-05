@@ -144,10 +144,10 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
                     <li>"Same as last month, but add a Meta Ads block and drop the SEO table."</li>
                     <li>"Just three things: total spend, total revenue, and net per channel."</li>
                   </ul>
-                  <div style={{ marginTop: 8, fontSize: 12, color: '#666' }}>
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-muted)' }}>
                     Or attach a PDF/image of an old report (📎) and Claude will recreate it as a template.
                   </div>
-                  <div style={{ marginTop: 8, fontSize: 12, color: '#999' }}>
+                  <div style={{ marginTop: 8, fontSize: 12, color: 'var(--text-subtle)' }}>
                     Connectors available: {connectors.length ? connectors.map(c => `${c.type}${c.storeLabel ? ` (${c.storeLabel})` : ''}`).join(', ') : '(none configured)'}
                   </div>
                 </div>
@@ -162,7 +162,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             </div>
             {attachment && (
               <div className="chip chip-accent" style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
                 <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
@@ -211,7 +211,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
             {proposed ? (
               <TemplatePreview template={proposed} onChange={setProposed} />
             ) : (
-              <div style={{ fontSize: 12, color: '#888' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
                 {saved ? 'A template is locked. Ask Claude to change it.' : 'Ask Claude for a starting point.'}
               </div>
             )}
@@ -242,7 +242,7 @@ function GeneratingDots() {
     <span style={{ display: 'inline-flex', gap: 3, alignItems: 'center' }}>
       {[0, 1, 2].map(i => (
         <span key={i} style={{
-          width: 5, height: 5, borderRadius: '50%', background: '#888', display: 'inline-block',
+          width: 5, height: 5, borderRadius: '50%', background: 'var(--text-subtle)', display: 'inline-block',
           animation: 'pulse-dot 1.2s ease-in-out infinite',
           animationDelay: `${i * 0.2}s`,
         }} />
@@ -279,20 +279,20 @@ function TemplatePreview({ template, onChange }) {
             </span>
           </div>
           {s.sources && (
-            <div style={{ color: '#666', marginTop: 3 }}>
+            <div style={{ color: 'var(--text-muted)', marginTop: 3 }}>
               sources: {Array.isArray(s.sources)
                 ? s.sources.map(src => typeof src === 'string' ? src : `${src.type}${src.storeLabel ? `:${src.storeLabel}` : ''}`).join(', ')
                 : String(s.sources)}
             </div>
           )}
-          {s.metrics && <div style={{ color: '#666' }}>metrics: {s.metrics.join(', ')}{s.aggregate ? ` (${s.aggregate})` : ''}</div>}
-          {s.dimension && <div style={{ color: '#666' }}>dimension: {s.dimension} / {s.metric}</div>}
-          {s.compare === 'yoy' && <div style={{ color: '#2e7d32', marginTop: 2, fontWeight: 600 }}>compare: year-on-year</div>}
-          {s.prompt && <div style={{ color: '#666', marginTop: 4, fontStyle: 'italic' }}>"{s.prompt}"</div>}
+          {s.metrics && <div style={{ color: 'var(--text-muted)' }}>metrics: {s.metrics.join(', ')}{s.aggregate ? ` (${s.aggregate})` : ''}</div>}
+          {s.dimension && <div style={{ color: 'var(--text-muted)' }}>dimension: {s.dimension} / {s.metric}</div>}
+          {s.compare === 'yoy' && <div style={{ color: 'var(--positive)', marginTop: 2, fontWeight: 600 }}>compare: year-on-year</div>}
+          {s.prompt && <div style={{ color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>"{s.prompt}"</div>}
           {/* Per-section auto-insight toggle — only relevant for non-narrative
               section types (narrative sections ARE the prose themselves). */}
           {onChange && s.type !== 'narrative' && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, color: '#555', cursor: 'pointer', userSelect: 'none' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 6, color: 'var(--text-muted)', cursor: 'pointer', userSelect: 'none' }}>
               <input
                 type="checkbox"
                 checked={s.insight !== false}
@@ -303,7 +303,7 @@ function TemplatePreview({ template, onChange }) {
           )}
         </div>
       ))}
-      {!sections.length && <div style={{ color: '#888' }}>(empty)</div>}
+      {!sections.length && <div style={{ color: 'var(--text-subtle)' }}>(empty)</div>}
     </div>
   );
 }

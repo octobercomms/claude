@@ -66,7 +66,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
   }
 
   if (!campaign) {
-    return <div style={{ color: '#888', padding: 24 }}>Loading campaign…</div>;
+    return <div style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading campaign…</div>;
   }
 
   return (
@@ -78,7 +78,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
       </div>
 
       {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
-      <div style={{ display: 'flex', alignItems: 'center', background: '#fff', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
         {STEPS.map(({ key, label }, idx) => {
           // Click freely up to the high-water mark — both back and
           // forward — so reopening a draft doesn't force re-entering
@@ -242,13 +242,13 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
       {refined && (
         <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid #f0f0f0' }}>
           <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 6 }}>Refined description</div>
-          <p style={{ fontSize: 13, color: '#333', margin: '0 0 12px', lineHeight: 1.6 }}>{refined.refined_description}</p>
+          <p style={{ fontSize: 13, color: 'var(--text)', margin: '0 0 12px', lineHeight: 1.6 }}>{refined.refined_description}</p>
           {refined.rationale && (
-            <p style={{ fontSize: 12, color: '#888', fontStyle: 'italic', margin: '0 0 14px' }}>{refined.rationale}</p>
+            <p style={{ fontSize: 12, color: 'var(--text-subtle)', fontStyle: 'italic', margin: '0 0 14px' }}>{refined.rationale}</p>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>
                 Target domains ({refined.domains.length})
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -259,7 +259,7 @@ function StepAudience({ campaign, setCampaign, onBack, onNext }) {
               <AddPill onAdd={addDomain} placeholder="+ add domain" />
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', marginBottom: 6 }}>
+              <div style={{ fontWeight: 700, fontSize: 12, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--text-muted)', marginBottom: 6 }}>
                 Job titles ({refined.job_titles.length})
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -371,19 +371,19 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
       {mode === 'find' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
-            <div style={{ fontSize: 13, color: '#444' }}>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               Searching domains <strong>{batchIdx * 8 + 1}</strong>–<strong>{Math.min((batchIdx + 1) * 8, allDomains.length)}</strong> of {allDomains.length}
             </div>
             <button onClick={searchNext} disabled={searching || nextBatch.length === 0} className="btn btn-primary">
               {searching ? 'Searching…' : nextBatch.length === 0 ? 'No more domains' : `Search next ${nextBatch.length} ${nextBatch.length === 1 ? 'domain' : 'domains'}`}
             </button>
-            <span style={{ fontSize: 12, color: '#888' }}>Hunter.io + Icypeas in parallel, deduped by email.</span>
+            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Hunter.io + Icypeas in parallel, deduped by email.</span>
           </div>
           {foundContacts.length > 0 && (
             <ResultsTable rows={foundContacts} selected={selectedFound} onToggle={toggleFound} />
           )}
           {foundContacts.length === 0 && batchIdx === 0 && (
-            <p style={{ fontSize: 12, color: '#888' }}>Click “Search next” above to start finding contacts at the refined-audience domains.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Click “Search next” above to start finding contacts at the refined-audience domains.</p>
           )}
         </div>
       )}
@@ -399,7 +399,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
               onChange={e => setFilter(f => ({ ...f, location: e.target.value }))} />
           </div>
           {existing.length === 0 ? (
-            <p style={{ fontSize: 12, color: '#888' }}>No contacts match these filters.</p>
+            <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No contacts match these filters.</p>
           ) : (
             <ExistingTable rows={existing} selected={selectedExisting} onToggle={toggleExisting} />
           )}
@@ -408,7 +408,7 @@ function StepContacts({ campaign, clientId, onBack, onNext }) {
 
       <Footer>
         <button onClick={onBack} className="btn btn-secondary">← Back</button>
-        <span style={{ fontSize: 12, color: '#666' }}>{totalSelected} selected</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{totalSelected} selected</span>
         <button onClick={saveAndContinue} disabled={saving || totalSelected === 0} className="btn btn-primary">
           {saving ? 'Saving…' : 'Next: Write Emails →'}
         </button>
@@ -494,13 +494,13 @@ function StepEmails({ campaign, onBack, onNext }) {
         <button onClick={generate} disabled={generating} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
-        <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up at day 4, final nudge at day 9.</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>3 emails — initial, follow-up at day 4, final nudge at day 9.</span>
       </div>
-      {steps === null && <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>}
-      {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: '#888' }}>No sequence yet — generate one with Claude.</p>}
+      {steps === null && <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</p>}
+      {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>}
       {steps && steps.map(stp => (
-        <div key={stp.id} style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
           <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
@@ -533,27 +533,27 @@ function StepEmails({ campaign, onBack, onNext }) {
           <div style={previewModal} onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
               <div>
-                <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
+                <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700 }}>
                   Step {previewStep.step_number} preview
                 </div>
                 {previewStep.sample && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 2 }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                     As if sent to: <strong>{previewStep.sample.name || previewStep.sample.email}</strong>
                     {previewStep.sample.company && <> · {previewStep.sample.company}</>}
                   </div>
                 )}
               </div>
-              <button onClick={() => setPreviewStep(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888' }}>×</button>
+              <button onClick={() => setPreviewStep(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)' }}>×</button>
             </div>
             {previewLoading || !previewStep.html ? (
-              <div style={{ padding: 30, textAlign: 'center', color: '#888' }}>Rendering…</div>
+              <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-subtle)' }}>Rendering…</div>
             ) : (
               <>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#444', marginBottom: 4 }}>Subject</div>
-                <div style={{ padding: '8px 10px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
-                  {previewStep.subject || <em style={{ color: '#bbb' }}>(empty)</em>}
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>Subject</div>
+                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
+                  {previewStep.subject || <em style={{ color: 'var(--text-subtle)' }}>(empty)</em>}
                 </div>
-                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }} sandbox="" />
+                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }} sandbox="" />
               </>
             )}
           </div>
@@ -564,7 +564,7 @@ function StepEmails({ campaign, onBack, onNext }) {
 }
 
 const previewOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const previewModal = { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const previewModal = { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 
 // ─── Step 5 ─────────────────────────────────────────────────────────────────
 function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
@@ -603,7 +603,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
   return (
     <div className="card">
       <H>Pre-send report</H>
-      <p style={{ fontSize: 13, color: '#555', marginTop: 0 }}>Quick check before the campaign goes out — blockers stop the launch, warnings are worth a look.</p>
+      <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 0 }}>Quick check before the campaign goes out — blockers stop the launch, warnings are worth a look.</p>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 14 }}>
         <Summary label="Campaign" value={campaign.name} />
@@ -614,7 +614,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
         <Summary label="Contacts enrolled" value={String(campaign.contact_count || 0)} />
       </div>
 
-      {loading && <div style={{ marginTop: 18, color: '#888', fontSize: 13 }}>Running readiness checks…</div>}
+      {loading && <div style={{ marginTop: 18, color: 'var(--text-subtle)', fontSize: 13 }}>Running readiness checks…</div>}
 
       {!loading && (
         <>
@@ -635,15 +635,15 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
           />
 
           {/* Stats — informational */}
-          <div style={{ marginTop: 18, padding: 12, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, fontSize: 12, color: '#444', lineHeight: 1.7 }}>
-            <div style={{ fontWeight: 700, fontSize: 11, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
+          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
             <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
             {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
             {stats.previously_unsubscribed != null && <div>Previously unsubscribed (will be skipped): <strong>{stats.previously_unsubscribed}</strong></div>}
             {stats.free_mail != null && <div>Free-mail addresses (gmail / hotmail / etc): <strong>{stats.free_mail}</strong></div>}
             {stats.duplicates ? <div>Duplicate emails in list: <strong>{stats.duplicates}</strong></div> : null}
             {stats.sending_domain && <div>Sending domain: <strong>{stats.sending_domain}</strong> — SPF {stats.dns?.spf}, DKIM {stats.dns?.dkim}, DMARC {stats.dns?.dmarc}</div>}
-            {stats.ses?.in_sandbox === true && <div style={{ color: '#c62828' }}>SES: in sandbox</div>}
+            {stats.ses?.in_sandbox === true && <div style={{ color: 'var(--negative)' }}>SES: in sandbox</div>}
             {stats.ses?.in_sandbox === false && <div>SES: production access</div>}
             {stats.ses?.in_sandbox == null && stats.ses?.configured && <div>SES status unknown ({stats.ses.error || 'no GetAccount response'})</div>}
             {stats.estimated_send_days ? <div>Estimated send window: <strong>~{stats.estimated_send_days} day{stats.estimated_send_days === 1 ? '' : 's'}</strong> at standard pacing</div> : null}
@@ -743,7 +743,7 @@ function Tag({ children, onRemove }) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: '#f1f1f1', border: '2px solid var(--accent)', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
       {children}
-      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
+      <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>
   );
 }
@@ -761,7 +761,7 @@ function AddPill({ onAdd, placeholder }) {
 function Summary({ label, value }) {
   return (
     <div>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{label}</div>
       <div style={{ fontSize: 14, fontWeight: 600 }}>{value || '—'}</div>
     </div>
   );
@@ -770,7 +770,7 @@ function H({ children }) { return <h2 style={{ fontSize: 16, fontWeight: 700, ma
 function Field({ label, children, full }) {
   return (
     <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
       {children}
     </div>
   );

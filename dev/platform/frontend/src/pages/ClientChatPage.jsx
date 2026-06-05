@@ -21,13 +21,13 @@ const MD_COMPONENTS = {
       <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>{children}</table>
     </div>
   ),
-  th: ({ children }) => <th style={{ border: '2px solid var(--accent)', background: '#f3f3f3', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
+  th: ({ children }) => <th style={{ border: '2px solid var(--accent)', background: 'var(--surface-sunken)', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
   td: ({ children }) => <td style={{ border: '2px solid var(--accent)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
   code: ({ inline, children }) => inline
     ? <code style={{ background: '#f4f4f4', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
     : <code style={{ display: 'block', background: '#f6f6f6', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
   pre: ({ children }) => <pre style={{ background: 'transparent', padding: 0, margin: 0 }}>{children}</pre>,
-  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: '#555', fontStyle: 'italic' }}>{children}</blockquote>,
+  blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</blockquote>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '10px 0' }} />,
   a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>{children}</a>,
 };
@@ -44,10 +44,10 @@ const TOOL_LABELS = {
 };
 
 const TYPE_COLOURS = {
-  decision: '#1565c0',
+  decision: 'var(--accent)',
   investigation: '#e65100',
   pending: '#6a1b9a',
-  observation: '#2e7d32',
+  observation: 'var(--positive)',
 };
 
 const TYPE_BG = {
@@ -189,7 +189,7 @@ export default function ClientChatPage() {
     }
   }
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   const openEntries = contextLog.filter(e => e.status === 'open');
   const resolvedEntries = contextLog.filter(e => e.status === 'resolved');
@@ -224,10 +224,10 @@ export default function ClientChatPage() {
         <div className="chat-thread">
           {messages.length === 0 && !sending && (
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 15, color: '#444', marginBottom: 8, fontWeight: 600 }}>
+              <div style={{ fontSize: 15, color: 'var(--text-muted)', marginBottom: 8, fontWeight: 600 }}>
                 Start investigating {client?.name}
               </div>
-              <div style={{ fontSize: 13, color: '#888', marginBottom: 24, maxWidth: 480, margin: '0 auto 24px' }}>
+              <div style={{ fontSize: 13, color: 'var(--text-subtle)', marginBottom: 24, maxWidth: 480, margin: '0 auto 24px' }}>
                 Claude can pull live data, spot anomalies, check rankings, and log decisions — ask anything.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, maxWidth: 540, margin: '0 auto' }}>
@@ -298,10 +298,10 @@ export default function ClientChatPage() {
           {attachedFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {attachedFiles.map((f, i) => (
-                <span key={i} style={{ fontSize: 12, background: '#f5f5f5', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span key={i} style={{ fontSize: 12, background: 'var(--surface-sunken)', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                   📎 {f.name}
                   <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
                 </span>
               ))}
             </div>
@@ -333,13 +333,13 @@ export default function ClientChatPage() {
 
       {/* Context log sidebar */}
       <div className="chat-sidebar">
-        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: '#1a1a1a' }}>
+        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: 'var(--text)' }}>
           Context Log
-          <span style={{ fontWeight: 400, color: '#888', marginLeft: 6 }}>{openEntries.length} open</span>
+          <span style={{ fontWeight: 400, color: 'var(--text-subtle)', marginLeft: 6 }}>{openEntries.length} open</span>
         </div>
 
         {openEntries.length === 0 && (
-          <div style={{ fontSize: 12, color: '#999', marginBottom: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 12 }}>
             No open items. Claude will log decisions and investigations here automatically.
           </div>
         )}
@@ -352,8 +352,8 @@ export default function ClientChatPage() {
               </span>
               <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 11, padding: "0 2px" }} title="Remove">✕</button>
             </div>
-            <div style={{ fontSize: 12, color: '#333', marginTop: 4, lineHeight: 1.5 }}>{entry.content}</div>
-            <div style={{ fontSize: 10, color: '#999', marginTop: 6 }}>
+            <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 4, lineHeight: 1.5 }}>{entry.content}</div>
+            <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 6 }}>
               {new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
             </div>
           </div>
@@ -367,8 +367,8 @@ export default function ClientChatPage() {
 
         {showResolved && resolvedEntries.map(entry => (
           <div key={entry.id} style={{ opacity: 0.5, textDecoration: 'line-through', borderLeft: '3px solid #ccc' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>{entry.type}</div>
-            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{entry.content}</div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase' }}>{entry.type}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{entry.content}</div>
           </div>
         ))}
       </div>
@@ -379,7 +379,7 @@ export default function ClientChatPage() {
 
 const suggestionStyle = {
   padding: '10px 14px', background: 'white', border: '2px solid var(--accent)',
-  borderRadius: 8, cursor: 'pointer', fontSize: 12, color: '#444',
+  borderRadius: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)',
   textAlign: 'left', lineHeight: 1.4,
 };
 

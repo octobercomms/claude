@@ -295,7 +295,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             </div>
             {attachment && (
               <div className="chip chip-accent" style={{ marginTop: 8 }}>
-                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: '#888' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
+                <span style={{ fontSize: 12 }}>📎 {attachment.name} <span style={{ color: 'var(--text-subtle)' }}>({Math.round(attachment.size / 1024)}KB)</span></span>
                 <button type="button" onClick={() => { setAttachment(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="btn-ghost" style={{ fontSize: 16, padding: "0 2px" }} title="Remove attachment">×</button>
               </div>
             )}
@@ -337,7 +337,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             {proposed ? (
               <PlanPreview plan={proposed} />
             ) : (
-              <div style={{ fontSize: 12, color: '#888' }}>
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
                 {saved ? 'A plan is locked. Ask Claude to change it.' : 'Tell Claude about the post.'}
               </div>
             )}
@@ -361,7 +361,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
             </div>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '0 1 auto' }}>
-                <span style={{ fontSize: 11, color: '#666' }}>Publish at</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Publish at</span>
                 <input
                   type="datetime-local"
                   value={schedule.scheduled_at}
@@ -370,7 +370,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
-                <span style={{ fontSize: 11, color: '#666' }}>Google Drive folder (where you'll drop the final media)</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Google Drive folder (where you'll drop the final media)</span>
                 <input
                   type="url"
                   placeholder="https://drive.google.com/drive/folders/..."
@@ -388,7 +388,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
               ))}
             </div>
             {schedule.scheduled_at && schedule.target_platforms.length > 0 && (
-              <div style={{ marginTop: 8, fontSize: 11, color: '#666' }}>
+              <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-muted)' }}>
                 Will publish to {schedule.target_platforms.join(', ')} on {new Date(schedule.scheduled_at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.
               </div>
             )}
@@ -398,7 +398,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   const t = publishTargets[p];
                   if (!t) return null;
                   return (
-                    <div key={p} style={{ color: t.ok ? '#2e7d32' : '#c62828' }}>
+                    <div key={p} style={{ color: t.ok ? 'var(--positive)' : 'var(--negative)' }}>
                       <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{p}:</span> {t.ok ? `posts as ${t.label}` : t.label}
                     </div>
                   );
@@ -416,18 +416,18 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {driveFiles !== null && (
                   <div style={{ marginTop: 6, fontSize: 11 }}>
                     {driveFiles.length === 0 ? (
-                      <div style={{ color: '#c62828' }}>No video / image files found yet. Drop the final media into the folder and re-check.</div>
+                      <div style={{ color: 'var(--negative)' }}>No video / image files found yet. Drop the final media into the folder and re-check.</div>
                     ) : (
                       <>
-                        <div style={{ color: '#2e7d32', marginBottom: 4 }}>
+                        <div style={{ color: 'var(--positive)', marginBottom: 4 }}>
                           {driveFiles.length} file{driveFiles.length === 1 ? '' : 's'} found.
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                           {driveFiles.slice(0, 8).map(f => (
                             <div key={f.id} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
-                              <span style={{ color: '#666' }}>{f.name}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{f.name}</span>
                               {f.aspect_ratio && (
-                                <span style={{ color: '#888', fontSize: 10 }}>
+                                <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>
                                   {f.width}×{f.height}
                                   {f.duration_ms ? ` · ${Math.round(f.duration_ms / 1000)}s` : ''}
                                 </span>
@@ -464,7 +464,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(captionPreview).map(([platform, text]) => (
                       <div key={platform} style={{ padding: '8px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, fontSize: 12, whiteSpace: 'pre-wrap' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
                         {text}
                       </div>
                     ))}
@@ -481,7 +481,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 <button type="button" onClick={publishNow} disabled={publishing} className="btn btn-primary btn-sm">
                   {publishing ? 'Publishing…' : '🚀 Publish now'}
                 </button>
-                <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>
+                <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>
                   Or wait — the scheduler will pick this up at the time above.
                 </span>
                 {publications && publications.length > 0 && (
@@ -489,11 +489,11 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                     {publications.map(pub => (
                       <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 3, fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
-                        <span style={{ color: pub.status === 'posted' ? '#2e7d32' : pub.status === 'failed' ? '#c62828' : '#666' }}>
+                        <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}
                         </span>
                         {pub.posted_url && <a href={pub.posted_url} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', color: '#1976d2' }}>view →</a>}
-                        {pub.error_message && <span style={{ color: '#c62828', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
+                        {pub.error_message && <span style={{ color: 'var(--negative)', fontSize: 11, marginLeft: 'auto' }}>{pub.error_message}</span>}
                       </div>
                     ))}
                   </div>
@@ -533,7 +533,7 @@ function PlanPreview({ plan }) {
     <div style={{ fontSize: 12 }}>
       <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 4 }}>{plan.title || '(untitled)'}</div>
       {plan.platforms?.length > 0 && (
-        <div style={{ color: '#666', marginBottom: 6 }}>
+        <div style={{ color: 'var(--text-muted)', marginBottom: 6 }}>
           {plan.platforms.join(', ')}
           {plan.duration_seconds ? ` · ${plan.duration_seconds}s` : ''}
         </div>
@@ -541,14 +541,14 @@ function PlanPreview({ plan }) {
       {plan.framework && (
         <div style={{ marginBottom: 8 }}>
           <span className="chip chip-accent" style={{ fontSize: 10 }}>{plan.framework}</span>
-          {plan.framework_rationale && <span style={{ color: '#888', marginLeft: 6 }}>{plan.framework_rationale}</span>}
+          {plan.framework_rationale && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>{plan.framework_rationale}</span>}
         </div>
       )}
       {plan.hook?.text && (
         <div style={{ marginTop: 10 }}>
           <div className="caption mb-2">HOOK</div>
           <div style={{ fontWeight: 600 }}>{plan.hook.text}</div>
-          {plan.hook.rationale && <div style={{ color: '#888', marginTop: 2 }}>{plan.hook.rationale}</div>}
+          {plan.hook.rationale && <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{plan.hook.rationale}</div>}
         </div>
       )}
       {plan.scenes?.length > 0 && (
@@ -558,7 +558,7 @@ function PlanPreview({ plan }) {
             <div key={s.number} className="card" style={{ padding: "6px 8px", marginTop: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <strong>Scene {s.number}{s.style_code ? ` [${s.style_code}]` : ''} — {s.name}</strong>
-                <span style={{ color: '#888' }}>{s.duration_seconds ? `${s.duration_seconds}s` : ''}</span>
+                <span style={{ color: 'var(--text-subtle)' }}>{s.duration_seconds ? `${s.duration_seconds}s` : ''}</span>
               </div>
               {s.shot && <div style={{ marginTop: 3 }}>{s.shot}</div>}
               {s.bullets?.length > 0 && (
@@ -567,10 +567,10 @@ function PlanPreview({ plan }) {
                 </ul>
               )}
               {s.b_roll?.length > 0 && (
-                <div style={{ marginTop: 3, color: '#666' }}>B-roll: {s.b_roll.join(', ')}</div>
+                <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>B-roll: {s.b_roll.join(', ')}</div>
               )}
               {s.on_screen_text?.length > 0 && (
-                <div style={{ marginTop: 3, color: '#666' }}>
+                <div style={{ marginTop: 3, color: 'var(--text-muted)' }}>
                   Text: {s.on_screen_text.map((t, i) => <span key={i}>"{t.text}"{i < s.on_screen_text.length - 1 ? ', ' : ''}</span>)}
                 </div>
               )}
@@ -604,7 +604,7 @@ function PlanPreview({ plan }) {
           {plan.music.mood && <span>{plan.music.mood}</span>}
           {plan.music.tempo && <span> · {plan.music.tempo}</span>}
           {plan.music.suggestions?.length > 0 && (
-            <div style={{ color: '#666', marginTop: 2 }}>{plan.music.suggestions.join(' / ')}</div>
+            <div style={{ color: 'var(--text-muted)', marginTop: 2 }}>{plan.music.suggestions.join(' / ')}</div>
           )}
         </div>
       )}

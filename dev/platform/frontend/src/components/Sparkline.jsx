@@ -7,7 +7,7 @@ import React from 'react';
 
 export default function Sparkline({ values, width = 120, height = 28, stroke = '#1a56db', strokeWidth = 1.5, fill = null }) {
   if (!Array.isArray(values) || values.length < 2) {
-    return <span style={{ display: 'inline-block', width, height, color: '#bbb', fontSize: 10 }}>—</span>;
+    return <span style={{ display: 'inline-block', width, height, color: 'var(--text-subtle)', fontSize: 10 }}>—</span>;
   }
   const nums = values.map(v => Number(v) || 0);
   const max = Math.max(...nums, 1);
@@ -23,7 +23,7 @@ export default function Sparkline({ values, width = 120, height = 28, stroke = '
   // Compute trend direction for a quick visual cue: tail vs head.
   const head = nums[0];
   const tail = nums[nums.length - 1];
-  const dirColour = tail > head * 1.1 ? '#2e7d32' : tail < head * 0.9 ? '#c62828' : stroke;
+  const dirColour = tail > head * 1.1 ? 'var(--positive)' : tail < head * 0.9 ? 'var(--negative)' : stroke;
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width={width} height={height} style={{ verticalAlign: 'middle', overflow: 'visible' }}>

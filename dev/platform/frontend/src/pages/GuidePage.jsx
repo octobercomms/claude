@@ -331,19 +331,19 @@ function AccordionItem({ section, isOpen, onToggle }) {
   return (
     <div style={{ border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--accent-soft)', overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
-        width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? '#fafafa' : '#fff',
+        width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? 'var(--surface-raised)' : 'var(--surface)',
         border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
       }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#1a1a1a' }}>{section.title}</div>
-          <div style={{ fontSize: 12, color: '#888', marginTop: 3, lineHeight: 1.4 }}>{section.summary}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{section.title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 3, lineHeight: 1.4 }}>{section.summary}</div>
         </div>
-        <span style={{ fontSize: 18, color: '#bbb', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
+        <span style={{ fontSize: 18, color: 'var(--text-subtle)', flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
         <div style={{ padding: '4px 16px 16px 16px', borderTop: '1px solid #eee' }}>
           {section.workflow && <WorkflowDiagram workflow={section.workflow} />}
-          <ul style={{ margin: 0, padding: '8px 0 0 18px', fontSize: 13, color: '#333', lineHeight: 1.65 }}>
+          <ul style={{ margin: 0, padding: '8px 0 0 18px', fontSize: 13, color: 'var(--text)', lineHeight: 1.65 }}>
             {section.body.map((line, i) => (
               <li key={i} style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: bolden(line) }} />
             ))}
@@ -359,8 +359,8 @@ function AccordionItem({ section, isOpen, onToggle }) {
 // using CSS flex-wrap so it renders cleanly on phones too.
 function WorkflowDiagram({ workflow }) {
   return (
-    <div style={{ margin: '10px 0 14px', padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6 }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
         Workflow — {workflow.title}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'stretch', gap: 6 }}>
@@ -372,13 +372,13 @@ function WorkflowDiagram({ workflow }) {
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
               <div style={{
-                fontSize: 9, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5,
+                fontSize: 9, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5,
               }}>Step {i + 1}</div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', lineHeight: 1.2 }}>{step.label}</div>
-              <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4 }}>{step.sub}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{step.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{step.sub}</div>
             </div>
             {i < workflow.steps.length - 1 && (
-              <div style={{ display: 'flex', alignItems: 'center', color: '#bbb', fontSize: 18, flexShrink: 0 }}>→</div>
+              <div style={{ display: 'flex', alignItems: 'center', color: 'var(--text-subtle)', fontSize: 18, flexShrink: 0 }}>→</div>
             )}
           </React.Fragment>
         ))}
@@ -395,6 +395,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: '#555',
+  padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
   cursor: 'pointer', borderRadius: 999, fontWeight: 600,
 };

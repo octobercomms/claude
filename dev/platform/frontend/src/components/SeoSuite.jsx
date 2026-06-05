@@ -6,12 +6,12 @@ const intentColours = {
   Informational: { bg: '#e8f1ff', fg: '#1a4f9c' },
   Navigational:  { bg: '#f4eafd', fg: '#5e2d8c' },
   Commercial:    { bg: '#fff4d6', fg: '#8a6500' },
-  Transactional: { bg: '#e4f4e8', fg: '#1d7a3a' },
+  Transactional: { bg: '#e4f4e8', fg: 'var(--positive)' },
 };
 
 export function IntentBadge({ intent }) {
   if (!intent) return null;
-  const c = intentColours[intent] || { bg: '#eee', fg: '#666' };
+  const c = intentColours[intent] || { bg: 'var(--accent-soft)', fg: 'var(--text-muted)' };
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
@@ -58,10 +58,10 @@ export function SerpFeaturePills({ features }) {
       {items.map(label => (
         <span key={label} style={{
           fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3,
-          padding: '1px 5px', borderRadius: 3, background: '#f1f1f1', color: '#555',
+          padding: '1px 5px', borderRadius: 3, background: '#f1f1f1', color: 'var(--text-muted)',
         }}>{label}</span>
       ))}
-      {arr.length > items.length && <span style={{ fontSize: 9, color: '#999' }}>+{arr.length - items.length}</span>}
+      {arr.length > items.length && <span style={{ fontSize: 9, color: 'var(--text-subtle)' }}>+{arr.length - items.length}</span>}
     </span>
   );
 }
@@ -83,20 +83,20 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <div>
-            <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Full position history</div>
+            <div style={{ fontSize: 12, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Full position history</div>
             <h2 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700 }}>{keyword}</h2>
           </div>
           <button onClick={onClose} className="modal-close">×</button>
         </div>
         {err && <div className="callout callout-danger">{err}</div>}
-        {!rows && !err && <div style={{ padding: 20, color: '#888' }}>Loading…</div>}
-        {rows && rows.length === 0 && <div style={{ padding: 20, color: '#888' }}>No history yet — run a rank check to populate.</div>}
+        {!rows && !err && <div style={{ padding: 20, color: 'var(--text-subtle)' }}>Loading…</div>}
+        {rows && rows.length === 0 && <div style={{ padding: 20, color: 'var(--text-subtle)' }}>No history yet — run a rank check to populate.</div>}
         {rows && rows.length > 0 && (
           <>
             <HistoryChart rows={rows} />
             <div style={{ flex: 1, overflowY: "auto" }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                <thead style={{ position: 'sticky', top: 0, background: '#fafafa', borderBottom: '1px solid #ddd' }}>
+                <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-raised)', borderBottom: '1px solid #ddd' }}>
                   <tr>
                     <th className="caption" style={{ padding: "6px 8px" }}>Date</th>
                     <th className="caption" style={{ padding: "6px 8px" }}>Position</th>
@@ -112,7 +112,7 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
                       <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{r.position ?? '—'}</strong></td>
                       <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.source || 'dataforseo'}</td>
                       <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
-                        {r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{r.url.replace(/^https?:\/\//, '')}</a> : '—'}
+                        {r.url ? <a href={r.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{r.url.replace(/^https?:\/\//, '')}</a> : '—'}
                       </td>
                       <td style={{ padding: "6px 8px", fontSize: 12 }}><SerpFeaturePills features={r.serp_features} /></td>
                     </tr>
@@ -175,7 +175,7 @@ export function SearchConsoleTab({ clientId }) {
   useEffect(() => { load(); /* eslint-disable-line */ }, [days, clientId]);
 
   if (err) return <div className="callout callout-danger">{err}</div>;
-  if (loading || !queries) return <div style={{ color: '#888', padding: 20 }}>Loading Search Console data…</div>;
+  if (loading || !queries) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading Search Console data…</div>;
 
   return (
     <div>
@@ -219,7 +219,7 @@ function GSCSection({ title, rows, keyCol, cap }) {
             {data.map((r, i) => (
               <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
                 <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
-                  {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
+                  {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
                 </td>
                 <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.clicks.toLocaleString()}</td>
                 <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.impressions.toLocaleString()}</td>
@@ -227,7 +227,7 @@ function GSCSection({ title, rows, keyCol, cap }) {
                 <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.position.toFixed(1)}</td>
               </tr>
             ))}
-            {!data.length && <tr><td colSpan={5} style={{ padding: "6px 8px", fontSize: 12, color: '#888'  }}>No data.</td></tr>}
+            {!data.length && <tr><td colSpan={5} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)'  }}>No data.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -256,15 +256,15 @@ function SitemapList({ sitemaps }) {
               return (
                 <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
                   <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
-                    <a href={sm.path} target="_blank" rel="noreferrer" style={{ color: '#1a1a1a' }}>{sm.path.replace(/^https?:\/\//, '')}</a>
+                    <a href={sm.path} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{sm.path.replace(/^https?:\/\//, '')}</a>
                   </td>
                   <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{submitted.toLocaleString()}</td>
                   <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{indexed.toLocaleString()}</td>
-                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right', color: sm.errors > 0 ? '#c62828' : '#888'  }}>{sm.errors}</td>
+                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right', color: sm.errors > 0 ? 'var(--negative)' : 'var(--text-subtle)'  }}>{sm.errors}</td>
                 </tr>
               );
             })}
-            {!sitemaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: '#888'  }}>No sitemaps registered with Search Console.</td></tr>}
+            {!sitemaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)'  }}>No sitemaps registered with Search Console.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -301,7 +301,7 @@ export function AIOverviewsTab({ clientId }) {
   }
 
   if (err) return <div className="callout callout-danger">{err}</div>;
-  if (!data) return <div style={{ color: '#888', padding: 20 }}>Loading AI Overview data…</div>;
+  if (!data) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading AI Overview data…</div>;
 
   const latest = data.latest || [];
   const trend = data.trend || [];
@@ -313,7 +313,7 @@ export function AIOverviewsTab({ clientId }) {
       <div className="row between" style={{ marginBottom: 14 }}>
         <div>
           <h2 className="h2">AI Overviews</h2>
-          <p style={{ fontSize: 12, color: '#888', margin: 0 }}>
+          <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: 0 }}>
             Tracks whether Google shows an AI Overview for your keywords and whether your brand is cited inside it.
             Auto-refreshes weekly.
           </p>
@@ -363,11 +363,11 @@ export function AIOverviewsTab({ clientId }) {
                 <td style={{ padding: "6px 8px", fontSize: 12 }}><IntentBadge intent={r.intent} /></td>
                 <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.present ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">No</span>}</td>
                 <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.brand_cited ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">—</span>}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 420, color: '#666', fontSize: 11  }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
+                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 420, color: 'var(--text-muted)', fontSize: 11  }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
                 <td style={{ padding: "6px 8px", fontSize: 12 }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
-            {!latest.length && <tr><td colSpan={6} style={{ padding: "6px 8px", fontSize: 12, color: '#888', padding: 20, textAlign: 'center'  }}>No AIO data yet — click "Check now" to populate.</td></tr>}
+            {!latest.length && <tr><td colSpan={6} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)', padding: 20, textAlign: 'center'  }}>No AIO data yet — click "Check now" to populate.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -377,9 +377,9 @@ export function AIOverviewsTab({ clientId }) {
 
 function SummaryCard({ label, value, pct }) {
   return (
-    <div style={{ flex: 1, padding: '14px 16px', border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }}>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: '#888', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
-      <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
+    <div style={{ flex: 1, padding: '14px 16px', border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }}>
+      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
     </div>
   );
 }
@@ -439,12 +439,12 @@ export function ContentGapsTab({ clientId }) {
   return (
     <div>
       <h2 className="h2">Content gaps</h2>
-      <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 14px' }}>
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
 
-      <div style={{ background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, padding: 14, marginBottom: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
+      <div style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, padding: 14, marginBottom: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {competitors.map(c => (
             <span key={c} className="chip chip-outline" style={{ fontFamily: "monospace" }}>
@@ -452,7 +452,7 @@ export function ContentGapsTab({ clientId }) {
               <button onClick={() => removeCompetitor(c)} className="btn-ghost" style={{ fontSize: 14, padding: "0 2px" }}>×</button>
             </span>
           ))}
-          {!competitors.length && <span style={{ color: '#999', fontSize: 12 }}>(none yet)</span>}
+          {!competitors.length && <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>(none yet)</span>}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           <input
@@ -475,7 +475,7 @@ export function ContentGapsTab({ clientId }) {
 
       {gaps && (
         <div style={{ marginTop: 18 }}>
-          <div style={{ fontSize: 12, color: '#888', marginBottom: 6 }}>{gaps.length} keywords found</div>
+          <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 6 }}>{gaps.length} keywords found</div>
           <div className="card" style={{ padding: 0, maxHeight: 480, overflowY: "auto" }}>
             <table className="table">
               <thead>
@@ -499,7 +499,7 @@ export function ContentGapsTab({ clientId }) {
                     </tr>
                   );
                 })}
-                {!gaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: '#888', padding: 20, textAlign: 'center'  }}>No gaps found.</td></tr>}
+                {!gaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)', padding: 20, textAlign: 'center'  }}>No gaps found.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -534,7 +534,7 @@ export function PlanningTab({ clientId }) {
   return (
     <div>
       <h2 className="h2">Content planning</h2>
-      <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 14px' }}>
         Generate a content brief for a target keyword. Claude proposes the angle, outline, target intent, headings,
         questions to answer, and meta tags. Edit it, send it to a writer.
       </p>
@@ -556,7 +556,7 @@ export function PlanningTab({ clientId }) {
 
       {brief && (
         <div style={{ marginTop: 22, maxWidth: 760 }}>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Target keyword</div>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Target keyword</div>
           <div style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{keyword}</div>
           <div style={{ marginBottom: 14 }}><IntentBadge intent={brief.target_intent} /></div>
 
@@ -569,7 +569,7 @@ export function PlanningTab({ clientId }) {
             {(brief.outline || []).map((s, i) => (
               <div key={i} style={{ marginBottom: 12 }}>
                 <div style={{ fontWeight: 700, fontSize: 13 }}>{i + 1}. {s.heading}</div>
-                <ul style={{ margin: '4px 0 0 18px', padding: 0, fontSize: 13, color: '#444', lineHeight: 1.6 }}>
+                <ul style={{ margin: '4px 0 0 18px', padding: 0, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
                   {(s.points || []).map((p, j) => <li key={j}>{p}</li>)}
                 </ul>
               </div>

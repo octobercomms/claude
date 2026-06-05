@@ -143,10 +143,10 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
   const toast = useToast();
   const [working, setWorking] = useState(null);
   if (err) {
-    return <div style={{ padding: 20, color: '#c62828', fontSize: 13 }}>Couldn't load activity: {err}</div>;
+    return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 13 }}>Couldn't load activity: {err}</div>;
   }
   if (!activity) {
-    return <div style={{ padding: 20, color: '#888', fontSize: 13 }}>Loading…</div>;
+    return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>;
   }
   const { events, totals, memberships, bounce } = activity;
   const fmtTime = (t) => {
@@ -217,7 +217,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       )}
 
       {!events.length && (
-        <div style={{ padding: 20, color: '#888', fontSize: 13, textAlign: 'center' }}>
+        <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, textAlign: 'center' }}>
           No emails sent to this contact yet.
         </div>
       )}
@@ -228,20 +228,20 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
             <div key={i} style={eventRow}>
               <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {labelFor(e)}
                 </div>
-                <div style={{ fontSize: 11, color: '#888', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {e.label}
                   {e.client_id && <span style={{ marginLeft: 8 }}>· {clientNameById[e.client_id] || ''}</span>}
                   {e.type === 'clicked' && e.url && <span style={{ marginLeft: 8 }}>→ {shorten(e.url)}</span>}
                   {e.type === 'replied' && e.classification && <span style={{ marginLeft: 8 }}>· {e.classification.replace(/_/g, ' ')}</span>}
                 </div>
                 {e.type === 'replied' && e.summary && (
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>{e.summary}</div>
                 )}
               </div>
-              <div style={{ fontSize: 11, color: '#999', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap' }}>{fmtTime(e.at)}</div>
             </div>
           ))}
         </div>
@@ -253,8 +253,8 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
 function Stat({ label, value }) {
   return (
     <div style={statBox}>
-      <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>{value}</div>
-      <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
+      <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 2 }}>{label}</div>
     </div>
   );
 }
@@ -263,7 +263,7 @@ function iconFor(t) {
   return { sent: '✉', opened: '👁', clicked: '🔗', replied: '↩' }[t] || '·';
 }
 function badgeColor(t) {
-  return { sent: '#e8eef6', opened: '#e7f4ea', clicked: '#fff4e0', replied: '#f6e8f6' }[t] || '#f0f0f0';
+  return { sent: '#e8eef6', opened: '#e7f4ea', clicked: '#fff4e0', replied: '#f6e8f6' }[t] || 'var(--surface-sunken)';
 }
 function labelFor(e) {
   return { sent: 'Email sent', opened: 'Email opened', clicked: 'Link clicked', replied: 'Reply received' }[e.type] || e.type;
@@ -276,15 +276,15 @@ function shorten(u) {
 }
 
 const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
-const statBox = { padding: '12px 14px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6, textAlign: 'center' };
+const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
 const iconBadge = { width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
-const resubBtn = { background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', whiteSpace: 'nowrap' };
+const resubBtn = { background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (
     <div>
-      <h3 style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', margin: '0 0 12px', paddingBottom: 8, borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
+      <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '0 0 12px', paddingBottom: 8, borderBottom: '1px solid #e8e8e8' }}>{title}</h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>{children}</div>
     </div>
   );
@@ -292,7 +292,7 @@ function Section({ title, children }) {
 function Field({ label, children, full }) {
   return (
     <div style={{ gridColumn: full ? '1 / -1' : 'auto' }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, display: 'block', marginBottom: 4 }}>{label}</label>
       {children}
     </div>
   );

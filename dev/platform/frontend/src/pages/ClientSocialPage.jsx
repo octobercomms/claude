@@ -593,19 +593,19 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           <h2 style={{ margin: 0, fontSize: 18 }}>Bulk schedule {selected.size} of {posts.length} posts</h2>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
-        <div style={{ fontSize: 12, color: '#666', marginBottom: 14 }}>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
           Each ticked post becomes its own plan. The autopilot picks them up one per scheduled slot — fetches captions, reads the Drive folder, posts to the platforms below.
         </div>
 
         <div style={{ marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
           <div style={{ maxHeight: 200, overflow: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
             {posts.map(p => (
               <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 12 }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 600 }}>{p.hook || p.caption?.slice(0, 60) || '(no hook)'}</div>
-                  <div style={{ color: '#888', fontSize: 11 }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
+                  <div style={{ color: 'var(--text-subtle)', fontSize: 11 }}>{p.platform} · {p.kind}{p.framework ? ` · ${p.framework}` : ''}</div>
                 </div>
               </label>
             ))}
@@ -614,7 +614,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Target platforms</div>
             <div style={{ display: 'flex', gap: 12 }}>
               {['instagram','facebook','linkedin'].map(p => (
                 <label key={p} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', textTransform: 'capitalize' }}>
@@ -624,7 +624,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
               style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
@@ -633,14 +633,14 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 14 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Days of week</div>
             <div style={{ display: 'flex', gap: 4 }}>
               {dayLabels.map((label, i) => (
                 <button key={i} type="button" onClick={() => toggleDay(i)}
                   style={{
                     flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
-                    background: daysOfWeek.includes(i) ? '#1a1a1a' : 'white',
-                    color: daysOfWeek.includes(i) ? 'white' : '#666',
+                    background: daysOfWeek.includes(i) ? 'var(--text)' : 'white',
+                    color: daysOfWeek.includes(i) ? 'white' : 'var(--text-muted)',
                     border: '2px solid var(--accent)', borderRadius: 4, cursor: 'pointer',
                   }}>{label}</button>
               ))}
@@ -648,19 +648,19 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
                 style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
                 style={{ width: '100%', padding: '6px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 }} />
             </div>
           </div>
         </div>
 
-        {error && <div style={{ padding: '8px 12px', background: '#fff0f0', color: '#c62828', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
+        {error && <div style={{ padding: '8px 12px', background: '#fff0f0', color: 'var(--negative)', fontSize: 12, borderRadius: 4, marginBottom: 12 }}>{error}</div>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
@@ -706,7 +706,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div>
             <h2 style={{ margin: 0, fontSize: 18 }}>Hook Vault</h2>
-            <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>Every hook this client has used, sorted by best reach.</div>
           </div>
           <button type="button" onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>×</button>
         </div>
@@ -724,18 +724,18 @@ function HookVaultModal({ clientId, onClose, onUse }) {
           </select>
         </div>
         {loading ? (
-          <div style={{ color: '#888', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
+          <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>Loading…</div>
         ) : !hooks.length ? (
-          <div style={{ color: '#888', padding: 20, textAlign: 'center', fontSize: 12 }}>
+          <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center', fontSize: 12 }}>
             No hooks yet. Generate a brainstorm batch — every hook you save lands here.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {hooks.map((h, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
                 <div style={{ flex: 1, marginRight: 12 }}>
-                  <div style={{ fontSize: 13, color: '#1a1a1a', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
-                  <div style={{ fontSize: 11, color: '#888', marginTop: 3, display: 'flex', gap: 8 }}>
+                  <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
                     {h.framework && <span>{h.framework}</span>}
                     <span>·</span>
                     <span>{h.platform} / {h.kind}</span>
@@ -744,7 +744,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
                   </div>
                 </div>
                 <button type="button" onClick={() => onUse(h.hook)}
-                  style={{ background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                  style={{ background: 'var(--text)', color: 'white', border: 'none', borderRadius: 4, padding: '6px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
                   Use this →
                 </button>
               </div>
@@ -824,9 +824,9 @@ function PlansList({ clientId, clientName, onOpen }) {
   if (!plans.length) return null;
 
   return (
-    <div style={{ marginBottom: 22, padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6 }}>
+    <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Locked plans
         </div>
         <div style={{ display: 'flex', gap: 0, border: '2px solid var(--accent)', borderRadius: 4, overflow: 'hidden' }}>
@@ -834,8 +834,8 @@ function PlansList({ clientId, clientName, onOpen }) {
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
                 padding: '4px 10px', fontSize: 11, fontWeight: 600,
-                background: view === v ? '#1a1a1a' : 'white',
-                color: view === v ? 'white' : '#666',
+                background: view === v ? 'var(--text)' : 'white',
+                color: view === v ? 'white' : 'var(--text-muted)',
                 border: 'none', cursor: 'pointer', textTransform: 'capitalize',
               }}>{v}</button>
           ))}
@@ -854,13 +854,13 @@ function PlansList({ clientId, clientName, onOpen }) {
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: '2px solid var(--accent)', borderRadius: 4 }}>
-              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: '#1a1a1a' }}>
+              <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: 'var(--text)' }}>
                 {p.title || '(untitled)'}
               </button>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                 {pubs.map(pub => {
-                  const colour = pub.status === 'posted' ? '#2e7d32' : pub.status === 'failed' ? '#c62828' : pub.status === 'in_flight' ? '#b86e00' : '#888';
-                  const bg = pub.status === 'posted' ? '#e8f5e9' : pub.status === 'failed' ? '#ffebee' : pub.status === 'in_flight' ? '#fff4e1' : '#f0f0f0';
+                  const colour = pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : pub.status === 'in_flight' ? '#b86e00' : 'var(--text-subtle)';
+                  const bg = pub.status === 'posted' ? '#e8f5e9' : pub.status === 'failed' ? '#ffebee' : pub.status === 'in_flight' ? '#fff4e1' : 'var(--surface-sunken)';
                   const icon = pub.status === 'posted' ? '✓' : pub.status === 'failed' ? '✗' : '·';
                   return (
                     <span key={pub.platform} title={pub.error_message || pub.posted_url || pub.status}
@@ -891,14 +891,14 @@ function PlansList({ clientId, clientName, onOpen }) {
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: '#666', border: '2px solid var(--accent)', borderRadius: 3, cursor: 'pointer' }}>
+                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: '2px solid var(--accent)', borderRadius: 3, cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </span>
                 )}
-                <span style={{ fontSize: 11, color: '#888' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: '#555', cursor: 'pointer' }}>↓ Word</button>
+                <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
               </div>
             </div>
           );
@@ -949,19 +949,19 @@ function PlansCalendar({ plans, onOpen }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
-          <div key={d} style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
+          <div key={d} style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', textAlign: 'center', padding: '4px 0' }}>{d}</div>
         ))}
         {cells.map((cell, i) => (
           <div key={i} style={{ minHeight: 70, background: cell ? 'white' : 'transparent', border: cell ? '1px solid #eee' : 'none', borderRadius: 4, padding: 4, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {cell && (
               <>
-                <div style={{ fontSize: 10, color: '#999', textAlign: 'right' }}>{cell.getDate()}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-subtle)', textAlign: 'right' }}>{cell.getDate()}</div>
                 {(byDay.get(cell.getDate()) || []).map(p => {
                   const pubs = Array.isArray(p.publications) ? p.publications : [];
                   const allPosted = pubs.length > 0 && pubs.every(x => x.status === 'posted');
                   const anyFailed = pubs.some(x => x.status === 'failed');
                   const bg = allPosted ? '#e8f5e9' : anyFailed ? '#ffebee' : '#eef2ff';
-                  const fg = allPosted ? '#2e7d32' : anyFailed ? '#c62828' : '#1a56db';
+                  const fg = allPosted ? 'var(--positive)' : anyFailed ? 'var(--negative)' : '#1a56db';
                   const t = new Date(p.scheduled_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
                   return (
                     <button key={p.id} type="button" onClick={() => onOpen(p.id)}
@@ -994,7 +994,7 @@ function CompetitorEditor({ competitors, onSave }) {
   }
   return (
     <div className="row wrap" style={{ alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--surface-raised)", border: "var(--border-w) solid var(--accent)", borderRadius: "var(--r-sm)", marginBottom: 6 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
+      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
         Competitor handles
       </span>
       {competitors.map(c => (
@@ -1030,7 +1030,7 @@ function BriefModal({ onClose, brief, setBrief, platforms, setPlatforms, onSubmi
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 14px', fontSize: 18, fontWeight: 700 }}>Generate 9 posts</h2>
-        <p style={{ fontSize: 12, color: '#666', margin: '0 0 14px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 14px', lineHeight: 1.5 }}>
           Optional brief — the more specific you are, the more useful the output. Examples:
           "We're launching a new mug colour next week", "Focus on UK studio kitchens", "Lean educational, not salesy."
           Leave empty for a balanced batch.
@@ -1060,15 +1060,15 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   const [open, setOpen] = React.useState(false);
   const visible = open ? sounds : sounds.slice(0, 5);
   return (
-    <div style={{ background: '#fff', border: '2px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
+    <div style={{ background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 6, padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Trending TikTok sounds
         </span>
-        <span style={{ fontSize: 11, color: '#999' }}>
+        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', borderRadius: 999, cursor: 'pointer' }}>
+        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: '2px solid var(--accent)', background: 'var(--surface)', borderRadius: 999, cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
@@ -1081,10 +1081,10 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '2px solid var(--accent)', borderRadius: 999, color: '#1a1a1a', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 11, padding: '4px 10px', background: '#f6f6f6', border: '2px solid var(--accent)', borderRadius: 999, color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
-              {s.use_count && <span style={{ color: '#888', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
+              {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
             </a>
           ))}
         </div>
@@ -1106,11 +1106,11 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
         {reachSeries.length > 1 && (
           <div style={{ display: 'flex', gap: 14, alignItems: 'center', fontSize: 11, color: '#5d4000' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#888' }}>Reach 30d</span>
+              <span style={{ color: 'var(--text-subtle)' }}>Reach 30d</span>
               <Sparkline values={reachSeries} width={90} height={22} />
             </span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#888' }}>Engagement 30d</span>
+              <span style={{ color: 'var(--text-subtle)' }}>Engagement 30d</span>
               <Sparkline values={interactionSeries} width={90} height={22} />
             </span>
           </div>
@@ -1119,27 +1119,27 @@ function WinnersPanel({ winners, frameworkBreakdown, sparkline }) {
       {frameworkBreakdown?.length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {frameworkBreakdown.map(b => (
-            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: '#fff', border: '1px solid #f0d260', borderRadius: 999, color: '#5d4000' }}>
+            <span key={b.framework} style={{ fontSize: 11, padding: '3px 10px', background: 'var(--surface)', border: '1px solid #f0d260', borderRadius: 999, color: '#5d4000' }}>
               <strong>{b.framework}</strong>: {b.avg_engagement_rate}% engagement
-              <span style={{ color: '#999', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
+              <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>({b.posts} post{b.posts === 1 ? '' : 's'})</span>
             </span>
           ))}
         </div>
       )}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         {winners.map(w => (
-          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: '#fff', border: '1px solid #f0e0a0', borderRadius: 4, textDecoration: 'none', color: 'inherit', position: 'relative' }}>
+          <a key={w.id} href={w.published_url} target="_blank" rel="noreferrer" style={{ display: 'block', flex: '1 1 220px', minWidth: 220, padding: 10, background: 'var(--surface)', border: '1px solid #f0e0a0', borderRadius: 4, textDecoration: 'none', color: 'inherit', position: 'relative' }}>
             {w.is_heater && (
-              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 6px', background: '#c62828', color: 'white', borderRadius: 3, letterSpacing: 0.5 }}>🔥 HEATER</span>
+              <span style={{ position: 'absolute', top: 8, right: 8, fontSize: 10, fontWeight: 700, padding: '2px 6px', background: 'var(--negative)', color: 'white', borderRadius: 3, letterSpacing: 0.5 }}>🔥 HEATER</span>
             )}
-            <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1a1a1a', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
-            <div style={{ fontSize: 11, color: '#666', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4 }}>{w.platform} · {w.kind}</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', margin: '4px 0', lineHeight: 1.3, paddingRight: w.is_heater ? 70 : 0 }}>{w.hook || '(no hook)'}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>{(w.caption || '').slice(0, 110)}…</div>
             <div style={{ marginTop: 6, fontSize: 11, fontWeight: 700, color: '#7a5a00' }}>{w.engagement_rate}% engagement</div>
           </a>
         ))}
       </div>
-      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>The next batch you generate will model these. 🔥 Heater = 2× the 30-day median reach.</div>
     </div>
   );
 }
@@ -1164,20 +1164,20 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
         </button>
       </div>
       {top.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#888' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
+        <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No scrape yet. Sunday's cron will populate this, or click Refresh now.</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {top.map(p => (
             <a key={p.id} href={p.post_url} target="_blank" rel="noreferrer"
               style={{ display: 'block', padding: 10, background: 'white', border: '1px solid #e5deef', borderRadius: 4, textDecoration: 'none', color: 'inherit' }}>
-              <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
                 <span>@{p.handle} · {p.platform}</span>
                 {p.view_count && <span style={{ color: '#5b3d8e', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
               </div>
-              <div style={{ fontSize: 12, color: '#1a1a1a', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
+              <div style={{ fontSize: 12, color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
                 {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
               </div>
-              <div style={{ fontSize: 11, color: '#666' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                 {p.likes_count ? `${formatNum(p.likes_count)} ♡` : ''}
                 {p.likes_count && p.comments_count ? ' · ' : ''}
                 {p.comments_count ? `${formatNum(p.comments_count)} 💬` : ''}
@@ -1186,7 +1186,7 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
           ))}
         </div>
       )}
-      <div style={{ fontSize: 11, color: '#999', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
     </div>
   );
 }
@@ -1195,17 +1195,17 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
 // Colour-coded so the AM can scan a 9-frame storyboard at a glance and
 // confirm it follows the A → B → C → B → … → G grammar.
 const STYLE_COLOURS = {
-  A: { bg: '#1a1a1a', fg: '#fff',    label: 'Hook' },
+  A: { bg: 'var(--text)', fg: 'var(--surface)',    label: 'Hook' },
   B: { bg: '#fff4d6', fg: '#8a6500', label: 'Talk' },
-  C: { bg: '#eee',    fg: '#444',    label: 'Word' },
+  C: { bg: 'var(--accent-soft)',    fg: 'var(--text-muted)',    label: 'Word' },
   D: { bg: '#eef2ff', fg: '#3949ab', label: 'Screen' },
-  E: { bg: '#e4f4e8', fg: '#1d7a3a', label: 'B-roll' },
+  E: { bg: '#e4f4e8', fg: 'var(--positive)', label: 'B-roll' },
   F: { bg: '#f4eafd', fg: '#5e2d8c', label: 'Prop' },
-  G: { bg: 'var(--accent)', fg: '#1a1a1a', label: 'CTA' },
+  G: { bg: 'var(--accent)', fg: 'var(--text)', label: 'CTA' },
 };
 
 function StyleBadge({ code, duration }) {
-  const c = STYLE_COLOURS[code] || { bg: '#eee', fg: '#666', label: code };
+  const c = STYLE_COLOURS[code] || { bg: 'var(--accent-soft)', fg: 'var(--text-muted)', label: code };
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
       <span style={{
@@ -1213,7 +1213,7 @@ function StyleBadge({ code, duration }) {
         width: 22, height: 22, borderRadius: 11, background: c.bg, color: c.fg,
         fontSize: 11, fontWeight: 700,
       }}>{code}</span>
-      <span style={{ fontSize: 10, color: '#888', fontWeight: 600 }}>
+      <span style={{ fontSize: 10, color: 'var(--text-subtle)', fontWeight: 600 }}>
         {c.label}{duration ? ` · ${duration}s` : ''}
       </span>
     </span>
@@ -1224,13 +1224,13 @@ function ShareLinkBanner({ url, onDismiss }) {
   const [copied, setCopied] = useState(false);
   return (
     <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <strong style={{ fontSize: 12, color: '#1d7a3a' }}>Approval link ready —</strong>
-      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: '#fff', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
+      <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
+      <input value={url} readOnly style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: 'var(--surface)', fontFamily: 'monospace' }} onFocus={e => e.target.select()} />
       <button onClick={() => { navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        style={{ padding: '4px 12px', fontSize: 11, background: '#1d7a3a', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
+        style={{ padding: '4px 12px', fontSize: 11, background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 3, cursor: 'pointer' }}>
         {copied ? 'Copied' : 'Copy'}
       </button>
-      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1d7a3a' }}>×</button>
+      <button onClick={onDismiss} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--positive)' }}>×</button>
     </div>
   );
 }
@@ -1281,12 +1281,12 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.kind}</span>
           <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.status}</span>
         </div>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1 }}>×</button>
+        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 18, lineHeight: 1 }}>×</button>
       </div>
 
       <div style={{ marginTop: 10 }}>
         <div className="caption mb-2">HOOK</div>
-        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{post.hook || <em style={{ color: '#bbb' }}>(none)</em>}</div>
+        <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{post.hook || <em style={{ color: 'var(--text-subtle)' }}>(none)</em>}</div>
       </div>
 
       <div style={{ marginTop: 10 }}>
@@ -1327,13 +1327,13 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           {videos.map(v => (
             <div key={v.id} style={{ position: 'relative' }}>
               <video src={v.url} controls style={{ width: 180, borderRadius: 4, background: '#000' }} />
-              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
             </div>
           ))}
           {audios.map(a => (
             <div key={a.id} style={{ position: 'relative', width: 220 }}>
               <audio src={a.url} controls style={{ width: '100%' }} />
-              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: '#c62828' }}>×</button>
+              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
             </div>
           ))}
         </div>
@@ -1379,8 +1379,8 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       </div>
 
       {showPublish && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
-          <div style={{ fontSize: 11, color: '#666', marginBottom: 6, lineHeight: 1.5 }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
           <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, boxSizing: 'border-box', marginBottom: 8 }} />
@@ -1394,7 +1394,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       {open && (
         <div style={{ marginTop: 10, borderTop: '1px solid #eee', paddingTop: 10 }}>
           <div className="caption mb-2">VISUAL CONCEPT</div>
-          <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
           <div className="caption mb-2">STORYBOARD</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
@@ -1410,7 +1410,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
               {(post.storyboard || []).map((f, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
-                    {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: '#bbb' }}>—</span>}
+                    {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                   </td>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.shot}</td>
@@ -1420,12 +1420,12 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
               ))}
             </tbody>
           </table>
-          {post.notes && <div style={{ marginTop: 8, fontSize: 11, color: '#888', fontStyle: 'italic' }}>{post.notes}</div>}
+          {post.notes && <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-subtle)', fontStyle: 'italic' }}>{post.notes}</div>}
         </div>
       )}
 
       {showImg && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
@@ -1443,7 +1443,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
             style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }}
           />
-          {err && <div style={{ color: '#c62828', fontSize: 11, marginBottom: 6 }}>{err}</div>}
+          {err && <div style={{ color: 'var(--negative)', fontSize: 11, marginBottom: 6 }}>{err}</div>}
           <button onClick={generateImage} className="btn btn-primary btn-sm" disabled={generating}>
             {generating ? 'Rendering…' : `Render with ${provider}`}
           </button>
@@ -1456,10 +1456,10 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
+  modal: { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
   textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  pill: { padding: '5px 12px', fontSize: 12, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999, textTransform: 'capitalize' },
-  pillOn: { padding: '5px 12px', fontSize: 12, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700, textTransform: 'capitalize' },
+  pill: { padding: '5px 12px', fontSize: 12, border: '2px solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 999, textTransform: 'capitalize' },
+  pillOn: { padding: '5px 12px', fontSize: 12, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 999, fontWeight: 700, textTransform: 'capitalize' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 };

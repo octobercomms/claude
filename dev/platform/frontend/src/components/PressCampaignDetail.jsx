@@ -105,12 +105,12 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
             a new one via <strong>+ New press release</strong>, or open it via the standard outreach wizard if it's
             still useful as a cold campaign.
           </div>
-          <div style={{ fontSize: 11, color: '#888', marginTop: 8 }}>Server said: {loadError}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Server said: {loadError}</div>
         </div>
       </div>
     );
   }
-  if (!release) return <div style={{ color: '#888', padding: 20 }}>Loading release…</div>;
+  if (!release) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading release…</div>;
 
   return (
     <div>
@@ -118,9 +118,9 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
+          <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 700, marginBottom: 4 }}>press release</div>
           <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, lineHeight: 1.2 }}>{release.title}</h2>
-          {release.dateline && <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
+          {release.dateline && <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{release.dateline}</div>}
           {release.source_url && <a href={release.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#1a4f9c', display: 'inline-block', marginTop: 6 }}>↗ source page</a>}
         </div>
       </div>
@@ -132,18 +132,18 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
             placeholder="filter by name, outlet or beat…"
             className="input" style={{ marginBottom: 10 }} />
           <div style={{ maxHeight: 520, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
-            {!filteredContacts.length && <div style={{ padding: 14, color: '#888', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
+            {!filteredContacts.length && <div style={{ padding: 14, color: 'var(--text-subtle)', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
             {groupKeys.map(beat => (
               <div key={beat}>
-                <div className="caption" style={{ padding: "6px 10px", background: "var(--surface-raised)" }}>{beat} <span style={{ color: '#999', fontWeight: 400 }}>· {grouped[beat].length}</span></div>
+                <div className="caption" style={{ padding: "6px 10px", background: "var(--surface-raised)" }}>{beat} <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {grouped[beat].length}</span></div>
                 {grouped[beat].map(c => (
                   <label key={c.id} className="row center" style={{ gap: 10, padding: "8px 10px", borderTop: "var(--border-w) solid var(--accent-soft)", cursor: "pointer" }}>
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {c.name || '(no name)'} {c.company && <span style={{ color: '#888', fontWeight: 400 }}>· {c.company}</span>}
+                        {c.name || '(no name)'} {c.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {c.company}</span>}
                       </div>
-                      <div style={{ fontSize: 11, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.email}</div>
                     </div>
                     <button onClick={(e) => { e.preventDefault(); preview(c.id); }} type="button" className="btn btn-secondary btn-sm">preview</button>
                   </label>
@@ -152,7 +152,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-            <div style={{ fontSize: 12, color: '#666' }}>{selected.size} selected</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
             <button onClick={send} disabled={!selected.size || sending} className="btn btn-primary">
               {sending ? 'Queueing…' : `Send to ${selected.size}`}
             </button>
@@ -166,8 +166,8 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               PATCH /press/releases/:id; re-previews so the change is
               visible in the iframe immediately. */}
           {release && (
-            <div style={{ marginBottom: 12, padding: 12, border: '2px solid var(--accent)', borderRadius: 6, background: '#fafafa' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+            <div style={{ marginBottom: 12, padding: 12, border: '2px solid var(--accent)', borderRadius: 6, background: 'var(--surface-raised)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 First email — subject
               </div>
               <input
@@ -183,7 +183,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                 }}
                 style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' }}
               />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: '#444', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={release.embed_full_release !== false}
@@ -198,28 +198,28 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                 />
                 <span>
                   <strong>Embed the full release in the first email.</strong>{' '}
-                  <span style={{ color: '#888' }}>Off = pitch + link only (the old behaviour).</span>
+                  <span style={{ color: 'var(--text-subtle)' }}>Off = pitch + link only (the old behaviour).</span>
                 </span>
               </label>
             </div>
           )}
 
-          {!previewing && <div style={{ color: '#888', fontSize: 12, padding: 14, border: '1px dashed #ddd', borderRadius: 4 }}>Click <strong>preview</strong> on a journalist to see the personalised pitch + follow-ups Claude would send them.</div>}
-          {previewing && !previewData && <div style={{ color: '#888', padding: 14 }}>Generating pitch + follow-ups…</div>}
+          {!previewing && <div style={{ color: 'var(--text-subtle)', fontSize: 12, padding: 14, border: '1px dashed #ddd', borderRadius: 4 }}>Click <strong>preview</strong> on a journalist to see the personalised pitch + follow-ups Claude would send them.</div>}
+          {previewing && !previewData && <div style={{ color: 'var(--text-subtle)', padding: 14 }}>Generating pitch + follow-ups…</div>}
           {previewData && (
             <div>
               <div style={{ marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="field-label">Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#1a4f9c', fontSize: 11 }}>regenerate</button>
               </div>
-              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '2px solid var(--accent)', borderRadius: 4, background: '#fff' }} sandbox="" />
+              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }} sandbox="" />
               {previewData.follow_ups?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <div className="field-label">Follow-ups · day 5 / 10 / 16 if no reply</div>
                   {previewData.follow_ups.map((fu, i) => (
-                    <div key={i} style={{ marginTop: 8, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
+                    <div key={i} style={{ marginTop: 8, padding: 10, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
                       <div style={{ fontWeight: 700, fontSize: 12 }}>{i + 1}. {fu.subject}</div>
-                      <div style={{ fontSize: 12, color: '#444', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{fu.body}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{fu.body}</div>
                     </div>
                   ))}
                 </div>

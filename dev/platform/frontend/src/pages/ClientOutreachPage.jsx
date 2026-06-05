@@ -85,7 +85,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
         <button onClick={generate} disabled={generating} className="btn btn-primary">
           {generating ? 'Drafting…' : (steps && steps.length ? '↻ Regenerate with Claude' : '✦ Generate sequence with Claude')}
         </button>
-        <span style={{ fontSize: 12, color: '#888' }}>3 emails — initial, follow-up, final nudge.</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>3 emails — initial, follow-up, final nudge.</span>
       </div>
       {steps && steps.length > 0 && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
@@ -101,19 +101,19 @@ function CampaignSequence({ campaign, onCampaignChange }) {
           <input className="input" style={{ width: 190 }} placeholder="test@you.com" value={testTo}
             onChange={e => setTestTo(e.target.value)} />
           <button onClick={testSend} disabled={busy} className="btn btn-secondary">Test send</button>
-          <span style={{ fontSize: 12, color: '#888' }}>
+          <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
             {campaign.contact_count || 0} enrolled · {campaign.sent_count || 0} sent · {campaign.opened_count || 0} opened
           </span>
         </div>
       )}
       {steps === null ? (
-        <p style={{ fontSize: 12, color: '#aaa' }}>Loading…</p>
+        <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</p>
       ) : steps.length === 0 ? (
-        <p style={{ fontSize: 12, color: '#888' }}>No sequence yet — generate one with Claude.</p>
+        <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>
       ) : (
         steps.map(step => (
           <div key={step.id} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
               Step {step.step_number} · sent day {step.delay_days}
             </div>
             <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
@@ -363,7 +363,7 @@ export default function ClientOutreachPage() {
     setContacts(p => p.map(c => c.id === updated.id ? updated : c));
   }
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   const recentCampaigns = campaigns.slice(0, 5);
 
@@ -391,7 +391,7 @@ export default function ClientOutreachPage() {
         ].map(([key, label]) => (
           <button key={key} onClick={() => setTab(key)} style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-            fontWeight: tab === key ? 700 : 400, color: tab === key ? '#1a1a1a' : '#888',
+            fontWeight: tab === key ? 700 : 400, color: tab === key ? 'var(--text)' : 'var(--text-subtle)',
             borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent',
             marginBottom: -2,
           }}>{label}</button>
@@ -410,7 +410,7 @@ export default function ClientOutreachPage() {
             ].map(([label, value]) => (
               <div key={label} className="card">
                 <div style={{ fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>{value ?? '—'}</div>
-                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 6 }}>{label}</div>
               </div>
             ))}
           </div>
@@ -418,14 +418,14 @@ export default function ClientOutreachPage() {
           {/* System Status + Recent Campaigns */}
           <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1.4fr)', gap: 16 }}>
             <div className="card">
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>System Status</div>
               {systemStatus.length === 0 ? (
-                <p style={{ fontSize: 12, color: '#888', margin: 0 }}>Loading…</p>
+                <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: 0 }}>Loading…</p>
               ) : <>
                 {systemStatus.map(item => (
                   <div key={item.name} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
                     <span>{item.name}</span>
-                    <span style={{ color: item.status === 'connected' ? '#2e7d32' : '#c62828', fontWeight: 600, fontSize: 12 }}>
+                    <span style={{ color: item.status === 'connected' ? 'var(--positive)' : 'var(--negative)', fontWeight: 600, fontSize: 12 }}>
                       {item.status === 'connected' ? '✓ Connected' : '✗ Not configured'}
                     </span>
                   </div>
@@ -433,30 +433,30 @@ export default function ClientOutreachPage() {
                 {dnsCheck && dnsCheck.domain && (
                   <>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
-                      <span>SPF record <code style={{ fontSize: 11, color: '#888' }}>{dnsCheck.domain}</code></span>
-                      <span style={{ color: dnsCheck.spf === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                      <span>SPF record <code style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{dnsCheck.domain}</code></span>
+                      <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600, fontSize: 12 }}>
                         {dnsCheck.spf === 'found' ? '✓ Found' : '⚠ Missing'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderTop: '1px solid #f5f5f5', fontSize: 13 }}>
                       <span>DMARC record</span>
-                      <span style={{ color: dnsCheck.dmarc === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600, fontSize: 12 }}>
+                      <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600, fontSize: 12 }}>
                         {dnsCheck.dmarc === 'found' ? '✓ Found' : '⚠ Missing'}
                       </span>
                     </div>
                   </>
                 )}
               </>}
-              <p style={{ fontSize: 11, color: '#aaa', margin: '10px 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
+              <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '10px 0 0' }}>Configure missing integrations in platform Settings. SPF / DMARC use the Outreach Sending Domain.</p>
             </div>
 
             <div className="card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
-                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#666', padding: 0 }}>View all →</button>}
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Recent Campaigns</div>
+                {campaigns.length > 5 && <button onClick={() => setTab('campaigns')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)', padding: 0 }}>View all →</button>}
               </div>
               {recentCampaigns.length === 0 ? (
-                <p style={{ fontSize: 12, color: '#888', margin: 0 }}>No campaigns yet — use “+ New Campaign” above to create one.</p>
+                <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: 0 }}>No campaigns yet — use “+ New Campaign” above to create one.</p>
               ) : (
                 <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
                   <tbody>
@@ -464,7 +464,7 @@ export default function ClientOutreachPage() {
                       <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => setTab('campaigns')}>
                         <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}>{c.name}</td>
                         <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5' }}><span className="chip chip-neutral">{c.status}</span></td>
-                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: '#888', fontSize: 12 }}>
+                        <td style={{ padding: '8px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right', color: 'var(--text-subtle)', fontSize: 12 }}>
                           {new Date(c.created_at).toLocaleDateString('en-GB')}
                         </td>
                       </tr>
@@ -505,14 +505,14 @@ export default function ClientOutreachPage() {
                   onChange={e => setAud(p => ({ ...p, specialisation: e.target.value }))} />
                 <button onClick={runSerper} disabled={searching} className="btn btn-primary">{searching ? 'Searching…' : 'Search'}</button>
               </div>
-              {serperError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
+              {serperError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
               {serperDomains.length > 0 && (
                 <div style={{ marginTop: 10 }}>
                   {serperDomains.map(d => (
                     <div key={d.domain} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, padding: '7px 0', borderTop: '1px solid #f0f0f0' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{d.domain}</div>
-                        {d.title && <div style={{ fontSize: 11, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
+                        {d.title && <div style={{ fontSize: 11, color: 'var(--text-subtle)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.title}</div>}
                       </div>
                       <button onClick={() => { setFindDomain(d.domain); runFind(d.domain); }} className="btn btn-secondary">Find emails →</button>
                     </div>
@@ -527,9 +527,9 @@ export default function ClientOutreachPage() {
                 <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Hunter'}</button>
                 <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} className="btn btn-secondary">{finding ? '…' : 'Icypeas'}</button>
               </div>
-              {findError && <p style={{ color: '#c62828', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
+              {findError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
-                <p style={{ color: '#888', fontSize: 12, margin: '8px 0 0' }}>No emails found for that domain.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '8px 0 0' }}>No emails found for that domain.</p>
               )}
               {foundContacts.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -570,9 +570,9 @@ export default function ClientOutreachPage() {
             <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
             {selectedContacts.size > 0 && (
-              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: '#c62828', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
+              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: 'var(--negative)', borderColor: '#e3b1b1' }}>Delete {selectedContacts.size} selected</button>
             )}
-            <span style={{ fontSize: 11, color: '#aaa', marginLeft: 'auto' }}>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
               CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
             </span>
           </div>
@@ -603,7 +603,7 @@ export default function ClientOutreachPage() {
               </thead>
               <tbody>
                 {filteredContacts.length === 0 ? (
-                  <tr><td colSpan={9} style={{ textAlign: 'center', color: '#888' }}>
+                  <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>
                     {contacts.length === 0 ? 'No contacts yet — add manually, find new, or import a CSV.' : 'No contacts match these filters.'}
                   </td></tr>
                 ) : filteredContacts.map(c => (
@@ -625,7 +625,7 @@ export default function ClientOutreachPage() {
               </tbody>
             </table>
           </div>
-          <p style={{ fontSize: 11, color: '#aaa', marginTop: 8 }}>
+          <p style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>
             Showing {filteredContacts.length} of {contacts.length} contact{contacts.length === 1 ? '' : 's'}.
           </p>
         </div>
@@ -701,12 +701,12 @@ export default function ClientOutreachPage() {
               <thead><tr>{['Campaign', 'Brand', 'Type', 'Status', 'Contacts', 'Sent / Total', 'Created', ''].map(h => <th key={h} >{h}</th>)}</tr></thead>
               <tbody>
                 {campaigns.length === 0 ? (
-                  <tr><td colSpan={8} style={{ textAlign: 'center', color: '#888' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
+                  <tr><td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No campaigns yet — click “+ New campaign” to start the wizard.</td></tr>
                 ) : campaigns.map(c => (
                   <tr key={c.id}>
                     <td >
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
-                      {c.audience_description && <div style={{ fontSize: 11, color: '#999' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
+                      {c.audience_description && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{c.audience_description.slice(0, 80)}{c.audience_description.length > 80 ? '…' : ''}</div>}
                     </td>
                     <td >{c.brand || '—'}</td>
                     <td >{(c.kind === 'press_release' || c.campaign_type === 'press_release') ? <span className="chip chip-neutral" style={{ background: '#fffceb', color: '#5d4000', border: '1px solid #f0d260' }}>Press</span> : 'Outreach'}</td>
@@ -733,18 +733,18 @@ export default function ClientOutreachPage() {
       {tab === 'sending' && (
         <div className="card" style={{ maxWidth: 520 }}>
           <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Outreach sending</div>
-          <p style={{ fontSize: 12, color: '#888', margin: '0 0 14px' }}>
+          <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 14px' }}>
             How outreach emails for this client are sent. Leave a field blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
           </p>
           {[['from_name', 'From name'], ['from_email', 'From email'], ['reply_to', 'Reply-To email']].map(([k, label]) => (
             <div key={k} style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 12, fontWeight: 600, color: '#555', display: 'block', marginBottom: 4 }}>{label}</label>
+              <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>{label}</label>
               <input className="input" style={{ width: '100%', boxSizing: 'border-box' }} value={sendCfg[k] || ''}
                 onChange={e => setSendCfg(p => ({ ...p, [k]: e.target.value }))} />
             </div>
           ))}
           <button onClick={saveSending} disabled={savingSend} className="btn btn-primary">{savingSend ? 'Saving…' : 'Save sending settings'}</button>
-          {sendSaved && <span style={{ marginLeft: 10, color: '#2e7d32', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
+          {sendSaved && <span style={{ marginLeft: 10, color: 'var(--positive)', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
         </div>
       )}
     </div>
@@ -802,10 +802,10 @@ function HelpPanel({ dnsCheck }) {
           <li><strong>DMARC</strong> — TXT record on <code>_dmarc.yourdomain.com</code>. A safe starter: <code>v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com</code></li>
         </ul>
         {dnsCheck && dnsCheck.domain && (
-          <p style={{ marginTop: 10, fontSize: 12, color: '#666' }}>
+          <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
             Current check for <code>{dnsCheck.domain}</code>:{' '}
-            <span style={{ color: dnsCheck.spf === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
-            <span style={{ color: dnsCheck.dmarc === 'found' ? '#2e7d32' : '#e65100', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
+            <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
+            <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : '#e65100', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
           </p>
         )}
       </HelpCard>
@@ -823,7 +823,7 @@ function HelpPanel({ dnsCheck }) {
 }
 function HelpCard({ title, children }) {
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: '#333' }}>
+    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
       {children}
     </div>
@@ -899,7 +899,7 @@ function LibraryPicker({ clientId, onAttached }) {
   return (
     <div className="card" style={{ marginTop: 12 }}>
       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>Add from library</div>
-      <div style={{ fontSize: 12, color: '#888', marginBottom: 10 }}>
+      <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginBottom: 10 }}>
         Pick contacts from the workspace library to attach to this client. They keep existing for
         every other client they’re already on — adding here doesn’t remove them from anywhere.
       </div>
@@ -914,9 +914,9 @@ function LibraryPicker({ clientId, onAttached }) {
             <button key={t.tag} onClick={() => toggleTag(t.tag)}
               style={{
                 padding: '3px 9px', borderRadius: 999, fontSize: 11,
-                border: '1px solid ' + (activeTags.has(t.tag) ? '#1a1a1a' : '#ddd'),
-                background: activeTags.has(t.tag) ? '#1a1a1a' : '#fff',
-                color: activeTags.has(t.tag) ? '#fff' : '#444',
+                border: '1px solid ' + (activeTags.has(t.tag) ? 'var(--text)' : 'var(--accent-soft)'),
+                background: activeTags.has(t.tag) ? 'var(--text)' : 'var(--surface)',
+                color: activeTags.has(t.tag) ? 'var(--surface)' : 'var(--text-muted)',
                 cursor: 'pointer',
               }}>
               {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
@@ -925,10 +925,10 @@ function LibraryPicker({ clientId, onAttached }) {
         </div>
       )}
 
-      {err && <div style={{ padding: 8, background: '#fdecea', color: '#c62828', fontSize: 12, borderRadius: 4 }}>{err}</div>}
-      {!filtered && <div style={{ color: '#888', fontSize: 13 }}>Loading…</div>}
+      {err && <div style={{ padding: 8, background: '#fdecea', color: 'var(--negative)', fontSize: 12, borderRadius: 4 }}>{err}</div>}
+      {!filtered && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
       {filtered && !filtered.length && (
-        <div style={{ color: '#888', fontSize: 13 }}>
+        <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
           No contacts in the library aren't already attached. Add some via Settings → Contacts library.
         </div>
       )}
@@ -940,17 +940,17 @@ function LibraryPicker({ clientId, onAttached }) {
               <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>{r.name || '(unnamed)'} {r.company && <span style={{ color: '#888', fontWeight: 400 }}>· {r.company}</span>}</div>
-                  <div style={{ fontSize: 11, color: '#999' }}>{r.email}</div>
+                  <div style={{ fontSize: 13, fontWeight: 600 }}>{r.name || '(unnamed)'} {r.company && <span style={{ color: 'var(--text-subtle)', fontWeight: 400 }}>· {r.company}</span>}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.email}</div>
                 </div>
                 {(r.tags || []).slice(0, 4).map(t => (
-                  <span key={t} style={{ fontSize: 10, background: '#f1f1f1', borderRadius: 3, padding: '1px 6px', color: '#444' }}>{t}</span>
+                  <span key={t} style={{ fontSize: 10, background: '#f1f1f1', borderRadius: 3, padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
                 ))}
               </label>
             ))}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
-            <div style={{ fontSize: 12, color: '#666' }}>{selected.size} selected</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} selected</div>
             <button onClick={attach} disabled={!selected.size || busy} className="btn btn-primary">
               {busy ? 'Attaching…' : `Add ${selected.size || ''} to this client`}
             </button>

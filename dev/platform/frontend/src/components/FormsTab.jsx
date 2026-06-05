@@ -129,7 +129,7 @@ export default function FormsTab({ clientId, connectors }) {
     return (
       <div style={cardStyle}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>October Forms not connected</div>
-        <p style={{ fontSize: 13, color: '#666', margin: 0 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
           Add an October Forms connector for this client under the <strong>Connectors</strong> tab to see form analytics here.
         </p>
       </div>
@@ -140,7 +140,7 @@ export default function FormsTab({ clientId, connectors }) {
     return (
       <div style={cardStyle}>
         <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 8 }}>No form selected</div>
-        <p style={{ fontSize: 13, color: '#666', margin: 0 }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
           The October Forms connector is configured, but no form has been picked yet. Open the connector in the <strong>Connectors</strong> tab and choose which form belongs to this client.
         </p>
       </div>
@@ -153,14 +153,14 @@ export default function FormsTab({ clientId, connectors }) {
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</div>
             <div style={{ fontWeight: 700, fontSize: 16 }}>{formLabel || `Form ${formId}`}</div>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ fontSize: 12, color: '#666' }}>From</label>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>From</label>
             <input type="date" value={range.from} onChange={e => setRange(r => ({ ...r, from: e.target.value }))}
               style={dateInputStyle} />
-            <label style={{ fontSize: 12, color: '#666' }}>To</label>
+            <label style={{ fontSize: 12, color: 'var(--text-muted)' }}>To</label>
             <input type="date" value={range.to} onChange={e => setRange(r => ({ ...r, to: e.target.value }))}
               style={dateInputStyle} />
           </div>
@@ -173,12 +173,12 @@ export default function FormsTab({ clientId, connectors }) {
         </div>
       )}
 
-      {loading && !stats && <div style={{ color: '#888', padding: 20, textAlign: 'center' }}>Loading…</div>}
+      {loading && !stats && <div style={{ color: 'var(--text-subtle)', padding: 20, textAlign: 'center' }}>Loading…</div>}
 
       {/* KPI row */}
       {stats && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>
             Performance — {range.from} to {range.to}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
@@ -197,7 +197,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Funnel */}
       {funnel?.steps?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Funnel — step drop-off</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Funnel — step drop-off</div>
           <FunnelBars steps={funnel.steps} />
         </div>
       )}
@@ -205,7 +205,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Timeseries */}
       {timeseries?.days?.length > 0 && (
         <div style={cardStyle}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Daily volume</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 14 }}>Daily volume</div>
           <Sparkline days={timeseries.days} />
         </div>
       )}
@@ -213,7 +213,7 @@ export default function FormsTab({ clientId, connectors }) {
       {/* Submissions */}
       <div style={cardStyle}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
             Submissions {submissionsTotal ? `(${submissionsTotal.toLocaleString()})` : ''}
           </div>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={{ ...dateInputStyle, padding: '6px 10px' }}>
@@ -223,9 +223,9 @@ export default function FormsTab({ clientId, connectors }) {
           </select>
         </div>
         {submissions == null ? (
-          <div style={{ color: '#888', fontSize: 13 }}>Loading…</div>
+          <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>
         ) : submissions.length === 0 ? (
-          <div style={{ color: '#888', fontSize: 13 }}>No submissions in this range.</div>
+          <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No submissions in this range.</div>
         ) : (
           <>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -257,7 +257,7 @@ export default function FormsTab({ clientId, connectors }) {
             </table>
             {submissionsTotal > PAGE_SIZE && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
-                <div style={{ fontSize: 12, color: '#888' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
                   Page {page + 1} of {Math.ceil(submissionsTotal / PAGE_SIZE)}
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -283,8 +283,8 @@ export default function FormsTab({ clientId, connectors }) {
 
 function Kpi({ label, value, accent = false }) {
   return (
-    <div style={{ padding: '12px 14px', border: '2px solid var(--accent)', borderRadius: 6, background: accent ? '#fffbe6' : '#fafafa' }}>
-      <div style={{ fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
+    <div style={{ padding: '12px 14px', border: '2px solid var(--accent)', borderRadius: 6, background: accent ? '#fffbe6' : 'var(--surface-raised)' }}>
+      <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4, fontWeight: 600 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 700 }}>{value}</div>
     </div>
   );
@@ -302,12 +302,12 @@ function FunnelBars({ steps }) {
           <div key={s.step_id || i}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 3 }}>
               <span><strong>{i + 1}.</strong> {s.title || s.step_id}</span>
-              <span style={{ color: '#666' }}>
+              <span style={{ color: 'var(--text-muted)' }}>
                 {(s.reached || 0).toLocaleString()} ({((s.reached / start) * 100).toFixed(1)}%)
-                {i > 0 && dropPct > 0 && <span style={{ color: '#c62828', marginLeft: 8 }}>−{dropPct.toFixed(1)}%</span>}
+                {i > 0 && dropPct > 0 && <span style={{ color: 'var(--negative)', marginLeft: 8 }}>−{dropPct.toFixed(1)}%</span>}
               </span>
             </div>
-            <div style={{ height: 14, background: '#f3f3f3', borderRadius: 3, overflow: 'hidden' }}>
+            <div style={{ height: 14, background: 'var(--surface-sunken)', borderRadius: 3, overflow: 'hidden' }}>
               <div style={{ width: `${w}%`, height: '100%', background: 'var(--accent)' }} />
             </div>
           </div>
@@ -334,7 +334,7 @@ function Sparkline({ days }) {
         {series('starts', '#3b82f6')}
         {series('completes', '#16a34a')}
       </svg>
-      <div style={{ display: 'flex', gap: 16, fontSize: 12, marginTop: 6, color: '#666' }}>
+      <div style={{ display: 'flex', gap: 16, fontSize: 12, marginTop: 6, color: 'var(--text-muted)' }}>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#a3a3a3', marginRight: 5, verticalAlign: 'middle' }} />Views</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#3b82f6', marginRight: 5, verticalAlign: 'middle' }} />Starts</span>
         <span><span style={{ display: 'inline-block', width: 10, height: 2, background: '#16a34a', marginRight: 5, verticalAlign: 'middle' }} />Completes</span>
@@ -360,8 +360,8 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
           <div style={{ fontWeight: 700, fontSize: 16 }}>Submission <code style={{ fontSize: 13 }}>{submissionId}</code></div>
           <button onClick={onClose} style={btnSmStyle}>Close</button>
         </div>
-        {err && <div style={{ color: '#c62828', fontSize: 13 }}>{err}</div>}
-        {!data && !err && <div style={{ color: '#888' }}>Loading…</div>}
+        {err && <div style={{ color: 'var(--negative)', fontSize: 13 }}>{err}</div>}
+        {!data && !err && <div style={{ color: 'var(--text-subtle)' }}>Loading…</div>}
         {data && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14, maxHeight: '70vh', overflowY: 'auto' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 13 }}>
@@ -378,7 +378,7 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
                   <tbody>
                     {data.answers_table.map((a, i) => (
                       <tr key={i} style={{ borderTop: i ? '1px solid #f0f0f0' : 'none' }}>
-                        <td style={{ padding: '6px 8px 6px 0', width: '40%', color: '#666' }}>{a.label}</td>
+                        <td style={{ padding: '6px 8px 6px 0', width: '40%', color: 'var(--text-muted)' }}>{a.label}</td>
                         <td style={{ padding: '6px 0' }}>{Array.isArray(a.value) ? a.value.join(', ') : String(a.value ?? '—')}</td>
                       </tr>
                     ))}
@@ -392,10 +392,10 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
                 <ul style={{ paddingLeft: 18, margin: 0 }}>
                   {data.files.map((f, i) => (
                     <li key={i} style={{ marginBottom: 4 }}>
-                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1565c0' }}>
+                      <a href={f.url} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)' }}>
                         {f.filename || f.name || f.url}
                       </a>
-                      {f.size && <span style={{ color: '#888', fontSize: 11, marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
+                      {f.size && <span style={{ color: 'var(--text-subtle)', fontSize: 11, marginLeft: 6 }}>({Math.round(f.size / 1024)} KB)</span>}
                     </li>
                   ))}
                 </ul>
@@ -410,9 +410,9 @@ function SubmissionModal({ credentials, submissionId, onClose }) {
 
 const cardStyle = { background: 'white', border: '2px solid var(--accent)', borderRadius: 6, padding: 20 };
 const dateInputStyle = { padding: '5px 8px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 12 };
-const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
+const thStyle = { textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 };
 const tdStyle = { padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' };
 const statusPill = { fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 12, textTransform: 'capitalize' };
-const btnSmStyle = { background: '#fff', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
+const btnSmStyle = { background: 'var(--surface)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600 };
 const modalOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 };
 const modalStyle = { background: 'white', borderRadius: 8, padding: 24, width: '100%', maxWidth: 720, maxHeight: '90vh', boxShadow: '0 8px 32px rgba(0,0,0,0.2)' };

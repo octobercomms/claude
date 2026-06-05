@@ -26,7 +26,7 @@ export default function Layout() {
   function handleLogout() { logout(); navigate('/login'); }
 
   const linkStyle = (isActive) => ({
-    display: 'block', padding: '11px 24px', color: isActive ? 'var(--accent)' : '#ffffff',
+    display: 'block', padding: '11px 24px', color: isActive ? 'var(--accent)' : 'var(--surface)',
     textDecoration: 'none', fontSize: 16, fontWeight: isActive ? 600 : 400,
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2, background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',

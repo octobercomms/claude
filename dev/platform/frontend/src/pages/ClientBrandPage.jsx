@@ -137,7 +137,7 @@ export default function ClientBrandPage() {
       )}
 
       {!filtered.length && (
-        <div style={{ color: '#888', padding: 30, textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
+        <div style={{ color: 'var(--text-subtle)', padding: 30, textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
           No assets yet — upload a logo or product image to get started.
         </div>
       )}
@@ -154,8 +154,8 @@ export default function ClientBrandPage() {
 function FilterChip({ active, onClick, children }) {
   return (
     <button onClick={onClick} style={{
-      padding: '5px 12px', fontSize: 12, border: '1px solid ' + (active ? '#1a1a1a' : '#ddd'),
-      background: active ? '#1a1a1a' : '#fff', color: active ? '#fff' : '#555',
+      padding: '5px 12px', fontSize: 12, border: '1px solid ' + (active ? 'var(--text)' : 'var(--accent-soft)'),
+      background: active ? 'var(--text)' : 'var(--surface)', color: active ? 'var(--surface)' : 'var(--text-muted)',
       cursor: 'pointer', borderRadius: 999, fontWeight: active ? 700 : 500,
     }}>{children}</button>
   );
@@ -199,7 +199,7 @@ function AssetCard({ asset, onDelete }) {
   const isGuideline = asset.kind === 'guideline';
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
-      <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
+      <div style={{ height: 140, background: 'var(--surface-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
         {isVideo && asset.url && (
           <video src={asset.url} muted preload="metadata" style={{ maxHeight: '100%', maxWidth: '100%' }} onMouseEnter={e => e.target.play()} onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }} />
         )}
@@ -214,17 +214,17 @@ function AssetCard({ asset, onDelete }) {
           </div>
         )}
         {isGuideline && (
-          <div style={{ padding: 12, fontSize: 11, color: '#666', textAlign: 'left', overflow: 'hidden', maxHeight: '100%' }}>
+          <div style={{ padding: 12, fontSize: 11, color: 'var(--text-muted)', textAlign: 'left', overflow: 'hidden', maxHeight: '100%' }}>
             {(asset.metadata?.body || '').slice(0, 180)}…
           </div>
         )}
         {!isImage && !isVideo && !isPalette && !isGuideline && (
-          <span style={{ fontSize: 11, color: '#888', fontFamily: 'monospace' }}>{asset.kind}</span>
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontFamily: 'monospace' }}>{asset.kind}</span>
         )}
       </div>
       <div style={{ padding: '10px 12px' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
-        <div style={{ fontSize: 10, color: '#999', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
+        <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
         <button onClick={onDelete} className="btn btn-danger btn-sm">Delete</button>
       </div>
     </div>
@@ -233,7 +233,7 @@ function AssetCard({ asset, onDelete }) {
 
 function PaletteForm({ clientId, onClose, onSaved }) {
   const [name, setName] = useState('');
-  const [colors, setColors] = useState(['#000000', '#ffffff', 'var(--accent)']);
+  const [colors, setColors] = useState(['#000000', 'var(--surface)', 'var(--accent)']);
   const [saving, setSaving] = useState(false);
   async function save() {
     setSaving(true);
@@ -301,7 +301,7 @@ function GuidelineForm({ clientId, onClose, onSaved }) {
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
+  label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
   input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

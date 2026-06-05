@@ -142,7 +142,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Ad Creative — {clientName}</h1>
-          <p style={{ fontSize: 13, color: '#666', margin: '4px 0 0', maxWidth: 760, lineHeight: 1.5 }}>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '4px 0 0', maxWidth: 760, lineHeight: 1.5 }}>
             Generate batches of ad concepts using direct-response frameworks (PAS, AIDA, Before/After…),
             grounded in the brand assets and the brief you supply. Then render image variants per concept
             across any aspect ratios you need — 1:1, 4:5, 9:16, 16:9.
@@ -160,12 +160,12 @@ export default function AdCreativePanel({ clientId, clientName }) {
 
       {shareUrl && (
         <div style={{ background: '#e4f4e8', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <strong style={{ fontSize: 12, color: '#1d7a3a' }}>Approval link ready —</strong>
+          <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
           <input value={shareUrl} readOnly onFocus={e => e.target.select()}
-            style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: '#fff', fontFamily: 'monospace' }} />
+            style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: 'var(--surface)', fontFamily: 'monospace' }} />
           <button onClick={() => navigator.clipboard.writeText(shareUrl)}
-            style={{ padding: '4px 12px', fontSize: 11, background: '#1d7a3a', color: '#fff', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Copy</button>
-          <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#1d7a3a' }}>×</button>
+            style={{ padding: '4px 12px', fontSize: 11, background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Copy</button>
+          <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--positive)' }}>×</button>
         </div>
       )}
 
@@ -188,12 +188,12 @@ export default function AdCreativePanel({ clientId, clientName }) {
       <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22, marginTop: 18 }}>
         <div>
           <div className="h3">Past batches</div>
-          {!batches.length && <div style={{ color: '#888', fontSize: 13 }}>Nothing yet — click Generate.</div>}
+          {!batches.length && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Nothing yet — click Generate.</div>}
           {batches.map(b => (
             <div key={b.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: "pointer", background: b.id === activeBatchId ? "var(--accent-soft)" : "var(--surface)" }} onClick={() => selectBatch(b.id)}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
-              <div style={{ fontSize: 11, color: '#888' }}>{b.creative_count} concepts · {b.platform}</div>
-              {b.brief && <div style={{ fontSize: 11, color: '#999', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{b.creative_count} concepts · {b.platform}</div>
+              {b.brief && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
               {b.id === activeBatchId && (
                 <button onClick={(e) => { e.stopPropagation(); deleteBatch(b.id); }} className="btn btn-danger btn-sm">Delete batch</button>
               )}
@@ -202,7 +202,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
         </div>
 
         <div>
-          {!creatives.length && <div style={{ color: '#888', padding: 20 }}>Pick a batch, or generate a new one.</div>}
+          {!creatives.length && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a batch, or generate a new one.</div>}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
             {creatives.map(c => (
               <CreativeCard key={c.id} creative={c}
@@ -258,13 +258,13 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
         </div>
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
-        {!assets.length && <div style={{ fontSize: 12, color: '#888' }}>No brand assets uploaded yet.</div>}
+        {!assets.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
         <div style={{ maxHeight: 220, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
           {assets.map(a => (
             <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedAssets.has(a.id)} onChange={() => toggle(a.id)} />
               <span style={{ fontWeight: 600 }}>{a.name}</span>
-              <span style={{ color: '#888', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>{a.kind.replace('_', ' ')}</span>
+              <span style={{ color: 'var(--text-subtle)', fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>{a.kind.replace('_', ' ')}</span>
             </label>
           ))}
         </div>
@@ -313,17 +313,17 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
           <span className="chip chip-accent" style={{ fontSize: 10 }}>{creative.framework}</span>
           <span className="chip chip-outline" style={{ fontSize: 10 }}>{creative.angle}</span>
         </div>
-        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1 }}>×</button>
+        <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--negative)', fontSize: 18, lineHeight: 1 }}>×</button>
       </div>
 
       <div style={{ marginTop: 10 }}>
         <div className="field">HEADLINE</div>
-        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3, color: '#1a1a1a' }}>{creative.headline}</div>
+        <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>{creative.headline}</div>
       </div>
 
       <div style={{ marginTop: 8 }}>
         <div className="field">BODY</div>
-        <div style={{ fontSize: 13, color: '#333', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+        <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap' }}>{creative.body}</div>
       </div>
 
       <div style={{ marginTop: 8 }}>
@@ -333,11 +333,11 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
       <div style={{ marginTop: 10 }}>
         <div className="field">VISUAL CONCEPT</div>
-        <div style={{ fontSize: 12, color: '#555', lineHeight: 1.5 }}>{creative.visual_concept}</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{creative.visual_concept}</div>
       </div>
 
       {creative.notes && (
-        <div style={{ marginTop: 8, fontSize: 11, color: '#888', fontStyle: 'italic' }}>{creative.notes}</div>
+        <div style={{ marginTop: 8, fontSize: 11, color: 'var(--text-subtle)', fontStyle: 'italic' }}>{creative.notes}</div>
       )}
 
       {(creative.images || []).length > 0 && (
@@ -355,7 +355,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       </div>
 
       {showRender && (
-        <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div className="field">PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
@@ -407,8 +407,8 @@ function aspectStyle(ratio) {
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
+  modal: { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
   input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },

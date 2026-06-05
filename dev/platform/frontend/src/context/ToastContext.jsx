@@ -22,7 +22,7 @@ export function ToastProvider({ children }) {
             fontSize: 13,
             fontWeight: 500,
             color: 'white',
-            background: t.type === 'error' ? '#c62828' : t.type === 'warning' ? '#e65100' : '#2e7d32',
+            background: t.type === 'error' ? 'var(--negative)' : t.type === 'warning' ? '#e65100' : 'var(--positive)',
             boxShadow: '0 4px 16px rgba(0,0,0,0.18)',
             maxWidth: 360,
             lineHeight: 1.4,

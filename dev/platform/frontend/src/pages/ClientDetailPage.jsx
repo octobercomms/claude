@@ -284,8 +284,8 @@ export default function ClientDetailPage() {
     });
   }
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
-  if (!client) return <div style={{ color: '#c62828', padding: 40 }}>Client not found</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
+  if (!client) return <div style={{ color: 'var(--negative)', padding: 40 }}>Client not found</div>;
 
   // Pick the suite scope from the active tab so each tab takes its
   // own section accent. Forms gets the Forms purple; Reports gets the
@@ -304,12 +304,12 @@ export default function ClientDetailPage() {
 
       {['details', 'brand', 'connectors'].includes(tab) && (
         <div>
-          <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>Setup</div>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1.5, fontWeight: 700, marginBottom: 6 }}>Setup</div>
           <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 18 }}>
             {[['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
               <button key={key} onClick={() => setSearchParams({ tab: key })} style={{
                 background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14,
-                fontWeight: tab === key ? 700 : 400, color: tab === key ? '#1a1a1a' : '#888',
+                fontWeight: tab === key ? 700 : 400, color: tab === key ? 'var(--text)' : 'var(--text-subtle)',
                 borderBottom: tab === key ? '2px solid #1a1a1a' : '2px solid transparent', marginBottom: -2,
               }}>{label}</button>
             ))}
@@ -351,7 +351,7 @@ export default function ClientDetailPage() {
             <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
               {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
-            {!client.domain && <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>Set the domain above first</span>}
+            {!client.domain && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain above first</span>}
           </Field>
           <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
         </form>
@@ -400,8 +400,8 @@ export default function ClientDetailPage() {
                 {unconnected.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {unconnected.map(type => (
-                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fafafa', borderRadius: 4, border: '1px dashed #ddd' }}>
-                        <span style={{ fontSize: 13, color: '#aaa' }}>{CONNECTOR_LABELS[type]}</span>
+                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--surface-raised)', borderRadius: 4, border: '1px dashed #ddd' }}>
+                        <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>{CONNECTOR_LABELS[type]}</span>
                         {!group.oauth && (
                           <button onClick={() => addConnector(type)} className="btn btn-secondary btn-sm">+ Add</button>
                         )}
@@ -423,7 +423,7 @@ export default function ClientDetailPage() {
         <>
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview weekly</button>
               <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview monthly</button>
@@ -432,13 +432,13 @@ export default function ClientDetailPage() {
             </div>
           </div>
           {reports.length === 0 ? (
-            <p style={{ fontSize: 13, color: '#888', margin: '12px 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
+            <p style={{ fontSize: 13, color: 'var(--text-subtle)', margin: '12px 0 0' }}>No reports generated yet — use the buttons above, or wait for the schedule.</p>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 12 }}>
               <thead>
                 <tr>
                   {['Type', 'Period start', 'Status', 'Generated', ''].map(h => (
-                    <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', padding: '4px 12px 8px 0', fontSize: 11, color: 'var(--text-subtle)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -449,16 +449,16 @@ export default function ClientDetailPage() {
                       <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', textTransform: 'capitalize' }}>{r.report_type}</td>
                       <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>{r.period_start ? new Date(r.period_start).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5' }}>
-                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? '#2e7d32' : r.status === 'failed' ? '#c62828' : '#888' }}>{r.status}</span>
+                        <span style={{ color: r.status === 'sent' || r.status === 'generated' ? 'var(--positive)' : r.status === 'failed' ? 'var(--negative)' : 'var(--text-subtle)' }}>{r.status}</span>
                       </td>
-                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: '#888' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
+                      <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: 'var(--text-subtle)' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: '7px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
-                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Delete</button>
+                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                       </td>
                     </tr>
                     {r.status === 'failed' && r.error_log && (
                       <tr>
-                        <td colSpan={5} style={{ padding: '0 12px 8px 0', color: '#c62828', fontSize: 12, fontFamily: 'monospace', lineHeight: 1.5 }}>
+                        <td colSpan={5} style={{ padding: '0 12px 8px 0', color: 'var(--negative)', fontSize: 12, fontFamily: 'monospace', lineHeight: 1.5 }}>
                           ⚠ {r.error_log}
                         </td>
                       </tr>
@@ -471,7 +471,7 @@ export default function ClientDetailPage() {
         </div>
 
         <form onSubmit={handleSave} className="card" style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Schedule</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Schedule</div>
           <div className="grid grid-2">
             <Field label="Weekly Day">
               <select
@@ -501,7 +501,7 @@ export default function ClientDetailPage() {
           </Field>
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Recipients</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Recipients</div>
             <Field label="Monthly Report Recipients (one per line)">
               <textarea
                 className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
@@ -525,7 +525,7 @@ export default function ClientDetailPage() {
           </div>
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>This month's focus</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>This month's focus</div>
             <p className="body-xs text-muted">Sets the priority for the next report. Drives Claude's executive summary and recommendations. Update before each monthly report runs.</p>
             <textarea
               className="input" style={{ minHeight: 80, resize: 'vertical', marginTop: 8 }}
@@ -539,7 +539,7 @@ export default function ClientDetailPage() {
           </div>
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Templates</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Templates</div>
             <p className="body-xs text-muted">
               Each report has a template — an ordered set of sections, layouts and per-section prompts. Design it conversationally with Claude
               ("B2C summary across all stores, then B2B, then Google Ads ROAS") and lock it once it looks right. Locked templates drive every
@@ -550,7 +550,7 @@ export default function ClientDetailPage() {
                 const tpl = templateSummary[rt];
                 const sections = tpl?.sections || [];
                 return (
-                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
                       <button type="button" onClick={() => setTemplateChatType(rt)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
@@ -558,15 +558,15 @@ export default function ClientDetailPage() {
                       </button>
                     </div>
                     {sections.length ? (
-                      <ol style={{ fontSize: 12, color: '#444', paddingLeft: 18, margin: '4px 0 0' }}>
+                      <ol style={{ fontSize: 12, color: 'var(--text-muted)', paddingLeft: 18, margin: '4px 0 0' }}>
                         {sections.map(s => (
                           <li key={s.id} style={{ marginBottom: 2 }}>
-                            <strong>{s.title}</strong> <span style={{ color: '#888', fontFamily: 'monospace', fontSize: 10 }}>{s.type}</span>
+                            <strong>{s.title}</strong> <span style={{ color: 'var(--text-subtle)', fontFamily: 'monospace', fontSize: 10 }}>{s.type}</span>
                           </li>
                         ))}
                       </ol>
                     ) : (
-                      <div style={{ fontSize: 12, color: '#888', fontStyle: 'italic' }}>Not set up yet — using auto-generated default from connectors.</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-subtle)', fontStyle: 'italic' }}>Not set up yet — using auto-generated default from connectors.</div>
                     )}
                   </div>
                 );
@@ -726,8 +726,8 @@ function getLabelStyle(label) {
   return {
     fontSize: 11, fontWeight: 700, padding: '2px 8px',
     borderRadius: 12,
-    background: isB2B ? '#1565c0' : '#2e7d32',
-    color: '#fff',
+    background: isB2B ? 'var(--accent)' : 'var(--positive)',
+    color: 'var(--surface)',
     whiteSpace: 'nowrap',
   };
 }
@@ -777,9 +777,9 @@ function BrevoConfig({ connector, onConfigSave }) {
 
   return (
     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>List</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>List</span>
       {lists === null ? (
-        <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={listId} onChange={e => setListId(e.target.value)}
           style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb' }}>
@@ -787,13 +787,13 @@ function BrevoConfig({ connector, onConfigSave }) {
           {lists.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
       )}
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
       <input value={automation} onChange={e => setAutomation(e.target.value)}
         placeholder="All automations (optional ID/name)"
         style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', width: 220 }} />
       <button type="button" onClick={save} disabled={saving} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
-      {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
-      {listsError && <span style={{ fontSize: 11, color: '#c62828' }}>Lists: {listsError}</span>}
+      {saved && <span style={{ fontSize: 12, color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
+      {listsError && <span style={{ fontSize: 11, color: 'var(--negative)' }}>Lists: {listsError}</span>}
     </div>
   );
 }
@@ -853,9 +853,9 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
 
   return (
     <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</span>
+      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Form</span>
       {forms === null ? (
-        <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={formId} onChange={e => setFormId(e.target.value)}
           style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', minWidth: 240 }}>
@@ -864,8 +864,8 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
         </select>
       )}
       <button type="button" onClick={save} disabled={saving || !formId} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
-      {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
-      {formsError && <span style={{ fontSize: 11, color: '#c62828' }}>Forms: {formsError}</span>}
+      {saved && <span style={{ fontSize: 12, color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
+      {formsError && <span style={{ fontSize: 11, color: 'var(--negative)' }}>Forms: {formsError}</span>}
     </div>
   );
 }
@@ -883,7 +883,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   const [manualValue, setManualValue] = React.useState(connector.config?.value || '');
   const [diagnosing, setDiagnosing] = React.useState(false);
   const [diagnoseResult, setDiagnoseResult] = React.useState(null);
-  const statusColor = { active: '#2e7d32', error: '#c62828', expired: '#e65100', disconnected: '#999' };
+  const statusColor = { active: 'var(--positive)', error: 'var(--negative)', expired: '#e65100', disconnected: 'var(--text-subtle)' };
 
   async function handleDiagnose() {
     setDiagnosing(true);
@@ -951,7 +951,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   }
 
   return (
-    <div style={{ padding: '10px 16px', background: '#f9f9f9', borderRadius: 4, border: '2px solid var(--accent)' }}>
+    <div style={{ padding: '10px 16px', background: 'var(--surface-raised)', borderRadius: 4, border: '2px solid var(--accent)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
@@ -981,12 +981,12 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               {connector.store_label
                 ? <span style={getLabelStyle(connector.store_label)}>{getCountryFlag(connector.store_label)} {connector.store_label}</span>
-                : <span style={{ fontSize: 11, color: '#aaa', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
+                : <span style={{ fontSize: 11, color: 'var(--text-subtle)', cursor: 'pointer' }} onClick={() => setEditingLabel(true)}>+ add label</span>
               }
-              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: '#aaa', padding: 0 }} title="Edit label">✎</button>}
+              {connector.store_label && <button onClick={() => { setLabelInput(connector.store_label); setEditingLabel(true); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', padding: 0 }} title="Edit label">✎</button>}
             </span>
           )}
-          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? '#2e7d32' : (statusColor[connector.status] || '#888') }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? 'var(--positive)' : (statusColor[connector.status] || 'var(--text-subtle)') }}>
             {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
@@ -1014,37 +1014,37 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             </button>
           )}
           {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: '#e65100' }}>Reset</button>}
-          <button onClick={() => onDelete(connector.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Remove</button>
+          <button onClick={() => onDelete(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Remove</button>
         </div>
       </div>
       {diagnoseResult && (
-        <div style={{ marginTop: 10, background: '#f5f5f5', borderRadius: 4, padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
+        <div style={{ marginTop: 10, background: 'var(--surface-sunken)', borderRadius: 4, padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
-            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#888', fontSize: 14 }}>×</button>
+            <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>×</button>
           </div>
           {/* Credentials stored */}
           {diagnoseResult.credentials && (
-            <div style={{ color: diagnoseResult.credentials === 'none stored' ? '#c62828' : '#555', marginBottom: 4 }}>
+            <div style={{ color: diagnoseResult.credentials === 'none stored' ? 'var(--negative)' : 'var(--text-muted)', marginBottom: 4 }}>
               Credentials: {diagnoseResult.credentials === 'none stored' ? '✗ none stored — use Connect/Update to save credentials' : `✓ stored (${diagnoseResult.credentials})`}
             </div>
           )}
           {/* Generic check result (non-Google connectors) */}
           {diagnoseResult.check && (
-            <div style={{ color: diagnoseResult.check.status === 'ok' ? '#2e7d32' : '#c62828', marginBottom: 4 }}>
+            <div style={{ color: diagnoseResult.check.status === 'ok' ? 'var(--positive)' : 'var(--negative)', marginBottom: 4 }}>
               {diagnoseResult.check.status === 'ok' ? '✓' : '✗'} {diagnoseResult.check.detail}
             </div>
           )}
           {/* Google token info */}
           {diagnoseResult.token_info && (
             <div style={{ marginBottom: 4 }}>
-              <div style={{ color: diagnoseResult.token_info.error ? '#c62828' : '#2e7d32' }}>
+              <div style={{ color: diagnoseResult.token_info.error ? 'var(--negative)' : 'var(--positive)' }}>
                 {diagnoseResult.token_info.error
                   ? `✗ Token error: ${JSON.stringify(diagnoseResult.token_info.error)}`
                   : `✓ Account: ${diagnoseResult.token_info.email || 'unknown'} (expires ${diagnoseResult.token_info.expires_in})`}
               </div>
               {diagnoseResult.token_info.note && (
-                <div style={{ color: diagnoseResult.token_info.note_kind === 'error' ? '#c62828' : '#888', fontSize: 11, marginTop: 4 }}>
+                <div style={{ color: diagnoseResult.token_info.note_kind === 'error' ? 'var(--negative)' : 'var(--text-subtle)', fontSize: 11, marginTop: 4 }}>
                   {diagnoseResult.token_info.note}
                 </div>
               )}
@@ -1052,7 +1052,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           )}
           {/* Live API test (GA4) */}
           {diagnoseResult.live_test && (
-            <div style={{ color: diagnoseResult.live_test.status === 'ok' ? '#2e7d32' : '#c62828' }}>
+            <div style={{ color: diagnoseResult.live_test.status === 'ok' ? 'var(--positive)' : 'var(--negative)' }}>
               Live test: {diagnoseResult.live_test.status === 'ok'
                 ? `✓ ${diagnoseResult.live_test.detail}`
                 : `✗ ${diagnoseResult.live_test.http_status ? `HTTP ${diagnoseResult.live_test.http_status} — ` : ''}${JSON.stringify(diagnoseResult.live_test.error)}`}
@@ -1062,17 +1062,17 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           {diagnoseResult.access && (
             <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid #e3e3e3' }}>
               {diagnoseResult.access.error ? (
-                <div style={{ color: '#c62828' }}>Access check failed: {diagnoseResult.access.error}</div>
+                <div style={{ color: 'var(--negative)' }}>Access check failed: {diagnoseResult.access.error}</div>
               ) : (
                 <>
                   {diagnoseResult.access.account && (
-                    <div style={{ color: '#555' }}>Account: {diagnoseResult.access.account}</div>
+                    <div style={{ color: 'var(--text-muted)' }}>Account: {diagnoseResult.access.account}</div>
                   )}
                   {diagnoseResult.access.granted?.length > 0 && (
-                    <div style={{ color: '#2e7d32' }}>✓ Can access: {diagnoseResult.access.granted.join(', ')}</div>
+                    <div style={{ color: 'var(--positive)' }}>✓ Can access: {diagnoseResult.access.granted.join(', ')}</div>
                   )}
                   {diagnoseResult.access.missing?.length > 0 && (
-                    <div style={{ color: '#c62828', marginTop: 2 }}>✗ Cannot access: {diagnoseResult.access.missing.join(', ')}</div>
+                    <div style={{ color: 'var(--negative)', marginTop: 2 }}>✗ Cannot access: {diagnoseResult.access.missing.join(', ')}</div>
                   )}
                   {(diagnoseResult.access.limitations || []).map((l, i) => (
                     <div key={i} style={{ color: '#e65100', marginTop: 3, fontFamily: 'sans-serif', lineHeight: 1.4 }}>⚠ {l}</div>
@@ -1083,11 +1083,11 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           )}
           {/* Config summary */}
           {diagnoseResult.config && Object.keys(diagnoseResult.config).length > 0 && (
-            <div style={{ color: '#888', marginTop: 4 }}>
+            <div style={{ color: 'var(--text-subtle)', marginTop: 4 }}>
               Config: {JSON.stringify(diagnoseResult.config)}
             </div>
           )}
-          {diagnoseResult.error && <div style={{ color: '#c62828' }}>Error: {diagnoseResult.error}</div>}
+          {diagnoseResult.error && <div style={{ color: 'var(--negative)' }}>Error: {diagnoseResult.error}</div>}
         </div>
       )}
       {connector.connector_type === 'brevo' && isActive && (
@@ -1098,11 +1098,11 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       )}
       {isOAuth && isActive && (
         <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, whiteSpace: 'nowrap' }}>
             {ACCOUNT_LABEL[connector.connector_type] || 'Account'}
           </span>
           {loadingAccounts ? (
-            <span style={{ fontSize: 12, color: '#aaa' }}>Loading…</span>
+            <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
           ) : accounts && accounts.length === 0 && MANUAL_ENTRY_TYPES.includes(connector.connector_type) ? (
             <div style={{ display: 'flex', gap: 8, flex: 1 }}>
               <input
@@ -1115,9 +1115,9 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               <button onClick={handleManualSave} className="btn btn-secondary btn-sm">Save</button>
             </div>
           ) : accountsError ? (
-            <span style={{ fontSize: 12, color: '#c62828' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
+            <span style={{ fontSize: 12, color: 'var(--negative)' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
           ) : accounts && accounts.length === 0 ? (
-            <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
+            <span style={{ fontSize: 12, color: 'var(--negative)' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
             <select className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
               <option value="">— Select —</option>
@@ -1137,9 +1137,9 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
     <div className="modal-backdrop">
       <div className="modal">
         <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
-        {connector.store_label && <p style={{ margin: '0 0 16px', color: '#888', fontSize: 13 }}>{connector.store_label}</p>}
+        {connector.store_label && <p style={{ margin: '0 0 16px', color: 'var(--text-subtle)', fontSize: 13 }}>{connector.store_label}</p>}
         {isShopify && (
-          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: '#666', background: '#f5f5f5', padding: '10px 12px', borderRadius: 4, lineHeight: 1.5 }}>
+          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '10px 12px', borderRadius: 4, lineHeight: 1.5 }}>
             Get the access token from your store admin: <strong>Settings → Apps → Develop apps → Create app → Configure scopes → Install → copy Admin API access token</strong> (starts with shpat_)
           </p>
         )}
@@ -1171,7 +1171,7 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
     <div className="modal-backdrop">
       <div className="modal">
         <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Add another {typeName}</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-muted)' }}>
           Give this account a short label to tell it apart (e.g. "B2C", "B2B", "UK site").
         </p>
         <Field label="Label">
@@ -1203,7 +1203,7 @@ function ShopifyModal({ onConfirm, onClose }) {
     <div className="modal-backdrop">
       <div className="modal">
         <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect Shopify Store</h3>
-        <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
+        <p style={{ margin: '0 0 16px', fontSize: 13, color: 'var(--text-muted)' }}>
           Enter the store domain. You'll approve access in a Shopify popup.
         </p>
         <Field label="Store Domain">
@@ -1214,14 +1214,14 @@ function ShopifyModal({ onConfirm, onClose }) {
           />
         </Field>
         <div style={{ margin: '14px 0 0' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: '#444' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--text-muted)' }}>
             <input type="checkbox" checked={useOwnApp} onChange={e => setUseOwnApp(e.target.checked)} />
             This client has their own Shopify app (different API Key)
           </label>
         </div>
         {useOwnApp && (
-          <div style={{ marginTop: 12, padding: '12px 14px', background: '#f9f9f9', border: '2px solid var(--accent)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <p style={{ margin: '0 0 4px', fontSize: 12, color: '#666', lineHeight: 1.5 }}>
+          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>
             <Field label="API Key (Client ID)">
@@ -1249,7 +1249,7 @@ function ShopifyModal({ onConfirm, onClose }) {
 function Field({ label, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <label style={{ fontSize: 11, fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
       {children}
     </div>
   );

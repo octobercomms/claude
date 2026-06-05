@@ -3,8 +3,8 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
 const STATUS_COLORS = {
-  sent: '#2e7d32', generated: '#1565c0', generating: '#f57c00',
-  pending: '#888', failed: '#c62828', sending: '#f57c00',
+  sent: 'var(--positive)', generated: 'var(--accent)', generating: 'var(--warning)',
+  pending: 'var(--text-subtle)', failed: 'var(--negative)', sending: 'var(--warning)',
 };
 
 export default function ReportsPage() {
@@ -74,7 +74,7 @@ export default function ReportsPage() {
     return true;
   });
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   return (
     <div className="suite-reports">
@@ -153,7 +153,7 @@ export default function ReportsPage() {
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', color: '#888' }}>No reports found</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No reports found</td></tr>
             ) : filtered.map(r => (
               <tr key={r.id}>
                 <td ><strong>{r.client_name}</strong></td>
@@ -162,11 +162,11 @@ export default function ReportsPage() {
                 </td>
                 <td >{fmtDate(r.period_start)} – {fmtDate(r.period_end)}</td>
                 <td >
-                  <span style={{ color: STATUS_COLORS[r.status] || '#888', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
+                  <span style={{ color: STATUS_COLORS[r.status] || 'var(--text-subtle)', fontSize: 12, fontWeight: 600, textTransform: 'uppercase' }}>
                     {r.status}
                   </span>
                   {r.status === 'failed' && r.error_log && (
-                    <div style={{ fontSize: 11, color: '#c62828', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
+                    <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4, maxWidth: 300, wordBreak: 'break-word' }}>
                       {r.error_log}
                     </div>
                   )}
@@ -184,7 +184,7 @@ export default function ReportsPage() {
                     {(r.status === 'generated' || r.status === 'sent' || r.status === 'failed') && (
                       <button onClick={() => handleResend(r.id)} className="btn btn-secondary btn-sm">{r.status === 'failed' ? 'Retry' : 'Resend'}</button>
                     )}
-                    <button onClick={() => handleDelete(r.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>✕</button>
+                    <button onClick={() => handleDelete(r.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>✕</button>
                   </div>
                 </td>
               </tr>

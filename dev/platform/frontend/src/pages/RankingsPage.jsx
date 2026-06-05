@@ -252,7 +252,7 @@ export default function RankingsPage() {
       {showBulkForm && (
         <div className="card">
           <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Bulk Import Keywords</h3>
-          <p style={{ margin: '0 0 16px', fontSize: 12, color: '#888' }}>
+          <p style={{ margin: '0 0 16px', fontSize: 12, color: 'var(--text-subtle)' }}>
             One keyword per line. Optional columns: <code>keyword, target_url, tag</code>
           </p>
           <form onSubmit={handleBulkImport} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -285,16 +285,16 @@ export default function RankingsPage() {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button type="submit" className="btn btn-primary" disabled={bulking}>{bulking ? 'Importing…' : 'Import Keywords'}</button>
               <button type="button" onClick={() => { setShowBulkForm(false); setBulkMsg(''); }} className="btn btn-secondary">Cancel</button>
-              {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{bulkMsg}</span>}
+              {bulkMsg && <span style={{ fontSize: 13, color: bulkMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{bulkMsg}</span>}
             </div>
           </form>
         </div>
       )}
 
       {loading ? (
-        <div style={{ color: '#888', padding: 40 }}>Loading keywords…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading keywords…</div>
       ) : !selectedClient ? (
-        <div style={{ color: '#888', padding: 40, textAlign: 'center' }}>Select a client to view rankings</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 40, textAlign: 'center' }}>Select a client to view rankings</div>
       ) : (
         <div className="card">
           <table className="table">
@@ -307,7 +307,7 @@ export default function RankingsPage() {
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr><td colSpan={9} style={{ textAlign: 'center', color: '#888' }}>No keywords found</td></tr>
+                <tr><td colSpan={9} style={{ textAlign: 'center', color: 'var(--text-subtle)' }}>No keywords found</td></tr>
               ) : filtered.map(kw => {
                 const change = posChange(kw.current_position, kw.previous_position);
                 const loc = LOCATIONS.find(l => l.code === kw.location_code);
@@ -315,7 +315,7 @@ export default function RankingsPage() {
                   <tr key={kw.id} style={{ cursor: 'pointer' }} onClick={() => openHistory(kw)}>
                     <td >
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{kw.keyword}</div>
-                      {kw.target_url && <div style={{ fontSize: 11, color: '#999' }}>{kw.target_url}</div>}
+                      {kw.target_url && <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{kw.target_url}</div>}
                     </td>
                     <td >
                       <span className="chip chip-neutral">{loc ? `${loc.flag} ${loc.name}` : kw.location_name || '—'}</span>
@@ -323,20 +323,20 @@ export default function RankingsPage() {
                     <td ><span className="chip chip-neutral">{kw.device}</span></td>
                     <td >{kw.tag ? <span className="chip chip-neutral">{kw.tag}</span> : '—'}</td>
                     <td >
-                      <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? '#1a1a1a' : '#ccc' }}>
+                      <span style={{ fontSize: 16, fontWeight: 700, color: kw.current_position ? 'var(--text)' : '#ccc' }}>
                         {kw.current_position || '—'}
                       </span>
                       {change !== null && (
-                        <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? '#2e7d32' : change < 0 ? '#c62828' : '#888' }}>
+                        <span style={{ marginLeft: 6, fontSize: 11, color: change > 0 ? 'var(--positive)' : change < 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>
                           {change > 0 ? `↑${change}` : change < 0 ? `↓${Math.abs(change)}` : '–'}
                         </span>
                       )}
                     </td>
                     <td >{kw.previous_position || '—'}</td>
-                    <td style={{ color: '#2e7d32', fontWeight: 600 }}>{kw.best_position || '—'}</td>
+                    <td style={{ color: 'var(--positive)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
                     <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
                     <td  onClick={e => e.stopPropagation()}>
-                      <button onClick={() => handleDelete(kw.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Delete</button>
+                      <button onClick={() => handleDelete(kw.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
                     </td>
                   </tr>
                 );
@@ -351,7 +351,7 @@ export default function RankingsPage() {
           <div  onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <h3 style={{ margin: 0, fontSize: 15 }}>{historyModal.keyword}</h3>
-              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
+              <button onClick={() => setHistoryModal(null)} style={{ border: 'none', background: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-subtle)' }}>×</button>
             </div>
             {history.length > 0 ? (
               <ResponsiveContainer width="100%" height={200}>
@@ -363,7 +363,7 @@ export default function RankingsPage() {
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <p style={{ color: '#888', textAlign: 'center', padding: 40 }}>No rank history yet</p>
+              <p style={{ color: 'var(--text-subtle)', textAlign: 'center', padding: 40 }}>No rank history yet</p>
             )}
           </div>
         </div>

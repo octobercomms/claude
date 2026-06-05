@@ -449,7 +449,7 @@ export default function SettingsPage() {
             <Field label="Current Password">
               <input type="password" className="input" value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
             </Field>
-            <Field label={<>New Password <span style={{ fontWeight: 400, textTransform: 'none', color: '#888' }}>(leave blank to keep current)</span></>}>
+            <Field label={<>New Password <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--text-subtle)' }}>(leave blank to keep current)</span></>}>
               <input type="password" className="input" value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
             </Field>
             {account.newPassword && (
@@ -459,13 +459,13 @@ export default function SettingsPage() {
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <button type="submit" className="btn btn-primary" disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
-              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{accountMsg}</span>}
+              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{accountMsg}</span>}
             </div>
           </form>
         </Card>
       </div>
 
-      <p style={{ fontSize: 12, color: '#888', margin: '0 0 12px' }}>
+      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
         Tap a category to expand its integrations. Each block has its own Save button.
       </p>
 
@@ -494,7 +494,7 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span className="chip chip-accent">{configuredCount} / {groupsInCat.length}</span>
-                    <span style={{ fontSize: 14, color: '#666' }}>{open ? '▾' : '▸'}</span>
+                    <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
                   </div>
                 </button>
 
@@ -544,13 +544,13 @@ export default function SettingsPage() {
                                 {testingDfs ? 'Testing…' : 'Test connection'}
                               </button>
                               {dfsTestMsg && (
-                                <span style={{ fontSize: 12, color: dfsTestMsg.ok ? '#2e7d32' : '#c62828' }}>
+                                <span style={{ fontSize: 12, color: dfsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
                                   {dfsTestMsg.ok ? '✓ ' : '✗ '}{dfsTestMsg.message}
                                 </span>
                               )}
                             </div>
                             {dfsTestMsg && dfsTestMsg.sent && (
-                              <div style={{ fontSize: 11, color: '#888', marginTop: 6, lineHeight: 1.5 }}>
+                              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
                                 Sent login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} chars ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO code ${dfsTestMsg.code}` : ''}.
                               </div>
                             )}
@@ -562,7 +562,7 @@ export default function SettingsPage() {
                             {savingSection === group.title ? 'Saving…' : 'Save'}
                           </button>
                           {sectionResult && sectionResult.title === group.title && (
-                            <span style={{ fontSize: 12, fontWeight: 600, color: sectionResult.ok ? '#2e7d32' : '#c62828' }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, color: sectionResult.ok ? 'var(--positive)' : 'var(--negative)' }}>
                               {sectionResult.ok ? '✓ Saved' : `✗ ${sectionResult.message}`}
                             </span>
                           )}
@@ -584,7 +584,7 @@ export default function SettingsPage() {
                             {sendingTest ? 'Sending…' : 'Send Test'}
                           </button>
                         </div>
-                        {testMsg && <div style={{ marginTop: 6, fontSize: 12, color: testMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{testMsg}</div>}
+                        {testMsg && <div style={{ marginTop: 6, fontSize: 12, color: testMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{testMsg}</div>}
                       </div>
                     )}
                   </div>
@@ -662,8 +662,8 @@ function CostsPanel() {
           {refreshing ? 'Polling…' : 'Refresh now'}
         </button>
       </div>
-      {err && <div style={{ color: '#c62828', fontSize: 12, marginBottom: 8 }}>{err}</div>}
-      {!rows && <div style={{ color: '#888', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
+      {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
       {rows && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {rows.map(r => <ProviderCard key={r.name} entry={r} />)}
@@ -675,51 +675,51 @@ function CostsPanel() {
 
 function ProviderCard({ entry }) {
   const s = entry.snapshot;
-  let body, statusColour = '#888';
+  let body, statusColour = 'var(--text-subtle)';
   if (!s) {
-    body = <div style={{ fontSize: 12, color: '#999' }}>No data yet — click Refresh.</div>;
+    body = <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No data yet — click Refresh.</div>;
   } else if (s.status === 'no_credentials') {
-    body = <div style={{ fontSize: 12, color: '#bbb' }}>Not configured</div>;
+    body = <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Not configured</div>;
   } else if (s.status === 'error') {
-    body = <div style={{ fontSize: 12, color: '#c62828' }}>{s.error_message || 'Error'}</div>;
-    statusColour = '#c62828';
+    body = <div style={{ fontSize: 12, color: 'var(--negative)' }}>{s.error_message || 'Error'}</div>;
+    statusColour = 'var(--negative)';
   } else {
     body = (
       <div>
         {s.cost_this_period != null && (
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {fmtCurrency(s.cost_this_period, s.currency)}
-            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>this month</span>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
           </div>
         )}
         {s.cost_this_period == null && s.balance_remaining != null && (
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#1a1a1a' }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
             {fmtCurrency(s.balance_remaining, s.currency)}
-            <span style={{ fontSize: 11, color: '#888', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+            <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
           </div>
         )}
         {s.units_used != null && (
-          <div style={{ fontSize: 13, color: '#333', marginTop: 2 }}>
+          <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>
             {s.units_used.toLocaleString()}{s.units_limit ? ` / ${s.units_limit.toLocaleString()}` : ''}{' '}
-            <span style={{ color: '#888' }}>{s.unit_label || ''}</span>
+            <span style={{ color: 'var(--text-subtle)' }}>{s.unit_label || ''}</span>
           </div>
         )}
         {(s.cost_this_period == null && s.balance_remaining == null && s.units_used == null) && (
-          <div style={{ fontSize: 11, color: '#999', fontStyle: 'italic' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', fontStyle: 'italic' }}>
             {s.raw?.note || 'Configured — no balance API.'}
           </div>
         )}
-        <div style={{ fontSize: 10, color: '#aaa', marginTop: 6 }}>
+        <div style={{ fontSize: 10, color: 'var(--text-subtle)', marginTop: 6 }}>
           {s.snapshot_at ? `Updated ${new Date(s.snapshot_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}` : ''}
         </div>
       </div>
     );
-    statusColour = '#1d7a3a';
+    statusColour = 'var(--positive)';
   }
   return (
     <div style={{ border: '2px solid var(--accent)', borderRadius: 4, padding: 12, position: 'relative' }}>
       <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
-      <div style={{ fontSize: 11, color: '#666', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
       {body}
     </div>
   );
@@ -749,8 +749,8 @@ function Field({ label, children }) {
 function InfoRow({ label, value }) {
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f0f0f0', fontSize: 13 }}>
-      <span style={{ color: '#666' }}>{label}</span>
-      <code style={{ color: '#1a1a1a' }}>{value}</code>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <code style={{ color: 'var(--text)' }}>{value}</code>
     </div>
   );
 }
@@ -1039,19 +1039,19 @@ function ContactsLibrary() {
                     );
                   })}
                   {hiddenCount > 0 && (
-                    <button onClick={() => setTagsExpanded(true)} className="chip chip-outline" style={{ fontWeight: 700, color: '#1a1a1a',
+                    <button onClick={() => setTagsExpanded(true)} className="chip chip-outline" style={{ fontWeight: 700, color: 'var(--text)',
                      }}>
                       + {hiddenCount} more
                     </button>
                   )}
                   {tagsExpanded && filtered.length > COLLAPSED && (
-                    <button onClick={() => setTagsExpanded(false)} className="chip chip-outline" style={{ fontWeight: 700, color: '#666',
+                    <button onClick={() => setTagsExpanded(false)} className="chip chip-outline" style={{ fontWeight: 700, color: 'var(--text-muted)',
                      }}>
                       show less
                     </button>
                   )}
                   {!filtered.length && (
-                    <span style={{ fontSize: 11, color: '#888', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-subtle)', alignSelf: 'center' }}>No tags match "{tagSearch}"</span>
                   )}
                 </div>
               </div>
@@ -1059,12 +1059,12 @@ function ContactsLibrary() {
           })()}
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
         {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
 
-        {!filtered && <div style={{ marginTop: 16, color: '#888' }}>Loading…</div>}
+        {!filtered && <div style={{ marginTop: 16, color: 'var(--text-subtle)' }}>Loading…</div>}
         {filtered && !filtered.length && (
-          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
             {search.trim() || activeTags.size
               ? 'No contacts match this filter.'
               : `No contacts yet. Use ↑ Import CSV above, or add some from a client's Contacts tab — they'll show up here automatically.`}
@@ -1074,7 +1074,7 @@ function ContactsLibrary() {
         {filtered && !!filtered.length && (
           <div style={{ marginTop: 14, overflowX: 'auto' }}>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, color: '#666' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                 {selected.size} selected
                 {total > filtered.length
                   ? <> · Showing <strong>{filtered.length.toLocaleString()}</strong> of <strong>{total.toLocaleString()}</strong> matching</>
@@ -1099,8 +1099,8 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>
+              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
@@ -1136,8 +1136,8 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
-                <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
+              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
                     <button key={c.id} onClick={() => attachTo(c.id)} className="btn btn-secondary btn-sm">
@@ -1176,14 +1176,14 @@ function ContactsLibrary() {
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
                       </td>
                       <td  onClick={() => setOpenContact(r)} title={totalsTip}>
-                        <strong style={{ color: '#1a1a1a' }}>{r.name || '(unnamed)'}</strong>
+                        <strong style={{ color: 'var(--text)' }}>{r.name || '(unnamed)'}</strong>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <span style={{ color: '#666' }}>{r.email || '—'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{r.email || '—'}</span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.contact_type || '—'}</span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
@@ -1193,20 +1193,20 @@ function ContactsLibrary() {
                         </div>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <div style={{ fontSize: 11, color: '#666' }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                           {(r.client_ids || []).length
                             ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
-                            : <span style={{ color: '#bbb' }}>library only</span>}
+                            : <span style={{ color: 'var(--text-subtle)' }}>library only</span>}
                         </div>
                       </td>
                       <td  onClick={() => setOpenContact(r)} title={totalsTip}>
-                        <div style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
-                          {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: '#bbb' }}>—</span>}
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                          {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: 'var(--text-subtle)' }}>—</span>}
                         </div>
                       </td>
                       <td  onClick={e => e.stopPropagation()}>
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
-                          style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                          style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
                           ×
                         </button>
                       </td>
@@ -1301,7 +1301,7 @@ function TagsManager() {
     finally { setBusy(false); }
   }
 
-  if (!tags) return <div style={{ color: '#888', padding: 20 }}>Loading…</div>;
+  if (!tags) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>;
 
   const q = search.trim().toLowerCase();
   let filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
@@ -1332,7 +1332,7 @@ function TagsManager() {
               <div style={{ fontSize: 13, fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
               </div>
-              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
+              <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--text-subtle)' }}>×</button>
             </div>
             <p className="body-sm text-muted" style={{ marginBottom: 12  }}>
               Untick anything you disagree with, then apply. Each operation rewrites tags on contacts and can't be undone in one click.
@@ -1357,7 +1357,7 @@ function TagsManager() {
                         <span className="chip chip-outline" style={{ padding: '1px 8px', fontSize: 10, marginRight: 6  }}>{op.type}</span>
                         <OpSummary op={op} />
                       </div>
-                      {op.why && <div style={{ color: '#888', fontStyle: 'italic' }}>{op.why}</div>}
+                      {op.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic' }}>{op.why}</div>}
                     </div>
                   </label>
                 );
@@ -1367,7 +1367,7 @@ function TagsManager() {
               <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} className="btn btn-secondary btn-sm">Tick all</button>
               <button onClick={() => setSelectedOps(new Set())} className="btn btn-secondary btn-sm">Untick all</button>
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: '#666' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
               <button onClick={applyPlan} disabled={!selectedOps.size || applying}
                 className="btn btn-primary btn-sm">
                 {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
@@ -1382,18 +1382,18 @@ function TagsManager() {
             value={search} onChange={e => setSearch(e.target.value)}
             className="input" style={{ flex: '1 1 240px' }}
           />
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#666' }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
             Sort:
             <button onClick={() => setSort('count')} className={`chip ${sort === 'count' ? "chip-accent" : "chip-outline"}`}>by count</button>
             <button onClick={() => setSort('name')} className={`chip ${sort === 'name' ? "chip-accent" : "chip-outline"}`}>A → Z</button>
           </div>
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: '#c62828', fontSize: 12 }}>{err}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: '#fdecea', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
         {info && <div style={{ marginTop: 10, padding: 8, background: '#e7f4ea', borderRadius: 4, color: '#1b5e20', fontSize: 12 }}>{info}</div>}
 
         {!filtered.length ? (
-          <div style={{ marginTop: 16, color: '#888', fontSize: 13 }}>
+          <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
             {q ? `No tags match "${search}".` : 'No tags yet.'}
           </div>
         ) : (
@@ -1412,7 +1412,7 @@ function TagsManager() {
                     <td >
                       <span className="chip chip-outline" style={{ cursor: 'default', padding: '2px 9px'  }}>{t.tag}</span>
                     </td>
-                    <td style={{ textAlign: 'right', color: '#666', fontVariantNumeric: 'tabular-nums'  }}>
+                    <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontVariantNumeric: 'tabular-nums'  }}>
                       {t.count.toLocaleString()}
                     </td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap'  }}>
@@ -1508,7 +1508,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.summary}>
               <div><strong>{Math.min(500, totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed (max 500 per run)</div>
               {totalInFilter > 500 && (
-                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
                   Your filter matches {totalInFilter.toLocaleString()} — narrow the filter, run multiple times, or accept that this batch covers only the 500 most recent.
                 </div>
               )}
@@ -1522,9 +1522,9 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         )}
 
         {phase === 'analysing' && (
-          <div style={{ padding: 30, textAlign: 'center', color: '#666' }}>
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 13, marginBottom: 8 }}>Claude is reading the contacts in batches of 40…</div>
-            <div style={{ fontSize: 11, color: '#888' }}>Can take 30–90 seconds for 500 contacts.</div>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Can take 30–90 seconds for 500 contacts.</div>
           </div>
         )}
 
@@ -1533,20 +1533,20 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
             <div style={tidyStyles.summary}>
               <div>Analysed <strong>{result.analysed.toLocaleString()}</strong> contact{result.analysed === 1 ? '' : 's'} — Claude proposes <strong>{result.suggestions.length}</strong> change{result.suggestions.length === 1 ? '' : 's'} across <strong>{grouped.length}</strong> record{grouped.length === 1 ? '' : 's'}.</div>
               {result.capped && (
-                <div style={{ color: '#888', fontSize: 12, marginTop: 4 }}>
+                <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
                   Hit the 500-contact cap — re-run with a narrower filter to cover the rest.
                 </div>
               )}
             </div>
             {!result.suggestions.length ? (
-              <div style={{ padding: 20, color: '#888', fontSize: 13, textAlign: 'center' }}>
+              <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13, textAlign: 'center' }}>
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
               <div style={{ maxHeight: 460, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 14, padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
-                    <div style={{ fontSize: 12, color: '#1a1a1a', fontWeight: 700, marginBottom: 6 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
                       {g.label}
                     </div>
                     {g.suggestions.map(({ idx, s }) => {
@@ -1563,11 +1563,11 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                           <div style={{ flex: 1 }}>
                             <div>
                               <code style={tidyStyles.fieldChip}>{s.field}</code>{' '}
-                              <span style={{ color: '#999' }}>{s.before ? `"${s.before}"` : <em>empty</em>}</span>
+                              <span style={{ color: 'var(--text-subtle)' }}>{s.before ? `"${s.before}"` : <em>empty</em>}</span>
                               {' → '}
                               <span style={{ color: '#1b5e20', fontWeight: 700 }}>"{s.new_value}"</span>
                             </div>
-                            {s.why && <div style={{ color: '#888', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
+                            {s.why && <div style={{ color: 'var(--text-subtle)', fontStyle: 'italic', fontSize: 11 }}>{s.why}</div>}
                           </div>
                         </label>
                       );
@@ -1584,7 +1584,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 </>
               )}
               <div style={{ flex: 1 }} />
-              <span style={{ fontSize: 12, color: '#666' }}>{selected.size} of {result.suggestions.length} ticked</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{selected.size} of {result.suggestions.length} ticked</span>
               <button onClick={apply} disabled={!selected.size}
                 style={!selected.size ? { ...tidyStyles.btn, opacity: 0.5 } : tidyStyles.btn}>
                 Apply {selected.size} change{selected.size === 1 ? '' : 's'}
@@ -1594,7 +1594,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
         )}
 
         {phase === 'applying' && (
-          <div style={{ padding: 30, textAlign: 'center', color: '#666', fontSize: 13 }}>Applying…</div>
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Applying…</div>
         )}
 
         {phase === 'done' && (
@@ -1633,14 +1633,14 @@ const tidyStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  eyebrow: { fontSize: 10, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  hint: { fontSize: 13, color: '#666', lineHeight: 1.5, margin: 0 },
-  summary: { background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
+  eyebrow: { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
+  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
+  hint: { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
+  summary: { background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
-  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: '#c62828', borderRadius: 4, fontSize: 12, marginBottom: 12 },
+  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 10, background: '#fdecea', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 },
   fieldChip: { background: '#fff3a8', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: '#7a5a00' },
 };
 

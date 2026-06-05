@@ -105,13 +105,13 @@ export default function ClientSalesTrafficPage() {
         <div className="hero-actions">
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : '#fff', color: activeKey === 'd' + d ? 'var(--accent-on)' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {d}d
             </button>
           ))}
           <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
             onChange={e => selectPreset(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 999, border: '2px solid var(--accent)', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 12px', borderRadius: 999, border: '2px solid var(--accent)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             <option value="">Period…</option>
             <option value="mtd">Month to date</option>
             <option value="ytd">Year to date</option>
@@ -126,7 +126,7 @@ export default function ClientSalesTrafficPage() {
         <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
-          <span style={{ color: '#888', fontSize: 13 }}>to</span>
+          <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
           <button onClick={applyCustom}
@@ -134,19 +134,19 @@ export default function ClientSalesTrafficPage() {
         </div>
       )}
       <div className="row mb-4">
-        <span style={{ fontSize: 12, color: '#888' }}>{fmtDay(start)} – {fmtDay(end)}</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
       </div>
 
       {loading ? (
-        <div style={{ color: '#888', padding: 40 }}>Loading…</div>
+        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : data && data.error ? (
-        <div style={{ color: '#c62828', padding: 20 }}>{data.error}</div>
+        <div style={{ color: 'var(--negative)', padding: 20 }}>{data.error}</div>
       ) : data ? (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 16 }}>
             {cards.map(c => (
               <div key={c.label} className="card">
-                <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{c.label}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{c.label}</div>
                 <div style={{ fontSize: 23, fontWeight: 700, marginTop: 6 }}>{c.value}</div>
               </div>
             ))}
@@ -201,7 +201,7 @@ export default function ClientSalesTrafficPage() {
           </div>
 
           {data.notes && data.notes.length > 0 && (
-            <p style={{ marginTop: 12, fontSize: 12, color: '#aaa' }}>{data.notes.join(' · ')}</p>
+            <p style={{ marginTop: 12, fontSize: 12, color: 'var(--text-subtle)' }}>{data.notes.join(' · ')}</p>
           )}
         </>
       ) : null}

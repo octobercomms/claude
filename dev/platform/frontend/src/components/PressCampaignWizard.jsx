@@ -43,7 +43,7 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700 }}>New press campaign</h2>
-        <p style={{ fontSize: 12, color: '#666', margin: '0 0 16px', lineHeight: 1.5 }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '0 0 16px', lineHeight: 1.5 }}>
           Paste a downloadfor.press URL (or another public release page). The platform fetches the content,
           creates a campaign for it, and stages a 4-step sequence (initial pitch + three follow-ups). Claude
           personalises the pitch per recipient when you pick journalists.
@@ -58,7 +58,7 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
         </div>
 
         {parsed && (
-          <div style={{ marginTop: 18, padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, maxHeight: 460, overflowY: 'auto' }}>
+          <div style={{ marginTop: 18, padding: 14, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, maxHeight: 460, overflowY: 'auto' }}>
             <div className="field-label">Parsed preview — edit if needed</div>
             <label className="field-label" style={{ marginTop: 8 }}>Title</label>
             <input value={parsed.title || ''} onChange={e => setParsed({ ...parsed, title: e.target.value })} className="input" />

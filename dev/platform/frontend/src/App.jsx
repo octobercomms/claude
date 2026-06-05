@@ -25,7 +25,7 @@ import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: '#666' }}>Loading…</div>;
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: '80px', color: 'var(--text-muted)' }}>Loading…</div>;
   return isAuthenticated ? children : <Navigate to="/login" replace />;
 }
 

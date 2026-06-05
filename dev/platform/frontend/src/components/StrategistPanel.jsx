@@ -157,7 +157,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
         </div>
       </div>
 
-      {!reports && <div style={{ color: '#888', padding: 20 }}>Loading…</div>}
+      {!reports && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {reports && reports.length === 0 && !generating && (
         <div style={styles.empty}>
           No reports yet for this client. Click <strong>Generate report</strong> to produce the first one — Claude will read the last {period} days of ad performance and write a Manus-style briefing.
@@ -176,9 +176,9 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                   </strong>
                   {!r.read_at && r.status === 'completed' && <span style={styles.unreadDot} />}
                 </div>
-                <div style={{ fontSize: 11, color: '#888', marginTop: 4 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
                   {r.status === 'generating' && '· Generating…'}
-                  {r.status === 'failed' && <span style={{ color: '#c62828' }}>✗ Failed</span>}
+                  {r.status === 'failed' && <span style={{ color: 'var(--negative)' }}>✗ Failed</span>}
                   {r.status === 'completed' && (
                     <>
                       {r.trigger === 'weekly' ? 'weekly · ' : 'manual · '}
@@ -192,12 +192,12 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
           </div>
 
           <div style={styles.body}>
-            {!selected && <div style={{ color: '#888' }}>Pick a report on the left.</div>}
+            {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a report on the left.</div>}
             {selected && selected.status === 'generating' && (
-              <div style={{ color: '#888' }}>Generating… this usually takes 30–60 seconds.</div>
+              <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
             )}
             {selected && selected.status === 'failed' && (
-              <div style={{ padding: 12, background: '#fdecea', border: '1px solid #f5c6cb', borderRadius: 4, color: '#c62828', fontSize: 13 }}>
+              <div style={{ padding: 12, background: '#fdecea', border: '1px solid #f5c6cb', borderRadius: 4, color: 'var(--negative)', fontSize: 13 }}>
                 Generation failed: {selected.error_message || 'unknown error'}
               </div>
             )}
@@ -205,7 +205,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
               <>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap' }}>
                   <div style={{ flex: 1, minWidth: 280 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
                       Monday email recipients
                     </label>
                     <div style={{ display: 'flex', gap: 6 }}>
@@ -232,17 +232,17 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                 </div>
                 {actions.length > 0 && (
                   <div style={{ border: '1px solid #E7CD41', background: '#fffbe6', padding: '12px 16px', borderRadius: 6, marginBottom: 18 }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
                     <ol style={{ margin: 0, padding: 0, listStyle: 'none' }}>
                       {actions.map(a => (
                         <li key={a.id} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #f0e7c0' }}>
                           <input type="checkbox" checked={a.done} onChange={() => toggleAction(a)} style={{ marginTop: 3, cursor: 'pointer' }} />
-                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? '#999' : '#111', textDecoration: a.done ? 'line-through' : 'none' }}>
+                          <div style={{ flex: 1, fontSize: 13, lineHeight: 1.4, color: a.done ? 'var(--text-subtle)' : '#111', textDecoration: a.done ? 'line-through' : 'none' }}>
                             {a.text}
                             {a.done && a.done_at && (
-                              <div style={{ fontSize: 11, color: '#999', marginTop: 2, textDecoration: 'none' }}>
+                              <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2, textDecoration: 'none' }}>
                                 ✓ done {new Date(a.done_at).toLocaleDateString('en-GB')}
                               </div>
                             )}
@@ -283,19 +283,19 @@ function fmtRelative(d) {
 const mdComponents = {
   h1: ({ node, ...p }) => <h1 style={{ fontSize: 22, fontWeight: 700, margin: '24px 0 12px' }} {...p} />,
   h2: ({ node, ...p }) => <h2 style={{ fontSize: 17, fontWeight: 700, margin: '24px 0 10px', paddingBottom: 6, borderBottom: '1px solid #e8e8e8' }} {...p} />,
-  h3: ({ node, ...p }) => <h3 style={{ fontSize: 14, fontWeight: 700, margin: '18px 0 8px', color: '#1a1a1a' }} {...p} />,
-  p: ({ node, ...p }) => <p style={{ margin: '0 0 12px', lineHeight: 1.6, fontSize: 14, color: '#1a1a1a' }} {...p} />,
+  h3: ({ node, ...p }) => <h3 style={{ fontSize: 14, fontWeight: 700, margin: '18px 0 8px', color: 'var(--text)' }} {...p} />,
+  p: ({ node, ...p }) => <p style={{ margin: '0 0 12px', lineHeight: 1.6, fontSize: 14, color: 'var(--text)' }} {...p} />,
   ul: ({ node, ...p }) => <ul style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
   li: ({ node, ...p }) => <li style={{ marginBottom: 6, lineHeight: 1.6, fontSize: 14 }} {...p} />,
-  strong: ({ node, ...p }) => <strong style={{ color: '#1a1a1a' }} {...p} />,
+  strong: ({ node, ...p }) => <strong style={{ color: 'var(--text)' }} {...p} />,
   table: ({ node, ...p }) => <table style={{ width: '100%', borderCollapse: 'collapse', margin: '8px 0 18px', fontSize: 13 }} {...p} />,
   th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 12 }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 10px', borderBottom: '1px solid #eee', verticalAlign: 'top' }} {...p} />,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0' }} />,
-  blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 14, color: '#444', margin: '10px 0' }} {...p} />,
+  blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 14, color: 'var(--text-muted)', margin: '10px 0' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: '#f5f5f5', padding: '1px 6px', borderRadius: 3, fontSize: 12 }} {...p} />
-    : <pre style={{ background: '#f5f5f5', padding: 12, borderRadius: 4, fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 3, fontSize: 12 }} {...p} />
+    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 4, fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
 };
 

@@ -34,7 +34,7 @@ export default function ClientsPage() {
     }
   }
 
-  if (loading) return <div style={{ color: '#888', padding: 40 }}>Loading…</div>;
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>;
 
   return (
     <div>
