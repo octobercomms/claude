@@ -69,13 +69,25 @@ function explain401(body, headers = {}) {
   // WordPress saw it.
   if (typeof body === 'string' && /<html|<!DOCTYPE/i.test(body)) {
     const m = body.match(/<title>([^<]+)<\/title>/i);
-    hints.push(`Response was HTML${m ? ` ("${m[1].trim()}")` : ''} — looks like a security plugin or WAF blocking REST API calls. Whitelist the platform IP in Wordfence / Sucuri / your firewall, or temporarily disable to confirm.`);
+    const title = m ? m[1].trim() : null;
+    // Title-based fingerprints
+    if (title && /security verification|just a moment|attention required/i.test(title)) {
+      hints.push(`Response was HTML ("${title}") — that title pattern is Cloudflare's Browser Integrity Check or Sucuri's WAF JavaScript challenge. Whitelist the platform IP at the firewall (Cloudflare → Security → WAF → IP Access Rules; Sucuri → Settings → IP Allowlist), or for Cloudflare add a Page Rule on /wp-json/* that disables Bot Fight Mode / Browser Integrity Check / Security Level → Essentially Off.`);
+    } else if (title && /sucuri/i.test(title)) {
+      hints.push(`Response was HTML ("${title}") — Sucuri WAF blocking. Allow the platform IP in the Sucuri dashboard → Settings → IP Allowlist.`);
+    } else if (title && /wordfence/i.test(title)) {
+      hints.push(`Response was HTML ("${title}") — Wordfence blocking. Allow the platform IP in Wordfence → Firewall → Allowlisted IPs.`);
+    } else if (title) {
+      hints.push(`Response was HTML ("${title}") — looks like a security plugin or WAF blocking REST API calls. Whitelist the platform IP in Wordfence / Sucuri / your firewall, or temporarily disable to confirm.`);
+    } else {
+      hints.push('Response was HTML rather than JSON — security plugin or WAF blocking REST API calls. Whitelist the platform IP in your security tooling.');
+    }
   }
   // Server / firewall fingerprints in the response headers.
   const server = headers.server || '';
   const wafHints = [];
   if (/cloudflare/i.test(server) || headers['cf-ray']) wafHints.push('Cloudflare');
-  if (headers['x-sucuri-id']) wafHints.push('Sucuri');
+  if (headers['x-sucuri-id'] || headers['x-sucuri-cache']) wafHints.push('Sucuri');
   if (headers['x-wf-firewall']) wafHints.push('Wordfence');
   if (wafHints.length) {
     hints.push(`Detected: ${wafHints.join(' + ')}. Add the platform server's outbound IP to its allow-list.`);
@@ -84,6 +96,25 @@ function explain401(body, headers = {}) {
     message || `WooCommerce returned 401 Unauthorized${code ? ` (${code})` : ''}`,
     ...hints,
   ].join(' · ');
+}
+
+// Best-effort lookup of the egress IP this server uses to reach the
+// public internet. Cached for the lifetime of the process — IPs
+// don't change often and we don't want to hit an external service
+// on every diagnose.
+let CACHED_OUTBOUND_IP = null;
+async function getOutboundIp() {
+  if (CACHED_OUTBOUND_IP) return CACHED_OUTBOUND_IP;
+  // Env var wins — set this in production to skip the network probe.
+  if (process.env.PLATFORM_OUTBOUND_IP) {
+    CACHED_OUTBOUND_IP = process.env.PLATFORM_OUTBOUND_IP;
+    return CACHED_OUTBOUND_IP;
+  }
+  try {
+    const { data } = await axios.get('https://api.ipify.org?format=json', { timeout: 5000 });
+    CACHED_OUTBOUND_IP = data?.ip || null;
+  } catch { /* ignore */ }
+  return CACHED_OUTBOUND_IP;
 }
 
 // Probe the bare WP REST root with no auth. If THIS 401s too, the
@@ -127,6 +158,10 @@ async function checkTokenValidity(credentials) {
       } else {
         hints.push(`Even unauthenticated /wp-json/ returns ${probe.status} — the blocker is the server, not credentials. Look for security plugins (Wordfence, Sucuri), a CDN / WAF (Cloudflare), or restrictive .htaccess rules that block the REST API.`);
       }
+      // Surface the platform's outbound IP so the AM has the exact
+      // value to whitelist on the WAF dashboard.
+      const ip = await getOutboundIp();
+      if (ip) hints.push(`Whitelist this platform IP: ${ip}`);
       const body = qp.data || res.data;
       const headers = qp.headers || res.headers || {};
       throw new Error(`401 Unauthorized — ${explain401(body, headers)}${hints.length ? ' · ' + hints.join(' ') : ''}`);
