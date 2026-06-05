@@ -102,7 +102,7 @@ function DfsAvailabilityBanner() {
 
 import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
-  SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab,
+  SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab, FanoutTab,
 } from '../components/SeoSuite';
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import SuiteOverview from '../components/SuiteOverview';
@@ -590,7 +590,7 @@ export default function ClientSEOPage() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','keywords','gsc','aio','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'overview';
+    return ['overview','keywords','gsc','aio','fanout','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'overview';
   });
 
   useEffect(() => {
@@ -629,6 +629,7 @@ export default function ClientSEOPage() {
         { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',      onClick: () => setActiveTab('keywords') },
         { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',           onClick: () => setActiveTab('gsc') },
         { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',           onClick: () => setActiveTab('aio') },
+        { key: 'fanout',        label: 'Fan-out',        active: activeTab === 'fanout',        onClick: () => setActiveTab('fanout') },
         { key: 'ai_visibility', label: 'AI Visibility',  active: activeTab === 'ai_visibility', onClick: () => setActiveTab('ai_visibility') },
         { key: 'gaps',          label: 'Content Gaps',   active: activeTab === 'gaps',          onClick: () => setActiveTab('gaps') },
         { key: 'planning',      label: 'Planning',       active: activeTab === 'planning',      onClick: () => setActiveTab('planning') },
@@ -669,6 +670,7 @@ export default function ClientSEOPage() {
 
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
       {activeTab === 'aio' && <AIOverviewsTab clientId={id} />}
+      {activeTab === 'fanout' && <FanoutTab clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'gaps' && <ContentGapsTab clientId={id} />}
       {activeTab === 'planning' && <PlanningTab clientId={id} />}

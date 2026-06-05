@@ -607,3 +607,230 @@ function BriefList({ label, items }) {
   );
 }
 
+// ─── QUERY FAN-OUT TAB ───────────────────────────────────────────────────
+// Simulates Google AI Overview's "query fan-out" — Claude expands a seed
+// query into the related queries Google would also pull from, then we run
+// DataForSEO SERP for each so the AM can see which sub-intents the client
+// covers and which they're missing. Headline number is coverage %.
+const FANOUT_LOCATIONS = [
+  { code: 2826, label: '🇬🇧 United Kingdom' },
+  { code: 2840, label: '🇺🇸 United States' },
+  { code: 2372, label: '🇮🇪 Ireland' },
+  { code: 2036, label: '🇦🇺 Australia' },
+  { code: 2124, label: '🇨🇦 Canada' },
+];
+
+const INTENT_LABELS = {
+  definition: 'Definition',
+  'how-to': 'How-to',
+  comparison: 'Comparison',
+  buying: 'Buying',
+  prevention: 'Prevention',
+  troubleshooting: 'Troubleshooting',
+  examples: 'Examples',
+  review: 'Review',
+};
+
+export function FanoutTab({ clientId }) {
+  const [runs, setRuns] = useState([]);
+  const [activeRun, setActiveRun] = useState(null);
+  const [activeQueries, setActiveQueries] = useState([]);
+  const [seed, setSeed] = useState('');
+  const [location, setLocation] = useState(2826);
+  const [loading, setLoading] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const { runs: r } = await api.get(`/seo/clients/${clientId}/fanout`);
+      setRuns(r);
+      if (r.length) await openRun(r[0].id);
+      else { setActiveRun(null); setActiveQueries([]); }
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function openRun(runId) {
+    try {
+      const { run, queries } = await api.get(`/seo/clients/${clientId}/fanout/${runId}`);
+      setActiveRun(run);
+      setActiveQueries(queries);
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function runNew() {
+    if (!seed.trim()) return;
+    setRunning(true);
+    setErr(null);
+    try {
+      const { run, queries } = await api.post(`/seo/clients/${clientId}/fanout`, {
+        seed_query: seed.trim(),
+        location_code: location,
+      });
+      setRuns(prev => [run, ...prev]);
+      setActiveRun(run);
+      setActiveQueries(queries.map((q, i) => ({
+        ...q,
+        intent_label: q.intent || q.intent_label,
+        position_order: i,
+      })));
+      setSeed('');
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function deleteRun(runId) {
+    if (!confirm('Delete this fan-out run?')) return;
+    try {
+      await api.delete(`/seo/clients/${clientId}/fanout/${runId}`);
+      const next = runs.filter(r => r.id !== runId);
+      setRuns(next);
+      if (activeRun?.id === runId) {
+        if (next[0]) openRun(next[0].id);
+        else { setActiveRun(null); setActiveQueries([]); }
+      }
+    } catch (e) { setErr(e.message); }
+  }
+
+  const coverageColour = (c) => {
+    const n = Number(c) || 0;
+    if (n >= 70) return 'var(--positive)';
+    if (n >= 40) return 'var(--warning)';
+    return 'var(--negative)';
+  };
+
+  return (
+    <div>
+      <h2 className="h2">Query fan-out</h2>
+      <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 14px', maxWidth: 760 }}>
+        Google's own docs describe AI Overviews as working via <strong>query fan-out</strong> — the model spawns related queries and pulls from the top results for all of them. Type a seed query; Claude generates the likely fan-out, we run SERP for each, and score your coverage.
+      </p>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        <input
+          value={seed}
+          onChange={e => setSeed(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && runNew()}
+          placeholder="e.g. how to fix a lawn full of weeds"
+          style={{ flex: 1, minWidth: 280, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+        />
+        <select value={location} onChange={e => setLocation(Number(e.target.value))}
+          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          {FANOUT_LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
+        </select>
+        <button onClick={runNew} className="btn btn-primary" disabled={running || !seed.trim()}>
+          {running ? 'Running fan-out…' : 'Simulate fan-out'}
+        </button>
+      </div>
+
+      {err && <div className="callout callout-danger" style={{ marginBottom: 14 }}>{err}</div>}
+
+      {loading && !runs.length ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+      ) : !runs.length ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+          No fan-out runs yet. Try a seed query above — best with a query a customer would actually type.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 22 }}>
+          <div>
+            <div className="h3" style={{ marginBottom: 8 }}>Past runs</div>
+            {runs.map(r => (
+              <div key={r.id} className="card"
+                style={{ padding: 10, marginBottom: 8, cursor: 'pointer',
+                  background: r.id === activeRun?.id ? 'var(--accent-soft)' : 'var(--surface)' }}
+                onClick={() => openRun(r.id)}>
+                <div style={{ fontWeight: 600, fontSize: 13, lineHeight: 1.3 }}>{r.seed_query}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                  {new Date(r.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {' · '}<span style={{ color: coverageColour(r.coverage_score), fontWeight: 700 }}>{Math.round(r.coverage_score || 0)}%</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div>
+            {activeRun && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div className="caption">Seed query</div>
+                    <div className="h2" style={{ marginTop: 4, marginBottom: 6 }}>{activeRun.seed_query}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>
+                      {activeRun.ranked_count} of {activeRun.fanout_count} fan-out queries in top 10
+                      {' · '}{FANOUT_LOCATIONS.find(l => l.code === activeRun.location_code)?.label || `Location ${activeRun.location_code}`}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'center', minWidth: 110 }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>Coverage</div>
+                    <div style={{ fontSize: 36, fontWeight: 800, color: coverageColour(activeRun.coverage_score), lineHeight: 1 }}>
+                      {Math.round(activeRun.coverage_score || 0)}%
+                    </div>
+                    <button onClick={() => deleteRun(activeRun.id)} className="btn btn-ghost btn-sm" style={{ marginTop: 8, fontSize: 11, color: 'var(--text-subtle)' }}>Delete</button>
+                  </div>
+                </div>
+
+                {activeRun.summary_md && (
+                  <div className="card" style={{ marginBottom: 14 }}>
+                    <div className="caption mb-2">Briefing</div>
+                    <div style={{ fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text)' }}>
+                      {activeRun.summary_md}
+                    </div>
+                  </div>
+                )}
+
+                <div className="card" style={{ padding: 0 }}>
+                  <table className="table">
+                    <thead>
+                      <tr>
+                        <th className="caption" style={{ padding: '8px 10px' }}>Fan-out query</th>
+                        <th className="caption" style={{ padding: '8px 10px' }}>Sub-intent</th>
+                        <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Client rank</th>
+                        <th className="caption" style={{ padding: '8px 10px' }}>URL ranked</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeQueries.map(q => {
+                        const pos = q.client_position;
+                        const colour = !pos ? 'var(--negative)'
+                          : pos <= 3 ? 'var(--positive)'
+                          : pos <= 10 ? 'var(--warning)'
+                          : 'var(--text-subtle)';
+                        return (
+                          <tr key={q.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
+                            <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                              <strong>{q.query}</strong>
+                              {q.rationale && (
+                                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{q.rationale}</div>
+                              )}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)' }}>
+                              {INTENT_LABELS[q.intent_label] || q.intent_label || '—'}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontSize: 13, textAlign: 'right', color: colour, fontWeight: 700 }}>
+                              {pos ? `#${pos}` : 'Not ranking'}
+                            </td>
+                            <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {q.client_url ? <a href={q.client_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{q.client_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

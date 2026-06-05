@@ -334,4 +334,79 @@ Return ONLY the JSON object. No prose.`;
   }
 });
 
+// ─── QUERY FAN-OUT SIMULATOR ──────────────────────────────────────────────
+// Google's Nov 2025 generative-AI guide documents "query fan-out" as the
+// mechanism behind AI Overviews — the model spawns related queries and
+// pulls top results from all of them. This simulator generates the likely
+// fan-out for a seed query, runs DFS SERP across each, and reports the
+// client's coverage so the AM can see which sub-intents to write content
+// for next.
+const seoFanout = require('../services/seoFanout');
+
+router.get('/clients/:clientId/fanout', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, seed_query, location_code, fanout_count, ranked_count,
+              coverage_score, summary_md, created_at
+       FROM seo_fanout_runs
+       WHERE client_id = $1
+       ORDER BY created_at DESC
+       LIMIT 30`,
+      [req.params.clientId]
+    );
+    res.json({ runs: rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/clients/:clientId/fanout/:runId', async (req, res) => {
+  try {
+    const { rows: runRows } = await pool.query(
+      `SELECT * FROM seo_fanout_runs WHERE id = $1 AND client_id = $2`,
+      [req.params.runId, req.params.clientId]
+    );
+    if (!runRows.length) return res.status(404).json({ error: 'Run not found' });
+    const { rows: queries } = await pool.query(
+      `SELECT id, query, intent_label, rationale, client_position, client_url,
+              top_urls, ai_overview_present, brand_cited, position_order
+       FROM seo_fanout_queries
+       WHERE run_id = $1
+       ORDER BY position_order ASC`,
+      [req.params.runId]
+    );
+    res.json({ run: runRows[0], queries });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/clients/:clientId/fanout', async (req, res) => {
+  const { seed_query, location_code } = req.body || {};
+  if (!seed_query) return res.status(400).json({ error: 'seed_query required' });
+  try {
+    const result = await seoFanout.runFanout({
+      clientId: req.params.clientId,
+      seedQuery: seed_query,
+      locationCode: parseInt(location_code) || 2826,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('[seoSuite] fanout failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.delete('/clients/:clientId/fanout/:runId', async (req, res) => {
+  try {
+    await pool.query(
+      `DELETE FROM seo_fanout_runs WHERE id = $1 AND client_id = $2`,
+      [req.params.runId, req.params.clientId]
+    );
+    res.status(204).end();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;
