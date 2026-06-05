@@ -1644,12 +1644,96 @@ router.put('/sequences/:id', async (req, res) => {
     const c = cur[0];
     const b = req.body;
     const { rows } = await pool.query(
-      'UPDATE outreach_sequences SET subject = $1, body = $2, delay_days = $3 WHERE id = $4 RETURNING *',
-      [b.subject ?? c.subject, b.body ?? c.body, b.delay_days ?? c.delay_days, req.params.id]
+      `UPDATE outreach_sequences SET
+         subject     = $1,
+         body        = $2,
+         delay_days  = $3,
+         channel     = $4,
+         step_type   = $5
+       WHERE id = $6 RETURNING *`,
+      [
+        b.subject ?? c.subject,
+        b.body ?? c.body,
+        b.delay_days ?? c.delay_days,
+        b.channel ?? c.channel,
+        b.step_type ?? c.step_type,
+        req.params.id,
+      ]
     );
     res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Phase 3: visual sequence builder needs add / delete / reorder
+// in addition to the existing edit-in-place.
+router.post('/campaigns/:id/sequences', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { rows: maxRows } = await pool.query(
+      'SELECT COALESCE(MAX(step_number), 0) AS max FROM outreach_sequences WHERE campaign_id = $1',
+      [req.params.id]
+    );
+    const nextStep = (maxRows[0].max || 0) + 1;
+    const { rows } = await pool.query(
+      `INSERT INTO outreach_sequences
+         (campaign_id, step_number, subject, body, delay_days, channel, step_type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [
+        req.params.id, nextStep,
+        b.subject || '',
+        b.body || '',
+        b.delay_days ?? 3,
+        b.channel || 'email',
+        b.step_type || 'send',
+      ]
+    );
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/sequences/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM outreach_sequences WHERE id = $1', [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reorder: client sends the array of sequence IDs in their new
+// order; we re-stamp step_number sequentially in a transaction so the
+// renumbering is atomic and there are no UNIQUE collisions mid-flight.
+router.post('/campaigns/:id/sequences/reorder', async (req, res) => {
+  const order = req.body?.order || [];
+  if (!Array.isArray(order) || !order.length) return res.status(400).json({ error: 'order required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Stage with negative numbers first to avoid colliding with the
+    // existing step_numbers under any future unique constraint.
+    for (let i = 0; i < order.length; i++) {
+      await client.query(
+        'UPDATE outreach_sequences SET step_number = $1 WHERE id = $2 AND campaign_id = $3',
+        [-(i + 1), order[i], req.params.id]
+      );
+    }
+    for (let i = 0; i < order.length; i++) {
+      await client.query(
+        'UPDATE outreach_sequences SET step_number = $1 WHERE id = $2 AND campaign_id = $3',
+        [i + 1, order[i], req.params.id]
+      );
+    }
+    await client.query('COMMIT');
+    res.json({ ok: true });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

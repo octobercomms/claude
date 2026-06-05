@@ -404,6 +404,61 @@ button { font-family: inherit; }
   .flow-arrow { transform: rotate(90deg); }
 }
 
+/* ─── Sequence Builder (Phase 3) ─────────────────────────────────── */
+/* Vertical timeline. Numbered rail on the left runs continuously
+   between steps; .sequence-add-slot is a tappable gap that drops a
+   new step in at that index. Each .sequence-step is draggable; the
+   .dragging modifier dims while the user drags. */
+.sequence-builder {
+  display: flex; flex-direction: column;
+  gap: var(--s2);
+  margin-top: var(--s4);
+}
+.sequence-step {
+  display: grid; grid-template-columns: 60px 1fr; gap: var(--s4);
+  align-items: stretch;
+}
+.sequence-step.dragging { opacity: 0.4; }
+.sequence-step-rail {
+  display: flex; flex-direction: column; align-items: center;
+  position: relative;
+}
+.sequence-step-rail::before {
+  content: ""; position: absolute;
+  top: -16px; bottom: -16px; left: 50%;
+  width: 2px; background: var(--accent-soft);
+  transform: translateX(-50%);
+  z-index: 0;
+}
+.sequence-step-num {
+  width: 40px; height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700;
+  position: relative; z-index: 1;
+  margin-top: var(--s4);
+}
+.sequence-step-body { flex: 1; }
+.sequence-add-slot {
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--s3); margin-left: 60px;
+  background: transparent; border: 2px dashed var(--accent-soft);
+  border-radius: var(--r-sm);
+  color: var(--text-subtle); font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: border-color 0.15s, color 0.15s;
+}
+.sequence-add-slot:hover {
+  border-color: var(--accent); color: var(--accent);
+}
+.sequence-add-slot.open {
+  flex-direction: column; align-items: flex-start;
+  padding: var(--s4); border-style: solid; border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
 /* ─── Chat shell (AI Data Analyst) ───────────────────────────────── */
 /* Right-rail thread layout. The .chat-thread is the scrolling stream
    of bubbles; .chat-bubble is the body element each turn renders

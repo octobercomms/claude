@@ -11,6 +11,7 @@ import EditContactModal from '../components/EditContactModal';
 import PressCampaignWizard from '../components/PressCampaignWizard';
 import PressCampaignDetail from '../components/PressCampaignDetail';
 import ImportWizard from '../components/ImportWizard';
+import SequenceBuilder from '../components/SequenceBuilder';
 import { csvEscape } from '../utils/csv';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
@@ -110,26 +111,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
           </span>
         </div>
       )}
-      {steps === null ? (
-        <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</p>
-      ) : steps.length === 0 ? (
-        <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>
-      ) : (
-        steps.map(step => (
-          <div key={step.id} className="card" style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-              Step {step.step_number} · sent day {step.delay_days}
-            </div>
-            <input className="input" style={{ width: '100%', marginBottom: 8, boxSizing: 'border-box' }}
-              value={step.subject || ''} placeholder="Subject"
-              onChange={e => updateStep(step.id, 'subject', e.target.value)} />
-            <textarea className="input" style={{ width: '100%', minHeight: 120, resize: 'vertical', boxSizing: 'border-box' }}
-              value={step.body || ''} placeholder="Email body"
-              onChange={e => updateStep(step.id, 'body', e.target.value)} />
-            <button onClick={() => saveStep(step)} className="btn btn-primary" style={{ marginTop: 8 }}>Save step</button>
-          </div>
-        ))
-      )}
+      <SequenceBuilder campaignId={campaign.id} />
     </div>
   );
 }
