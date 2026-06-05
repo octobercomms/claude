@@ -42,9 +42,9 @@ export default function DashboardPage() {
 
       {recent_reports.length > 0 && (
         <div style={{ marginTop: 40 }}>
-          <h2 style={styles.sectionTitle}>Recent Reports</h2>
-          <div style={styles.tableWrap}>
-            <table style={styles.table}>
+          <h2 className="h2">Recent Reports</h2>
+          <div className="card">
+            <table className="table">
               <thead>
                 <tr>
                   {['Client', 'Type', 'Period', 'Status', 'Sent'].map(h => (
@@ -79,7 +79,7 @@ function ClientCard({ client }) {
   const healthColor = errors > 0 ? '#c62828' : active === total && total > 0 ? '#2e7d32' : '#f57c00';
 
   return (
-    <div style={styles.card}>
+    <div className="card">
       <div style={styles.cardHeader}>
         <div>
           <div style={styles.clientName}>{client.name}</div>

@@ -145,7 +145,7 @@ export default function ClientSalesTrafficPage() {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 16 }}>
             {cards.map(c => (
-              <div key={c.label} style={s.card}>
+              <div key={c.label} className="card">
                 <div style={{ fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{c.label}</div>
                 <div style={{ fontSize: 23, fontWeight: 700, marginTop: 6 }}>{c.value}</div>
               </div>
@@ -153,8 +153,8 @@ export default function ClientSalesTrafficPage() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-            <div style={s.card}>
-              <div style={s.cardTitle}>Revenue &amp; orders</div>
+            <div className="card">
+              <div className="caption">Revenue &amp; orders</div>
               {data.salesTrend && data.salesTrend.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={data.salesTrend} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
@@ -169,8 +169,8 @@ export default function ClientSalesTrafficPage() {
                 </ResponsiveContainer>
               ) : <p style={s.empty}>No sales trend data.</p>}
             </div>
-            <div style={s.card}>
-              <div style={s.cardTitle}>Traffic</div>
+            <div className="card">
+              <div className="caption">Traffic</div>
               {data.trafficTrend && data.trafficTrend.length ? (
                 <ResponsiveContainer width="100%" height={240}>
                   <LineChart data={data.trafficTrend} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
@@ -186,8 +186,8 @@ export default function ClientSalesTrafficPage() {
             </div>
           </div>
 
-          <div style={s.card}>
-            <div style={s.cardTitle}>Traffic sources</div>
+          <div className="card">
+            <div className="caption">Traffic sources</div>
             {data.channels && data.channels.length ? (
               <ResponsiveContainer width="100%" height={Math.max(140, data.channels.length * 34)}>
                 <BarChart data={data.channels} layout="vertical" margin={{ top: 4, right: 16, left: 24, bottom: 4 }}>

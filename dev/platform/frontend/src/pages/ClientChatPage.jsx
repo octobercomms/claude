@@ -215,7 +215,7 @@ export default function ClientChatPage() {
             </p>
           </div>
           {messages.length > 0 && (
-            <button onClick={handleClear} disabled={clearing} style={s.btnGhost}>
+            <button onClick={handleClear} disabled={clearing} className="btn btn-secondary">
               {clearing ? 'Clearing…' : 'Clear history'}
             </button>
           )}
@@ -362,7 +362,7 @@ export default function ClientChatPage() {
         ))}
 
         {resolvedEntries.length > 0 && (
-          <button onClick={() => setShowResolved(p => !p)} style={{ ...s.btnGhost, width: '100%', marginTop: 8, fontSize: 11 }}>
+          <button onClick={() => setShowResolved(p => !p)} className="btn btn-secondary" style={{ width: '100%', marginTop: 8, fontSize: 11 }}>
             {showResolved ? 'Hide' : 'Show'} {resolvedEntries.length} resolved
           </button>
         )}

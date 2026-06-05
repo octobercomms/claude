@@ -36,34 +36,34 @@ export default function LoginPage() {
       <div style={styles.logoArea}>
         <img src="/logo-black.gif" alt="October" style={styles.logo} />
       </div>
-      <div style={styles.card}>
+      <div className="card">
         <div style={styles.cardHeader}>
-          <div style={styles.cardTitle}>Marketing Intelligence</div>
+          <div className="caption">Marketing Intelligence</div>
         </div>
         <form onSubmit={handleSubmit} style={styles.form}>
           {error && <div style={styles.error}>{error}</div>}
           <div style={styles.field}>
-            <label style={styles.label}>Username</label>
+            <label className="field-label">Username</label>
             <input
               type="text"
               value={username}
               onChange={e => setUsername(e.target.value)}
-              style={styles.input}
+              className="input"
               autoFocus
               required
             />
           </div>
           <div style={styles.field}>
-            <label style={styles.label}>Password</label>
+            <label className="field-label">Password</label>
             <input
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              style={styles.input}
+              className="input"
               required
             />
           </div>
-          <button type="submit" style={styles.btn} disabled={loading}>
+          <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading ? 'Signing in…' : 'Sign in'}
           </button>
         </form>

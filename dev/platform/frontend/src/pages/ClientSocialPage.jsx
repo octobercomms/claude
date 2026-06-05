@@ -1275,7 +1275,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
   }
 
   return (
-    <div style={styles.card}>
+    <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <span style={styles.platformPill}>{post.platform}</span>
@@ -1431,7 +1431,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
             ))}
-            <select value={aspect} onChange={e => setAspect(e.target.value)} style={styles.input}>
+            <select value={aspect} onChange={e => setAspect(e.target.value)} className="input">
               <option value="1:1">1:1</option>
               <option value="4:5">4:5</option>
               <option value="9:16">9:16</option>

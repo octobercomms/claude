@@ -105,9 +105,9 @@ function DecisionForm({ onRespond }) {
       <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment / change notes"
         style={{ width: '100%', padding: 8, fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', minHeight: 60 }} />
       <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-        <button onClick={() => onRespond('approved', comment)} style={{ ...styles.btn, background: '#1d7a3a', color: '#fff' }}>Approve</button>
-        <button onClick={() => onRespond('changes_requested', comment)} style={{ ...styles.btn, background: '#fff4d6', color: '#8a6500' }}>Request changes</button>
-        <button onClick={() => onRespond('commented', comment)} disabled={!comment.trim()} style={{ ...styles.btn, background: '#eef2ff', color: '#3949ab', opacity: comment.trim() ? 1 : 0.4 }}>Comment only</button>
+        <button onClick={() => onRespond('approved', comment)} className="btn btn-primary" style={{ background: '#1d7a3a', color: '#fff' }}>Approve</button>
+        <button onClick={() => onRespond('changes_requested', comment)} className="btn btn-primary" style={{ background: '#fff4d6', color: '#8a6500' }}>Request changes</button>
+        <button onClick={() => onRespond('commented', comment)} disabled={!comment.trim()} className="btn btn-primary" style={{ background: '#eef2ff', color: '#3949ab', opacity: comment.trim() ? 1 : 0.4 }}>Comment only</button>
       </div>
     </div>
   );
@@ -115,7 +115,7 @@ function DecisionForm({ onRespond }) {
 
 function PostReviewCard({ post, responses, onRespond }) {
   return (
-    <div style={styles.card}>
+    <div className="card">
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <span style={styles.pill}>{post.platform}</span>
         <span style={styles.pill}>{post.kind}</span>
@@ -146,7 +146,7 @@ function PostReviewCard({ post, responses, onRespond }) {
 
 function CreativeReviewCard({ creative, responses, onRespond }) {
   return (
-    <div style={styles.card}>
+    <div className="card">
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         <span style={styles.pill}>{creative.framework}</span>
         <span style={styles.pill}>{creative.angle}</span>

@@ -64,7 +64,7 @@ export default function ManageUsersPage({ embedded = false } = {}) {
       {loading ? (
         <div style={{ color: '#888', padding: 20 }}>Loading…</div>
       ) : (
-        <table style={styles.table}>
+        <table className="table">
           <thead>
             <tr>
               <th style={styles.th}>Username</th>
@@ -172,7 +172,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
           {mode === 'create' ? 'Add user' : `Edit ${target.username}`}
         </h2>
 
-        <label style={styles.label}>Username</label>
+        <label className="field-label">Username</label>
         <input
           style={{ ...styles.input, ...(mode === 'edit' ? { background: '#f6f6f6', color: '#888' } : {}) }}
           value={username}
@@ -181,24 +181,24 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
           placeholder="e.g. demo"
         />
 
-        <label style={styles.label}>Password{mode === 'edit' ? ' (leave blank to keep current)' : ''}</label>
+        <label className="field-label">Password{mode === 'edit' ? ' (leave blank to keep current)' : ''}</label>
         <input
-          style={styles.input}
+          className="input"
           type="password"
           value={password}
           onChange={e => setPassword(e.target.value)}
           placeholder={mode === 'edit' ? '(unchanged)' : 'set a password'}
         />
 
-        <label style={styles.label}>Role</label>
-        <select style={styles.input} value={role} onChange={e => setRole(e.target.value)}>
+        <label className="field-label">Role</label>
+        <select className="input" value={role} onChange={e => setRole(e.target.value)}>
           <option value="viewer">Viewer (sees only assigned clients)</option>
           <option value="admin">Admin (sees everything, manages users)</option>
         </select>
 
         {role === 'viewer' && (
           <>
-            <label style={styles.label}>Assigned clients</label>
+            <label className="field-label">Assigned clients</label>
             <div style={styles.clientList}>
               {clients.map(c => (
                 <label key={c.id} style={styles.clientRow}>

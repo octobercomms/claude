@@ -316,17 +316,17 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'details' && (
-        <form onSubmit={handleSave} style={styles.card}>
+        <form onSubmit={handleSave} className="card">
           <div style={styles.grid2}>
             <Field label="Client Name">
-              <input style={styles.input} value={client.name} onChange={e => setClient(p => ({ ...p, name: e.target.value }))} />
+              <input className="input" value={client.name} onChange={e => setClient(p => ({ ...p, name: e.target.value }))} />
             </Field>
             <Field label="Slug">
-              <input style={styles.input} value={client.slug} onChange={e => setClient(p => ({ ...p, slug: e.target.value }))} />
+              <input className="input" value={client.slug} onChange={e => setClient(p => ({ ...p, slug: e.target.value }))} />
             </Field>
           </div>
           <Field label="Domain (used for SEO data — e.g. falconenamelware.com)">
-            <input style={styles.input} value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
+            <input className="input" value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
           </Field>
           <Field label="Active">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
@@ -337,17 +337,17 @@ export default function ClientDetailPage() {
           <Field label="About this client">
             <p style={styles.help}>One paragraph describing what the business sells, to whom, where they operate. Used by Claude to give the AI Data Analyst context and to set the tone of report copy. Set once — update only if the business changes.</p>
             <textarea
-              style={{ ...styles.input, minHeight: 110, resize: 'vertical' }}
+              className="input" style={{ minHeight: 110, resize: 'vertical' }}
               value={client.briefing_field || ''}
               onChange={e => setClient(p => ({ ...p, briefing_field: e.target.value }))}
               placeholder="e.g. Premium kitchenware brand selling enamel cookware in the UK, US and EU; D2C via Shopify and trade via separate B2B Shopify stores; also sells on Amazon UK/US/EU."
             />
-            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} style={{ ...styles.btnSm, marginTop: 8 }}>
+            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
               {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
             {!client.domain && <span style={{ marginLeft: 8, fontSize: 11, color: '#888' }}>Set the domain above first</span>}
           </Field>
-          <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
         </form>
       )}
 
@@ -357,14 +357,14 @@ export default function ClientDetailPage() {
             const groupConnectors = connectors.filter(c => group.types.includes(c.connector_type));
             const unconnected = group.types.filter(t => !connectors.find(c => c.connector_type === t));
             return (
-              <div key={group.label} style={styles.card}>
+              <div key={group.label} className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{group.label}</h3>
                   {group.oauth && unconnected.length > 0 && (
                     <button onClick={() => {
                       const firstUnconnected = unconnected[0];
                       addConnector(firstUnconnected);
-                    }} style={styles.btnSm}>
+                    }} className="btn btn-secondary btn-sm">
                       + Connect {group.label}
                     </button>
                   )}
@@ -397,7 +397,7 @@ export default function ClientDetailPage() {
                       <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#fafafa', borderRadius: 4, border: '1px dashed #ddd' }}>
                         <span style={{ fontSize: 13, color: '#aaa' }}>{CONNECTOR_LABELS[type]}</span>
                         {!group.oauth && (
-                          <button onClick={() => addConnector(type)} style={styles.btnSm}>+ Add</button>
+                          <button onClick={() => addConnector(type)} className="btn btn-secondary btn-sm">+ Add</button>
                         )}
                       </div>
                     ))}
@@ -415,14 +415,14 @@ export default function ClientDetailPage() {
 
       {tab === 'reports' && (
         <>
-        <div style={styles.card}>
+        <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button type="button" onClick={() => setPreviewType('weekly')} style={styles.btnSm}>Preview weekly</button>
-              <button type="button" onClick={() => setPreviewType('monthly')} style={styles.btnSm}>Preview monthly</button>
-              <button type="button" onClick={() => handleGenerateReport('weekly')} style={styles.btnSm}>Generate weekly</button>
-              <button type="button" onClick={() => handleGenerateReport('monthly')} style={styles.btnSm}>Generate monthly</button>
+              <button type="button" onClick={() => setPreviewType('weekly')} className="btn btn-secondary btn-sm">Preview weekly</button>
+              <button type="button" onClick={() => setPreviewType('monthly')} className="btn btn-secondary btn-sm">Preview monthly</button>
+              <button type="button" onClick={() => handleGenerateReport('weekly')} className="btn btn-secondary btn-sm">Generate weekly</button>
+              <button type="button" onClick={() => handleGenerateReport('monthly')} className="btn btn-secondary btn-sm">Generate monthly</button>
             </div>
           </div>
           {reports.length === 0 ? (
@@ -447,7 +447,7 @@ export default function ClientDetailPage() {
                       </td>
                       <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: '#888' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: '7px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
-                        <button type="button" onClick={() => handleDeleteReport(r.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Delete</button>
+                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Delete</button>
                       </td>
                     </tr>
                     {r.status === 'failed' && r.error_log && (
@@ -464,12 +464,12 @@ export default function ClientDetailPage() {
           )}
         </div>
 
-        <form onSubmit={handleSave} style={{ ...styles.card, marginTop: 24 }}>
+        <form onSubmit={handleSave} className="card" style={{ marginTop: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Schedule</div>
           <div style={styles.grid2}>
             <Field label="Weekly Day">
               <select
-                style={styles.input}
+                className="input"
                 value={client.report_schedule?.weekly_day || 'monday'}
                 onChange={e => setClient(p => ({ ...p, report_schedule: { ...p.report_schedule, weekly_day: e.target.value } }))}
               >
@@ -480,7 +480,7 @@ export default function ClientDetailPage() {
             </Field>
             <Field label="Weekly Time">
               <input
-                type="time" style={styles.input}
+                type="time" className="input"
                 value={client.report_schedule?.weekly_time || '10:00'}
                 onChange={e => setClient(p => ({ ...p, report_schedule: { ...p.report_schedule, weekly_time: e.target.value } }))}
               />
@@ -488,7 +488,7 @@ export default function ClientDetailPage() {
           </div>
           <Field label="Monthly Day of Month">
             <input
-              type="number" min="1" max="28" style={{ ...styles.input, maxWidth: 120 }}
+              type="number" min="1" max="28" className="input" style={{ maxWidth: 120 }}
               value={client.report_schedule?.monthly_day || 1}
               onChange={e => setClient(p => ({ ...p, report_schedule: { ...p.report_schedule, monthly_day: parseInt(e.target.value) } }))}
             />
@@ -498,7 +498,7 @@ export default function ClientDetailPage() {
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>Recipients</div>
             <Field label="Monthly Report Recipients (one per line)">
               <textarea
-                style={{ ...styles.input, minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
                 value={(client.report_recipients?.monthly || []).join('\n')}
                 onChange={e => setClient(p => ({
                   ...p,
@@ -508,7 +508,7 @@ export default function ClientDetailPage() {
             </Field>
             <Field label="Weekly Report Recipients (one per line)">
               <textarea
-                style={{ ...styles.input, minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
+                className="input" style={{ minHeight: 90, fontFamily: 'monospace', fontSize: 12 }}
                 value={(client.report_recipients?.weekly || []).join('\n')}
                 onChange={e => setClient(p => ({
                   ...p,
@@ -522,12 +522,12 @@ export default function ClientDetailPage() {
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>This month's focus</div>
             <p style={styles.help}>Sets the priority for the next report. Drives Claude's executive summary and recommendations. Update before each monthly report runs.</p>
             <textarea
-              style={{ ...styles.input, minHeight: 80, resize: 'vertical', marginTop: 8 }}
+              className="input" style={{ minHeight: 80, resize: 'vertical', marginTop: 8 }}
               value={client.monthly_focus || ''}
               onChange={e => setClient(p => ({ ...p, monthly_focus: e.target.value }))}
               placeholder="e.g. Investigate the US Shopify refund spike; quantify the impact of the new B2B trade pricing on EU revenue."
             />
-            <button type="button" onClick={handleSuggestFocus} disabled={loadingFocus} style={{ ...styles.btnSm, marginTop: 8 }}>
+            <button type="button" onClick={handleSuggestFocus} disabled={loadingFocus} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
               {loadingFocus ? 'Drafting…' : '✦ Suggest with Claude'}
             </button>
           </div>
@@ -547,7 +547,7 @@ export default function ClientDetailPage() {
                   <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: '#fafafa' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
-                      <button type="button" onClick={() => setTemplateChatType(rt)} style={{ ...styles.btnSm, padding: '4px 10px' }}>
+                      <button type="button" onClick={() => setTemplateChatType(rt)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
                         ✦ {tpl ? 'Edit with Claude' : 'Design with Claude'}
                       </button>
                     </div>
@@ -568,7 +568,7 @@ export default function ClientDetailPage() {
             </div>
           </div>
 
-          <button type="submit" style={styles.btn} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
         </form>
         </>
       )}
@@ -785,7 +785,7 @@ function BrevoConfig({ connector, onConfigSave }) {
       <input value={automation} onChange={e => setAutomation(e.target.value)}
         placeholder="All automations (optional ID/name)"
         style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', width: 220 }} />
-      <button type="button" onClick={save} disabled={saving} style={styles.btnSm}>{saving ? 'Saving…' : 'Save'}</button>
+      <button type="button" onClick={save} disabled={saving} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
       {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
       {listsError && <span style={{ fontSize: 11, color: '#c62828' }}>Lists: {listsError}</span>}
     </div>
@@ -857,7 +857,7 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
           {forms.map(f => <option key={f.value} value={f.value}>{f.label}{f.status && f.status !== 'publish' ? ` (${f.status})` : ''}</option>)}
         </select>
       )}
-      <button type="button" onClick={save} disabled={saving || !formId} style={styles.btnSm}>{saving ? 'Saving…' : 'Save'}</button>
+      <button type="button" onClick={save} disabled={saving || !formId} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
       {saved && <span style={{ fontSize: 12, color: '#2e7d32', fontWeight: 600 }}>✓ Saved</span>}
       {formsError && <span style={{ fontSize: 11, color: '#c62828' }}>Forms: {formsError}</span>}
     </div>
@@ -968,8 +968,8 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                 const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
                 onConfigSave(connector.id, updated);
                 setEditingLabel(false);
-              }} style={{ ...styles.btnSm, padding: '1px 6px' }}>✓</button>
-              <button onClick={() => setEditingLabel(false)} style={{ ...styles.btnSm, padding: '1px 6px' }}>✕</button>
+              }} className="btn btn-secondary btn-sm" style={{ padding: '1px 6px' }}>✓</button>
+              <button onClick={() => setEditingLabel(false)} className="btn btn-secondary btn-sm" style={{ padding: '1px 6px' }}>✕</button>
             </span>
           ) : (
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -985,30 +985,30 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           </span>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          {isActive && <button onClick={() => onCheck(connector.id)} style={styles.btnSm}>Check</button>}
+          {isActive && <button onClick={() => onCheck(connector.id)} className="btn btn-secondary btn-sm">Check</button>}
           {connector.status !== 'disconnected' && (
-            <button onClick={handleDiagnose} disabled={diagnosing} style={styles.btnSm}>
+            <button onClick={handleDiagnose} disabled={diagnosing} className="btn btn-secondary btn-sm">
               {diagnosing ? 'Diagnosing…' : 'Diagnose'}
             </button>
           )}
           {isActive && (
-            <button onClick={() => onAddAnother(connector.connector_type)} style={styles.btnSm}>+ Add another</button>
+            <button onClick={() => onAddAnother(connector.connector_type)} className="btn btn-secondary btn-sm">+ Add another</button>
           )}
           {isOAuth ? (
-            <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} style={styles.btnSm}>
+            <button onClick={() => onOpenOAuth(connector.connector_type, clientId)} className="btn btn-secondary btn-sm">
               {isActive ? 'Reauth' : 'Connect'}
             </button>
           ) : isShopify ? (
-            <button onClick={() => onOpenShopifyOAuth(connector.id)} style={styles.btnSm}>
+            <button onClick={() => onOpenShopifyOAuth(connector.id)} className="btn btn-secondary btn-sm">
               {isActive ? 'Reconnect' : 'Connect'}
             </button>
           ) : (
-            <button onClick={() => onEditCredentials(connector)} style={styles.btnSm}>
+            <button onClick={() => onEditCredentials(connector)} className="btn btn-secondary btn-sm">
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
-          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} style={{ ...styles.btnSm, color: '#e65100' }}>Reset</button>}
-          <button onClick={() => onDelete(connector.id)} style={{ ...styles.btnSm, color: '#c62828' }}>Remove</button>
+          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: '#e65100' }}>Reset</button>}
+          <button onClick={() => onDelete(connector.id)} className="btn btn-secondary btn-sm" style={{ color: '#c62828' }}>Remove</button>
         </div>
       </div>
       {diagnoseResult && (
@@ -1100,20 +1100,20 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
           ) : accounts && accounts.length === 0 && MANUAL_ENTRY_TYPES.includes(connector.connector_type) ? (
             <div style={{ display: 'flex', gap: 8, flex: 1 }}>
               <input
-                style={{ ...styles.input, flex: 1, fontSize: 13, padding: '6px 10px' }}
+                className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }}
                 value={manualValue}
                 onChange={e => setManualValue(e.target.value)}
                 placeholder={MANUAL_PLACEHOLDER[connector.connector_type] || 'Enter ID'}
                 onKeyDown={e => e.key === 'Enter' && handleManualSave()}
               />
-              <button onClick={handleManualSave} style={styles.btnSm}>Save</button>
+              <button onClick={handleManualSave} className="btn btn-secondary btn-sm">Save</button>
             </div>
           ) : accountsError ? (
             <span style={{ fontSize: 12, color: '#c62828' }} title={accountsError}>Error loading accounts — {accountsError.length > 80 ? accountsError.slice(0, 80) + '…' : accountsError}</span>
           ) : accounts && accounts.length === 0 ? (
             <span style={{ fontSize: 12, color: '#c62828' }}>No accounts found — check OAuth permissions.</span>
           ) : accounts ? (
-            <select style={{ ...styles.input, flex: 1, fontSize: 13, padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
+            <select className="input" style={{ flex: 1, fontSize: 13, padding: '6px 10px' }} value={selectedValue} onChange={handleAccountSelect}>
               <option value="">— Select —</option>
               {accounts.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
             </select>
@@ -1142,7 +1142,7 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
             <Field key={f.key} label={f.label}>
               <input
                 type={f.secret ? 'password' : 'text'}
-                style={styles.input}
+                className="input"
                 value={values[f.key] || ''}
                 onChange={e => onChange(prev => ({ ...prev, [f.key]: e.target.value }))}
                 placeholder={f.placeholder || ''}
@@ -1151,8 +1151,8 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
           ))}
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-          <button onClick={onSave} style={styles.btn}>Save & Verify</button>
-          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+          <button onClick={onSave} className="btn btn-primary">Save & Verify</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -1171,7 +1171,7 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
         <Field label="Label">
           <input
             autoFocus
-            style={styles.input}
+            className="input"
             value={label}
             onChange={e => setLabel(e.target.value)}
             placeholder="e.g. B2C, B2B, UK site"
@@ -1179,8 +1179,8 @@ function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
           />
         </Field>
         <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-          <button onClick={() => onConfirm(label.trim() || null)} style={styles.btn}>Add</button>
-          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+          <button onClick={() => onConfirm(label.trim() || null)} className="btn btn-primary">Add</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>
@@ -1202,7 +1202,7 @@ function ShopifyModal({ onConfirm, onClose }) {
         </p>
         <Field label="Store Domain">
           <input
-            autoFocus style={styles.input} value={shop}
+            autoFocus className="input" value={shop}
             onChange={e => setShop(e.target.value)}
             placeholder="goldfinger.myshopify.com"
           />
@@ -1219,21 +1219,21 @@ function ShopifyModal({ onConfirm, onClose }) {
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>
             <Field label="API Key (Client ID)">
-              <input style={styles.input} value={clientId} onChange={e => setClientId(e.target.value)} placeholder="a1b2c3d4e5f6…" />
+              <input className="input" value={clientId} onChange={e => setClientId(e.target.value)} placeholder="a1b2c3d4e5f6…" />
             </Field>
             <Field label="API Secret (Client Secret)">
-              <input type="password" style={styles.input} value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="shpss_…" />
+              <input type="password" className="input" value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="shpss_…" />
             </Field>
           </div>
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
           <button
             onClick={() => canConfirm && onConfirm({ shop: shop.trim(), clientId: useOwnApp ? clientId.trim() : null, clientSecret: useOwnApp ? clientSecret.trim() : null })}
-            style={styles.btn} disabled={!canConfirm}
+            className="btn btn-primary" disabled={!canConfirm}
           >
             Connect with Shopify
           </button>
-          <button onClick={onClose} style={styles.btnGhost}>Cancel</button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
         </div>
       </div>
     </div>

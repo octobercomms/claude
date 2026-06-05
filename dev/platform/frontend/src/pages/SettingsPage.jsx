@@ -444,21 +444,21 @@ export default function SettingsPage() {
           <p style={styles.hint}>Change your login username or password.</p>
           <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
             <Field label="Username">
-              <input type="text" style={styles.input} value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
+              <input type="text" className="input" value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
             </Field>
             <Field label="Current Password">
-              <input type="password" style={styles.input} value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
+              <input type="password" className="input" value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
             </Field>
             <Field label={<>New Password <span style={{ fontWeight: 400, textTransform: 'none', color: '#888' }}>(leave blank to keep current)</span></>}>
-              <input type="password" style={styles.input} value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
+              <input type="password" className="input" value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
             </Field>
             {account.newPassword && (
               <Field label="Confirm New Password">
-                <input type="password" style={styles.input} value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
+                <input type="password" className="input" value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
               </Field>
             )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button type="submit" style={styles.btn} disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
+              <button type="submit" className="btn btn-primary" disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
               {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? '#c62828' : '#2e7d32' }}>{accountMsg}</span>}
             </div>
           </form>
@@ -511,11 +511,11 @@ export default function SettingsPage() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
                           {group.keys.map(({ key, label, placeholder, type }) => (
                             <div key={key} style={styles.field}>
-                              <label style={styles.label}>{label}</label>
+                              <label className="field-label">{label}</label>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input
                                   type={visibleKeys[key] ? 'text' : type}
-                                  style={{ ...styles.input, flex: 1 }}
+                                  className="input" style={{ flex: 1 }}
                                   value={values[key] === '••••••••' ? '' : (values[key] || '')}
                                   placeholder={values[key] === '••••••••' ? 'Already set — enter new value to change' : placeholder}
                                   onChange={e => handleChange(key, e.target.value)}
@@ -540,7 +540,7 @@ export default function SettingsPage() {
                           <div style={{ marginTop: 12 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <button type="button" onClick={handleTestDataForSEO} disabled={testingDfs}
-                                style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }}>
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
                                 {testingDfs ? 'Testing…' : 'Test connection'}
                               </button>
                               {dfsTestMsg && (
@@ -558,7 +558,7 @@ export default function SettingsPage() {
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
                           <button type="button" onClick={() => handleSaveSection(group)} disabled={savingSection === group.title}
-                            style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }}>
+                            className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
                             {savingSection === group.title ? 'Saving…' : 'Save'}
                           </button>
                           {sectionResult && sectionResult.title === group.title && (
@@ -578,9 +578,9 @@ export default function SettingsPage() {
                           <input
                             type="email" placeholder="Send test email to…"
                             value={testEmail} onChange={e => setTestEmail(e.target.value)}
-                            style={{ ...styles.input, flex: '1 1 200px' }}
+                            className="input" style={{ flex: '1 1 200px' }}
                           />
-                          <button type="button" onClick={handleTestEmail} style={{ ...styles.btn, padding: '7px 14px', fontSize: 12 }} disabled={sendingTest}>
+                          <button type="button" onClick={handleTestEmail} className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }} disabled={sendingTest}>
                             {sendingTest ? 'Sending…' : 'Send Test'}
                           </button>
                         </div>
@@ -655,10 +655,10 @@ function CostsPanel() {
     <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
-          <h2 style={styles.cardTitle}>Costs &amp; usage</h2>
+          <h2 className="caption">Costs &amp; usage</h2>
           <p style={styles.hint}>Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
         </div>
-        <button onClick={refresh} disabled={refreshing} style={{ ...styles.btn, padding: '6px 14px' }}>
+        <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
           {refreshing ? 'Polling…' : 'Refresh now'}
         </button>
       </div>
@@ -733,15 +733,15 @@ function fmtCurrency(value, currency) {
 }
 
 function Card({ children }) {
-  return <div style={styles.card}>{children}</div>;
+  return <div className="card">{children}</div>;
 }
 function CardTitle({ children }) {
-  return <h2 style={styles.cardTitle}>{children}</h2>;
+  return <h2 className="caption">{children}</h2>;
 }
 function Field({ label, children }) {
   return (
     <div style={styles.field}>
-      <label style={styles.label}>{label}</label>
+      <label className="field-label">{label}</label>
       {children}
     </div>
   );
@@ -1000,7 +1000,7 @@ function ContactsLibrary() {
               title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
-            <button onClick={() => setImportOpen(true)} style={styles.btn}>↑ Import CSV</button>
+            <button onClick={() => setImportOpen(true)} className="btn btn-primary">↑ Import CSV</button>
           </div>
         </div>
 
@@ -1008,7 +1008,7 @@ function ContactsLibrary() {
           <input
             placeholder="Search by name, email or outlet…"
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ ...styles.input, flex: '1 1 220px' }}
+            className="input" style={{ flex: '1 1 220px' }}
           />
           {!!tags.length && (() => {
             // Filter by the tag-search input (substring, case-insensitive)
@@ -1026,7 +1026,7 @@ function ContactsLibrary() {
                   placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
-                  style={{ ...styles.input, padding: '5px 9px', fontSize: 12, width: 200, flex: '0 0 200px' }}
+                  className="input" style={{ padding: '5px 9px', fontSize: 12, width: 200, flex: '0 0 200px' }}
                 />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
                   {visible.map(t => {
@@ -1086,7 +1086,7 @@ function ContactsLibrary() {
               <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} style={styles.ghostBtn}>
                 + Add tags
               </button>
-              <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} style={styles.btn}>
+              <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} className="btn btn-primary">
                 Add to client…
               </button>
               <button onClick={destroyContacts} disabled={!selected.size} style={styles.dangerBtn}>
@@ -1114,7 +1114,7 @@ function ContactsLibrary() {
                     onChange={e => setBulkTagInput(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addBulkTag(bulkTagInput); } }}
                     placeholder="type a tag and press Enter"
-                    style={{ ...styles.input, flex: '1 1 200px', minWidth: 160 }}
+                    className="input" style={{ flex: '1 1 200px', minWidth: 160 }}
                   />
                 </div>
                 {!!tags.length && (
@@ -1127,7 +1127,7 @@ function ContactsLibrary() {
                   </div>
                 )}
                 <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} style={styles.btn}>
+                  <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} className="btn btn-primary">
                     Apply to {selected.size}
                   </button>
                   <button onClick={() => { setBulkTagsOpen(false); setBulkTagsToAdd(new Set()); }} style={styles.ghostBtn}>
@@ -1322,7 +1322,7 @@ function TagsManager() {
               old CSV imports.
             </p>
           </div>
-          <button onClick={tidyWithClaude} disabled={analyzing || applying} style={styles.btn}
+          <button onClick={tidyWithClaude} disabled={analyzing || applying} className="btn btn-primary"
             title="Send the tag list to Claude and get cleanup suggestions">
             {analyzing ? 'Analysing…' : '✨ Tidy with Claude'}
           </button>
@@ -1382,7 +1382,7 @@ function TagsManager() {
           <input
             placeholder={`Search ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
             value={search} onChange={e => setSearch(e.target.value)}
-            style={{ ...styles.input, flex: '1 1 240px' }}
+            className="input" style={{ flex: '1 1 240px' }}
           />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#666' }}>
             Sort:
