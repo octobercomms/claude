@@ -837,6 +837,33 @@ select, textarea {
      bento card padding shrinks to keep the visible area larger. */
   .card { padding: var(--s4); }
   .metric-card { padding: var(--s3); }
+
+}
+
+/* Phone (≤ 520px): collapse every inline grid to a single column.
+   Stops pages with raw gridTemplateColumns props from crushing
+   their tiles together when the viewport is narrow. */
+@media (max-width: 520px) {
+  div[style*="grid-template-columns: 1fr 1fr"],
+  div[style*="grid-template-columns: repeat("],
+  form[style*="grid-template-columns: 1fr 1fr"],
+  form[style*="grid-template-columns: repeat("] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Small tablet (521 - 768px): 2-col grids stay 2-col; anything that
+   asked for 3+ columns gets squashed to 2 so cells are still
+   readable. */
+@media (min-width: 521px) and (max-width: 768px) {
+  div[style*="grid-template-columns: 1fr 1fr 1fr"],
+  div[style*="grid-template-columns: repeat(3"],
+  div[style*="grid-template-columns: repeat(4"],
+  div[style*="grid-template-columns: repeat(5"],
+  div[style*="grid-template-columns: repeat(6"],
+  div[style*="grid-template-columns: repeat(7"] {
+    grid-template-columns: 1fr 1fr !important;
+  }
 }
 
 /* ─── Marketing home (legacy public site) ────────────────────────── */

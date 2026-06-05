@@ -186,16 +186,16 @@ export default function ClientSalesTrafficPage() {
         <div style={{ color: 'var(--negative)', padding: 20 }}>{data.error}</div>
       ) : data ? (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 16 }}>
+          <div className="metric-grid">
             {cards.map(c => (
-              <div key={c.label} className="card">
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 600 }}>{c.label}</div>
-                <div style={{ fontSize: 23, fontWeight: 700, marginTop: 6 }}>{c.value}</div>
+              <div key={c.label} className="metric-card">
+                <div className="caption">{c.label}</div>
+                <div className="metric">{c.value}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+          <div className="grid grid-2" style={{ marginBottom: 16 }}>
             <div className="card">
               <div className="caption">Revenue &amp; orders</div>
               {data.salesTrend && data.salesTrend.length ? (
