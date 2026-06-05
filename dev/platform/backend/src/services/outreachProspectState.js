@@ -7,7 +7,7 @@
 // The contract is small on purpose: ensure(), advance(), markEvent(),
 // pause(), resume(). Anything more nuanced sits in the consumers.
 
-const { pool } = require('../utils/db');
+const pool = require('../db');
 
 // Idempotent — creates the state row if missing, returns whatever is
 // stored. Called when a contact is enrolled into a campaign.

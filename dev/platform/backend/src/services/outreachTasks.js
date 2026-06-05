@@ -4,7 +4,7 @@
 // marked completed, the per-prospect state advances to the next step
 // exactly as if an email had been delivered.
 
-const { pool } = require('../utils/db');
+const pool = require('../db');
 const prospectState = require('./outreachProspectState');
 
 // Create a task for a (campaign, contact, sequence-step) combination.

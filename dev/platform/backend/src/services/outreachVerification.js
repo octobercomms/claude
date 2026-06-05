@@ -4,7 +4,7 @@
 // UI badge, the contact import flow — can read the cached state
 // without re-hitting the API.
 
-const { pool } = require('../utils/db');
+const pool = require('../db');
 const hunter = require('./hunter');
 
 // How long a verification is considered "fresh" before we'd re-verify

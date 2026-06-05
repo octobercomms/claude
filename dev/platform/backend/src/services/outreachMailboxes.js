@@ -2,7 +2,7 @@
 // for an outbound message — eligible = active, not in error, under
 // today's cap, and not currently in warm-up cooldown.
 
-const { pool } = require('../utils/db');
+const pool = require('../db');
 const crypto = require('crypto');
 
 // Reset the per-mailbox daily counter if the rolling 24h window has
