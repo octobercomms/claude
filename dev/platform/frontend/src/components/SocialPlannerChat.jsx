@@ -262,11 +262,11 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal">
-        <div style={styles.header}>
+        <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
             Social post plan — {clientName}
           </h2>
-          <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
         <p className="body-sm text-muted">
           Describe the post idea (platform, audience, angle). Claude proposes a structured plan with scenes, equipment, captions and approval gates. Iterate, then lock to save and download.
@@ -505,7 +505,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
 
         {error && <div className="callout callout-danger">{error}</div>}
 
-        <div style={styles.footer}>
+        <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">Close</button>
           {planRowId && saved && !proposedDiffers && (
             <>

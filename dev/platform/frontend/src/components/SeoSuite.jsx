@@ -81,12 +81,12 @@ export function KeywordHistoryModal({ keywordId, keyword, onClose }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div style={styles.header}>
+        <div className="modal-head">
           <div>
             <div style={{ fontSize: 12, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5 }}>Full position history</div>
             <h2 style={{ margin: '4px 0 0', fontSize: 18, fontWeight: 700 }}>{keyword}</h2>
           </div>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
         {err && <div className="callout callout-danger">{err}</div>}
         {!rows && !err && <div style={{ padding: 20, color: '#888' }}>Loading…</div>}

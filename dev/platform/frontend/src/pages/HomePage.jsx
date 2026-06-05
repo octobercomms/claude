@@ -292,7 +292,7 @@ export default function HomePage() {
       </section>
 
       {/* Footer */}
-      <footer style={styles.footer}>
+      <footer className="row end">
         <div style={styles.container}>
           <img src="/logo-black.gif" alt="October Communications" style={{ height: 40, display: 'block', marginBottom: 26 }} />
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 32, fontSize: 12, color: MUTED }}>

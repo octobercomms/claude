@@ -135,9 +135,9 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
             {!filteredContacts.length && <div style={{ padding: 14, color: '#888', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
             {groupKeys.map(beat => (
               <div key={beat}>
-                <div style={styles.groupHeader}>{beat} <span style={{ color: '#999', fontWeight: 400 }}>· {grouped[beat].length}</span></div>
+                <div className="caption" style={{ padding: "6px 10px", background: "var(--surface-raised)" }}>{beat} <span style={{ color: '#999', fontWeight: 400 }}>· {grouped[beat].length}</span></div>
                 {grouped[beat].map(c => (
-                  <label key={c.id} style={styles.contactRow}>
+                  <label key={c.id} className="row center" style={{ gap: 10, padding: "8px 10px", borderTop: "var(--border-w) solid var(--accent-soft)", cursor: "pointer" }}>
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -232,10 +232,3 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
   );
 }
 
-const styles = {
-  h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  contactRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' },
-  groupHeader: { padding: '6px 10px', background: '#f6f6f6', fontSize: 10, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 },
-};

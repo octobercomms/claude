@@ -122,11 +122,11 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal">
-        <div style={styles.header}>
+        <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
             {reportType === 'weekly' ? 'Weekly' : 'Monthly'} report template — {clientName}
           </h2>
-          <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
         <p className="body-sm text-muted">
           Describe the report you want. Claude will draft a template (sections, layout, sources) on the right.
@@ -220,7 +220,7 @@ export default function ReportTemplateChat({ clientId, clientName, reportType, o
 
         {error && <div className="callout callout-danger">{error}</div>}
 
-        <div style={styles.footer}>
+        <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">Close</button>
           <button
             type="button"

@@ -57,16 +57,16 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal">
-        <div style={styles.header}>
+        <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
-          <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
 
         <div className="tabs">
           <button type="button" onClick={() => setTab('details')}
-            style={tab === 'details' ? styles.tabBtnActive : styles.tabBtn}>Details</button>
+            className={`tab ${tab === 'details' ? 'active' : ''}`}>Details</button>
           <button type="button" onClick={() => setTab('activity')}
-            style={tab === 'activity' ? styles.tabBtnActive : styles.tabBtn}>Activity</button>
+            className={`tab ${tab === 'activity' ? 'active' : ''}`}>Activity</button>
         </div>
 
         {tab === 'activity' ? (
@@ -77,7 +77,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
             onReloadActivity={() => setActivity(null)}
           />
         ) : (
-        <div style={styles.grid}>
+        <div className="grid">
           <Section title="Contact Details">
             <Field label="First Name">
               <input className="input" value={form.first_name} onChange={e => update('first_name', e.target.value)} />
@@ -125,7 +125,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         </div>
         )}
 
-        <div style={styles.footer}>
+        <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">{tab === 'activity' ? 'Close' : 'Cancel'}</button>
           {tab !== 'activity' && (
             <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save Contact'}</button>

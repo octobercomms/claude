@@ -136,7 +136,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
 
   return (
     <div>
-      <div style={styles.header}>
+      <div className="modal-head">
         <div>
           <div style={styles.eyebrow}>Internal · for the AM</div>
           <h2 className="h2">Strategist briefing</h2>
@@ -165,7 +165,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
       )}
 
       {reports && reports.length > 0 && (
-        <div style={styles.grid}>
+        <div className="grid">
           <div style={styles.list}>
             {reports.map(r => (
               <button key={r.id} onClick={() => setSelectedId(r.id)}

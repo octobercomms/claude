@@ -24,9 +24,9 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div onClick={e => e.stopPropagation()} className="modal">
-        <div style={styles.header}>
+        <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{title}</h2>
-          <button type="button" onClick={onClose} style={styles.closeBtn}>×</button>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
         {hint && <p className="body-sm text-muted">{hint}</p>}
         <textarea
@@ -35,7 +35,7 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
           value={text}
           onChange={e => setText(e.target.value)}
         />
-        <div style={styles.footer}>
+        <div className="row end">
           <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
           <button type="button" onClick={handleAccept} disabled={saving || !text.trim()} className="btn btn-primary">
             {saving ? 'Saving…' : 'Accept and Save'}
@@ -46,12 +46,3 @@ export default function AIDraftModal({ title, hint, draft, onAccept, onClose }) 
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px 20px', zIndex: 1000, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 720, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  hint: { fontSize: 12, color: '#666', margin: '0 0 12px', lineHeight: 1.5 },
-  textarea: { width: '100%', minHeight: 200, padding: '10px 12px', fontSize: 13, lineHeight: 1.6, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  footer: { display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 14 },
-};

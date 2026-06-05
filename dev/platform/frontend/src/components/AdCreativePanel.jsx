@@ -190,7 +190,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
           <div className="h3">Past batches</div>
           {!batches.length && <div style={{ color: '#888', fontSize: 13 }}>Nothing yet — click Generate.</div>}
           {batches.map(b => (
-            <div key={b.id} style={{ ...styles.batchRow, ...(b.id === activeBatchId ? styles.batchRowActive : {}) }} onClick={() => selectBatch(b.id)}>
+            <div key={b.id} className="card" style={{ padding: 10, marginBottom: 8, cursor: "pointer", background: b.id === activeBatchId ? "var(--accent-soft)" : "var(--surface)" }} onClick={() => selectBatch(b.id)}>
               <div style={{ fontWeight: 600, fontSize: 13 }}>{new Date(b.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</div>
               <div style={{ fontSize: 11, color: '#888' }}>{b.creative_count} concepts · {b.platform}</div>
               {b.brief && <div style={{ fontSize: 11, color: '#999', marginTop: 4, lineHeight: 1.4 }}>{b.brief.slice(0, 64)}{b.brief.length > 64 ? '…' : ''}</div>}
@@ -310,8 +310,8 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span style={styles.framePill}>{creative.framework}</span>
-          <span style={styles.anglePill}>{creative.angle}</span>
+          <span className="chip chip-accent" style={{ fontSize: 10 }}>{creative.framework}</span>
+          <span className="chip chip-outline" style={{ fontSize: 10 }}>{creative.angle}</span>
         </div>
         <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1 }}>×</button>
       </div>
@@ -359,13 +359,13 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
           <div className="field">PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
-              <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
+              <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
             ))}
           </div>
           <div className="field">ASPECT RATIOS</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
             {['1:1', '4:5', '9:16', '16:9'].map(a => (
-              <button key={a} onClick={() => toggleAspect(a)} type="button" style={aspects.has(a) ? styles.providerOn : styles.providerOff}>{a}</button>
+              <button key={a} onClick={() => toggleAspect(a)} type="button" className={`btn ${aspects.has(a) ? "btn-primary" : "btn-secondary"} btn-sm`}>{a}</button>
             ))}
           </div>
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
@@ -385,13 +385,13 @@ function ImageThumb({ img, onDelete, onFanOut }) {
   return (
     <div style={{ position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <a href={img.url} target="_blank" rel="noreferrer">
-        <img src={img.url} alt="" style={{ ...styles.thumb, ...aspectStyle(img.aspect_ratio) }} />
+        <img src={img.url} alt="" style={{ objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)", ...aspectStyle(img.aspect_ratio) }} />
       </a>
-      <div style={styles.thumbBadge}>{img.aspect_ratio}</div>
-      <button onClick={onDelete} style={styles.thumbX}>×</button>
+      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 3, fontWeight: 700 }}>{img.aspect_ratio}</div>
+      <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--accent)", cursor: "pointer", fontSize: 12, lineHeight: 1 }}>×</button>
       {hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
-          style={styles.fanOutBtn}>↔</button>
+          style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}>↔</button>
       )}
     </div>
   );
@@ -404,21 +404,6 @@ function aspectStyle(ratio) {
   return { width: 78, height: 78 };
 }
 
-const styles = {
-  h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  batchRow: { padding: 10, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
-  batchRowActive: { background: '#fffceb', borderColor: 'var(--accent)' },
-  card: { padding: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 6 },
-  field: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  framePill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
-  anglePill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#f4eafd', color: '#5e2d8c', textTransform: 'uppercase', letterSpacing: 0.4 },
-  thumb: { objectFit: 'cover', borderRadius: 4, border: '2px solid var(--accent)' },
-  thumbBadge: { position: 'absolute', bottom: 2, left: 2, padding: '1px 6px', background: 'rgba(0,0,0,0.65)', color: '#fff', fontSize: 9, borderRadius: 3, fontWeight: 700, letterSpacing: 0.4 },
-  thumbX: { position: 'absolute', top: -6, right: -6, width: 18, height: 18, borderRadius: '50%', background: '#fff', border: '2px solid var(--accent)', cursor: 'pointer', fontSize: 12, lineHeight: 1, color: '#c62828' },
-  fanOutBtn: { position: 'absolute', bottom: -6, right: -6, width: 22, height: 22, borderRadius: '50%', background: '#1a1a1a', border: 'none', cursor: 'pointer', fontSize: 13, lineHeight: 1, color: '#fff', fontWeight: 700 },
-  providerOn: { padding: '5px 12px', fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700 },
-  providerOff: { padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
-};
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },

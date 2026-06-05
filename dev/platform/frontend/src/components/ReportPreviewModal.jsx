@@ -78,7 +78,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
-        <div style={styles.header}>
+        <div className="modal-head">
           <div>
             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>
               {reportType === 'weekly' ? 'Weekly' : 'Monthly'} preview — {clientName}
@@ -88,29 +88,29 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
               No PDF, no email. Cached for 10 minutes — click "Refresh data" to re-pull live.
             </div>
           </div>
-          <button onClick={onClose} style={styles.closeBtn}>×</button>
+          <button onClick={onClose} className="modal-close">×</button>
         </div>
 
-        <div style={styles.controls}>
-          <div style={styles.controlGroup}>
+        <div className="row wrap" style={{ gap: 18, alignItems: 'center', padding: '8px 20px 14px', borderBottom: '2px solid var(--accent-soft)' }}>
+          <div className="row center" style={{ gap: 6 }}>
             <button
               type="button"
               onClick={() => onSwitchType && onSwitchType('weekly')}
-              style={reportType === 'weekly' ? styles.toggleActive : styles.toggle}
+              className={`btn btn-sm ${reportType === 'weekly' ? 'btn-primary' : 'btn-secondary'}`}
             >Weekly</button>
             <button
               type="button"
               onClick={() => onSwitchType && onSwitchType('monthly')}
-              style={reportType === 'monthly' ? styles.toggleActive : styles.toggle}
+              className={`btn btn-sm ${reportType === 'monthly' ? 'btn-primary' : 'btn-secondary'}`}
             >Monthly</button>
           </div>
-          <div style={styles.controlGroup}>
+          <div className="row center" style={{ gap: 6 }}>
             <label className="field-label">Start</label>
             <input type="date" value={periodStart} onChange={e => setPeriodStart(e.target.value)} className="input" />
             <label className="field-label">End</label>
             <input type="date" value={periodEnd} onChange={e => setPeriodEnd(e.target.value)} className="input" />
           </div>
-          <div style={styles.controlGroup}>
+          <div className="row center" style={{ gap: 6 }}>
             <button type="button" onClick={() => run({ force: false })} className="btn btn-primary" disabled={loading}>
               {loading ? 'Building…' : result ? 'Re-render' : 'Build preview'}
             </button>
@@ -121,17 +121,17 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
         </div>
 
         {result && (
-          <div style={styles.statusBar}>
+          <div className="row wrap body-xs text-muted" style={{ gap: 18, padding: '8px 20px', borderBottom: '2px solid var(--accent-soft)' }}>
             <span><strong>Period:</strong> {result.period}</span>
             <span><strong>Sections:</strong> {result.sections?.length || 0}</span>
             <span><strong>Narrative cache:</strong> {cache?.hits || 0} hits / {cache?.misses || 0} new</span>
             {dataAge != null && <span><strong>Data age:</strong> {dataAge < 60 ? `${dataAge}s` : `${Math.round(dataAge / 60)}m`}</span>}
-            {errorCount > 0 && <span style={{ color: '#c62828' }}><strong>{errorCount}</strong> connector error{errorCount === 1 ? '' : 's'}</span>}
+            {errorCount > 0 && <span className="text-negative"><strong>{errorCount}</strong> connector error{errorCount === 1 ? '' : 's'}</span>}
           </div>
         )}
 
         {errorCount > 0 && (
-          <div style={styles.errorList}>
+          <div className="callout callout-danger" style={{ margin: '8px 20px', fontSize: 11 }}>
             {Object.entries(dataErrors).map(([k, v]) => (
               <div key={k}><strong>{k}:</strong> {v}</div>
             ))}
@@ -140,20 +140,23 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
 
         {error && <div className="callout callout-danger">{error}</div>}
 
-        <div style={styles.frameWrap}>
+        <div style={{ flex: 1, minHeight: 0, padding: 16, background: 'var(--surface-raised)', display: 'flex', alignItems: 'stretch', justifyContent: 'center' }}>
           {!result && !loading && (
-            <div style={styles.placeholder}>
+            <div className="body text-subtle" style={{ textAlign: 'center', alignSelf: 'center' }}>
               Pick a period and click <strong>Build preview</strong> to see what this report will look like.
             </div>
           )}
           {loading && !result && (
-            <div style={styles.placeholder}>Pulling data and running narratives…<br/><span style={{ color: '#888', fontSize: 12 }}>First run can take 20–60 seconds.</span></div>
+            <div className="body text-subtle" style={{ textAlign: 'center', alignSelf: 'center' }}>
+              Pulling data and running narratives…<br/>
+              <span className="body-xs text-subtle">First run can take 20–60 seconds.</span>
+            </div>
           )}
           {result && (
             <iframe
               ref={iframeRef}
               title="Report preview"
-              style={styles.iframe}
+              style={{ flex: 1, background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', width: '100%', height: '100%' }}
               sandbox="allow-same-origin"
             />
           )}
@@ -162,23 +165,3 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
     </div>
   );
 }
-
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'stretch', justifyContent: 'center', padding: 20, zIndex: 1000 },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 1200, display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '18px 20px 8px' },
-  hint: { fontSize: 12, color: '#888', marginTop: 4, lineHeight: 1.5, maxWidth: 720 },
-  closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#888', lineHeight: 1, padding: 4 },
-  controls: { display: 'flex', flexWrap: 'wrap', gap: 18, alignItems: 'center', padding: '8px 20px 14px', borderBottom: '1px solid #eee' },
-  controlGroup: { display: 'flex', alignItems: 'center', gap: 6 },
-  toggle: { padding: '6px 14px', fontSize: 12, fontWeight: 600, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
-  toggleActive: { padding: '6px 14px', fontSize: 12, fontWeight: 700, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999 },
-  label: { fontSize: 11, color: '#888', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4 },
-  input: { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit' },
-  statusBar: { display: 'flex', gap: 18, padding: '8px 20px', fontSize: 11, color: '#666', borderBottom: '1px solid #eee', flexWrap: 'wrap' },
-  errorList: { padding: '8px 20px', fontSize: 11, color: '#c62828', background: '#fdecea', borderBottom: '1px solid #f5d0d0' },
-  error: { padding: '10px 20px', color: '#c62828', background: '#fdecea', fontSize: 12 },
-  frameWrap: { flex: 1, minHeight: 0, padding: 16, background: '#f6f6f6', display: 'flex', alignItems: 'stretch', justifyContent: 'center' },
-  iframe: { flex: 1, background: '#fff', border: '2px solid var(--accent)', borderRadius: 4, width: '100%', height: '100%' },
-  placeholder: { color: '#888', textAlign: 'center', alignSelf: 'center', margin: '0 auto', fontSize: 14, lineHeight: 1.6 },
-};

@@ -94,9 +94,3 @@ export default function PressCampaignWizard({ clientId, onClose, onCreated }) {
   );
 }
 
-const styles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '40px 20px', zIndex: 1000, overflowY: 'auto' },
-  modal: { background: '#fff', borderRadius: 8, width: '100%', maxWidth: 720, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
-  label: { display: 'block', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 5 },
-  input: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-};

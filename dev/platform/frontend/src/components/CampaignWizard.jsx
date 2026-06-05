@@ -782,11 +782,3 @@ function Footer({ children }) {
   return <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 22, gap: 12, flexWrap: 'wrap' }}>{children}</div>;
 }
 
-const s = {
-  card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 8, padding: 20 },
-  input: { padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' },
-  table: { width: '100%', borderCollapse: 'collapse', fontSize: 13, marginTop: 10 },
-  th: { padding: '8px 10px', textAlign: 'left', background: '#f9f9f9', fontWeight: 600, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#666', borderBottom: '1px solid #e8e8e8' },
-  td: { padding: '8px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12 },
-  chip: { fontSize: 11, background: '#eee', borderRadius: 4, padding: '2px 8px' },
-};
