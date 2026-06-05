@@ -8,14 +8,22 @@ async function request(path, options = {}) {
   const token = getToken();
   // FormData sets its own Content-Type with boundary — don't force JSON.
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
-  const res = await fetch(`${BASE}${path}`, {
-    ...options,
-    headers: {
-      ...(isForm ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options.headers,
-    },
-  });
+  let res;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...options,
+      headers: {
+        ...(isForm ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options.headers,
+      },
+    });
+  } catch (err) {
+    // Network-level failure (DNS, offline, CORS preflight) — surface as
+    // "couldn't reach the server" rather than letting the caller see the
+    // raw TypeError.
+    throw new Error('Could not reach the server — check your connection or try again in a moment.');
+  }
 
   if (res.status === 401) {
     localStorage.removeItem('token');
@@ -23,9 +31,24 @@ async function request(path, options = {}) {
     throw new Error('Session expired');
   }
 
+  // Detect HTML responses on what should be JSON endpoints. Happens when
+  // nginx serves the SPA index.html for /api/* — usually because the
+  // backend is down and the nginx error_page directive falls back to
+  // the SPA. Without this branch the JSON parse below blew up with a
+  // cryptic "Unexpected token '<'" that gave no clue what was wrong.
+  const contentType = res.headers.get('content-type') || '';
+  const looksHtml = contentType.includes('text/html');
+
   if (!res.ok) {
+    if (looksHtml) {
+      throw new Error(`Server returned HTML (HTTP ${res.status}) — the backend may be offline. Check pm2 / nginx.`);
+    }
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `HTTP ${res.status}`);
+  }
+
+  if (looksHtml) {
+    throw new Error('Server returned HTML on a JSON endpoint — the backend may be offline (nginx is likely serving the SPA fallback).');
   }
 
   if (res.status === 204) return null;
