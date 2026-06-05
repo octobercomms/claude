@@ -11,6 +11,8 @@ const serper = require('../services/serper');
 const icypeas = require('../services/icypeas');
 const outreachAi = require('../services/outreachAi');
 const outreachSender = require('../services/outreachSender');
+const outreachVerification = require('../services/outreachVerification');
+const outreachMailboxes = require('../services/outreachMailboxes');
 
 // Verifier for the track-link HMAC. Returns true if the supplied
 // signature matches what outreachSender would have produced for this
@@ -1843,6 +1845,117 @@ router.post('/campaigns/:id/test', async (req, res) => {
   } catch (err) {
     res.status(502).json({ error: err.message });
   }
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 1: email verification + multi-mailbox routes
+// ─────────────────────────────────────────────────────────────────────────
+
+// Verify a single contact's email. Hits the cached result if recent.
+router.post('/contacts/:id/verify', authenticate, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT client_id FROM outreach_campaign_contacts cc JOIN outreach_campaigns c ON c.id = cc.campaign_id WHERE cc.contact_id = $1 LIMIT 1', [req.params.id]);
+    if (rows.length) await assertClientAccess(req, rows[0].client_id);
+    const force = req.query.force === '1';
+    const result = await outreachVerification.verifyContact(req.params.id, { force });
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Bulk verify all unverified contacts for a client.
+router.post('/clients/:clientId/contacts/verify-all', authenticate, requireClientAccess('clientId'), async (req, res) => {
+  try {
+    const force = req.query.force === '1';
+    const result = await outreachVerification.verifyClient(req.params.clientId, { force });
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+// Mailbox CRUD. Each client has its own pool of senders that the
+// outbound engine rotates across.
+router.get('/clients/:clientId/mailboxes', authenticate, requireClientAccess('clientId'), async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT id, client_id, from_name, from_email, reply_to, smtp_host, smtp_port,
+            smtp_username, daily_cap, target_daily_cap, warm_up_status,
+            warmup_days, warmup_started_at, daily_sent_count, day_started_at,
+            last_used_at, error_message, active, created_at, updated_at
+       FROM outreach_mailboxes
+      WHERE client_id = $1
+      ORDER BY created_at ASC`,
+    [req.params.clientId]
+  );
+  res.json(rows);
+});
+
+router.post('/clients/:clientId/mailboxes', authenticate, requireClientAccess('clientId'), async (req, res) => {
+  const { from_name, from_email, reply_to, smtp_host, smtp_port, smtp_username, smtp_password, daily_cap, target_daily_cap, warm_up_status, warmup_days } = req.body || {};
+  if (!from_email || !from_name) return res.status(400).json({ error: 'from_name and from_email are required' });
+  try {
+    const encoded = smtp_password ? outreachMailboxes.encryptPassword(smtp_password) : null;
+    const { rows } = await pool.query(
+      `INSERT INTO outreach_mailboxes
+         (client_id, from_name, from_email, reply_to, smtp_host, smtp_port,
+          smtp_username, smtp_password_enc, daily_cap, target_daily_cap,
+          warm_up_status, warmup_days, warmup_started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CASE WHEN $11 = 'warming' THEN NOW() ELSE NULL END)
+       RETURNING id`,
+      [
+        req.params.clientId,
+        from_name, from_email, reply_to || null,
+        smtp_host || null, smtp_port || null,
+        smtp_username || null, encoded,
+        daily_cap || 50,
+        target_daily_cap || daily_cap || 50,
+        warm_up_status || 'warm',
+        warmup_days || 0,
+      ]
+    );
+    res.json({ id: rows[0].id });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put('/mailboxes/:id', authenticate, async (req, res) => {
+  const { rows: existing } = await pool.query('SELECT client_id FROM outreach_mailboxes WHERE id = $1', [req.params.id]);
+  if (!existing.length) return res.status(404).json({ error: 'Mailbox not found' });
+  await assertClientAccess(req, existing[0].client_id);
+
+  const { from_name, from_email, reply_to, smtp_host, smtp_port, smtp_username, smtp_password, daily_cap, target_daily_cap, warm_up_status, warmup_days, active } = req.body || {};
+  const fields = [];
+  const values = [];
+  const push = (col, val) => { if (val !== undefined) { values.push(val); fields.push(`${col} = $${values.length}`); } };
+  push('from_name', from_name);
+  push('from_email', from_email);
+  push('reply_to', reply_to);
+  push('smtp_host', smtp_host);
+  push('smtp_port', smtp_port);
+  push('smtp_username', smtp_username);
+  if (smtp_password) { values.push(outreachMailboxes.encryptPassword(smtp_password)); fields.push(`smtp_password_enc = $${values.length}`); }
+  push('daily_cap', daily_cap);
+  push('target_daily_cap', target_daily_cap);
+  push('warm_up_status', warm_up_status);
+  push('warmup_days', warmup_days);
+  push('active', active);
+  if (!fields.length) return res.json({ ok: true });
+  fields.push('updated_at = NOW()');
+  if (warm_up_status === 'warming') fields.push(`warmup_started_at = COALESCE(warmup_started_at, NOW())`);
+  if (warm_up_status === 'warm')    fields.push(`error_message = NULL`);
+  values.push(req.params.id);
+  await pool.query(`UPDATE outreach_mailboxes SET ${fields.join(', ')} WHERE id = $${values.length}`, values);
+  res.json({ ok: true });
+});
+
+router.delete('/mailboxes/:id', authenticate, async (req, res) => {
+  const { rows: existing } = await pool.query('SELECT client_id FROM outreach_mailboxes WHERE id = $1', [req.params.id]);
+  if (!existing.length) return res.status(404).json({ error: 'Mailbox not found' });
+  await assertClientAccess(req, existing[0].client_id);
+  await pool.query('DELETE FROM outreach_mailboxes WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
 });
 
 module.exports = router;

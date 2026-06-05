@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import MailboxesPanel from '../components/MailboxesPanel';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
@@ -626,7 +627,10 @@ export default function ClientOutreachPage() {
                   <tr key={c.id}>
                     <td ><input type="checkbox" checked={selectedContacts.has(c.id)} onChange={() => toggleContactSelected(c.id)} /></td>
                     <td >{c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
-                    <td >{c.email || '—'}</td>
+                    <td>
+                      {c.email || '—'}
+                      <VerifyBadge contact={c} onVerified={(updated) => setContacts(prev => prev.map(x => x.id === c.id ? { ...x, ...updated } : x))} />
+                    </td>
                     <td >{c.company || '—'}</td>
                     <td >{c.contact_type || '—'}</td>
                     <td >{c.location || '—'}</td>
@@ -747,10 +751,13 @@ export default function ClientOutreachPage() {
       )}
 
       {tab === 'sending' && (
-        <div className="card" style={{ maxWidth: 520 }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Outreach sending</div>
+        <div className="stack stack-lg">
+          <MailboxesPanel clientId={id} />
+
+          <div className="card" style={{ maxWidth: 520 }}>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 4 }}>Legacy single-sender fallback</div>
           <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 14px' }}>
-            How outreach emails for this client are sent. Leave a field blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
+            Used only when no mailboxes are configured above. Leave blank to use the platform default. Set From to your own address and Reply-To to wherever replies should land.
           </p>
           {[['from_name', 'From name'], ['from_email', 'From email'], ['reply_to', 'Reply-To email']].map(([k, label]) => (
             <div key={k} style={{ marginBottom: 12 }}>
@@ -761,6 +768,7 @@ export default function ClientOutreachPage() {
           ))}
           <button onClick={saveSending} disabled={savingSend} className="btn btn-primary">{savingSend ? 'Saving…' : 'Save sending settings'}</button>
           {sendSaved && <span style={{ marginLeft: 10, color: 'var(--positive)', fontWeight: 600, fontSize: 13 }}>✓ Saved</span>}
+          </div>
         </div>
       )}
     </div>
@@ -975,4 +983,29 @@ function LibraryPicker({ clientId, onAttached }) {
       )}
     </div>
   );
+}
+
+// Verification badge — shows the cached status next to the contact's
+// email, and a "verify now" link when nothing's been done yet.
+// Hitting POST /contacts/:id/verify writes the latest status back to
+// the row so the badge updates without a refresh.
+function VerifyBadge({ contact, onVerified }) {
+  const [busy, setBusy] = React.useState(false);
+  async function check() {
+    setBusy(true);
+    try {
+      const r = await api.post(`/outreach/contacts/${contact.id}/verify`, {});
+      onVerified && onVerified({
+        verification_status: r.status,
+        verification_score: r.score,
+        last_verified_at: new Date().toISOString(),
+      });
+    } catch {} finally { setBusy(false); }
+  }
+  const s = contact.verification_status;
+  if (!s || s === 'pending') {
+    return <button className="btn-ghost" style={{ fontSize: 10, marginLeft: 6, padding: '0 4px' }} onClick={check} disabled={busy}>{busy ? '…' : 'verify'}</button>;
+  }
+  const tone = s === 'valid' ? 'success' : s === 'invalid' ? 'danger' : s === 'risky' ? 'warning' : 'neutral';
+  return <span className={`chip chip-${tone}`} style={{ marginLeft: 6, fontSize: 10 }}>{s}</span>;
 }

@@ -187,7 +187,33 @@ async function deliver({ from, to, replyTo, subject, text, html, headers, contac
 
 async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   if (!contact.email) throw new Error('Contact has no email address.');
-  const { from, replyTo } = await senderFields(sending);
+
+  // Phase 1: gate on verification before every send. shouldSend auto
+  // re-verifies stale contacts and only hard-blocks on an "invalid"
+  // result — soft errors are allowed through with a warning so a
+  // flaky verifier doesn't take down the whole campaign.
+  const outreachVerification = require('./outreachVerification');
+  const gate = await outreachVerification.shouldSend(contact.id).catch(() => ({ ok: true }));
+  if (!gate.ok) throw new Error(`Send blocked: ${gate.reason}`);
+
+  // Phase 1: per-client mailbox rotation. If the client has any
+  // mailboxes configured, pick the next eligible one and use its
+  // from/reply-to; otherwise fall back to the legacy single-sender
+  // outreach_sending config so older campaigns keep working.
+  const outreachMailboxes = require('./outreachMailboxes');
+  let pickedMailbox = null;
+  let from, replyTo;
+  if (clientId) {
+    pickedMailbox = await outreachMailboxes.pickMailbox(clientId).catch(() => null);
+  }
+  if (pickedMailbox) {
+    const addr = pickedMailbox.from_email;
+    from = `"${pickedMailbox.from_name}" <${addr}>`;
+    replyTo = pickedMailbox.reply_to || addr;
+  } else {
+    const sf = await senderFields(sending);
+    from = sf.from; replyTo = sf.replyTo;
+  }
 
   // Press-release path — step.body uses a sentinel ("__press_release__"
   // or "__press_followup_N__") and the real content lives on the
@@ -209,7 +235,30 @@ async function sendOutreachEmail({ send, contact, step, sending, clientId }) {
   const text = fillTemplate(step.body, contact);
   const html = htmlBody(text, send.id, contact.id, clientId);
   const headers = listUnsubscribeHeaders(contact.id, (from || '').match(/<([^>]+)>/)?.[1] || from, clientId);
-  return deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
+
+  let result;
+  try {
+    result = await deliver({ from, to: contact.email, replyTo, subject, text, html, headers, contactId: contact.id });
+  } catch (err) {
+    if (pickedMailbox && /smtp|auth|relay|550|554/i.test(err.message)) {
+      await outreachMailboxes.markError(pickedMailbox.id, err.message).catch(() => {});
+    }
+    throw err;
+  }
+
+  // Phase 1: stamp the mailbox that delivered this send + bump its
+  // daily counter. Errors here are non-fatal — the message already
+  // went out, the counter is an analytics signal.
+  if (pickedMailbox) {
+    try {
+      await outreachMailboxes.recordSend(pickedMailbox.id);
+      if (send.id) {
+        const pool = require('../db');
+        await pool.query('UPDATE outreach_sends SET mailbox_id = $1 WHERE id = $2', [pickedMailbox.id, send.id]);
+      }
+    } catch (err) { /* swallow — non-fatal */ }
+  }
+  return result;
 }
 
 async function sendPress({ campaignId, contact, sendId, from, replyTo, kind, followupIndex, clientId }) {
