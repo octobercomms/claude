@@ -261,7 +261,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} className="modal">
+      <div onClick={e => e.stopPropagation()} className="modal modal-wide">
         <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>
             Social post plan — {clientName}

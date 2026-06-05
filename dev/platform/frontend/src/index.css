@@ -731,6 +731,10 @@ select, textarea {
   width: 560px; max-width: 92vw; max-height: 90vh;
   overflow: auto;
 }
+/* Wider variant for chat-style modals with a side-by-side layout
+   (report template designer, social planner). 560px crammed two
+   columns into a strip — these need room to breathe. */
+.modal-wide { width: 1120px; }
 .modal-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: var(--s5);
