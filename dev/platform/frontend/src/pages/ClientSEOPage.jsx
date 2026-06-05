@@ -105,6 +105,7 @@ import {
   SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab,
 } from '../components/SeoSuite';
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
+import SuiteOverview from '../components/SuiteOverview';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -589,7 +590,7 @@ export default function ClientSEOPage() {
 
   const [activeTab, setActiveTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['keywords','gsc','aio','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'keywords';
+    return ['overview','keywords','gsc','aio','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'overview';
   });
 
   useEffect(() => {
@@ -624,6 +625,7 @@ export default function ClientSEOPage() {
       </header>
 
       <SuiteTabs tabs={[
+        { key: 'overview',      label: 'Overview',       active: activeTab === 'overview',      onClick: () => setActiveTab('overview') },
         { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',      onClick: () => setActiveTab('keywords') },
         { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',           onClick: () => setActiveTab('gsc') },
         { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',           onClick: () => setActiveTab('aio') },
@@ -633,6 +635,29 @@ export default function ClientSEOPage() {
         { key: 'authority',     label: 'Authority',      active: activeTab === 'authority',     onClick: () => setActiveTab('authority') },
         { key: 'backlinks',     label: 'Backlinks',      active: activeTab === 'backlinks',     onClick: () => setActiveTab('backlinks') },
       ]} />
+
+      {activeTab === 'overview' && (
+        <SuiteOverview
+          tagline="SEO and AEO under one roof."
+          description="Rank tracking, Search Console, AI Overviews monitoring, share-of-voice across every answer engine, content gaps, and backlinks — for this client, all in one place."
+          ctaLabel="View keyword ranks"
+          onCta={() => setActiveTab('keywords')}
+          flow={[
+            { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
+            { label: 'Track',        detail: 'Daily across locations' },
+            { label: 'Insights',     detail: 'Gaps, intent, citations' },
+            { label: 'Plan content', detail: 'Briefs ready for Claude' },
+          ]}
+          capabilities={[
+            { tag: 'Keywords',      title: 'Daily rank tracking',     body: 'DataForSEO across every location and device. Intent classification, SERP feature pills, and per-keyword history graphs.' },
+            { tag: 'Search Console', title: 'Impressions + clicks',    body: 'GSC integration. Queries, pages, CTR and position trends — without leaving the page.' },
+            { tag: 'AI Overviews',  title: 'Google SGE monitoring',   body: 'Spot every query where Google\'s AI answer appears, and whether your brand is cited.' },
+            { tag: 'AI Visibility', title: 'The new SEO',             body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews — for prompts users actually ask in your category.' },
+            { tag: 'Content gaps',  title: 'What competitors rank for', body: 'Side-by-side comparison surfaces topics your competitors own — and you don\'t.' },
+            { tag: 'Backlinks',     title: 'Authority profile',       body: 'Domain rank, referring domains, new + lost links from the DataForSEO backlink index.' },
+          ]}
+        />
+      )}
 
       {historyKeyword && (
         <KeywordHistoryModal

@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
+import SuiteTabs from '../components/SuiteTabs';
+import SuiteOverview from '../components/SuiteOverview';
 import { useToast } from '../context/ToastContext';
 
 // Style overrides for ReactMarkdown — keeps headings, tables, lists,
@@ -69,6 +71,10 @@ export default function ClientChatPage() {
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
+  const [tab, setTab] = useState(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['overview','chat'].includes(q) ? q : 'overview';
+  });
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 
@@ -202,27 +208,52 @@ export default function ClientChatPage() {
   ];
 
   return (
-    <div className="suite-chat" style={{ display: 'flex', gap: 24, height: 'calc(100vh - 64px)', alignItems: 'stretch' }}>
-
-      {/* Chat panel */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-        <header className="hero">
-          <div>
-            <div className="client-name">{client?.name}</div>
-            <h1 className="display mt-2">AI <span className="text-accent">Data Analyst</span></h1>
-            <p className="body mt-4">
-              Claude can read live connector data, check SEO, detect anomalies, and log decisions.
-            </p>
-          </div>
-          {messages.length > 0 && (
-            <div className="hero-actions">
+    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
+      <header className="hero">
+        <div>
+          <div className="client-name">{client?.name}</div>
+          <h1 className="display mt-2">AI <span className="text-accent">Data Analyst</span></h1>
+        </div>
+        {tab === 'chat' && messages.length > 0 && (
+          <div className="hero-actions">
             <button onClick={handleClear} disabled={clearing} className="btn btn-secondary btn-sm">
               {clearing ? 'Clearing…' : 'Clear history'}
             </button>
-            </div>
-          )}
-        </header>
+          </div>
+        )}
+      </header>
 
+      <SuiteTabs tabs={[
+        { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
+        { key: 'chat',     label: 'Chat',     active: tab === 'chat',     onClick: () => setTab('chat') },
+      ]} />
+
+      {tab === 'overview' && (
+        <SuiteOverview
+          tagline="Ask Claude anything about this client."
+          description="A live conversational layer over every connector. Get answers, generate downloadable reports, and log every decision so the knowledge compounds."
+          ctaLabel="Start a conversation"
+          onCta={() => setTab('chat')}
+          flow={[
+            { label: 'Connectors', detail: 'Shopify, GA4, GSC, Ads' },
+            { label: 'Claude reads', detail: 'Live data on demand' },
+            { label: 'Answer',    detail: 'Plain English, with sources' },
+            { label: 'Log',       detail: 'Decisions persist in context' },
+          ]}
+          capabilities={[
+            { tag: 'Ask',           title: 'Plain English questions', body: '"Why did conversions drop last week?" — Claude pulls Shopify + GA4 to answer with the live numbers.' },
+            { tag: '/report',       title: 'Format as a doc',         body: 'Prefix any message with /report and the reply formats as a structured PDF + Word doc you can hand to the client.' },
+            { tag: 'Attachments',   title: 'Images + PDFs',            body: 'Drag in a screenshot of a competitor or a brief PDF — Claude reads it alongside the live data.' },
+            { tag: 'Context log',   title: 'Shared memory',           body: 'Claude logs decisions, investigations, observations and pending items to a persistent sidebar — so the next session picks up where you left off.' },
+          ]}
+        />
+      )}
+
+      {tab === 'chat' && (
+      <div style={{ display: 'flex', gap: 24, flex: 1, alignItems: 'stretch', minHeight: 0 }}>
+
+      {/* Chat panel */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <div className="chat-thread">
           {messages.length === 0 && !sending && (
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
@@ -375,6 +406,8 @@ export default function ClientChatPage() {
         ))}
       </div>
 
+      </div>
+      )}
     </div>
   );
 }

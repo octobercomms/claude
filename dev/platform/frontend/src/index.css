@@ -359,6 +359,51 @@ button { font-family: inherit; }
 .health-dot.warn  { background: var(--warning); }
 .health-dot.error { background: var(--negative); }
 
+/* ─── Suite Overview (sales-page-style landing per section) ──────── */
+/* Numbered flow diagram that runs left-to-right with arrow connectors
+   between steps. Each step is a card-shaped tile with a circular
+   number badge on top. */
+.flow {
+  display: flex; align-items: stretch;
+  gap: var(--s3); flex-wrap: wrap;
+}
+.flow-step {
+  flex: 1; min-width: 180px;
+  text-align: center;
+  padding: var(--s5) var(--s4);
+  background: var(--accent-soft);
+  border: var(--border-w) solid var(--accent);
+  border-radius: var(--r-md);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+}
+.flow-step-num {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 40px; height: 40px;
+  border-radius: var(--r-pill);
+  background: var(--accent); color: var(--accent-on);
+  font-size: 18px; font-weight: 700;
+  margin-bottom: var(--s3);
+}
+.flow-step-label {
+  font-size: 16px; font-weight: 700; color: var(--text);
+  line-height: 1.25;
+}
+.flow-step-detail {
+  font-size: 13px; color: var(--text-muted);
+  margin-top: var(--s2); line-height: 1.4;
+}
+.flow-arrow {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .flow { flex-direction: column; }
+  .flow-arrow { transform: rotate(90deg); }
+}
+
 /* ─── Chat shell (AI Data Analyst) ───────────────────────────────── */
 /* Right-rail thread layout. The .chat-thread is the scrolling stream
    of bubbles; .chat-bubble is the body element each turn renders

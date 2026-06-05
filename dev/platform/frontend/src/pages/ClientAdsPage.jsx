@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
+import SuiteOverview from '../components/SuiteOverview';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import { api } from '../utils/api';
@@ -23,7 +24,7 @@ export default function ClientAdsPage() {
   const [adsMarginInput, setAdsMarginInput] = useState('46');
   const [tab, setTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['performance','strategist','creative','audiences'].includes(q) ? q : 'performance';
+    return ['overview','performance','strategist','creative','audiences'].includes(q) ? q : 'overview';
   });
 
   useEffect(() => {
@@ -192,11 +193,33 @@ export default function ClientAdsPage() {
         )}
       </header>
       <SuiteTabs tabs={[
+        { key: 'overview',    label: 'Overview',    active: tab === 'overview',    onClick: () => setTab('overview') },
         { key: 'performance', label: 'Performance', active: tab === 'performance', onClick: () => setTab('performance') },
         { key: 'strategist',  label: 'Strategist',  active: tab === 'strategist',  onClick: () => setTab('strategist') },
         { key: 'creative',    label: 'Creative',    active: tab === 'creative',    onClick: () => setTab('creative') },
         { key: 'audiences',   label: 'Audiences',   active: tab === 'audiences',   onClick: () => setTab('audiences') },
       ]} />
+
+      {tab === 'overview' && (
+        <SuiteOverview
+          tagline="Live ads, AI strategy, on-brand creative."
+          description="Google + Meta dashboards, weekly Claude briefings on what to action next, AI-generated ad creative, and audience segments built from your Shopify data."
+          ctaLabel="View live performance"
+          onCta={() => setTab('performance')}
+          flow={[
+            { label: 'Connect',  detail: 'Google Ads + Meta Ads' },
+            { label: 'Monitor',  detail: 'Live spend, ROAS, profit' },
+            { label: 'Strategise', detail: 'Weekly Claude briefings' },
+            { label: 'Generate', detail: 'Creative + audiences' },
+          ]}
+          capabilities={[
+            { tag: 'Performance', title: 'Live dashboards',          body: 'Spend, revenue, ROAS, profit (margin-aware), and per-campaign breakdown — across every Google + Meta ad account.' },
+            { tag: 'Strategist',  title: 'Weekly Manus-style brief',  body: 'Claude reads the last period vs. the previous one and writes an analyst note telling you what to action next.' },
+            { tag: 'Creative',    title: 'AI ad creative',           body: 'Generate static ads across multiple aspect ratios via Replicate, Ideogram, ChatGPT Image, and Adobe Firefly — grounded in the brand kit.' },
+            { tag: 'Audiences',   title: 'First-party segments',     body: 'Build targetable segments from Shopify postcode data and export them as Meta Custom Audience CSVs.' },
+          ]}
+        />
+      )}
 
       {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}

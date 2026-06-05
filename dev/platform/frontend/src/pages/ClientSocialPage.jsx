@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
+import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
 import UiButton from '../components/ui/Button';
 import { palette as UiPalette } from '../styles/tokens';
@@ -45,7 +46,7 @@ export default function ClientSocialPage() {
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
   const [socialTab, setSocialTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','brainstorm','plans','performance','competitors'].includes(q) ? q : 'overview';
+    return ['overview','loop','brainstorm','plans','performance','competitors'].includes(q) ? q : 'overview';
   });
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
@@ -336,15 +337,39 @@ export default function ClientSocialPage() {
 
       <SuiteTabs tabs={[
         { key: 'overview',     label: 'Overview',     active: socialTab === 'overview',     onClick: () => setSocialTab('overview') },
+        { key: 'loop',         label: 'Loop',         active: socialTab === 'loop',         onClick: () => setSocialTab('loop') },
         { key: 'brainstorm',   label: 'Brainstorm',   active: socialTab === 'brainstorm',   onClick: () => setSocialTab('brainstorm') },
         { key: 'plans',        label: 'Plans',        active: socialTab === 'plans',        onClick: () => setSocialTab('plans') },
         { key: 'performance',  label: 'Performance',  active: socialTab === 'performance',  onClick: () => setSocialTab('performance') },
         { key: 'competitors',  label: 'Competitors',  active: socialTab === 'competitors',  onClick: () => setSocialTab('competitors') },
       ]} />
 
-      {/* OVERVIEW — hero metrics, loop, next-up, plus a recap of what's
-          most worth looking at. */}
       {socialTab === 'overview' && (
+        <SuiteOverview
+          tagline="Generate, schedule, autopilot."
+          description="Claude generates nine posts at a time grounded in your brand brief, competitor signals, and trending sounds. Lock the ones you want, schedule them, and autopilot publishes to every channel."
+          ctaLabel="See the loop"
+          onCta={() => setSocialTab('loop')}
+          flow={[
+            { label: 'Brainstorm', detail: '9 posts at a time' },
+            { label: 'Lock plan',  detail: 'Edit, approve, schedule' },
+            { label: 'Autopilot',  detail: 'IG / FB / LinkedIn' },
+            { label: 'Learn',      detail: 'Winners + framework data' },
+          ]}
+          capabilities={[
+            { tag: 'Brainstorm',  title: 'Nine at a time',            body: 'Hook, caption, hashtags, visual concept, and a frame-by-frame storyboard for each — grounded in the brief.' },
+            { tag: 'Media',       title: 'Generate the assets',       body: 'Static images via Replicate / Ideogram, AI voiceovers, UGC video, and template-rendered A/C/G clips via Remotion.' },
+            { tag: 'Plans',       title: 'Schedule + lock',           body: 'Approve into a Plan, drag to schedule, and autopilot publishes on the right cadence.' },
+            { tag: 'Performance', title: 'Winners + Hook Vault',      body: 'Top-performing posts surface as winners; their hooks land in the Hook Vault for cross-client reuse.' },
+            { tag: 'Competitors', title: 'Track + scrape',            body: 'Competitor social, landing-page change detection, and regional trending sounds — all in one view.' },
+            { tag: 'Approvals',   title: 'Client review links',       body: 'Share a public link for the client to approve / request changes / comment, no login needed.' },
+          ]}
+        />
+      )}
+
+      {/* LOOP — hero metrics, loop, next-up, plus a recap of what's
+          most worth looking at. */}
+      {socialTab === 'loop' && (
         <SocialSuiteOverview
           clientId={id}
           client={client}

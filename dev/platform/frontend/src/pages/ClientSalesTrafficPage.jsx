@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { api } from '../utils/api';
+import SuiteTabs from '../components/SuiteTabs';
+import SuiteOverview from '../components/SuiteOverview';
 
 const fmtMoney = n => '£' + Math.round(Number(n || 0)).toLocaleString('en-GB');
 const fmtNum = n => Number(n || 0).toLocaleString('en-GB');
@@ -32,6 +34,10 @@ function recentMonths(count) {
 
 export default function ClientSalesTrafficPage() {
   const { id } = useParams();
+  const [tab, setTab] = useState(() => {
+    const q = new URLSearchParams(window.location.search).get('tab');
+    return ['overview','dashboard'].includes(q) ? q : 'overview';
+  });
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
   const [start, setStart] = useState(() => isoDaysAgo(29));
@@ -102,26 +108,56 @@ export default function ClientSalesTrafficPage() {
           <div className="client-name">{client?.name || ''}</div>
           <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
         </div>
-        <div className="hero-actions">
-          {[7, 14, 30, 90].map(d => (
-            <button key={d} onClick={() => selectDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-              {d}d
-            </button>
-          ))}
-          <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
-            onChange={e => selectPreset(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            <option value="">Period…</option>
-            <option value="mtd">Month to date</option>
-            <option value="ytd">Year to date</option>
-            <option value="custom">Custom range…</option>
-            <optgroup label="Months">
-              {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-            </optgroup>
-          </select>
-        </div>
+        {tab === 'dashboard' && (
+          <div className="hero-actions">
+            {[7, 14, 30, 90].map(d => (
+              <button key={d} onClick={() => selectDays(d)}
+                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {d}d
+              </button>
+            ))}
+            <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
+              onChange={e => selectPreset(e.target.value)}
+              style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              <option value="">Period…</option>
+              <option value="mtd">Month to date</option>
+              <option value="ytd">Year to date</option>
+              <option value="custom">Custom range…</option>
+              <optgroup label="Months">
+                {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+              </optgroup>
+            </select>
+          </div>
+        )}
       </header>
+
+      <SuiteTabs tabs={[
+        { key: 'overview',  label: 'Overview',  active: tab === 'overview',  onClick: () => setTab('overview') },
+        { key: 'dashboard', label: 'Dashboard', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+      ]} />
+
+      {tab === 'overview' && (
+        <SuiteOverview
+          tagline="Your commercial overview, live."
+          description="Revenue, orders, traffic — pulled straight from Shopify and Google Analytics the moment you open the page. No reports to wait for."
+          ctaLabel="View live KPIs"
+          onCta={() => setTab('dashboard')}
+          flow={[
+            { label: 'Shopify + GA4', detail: 'Live connector data' },
+            { label: 'Live KPIs',     detail: 'Six headline metrics' },
+            { label: 'Trends',        detail: '30-day charts' },
+            { label: 'Channels',      detail: 'Where revenue comes from' },
+          ]}
+          capabilities={[
+            { tag: 'Live KPIs',       title: 'Six metrics at a glance', body: 'Revenue, orders, average order value, sessions, users, conversion rate — fresh on each page load.' },
+            { tag: 'Trend chart',     title: '30 days of context',      body: 'Sales and orders overlaid on a single chart so spikes and dips are obvious.' },
+            { tag: 'Channel split',   title: 'Where it comes from',     body: 'Revenue and traffic broken down by acquisition channel — search, paid, social, direct.' },
+            { tag: 'Date flexibility', title: 'Any window',              body: '7 / 14 / 30 / 90 days, month-to-date, year-to-date, per-month, or a custom range.' },
+          ]}
+        />
+      )}
+
+      {tab === 'dashboard' && <>
       {showCustom && (
         <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
@@ -136,7 +172,6 @@ export default function ClientSalesTrafficPage() {
       <div className="row mb-4">
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
       </div>
-
       {loading ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
       ) : data && data.error ? (
@@ -205,6 +240,7 @@ export default function ClientSalesTrafficPage() {
           )}
         </>
       ) : null}
+      </>}
     </div>
   );
 }

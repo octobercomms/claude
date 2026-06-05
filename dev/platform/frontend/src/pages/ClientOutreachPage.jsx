@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
+import SuiteOverview from '../components/SuiteOverview';
 import { useToast } from '../context/ToastContext';
 import CampaignWizard from '../components/CampaignWizard';
 import EditContactModal from '../components/EditContactModal';
@@ -135,7 +136,7 @@ export default function ClientOutreachPage() {
   const { id } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
-  const [tab, setTab] = useState('dashboard');
+  const [tab, setTab] = useState('overview');
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);
@@ -382,12 +383,36 @@ export default function ClientOutreachPage() {
       </header>
 
       <SuiteTabs tabs={[
-        { key: 'dashboard', label: 'Dashboard',                                                 active: tab === 'dashboard', onClick: () => setTab('dashboard') },
-        { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,           active: tab === 'campaigns', onClick: () => setTab('campaigns') },
-        { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,            active: tab === 'contacts',  onClick: () => setTab('contacts') },
+        { key: 'overview',  label: 'Overview',                                                   active: tab === 'overview',  onClick: () => setTab('overview') },
+        { key: 'dashboard', label: 'Dashboard',                                                  active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,            active: tab === 'campaigns', onClick: () => setTab('campaigns') },
+        { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,             active: tab === 'contacts',  onClick: () => setTab('contacts') },
         { key: 'sending',   label: 'Sending',                                                    active: tab === 'sending',   onClick: () => setTab('sending') },
         { key: 'help',      label: 'Help',                                                       active: tab === 'help',      onClick: () => setTab('help') },
       ]} />
+
+      {tab === 'overview' && (
+        <SuiteOverview
+          tagline="Native cold outreach — built for agencies."
+          description="Find contacts, draft sequences with Claude, send from your own domain, and track every reply. Press releases ship from the same flow."
+          ctaLabel="Open the dashboard"
+          onCta={() => setTab('dashboard')}
+          flow={[
+            { label: 'Find',     detail: 'Hunter + Serper + library' },
+            { label: 'Draft',    detail: 'Claude writes the sequence' },
+            { label: 'Send',     detail: 'From your domain, tracked' },
+            { label: 'Classify', detail: 'Replies + bounces routed' },
+          ]}
+          capabilities={[
+            { tag: 'Find',       title: 'Contact discovery',          body: 'Hunter.io domain search, Serper-backed audience discovery, CSV import, or pull from the workspace contact library.' },
+            { tag: 'Draft',      title: 'Claude writes the sequence', body: 'Three steps — initial, follow-up, final nudge — personalised per recipient from the contact + brand brief.' },
+            { tag: 'Deliver',    title: 'Your domain, honestly',      body: 'SPF / DKIM / DMARC checker keeps deliverability on rails. Open + click tracking via signed URLs. One-click unsubscribe.' },
+            { tag: 'Reply loop', title: 'Auto-classified replies',    body: 'Bounces, OOO, interested, not-interested — all routed to the right column without manual triage.' },
+            { tag: 'Press',      title: 'Press releases too',         body: 'Sibling flow for journalist outreach: same finder, same sequence engine, different copy template.' },
+            { tag: 'Tags',       title: 'Workspace-wide library',     body: 'Contacts are shared across clients — tag once, reuse everywhere. Per-client unsubscribe state respected.' },
+          ]}
+        />
+      )}
 
       {tab === 'dashboard' && (
         <div>

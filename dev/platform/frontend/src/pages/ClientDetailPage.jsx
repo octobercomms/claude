@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
+import SuiteOverview from '../components/SuiteOverview';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
 
@@ -308,13 +309,51 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['details', 'brand', 'connectors'].includes(tab) && (
+      {['details', 'brand', 'connectors', 'setup_overview'].includes(tab) && (
         <div className="tabs">
-          {[['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
+          {[['setup_overview', 'Overview'], ['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
+      )}
+
+      {tab === 'setup_overview' && (
+        <SuiteOverview
+          tagline="Everything Claude needs about this client."
+          description="One place for the brief, brand kit, and every connector. Once Setup is complete, every other section pulls live data automatically."
+          ctaLabel="Open the brief"
+          onCta={() => setSearchParams({ tab: 'details' })}
+          flow={[
+            { label: 'Brief',      detail: 'Business, voice, goals' },
+            { label: 'Brand',      detail: 'Logos, fonts, palette' },
+            { label: 'Connectors', detail: 'Live data sources' },
+            { label: 'Powers everything', detail: 'SEO, Paid, Social, Email' },
+          ]}
+          capabilities={[
+            { tag: 'Brief',      title: 'One paragraph, used everywhere', body: 'A short business description grounds every Claude prompt — report copy, ad creative, social posts.' },
+            { tag: 'Brand',      title: 'Brand kit',                     body: 'Logos, product photography, fonts, colour palette, voice guidelines, B-roll, props. Pulled as reference by every AI generator.' },
+            { tag: 'Connectors', title: 'Google, Meta, Shopify, more',    body: 'OAuth-based connectors. Whole-row colour shows status at a glance — green when live, red on error, amber when expired.' },
+          ]}
+        />
+      )}
+
+      {tab === 'forms' && (
+        <SuiteOverview
+          tagline="Form submissions, in context."
+          description="Pulls live submissions from the October Forms WordPress plugin and surfaces funnel completion next to the rest of the client's marketing data."
+          flow={[
+            { label: 'October Forms', detail: 'WP plugin connector' },
+            { label: 'Submissions',  detail: 'Live + replayable' },
+            { label: 'Funnel',       detail: 'Views vs. completes' },
+            { label: 'Drop-off',     detail: 'Per-step analytics' },
+          ]}
+          capabilities={[
+            { tag: 'Submissions', title: 'Live form submissions',  body: 'Every entry routed back to the client view, with full metadata.' },
+            { tag: 'Funnel',      title: 'Conversion rate',         body: 'Views, completes, and per-step drop-off — see where leads abandon.' },
+            { tag: 'Status',      title: 'Complete vs. partial',    body: 'Track abandoned submissions too — useful for re-engagement.' },
+          ]}
+        />
       )}
 
       {tab === 'brand' && (
@@ -416,12 +455,33 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'forms' && (
-        <FormsTab clientId={id} connectors={connectors} />
+        <div className="mt-6">
+          <FormsTab clientId={id} connectors={connectors} />
+        </div>
+      )}
+
+      {tab === 'reports' && (
+        <SuiteOverview
+          tagline="Weekly + monthly reports, auto-generated."
+          description="Templated PDFs with Claude-written narratives, sent to the client list on schedule. Preview live before sending; cached for fast iteration."
+          flow={[
+            { label: 'Templates',  detail: 'Per-client sections' },
+            { label: 'Live data',  detail: 'Every connector pulled' },
+            { label: 'Claude writes', detail: 'Per-section narratives' },
+            { label: 'Send',       detail: 'PDF + email, scheduled' },
+          ]}
+          capabilities={[
+            { tag: 'Templates', title: 'Reusable per-client', body: 'A template per client picks the sections, the data pulls, and Claude\'s tone for narratives.' },
+            { tag: 'Preview',   title: 'Live, in-app',        body: 'Iterate on a template by previewing the rendered PDF in the platform. Repeated previews reuse cached data + narratives for instant feedback.' },
+            { tag: 'Scheduled', title: 'Mondays + month-ends', body: 'Weekly reports go out automatically every Monday; monthly reports run on the 1st with the previous month\'s data.' },
+            { tag: 'Recipients', title: 'Per-client lists',   body: 'Each client has its own delivery list. Bounce handling and resend baked in.' },
+          ]}
+        />
       )}
 
       {tab === 'reports' && (
         <>
-        <div className="card">
+        <div className="card mt-6">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Generated Reports</div>
             <div style={{ display: 'flex', gap: 8 }}>
