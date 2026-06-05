@@ -3,6 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import GoogleAdsPlaybook from './GoogleAdsPlaybook';
 
 // Internal Strategist reports for ads — Manus-style briefing notes. Left
 // rail lists past reports newest first; right pane renders the selected
@@ -156,6 +157,8 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
           </button>
         </div>
       </div>
+
+      {hasGoogle && <GoogleAdsPlaybook />}
 
       {!reports && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {reports && reports.length === 0 && !generating && (
