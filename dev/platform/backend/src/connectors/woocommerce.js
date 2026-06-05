@@ -2,6 +2,19 @@ const axios = require('axios');
 
 const authType = 'apikey';
 
+// Headers we send on every WooCommerce REST request. Some WP security
+// layers (Imunify360, Solid Security, BBQ Firewall) serve a CAPTCHA
+// challenge to anything they don't recognise as a real browser; the
+// axios default User-Agent ("axios/1.x.x") trips them. Use a UA that
+// both passes browser-style heuristics AND identifies the platform so
+// site owners can choose to allow-list it.
+const DEFAULT_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (compatible; OctoberMarketingIntelligence/1.0; +https://platform.octobercomms.com)',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Encoding': 'gzip, deflate',
+  'Accept-Language': 'en-GB,en;q=0.9',
+};
+
 // Build the request URL — strip trailing slash on store_url so we don't
 // end up with /wp-json//wc/v3.
 function buildBase(credentials) {
@@ -25,6 +38,7 @@ function basicClient(credentials) {
     auth: { username: consumer_key, password: consumer_secret },
     timeout: 30000,
     validateStatus: () => true,
+    headers: DEFAULT_HEADERS,
   });
 }
 
@@ -41,6 +55,7 @@ function queryParamGet(credentials, path, extraParams = {}) {
     },
     timeout: 30000,
     validateStatus: () => true,
+    headers: DEFAULT_HEADERS,
   });
 }
 
@@ -137,6 +152,7 @@ async function probeWpRest(credentials) {
     const res = await axios.get(`${base}/wp-json/`, {
       timeout: 15000,
       validateStatus: () => true,
+      headers: DEFAULT_HEADERS,
     });
     return {
       status: res.status, headers: res.headers, body: res.data,
