@@ -814,7 +814,7 @@ function HelpPanel({ dnsCheck }) {
 }
 function HelpCard({ title, children }) {
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
+    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
       {children}
     </div>
@@ -904,7 +904,7 @@ function LibraryPicker({ clientId, onAttached }) {
           {tags.slice(0, 20).map(t => (
             <button key={t.tag} onClick={() => toggleTag(t.tag)}
               style={{
-                padding: '3px 9px', borderRadius: 999, fontSize: 11,
+                padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11,
                 border: '1px solid ' + (activeTags.has(t.tag) ? 'var(--text)' : 'var(--accent-soft)'),
                 background: activeTags.has(t.tag) ? 'var(--text)' : 'var(--surface)',
                 color: activeTags.has(t.tag) ? 'var(--surface)' : 'var(--text-muted)',
@@ -916,7 +916,7 @@ function LibraryPicker({ clientId, onAttached }) {
         </div>
       )}
 
-      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 4 }}>{err}</div>}
+      {err && <div style={{ padding: 8, background: 'var(--negative-soft)', color: 'var(--negative)', fontSize: 12, borderRadius: 'var(--r-sm)' }}>{err}</div>}
       {!filtered && <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>}
       {filtered && !filtered.length && (
         <div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>
@@ -926,7 +926,7 @@ function LibraryPicker({ clientId, onAttached }) {
 
       {filtered && !!filtered.length && (
         <>
-          <div style={{ maxHeight: 360, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
+          <div style={{ maxHeight: 360, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
             {filtered.map(r => (
               <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
@@ -935,7 +935,7 @@ function LibraryPicker({ clientId, onAttached }) {
                   <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.email}</div>
                 </div>
                 {(r.tags || []).slice(0, 4).map(t => (
-                  <span key={t} style={{ fontSize: 10, background: 'var(--accent-soft)', borderRadius: 3, padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
+                  <span key={t} style={{ fontSize: 10, background: 'var(--accent-soft)', borderRadius: 'var(--r-sm)', padding: '1px 6px', color: 'var(--text-muted)' }}>{t}</span>
                 ))}
               </label>
             ))}

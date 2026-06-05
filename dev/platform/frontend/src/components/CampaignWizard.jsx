@@ -78,7 +78,7 @@ export default function CampaignWizard({ clientId, campaignId, onExit, onCampaig
       </div>
 
       {/* Breadcrumb / step indicator — yellow dot for current and completed steps */}
-      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 999, padding: '6px 12px', marginBottom: 24 }}>
+      <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: `1px solid ${'var(--accent-soft)'}`, borderRadius: 'var(--r-pill)', padding: '6px 12px', marginBottom: 24 }}>
         {STEPS.map(({ key, label }, idx) => {
           // Click freely up to the high-water mark — both back and
           // forward — so reopening a draft doesn't force re-entering
@@ -499,7 +499,7 @@ function StepEmails({ campaign, onBack, onNext }) {
       {steps === null && <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</p>}
       {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>}
       {steps && steps.map(stp => (
-        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, padding: 12, marginBottom: 10 }}>
+        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12, marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
@@ -550,10 +550,10 @@ function StepEmails({ campaign, onBack, onNext }) {
             ) : (
               <>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>Subject</div>
-                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 12, fontSize: 13 }}>
+                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 12, fontSize: 13 }}>
                   {previewStep.subject || <em style={{ color: 'var(--text-subtle)' }}>(empty)</em>}
                 </div>
-                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }} sandbox="" />
+                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
               </>
             )}
           </div>
@@ -564,7 +564,7 @@ function StepEmails({ campaign, onBack, onNext }) {
 }
 
 const previewOverlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const previewModal = { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const previewModal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 760, padding: 20, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 
 // ─── Step 5 ─────────────────────────────────────────────────────────────────
 function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
@@ -635,7 +635,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
           />
 
           {/* Stats — informational */}
-          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
             <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
             {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
@@ -673,13 +673,13 @@ function ReportSection({ title, empty, items, tone }) {
     : { bg: 'var(--warning-soft)', border: 'var(--warning)', fg: 'var(--warning)' };
   if (!items.length) {
     return (
-      <div style={{ marginTop: 14, padding: '8px 12px', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', borderRadius: 6, fontSize: 12 }}>
+      <div style={{ marginTop: 14, padding: '8px 12px', background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
         ✓ {empty}
       </div>
     );
   }
   return (
-    <div style={{ marginTop: 14, padding: '10px 12px', background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg, borderRadius: 6 }}>
+    <div style={{ marginTop: 14, padding: '10px 12px', background: palette.bg, border: `1px solid ${palette.border}`, color: palette.fg, borderRadius: 'var(--r-sm)' }}>
       <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>{title}</div>
       <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.55 }}>
         {items.map((it, i) => (
@@ -741,7 +741,7 @@ function ExistingTable({ rows, selected, onToggle }) {
 }
 function Tag({ children, onRemove }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 12, padding: '3px 8px 3px 10px', fontSize: 12 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: '3px 8px 3px 10px', fontSize: 12 }}>
       {children}
       <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>

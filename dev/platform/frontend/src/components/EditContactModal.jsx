@@ -188,7 +188,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       </div>
 
       {bounce && (
-        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+        <div style={{ background: 'var(--negative-soft)', border: '1px solid #f5c6cb', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--negative)', marginBottom: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
           <div>
             <strong>Hard bounce</strong> · {fmtTime(bounce.bounced_at)}
             {bounce.reason && <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 4 }}>{bounce.reason}</div>}
@@ -203,7 +203,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       )}
 
       {!!unsubByClient.length && (
-        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 4, fontSize: 12, color: 'var(--warning)', marginBottom: 14 }}>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: '10px 12px', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--warning)', marginBottom: 14 }}>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>Unsubscribed</div>
           {unsubByClient.map(m => (
             <div key={m.client_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0', borderTop: '1px solid #f0d260', marginTop: 4 }}>
@@ -223,7 +223,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       )}
 
       {!!events.length && (
-        <div style={{ maxHeight: 420, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
+        <div style={{ maxHeight: 420, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
           {events.map((e, i) => (
             <div key={i} style={eventRow}>
               <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
@@ -276,10 +276,10 @@ function shorten(u) {
 }
 
 const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
-const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, textAlign: 'center' };
+const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
-const iconBadge = { width: 28, height: 28, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
-const resubBtn = { background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
+const iconBadge = { width: 28, height: 28, borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
+const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (

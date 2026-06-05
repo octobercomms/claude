@@ -18,7 +18,7 @@ export function ToastProvider({ children }) {
         {toasts.map(t => (
           <div key={t.id} style={{
             padding: '11px 18px',
-            borderRadius: 6,
+            borderRadius: 'var(--r-sm)',
             fontSize: 13,
             fontWeight: 500,
             color: 'white',

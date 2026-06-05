@@ -159,18 +159,18 @@ export default function AdCreativePanel({ clientId, clientName }) {
       </div>
 
       {shareUrl && (
-        <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 4, marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--positive-soft)', border: '1px solid #2e7d32', padding: '10px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 10 }}>
           <strong style={{ fontSize: 12, color: 'var(--positive)' }}>Approval link ready —</strong>
           <input value={shareUrl} readOnly onFocus={e => e.target.select()}
-            style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 3, background: 'var(--surface)', fontFamily: 'monospace' }} />
+            style={{ flex: 1, padding: '4px 8px', fontSize: 12, border: '1px solid #aac9b0', borderRadius: 'var(--r-sm)', background: 'var(--surface)', fontFamily: 'monospace' }} />
           <button onClick={() => navigator.clipboard.writeText(shareUrl)}
-            style={{ padding: '4px 12px', fontSize: 11, background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 3, cursor: 'pointer' }}>Copy</button>
+            style={{ padding: '4px 12px', fontSize: 11, background: 'var(--positive)', color: 'var(--surface)', border: 'none', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>Copy</button>
           <button onClick={() => setShareUrl(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: 'var(--positive)' }}>×</button>
         </div>
       )}
 
       {!assets.length && (
-        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 6, fontSize: 12, color: 'var(--warning)', marginBottom: 16 }}>
+        <div style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--warning)', marginBottom: 16 }}>
           No brand assets uploaded yet — visit the <strong>Brand</strong> tab on the sidebar and add logos, product photos, palette
           and guidelines so generations look on-brand.
         </div>
@@ -259,7 +259,7 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
-        <div style={{ maxHeight: 220, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 4 }}>
+        <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
           {assets.map(a => (
             <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedAssets.has(a.id)} onChange={() => toggle(a.id)} />
@@ -355,7 +355,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       </div>
 
       {showRender && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4 }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
           <div className="field">PROVIDER</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
@@ -370,7 +370,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
           </div>
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
           <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || !aspects.size}>
             {rendering ? 'Rendering…' : `Render ${aspects.size} image${aspects.size === 1 ? '' : 's'}`}
           </button>
@@ -387,7 +387,7 @@ function ImageThumb({ img, onDelete, onFanOut }) {
       <a href={img.url} target="_blank" rel="noreferrer">
         <img src={img.url} alt="" style={{ objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)", ...aspectStyle(img.aspect_ratio) }} />
       </a>
-      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 3, fontWeight: 700 }}>{img.aspect_ratio}</div>
+      <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 'var(--r-sm)', fontWeight: 700 }}>{img.aspect_ratio}</div>
       <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--accent)", cursor: "pointer", fontSize: 12, lineHeight: 1 }}>×</button>
       {hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
@@ -407,9 +407,9 @@ function aspectStyle(ratio) {
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
-  modal: { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

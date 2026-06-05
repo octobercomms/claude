@@ -400,7 +400,7 @@ export default function ClientDetailPage() {
                 {unconnected.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {unconnected.map(type => (
-                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--surface-raised)', borderRadius: 4, border: '1px dashed #ddd' }}>
+                      <div key={type} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: '1px dashed #ddd' }}>
                         <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>{CONNECTOR_LABELS[type]}</span>
                         {!group.oauth && (
                           <button onClick={() => addConnector(type)} className="btn btn-secondary btn-sm">+ Add</button>
@@ -550,7 +550,7 @@ export default function ClientDetailPage() {
                 const tpl = templateSummary[rt];
                 const sections = tpl?.sections || [];
                 return (
-                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
                       <button type="button" onClick={() => setTemplateChatType(rt)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
@@ -725,7 +725,7 @@ function getLabelStyle(label) {
   const isB2B = label && label.toUpperCase().includes('B2B');
   return {
     fontSize: 11, fontWeight: 700, padding: '2px 8px',
-    borderRadius: 12,
+    borderRadius: 'var(--r-md)',
     background: isB2B ? 'var(--accent)' : 'var(--positive)',
     color: 'var(--surface)',
     whiteSpace: 'nowrap',
@@ -782,7 +782,7 @@ function BrevoConfig({ connector, onConfigSave }) {
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={listId} onChange={e => setListId(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb' }}>
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb' }}>
           <option value="">All lists</option>
           {lists.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
         </select>
@@ -790,7 +790,7 @@ function BrevoConfig({ connector, onConfigSave }) {
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Automation</span>
       <input value={automation} onChange={e => setAutomation(e.target.value)}
         placeholder="All automations (optional ID/name)"
-        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', width: 220 }} />
+        style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 220 }} />
       <button type="button" onClick={save} disabled={saving} className="btn btn-secondary btn-sm">{saving ? 'Saving…' : 'Save'}</button>
       {saved && <span style={{ fontSize: 12, color: 'var(--positive)', fontWeight: 600 }}>✓ Saved</span>}
       {listsError && <span style={{ fontSize: 11, color: 'var(--negative)' }}>Lists: {listsError}</span>}
@@ -858,7 +858,7 @@ function OctoberFormsConfig({ connector, onConfigSave }) {
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</span>
       ) : (
         <select value={formId} onChange={e => setFormId(e.target.value)}
-          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 4, border: '1px solid #bbb', minWidth: 240 }}>
+          style={{ fontSize: 12, padding: '4px 8px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', minWidth: 240 }}>
           <option value="">— Select a form —</option>
           {forms.map(f => <option key={f.value} value={f.value}>{f.label}{f.status && f.status !== 'publish' ? ` (${f.status})` : ''}</option>)}
         </select>
@@ -951,7 +951,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
   }
 
   return (
-    <div style={{ padding: '10px 16px', background: 'var(--surface-raised)', borderRadius: 4, border: '2px solid var(--accent)' }}>
+    <div style={{ padding: '10px 16px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--accent)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
@@ -968,7 +968,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
                     setEditingLabel(false);
                   } else if (e.key === 'Escape') { setEditingLabel(false); }
                 }}
-                style={{ fontSize: 12, padding: '1px 6px', borderRadius: 4, border: '1px solid #bbb', width: 120 }}
+                style={{ fontSize: 12, padding: '1px 6px', borderRadius: 'var(--r-sm)', border: '1px solid #bbb', width: 120 }}
               />
               <button onClick={async () => {
                 const updated = await api.put(`/connectors/${connector.id}/config`, { ...(connector.config || {}), label: labelInput });
@@ -1018,7 +1018,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
         </div>
       </div>
       {diagnoseResult && (
-        <div style={{ marginTop: 10, background: 'var(--surface-sunken)', borderRadius: 4, padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
+        <div style={{ marginTop: 10, background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)', padding: '10px 12px', fontSize: 12, fontFamily: 'monospace' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
             <strong style={{ fontSize: 11, fontFamily: 'sans-serif', textTransform: 'uppercase', letterSpacing: 0.5 }}>Diagnosis</strong>
             <button onClick={() => setDiagnoseResult(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14 }}>×</button>
@@ -1139,7 +1139,7 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
         <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
         {connector.store_label && <p style={{ margin: '0 0 16px', color: 'var(--text-subtle)', fontSize: 13 }}>{connector.store_label}</p>}
         {isShopify && (
-          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '10px 12px', borderRadius: 4, lineHeight: 1.5 }}>
+          <p style={{ margin: '-8px 0 16px', fontSize: 12, color: 'var(--text-muted)', background: 'var(--surface-sunken)', padding: '10px 12px', borderRadius: 'var(--r-sm)', lineHeight: 1.5 }}>
             Get the access token from your store admin: <strong>Settings → Apps → Develop apps → Create app → Configure scopes → Install → copy Admin API access token</strong> (starts with shpat_)
           </p>
         )}
@@ -1220,7 +1220,7 @@ function ShopifyModal({ onConfirm, onClose }) {
           </label>
         </div>
         {useOwnApp && (
-          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>

@@ -21,11 +21,11 @@ const MD_COMPONENTS = {
       <table style={{ borderCollapse: 'collapse', fontSize: 13, width: '100%' }}>{children}</table>
     </div>
   ),
-  th: ({ children }) => <th style={{ border: '2px solid var(--accent)', background: 'var(--surface-sunken)', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
-  td: ({ children }) => <td style={{ border: '2px solid var(--accent)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
+  th: ({ children }) => <th style={{ border: 'var(--border-w) solid var(--accent)', background: 'var(--surface-sunken)', padding: '4px 8px', textAlign: 'left', fontWeight: 700 }}>{children}</th>,
+  td: ({ children }) => <td style={{ border: 'var(--border-w) solid var(--accent)', padding: '4px 8px', verticalAlign: 'top' }}>{children}</td>,
   code: ({ inline, children }) => inline
-    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 5px', borderRadius: 3, fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
-    : <code style={{ display: 'block', background: 'var(--surface-raised)', padding: 10, borderRadius: 4, fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 12 }}>{children}</code>
+    : <code style={{ display: 'block', background: 'var(--surface-raised)', padding: 10, borderRadius: 'var(--r-sm)', fontFamily: 'monospace', fontSize: 12, whiteSpace: 'pre-wrap', margin: '6px 0' }}>{children}</code>,
   pre: ({ children }) => <pre style={{ background: 'transparent', padding: 0, margin: 0 }}>{children}</pre>,
   blockquote: ({ children }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', padding: '2px 10px', margin: '6px 0', color: 'var(--text-muted)', fontStyle: 'italic' }}>{children}</blockquote>,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #eee', margin: '10px 0' }} />,
@@ -298,7 +298,7 @@ export default function ClientChatPage() {
           {attachedFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {attachedFiles.map((f, i) => (
-                <span key={i} style={{ fontSize: 12, background: 'var(--surface-sunken)', border: '2px solid var(--accent)', borderRadius: 4, padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span key={i} style={{ fontSize: 12, background: 'var(--surface-sunken)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '2px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
                   📎 {f.name}
                   <button type="button" onClick={() => setAttachedFiles(prev => prev.filter((_, j) => j !== i))}
                     style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 14, padding: 0, lineHeight: 1 }}>×</button>
@@ -378,8 +378,8 @@ export default function ClientChatPage() {
 }
 
 const suggestionStyle = {
-  padding: '10px 14px', background: 'white', border: '2px solid var(--accent)',
-  borderRadius: 8, cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)',
+  padding: '10px 14px', background: 'white', border: 'var(--border-w) solid var(--accent)',
+  borderRadius: 'var(--r-sm)', cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)',
   textAlign: 'left', lineHeight: 1.4,
 };
 

@@ -15,7 +15,7 @@ export function IntentBadge({ intent }) {
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-      letterSpacing: 0.4, padding: '2px 6px', borderRadius: 3, background: c.bg, color: c.fg, marginLeft: 6,
+      letterSpacing: 0.4, padding: '2px 6px', borderRadius: 'var(--r-sm)', background: c.bg, color: c.fg, marginLeft: 6,
     }}>{intent.slice(0, 4)}</span>
   );
 }
@@ -58,7 +58,7 @@ export function SerpFeaturePills({ features }) {
       {items.map(label => (
         <span key={label} style={{
           fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.3,
-          padding: '1px 5px', borderRadius: 3, background: 'var(--accent-soft)', color: 'var(--text-muted)',
+          padding: '1px 5px', borderRadius: 'var(--r-sm)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
         }}>{label}</span>
       ))}
       {arr.length > items.length && <span style={{ fontSize: 9, color: 'var(--text-subtle)' }}>+{arr.length - items.length}</span>}
@@ -330,7 +330,7 @@ export function AIOverviewsTab({ clientId }) {
       </div>
 
       {trend.length >= 2 && (
-        <div style={{ height: 200, marginBottom: 24, border: '2px solid var(--accent)', borderRadius: 4, padding: 12 }}>
+        <div style={{ height: 200, marginBottom: 24, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} />
@@ -377,7 +377,7 @@ export function AIOverviewsTab({ clientId }) {
 
 function SummaryCard({ label, value, pct }) {
   return (
-    <div style={{ flex: 1, padding: '14px 16px', border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)' }}>
+    <div style={{ flex: 1, padding: '14px 16px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }}>
       <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
       <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
     </div>
@@ -443,7 +443,7 @@ export function ContentGapsTab({ clientId }) {
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
 
-      <div style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 4, padding: 14, marginBottom: 18 }}>
+      <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 14, marginBottom: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {competitors.map(c => (
@@ -460,7 +460,7 @@ export function ContentGapsTab({ clientId }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addCompetitor()}
             placeholder="competitor.com"
-            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
+            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
             disabled={competitors.length >= 5}
           />
           <button onClick={addCompetitor} className="btn btn-secondary" disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
@@ -545,7 +545,7 @@ export function PlanningTab({ clientId }) {
           onChange={e => setKeyword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
+          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
         />
         <button onClick={run} className="btn btn-primary" disabled={loading || !keyword.trim()}>
           {loading ? 'Generating…' : 'Generate brief'}

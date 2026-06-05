@@ -652,7 +652,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 16, marginBottom: 16 }}>
+    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
@@ -717,7 +717,7 @@ function ProviderCard({ entry }) {
     statusColour = 'var(--positive)';
   }
   return (
-    <div style={{ border: '2px solid var(--accent)', borderRadius: 4, padding: 12, position: 'relative' }}>
+    <div style={{ border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12, position: 'relative' }}>
       <div style={{ position: 'absolute', top: 10, right: 10, width: 6, height: 6, borderRadius: '50%', background: statusColour }} />
       <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>{entry.label}</div>
       {body}
@@ -1059,8 +1059,8 @@ function ContactsLibrary() {
           })()}
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 4, color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
 
         {!filtered && <div style={{ marginTop: 16, color: 'var(--text-subtle)' }}>Loading…</div>}
         {filtered && !filtered.length && (
@@ -1099,7 +1099,7 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
                 </div>
@@ -1136,7 +1136,7 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--surface-raised)' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
@@ -1327,7 +1327,7 @@ function TagsManager() {
         </div>
 
         {plan && plan.operations && plan.operations.length > 0 && (
-          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 14, background: 'var(--warning-soft)' }}>
+          <div style={{ marginTop: 14, padding: 14, border: '1px solid #ddd6a8', borderRadius: 'var(--r-md)', background: 'var(--warning-soft)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 700 }}>
                 Claude's cleanup plan — {plan.operations.length} suggestion{plan.operations.length === 1 ? '' : 's'} across {plan.tagCount} tag{plan.tagCount === 1 ? '' : 's'}
@@ -1389,8 +1389,8 @@ function TagsManager() {
           </div>
         </div>
 
-        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 4, color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
-        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 4, color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
+        {err && <div style={{ marginTop: 10, padding: 8, background: 'var(--negative-soft)', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+        {info && <div style={{ marginTop: 10, padding: 8, background: 'var(--positive-soft)', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 12 }}>{info}</div>}
 
         {!filtered.length ? (
           <div style={{ marginTop: 16, color: 'var(--text-subtle)', fontSize: 13 }}>
@@ -1543,7 +1543,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
-              <div style={{ maxHeight: 460, overflowY: 'auto', border: '2px solid var(--accent)', borderRadius: 14, padding: 0 }}>
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
                     <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
@@ -1599,7 +1599,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
 
         {phase === 'done' && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 14, color: 'var(--positive)', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 13 }}>
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
@@ -1631,23 +1631,23 @@ function contactLabel(s) {
 
 const tidyStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
-  modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  modal: { background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   eyebrow: { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
   hint: { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
-  summary: { background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 14, padding: 14, fontSize: 13, marginTop: 12 },
+  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
-  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
-  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 },
-  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 3, fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
+  btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 12, marginBottom: 12 },
+  fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
 
 // Human-readable summary of a single tag-tidy operation. Rendered
 // alongside the checkbox in the plan panel.
 function OpSummary({ op }) {
-  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 3, fontSize: 11 }}>{txt}</code>;
+  const chip = (txt) => <code style={{ background: 'var(--warning-soft)', padding: '1px 5px', borderRadius: 'var(--r-sm)', fontSize: 11 }}>{txt}</code>;
   if (op.type === 'rename') return <span>Rename {chip(op.from)} → {chip(op.to)}</span>;
   if (op.type === 'merge') return <span>Merge {op.from.map((t, i) => <React.Fragment key={t}>{i > 0 && ', '}{chip(t)}</React.Fragment>)} → {chip(op.into)}</span>;
   if (op.type === 'delete') return <span>Delete {chip(op.tag)} everywhere</span>;

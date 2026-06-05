@@ -91,7 +91,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
           <button onClick={onClose} className="modal-close">×</button>
         </div>
 
-        <div className="row wrap" style={{ gap: 18, alignItems: 'center', padding: '8px 20px 14px', borderBottom: '2px solid var(--accent-soft)' }}>
+        <div className="row wrap" style={{ gap: 18, alignItems: 'center', padding: '8px 20px 14px', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
           <div className="row center" style={{ gap: 6 }}>
             <button
               type="button"
@@ -121,7 +121,7 @@ export default function ReportPreviewModal({ clientId, clientName, reportType, o
         </div>
 
         {result && (
-          <div className="row wrap body-xs text-muted" style={{ gap: 18, padding: '8px 20px', borderBottom: '2px solid var(--accent-soft)' }}>
+          <div className="row wrap body-xs text-muted" style={{ gap: 18, padding: '8px 20px', borderBottom: 'var(--border-w) solid var(--accent-soft)' }}>
             <span><strong>Period:</strong> {result.period}</span>
             <span><strong>Sections:</strong> {result.sections?.length || 0}</span>
             <span><strong>Narrative cache:</strong> {cache?.hits || 0} hits / {cache?.misses || 0} new</span>

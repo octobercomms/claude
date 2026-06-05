@@ -198,7 +198,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
               <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
             )}
             {selected && selected.status === 'failed' && (
-              <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 4, color: 'var(--negative)', fontSize: 13 }}>
+              <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 13 }}>
                 Generation failed: {selected.error_message || 'unknown error'}
               </div>
             )}
@@ -215,7 +215,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                         value={recipients}
                         onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
                         placeholder="email@example.com, another@example.com"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4 }}
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
                       />
                       {recipientsDirty && (
                         <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
@@ -232,7 +232,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                   </button>
                 </div>
                 {actions.length > 0 && (
-                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', padding: '12px 16px', borderRadius: 6, marginBottom: 18 }}>
+                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', padding: '12px 16px', borderRadius: 'var(--r-sm)', marginBottom: 18 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
@@ -296,7 +296,7 @@ const mdComponents = {
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0' }} />,
   blockquote: ({ node, ...p }) => <blockquote style={{ borderLeft: '3px solid #E7CD41', paddingLeft: 14, color: 'var(--text-muted)', margin: '10px 0' }} {...p} />,
   code: ({ node, inline, ...p }) => inline
-    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 3, fontSize: 12 }} {...p} />
-    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 4, fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
+    ? <code style={{ background: 'var(--surface-sunken)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 12 }} {...p} />
+    : <pre style={{ background: 'var(--surface-sunken)', padding: 12, borderRadius: 'var(--r-sm)', fontSize: 12, overflowX: 'auto' }}><code {...p} /></pre>,
 };
 

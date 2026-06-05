@@ -329,7 +329,7 @@ export default function GuidePage() {
 
 function AccordionItem({ section, isOpen, onToggle }) {
   return (
-    <div style={{ border: '2px solid var(--accent)', borderRadius: 14, background: 'var(--accent-soft)', overflow: 'hidden' }}>
+    <div style={{ border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--accent-soft)', overflow: 'hidden' }}>
       <button onClick={onToggle} style={{
         width: '100%', textAlign: 'left', padding: '14px 16px', background: isOpen ? 'var(--surface-raised)' : 'var(--surface)',
         border: 'none', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14,
@@ -359,7 +359,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
 // using CSS flex-wrap so it renders cleanly on phones too.
 function WorkflowDiagram({ workflow }) {
   return (
-    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6 }}>
+    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
         Workflow — {workflow.title}
       </div>
@@ -368,7 +368,7 @@ function WorkflowDiagram({ workflow }) {
           <React.Fragment key={i}>
             <div style={{
               flex: '1 1 130px', minWidth: 120, maxWidth: 200,
-              padding: '10px 12px', background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 4,
+              padding: '10px 12px', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)',
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
               <div style={{
@@ -395,6 +395,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
-  cursor: 'pointer', borderRadius: 999, fontWeight: 600,
+  padding: '5px 12px', fontSize: 11, border: 'var(--border-w) solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
+  cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 600,
 };

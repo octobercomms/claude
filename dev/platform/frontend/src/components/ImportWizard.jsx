@@ -217,7 +217,7 @@ export default function ImportWizard({
               {rawRows?.totalRows} rows detected. Map each column to one of our contact fields.
               Anything mapped to "ignore" is dropped on import. <strong>Email</strong> is required.
             </p>
-            <div style={{ overflowX: 'auto', border: '2px solid var(--accent)', borderRadius: 6, marginTop: 10 }}>
+            <div style={{ overflowX: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginTop: 10 }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr>
@@ -317,7 +317,7 @@ export default function ImportWizard({
         {step === 3 && !result && (
           <div>
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
-            <div style={{ background: 'var(--surface-raised)', border: '2px solid var(--accent)', borderRadius: 6, padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
+            <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
               <div><strong>{builtRows.length}</strong> contacts with a valid email</div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
               {clientIdForAttach && <div>Attach to: <strong>this client</strong></div>}
@@ -341,7 +341,7 @@ export default function ImportWizard({
 
         {step === 3 && result && (
           <div>
-            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 6, color: 'var(--positive)', fontSize: 13 }}>
+            <div style={{ padding: 14, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-sm)', color: 'var(--positive)', fontSize: 13 }}>
               ✓ Imported {result.inserted} new contact{result.inserted === 1 ? '' : 's'}, merged tags into {result.reused} existing.
               {clientIdForAttach && ` Attached to this client.`}
               {allowClients && attachClients.size > 0 && ` Attached to ${attachClients.size} client${attachClients.size === 1 ? '' : 's'}.`}
@@ -379,16 +379,16 @@ function splitCsvLine(line) {
 }
 
 const overlay = { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' };
-const modal = { background: 'var(--surface)', borderRadius: 8, width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
+const modal = { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 880, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' };
 const header = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 };
 const eyebrow = { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 };
 const closeBtn = { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 };
 const hint = { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 };
 const footer = { display: 'flex', alignItems: 'center', gap: 8, marginTop: 18, paddingTop: 14, borderTop: '1px solid #eee' };
-const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
-const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: '2px solid var(--accent)', borderRadius: 999, padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
-const input = { padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' };
-const select = { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, background: 'var(--surface)', cursor: 'pointer', width: '100%' };
-const tagChip = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
-const tagChipOn = { padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
-const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 4, fontSize: 12, marginBottom: 12 };
+const btn = { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer' };
+const ghostBtn = { background: 'var(--surface)', color: 'var(--text)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' };
+const input = { padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' };
+const select = { padding: '5px 8px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)', cursor: 'pointer', width: '100%' };
+const tagChip = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11, border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer' };
+const tagChipOn = { padding: '3px 9px', borderRadius: 'var(--r-pill)', fontSize: 11, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer' };
+const errBox = { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 12, marginBottom: 12 };

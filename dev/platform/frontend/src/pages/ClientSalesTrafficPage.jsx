@@ -105,13 +105,13 @@ export default function ClientSalesTrafficPage() {
         <div className="hero-actions">
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {d}d
             </button>
           ))}
           <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
             onChange={e => selectPreset(e.target.value)}
-            style={{ padding: '6px 12px', borderRadius: 999, border: '2px solid var(--accent)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
             <option value="">Period…</option>
             <option value="mtd">Month to date</option>
             <option value="ytd">Year to date</option>
@@ -125,12 +125,12 @@ export default function ClientSalesTrafficPage() {
       {showCustom && (
         <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
+            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--accent)', fontSize: 13 }} />
           <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
+            style={{ padding: '5px 8px', borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--accent)', fontSize: 13 }} />
           <button onClick={applyCustom}
-            style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+            style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
         </div>
       )}
       <div className="row mb-4">

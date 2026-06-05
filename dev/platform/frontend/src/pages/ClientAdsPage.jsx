@@ -133,7 +133,7 @@ export default function ClientAdsPage() {
 
   function MetricCard({ label, value, sub }) {
     return (
-      <div style={{ background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 8, padding: '16px 20px', minWidth: 140 }}>
+      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '16px 20px', minWidth: 140 }}>
         <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{value ?? '—'}</div>
         {sub && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{sub}</div>}
@@ -177,11 +177,11 @@ export default function ClientAdsPage() {
           <div className="hero-actions">
             {[7, 14, 30, 90].map(d => (
               <button key={d} onClick={() => handlePeriodChange(d)}
-                style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {d}d
               </button>
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: '2px solid var(--accent)', borderRadius: 999 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)' }}>
               <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
               <input type="number" min="0" max="100" step="1" value={adsMarginInput}
                 onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}

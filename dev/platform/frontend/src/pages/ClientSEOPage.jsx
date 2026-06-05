@@ -143,7 +143,7 @@ function PosBox({ p, legacy }) {
   return (
     <span style={{
       display: 'inline-block', minWidth: 28, textAlign: 'center', padding: '3px 8px',
-      borderRadius: 999, fontSize: 13,
+      borderRadius: 'var(--r-pill)', fontSize: 13,
       fontWeight: legacy ? 500 : 700,
       fontStyle: legacy ? 'italic' : 'normal',
       background: top ? 'var(--accent)' : 'transparent',
@@ -226,7 +226,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
-            padding: '3px 12px', fontSize: 11, borderRadius: 4, cursor: 'pointer', border: '2px solid var(--accent)',
+            padding: '3px 12px', fontSize: 11, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--accent)',
             background: range === v ? 'var(--accent)' : 'var(--surface)', color: range === v ? 'var(--accent-on)' : 'var(--text-muted)',
           }}>{l}</button>
         ))}
@@ -688,7 +688,7 @@ export default function ClientSEOPage() {
       })()}
 
       {/* Position buckets */}
-      <div style={{ display: 'flex', border: '2px solid var(--accent)', borderRadius: 6, overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
+      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
         {[
           { key: 'all', label: 'All' },
           { key: 'top3', label: 'Top 3' },
@@ -798,7 +798,7 @@ export default function ClientSEOPage() {
         <div style={{ display: 'flex' }}>
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
-              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: '2px solid var(--accent)',
+              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: 'var(--border-w) solid var(--accent)',
               background: kwView === v ? 'var(--accent)' : 'var(--surface)', color: kwView === v ? 'var(--accent-on)' : 'var(--text-muted)',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
             }}>{label}</button>

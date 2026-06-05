@@ -91,7 +91,7 @@ function decisionTone(d) {
 function ResponsesList({ responses }) {
   if (!responses.length) return null;
   return (
-    <div className="mt-4" style={{ paddingTop: 10, borderTop: '2px solid var(--accent-soft)' }}>
+    <div className="mt-4" style={{ paddingTop: 10, borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
       {responses.map((r, i) => {
         const t = decisionTone(r.decision);
         return (
@@ -111,7 +111,7 @@ function ResponsesList({ responses }) {
 function DecisionForm({ onRespond }) {
   const [comment, setComment] = useState('');
   return (
-    <div className="mt-4" style={{ paddingTop: 10, borderTop: '2px solid var(--accent-soft)' }}>
+    <div className="mt-4" style={{ paddingTop: 10, borderTop: 'var(--border-w) solid var(--accent-soft)' }}>
       <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment / change notes"
         className="textarea" />
       <div className="row wrap mt-3">
