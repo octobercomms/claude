@@ -323,17 +323,15 @@ export default function ClientSocialPage() {
       {/* HERO — always visible across tabs. Tab-specific actions sit
           inside each tab's section head instead of a global toolbar. */}
       <header className="hero">
-        <div className="row between wrap">
-          <div>
-            <div className="client-name">{client?.name || ''}</div>
-            <h1 className="display mt-2"><span className="text-accent">Social</span></h1>
-          </div>
-          <div className="row wrap">
-            <UiButton variant="primary" onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
-            <UiButton variant="secondary" onClick={toggleAutopilotPaused}>
-              {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
-            </UiButton>
-          </div>
+        <div>
+          <div className="client-name">{client?.name || ''}</div>
+          <h1 className="display mt-2"><span className="text-accent">Social</span></h1>
+        </div>
+        <div className="hero-actions">
+          <UiButton variant="primary" size="sm" onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
+          <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
+            {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
+          </UiButton>
         </div>
       </header>
 

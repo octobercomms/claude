@@ -130,15 +130,30 @@ button { font-family: inherit; }
 /* ─── Hero ───────────────────────────────────────────────────────── */
 
 /* Page hero — page name dominates as the display title; the client
-   name sits above it as a smaller secondary label so the SECTION is
-   the first thing the AM reads. */
+   name sits above it in bold so the SECTION is the first thing the AM
+   reads. When a page has top-right controls (date picker, primary
+   action), the hero becomes a flex row by virtue of having a direct
+   `.hero-actions` child: the actions sit top-right, in line with the
+   page name. */
 .hero { margin-bottom: var(--s7); }
+.hero:has(> .hero-actions) {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: var(--s5);
+  flex-wrap: wrap;
+}
+.hero:has(> .hero-actions) > :first-child { min-width: 0; }
 .hero .client-name {
-  font-size: 26px; font-weight: 600; color: var(--text-subtle);
+  font-size: 26px; font-weight: 700; color: var(--text);
   letter-spacing: -0.2px; line-height: 1.1; margin: 0;
 }
 .hero .display { margin-top: var(--s2); }
 .hero .body { margin-top: var(--s4); max-width: 640px; }
+.hero-actions {
+  display: flex; gap: var(--s2); align-items: center;
+  flex-wrap: wrap; justify-content: flex-end;
+}
 
 /* ─── Cards ──────────────────────────────────────────────────────── */
 

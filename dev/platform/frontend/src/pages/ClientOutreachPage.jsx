@@ -370,16 +370,15 @@ export default function ClientOutreachPage() {
   return (
     <div className="suite-email">
       <header className="hero">
-        <div className="client-name">{client?.name}</div>
-        <h1 className="display mt-2"><span className="text-accent">Email</span></h1>
-      </header>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <div />
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} style={s.btnGhost}>+ Add Contact</button>
-          <button onClick={startNewCampaign} style={s.btn}>+ New Campaign</button>
+        <div>
+          <div className="client-name">{client?.name}</div>
+          <h1 className="display mt-2"><span className="text-accent">Email</span></h1>
         </div>
-      </div>
+        <div className="hero-actions">
+          <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} className="btn btn-secondary btn-sm">+ Add Contact</button>
+          <button onClick={startNewCampaign} className="btn btn-primary btn-sm">+ New Campaign</button>
+        </div>
+      </header>
 
       {/* Tabs — same underline pattern as the SEO and Ads pages */}
       <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginBottom: 24 }}>

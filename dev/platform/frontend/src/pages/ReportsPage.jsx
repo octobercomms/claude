@@ -79,9 +79,11 @@ export default function ReportsPage() {
   return (
     <div className="suite-social">
       <header className="hero">
-        <div className="row between wrap center">
+        <div>
           <h1 className="display">Reports</h1>
-          <button onClick={() => setShowTrigger(true)} className="btn btn-primary">+ Trigger Report</button>
+        </div>
+        <div className="hero-actions">
+          <button onClick={() => setShowTrigger(true)} className="btn btn-primary btn-sm">+ Trigger Report</button>
         </div>
       </header>
       <div style={{ display: 'none' }}>

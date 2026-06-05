@@ -39,9 +39,11 @@ export default function ClientsPage() {
   return (
     <div className="suite-social">
       <header className="hero">
-        <div className="row between wrap">
+        <div>
           <h1 className="display">Clients</h1>
-          <button onClick={() => setShowNew(true)} className="btn btn-primary">+ New Client</button>
+        </div>
+        <div className="hero-actions">
+          <button onClick={() => setShowNew(true)} className="btn btn-primary btn-sm">+ New Client</button>
         </div>
       </header>
 

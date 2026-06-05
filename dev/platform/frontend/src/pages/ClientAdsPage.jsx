@@ -169,8 +169,27 @@ export default function ClientAdsPage() {
   return (
     <div className="suite-paid">
       <header className="hero">
-        <div className="client-name">{client?.name}</div>
-        <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
+        <div>
+          <div className="client-name">{client?.name}</div>
+          <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
+        </div>
+        {tab === 'performance' && (
+          <div className="hero-actions">
+            {[7, 14, 30, 90].map(d => (
+              <button key={d} onClick={() => handlePeriodChange(d)}
+                style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: days === d ? 'var(--accent)' : '#fff', color: days === d ? 'var(--accent-on)' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                {d}d
+              </button>
+            ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999 }}>
+              <span style={{ fontSize: 11, color: '#888', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
+              <input type="number" min="0" max="100" step="1" value={adsMarginInput}
+                onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
+                style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+              <span style={{ fontSize: 11, color: '#888' }}>%</span>
+            </div>
+          </div>
+        )}
       </header>
       <SuiteTabs tabs={[
         { key: 'performance', label: 'Performance', active: tab === 'performance', onClick: () => setTab('performance') },
@@ -183,21 +202,7 @@ export default function ClientAdsPage() {
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {tab === 'audiences' && <AudiencesPanel clientId={id} />}
       {tab === 'performance' && <>
-      {/* Date range — top-left under the page hero. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
-        {[7, 14, 30, 90].map(d => (
-          <button key={d} onClick={() => handlePeriodChange(d)}
-            style={{ padding: '8px 16px', borderRadius: 999, border: '2px solid #1a1a1a', background: days === d ? '#1a1a1a' : '#fff', color: days === d ? '#fff' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {d}d
-          </button>
-        ))}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: '#fff', border: '2px solid #1a1a1a', borderRadius: 999 }}>
-          <span style={{ fontSize: 12, color: '#888', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Gross Margin</span>
-          <input type="number" min="0" max="100" step="1" value={adsMarginInput}
-            onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
-            style={{ width: 48, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
-          <span style={{ fontSize: 12, color: '#888' }}>%</span>
-        </div>
+      <div className="row mb-4">
         <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Data Analyst →</Link>
       </div>
 

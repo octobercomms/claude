@@ -613,21 +613,20 @@ export default function ClientSEOPage() {
     <div className="suite-organic">
       <DfsAvailabilityBanner />
       <header className="hero">
-        <div className="client-name">{client?.name}</div>
-        <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
-      </header>
-      <div className="row between center mb-4 wrap" style={{ gap: 12 }}>
-        <div />
+        <div>
+          <div className="client-name">{client?.name}</div>
+          <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
+        </div>
         {activeTab === 'keywords' && (
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={handleExport} style={s.btnGhost}>Export CSV</button>
-            <button onClick={handleClassifyIntent} style={s.btnGhost} disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
-            <button onClick={handleCheckAll} style={s.btnGhost} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
-            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnGhost}>Bulk Import</button>
-            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={s.btn}>+ Add Keyword</button>
+          <div className="hero-actions">
+            <button onClick={handleExport} style={s.btnSm}>Export CSV</button>
+            <button onClick={handleClassifyIntent} style={s.btnSm} disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
+            <button onClick={handleCheckAll} style={s.btnSm} disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
+            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} style={s.btnSm}>Bulk Import</button>
+            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} style={{ ...s.btnSm, background: 'var(--accent)', color: 'var(--accent-on)' }}>+ Add Keyword</button>
           </div>
         )}
-      </div>
+      </header>
 
       <SuiteTabs tabs={[
         { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',      onClick: () => setActiveTab('keywords') },

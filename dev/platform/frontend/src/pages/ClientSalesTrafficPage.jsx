@@ -98,39 +98,42 @@ export default function ClientSalesTrafficPage() {
   return (
     <div className="suite-organic">
       <header className="hero">
-        <div className="client-name">{client?.name || ''}</div>
-        <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
+        <div>
+          <div className="client-name">{client?.name || ''}</div>
+          <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
+        </div>
+        <div className="hero-actions">
+          {[7, 14, 30, 90].map(d => (
+            <button key={d} onClick={() => selectDays(d)}
+              style={{ padding: '6px 14px', borderRadius: 999, border: '2px solid var(--accent)', background: activeKey === 'd' + d ? 'var(--accent)' : '#fff', color: activeKey === 'd' + d ? 'var(--accent-on)' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {d}d
+            </button>
+          ))}
+          <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
+            onChange={e => selectPreset(e.target.value)}
+            style={{ padding: '6px 12px', borderRadius: 999, border: '2px solid var(--accent)', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <option value="">Period…</option>
+            <option value="mtd">Month to date</option>
+            <option value="ytd">Year to date</option>
+            <option value="custom">Custom range…</option>
+            <optgroup label="Months">
+              {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </optgroup>
+          </select>
+        </div>
       </header>
-      {/* Date range — top-left under the hero on every page that has one. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>
-        {[7, 14, 30, 90].map(d => (
-          <button key={d} onClick={() => selectDays(d)}
-            style={{ padding: '8px 16px', borderRadius: 999, border: '2px solid #1a1a1a', background: activeKey === 'd' + d ? '#1a1a1a' : '#fff', color: activeKey === 'd' + d ? '#fff' : '#1a1a1a', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-            {d}d
-          </button>
-        ))}
-        <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
-          onChange={e => selectPreset(e.target.value)}
-          style={{ padding: '8px 14px', borderRadius: 999, border: '2px solid #1a1a1a', background: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-          <option value="">Period…</option>
-          <option value="mtd">Month to date</option>
-          <option value="ytd">Year to date</option>
-          <option value="custom">Custom range…</option>
-          <optgroup label="Months">
-            {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-          </optgroup>
-        </select>
-        {showCustom && (
-          <span style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
-            <span style={{ color: '#888', fontSize: 13 }}>to</span>
-            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
-            <button onClick={applyCustom}
-              style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: 'var(--accent)', color: '#1a1a1a', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
-          </span>
-        )}
+      {showCustom && (
+        <div className="row mb-4" style={{ alignItems: 'center', gap: 6 }}>
+          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+            style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
+          <span style={{ color: '#888', fontSize: 13 }}>to</span>
+          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+            style={{ padding: '5px 8px', borderRadius: 6, border: '2px solid var(--accent)', fontSize: 13 }} />
+          <button onClick={applyCustom}
+            style={{ padding: '6px 16px', borderRadius: 999, border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
+        </div>
+      )}
+      <div className="row mb-4">
         <span style={{ fontSize: 12, color: '#888' }}>{fmtDay(start)} – {fmtDay(end)}</span>
       </div>
 
