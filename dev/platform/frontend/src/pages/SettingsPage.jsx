@@ -411,7 +411,7 @@ export default function SettingsPage() {
         <h1 className="display">Settings</h1>
       </header>
 
-      <div style={styles.tabStrip}>
+      <div className="tabs">
         {[
           { key: 'general', label: 'General' },
           { key: 'contacts', label: 'Contacts' },
@@ -419,7 +419,7 @@ export default function SettingsPage() {
           { key: 'users', label: 'Users & access' },
         ].map(t => (
           <button key={t.key} onClick={() => switchTab(t.key)}
-            style={tab === t.key ? styles.tabBtnActive : styles.tabBtn}>
+            className={`tab ${tab === t.key ? "active" : ""}`}>
             {t.label}
           </button>
         ))}
@@ -441,7 +441,7 @@ export default function SettingsPage() {
 
         <Card>
           <CardTitle>Account</CardTitle>
-          <p style={styles.hint}>Change your login username or password.</p>
+          <p className="body-sm text-muted">Change your login username or password.</p>
           <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
             <Field label="Username">
               <input type="text" className="input" value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
@@ -486,14 +486,14 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => toggleCategory(cat.title)}
-                  style={styles.categoryToggle}
+                  className="row between center" style={{ width: "100%", background: "none", border: "none", cursor: "pointer", padding: 0, textAlign: "left" }}
                 >
                   <div>
-                    <div style={styles.categoryTitle}>{cat.title}</div>
-                    {cat.description && <div style={styles.categoryDesc}>{cat.description}</div>}
+                    <div className="h3">{cat.title}</div>
+                    {cat.description && <div className="body-sm text-muted">{cat.description}</div>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={styles.countPill}>{configuredCount} / {groupsInCat.length}</span>
+                    <span className="chip chip-accent">{configuredCount} / {groupsInCat.length}</span>
                     <span style={{ fontSize: 14, color: '#666' }}>{open ? '▾' : '▸'}</span>
                   </div>
                 </button>
@@ -501,16 +501,16 @@ export default function SettingsPage() {
                 {open && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16 }}>
                     {groupsInCat.map(group => (
-                      <div key={group.title} style={styles.subSection}>
-                        <div style={styles.subSectionTitle}>{group.title}</div>
-                        {group.hint && <p style={styles.hint}>{group.hint}</p>}
+                      <div key={group.title} style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 14 }}>
+                        <div className="h3 mb-2">{group.title}</div>
+                        {group.hint && <p className="body-sm text-muted">{group.hint}</p>}
                         {group.note && (
-                          <div style={styles.note}><strong>Developer app required.</strong> {group.note}</div>
+                          <div className="callout callout-warning"><strong>Developer app required.</strong> {group.note}</div>
                         )}
                         {group.scopes && <ScopesBlock scopes={group.scopes} />}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
                           {group.keys.map(({ key, label, placeholder, type }) => (
-                            <div key={key} style={styles.field}>
+                            <div key={key} className="field">
                               <label className="field-label">{label}</label>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input
@@ -525,14 +525,14 @@ export default function SettingsPage() {
                                   <button
                                     type="button"
                                     onClick={() => toggleReveal(key)}
-                                    style={styles.eyeBtn}
+                                    className="btn btn-secondary btn-sm"
                                     title={visibleKeys[key] ? 'Hide' : 'Show'}
                                   >
                                     {visibleKeys[key] ? '🙈' : '👁️'}
                                   </button>
                                 )}
                               </div>
-                              <span style={styles.envHint}><code>{key}</code></span>
+                              <span className="body-xs text-subtle"><code>{key}</code></span>
                             </div>
                           ))}
                         </div>
@@ -571,9 +571,9 @@ export default function SettingsPage() {
                     ))}
 
                     {cat.hasTestEmail && (
-                      <div style={styles.subSection}>
-                        <div style={styles.subSectionTitle}>Send Test Email</div>
-                        <p style={styles.hint}>Verify your email provider after saving credentials above.</p>
+                      <div style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 14 }}>
+                        <div className="h3 mb-2">Send Test Email</div>
+                        <p className="body-sm text-muted">Verify your email provider after saving credentials above.</p>
                         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
                           <input
                             type="email" placeholder="Send test email to…"
@@ -610,20 +610,20 @@ function ScopesBlock({ scopes }) {
     } catch {}
   }
   return (
-    <div style={styles.scopes}>
-      <div style={styles.scopesHead}>
+    <div className="card" style={{ marginTop: 12, padding: "10px 12px", background: "var(--surface-raised)" }}>
+      <div className="row between" style={{ gap: 10, marginBottom: 8, alignItems: "flex-start" }}>
         <div>
-          <div style={styles.scopesLabel}>{scopes.label}</div>
-          {scopes.help && <div style={styles.scopesHelp}>{scopes.help}</div>}
+          <div className="caption">{scopes.label}</div>
+          {scopes.help && <div className="body-xs text-muted mt-2">{scopes.help}</div>}
         </div>
-        <button type="button" onClick={copy} style={styles.scopesCopyBtn}>
+        <button type="button" onClick={copy} className="btn btn-secondary btn-sm">
           {copied ? '✓ Copied' : 'Copy all'}
         </button>
       </div>
-      <code style={styles.scopesCode}>{csv}</code>
-      <div style={styles.scopesChips}>
+      <code className="card" style={{ display: "block", fontSize: 11, fontFamily: "monospace", padding: "6px 8px", wordBreak: "break-all" }}>{csv}</code>
+      <div className="row wrap mt-3" style={{ gap: 4 }}>
         {scopes.values.map(s => (
-          <span key={s} style={styles.scopeChip}>{s}</span>
+          <span key={s} className="chip chip-outline" style={{ fontFamily: "monospace", fontSize: 10 }}>{s}</span>
         ))}
       </div>
     </div>
@@ -656,7 +656,7 @@ function CostsPanel() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
-          <p style={styles.hint}>Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
+          <p className="body-sm text-muted">Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
         </div>
         <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
           {refreshing ? 'Polling…' : 'Refresh now'}
@@ -740,7 +740,7 @@ function CardTitle({ children }) {
 }
 function Field({ label, children }) {
   return (
-    <div style={styles.field}>
+    <div className="field">
       <label className="field-label">{label}</label>
       {children}
     </div>
@@ -985,18 +985,18 @@ function ContactsLibrary() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <CardTitle>Contacts</CardTitle>
-            <p style={styles.hint}>
+            <p className="body-sm text-muted">
               One workspace-wide list of contacts. Each contact can be attached to as many clients
               as you like — a journalist who unsubscribes from one client's emails stays subscribed
               to the others.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setTidyOpen(true)} style={styles.ghostBtn}
+            <button onClick={() => setTidyOpen(true)} className="btn btn-secondary btn-sm"
               title="Ask Claude to spot fixes on the contacts matching the current filter">
               ✨ Tidy with Claude
             </button>
-            <button onClick={exportCsv} disabled={!total} style={styles.ghostBtn}
+            <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
               title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
@@ -1032,23 +1032,21 @@ function ContactsLibrary() {
                   {visible.map(t => {
                     const on = activeTags.has(t.tag);
                     return (
-                      <span key={t.tag} style={on ? styles.tagChipOn : styles.tagChip}
+                      <span key={t.tag} className={`chip ${on ? "chip-accent" : "chip-outline"}`}
                         onClick={() => toggleTag(t.tag)}>
                         {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
                       </span>
                     );
                   })}
                   {hiddenCount > 0 && (
-                    <button onClick={() => setTagsExpanded(true)} style={{
-                      ...styles.tagChip, fontWeight: 700, color: '#1a1a1a',
-                    }}>
+                    <button onClick={() => setTagsExpanded(true)} className="chip chip-outline" style={{ fontWeight: 700, color: '#1a1a1a',
+                     }}>
                       + {hiddenCount} more
                     </button>
                   )}
                   {tagsExpanded && filtered.length > COLLAPSED && (
-                    <button onClick={() => setTagsExpanded(false)} style={{
-                      ...styles.tagChip, fontWeight: 700, color: '#666',
-                    }}>
+                    <button onClick={() => setTagsExpanded(false)} className="chip chip-outline" style={{ fontWeight: 700, color: '#666',
+                     }}>
                       show less
                     </button>
                   )}
@@ -1083,17 +1081,17 @@ function ContactsLibrary() {
                   : <> of <strong>{filtered.length.toLocaleString()}</strong></>}
               </span>
               <div style={{ flex: 1 }} />
-              <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} style={styles.ghostBtn}>
+              <button onClick={() => setBulkTagsOpen(o => !o)} disabled={!selected.size} className="btn btn-secondary btn-sm">
                 + Add tags
               </button>
               <button onClick={() => setAttachOpen(o => !o)} disabled={!selected.size} className="btn btn-primary">
                 Add to client…
               </button>
-              <button onClick={destroyContacts} disabled={!selected.size} style={styles.dangerBtn}>
+              <button onClick={destroyContacts} disabled={!selected.size} className="btn btn-danger btn-sm">
                 Delete selected
               </button>
               {total > 0 && (
-                <button onClick={destroyAllMatching} style={styles.dangerBtn}
+                <button onClick={destroyAllMatching} className="btn btn-danger btn-sm"
                   title={total > filtered.length ? `Delete all ${total.toLocaleString()} matching, not just the ${filtered.length.toLocaleString()} on screen` : ''}>
                   Delete all {total.toLocaleString()} matching
                 </button>
@@ -1107,7 +1105,7 @@ function ContactsLibrary() {
                 </div>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 8 }}>
                   {Array.from(bulkTagsToAdd).map(t => (
-                    <span key={t} style={styles.tagChipOn} onClick={() => setBulkTagsToAdd(prev => { const n = new Set(prev); n.delete(t); return n; })}>{t} ×</span>
+                    <span key={t} className="chip chip-accent" onClick={() => setBulkTagsToAdd(prev => { const n = new Set(prev); n.delete(t); return n; })}>{t} ×</span>
                   ))}
                   <input
                     value={bulkTagInput}
@@ -1120,7 +1118,7 @@ function ContactsLibrary() {
                 {!!tags.length && (
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
                     {tags.slice(0, 16).filter(t => !bulkTagsToAdd.has(t.tag)).map(t => (
-                      <button key={t.tag} onClick={() => addBulkTag(t.tag)} style={styles.tagChip}>
+                      <button key={t.tag} onClick={() => addBulkTag(t.tag)} className="chip chip-outline">
                         {t.tag} <span style={{ opacity: 0.5 }}>· {t.count}</span>
                       </button>
                     ))}
@@ -1130,7 +1128,7 @@ function ContactsLibrary() {
                   <button onClick={applyBulkTags} disabled={!bulkTagsToAdd.size} className="btn btn-primary">
                     Apply to {selected.size}
                   </button>
-                  <button onClick={() => { setBulkTagsOpen(false); setBulkTagsToAdd(new Set()); }} style={styles.ghostBtn}>
+                  <button onClick={() => { setBulkTagsOpen(false); setBulkTagsToAdd(new Set()); }} className="btn btn-secondary btn-sm">
                     Cancel
                   </button>
                 </div>
@@ -1142,7 +1140,7 @@ function ContactsLibrary() {
                 <div style={{ fontSize: 12, color: '#666', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
-                    <button key={c.id} onClick={() => attachTo(c.id)} style={styles.ghostBtn}>
+                    <button key={c.id} onClick={() => attachTo(c.id)} className="btn btn-secondary btn-sm">
                       {c.name}
                     </button>
                   ))}
@@ -1153,17 +1151,17 @@ function ContactsLibrary() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={{ ...styles.th, width: 28 }}>
+                  <th style={{ width: 28 }}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  <th style={styles.th}>Name</th>
-                  <th style={styles.th}>Email</th>
-                  <th style={styles.th}>Outlet / company</th>
-                  <th style={styles.th}>Beat</th>
-                  <th style={styles.th}>Tags</th>
-                  <th style={styles.th}>Attached to</th>
-                  <th style={styles.th}>Engagement</th>
-                  <th style={{ ...styles.th, width: 28 }}></th>
+                  <th >Name</th>
+                  <th >Email</th>
+                  <th >Outlet / company</th>
+                  <th >Beat</th>
+                  <th >Tags</th>
+                  <th >Attached to</th>
+                  <th >Engagement</th>
+                  <th style={{ width: 28  }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -1174,39 +1172,39 @@ function ContactsLibrary() {
                     : '';
                   return (
                     <tr key={r.id} style={{ cursor: 'pointer' }}>
-                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                      <td  onClick={e => e.stopPropagation()}>
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                      <td  onClick={() => setOpenContact(r)} title={totalsTip}>
                         <strong style={{ color: '#1a1a1a' }}>{r.name || '(unnamed)'}</strong>
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                      <td  onClick={() => setOpenContact(r)}>
                         <span style={{ color: '#666' }}>{r.email || '—'}</span>
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                      <td  onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
+                      <td  onClick={() => setOpenContact(r)}>
                         <span style={{ fontSize: 11, color: '#888' }}>{r.contact_type || '—'}</span>
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                      <td  onClick={() => setOpenContact(r)}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                           {(r.tags || []).map(t => (
-                            <span key={t} style={{ ...styles.tagChip, cursor: 'default', padding: '1px 7px', fontSize: 10 }}>{t}</span>
+                            <span key={t} className="chip chip-outline" style={{ cursor: 'default', padding: '1px 7px', fontSize: 10  }}>{t}</span>
                           ))}
                         </div>
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)}>
+                      <td  onClick={() => setOpenContact(r)}>
                         <div style={{ fontSize: 11, color: '#666' }}>
                           {(r.client_ids || []).length
                             ? (r.client_ids || []).map(cid => clientNameById[cid] || '…').join(', ')
                             : <span style={{ color: '#bbb' }}>library only</span>}
                         </div>
                       </td>
-                      <td style={styles.td} onClick={() => setOpenContact(r)} title={totalsTip}>
+                      <td  onClick={() => setOpenContact(r)} title={totalsTip}>
                         <div style={{ fontSize: 11, color: '#666', whiteSpace: 'nowrap' }}>
                           {r.total_sent ? `${r.total_sent} sent · ${r.total_opened || 0} opened` : <span style={{ color: '#bbb' }}>—</span>}
                         </div>
                       </td>
-                      <td style={styles.td} onClick={e => e.stopPropagation()}>
+                      <td  onClick={e => e.stopPropagation()}>
                         <button onClick={() => destroyOne(r.id)} title="Delete from library"
                           style={{ background: 'none', border: 'none', color: '#c62828', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
                           ×
@@ -1316,7 +1314,7 @@ function TagsManager() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
           <div>
             <CardTitle>Tags</CardTitle>
-            <p style={styles.hint}>
+            <p className="body-sm text-muted">
               Every tag in the workspace. Rename merges contacts already on the new name; delete strips
               the tag from every contact (the contacts themselves stay). Use this to clean up junk from
               old CSV imports.
@@ -1336,7 +1334,7 @@ function TagsManager() {
               </div>
               <button onClick={() => { setPlan(null); setSelectedOps(new Set()); }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888' }}>×</button>
             </div>
-            <p style={{ ...styles.hint, marginBottom: 12 }}>
+            <p className="body-sm text-muted" style={{ marginBottom: 12  }}>
               Untick anything you disagree with, then apply. Each operation rewrites tags on contacts and can't be undone in one click.
             </p>
             <div style={{ maxHeight: 380, overflowY: 'auto', borderTop: '1px solid #eee' }}>
@@ -1356,7 +1354,7 @@ function TagsManager() {
                     }} style={{ marginTop: 3 }} />
                     <div style={{ flex: 1, fontSize: 12 }}>
                       <div style={{ marginBottom: 3 }}>
-                        <span style={{ ...styles.tagChip, padding: '1px 8px', fontSize: 10, marginRight: 6 }}>{op.type}</span>
+                        <span className="chip chip-outline" style={{ padding: '1px 8px', fontSize: 10, marginRight: 6  }}>{op.type}</span>
                         <OpSummary op={op} />
                       </div>
                       {op.why && <div style={{ color: '#888', fontStyle: 'italic' }}>{op.why}</div>}
@@ -1366,12 +1364,12 @@ function TagsManager() {
               })}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12 }}>
-              <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} style={styles.ghostBtn}>Tick all</button>
-              <button onClick={() => setSelectedOps(new Set())} style={styles.ghostBtn}>Untick all</button>
+              <button onClick={() => setSelectedOps(new Set(plan.operations.map((_, i) => i)))} className="btn btn-secondary btn-sm">Tick all</button>
+              <button onClick={() => setSelectedOps(new Set())} className="btn btn-secondary btn-sm">Untick all</button>
               <div style={{ flex: 1 }} />
               <span style={{ fontSize: 12, color: '#666' }}>{selectedOps.size} of {plan.operations.length} ticked</span>
               <button onClick={applyPlan} disabled={!selectedOps.size || applying}
-                style={!selectedOps.size || applying ? { ...styles.btn, opacity: 0.5 } : styles.btn}>
+                className="btn btn-primary btn-sm">
                 {applying ? 'Applying…' : `Apply ${selectedOps.size} operation${selectedOps.size === 1 ? '' : 's'}`}
               </button>
             </div>
@@ -1386,8 +1384,8 @@ function TagsManager() {
           />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: '#666' }}>
             Sort:
-            <button onClick={() => setSort('count')} style={sort === 'count' ? styles.tagChipOn : styles.tagChip}>by count</button>
-            <button onClick={() => setSort('name')} style={sort === 'name' ? styles.tagChipOn : styles.tagChip}>A → Z</button>
+            <button onClick={() => setSort('count')} className={`chip ${sort === 'count' ? "chip-accent" : "chip-outline"}`}>by count</button>
+            <button onClick={() => setSort('name')} className={`chip ${sort === 'name' ? "chip-accent" : "chip-outline"}`}>A → Z</button>
           </div>
         </div>
 
@@ -1403,26 +1401,26 @@ function TagsManager() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th style={styles.th}>Tag</th>
-                  <th style={{ ...styles.th, width: 120, textAlign: 'right' }}>Contacts</th>
-                  <th style={{ ...styles.th, width: 200, textAlign: 'right' }}></th>
+                  <th >Tag</th>
+                  <th style={{ width: 120, textAlign: 'right'  }}>Contacts</th>
+                  <th style={{ width: 200, textAlign: 'right'  }}></th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map(t => (
                   <tr key={t.tag}>
-                    <td style={styles.td}>
-                      <span style={{ ...styles.tagChip, cursor: 'default', padding: '2px 9px' }}>{t.tag}</span>
+                    <td >
+                      <span className="chip chip-outline" style={{ cursor: 'default', padding: '2px 9px'  }}>{t.tag}</span>
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right', color: '#666', fontVariantNumeric: 'tabular-nums' }}>
+                    <td style={{ textAlign: 'right', color: '#666', fontVariantNumeric: 'tabular-nums'  }}>
                       {t.count.toLocaleString()}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right', whiteSpace: 'nowrap' }}>
-                      <button onClick={() => renameTag(t.tag)} disabled={busy} style={styles.ghostBtn}>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap'  }}>
+                      <button onClick={() => renameTag(t.tag)} disabled={busy} className="btn btn-secondary btn-sm">
                         Rename
                       </button>
                       <button onClick={() => deleteTag(t.tag, t.count)} disabled={busy}
-                        style={{ ...styles.dangerBtn, marginLeft: 6 }}>
+                        className="btn btn-danger btn-sm" style={{ marginLeft: 6  }}>
                         Delete
                       </button>
                     </td>
@@ -1657,45 +1655,3 @@ function OpSummary({ op }) {
   return <span>{op.type}</span>;
 }
 
-const styles = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: '18px 20px' },
-  cardTitle: { fontSize: 14, fontWeight: 700, margin: '0 0 10px', color: '#1a1a1a' },
-  categoryToggle: {
-    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-    width: '100%', background: 'none', border: 'none', cursor: 'pointer',
-    padding: 0, textAlign: 'left',
-  },
-  categoryTitle: { fontSize: 15, fontWeight: 700, color: '#1a1a1a' },
-  categoryDesc: { fontSize: 12, color: '#888', marginTop: 3, lineHeight: 1.5 },
-  countPill: {
-    background: '#f1f1f1', border: '2px solid var(--accent)', borderRadius: 12,
-    padding: '2px 9px', fontSize: 11, color: '#666', fontWeight: 600,
-  },
-  subSection: { borderTop: '1px solid #f0f0f0', paddingTop: 14 },
-  subSectionTitle: { fontSize: 13, fontWeight: 700, color: '#1a1a1a', marginBottom: 8 },
-  hint: { fontSize: 12, color: '#666', lineHeight: 1.5, margin: 0 },
-  note: { background: '#fff8e1', border: '1px solid #ffc107', borderRadius: 4, padding: '8px 12px', fontSize: 12, lineHeight: 1.5, marginTop: 8 },
-  field: { display: 'flex', flexDirection: 'column', gap: 4 },
-  label: { fontSize: 10, fontWeight: 600, color: '#444', textTransform: 'uppercase', letterSpacing: 0.5 },
-  input: { padding: '8px 10px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 13, fontFamily: 'Brockmann, sans-serif' },
-  eyeBtn: { background: 'none', border: '2px solid var(--accent)', borderRadius: 4, padding: '6px 9px', cursor: 'pointer', fontSize: 13, lineHeight: 1 },
-  envHint: { fontSize: 10, color: '#aaa' },
-  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '8px 18px', fontSize: 12, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'Brockmann, sans-serif' },
-  scopes: { marginTop: 12, padding: '10px 12px', background: '#f9f9f9', border: '2px solid var(--accent)', borderRadius: 4 },
-  scopesHead: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  scopesLabel: { fontSize: 11, fontWeight: 700, color: '#1a1a1a', textTransform: 'uppercase', letterSpacing: 0.5 },
-  scopesHelp: { fontSize: 11, color: '#666', marginTop: 3, lineHeight: 1.5 },
-  scopesCopyBtn: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 999, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif', whiteSpace: 'nowrap' },
-  scopesCode: { display: 'block', fontSize: 11, fontFamily: 'monospace', color: '#1a1a1a', background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 3, padding: '6px 8px', wordBreak: 'break-all', lineHeight: 1.5 },
-  scopesChips: { display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 },
-  scopeChip: { fontSize: 10, fontFamily: 'monospace', background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 3, padding: '2px 6px', color: '#444' },
-  tabStrip: { display: 'flex', gap: 4, borderBottom: '1px solid #e8e8e8', marginBottom: 20, flexWrap: 'wrap' },
-  tabBtn: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#666', cursor: 'pointer', borderBottom: '2px solid transparent', fontFamily: 'Brockmann, sans-serif', fontWeight: 500 },
-  tabBtnActive: { background: 'none', border: 'none', padding: '10px 16px', fontSize: 13, color: '#1a1a1a', cursor: 'pointer', borderBottom: '2px solid #E7CD41', fontFamily: 'Brockmann, sans-serif', fontWeight: 700 },
-  tagChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '2px solid var(--accent)', background: 'var(--accent-soft)', color: '#444', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
-  tagChipOn: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 9px', borderRadius: 999, fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', fontFamily: 'Brockmann, sans-serif' },
-  th: { textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, padding: '8px 10px', borderBottom: '1px solid #e8e8e8' },
-  td: { fontSize: 13, padding: '10px 10px', borderBottom: '1px solid #f4f4f4', verticalAlign: 'top' },
-  ghostBtn: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#1a1a1a', fontFamily: 'Brockmann, sans-serif' },
-  dangerBtn: { background: 'var(--accent-soft)', border: '1px solid #f3c3c3', borderRadius: 999, padding: '6px 12px', fontSize: 12, cursor: 'pointer', color: '#c62828', fontFamily: 'Brockmann, sans-serif' },
-};

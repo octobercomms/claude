@@ -994,14 +994,14 @@ function CompetitorEditor({ competitors, onSave }) {
     onSave(competitors.filter(c => c !== handle));
   }
   return (
-    <div style={styles.competitorBar}>
+    <div className="row wrap" style={{ alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--surface-raised)", border: "var(--border-w) solid var(--accent)", borderRadius: "var(--r-sm)", marginBottom: 6 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
         Competitor handles
       </span>
       {competitors.map(c => (
-        <span key={c} style={styles.competitorChip}>
+        <span key={c} className="chip chip-outline" style={{ fontFamily: "monospace" }}>
           {c}
-          {editing && <button onClick={() => remove(c)} style={styles.chipClose}>×</button>}
+          {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 14, padding: "0 2px" }}>×</button>}
         </span>
       ))}
       {editing ? (
@@ -1278,26 +1278,26 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          <span style={styles.platformPill}>{post.platform}</span>
-          <span style={styles.kindPill}>{post.kind}</span>
-          <span style={styles.statusPill}>{post.status}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.platform}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.kind}</span>
+          <span className="chip chip-neutral" style={{ fontSize: 10 }}>{post.status}</span>
         </div>
         <button onClick={onDelete} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#c62828', fontSize: 18, lineHeight: 1 }}>×</button>
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={styles.field}>HOOK</div>
+        <div className="caption mb-2">HOOK</div>
         <div style={{ fontSize: 14, fontWeight: 700, lineHeight: 1.4 }}>{post.hook || <em style={{ color: '#bbb' }}>(none)</em>}</div>
       </div>
 
       <div style={{ marginTop: 10 }}>
-        <div style={styles.field}>CAPTION</div>
+        <div className="caption mb-2">CAPTION</div>
         <div style={{ fontSize: 13, lineHeight: 1.5, color: '#222', whiteSpace: 'pre-wrap' }}>{post.caption}</div>
       </div>
 
       {(post.hashtags || []).length > 0 && (
         <div style={{ marginTop: 8 }}>
-          {post.hashtags.map(h => <span key={h} style={styles.hashtag}>#{h.replace(/^#/, '')}</span>)}
+          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11, marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
 
@@ -1305,7 +1305,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {post.image_urls.map((u, i) => (
             <a key={i} href={u} target="_blank" rel="noreferrer">
-              <img src={u} alt="" style={styles.thumb} />
+              <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)" }} />
             </a>
           ))}
         </div>
@@ -1394,29 +1394,29 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
 
       {open && (
         <div style={{ marginTop: 10, borderTop: '1px solid #eee', paddingTop: 10 }}>
-          <div style={styles.field}>VISUAL CONCEPT</div>
+          <div className="caption mb-2">VISUAL CONCEPT</div>
           <div style={{ fontSize: 12, color: '#444', lineHeight: 1.5, marginBottom: 10 }}>{post.visual_concept}</div>
-          <div style={styles.field}>STORYBOARD</div>
+          <div className="caption mb-2">STORYBOARD</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
             <thead>
               <tr>
-                <th style={styles.thSm}>Style</th>
-                <th style={styles.thSm}>#</th>
-                <th style={styles.thSm}>Shot</th>
-                <th style={styles.thSm}>On-screen</th>
-                <th style={styles.thSm}>Voiceover</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Style</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">#</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Shot</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">On-screen</th>
+                <th style={{ textAlign: "left", padding: "5px 6px", fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.4 }} className="text-subtle">Voiceover</th>
               </tr>
             </thead>
             <tbody>
               {(post.storyboard || []).map((f, i) => (
                 <tr key={i} style={{ borderTop: '1px solid #f0f0f0' }}>
-                  <td style={styles.tdSm}>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
                     {f.style ? <StyleBadge code={f.style} duration={f.duration_sec} /> : <span style={{ color: '#bbb' }}>—</span>}
                   </td>
-                  <td style={styles.tdSm}>{f.frame ?? i + 1}</td>
-                  <td style={styles.tdSm}>{f.shot}</td>
-                  <td style={styles.tdSm}>{f.on_screen_text || ''}</td>
-                  <td style={styles.tdSm}>{f.voiceover || ''}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.shot}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.voiceover || ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -1429,7 +1429,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <div style={{ marginTop: 10, padding: 10, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4 }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
-              <button key={p} onClick={() => setProvider(p)} type="button" style={provider === p ? styles.providerOn : styles.providerOff}>{p}</button>
+              <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
             ))}
             <select value={aspect} onChange={e => setAspect(e.target.value)} className="input">
               <option value="1:1">1:1</option>
@@ -1454,26 +1454,6 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
   );
 }
 
-const styles = {
-  h3: { fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 },
-  competitorBar: { display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, padding: '8px 12px', background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 6 },
-  competitorChip: { display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, fontSize: 12, fontFamily: 'monospace' },
-  chipClose: { background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: '0 2px', color: '#999' },
-  batchRow: { padding: 10, border: '2px solid var(--accent)', borderRadius: 4, marginBottom: 8, cursor: 'pointer', background: '#fff' },
-  batchRowActive: { background: '#fffceb', borderColor: COLORS.yellow },
-  card: { padding: 14, background: '#fff', border: '2px solid var(--accent)', borderRadius: 6 },
-  field: { fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 },
-  platformPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
-  kindPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#f4eafd', color: '#5e2d8c', textTransform: 'uppercase', letterSpacing: 0.4 },
-  statusPill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eee', color: '#666', textTransform: 'uppercase', letterSpacing: 0.4 },
-  hashtag: { display: 'inline-block', fontSize: 11, color: '#3949ab', marginRight: 6 },
-  thumb: { width: 64, height: 64, objectFit: 'cover', borderRadius: 4, border: '2px solid var(--accent)' },
-  thSm: { textAlign: 'left', padding: '5px 6px', fontSize: 10, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 0.4 },
-  tdSm: { padding: '5px 6px', verticalAlign: 'top', fontSize: 11, color: '#333', lineHeight: 1.4 },
-  providerOn: { padding: '5px 12px', fontSize: 11, border: '1px solid #1a1a1a', background: '#1a1a1a', color: '#fff', cursor: 'pointer', borderRadius: 999, fontWeight: 700 },
-  providerOff: { padding: '5px 12px', fontSize: 11, border: '2px solid var(--accent)', background: '#fff', color: '#555', cursor: 'pointer', borderRadius: 999 },
-  input: { padding: '5px 8px', fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4 },
-};
 
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
