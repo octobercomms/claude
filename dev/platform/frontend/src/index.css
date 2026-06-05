@@ -343,6 +343,51 @@ button { font-family: inherit; }
 .health-dot.warn  { background: var(--warning); }
 .health-dot.error { background: var(--negative); }
 
+/* ─── Chat shell (AI Data Analyst) ───────────────────────────────── */
+/* Right-rail thread layout. The .chat-thread is the scrolling stream
+   of bubbles; .chat-bubble is the body element each turn renders
+   into; .chat-bubble.user / .assistant swap fill + corner radius. */
+.chat-thread {
+  flex: 1; overflow-y: auto;
+  padding: var(--s2) 0 var(--s4);
+  display: flex; flex-direction: column;
+}
+.chat-avatar {
+  width: 28px; height: 28px; border-radius: var(--r-pill);
+  background: var(--text); flex-shrink: 0;
+  margin-right: var(--s2); margin-top: 2px;
+}
+.chat-bubble {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 14px; line-height: 1.6;
+  border: var(--border-w) solid transparent;
+}
+.chat-bubble.user {
+  background: var(--text); color: var(--surface);
+  border-bottom-right-radius: 3px;
+}
+.chat-bubble.assistant {
+  background: var(--surface); color: var(--text);
+  border-color: var(--accent);
+  border-bottom-left-radius: 3px;
+}
+.chat-timestamp {
+  font-size: 10px; opacity: 0.5;
+  margin-top: 4px; text-align: right;
+}
+.chat-input-row {
+  display: flex; gap: 10px;
+  padding-top: var(--s3);
+  border-top: var(--border-w) solid var(--accent-soft);
+  margin-top: auto;
+}
+.chat-sidebar {
+  width: 260px; flex-shrink: 0;
+  border-left: var(--border-w) solid var(--accent-soft);
+  padding-left: var(--s5); overflow-y: auto;
+}
+
 /* ─── Tables ─────────────────────────────────────────────────────── */
 
 .table { width: 100%; border-collapse: collapse; }

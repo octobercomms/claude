@@ -221,7 +221,7 @@ export default function ClientChatPage() {
           )}
         </div>
 
-        <div style={s.thread}>
+        <div className="chat-thread">
           {messages.length === 0 && !sending && (
             <div style={{ padding: '32px 0', textAlign: 'center' }}>
               <div style={{ fontSize: 15, color: '#444', marginBottom: 8, fontWeight: 600 }}>
@@ -240,22 +240,20 @@ export default function ClientChatPage() {
 
           {messages.map((msg) => (
             <div key={msg.id} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
-              {msg.role === 'assistant' && <div style={s.avatarDot} />}
+              {msg.role === 'assistant' && <div className="chat-avatar" />}
               <div style={{ maxWidth: '80%' }}>
                 {msg.role === 'assistant' && msg.tools_used?.length > 0 && (
-                  <div style={s.toolsUsed}>
+                  <div className="row wrap mb-2" style={{ gap: 4 }}>
                     {msg.tools_used.map((t, i) => (
-                      <span key={i} style={s.toolChip}>{TOOL_LABELS[t] || t}</span>
+                      <span key={i} className="chip chip-accent" style={{ fontSize: 10 }}>{TOOL_LABELS[t] || t}</span>
                     ))}
                   </div>
                 )}
-                <div style={{
-                  ...s.bubble,
-                  ...(msg.role === 'user' ? s.bubbleUser : s.bubbleAssistant),
-                  ...(msg.isError ? { background: '#fff3f3', borderColor: '#f5c6cb' } : {}),
-                }}>
+                <div
+                  className={`chat-bubble ${msg.role === 'user' ? 'user' : 'assistant'}`}
+                  style={msg.isError ? { background: 'var(--negative-soft)', borderColor: 'var(--negative)' } : undefined}>
                   {msg.role === 'assistant' ? (
-                    <div style={s.markdownBody}>
+                    <div >
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={MD_COMPONENTS}>
                         {msg.content || ''}
                       </ReactMarkdown>
@@ -268,7 +266,7 @@ export default function ClientChatPage() {
                       </React.Fragment>
                     ))
                   )}
-                  <div style={s.timestamp}>
+                  <div className="chat-timestamp">
                     {new Date(msg.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                   </div>
                 </div>
@@ -276,9 +274,9 @@ export default function ClientChatPage() {
                     only on saved messages (msg.id from the DB, not the
                     optimistic placeholder we render mid-send). */}
                 {msg.role === 'assistant' && msg.id && !msg.isError && (
-                  <div style={s.downloadRow}>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} style={s.downloadBtn} title="Download as PDF">↓ PDF</button>
-                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} style={s.downloadBtn} title="Download as Word">↓ Word</button>
+                  <div className="row mt-2" style={{ gap: 6, paddingLeft: 4 }}>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'pdf')} className="btn btn-secondary btn-sm" title="Download as PDF">↓ PDF</button>
+                    <button type="button" onClick={() => downloadMessage(msg.id, 'docx')} className="btn btn-secondary btn-sm" title="Download as Word">↓ Word</button>
                   </div>
                 )}
               </div>
@@ -287,16 +285,16 @@ export default function ClientChatPage() {
 
           {sending && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={s.avatarDot} />
-              <div style={{ ...s.bubble, ...s.bubbleAssistant }}>
-                <span style={s.typing}><span /><span /><span /></span>
+              <div className="chat-avatar" />
+              <div className="chat-bubble assistant">
+                <span className="text-subtle">typing…</span>
               </div>
             </div>
           )}
           <div ref={bottomRef} />
         </div>
 
-        <form onSubmit={handleSend} style={{ ...s.inputRow, flexDirection: 'column', gap: 8 }}>
+        <form onSubmit={handleSend} className="chat-input-row" style={{ flexDirection: 'column', gap: 8 }}>
           {attachedFiles.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {attachedFiles.map((f, i) => (
@@ -309,7 +307,7 @@ export default function ClientChatPage() {
             </div>
           )}
           {/^\/report(\s|$)/i.test(input) && (
-            <div style={s.reportHint}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
+            <div className="body-xs text-subtle mt-2" style={{ paddingLeft: 4 }}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <textarea
@@ -317,16 +315,16 @@ export default function ClientChatPage() {
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask Claude to check data, investigate an issue, or log a decision… Type /report to format the reply as a downloadable PDF/Word report."
-              style={s.textarea}
+              className="textarea"
               rows={2}
               disabled={sending}
             />
             <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileChange} style={{ display: 'none' }} />
             <button type="button" onClick={() => fileInputRef.current?.click()} title="Attach image or PDF"
-              style={{ ...s.sendBtn, background: '#f5f5f5', color: '#555', fontSize: 18, padding: '0 14px' }}>
+              className="btn btn-secondary" style={{ fontSize: 18, padding: '0 14px' }}>
               📎
             </button>
-            <button type="submit" disabled={sending || (!input.trim() && attachedFiles.length === 0)} style={s.sendBtn}>
+            <button type="submit" disabled={sending || (!input.trim() && attachedFiles.length === 0)} className="btn btn-primary">
               {sending ? '…' : 'Send'}
             </button>
           </div>
@@ -334,7 +332,7 @@ export default function ClientChatPage() {
       </div>
 
       {/* Context log sidebar */}
-      <div style={s.sidebar}>
+      <div className="chat-sidebar">
         <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: '#1a1a1a' }}>
           Context Log
           <span style={{ fontWeight: 400, color: '#888', marginLeft: 6 }}>{openEntries.length} open</span>
@@ -347,12 +345,12 @@ export default function ClientChatPage() {
         )}
 
         {openEntries.map(entry => (
-          <div key={entry.id} style={{ ...s.logEntry, borderLeft: `3px solid ${TYPE_COLOURS[entry.type]}`, background: TYPE_BG[entry.type] }}>
+          <div key={entry.id} style={{ borderLeft: `3px solid ${TYPE_COLOURS[entry.type]}`, background: TYPE_BG[entry.type] }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 4 }}>
               <span style={{ fontSize: 10, fontWeight: 700, color: TYPE_COLOURS[entry.type], textTransform: 'uppercase', letterSpacing: 0.5 }}>
                 {entry.type}
               </span>
-              <button onClick={() => handleDeleteEntry(entry.id)} style={s.deleteBtn} title="Remove">✕</button>
+              <button onClick={() => handleDeleteEntry(entry.id)} className="btn-ghost" style={{ fontSize: 11, padding: "0 2px" }} title="Remove">✕</button>
             </div>
             <div style={{ fontSize: 12, color: '#333', marginTop: 4, lineHeight: 1.5 }}>{entry.content}</div>
             <div style={{ fontSize: 10, color: '#999', marginTop: 6 }}>
@@ -368,7 +366,7 @@ export default function ClientChatPage() {
         )}
 
         {showResolved && resolvedEntries.map(entry => (
-          <div key={entry.id} style={{ ...s.logEntry, opacity: 0.5, textDecoration: 'line-through', borderLeft: '3px solid #ccc' }}>
+          <div key={entry.id} style={{ opacity: 0.5, textDecoration: 'line-through', borderLeft: '3px solid #ccc' }}>
             <div style={{ fontSize: 10, fontWeight: 700, color: '#999', textTransform: 'uppercase' }}>{entry.type}</div>
             <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>{entry.content}</div>
           </div>
@@ -385,30 +383,3 @@ const suggestionStyle = {
   textAlign: 'left', lineHeight: 1.4,
 };
 
-const s = {
-  thread: { flex: 1, overflowY: 'auto', padding: '8px 0 16px', display: 'flex', flexDirection: 'column' },
-  avatarDot: { width: 28, height: 28, borderRadius: '50%', background: '#1a1a1a', flexShrink: 0, marginRight: 8, marginTop: 2 },
-  bubble: { padding: '10px 14px', borderRadius: 12, fontSize: 14, lineHeight: 1.6, border: '1px solid transparent' },
-  bubbleUser: { background: '#1a1a1a', color: 'white', borderBottomRightRadius: 3 },
-  bubbleAssistant: { background: 'white', color: '#1a1a1a', border: '2px solid var(--accent)', borderBottomLeftRadius: 3 },
-  timestamp: { fontSize: 10, opacity: 0.5, marginTop: 4, textAlign: 'right' },
-  // Tame react-markdown defaults to look right inside a chat bubble.
-  // Removes the big top/bottom margins on headings, pulls list bullets
-  // in to the bubble's padding, makes tables compact, code blocks
-  // monospace + grey, blockquotes left-bordered.
-  markdownBody: {
-    lineHeight: 1.5,
-  },
-  downloadRow: { display: 'flex', gap: 6, marginTop: 6, paddingLeft: 4 },
-  downloadBtn: { background: 'white', border: '2px solid var(--accent)', borderRadius: 4, padding: '3px 8px', fontSize: 11, color: '#555', cursor: 'pointer' },
-  reportHint: { fontSize: 11, color: '#888', marginTop: 4, paddingLeft: 4 },
-  toolsUsed: { display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 },
-  toolChip: { fontSize: 10, padding: '2px 7px', background: '#f0f4ff', color: '#3355cc', borderRadius: 10, fontWeight: 500 },
-  inputRow: { display: 'flex', gap: 10, paddingTop: 12, borderTop: '1px solid #e8e8e8', marginTop: 'auto' },
-  textarea: { flex: 1, padding: '10px 14px', border: '2px solid var(--accent)', borderRadius: 8, fontSize: 14, resize: 'none', fontFamily: 'inherit', lineHeight: 1.5, outline: 'none' },
-  sendBtn: { padding: '10px 22px', background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, cursor: 'pointer', fontSize: 14, fontWeight: 700, alignSelf: 'flex-end' },
-  btnGhost: { padding: '6px 14px', background: '#fff', border: '2px solid var(--accent)', borderRadius: 999, cursor: 'pointer', fontSize: 12, color: '#1a1a1a', fontWeight: 600 },
-  sidebar: { width: 260, flexShrink: 0, borderLeft: '1px solid #e8e8e8', paddingLeft: 20, overflowY: 'auto' },
-  logEntry: { padding: '8px 10px', borderRadius: 4, marginBottom: 8 },
-  deleteBtn: { background: 'none', border: 'none', cursor: 'pointer', color: '#999', fontSize: 11, padding: '0 2px', lineHeight: 1 },
-};
