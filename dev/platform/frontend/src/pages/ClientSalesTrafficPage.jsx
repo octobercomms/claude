@@ -167,7 +167,7 @@ export default function ClientSalesTrafficPage() {
                     <Line yAxisId="o" type="monotone" dataKey="orders" name="Orders" stroke="#E7CD41" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <p style={s.empty}>No sales trend data.</p>}
+              ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No sales trend data.</p>}
             </div>
             <div className="card">
               <div className="caption">Traffic</div>
@@ -182,7 +182,7 @@ export default function ClientSalesTrafficPage() {
                     <Line type="monotone" dataKey="users" name="Users" stroke="#888" strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : <p style={s.empty}>No traffic data.</p>}
+              ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No traffic data.</p>}
             </div>
           </div>
 
@@ -197,7 +197,7 @@ export default function ClientSalesTrafficPage() {
                   <Bar dataKey="sessions" name="Sessions" fill="#1a1a1a" />
                 </BarChart>
               </ResponsiveContainer>
-            ) : <p style={s.empty}>No channel data.</p>}
+            ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}
           </div>
 
           {data.notes && data.notes.length > 0 && (
@@ -209,9 +209,3 @@ export default function ClientSalesTrafficPage() {
   );
 }
 
-const s = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 20 },
-  cardTitle: { fontSize: 11, fontWeight: 700, color: '#888', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 12 },
-  input: { padding: '10px 12px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 8, fontFamily: 'inherit', background: '#fff' },
-  empty: { color: '#888', fontSize: 13, padding: '20px 0', margin: 0 },
-};

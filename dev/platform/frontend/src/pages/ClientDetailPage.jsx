@@ -317,7 +317,7 @@ export default function ClientDetailPage() {
 
       {tab === 'details' && (
         <form onSubmit={handleSave} className="card">
-          <div style={styles.grid2}>
+          <div className="grid grid-2">
             <Field label="Client Name">
               <input className="input" value={client.name} onChange={e => setClient(p => ({ ...p, name: e.target.value }))} />
             </Field>
@@ -335,7 +335,7 @@ export default function ClientDetailPage() {
             </label>
           </Field>
           <Field label="About this client">
-            <p style={styles.help}>One paragraph describing what the business sells, to whom, where they operate. Used by Claude to give the AI Data Analyst context and to set the tone of report copy. Set once — update only if the business changes.</p>
+            <p className="body-xs text-muted">One paragraph describing what the business sells, to whom, where they operate. Used by Claude to give the AI Data Analyst context and to set the tone of report copy. Set once — update only if the business changes.</p>
             <textarea
               className="input" style={{ minHeight: 110, resize: 'vertical' }}
               value={client.briefing_field || ''}
@@ -466,7 +466,7 @@ export default function ClientDetailPage() {
 
         <form onSubmit={handleSave} className="card" style={{ marginTop: 24 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Schedule</div>
-          <div style={styles.grid2}>
+          <div className="grid grid-2">
             <Field label="Weekly Day">
               <select
                 className="input"
@@ -520,7 +520,7 @@ export default function ClientDetailPage() {
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>This month's focus</div>
-            <p style={styles.help}>Sets the priority for the next report. Drives Claude's executive summary and recommendations. Update before each monthly report runs.</p>
+            <p className="body-xs text-muted">Sets the priority for the next report. Drives Claude's executive summary and recommendations. Update before each monthly report runs.</p>
             <textarea
               className="input" style={{ minHeight: 80, resize: 'vertical', marginTop: 8 }}
               value={client.monthly_focus || ''}
@@ -534,7 +534,7 @@ export default function ClientDetailPage() {
 
           <div style={{ borderTop: '1px solid #eee', margin: '8px 0 0', paddingTop: 16 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#666', textTransform: 'uppercase', letterSpacing: 0.5 }}>Report Templates</div>
-            <p style={styles.help}>
+            <p className="body-xs text-muted">
               Each report has a template — an ordered set of sections, layouts and per-section prompts. Design it conversationally with Claude
               ("B2C summary across all stores, then B2B, then Google Ads ROAS") and lock it once it looks right. Locked templates drive every
               report run for this client.
@@ -1128,8 +1128,8 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
   const fields = getCredentialFields(connector.connector_type);
   const isShopify = connector.connector_type === 'shopify' || connector.connector_type === 'shopify_email';
   return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modal}>
+    <div className="modal-backdrop">
+      <div className="modal">
         <h3 style={{ margin: '0 0 16px', fontSize: 15 }}>{CONNECTOR_LABELS[connector.connector_type]} Credentials</h3>
         {connector.store_label && <p style={{ margin: '0 0 16px', color: '#888', fontSize: 13 }}>{connector.store_label}</p>}
         {isShopify && (
@@ -1162,8 +1162,8 @@ function CredentialModal({ connector, values, onChange, onSave, onClose }) {
 function AddAnotherModal({ type, typeName, onConfirm, onClose }) {
   const [label, setLabel] = useState('');
   return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modal}>
+    <div className="modal-backdrop">
+      <div className="modal">
         <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Add another {typeName}</h3>
         <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
           Give this account a short label to tell it apart (e.g. "B2C", "B2B", "UK site").
@@ -1194,8 +1194,8 @@ function ShopifyModal({ onConfirm, onClose }) {
   const [clientSecret, setClientSecret] = useState('');
   const canConfirm = shop.trim() && (!useOwnApp || (clientId.trim() && clientSecret.trim()));
   return (
-    <div style={styles.modalOverlay}>
-      <div style={styles.modal}>
+    <div className="modal-backdrop">
+      <div className="modal">
         <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect Shopify Store</h3>
         <p style={{ margin: '0 0 16px', fontSize: 13, color: '#666' }}>
           Enter the store domain. You'll approve access in a Shopify popup.
@@ -1283,17 +1283,3 @@ function getCredentialFields(type) {
   return fieldMap[type] || [{ key: 'api_key', label: 'API Key', secret: true }];
 }
 
-const styles = {
-  card: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, padding: 24, display: 'flex', flexDirection: 'column', gap: 20 },
-  grid2: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 },
-  tabs: { display: 'flex', gap: 4, marginBottom: 20, borderBottom: '1px solid #e8e8e8', paddingBottom: 0 },
-  tab: { padding: '8px 16px', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: 13, color: '#888', borderBottom: '2px solid transparent', marginBottom: -1 },
-  tabActive: { color: '#1a1a1a', fontWeight: 600, borderBottomColor: '#1a1a1a' },
-  input: { padding: '9px 12px', border: '2px solid var(--accent)', borderRadius: 4, fontSize: 14, outline: 'none', width: '100%' },
-  btn: { background: 'var(--accent)', color: '#1a1a1a', border: 'none', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 700, cursor: 'pointer', alignSelf: 'flex-start' },
-  btnGhost: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '9px 22px', fontSize: 13, fontWeight: 600, cursor: 'pointer' },
-  btnSm: { background: 'var(--accent-soft)', color: '#1a1a1a', border: '2px solid var(--accent)', borderRadius: 999, padding: '6px 14px', fontSize: 12, cursor: 'pointer', fontWeight: 600, whiteSpace: 'nowrap' },
-  help: { fontSize: 12, color: '#666', margin: '4px 0 8px', lineHeight: 1.5 },
-  modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
-  modal: { background: 'var(--accent-soft)', borderRadius: 14, padding: 28, width: '100%', maxWidth: 480, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' },
-};

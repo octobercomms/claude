@@ -121,7 +121,7 @@ export default function ClientBrandPage() {
       </div>
 
       {/* Upload buttons */}
-      <div style={styles.uploadBar}>
+      <div className="row wrap" style={{ marginBottom: 22, padding: 14, background: "var(--surface-raised)", border: "var(--border-w) solid var(--accent)", borderRadius: "var(--r-sm)" }}>
         <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/*" />
         <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/*" />
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
@@ -200,7 +200,7 @@ function AssetCard({ asset, onDelete }) {
   const isPalette = asset.kind === 'palette';
   const isGuideline = asset.kind === 'guideline';
   return (
-    <div style={styles.assetCard}>
+    <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       <div style={{ height: 140, background: '#fafafa', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
         {isVideo && asset.url && (
           <video src={asset.url} muted preload="metadata" style={{ maxHeight: '100%', maxWidth: '100%' }} onMouseEnter={e => e.target.play()} onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }} />
@@ -300,10 +300,6 @@ function GuidelineForm({ clientId, onClose, onSaved }) {
   );
 }
 
-const styles = {
-  uploadBar: { display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap', padding: 14, background: '#fafafa', border: '2px solid var(--accent)', borderRadius: 6 },
-  assetCard: { background: 'var(--accent-soft)', border: '2px solid var(--accent)', borderRadius: 14, overflow: 'hidden' },
-};
 const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },

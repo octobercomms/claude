@@ -32,8 +32,16 @@ export default function ApprovePage() {
     } catch (e) { alert(e.message); }
   }
 
-  if (err) return <div style={styles.page}><div style={styles.error}>{err}</div></div>;
-  if (!data) return <div style={styles.page}><div style={{ color: '#888', padding: 40, textAlign: 'center' }}>Loading…</div></div>;
+  if (err) return (
+    <div className="suite-social" style={{ padding: 'var(--s7) var(--s5)' }}>
+      <div className="callout callout-danger" style={{ maxWidth: 600, margin: '40px auto' }}>{err}</div>
+    </div>
+  );
+  if (!data) return (
+    <div className="suite-social" style={{ padding: 'var(--s7) var(--s5)' }}>
+      <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>Loading…</div>
+    </div>
+  );
 
   const responsesByPost = {};
   const responsesByCreative = {};
@@ -43,23 +51,25 @@ export default function ApprovePage() {
   }
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
-        <div style={styles.brandLine}>October Communications</div>
-        <h1 style={styles.title}>{data.title || 'For your review'}</h1>
-        <div style={styles.client}>For {data.client?.name}</div>
-        {data.expires_at && (
-          <div style={styles.expires}>Link expires {new Date(data.expires_at).toLocaleDateString('en-GB')}</div>
-        )}
-      </div>
+    <div className="suite-social" style={{ padding: 'var(--s7) var(--s5)', maxWidth: 1100, margin: '0 auto' }}>
+      <header className="hero">
+        <div>
+          <div className="caption">October Communications</div>
+          <h1 className="display mt-2">{data.title || 'For your review'}</h1>
+          <p className="body mt-3">For {data.client?.name}</p>
+          {data.expires_at && (
+            <p className="body-xs text-subtle mt-2">Link expires {new Date(data.expires_at).toLocaleDateString('en-GB')}</p>
+          )}
+        </div>
+      </header>
 
-      <div style={styles.nameBar}>
-        <label style={{ fontSize: 12, color: '#666' }}>Reviewing as:</label>
+      <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 10, maxWidth: 400 }}>
+        <label className="field-label" style={{ margin: 0 }}>Reviewing as</label>
         <input value={reviewerName} onChange={e => { setReviewerName(e.target.value); localStorage.setItem('approve-name', e.target.value); }}
-          placeholder="Your name" style={styles.nameInput} />
+          placeholder="Your name" className="input" style={{ width: 240 }} />
       </div>
 
-      <div style={styles.grid}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', marginTop: 'var(--s5)' }}>
         {(data.posts || []).map(p => (
           <PostReviewCard key={p.id} post={p} responses={responsesByPost[p.id] || []} onRespond={(decision, comment) => respond({ post_id: p.id, decision, comment })} />
         ))}
@@ -71,26 +81,26 @@ export default function ApprovePage() {
   );
 }
 
-function decisionBadge(d) {
-  if (d === 'approved') return { background: '#e4f4e8', color: '#1d7a3a', label: 'Approved' };
-  if (d === 'changes_requested') return { background: '#fff4d6', color: '#8a6500', label: 'Changes requested' };
-  if (d === 'rejected') return { background: '#fdecea', color: '#c62828', label: 'Rejected' };
-  return { background: '#eef2ff', color: '#3949ab', label: 'Comment' };
+function decisionTone(d) {
+  if (d === 'approved') return { tone: 'success', label: 'Approved' };
+  if (d === 'changes_requested') return { tone: 'warning', label: 'Changes requested' };
+  if (d === 'rejected') return { tone: 'danger', label: 'Rejected' };
+  return { tone: 'accent', label: 'Comment' };
 }
 
 function ResponsesList({ responses }) {
   if (!responses.length) return null;
   return (
-    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
+    <div className="mt-4" style={{ paddingTop: 10, borderTop: '2px solid var(--accent-soft)' }}>
       {responses.map((r, i) => {
-        const b = decisionBadge(r.decision);
+        const t = decisionTone(r.decision);
         return (
-          <div key={i} style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 3, fontWeight: 700, background: b.background, color: b.color, textTransform: 'uppercase', letterSpacing: 0.4 }}>{b.label}</span>
-              <span style={{ fontSize: 11, color: '#888' }}>{r.reviewer_name || 'anon'} · {new Date(r.created_at).toLocaleString('en-GB')}</span>
+          <div key={i} className="mb-3">
+            <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+              <span className={`chip chip-${t.tone}`}>{t.label}</span>
+              <span className="body-xs text-subtle">{r.reviewer_name || 'anon'} · {new Date(r.created_at).toLocaleString('en-GB')}</span>
             </div>
-            {r.comment && <div style={{ fontSize: 12, color: '#444', marginTop: 4, padding: '6px 8px', background: '#fafafa', borderRadius: 3 }}>{r.comment}</div>}
+            {r.comment && <div className="body-sm mt-2" style={{ padding: '6px 8px', background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)' }}>{r.comment}</div>}
           </div>
         );
       })}
@@ -101,13 +111,13 @@ function ResponsesList({ responses }) {
 function DecisionForm({ onRespond }) {
   const [comment, setComment] = useState('');
   return (
-    <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid #eee' }}>
+    <div className="mt-4" style={{ paddingTop: 10, borderTop: '2px solid var(--accent-soft)' }}>
       <textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Optional comment / change notes"
-        style={{ width: '100%', padding: 8, fontSize: 12, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical', minHeight: 60 }} />
-      <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-        <button onClick={() => onRespond('approved', comment)} className="btn btn-primary" style={{ background: '#1d7a3a', color: '#fff' }}>Approve</button>
-        <button onClick={() => onRespond('changes_requested', comment)} className="btn btn-primary" style={{ background: '#fff4d6', color: '#8a6500' }}>Request changes</button>
-        <button onClick={() => onRespond('commented', comment)} disabled={!comment.trim()} className="btn btn-primary" style={{ background: '#eef2ff', color: '#3949ab', opacity: comment.trim() ? 1 : 0.4 }}>Comment only</button>
+        className="textarea" />
+      <div className="row wrap mt-3">
+        <button onClick={() => onRespond('approved', comment)} className="btn btn-primary btn-sm">Approve</button>
+        <button onClick={() => onRespond('changes_requested', comment)} className="btn btn-secondary btn-sm">Request changes</button>
+        <button onClick={() => onRespond('commented', comment)} disabled={!comment.trim()} className="btn btn-secondary btn-sm">Comment only</button>
       </div>
     </div>
   );
@@ -116,26 +126,26 @@ function DecisionForm({ onRespond }) {
 function PostReviewCard({ post, responses, onRespond }) {
   return (
     <div className="card">
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <span style={styles.pill}>{post.platform}</span>
-        <span style={styles.pill}>{post.kind}</span>
+      <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+        <span className="chip chip-accent">{post.platform}</span>
+        <span className="chip chip-accent">{post.kind}</span>
       </div>
       {(post.image_urls || []).length > 0 && (
-        <div style={{ marginBottom: 10, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 6 }}>
-          {post.image_urls.map((u, i) => <img key={i} src={u} alt="" style={{ width: '100%', borderRadius: 4 }} />)}
+        <div className="grid" style={{ marginBottom: 10, gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 6 }}>
+          {post.image_urls.map((u, i) => <img key={i} src={u} alt="" style={{ width: '100%', borderRadius: 'var(--r-sm)' }} />)}
         </div>
       )}
       {(post.media || []).filter(m => m.kind === 'video').map(v => (
-        <video key={v.id} src={v.url} controls style={{ width: '100%', borderRadius: 4, marginBottom: 8, background: '#000' }} />
+        <video key={v.id} src={v.url} controls style={{ width: '100%', borderRadius: 'var(--r-sm)', marginBottom: 8, background: '#000' }} />
       ))}
       {(post.media || []).filter(m => m.kind === 'audio').map(a => (
         <audio key={a.id} src={a.url} controls style={{ width: '100%', marginBottom: 8 }} />
       ))}
-      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, lineHeight: 1.3 }}>{post.hook}</div>
-      <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 8 }}>{post.caption}</div>
+      <div className="h3 mb-2">{post.hook}</div>
+      <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{post.caption}</div>
       {(post.hashtags || []).length > 0 && (
-        <div style={{ marginBottom: 4 }}>
-          {post.hashtags.map(h => <span key={h} style={{ fontSize: 11, color: '#3949ab', marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
+        <div className="mt-2">
+          {post.hashtags.map(h => <span key={h} className="text-accent" style={{ fontSize: 11, marginRight: 6 }}>#{h.replace(/^#/, '')}</span>)}
         </div>
       )}
       <DecisionForm onRespond={onRespond} />
@@ -147,38 +157,22 @@ function PostReviewCard({ post, responses, onRespond }) {
 function CreativeReviewCard({ creative, responses, onRespond }) {
   return (
     <div className="card">
-      <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-        <span style={styles.pill}>{creative.framework}</span>
-        <span style={styles.pill}>{creative.angle}</span>
+      <div className="row" style={{ gap: 6, marginBottom: 10 }}>
+        <span className="chip chip-accent">{creative.framework}</span>
+        <span className="chip chip-accent">{creative.angle}</span>
       </div>
       {(creative.images || []).length > 0 && (
-        <div style={{ marginBottom: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="row wrap" style={{ marginBottom: 10, gap: 6 }}>
           {creative.images.map(img => (
-            <img key={img.id} src={img.url} alt="" style={{ width: 110, borderRadius: 4 }} />
+            <img key={img.id} src={img.url} alt="" style={{ width: 110, borderRadius: 'var(--r-sm)' }} />
           ))}
         </div>
       )}
-      <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>{creative.headline}</div>
-      <div style={{ fontSize: 13, color: '#333', lineHeight: 1.5, whiteSpace: 'pre-wrap', marginBottom: 8 }}>{creative.body}</div>
-      <div style={{ fontSize: 12, color: '#1a4f9c', fontWeight: 700, marginBottom: 8 }}>{creative.cta}</div>
+      <div className="h2 mb-2">{creative.headline}</div>
+      <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{creative.body}</div>
+      <div className="text-accent mt-2" style={{ fontSize: 12, fontWeight: 700 }}>{creative.cta}</div>
       <DecisionForm onRespond={onRespond} />
       <ResponsesList responses={responses} />
     </div>
   );
 }
-
-const styles = {
-  page: { background: '#fafafa', minHeight: '100vh', padding: '32px 20px', fontFamily: 'system-ui, sans-serif', color: '#1a1a1a' },
-  header: { maxWidth: 1100, margin: '0 auto 18px' },
-  brandLine: { fontSize: 11, color: '#888', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 600 },
-  title: { fontSize: 26, fontWeight: 700, margin: '6px 0 4px' },
-  client: { fontSize: 14, color: '#666' },
-  expires: { fontSize: 12, color: '#999', marginTop: 4 },
-  nameBar: { maxWidth: 1100, margin: '0 auto 18px', display: 'flex', alignItems: 'center', gap: 10 },
-  nameInput: { padding: '6px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, width: 240 },
-  grid: { maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(360px, 1fr))', gap: 16 },
-  card: { background: '#fff', border: '2px solid var(--accent)', borderRadius: 6, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' },
-  pill: { fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 3, background: '#eef2ff', color: '#3949ab', textTransform: 'uppercase', letterSpacing: 0.4 },
-  btn: { padding: '6px 14px', fontSize: 12, border: 'none', borderRadius: 3, cursor: 'pointer', fontWeight: 600 },
-  error: { color: '#c62828', padding: 20, background: '#fdecea', borderRadius: 4, maxWidth: 600, margin: '40px auto' },
-};
