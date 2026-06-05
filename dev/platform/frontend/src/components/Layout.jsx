@@ -17,9 +17,7 @@ export default function Layout() {
   const clientSalesMatch = useMatch('/clients/:id/sales-traffic');
   const clientSocialMatch = useMatch('/clients/:id/social');
   const clientBrandMatch = useMatch('/clients/:id/brand');
-  const clientAiVisibilityMatch = useMatch('/clients/:id/ai-visibility');
-  const clientAudiencesMatch = useMatch('/clients/:id/audiences');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAiVisibilityMatch?.params?.id || clientAudiencesMatch?.params?.id;
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'details';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
@@ -72,8 +70,8 @@ export default function Layout() {
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
                   <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>AI Data Analyst</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
-                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive || !!clientAiVisibilityMatch)}>Organic</NavLink>
-                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive || !!clientAudiencesMatch)}>Paid</NavLink>
+                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
+                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
                   <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Social</NavLink>
                   <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Email</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=forms`} style={subLinkStyle(!!clientMatch && currentTab === 'forms')}>Forms</NavLink>

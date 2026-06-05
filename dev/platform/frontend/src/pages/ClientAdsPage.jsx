@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
+import AudiencesPanel from '../components/AudiencesPanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import { api } from '../utils/api';
@@ -22,7 +23,7 @@ export default function ClientAdsPage() {
   const [adsMarginInput, setAdsMarginInput] = useState('46');
   const [tab, setTab] = useState(() => {
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['performance','strategist','creative'].includes(q) ? q : 'performance';
+    return ['performance','strategist','creative','audiences'].includes(q) ? q : 'performance';
   });
 
   useEffect(() => {
@@ -168,18 +169,19 @@ export default function ClientAdsPage() {
   return (
     <div className="suite-paid">
       <header className="hero">
-        <div className="client-name">{/* legacy header — TODO: thread client name */}</div>
+        <div className="client-name">{client?.name}</div>
         <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
       </header>
       <SuiteTabs tabs={[
         { key: 'performance', label: 'Performance', active: tab === 'performance', onClick: () => setTab('performance') },
         { key: 'strategist',  label: 'Strategist',  active: tab === 'strategist',  onClick: () => setTab('strategist') },
         { key: 'creative',    label: 'Creative',    active: tab === 'creative',    onClick: () => setTab('creative') },
-        { key: 'audiences',   label: 'Audiences',   active: false,                  to: `/clients/${id}/audiences` },
+        { key: 'audiences',   label: 'Audiences',   active: tab === 'audiences',   onClick: () => setTab('audiences') },
       ]} />
 
       {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
+      {tab === 'audiences' && <AudiencesPanel clientId={id} />}
       {tab === 'performance' && <>
       {/* Date range — top-left under the page hero. */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', marginBottom: 24 }}>

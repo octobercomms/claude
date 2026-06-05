@@ -113,6 +113,7 @@ import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
   SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab,
 } from '../components/SeoSuite';
+import AIVisibilityPanel from '../components/AIVisibilityPanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -592,10 +593,8 @@ export default function ClientSEOPage() {
     : filtered;
 
   const [activeTab, setActiveTab] = useState(() => {
-    // Restore inner tab from ?tab= query so SuiteTabs back-navigation
-    // from AI Visibility lands the AM where they left off.
     const q = new URLSearchParams(window.location.search).get('tab');
-    return ['keywords','gsc','aio','gaps','planning','authority','backlinks'].includes(q) ? q : 'keywords';
+    return ['keywords','gsc','aio','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'keywords';
   });
 
   useEffect(() => {
@@ -630,18 +629,15 @@ export default function ClientSEOPage() {
         )}
       </div>
 
-      {/* Tabs — class-based, suite-coloured. AI Visibility is the only
-          tab that routes to a separate page; the rest are internal
-          state on this page. */}
       <SuiteTabs tabs={[
-        { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',   onClick: () => setActiveTab('keywords') },
-        { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',        onClick: () => setActiveTab('gsc') },
-        { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',        onClick: () => setActiveTab('aio') },
-        { key: 'ai_visibility', label: 'AI Visibility',  active: false,                       to: `/clients/${id}/ai-visibility` },
-        { key: 'gaps',          label: 'Content Gaps',   active: activeTab === 'gaps',       onClick: () => setActiveTab('gaps') },
-        { key: 'planning',      label: 'Planning',       active: activeTab === 'planning',   onClick: () => setActiveTab('planning') },
-        { key: 'authority',     label: 'Authority',      active: activeTab === 'authority',  onClick: () => setActiveTab('authority') },
-        { key: 'backlinks',     label: 'Backlinks',      active: activeTab === 'backlinks',  onClick: () => setActiveTab('backlinks') },
+        { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',      onClick: () => setActiveTab('keywords') },
+        { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',           onClick: () => setActiveTab('gsc') },
+        { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',           onClick: () => setActiveTab('aio') },
+        { key: 'ai_visibility', label: 'AI Visibility',  active: activeTab === 'ai_visibility', onClick: () => setActiveTab('ai_visibility') },
+        { key: 'gaps',          label: 'Content Gaps',   active: activeTab === 'gaps',          onClick: () => setActiveTab('gaps') },
+        { key: 'planning',      label: 'Planning',       active: activeTab === 'planning',      onClick: () => setActiveTab('planning') },
+        { key: 'authority',     label: 'Authority',      active: activeTab === 'authority',     onClick: () => setActiveTab('authority') },
+        { key: 'backlinks',     label: 'Backlinks',      active: activeTab === 'backlinks',     onClick: () => setActiveTab('backlinks') },
       ]} />
 
       {historyKeyword && (
@@ -654,6 +650,7 @@ export default function ClientSEOPage() {
 
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
       {activeTab === 'aio' && <AIOverviewsTab clientId={id} />}
+      {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'gaps' && <ContentGapsTab clientId={id} />}
       {activeTab === 'planning' && <PlanningTab clientId={id} />}
 
