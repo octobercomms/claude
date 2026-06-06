@@ -682,7 +682,9 @@ input[type="datetime-local"], input[type="date"], input[type="time"],
 select, textarea {
   background: var(--surface);
   color: var(--text);
-  border-color: var(--border-neutral);
+  /* Explicit width+style: the global border reset zeroes widths, so bare
+     (un-.input) controls need their border restored here. */
+  border: var(--border-w) solid var(--border-neutral);
   font-family: inherit;
 }
 

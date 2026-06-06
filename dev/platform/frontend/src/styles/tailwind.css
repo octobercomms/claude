@@ -7,11 +7,15 @@
 @tailwind utilities;
 
 @layer base {
-  /* preflight is disabled, so restore the one default Tailwind's border
-     utilities depend on: border-style. Without it, `border` / `border-t`
-     set a width but no style and render NOTHING (the missing hero rule and
-     KPI card outlines). Width is left untouched so existing element/UA
-     borders are unaffected, and this lives in @layer base so unlayered
-     index.css rules still win. */
-  *, ::before, ::after { border-style: solid; }
+  /* preflight is disabled, so reproduce the two border defaults Tailwind's
+     width utilities depend on. BOTH lines are required:
+       - border-width: 0  → without it, the CSS initial width is `medium`
+         (~3px), so the border-style:solid below would reveal a 3px box on
+         EVERY element. (This was the "gone crazy" bug.)
+       - border-style: solid → without it, `border` / `border-t` set a width
+         but no style and render nothing.
+     Lives in @layer base, so unlayered index.css component borders (which
+     set their own width+style) still win. Bare elements that relied on UA
+     border width (e.g. inputs) are restored explicitly in index.css. */
+  *, ::before, ::after { border-width: 0; border-style: solid; }
 }
