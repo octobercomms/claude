@@ -308,9 +308,9 @@ export default function ClientDetailPage() {
 
   return (
     <div className={scopeClass}>
+      <div className="kicker"><span className="pip" />{client.name && <span className="kicker-name">{client.name}</span>}</div>
       <header className="hero">
         <div>
-          <div className="client-name">{client.name}</div>
           <h1 className="display mt-2"><span className="text-accent">{pageTitle}</span></h1>
         </div>
         <div className="hero-actions">

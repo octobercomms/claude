@@ -38,6 +38,7 @@ export default function ClientsPage() {
 
   return (
     <div>
+      <div className="kicker"><span className="pip" />Client directory</div>
       <header className="hero">
         <div>
           <h1 className="display">Clients</h1>

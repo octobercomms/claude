@@ -407,6 +407,7 @@ export default function SettingsPage() {
 
   return (
     <div>
+      <div className="kicker"><span className="pip" />Admin</div>
       <header className="hero">
         <h1 className="display">Settings</h1>
       </header>

@@ -103,12 +103,14 @@ export default function ClientBrandPage({ embedded = false } = {}) {
   return (
     <div className={embedded ? '' : 'suite-setup'}>
       {!embedded && (
-        <header className="hero">
-          <div>
-            <div className="client-name">{client?.name || ''}</div>
-            <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
-          </div>
-        </header>
+        <>
+          <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
+          <header className="hero">
+            <div>
+              <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
+            </div>
+          </header>
+        </>
       )}
       <p className="body mb-5">
         Upload the brand's logos, product photography, fonts, colour palette and voice guidelines.
