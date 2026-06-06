@@ -5,3 +5,13 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  /* preflight is disabled, so restore the one default Tailwind's border
+     utilities depend on: border-style. Without it, `border` / `border-t`
+     set a width but no style and render NOTHING (the missing hero rule and
+     KPI card outlines). Width is left untouched so existing element/UA
+     borders are unaffected, and this lives in @layer base so unlayered
+     index.css rules still win. */
+  *, ::before, ::after { border-style: solid; }
+}
