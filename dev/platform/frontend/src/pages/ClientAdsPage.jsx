@@ -169,6 +169,7 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
+      <div className="kicker"><span className="pip" />Paid media · Google Ads + Meta</div>
       <header className="hero">
         <div>
           <div className="client-name">{client?.name}</div>
@@ -189,6 +190,7 @@ export default function ClientAdsPage() {
                 style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
               <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>%</span>
             </div>
+            <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
           </div>
         )}
       </header>
@@ -225,9 +227,6 @@ export default function ClientAdsPage() {
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {tab === 'audiences' && <AudiencesPanel clientId={id} />}
       {tab === 'performance' && <>
-      <div className="row mb-4">
-        <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Data Analyst →</Link>
-      </div>
 
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>

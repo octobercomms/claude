@@ -677,7 +677,7 @@ button { font-family: inherit; }
 
 .tabs {
   display: flex; gap: var(--s6);
-  border-bottom: var(--border-w) solid var(--accent);
+  border-bottom: var(--border-w) solid var(--text);
   margin: var(--s5) 0 var(--s6);
 }
 .tab {
@@ -691,6 +691,12 @@ button { font-family: inherit; }
   display: inline-flex; align-items: center; gap: 8px;
 }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* When a tab strip directly follows the hero, the tab strip's black rule
+   IS the divider — so drop the hero's own rule (no double line) and close
+   the gap. One black line, nav sitting on it, active tab in the suite
+   colour. */
+.hero:has(+ .tabs) { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 
 /* ─── Form controls ──────────────────────────────────────────────── */
 

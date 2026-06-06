@@ -111,6 +111,7 @@ export default function ClientSalesTrafficPage() {
 
   return (
     <div className="suite-sales" ref={scopeRef}>
+      <div className="kicker"><span className="pip" />Commercial overview · Shopify + GA4</div>
       <header className="hero">
         <div>
           <div className="client-name">{client?.name || ''}</div>
@@ -186,11 +187,11 @@ export default function ClientSalesTrafficPage() {
         <div style={{ color: 'var(--negative)', padding: 20 }}>{data.error}</div>
       ) : data ? (
         <>
-          <div className="metric-grid">
-            {cards.map(c => (
-              <div key={c.label} className="metric-card">
-                <div className="caption">{c.label}</div>
-                <div className="metric">{c.value}</div>
+          <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', marginBottom: 'var(--s5)' }}>
+            {cards.map((c, i) => (
+              <div key={c.label} className={'stat' + (i === 0 ? ' feature' : '')}>
+                <div className="stat-label">{c.label}</div>
+                <div className="stat-value">{c.value}</div>
               </div>
             ))}
           </div>
