@@ -9,8 +9,8 @@
 */
 
 :root {
-  /* Main panel — light theme. */
-  --page-bg: #ffffff;
+  /* Main panel — light theme. Off-white page, white bentos. */
+  --page-bg: #faf9f5;
   --surface: #ffffff;
   --surface-raised: #fafafa;
   --surface-sunken: #f3f3f3;
@@ -18,6 +18,7 @@
   --text-muted: #555555;
   --text-subtle: #888888;
   --border-neutral: #1a1a1a;
+  --card-border: #e3e2db;   /* soft grey — the default bento border */
 
   /* Sidebar — kept dark for chrome contrast. Only the sidebar uses
      these so the rest of the app stays two-tone clean. */
@@ -59,26 +60,11 @@
 }
 
 /* ─── Suite scopes ───────────────────────────────────────────────── */
-/* Each section gets its own accent. Apply a scope class
-   (.suite-organic, .suite-paid, etc.) on the top-level page wrapper
-   and every .card / .btn / .chip / .table inside automatically takes
-   the section colour. Dashboard, Settings and Guide stay on the
-   default brand yellow inherited from :root. */
-
-.suite-sales    { --accent: #20A39E; --accent-soft: rgba(32, 163, 158, 0.12);  --accent-on: #ffffff; }
-.suite-chat     { --accent: #EF5B5B; --accent-soft: rgba(239, 91, 91, 0.12);   --accent-on: #ffffff; }
-.suite-reports  { --accent: #4464AD; --accent-soft: rgba(68, 100, 173, 0.12);  --accent-on: #ffffff; }
-.suite-organic  { --accent: #7F055F; --accent-soft: rgba(127, 5, 95, 0.12);    --accent-on: #ffffff; }
-.suite-paid     { --accent: #046E8F; --accent-soft: rgba(4, 110, 143, 0.12);   --accent-on: #ffffff; }
-.suite-social   { --accent: #FF6542; --accent-soft: rgba(255, 101, 66, 0.12);  --accent-on: #ffffff; }
-.suite-email    { --accent: #B3001B; --accent-soft: rgba(179, 0, 27, 0.12);    --accent-on: #ffffff; }
-.suite-forms    { --accent: #81559B; --accent-soft: rgba(129, 85, 155, 0.12);  --accent-on: #ffffff; }
-.suite-setup    { --accent: #086375; --accent-soft: rgba(8, 99, 117, 0.12);    --accent-on: #ffffff; }
-
-/* Press release / video / brand pages historically shared the email
-   suite — keep that mapping so the existing scope classes still
-   resolve to a sane colour rather than the default yellow. */
-.suite-press    { --accent: #B3001B; --accent-soft: rgba(179, 0, 27, 0.12);    --accent-on: #ffffff; }
+/* Section colours have been removed — every page uses the brand accent
+   (yellow) from :root. The .suite-* class names are still applied in the
+   markup but intentionally no longer re-colour anything, so charts/tabs/
+   highlights stay on the single brand accent. Yellow is reserved for
+   action / active / highlight; bentos are white with a grey border. */
 
 /* ─── Shell ──────────────────────────────────────────────────────── */
 
@@ -156,6 +142,7 @@ button { font-family: inherit; }
   margin-bottom: var(--s3);
 }
 .kicker b { color: var(--text); font-weight: 700; }
+.kicker .kicker-name { color: var(--accent); }
 .kicker .pip { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); flex-shrink: 0; }
 
 /* ─── Stat strip ─────────────────────────────────────────────────── */
@@ -164,7 +151,8 @@ button { font-family: inherit; }
    distinct from the accent content cards. */
 .stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
 .stat {
-  border: var(--border-w) solid var(--text); border-radius: var(--r-md);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
   padding: var(--s5); min-height: 132px;
   display: flex; flex-direction: column; gap: var(--s2);
 }
@@ -212,8 +200,8 @@ button { font-family: inherit; }
 /* ─── Cards ──────────────────────────────────────────────────────── */
 
 .card {
-  background: var(--accent-soft);
-  border: var(--border-w) solid var(--accent);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-md);
   padding: var(--s5);
   color: var(--text);
@@ -248,8 +236,8 @@ button { font-family: inherit; }
   margin-bottom: var(--s5);
 }
 .metric-card {
-  background: var(--accent-soft);
-  border: var(--border-w) solid var(--accent);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-md);
   padding: var(--s4);
 }
@@ -419,8 +407,8 @@ button { font-family: inherit; }
   flex: 1; min-width: 180px;
   text-align: center;
   padding: var(--s5) var(--s4);
-  background: var(--accent-soft);
-  border: var(--border-w) solid var(--accent);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-md);
   display: flex; flex-direction: column;
   align-items: center; justify-content: flex-start;
@@ -645,12 +633,12 @@ button { font-family: inherit; }
   font-size: 12px; font-weight: 700;
   letter-spacing: 1.2px; text-transform: uppercase;
   color: var(--text);
-  border-bottom: var(--border-w) solid var(--accent);
+  border-bottom: var(--border-w) solid var(--text);
 }
 .table td {
   padding: 14px var(--s3);
   font-size: 14px; color: var(--text);
-  border-bottom: var(--border-w) solid var(--accent-soft);
+  border-bottom: 1px solid var(--card-border);
 }
 .table tr:last-child td { border-bottom: none; }
 .table td.num, .table th.num { text-align: right; }
@@ -661,16 +649,16 @@ button { font-family: inherit; }
 .empty {
   text-align: center;
   padding: var(--s9) var(--s5);
-  background: var(--accent-soft);
-  border: var(--border-w) solid var(--accent);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-md);
 }
 .empty-icon {
   width: 64px; height: 64px; border-radius: var(--r-pill);
-  background: var(--accent-soft); color: var(--accent);
+  background: var(--surface-sunken); color: var(--text-subtle);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 28px; margin-bottom: var(--s4);
-  border: var(--border-w) solid var(--accent);
+  border: var(--border-w) solid var(--card-border);
 }
 
 /* ─── Tabs ───────────────────────────────────────────────────────── */

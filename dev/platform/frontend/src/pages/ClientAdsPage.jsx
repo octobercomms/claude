@@ -169,10 +169,9 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
-      <div className="kicker"><span className="pip" />Paid media · Google Ads + Meta</div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid media · Google Ads + Meta</span></div>
       <header className="hero">
         <div>
-          <div className="client-name">{client?.name}</div>
           <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
         </div>
         {tab === 'performance' && (
