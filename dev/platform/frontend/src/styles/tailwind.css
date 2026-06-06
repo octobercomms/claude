@@ -1,0 +1,7 @@
+/* Tailwind utility layer. Tokens live in index.css (:root); this file
+   only emits Tailwind's layers. Imported after index.css so utilities
+   win when a migrated component opts into them. preflight is disabled
+   in tailwind.config.js, so this adds no global reset. */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

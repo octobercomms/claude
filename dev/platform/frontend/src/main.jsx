@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
+import './styles/tailwind.css';
 
 // Browser-level safety nets — unhandled errors and promise rejections
 // outside the React tree (event handlers attached imperatively, async
