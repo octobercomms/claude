@@ -14,27 +14,35 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-subtle" style={{ padding: 40, textAlign: 'center' }}>Loading dashboard…</div>;
-  if (error) return <div className="callout callout-danger">{error}</div>;
+  if (loading) return <div className="text-subtle text-center p-s8">Loading dashboard…</div>;
+  if (error) {
+    return (
+      <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[13px] leading-[1.5] mb-s5">
+        {error}
+      </div>
+    );
+  }
 
   const { clients = [], alerts = {}, recent_reports = [] } = data || {};
   const expiredTokens = alerts.expired_meta_tokens || [];
 
   return (
     <div>
-      <header className="hero">
-        <h1 className="display">Dashboard</h1>
+      <header className="mb-s7">
+        <h1 className="text-[48px] font-bold leading-[1.05] tracking-[-1.2px] text-ink m-0 max-md:text-[36px] max-md:tracking-[-1px]">
+          Dashboard
+        </h1>
       </header>
 
       {expiredTokens.length > 0 && (
-        <div className="callout callout-danger">
+        <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[13px] leading-[1.5] mb-s5">
           <strong>⚠ Meta token expired</strong> — {expiredTokens.map(t => t.client_name).join(', ')}
           {' — '}
-          <Link to="/clients" style={{ color: 'inherit', textDecoration: 'underline' }}>Reauthorise</Link>
+          <Link to="/clients" className="text-inherit underline">Reauthorise</Link>
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+      <div className="grid gap-s4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
         {clients.map(client => (
           <ClientCard key={client.id} client={client} />
         ))}
@@ -43,6 +51,7 @@ export default function DashboardPage() {
       {recent_reports.length > 0 && (
         <div style={{ marginTop: 'var(--s8)' }}>
           <h2 className="h2 mb-4">Recent Reports</h2>
+          {/* Reports styling left untouched — uses the existing card/table/chip classes. */}
           <div className="card" style={{ padding: 0 }}>
             <table className="table">
               <thead>
@@ -76,36 +85,43 @@ function ClientCard({ client }) {
   const total = connectors.length;
   const active = connectors.filter(c => c.status === 'active').length;
   const errors = connectors.filter(c => ['error', 'expired'].includes(c.status)).length;
-  const healthClass = errors > 0 ? 'error' : (active === total && total > 0 ? 'ok' : 'warn');
+  const dotColor = errors > 0 ? 'bg-negative' : (active === total && total > 0 ? 'bg-positive' : 'bg-warning');
 
   return (
-    <div className="card card-stat">
-      <div className="card-stat-head">
+    <div className="bg-accent-soft border border-accent rounded-md p-s5 max-md:p-s4 text-ink flex flex-col gap-s3">
+      <div className="flex justify-between items-start">
         <div>
-          <div className="h3">{client.name}</div>
-          <div className="body-xs text-subtle mt-2">{client.slug}</div>
+          <div className="text-[15px] font-semibold leading-[1.3] text-ink m-0">{client.name}</div>
+          <div className="text-[12px] leading-[1.4] text-subtle mt-s2">{client.slug}</div>
         </div>
-        <div className={`health-dot ${healthClass}`} title={`${active}/${total} connectors active`} />
+        <div className={`w-2.5 h-2.5 rounded-pill mt-1 ${dotColor}`} title={`${active}/${total} connectors active`} />
       </div>
-      <div className="stack stack-sm" style={{ flex: 1 }}>
-        <div className="card-stat-row">
+      <div className="flex flex-col flex-1 space-y-s2">
+        <div className="flex justify-between text-[13px] text-muted">
           <span>Connectors</span>
-          <strong>{active}/{total} active</strong>
+          <strong className="text-ink font-semibold">{active}/{total} active</strong>
         </div>
         {client.last_report && (
-          <div className="card-stat-row">
+          <div className="flex justify-between text-[13px] text-muted">
             <span>Last report</span>
-            <strong>
+            <strong className="text-ink font-semibold">
               <StatusBadge status={client.last_report.status} /> {formatDate(client.last_report.created_at)}
             </strong>
           </div>
         )}
       </div>
-      <Link to={`/clients/${client.id}/sales-traffic`} className="card-stat-link">Manage client →</Link>
+      <Link
+        to={`/clients/${client.id}/sales-traffic`}
+        className="text-[12px] text-accent no-underline font-bold border-t border-accent-soft pt-s3 mt-s2"
+      >
+        Manage client →
+      </Link>
     </div>
   );
 }
 
+// Shared chip primitive — also used in the Reports table, so left on the
+// existing .chip classes.
 function StatusBadge({ status }) {
   const tone = {
     sent: 'success', generated: 'accent', generating: 'warning',
