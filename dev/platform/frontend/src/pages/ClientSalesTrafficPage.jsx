@@ -111,10 +111,9 @@ export default function ClientSalesTrafficPage() {
 
   return (
     <div className="suite-sales" ref={scopeRef}>
-      <div className="kicker"><span className="pip" />Commercial overview · Shopify + GA4</div>
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Commercial overview · Shopify + GA4</span></div>
       <header className="hero">
         <div>
-          <div className="client-name">{client?.name || ''}</div>
           <h1 className="display mt-2">Sales &amp; <span className="text-accent">Traffic</span></h1>
         </div>
         {tab === 'dashboard' && (

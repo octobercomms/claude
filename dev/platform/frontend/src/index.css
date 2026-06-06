@@ -156,6 +156,7 @@ button { font-family: inherit; }
   margin-bottom: var(--s3);
 }
 .kicker b { color: var(--text); font-weight: 700; }
+.kicker .kicker-name { color: var(--accent); }
 .kicker .pip { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); flex-shrink: 0; }
 
 /* ─── Stat strip ─────────────────────────────────────────────────── */

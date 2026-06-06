@@ -608,9 +608,9 @@ export default function ClientSEOPage() {
   return (
     <div className="suite-organic">
       <DfsAvailabilityBanner />
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Organic search · rankings + Search Console</span></div>
       <header className="hero">
         <div>
-          <div className="client-name">{client?.name}</div>
           <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
         </div>
         {activeTab === 'keywords' && (

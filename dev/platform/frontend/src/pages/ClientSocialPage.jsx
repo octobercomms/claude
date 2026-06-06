@@ -322,9 +322,9 @@ export default function ClientSocialPage() {
     <div className="suite-social">
       {/* HERO — always visible across tabs. Tab-specific actions sit
           inside each tab's section head instead of a global toolbar. */}
+      <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Social · planning &amp; publishing</span></div>
       <header className="hero">
         <div>
-          <div className="client-name">{client?.name || ''}</div>
           <h1 className="display mt-2"><span className="text-accent">Social</span></h1>
         </div>
         <div className="hero-actions">
