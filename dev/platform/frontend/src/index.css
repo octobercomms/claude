@@ -119,8 +119,8 @@ button { font-family: inherit; }
 /* ─── Type ───────────────────────────────────────────────────────── */
 
 .display {
-  font-size: 48px; font-weight: 700; line-height: 1.05;
-  letter-spacing: -1.2px; color: var(--text); margin: 0;
+  font-size: 54px; font-weight: 800; line-height: 1;
+  letter-spacing: -1.6px; color: var(--text); margin: 0;
 }
 
 .h1 { font-size: 32px; font-weight: 700; line-height: 1.15; letter-spacing: -0.6px; color: var(--text); margin: 0; }
@@ -147,6 +147,36 @@ button { font-family: inherit; }
   letter-spacing: -0.6px; color: var(--text);
 }
 
+/* ─── Kicker ─────────────────────────────────────────────────────── */
+/* Tracked uppercase context line that sits above a page hero. */
+.kicker {
+  display: flex; align-items: center; gap: var(--s3);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.18em;
+  text-transform: uppercase; color: var(--text-subtle);
+  margin-bottom: var(--s3);
+}
+.kicker b { color: var(--text); font-weight: 700; }
+.kicker .pip { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); flex-shrink: 0; }
+
+/* ─── Stat strip ─────────────────────────────────────────────────── */
+/* Headline KPI row. One .stat.feature inverts (ink fill, accent number)
+   to anchor the eye. Borders are ink so the row reads as data chrome,
+   distinct from the accent content cards. */
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
+.stat {
+  border: var(--border-w) solid var(--text); border-radius: var(--r-md);
+  padding: var(--s5); min-height: 132px;
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.stat .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.stat .stat-value { font-size: 44px; font-weight: 800; letter-spacing: -2px; line-height: 0.9; margin-top: auto; color: var(--text); }
+.stat .stat-value small { font-size: 20px; color: var(--text-subtle); letter-spacing: 0; font-weight: 700; }
+.stat .stat-sub { font-size: 12px; color: var(--text-subtle); }
+.stat .stat-sub.warn { color: var(--warning); font-weight: 600; }
+.stat.feature { background: var(--text); border-color: var(--text); }
+.stat.feature .stat-label, .stat.feature .stat-sub { color: rgba(255, 255, 255, 0.6); }
+.stat.feature .stat-value { color: var(--accent); }
+
 /* ─── Hero ───────────────────────────────────────────────────────── */
 
 /* Page hero — page name dominates as the display title; the client
@@ -155,7 +185,11 @@ button { font-family: inherit; }
    action), the hero becomes a flex row by virtue of having a direct
    `.hero-actions` child: the actions sit top-right, in line with the
    page name. */
-.hero { margin-bottom: var(--s7); }
+.hero {
+  margin-bottom: var(--s7);
+  padding-bottom: var(--s5);
+  border-bottom: var(--border-w) solid var(--text);
+}
 .hero:has(> .hero-actions) {
   display: flex;
   justify-content: space-between;
@@ -165,8 +199,8 @@ button { font-family: inherit; }
 }
 .hero:has(> .hero-actions) > :first-child { min-width: 0; }
 .hero .client-name {
-  font-size: 26px; font-weight: 700; color: var(--text);
-  letter-spacing: -0.2px; line-height: 1.1; margin: 0;
+  font-size: 13px; font-weight: 700; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 0.12em; line-height: 1.2; margin: 0;
 }
 .hero .display { margin-top: var(--s2); }
 .hero .body { margin-top: var(--s4); max-width: 640px; }
@@ -808,11 +842,15 @@ select, textarea {
   }
 
   /* Type scale shrinks for narrow screens */
-  .display { font-size: 36px; letter-spacing: -1px; }
+  .display { font-size: 40px; letter-spacing: -1.2px; }
   .h1 { font-size: 26px; }
   .h2 { font-size: 19px; }
   .metric { font-size: 28px; }
-  .hero .client-name { font-size: 18px; }
+  .hero .client-name { font-size: 12px; }
+
+  /* Stat strip stacks two-up on narrow screens */
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .stat { min-height: 0; }
 
   /* Layout primitives collapse to single column */
   .grid-2 { grid-template-columns: 1fr; }
