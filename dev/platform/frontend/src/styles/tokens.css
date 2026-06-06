@@ -1,0 +1,70 @@
+/* =====================================================================
+   October Marketing Intelligence — design tokens (bold refresh)
+   Single source of truth for the new design system. Consumed by
+   tailwind.config.js (via var(--…)) and directly in CSS/components.
+
+   Scope note: this is ADDITIVE. theme.js stays as the legacy token set
+   for the Reports feature and any not-yet-migrated page. Tailwind
+   preflight is disabled, so loading this file changes nothing until a
+   component opts into the new tokens/utilities.
+   ===================================================================== */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Core */
+  --ink: #0A0A0A;          /* near-black: text, primary actions, sidebar */
+  --paper: #FAFAF7;        /* warm off-white app canvas */
+  --surface: #FFFFFF;      /* cards / panels */
+
+  /* Accent — October yellow, used as the single electric accent */
+  --yellow: #E7CD41;
+  --yellow-bright: #FFE14D;/* hover / data emphasis */
+  --yellow-ink: #3D3500;   /* readable text on yellow */
+
+  /* Neutral ramp (WCAG-AA aware) */
+  --g-900: #0A0A0A;
+  --g-700: #3A3A38;        /* primary body text */
+  --g-500: #6B6B66;        /* muted text — 4.6:1 on paper (passes AA) */
+  --g-400: #9A9A93;
+  --g-300: #CFCFC8;
+  --g-200: #E6E5DE;
+  --g-100: #F1F0EA;
+  --line: #E0DFD7;         /* hairline borders */
+
+  /* Semantic */
+  --success: #1F7A4D;
+  --danger:  #C0341D;
+  --info:    #2D5BD0;
+
+  /* Categorical data-viz palette (Recharts) */
+  --d1: #0A0A0A; --d2: #E7CD41; --d3: #2D5BD0;
+  --d4: #1F7A4D; --d5: #C0341D; --d6: #9A9A93;
+
+  /* Geometry & elevation */
+  --radius: 4px;
+  --radius-lg: 8px;
+  --shadow-sm: 0 1px 2px rgba(10, 10, 10, 0.06);
+  --shadow: 0 6px 24px rgba(10, 10, 10, 0.10);
+
+  /* Focus ring — yellow, high-visibility */
+  --ring: rgba(231, 205, 65, 0.55);
+}
+
+/* Dark mode — same tokens, inverted. Applied via <html class="dark">. */
+.dark {
+  --ink: #FFFFFF;
+  --paper: #0A0A0A;
+  --surface: #141413;
+  --yellow-ink: #3D3500;
+  --g-900: #FFFFFF;
+  --g-700: #D6D5CD;
+  --g-500: #9A9A93;
+  --g-400: #6B6B66;
+  --g-300: #3A3A38;
+  --g-200: #26261F;
+  --g-100: #1A1A18;
+  --line: #26261F;
+}
