@@ -306,6 +306,7 @@ export default function GuidePage() {
   }
   return (
     <div>
+      <div className="kicker"><span className="pip" />Help &amp; documentation</div>
       <header className="hero">
         <h1 className="display">Guide</h1>
         <p className="body mt-4">

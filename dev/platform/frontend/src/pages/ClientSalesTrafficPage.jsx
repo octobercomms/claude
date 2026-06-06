@@ -237,7 +237,7 @@ export default function ClientSalesTrafficPage() {
                   <XAxis type="number" tick={{ fontSize: 10 }} />
                   <YAxis type="category" dataKey="channel" tick={{ fontSize: 11 }} width={120} />
                   <Tooltip />
-                  <Bar dataKey="sessions" name="Sessions" fill={accent} />
+                  <Bar dataKey="sessions" name="Sessions" fill={text} />
                 </BarChart>
               </ResponsiveContainer>
             ) : <p className="body-sm text-subtle" style={{ padding: "20px 0", margin: 0 }}>No channel data.</p>}

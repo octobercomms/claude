@@ -163,6 +163,7 @@ export default function RankingsPage() {
 
   return (
     <div className="suite-organic">
+      <div className="kicker"><span className="pip" />Organic · search rankings</div>
       <header className="hero">
         <h1 className="display">Rankings</h1>
       </header>
