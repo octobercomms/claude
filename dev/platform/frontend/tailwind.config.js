@@ -33,6 +33,7 @@ export default {
         muted: 'var(--text-muted)',
         subtle: 'var(--text-subtle)',
         line: 'var(--border-neutral)',
+        cardborder: 'var(--card-border)',
         accent: {
           DEFAULT: 'var(--accent)',
           soft: 'var(--accent-soft)',

@@ -120,7 +120,7 @@ export default function DashboardPage() {
 // KPI block. `feature` inverts it (ink bg, accent number) to anchor the row.
 function Stat({ label, value, sub, subTone, feature = false }) {
   return (
-    <div className={`border border-ink rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink' : ''}`}>
+    <div className={`border rounded-md p-s5 flex flex-col gap-s3 min-h-[140px] ${feature ? 'bg-ink border-ink' : 'bg-surface border-cardborder'}`}>
       <div className={`text-[11px] font-bold tracking-[0.12em] uppercase ${feature ? 'text-white/60' : 'text-muted'}`}>{label}</div>
       <div className={`text-[46px] font-extrabold leading-[0.9] tracking-[-2px] mt-auto ${feature ? 'text-accent' : 'text-ink'}`}>{value}</div>
       <div className={`text-[12px] flex items-center gap-1.5 ${feature ? 'text-white/60' : subTone === 'warn' ? 'text-warning font-semibold' : 'text-subtle'}`}>{sub}</div>
@@ -136,7 +136,7 @@ function ClientCard({ client }) {
   const dotColor = errors > 0 ? 'bg-negative' : (active === total && total > 0 ? 'bg-positive' : 'bg-warning');
 
   return (
-    <div className="bg-accent-soft border border-accent rounded-md p-s5 max-md:p-s4 text-ink flex flex-col gap-s3">
+    <div className="bg-surface border border-cardborder rounded-md p-s5 max-md:p-s4 text-ink flex flex-col gap-s3">
       <div className="flex justify-between items-start">
         <div>
           <div className="text-[17px] font-extrabold leading-[1.2] tracking-[-0.3px] text-ink m-0">{client.name}</div>
@@ -160,7 +160,7 @@ function ClientCard({ client }) {
       </div>
       <Link
         to={`/clients/${client.id}/sales-traffic`}
-        className="flex justify-between items-center text-[12px] font-extrabold text-ink no-underline border-t border-accent pt-s3 mt-s2"
+        className="flex justify-between items-center text-[12px] font-extrabold text-ink no-underline border-t border-cardborder pt-s3 mt-s2"
       >
         <span>Manage client</span>
         <span className="text-[15px]">→</span>
