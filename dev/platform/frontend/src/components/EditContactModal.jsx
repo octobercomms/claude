@@ -223,7 +223,7 @@ function ActivityPanel({ contact, activity, err, onReloadActivity }) {
       )}
 
       {!!events.length && (
-        <div style={{ maxHeight: 420, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ maxHeight: 420, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           {events.map((e, i) => (
             <div key={i} style={eventRow}>
               <div style={{ ...iconBadge, background: badgeColor(e.type) }}>{iconFor(e.type)}</div>
@@ -276,10 +276,10 @@ function shorten(u) {
 }
 
 const statRow = { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 };
-const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
+const statBox = { padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textAlign: 'center' };
 const eventRow = { display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderTop: '1px solid #f4f4f4' };
 const iconBadge = { width: 28, height: 28, borderRadius: 'var(--r-md)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 };
-const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
+const resubBtn = { background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', color: 'var(--text)', whiteSpace: 'nowrap' };
 
 function Section({ title, children }) {
   return (

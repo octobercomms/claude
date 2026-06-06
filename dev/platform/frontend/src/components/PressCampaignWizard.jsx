@@ -70,7 +70,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
         </div>
 
         {parsed && (
-          <div style={{ marginTop: 18, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', maxHeight: 460, overflowY: 'auto' }}>
+          <div style={{ marginTop: 18, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 460, overflowY: 'auto' }}>
             <div className="field-label">Parsed preview — edit if needed</div>
             <label className="field-label" style={{ marginTop: 8 }}>Title</label>
             <input value={parsed.title || ''} onChange={e => setParsed({ ...parsed, title: e.target.value })} className="input" />
@@ -89,7 +89,7 @@ export default function PressCampaignWizard({ clientId, initialUrl = '', onClose
                 <div className="field-label">{parsed.images.length} image{parsed.images.length === 1 ? '' : 's'} found</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                   {parsed.images.slice(0, 6).map((img, i) => (
-                    <img key={i} src={img.src} alt={img.alt} style={{ height: 52, borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--accent)' }} />
+                    <img key={i} src={img.src} alt={img.alt} style={{ height: 52, borderRadius: 'var(--r-sm)', border: 'var(--border-w) solid var(--card-border)' }} />
                   ))}
                 </div>
               </div>

@@ -366,7 +366,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   type="datetime-local"
                   value={schedule.scheduled_at}
                   onChange={e => { setSchedule(s => ({ ...s, scheduled_at: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
               <label style={{ display: 'flex', flexDirection: 'column', gap: 3, flex: '1 1 240px' }}>
@@ -376,7 +376,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                   placeholder="https://drive.google.com/drive/folders/..."
                   value={schedule.drive_folder_url}
                   onChange={e => { setSchedule(s => ({ ...s, drive_folder_url: e.target.value })); setScheduleDirty(true); }}
-                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+                  style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                 />
               </label>
             </div>
@@ -463,7 +463,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {captionPreview && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {Object.entries(captionPreview).map(([platform, text]) => (
-                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12, whiteSpace: 'pre-wrap' }}>
+                      <div key={platform} style={{ padding: '8px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12, whiteSpace: 'pre-wrap' }}>
                         <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>{platform}</div>
                         {text}
                       </div>
@@ -487,7 +487,7 @@ export default function SocialPlannerChat({ clientId, clientName, planId, seedHo
                 {publications && publications.length > 0 && (
                   <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {publications.map(pub => (
-                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div key={pub.platform} style={{ padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ fontWeight: 700, textTransform: 'capitalize', minWidth: 80 }}>{pub.platform}</span>
                         <span style={{ color: pub.status === 'posted' ? 'var(--positive)' : pub.status === 'failed' ? 'var(--negative)' : 'var(--text-muted)' }}>
                           {pub.status === 'posted' ? '✓ posted' : pub.status === 'failed' ? '✗ failed' : pub.status}

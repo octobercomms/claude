@@ -361,7 +361,7 @@ export default function ClientOutreachPage() {
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Email outreach · sequences &amp; mailboxes</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2"><span className="text-accent">Email</span></h1>
+          <h1 className="display mt-2">Email</h1>
         </div>
         <div className="hero-actions">
           <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} className="btn btn-secondary btn-sm">+ Add Contact</button>
@@ -859,7 +859,7 @@ function HelpPanel({ dnsCheck }) {
 }
 function HelpCard({ title, children }) {
   return (
-    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
+    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
       <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
       {children}
     </div>
@@ -971,7 +971,7 @@ function LibraryPicker({ clientId, onAttached }) {
 
       {filtered && !!filtered.length && (
         <>
-          <div style={{ maxHeight: 360, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ maxHeight: 360, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
             {filtered.map(r => (
               <label key={r.id} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '8px 10px', borderTop: '1px solid #f4f4f4', cursor: 'pointer' }}>
                 <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />

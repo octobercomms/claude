@@ -107,7 +107,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
           <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
           <header className="hero">
             <div>
-              <h1 className="display mt-2"><span className="text-accent">Brand</span></h1>
+              <h1 className="display mt-2">Brand</h1>
             </div>
           </header>
         </>
@@ -129,7 +129,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       </div>
 
       {/* Upload buttons */}
-      <div className="row wrap" style={{ marginBottom: 22, padding: 14, background: "var(--surface-raised)", border: "var(--border-w) solid var(--accent)", borderRadius: "var(--r-sm)" }}>
+      <div className="row wrap" style={{ marginBottom: 22, padding: 14, background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)" }}>
         <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/*" />
         <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/*" />
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
@@ -312,6 +312,6 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--accent-soft)', borderRadius: 14, width: '100%', maxWidth: 460, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--accent)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: '2px solid var(--card-border)', borderRadius: 4, fontFamily: 'inherit', boxSizing: 'border-box' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

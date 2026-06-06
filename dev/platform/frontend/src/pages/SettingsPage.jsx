@@ -653,7 +653,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 16, marginBottom: 16 }}>
+    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 16, marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
@@ -1109,7 +1109,7 @@ function ContactsLibrary() {
             </div>
 
             {bulkTagsOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>
                   Add tags to the {selected.size} selected contact{selected.size === 1 ? '' : 's'}:
                 </div>
@@ -1146,7 +1146,7 @@ function ContactsLibrary() {
             )}
 
             {attachOpen && (
-              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
+              <div style={{ marginBottom: 10, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>Attach the {selected.size} selected contact{selected.size === 1 ? '' : 's'} to:</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                   {clients.map(c => (
@@ -1553,7 +1553,7 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
                 Nothing to clean up — the records in this filter look healthy.
               </div>
             ) : (
-              <div style={{ maxHeight: 460, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 0 }}>
+              <div style={{ maxHeight: 460, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 0 }}>
                 {grouped.map(g => (
                   <div key={g.id} style={{ padding: '10px 12px', borderBottom: '1px solid #f1f1f1' }}>
                     <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 700, marginBottom: 6 }}>
@@ -1646,10 +1646,10 @@ const tidyStyles = {
   eyebrow: { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },
   hint: { fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 },
-  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 13, marginTop: 12 },
+  summary: { background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 14, fontSize: 13, marginTop: 12 },
   footer: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 16, paddingTop: 12, borderTop: '1px solid #eee' },
   btn: { background: 'var(--accent)', color: 'var(--text)', border: 'none', borderRadius: 'var(--r-pill)', padding: '8px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' },
-  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
+  ghostBtn: { background: 'var(--accent-soft)', color: 'var(--text)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', padding: '7px 14px', fontSize: 12, fontWeight: 600, cursor: 'pointer' },
   err: { padding: 10, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', color: 'var(--negative)', borderRadius: 'var(--r-sm)', fontSize: 12, marginBottom: 12 },
   fieldChip: { background: 'var(--warning-soft)', padding: '1px 6px', borderRadius: 'var(--r-sm)', fontSize: 11, fontFamily: 'inherit', fontWeight: 700, color: 'var(--warning)' },
 };
