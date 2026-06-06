@@ -325,7 +325,7 @@ export default function ClientSocialPage() {
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Social · planning &amp; publishing</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2"><span className="text-accent">Social</span></h1>
+          <h1 className="display mt-2">Social</h1>
         </div>
         <div className="hero-actions">
           <UiButton variant="primary" size="sm" onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
@@ -624,7 +624,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
 
         <div style={{ marginBottom: 14 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Posts</div>
-          <div style={{ maxHeight: 200, overflow: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ maxHeight: 200, overflow: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
             {posts.map(p => (
               <label key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', cursor: 'pointer', fontSize: 12 }}>
                 <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggle(p.id)} style={{ marginTop: 2 }} />
@@ -652,7 +652,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Drive folder URL (shared)</div>
             <input type="text" value={driveFolderUrl} onChange={e => setDriveFolderUrl(e.target.value)}
               placeholder="https://drive.google.com/drive/folders/…"
-              style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+              style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
           </div>
         </div>
 
@@ -666,7 +666,7 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
                     flex: 1, padding: '6px 0', fontSize: 11, fontWeight: 600,
                     background: daysOfWeek.includes(i) ? 'var(--text)' : 'white',
                     color: daysOfWeek.includes(i) ? 'white' : 'var(--text-muted)',
-                    border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
+                    border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer',
                   }}>{label}</button>
               ))}
             </div>
@@ -675,12 +675,12 @@ function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Start date</div>
               <input type="date" value={startAt} onChange={e => setStartAt(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
             </div>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 6 }}>Time</div>
               <input type="time" value={timeOfDay} onChange={e => setTimeOfDay(e.target.value)}
-                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
+                style={{ width: '100%', padding: '6px 8px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }} />
             </div>
           </div>
         </div>
@@ -738,9 +738,9 @@ function HookVaultModal({ clientId, onClose, onUse }) {
         <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search hooks…"
-            style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 13 }} />
+            style={{ flex: 1, padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 13 }} />
           <select value={framework} onChange={e => setFramework(e.target.value)}
-            style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
+            style={{ padding: '6px 10px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12 }}>
             <option value="">All frameworks</option>
             <option value="Hook-Story-Offer">Hook-Story-Offer</option>
             <option value="AIDA">AIDA</option>
@@ -757,7 +757,7 @@ function HookVaultModal({ clientId, onClose, onUse }) {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {hooks.map((h, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                 <div style={{ flex: 1, marginRight: 12 }}>
                   <div style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600, lineHeight: 1.4 }}>{h.hook}</div>
                   <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 3, display: 'flex', gap: 8 }}>
@@ -849,12 +849,12 @@ function PlansList({ clientId, clientName, onOpen }) {
   if (!plans.length) return null;
 
   return (
-    <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+    <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Locked plans
         </div>
-        <div style={{ display: 'flex', gap: 0, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', gap: 0, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden' }}>
           {['list', 'calendar'].map(v => (
             <button key={v} type="button" onClick={() => setView(v)}
               style={{
@@ -878,7 +878,7 @@ function PlansList({ clientId, clientName, onOpen }) {
           const eng = p.engagement || {};
           const hasEng = Number(eng.likes || 0) + Number(eng.comments || 0) + Number(eng.shares || 0) > 0;
           return (
-            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
               <button type="button" onClick={() => onOpen(p.id)} style={{ background: 'none', border: 'none', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, color: 'var(--text)' }}>
                 {p.title || '(untitled)'}
               </button>
@@ -916,14 +916,14 @@ function PlansList({ clientId, clientName, onOpen }) {
                       {savingEdit ? '…' : 'Save'}
                     </button>
                     <button type="button" onClick={() => setEditingPlanId(null)}
-                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+                      style={{ fontSize: 11, padding: '2px 8px', background: 'white', color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
                       Cancel
                     </button>
                   </span>
                 )}
                 <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{new Date(p.updated_at).toLocaleDateString('en-GB')}</span>
-                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
-                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'pdf')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ PDF</button>
+                <button type="button" onClick={() => downloadPlan(p.id, 'docx')} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '2px 8px', fontSize: 11, color: 'var(--text-muted)', cursor: 'pointer' }}>↓ Word</button>
               </div>
             </div>
           );
@@ -968,9 +968,9 @@ function PlansCalendar({ plans, onOpen }) {
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
+        <button type="button" onClick={() => shift(-1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>← Prev</button>
         <div style={{ fontWeight: 700, fontSize: 13 }}>{monthLabel}</div>
-        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
+        <button type="button" onClick={() => shift(1)} style={{ background: 'white', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '4px 10px', fontSize: 12, cursor: 'pointer' }}>Next →</button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
         {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
@@ -1018,7 +1018,7 @@ function CompetitorEditor({ competitors, onSave }) {
     onSave(competitors.filter(c => c !== handle));
   }
   return (
-    <div className="row wrap" style={{ alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--surface-raised)", border: "var(--border-w) solid var(--accent)", borderRadius: "var(--r-sm)", marginBottom: 6 }}>
+    <div className="row wrap" style={{ alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)", marginBottom: 6 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
         Competitor handles
       </span>
@@ -1035,7 +1035,7 @@ function CompetitorEditor({ competitors, onSave }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && add()}
             placeholder="instagram:handle"
-            style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginLeft: 6 }}
+            style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginLeft: 6 }}
           />
           <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
           <button onClick={() => setEditing(false)} className="btn btn-secondary btn-sm">Done</button>
@@ -1085,7 +1085,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
   const [open, setOpen] = React.useState(false);
   const visible = open ? sounds : sounds.slice(0, 5);
   return (
-    <div style={{ background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
+    <div style={{ background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '10px 14px', marginTop: 10, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: sounds.length ? 8 : 0 }}>
         <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           Trending TikTok sounds
@@ -1093,7 +1093,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
           {sounds.length ? `${sounds.length} cached` : '(none pulled yet — click Refresh)'}
         </span>
-        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
+        <button onClick={onRefresh} disabled={refreshing} style={{ marginLeft: 'auto', padding: '4px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', borderRadius: 'var(--r-pill)', cursor: 'pointer' }}>
           {refreshing ? 'Pulling…' : 'Refresh'}
         </button>
         {sounds.length > 5 && (
@@ -1106,7 +1106,7 @@ function TrendingSoundsBar({ sounds, onRefresh, refreshing }) {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
           {visible.map((s, i) => (
             <a key={s.id || i} href={s.tiktok_url || '#'} target="_blank" rel="noreferrer"
-              style={{ fontSize: 11, padding: '4px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
+              style={{ fontSize: 11, padding: '4px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)', color: 'var(--text)', textDecoration: 'none', display: 'inline-flex', gap: 6, alignItems: 'center', maxWidth: 280 }}
               title={`${s.title} — ${s.author || 'unknown'}`}>
               <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
               {s.use_count && <span style={{ color: 'var(--text-subtle)', fontSize: 10 }}>{s.use_count.toLocaleString()}</span>}
@@ -1329,7 +1329,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
         <div style={{ marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {post.image_urls.map((u, i) => (
             <a key={i} href={u} target="_blank" rel="noreferrer">
-              <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)" }} />
+              <img src={u} alt="" style={{ width: 64, height: 64, objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)" }} />
             </a>
           ))}
         </div>
@@ -1352,13 +1352,13 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
           {videos.map(v => (
             <div key={v.id} style={{ position: 'relative' }}>
               <video src={v.url} controls style={{ width: 180, borderRadius: 'var(--r-sm)', background: '#000' }} />
-              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+              <button onClick={() => onDeleteMedia(v.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
             </div>
           ))}
           {audios.map(a => (
             <div key={a.id} style={{ position: 'relative', width: 220 }}>
               <audio src={a.url} controls style={{ width: '100%' }} />
-              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
+              <button onClick={() => onDeleteMedia(a.id)} style={{ position: 'absolute', top: -6, right: -6, width: 20, height: 20, borderRadius: '50%', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', cursor: 'pointer', fontSize: 12, color: 'var(--negative)' }}>×</button>
             </div>
           ))}
         </div>
@@ -1404,11 +1404,11 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       </div>
 
       {showPublish && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 6, lineHeight: 1.5 }}>
             Paste the live Instagram, TikTok or LinkedIn URL once it's published. We'll pull engagement automatically (IG only — paste numbers manually for other networks via Edit).
           </div>
-          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
+          <input value={publishUrl} onChange={e => setPublishUrl(e.target.value)} placeholder="https://instagram.com/p/…" style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', boxSizing: 'border-box', marginBottom: 8 }} />
           <button onClick={() => { onPublish(publishUrl); setShowPublish(false); setPublishUrl(''); }}
             className="btn btn-primary btn-sm" disabled={!publishUrl.trim()}>
             Save & pull insights
@@ -1450,7 +1450,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
       )}
 
       {showImg && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['replicate', 'ideogram', 'adobe'].map(p => (
               <button key={p} onClick={() => setProvider(p)} type="button" className={`btn ${provider === p ? "btn-primary" : "btn-secondary"} btn-sm`}>{p}</button>
@@ -1466,7 +1466,7 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
             value={styleBrief}
             onChange={e => setStyleBrief(e.target.value)}
             placeholder="Style brief — e.g. Josef Müller-Brockmann style"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
+            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }}
           />
           {err && <div style={{ color: 'var(--negative)', fontSize: 11, marginBottom: 6 }}>{err}</div>}
           <button onClick={generateImage} className="btn btn-primary btn-sm" disabled={generating}>
@@ -1483,8 +1483,8 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 12, marginBottom: 6 },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
-  pill: { padding: '5px 12px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  pill: { padding: '5px 12px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 'var(--r-pill)', textTransform: 'capitalize' },
   pillOn: { padding: '5px 12px', fontSize: 12, border: '1px solid #1a1a1a', background: 'var(--text)', color: 'var(--surface)', cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 700, textTransform: 'capitalize' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 18 },
 };

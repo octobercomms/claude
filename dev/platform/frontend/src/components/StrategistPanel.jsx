@@ -218,7 +218,7 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                         value={recipients}
                         onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
                         placeholder="email@example.com, another@example.com"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
                       />
                       {recipientsDirty && (
                         <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">

@@ -499,7 +499,7 @@ function StepEmails({ campaign, onBack, onNext }) {
       {steps === null && <p style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Loading…</p>}
       {steps !== null && steps.length === 0 && <p style={{ fontSize: 13, color: 'var(--text-subtle)' }}>No sequence yet — generate one with Claude.</p>}
       {steps && steps.map(stp => (
-        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12, marginBottom: 10 }}>
+        <div key={stp.id} style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 12, marginBottom: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Step {stp.step_number} · sent day {stp.delay_days}
           </div>
@@ -550,10 +550,10 @@ function StepEmails({ campaign, onBack, onNext }) {
             ) : (
               <>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>Subject</div>
-                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 12, fontSize: 13 }}>
+                <div style={{ padding: '8px 10px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 12, fontSize: 13 }}>
                   {previewStep.subject || <em style={{ color: 'var(--text-subtle)' }}>(empty)</em>}
                 </div>
-                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
+                <iframe srcDoc={previewStep.html} title="Preview" style={{ width: '100%', height: 480, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
               </>
             )}
           </div>
@@ -635,7 +635,7 @@ function StepLaunch({ campaign, onBack, onExit, onCampaignChange }) {
           />
 
           {/* Stats — informational */}
-          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
+          <div style={{ marginTop: 18, padding: 12, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.7 }}>
             <div style={{ fontWeight: 700, fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>Stats</div>
             <div>Recipients: <strong>{stats.total_recipients ?? 0}</strong></div>
             {stats.previously_bounced != null && <div>Previously bounced (will be skipped): <strong>{stats.previously_bounced}</strong></div>}
@@ -741,7 +741,7 @@ function ExistingTable({ rows, selected, onToggle }) {
 }
 function Tag({ children, onRemove }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', padding: '3px 8px 3px 10px', fontSize: 12 }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: '3px 8px 3px 10px', fontSize: 12 }}>
       {children}
       <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-subtle)', fontSize: 13, lineHeight: 1, padding: 0 }} title="Remove">×</button>
     </span>

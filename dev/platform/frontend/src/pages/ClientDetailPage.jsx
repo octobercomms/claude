@@ -311,7 +311,7 @@ export default function ClientDetailPage() {
       <div className="kicker"><span className="pip" />{client.name && <span className="kicker-name">{client.name}</span>}</div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2"><span className="text-accent">{pageTitle}</span></h1>
+          <h1 className="display mt-2">{pageTitle}</h1>
         </div>
         <div className="hero-actions">
           <span className={`chip ${client.active ? 'chip-success' : 'chip-neutral'}`}>
@@ -621,7 +621,7 @@ export default function ClientDetailPage() {
                 const tpl = templateSummary[rt];
                 const sections = tpl?.sections || [];
                 return (
-                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
+                  <div key={rt} style={{ flex: 1, minWidth: 280, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', background: 'var(--surface-raised)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
                       <div style={{ fontWeight: 700, fontSize: 13, textTransform: 'capitalize' }}>{rt} template</div>
                       <button type="button" onClick={() => setTemplateChatType(rt)} className="btn btn-secondary btn-sm" style={{ padding: '4px 10px' }}>
@@ -1300,7 +1300,7 @@ function ShopifyModal({ onConfirm, onClose }) {
           </label>
         </div>
         {useOwnApp && (
-          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ marginTop: 12, padding: '12px 14px', background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', display: 'flex', flexDirection: 'column', gap: 10 }}>
             <p style={{ margin: '0 0 4px', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
               Create an app in <strong>Shopify Partners → Apps</strong> for this client's store. Paste the credentials below — they're encrypted and stored per-connector.
             </p>

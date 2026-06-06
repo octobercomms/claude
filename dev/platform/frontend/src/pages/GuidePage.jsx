@@ -342,7 +342,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
         <span className="text-muted" style={{ fontSize: 18, flexShrink: 0, transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.15s' }}>⌄</span>
       </button>
       {isOpen && (
-        <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--accent)' }}>
+        <div style={{ padding: '4px 20px 20px', borderTop: 'var(--border-w) solid var(--card-border)' }}>
           {section.workflow && <WorkflowDiagram workflow={section.workflow} />}
           <ul className="body-sm" style={{ margin: 0, padding: '8px 0 0 18px', lineHeight: 1.65 }}>
             {section.body.map((line, i) => (
@@ -360,7 +360,7 @@ function AccordionItem({ section, isOpen, onToggle }) {
 // using CSS flex-wrap so it renders cleanly on phones too.
 function WorkflowDiagram({ workflow }) {
   return (
-    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+    <div style={{ margin: '10px 0 14px', padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
         Workflow — {workflow.title}
       </div>
@@ -369,7 +369,7 @@ function WorkflowDiagram({ workflow }) {
           <React.Fragment key={i}>
             <div style={{
               flex: '1 1 130px', minWidth: 120, maxWidth: 200,
-              padding: '10px 12px', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)',
+              padding: '10px 12px', background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)',
               display: 'flex', flexDirection: 'column', gap: 4,
             }}>
               <div style={{
@@ -396,6 +396,6 @@ function bolden(s) {
 }
 
 const chip = {
-  padding: '5px 12px', fontSize: 11, border: 'var(--border-w) solid var(--accent)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
+  padding: '5px 12px', fontSize: 11, border: 'var(--border-w) solid var(--card-border)', background: 'var(--accent-soft)', color: 'var(--text-muted)',
   cursor: 'pointer', borderRadius: 'var(--r-pill)', fontWeight: 600,
 };

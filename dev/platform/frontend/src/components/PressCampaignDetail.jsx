@@ -131,7 +131,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
           <input value={filter} onChange={e => setFilter(e.target.value)}
             placeholder="filter by name, outlet or beat…"
             className="input" style={{ marginBottom: 10 }} />
-          <div style={{ maxHeight: 520, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+          <div style={{ maxHeight: 520, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
             {!filteredContacts.length && <div style={{ padding: 14, color: 'var(--text-subtle)', fontSize: 12 }}>No contacts match. Add some on the Contacts tab first.</div>}
             {groupKeys.map(beat => (
               <div key={beat}>
@@ -166,7 +166,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
               PATCH /press/releases/:id; re-previews so the change is
               visible in the iframe immediately. */}
           {release && (
-            <div style={{ marginBottom: 12, padding: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
+            <div style={{ marginBottom: 12, padding: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface-raised)' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 First email — subject
               </div>
@@ -181,7 +181,7 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                     if (previewing) preview(previewing, true);
                   } catch (err) { toast(err.message, 'error'); }
                 }}
-                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }}
+                style={{ width: '100%', padding: '6px 9px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' }}
               />
               <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer' }}>
                 <input
@@ -212,12 +212,12 @@ export default function PressCampaignDetail({ clientId, campaignId, contacts, on
                 <div className="field-label">Initial email — personal pitch{release?.embed_full_release !== false ? ' + embedded release' : ' + release link'}</div>
                 <button onClick={() => preview(previewing, true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent)', fontSize: 11 }}>regenerate</button>
               </div>
-              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
+              <iframe srcDoc={previewData.html} title="Preview" style={{ width: '100%', height: 520, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }} sandbox="" />
               {previewData.follow_ups?.length > 0 && (
                 <div style={{ marginTop: 14 }}>
                   <div className="field-label">Follow-ups · day 5 / 10 / 16 if no reply</div>
                   {previewData.follow_ups.map((fu, i) => (
-                    <div key={i} style={{ marginTop: 8, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+                    <div key={i} style={{ marginTop: 8, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
                       <div style={{ fontWeight: 700, fontSize: 12 }}>{i + 1}. {fu.subject}</div>
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{fu.body}</div>
                     </div>

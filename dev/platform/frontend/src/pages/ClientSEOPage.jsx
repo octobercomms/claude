@@ -148,7 +148,7 @@ function PosBox({ p, legacy }) {
       fontWeight: legacy ? 500 : 700,
       fontStyle: legacy ? 'italic' : 'normal',
       background: top ? 'var(--accent)' : 'transparent',
-      border: top ? '2px solid var(--accent)' : '2px solid var(--accent-soft)',
+      border: top ? '2px solid var(--card-border)' : '2px solid var(--accent-soft)',
       color: top ? 'var(--accent-on)' : 'var(--text)',
     }}>{p}</span>
   );
@@ -168,7 +168,7 @@ function Sparkline({ data, reverse = false }) {
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data.map((v, i) => ({ i, v }))} margin={{ top: 3, right: 2, left: 2, bottom: 3 }}>
           <YAxis hide reversed={reverse} domain={['dataMin', 'dataMax']} />
-          <Line type="monotone" dataKey="v" stroke="var(--accent)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+          <Line type="monotone" dataKey="v" stroke="var(--text-subtle)" strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
         </LineChart>
       </ResponsiveContainer>
     </div>
@@ -227,7 +227,7 @@ function ExpandedChart({ kw, rankMatrix, range, setRange }) {
       <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
         {[['7', '7D'], ['30', '30D'], ['all', 'All']].map(([v, l]) => (
           <button key={v} onClick={() => setRange(v)} style={{
-            padding: '3px 12px', fontSize: 11, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--accent)',
+            padding: '3px 12px', fontSize: 11, borderRadius: 'var(--r-sm)', cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
             background: range === v ? 'var(--accent)' : 'var(--surface)', color: range === v ? 'var(--accent-on)' : 'var(--text-muted)',
           }}>{l}</button>
         ))}
@@ -611,7 +611,7 @@ export default function ClientSEOPage() {
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Organic search · rankings + Search Console</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2"><span className="text-accent">Organic</span></h1>
+          <h1 className="display mt-2">Organic</h1>
         </div>
         {activeTab === 'keywords' && (
           <div className="hero-actions">
@@ -715,7 +715,7 @@ export default function ClientSEOPage() {
       })()}
 
       {/* Position buckets */}
-      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
+      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
         {[
           { key: 'all', label: 'All' },
           { key: 'top3', label: 'Top 3' },
@@ -825,7 +825,7 @@ export default function ClientSEOPage() {
         <div style={{ display: 'flex' }}>
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
-              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: 'var(--border-w) solid var(--accent)',
+              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
               background: kwView === v ? 'var(--accent)' : 'var(--surface)', color: kwView === v ? 'var(--accent-on)' : 'var(--text-muted)',
               borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
             }}>{label}</button>

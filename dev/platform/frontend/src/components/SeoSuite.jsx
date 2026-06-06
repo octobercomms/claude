@@ -330,14 +330,14 @@ export function AIOverviewsTab({ clientId }) {
       </div>
 
       {trend.length >= 2 && (
-        <div style={{ height: 200, marginBottom: 24, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 12 }}>
+        <div style={{ height: 200, marginBottom: 24, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 12 }}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={trend} margin={{ top: 4, right: 12, left: -10, bottom: 4 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={d => new Date(d).toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })} />
               <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
               <Tooltip />
               <Line dataKey="present_count" name="AIO present" stroke="#1a1a1a" strokeWidth={1.5} dot={{ r: 2 }} />
-              <Line dataKey="cited_count" name="Brand cited" stroke={'var(--accent)'} strokeWidth={1.5} dot={{ r: 2 }} />
+              <Line dataKey="cited_count" name="Brand cited" stroke={'var(--text-subtle)'} strokeWidth={1.5} dot={{ r: 2 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -377,7 +377,7 @@ export function AIOverviewsTab({ clientId }) {
 
 function SummaryCard({ label, value, pct }) {
   return (
-    <div style={{ flex: 1, padding: '14px 16px', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }}>
+    <div style={{ flex: 1, padding: '14px 16px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }}>
       <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
       <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
     </div>
@@ -443,7 +443,7 @@ export function ContentGapsTab({ clientId }) {
         Keywords competitors rank for that you don't. Add up to 5 competitor domains; we'll pull the union of their keywords minus yours from DataForSEO.
       </p>
 
-      <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: 14, marginBottom: 18 }}>
+      <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, marginBottom: 18 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Competitor domains</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
           {competitors.map(c => (
@@ -460,7 +460,7 @@ export function ContentGapsTab({ clientId }) {
             onChange={e => setDraft(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && addCompetitor()}
             placeholder="competitor.com"
-            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+            style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
             disabled={competitors.length >= 5}
           />
           <button onClick={addCompetitor} className="btn btn-secondary" disabled={saving || !draft.trim() || competitors.length >= 5}>Add</button>
@@ -545,7 +545,7 @@ export function PlanningTab({ clientId }) {
           onChange={e => setKeyword(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && run()}
           placeholder="e.g. how to season enamel cookware"
-          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
         <button onClick={run} className="btn btn-primary" disabled={loading || !keyword.trim()}>
           {loading ? 'Generating…' : 'Generate brief'}
@@ -719,10 +719,10 @@ export function FanoutTab({ clientId }) {
           onChange={e => setSeed(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && runNew()}
           placeholder="e.g. how to fix a lawn full of weeds"
-          style={{ flex: 1, minWidth: 280, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}
+          style={{ flex: 1, minWidth: 280, padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
         />
         <select value={location} onChange={e => setLocation(Number(e.target.value))}
-          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
+          style={{ padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit' }}>
           {FANOUT_LOCATIONS.map(l => <option key={l.code} value={l.code}>{l.label}</option>)}
         </select>
         <button onClick={runNew} className="btn btn-primary" disabled={running || !seed.trim()}>

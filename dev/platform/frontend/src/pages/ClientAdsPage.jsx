@@ -134,7 +134,7 @@ export default function ClientAdsPage() {
 
   function MetricCard({ label, value, sub }) {
     return (
-      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '16px 20px', minWidth: 140 }}>
+      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '16px 20px', minWidth: 140 }}>
         <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>{label}</div>
         <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>{value ?? '—'}</div>
         {sub && <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{sub}</div>}
@@ -172,17 +172,17 @@ export default function ClientAdsPage() {
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Paid media · Google Ads + Meta</span></div>
       <header className="hero">
         <div>
-          <h1 className="display mt-2"><span className="text-accent">Paid</span></h1>
+          <h1 className="display mt-2">Paid</h1>
         </div>
         {tab === 'performance' && (
           <div className="hero-actions">
             {[7, 14, 30, 90].map(d => (
               <button key={d} onClick={() => handlePeriodChange(d)}
-                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--accent)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                 {d}d
               </button>
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-pill)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
               <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
               <input type="number" min="0" max="100" step="1" value={adsMarginInput}
                 onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
@@ -230,12 +230,12 @@ export default function ClientAdsPage() {
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>
           {showGoogleTab && (
-            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'google' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'google' ? '2px solid var(--card-border)' : '2px solid transparent', marginBottom: -2 }}>
               Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}
           {showMetaTab && (
-            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--accent)' : '2px solid transparent', marginBottom: -2 }}>
+            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--card-border)' : '2px solid transparent', marginBottom: -2 }}>
               Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
             </button>
           )}

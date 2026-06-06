@@ -86,7 +86,7 @@ export default function GoogleAdsPlaybook() {
               key={layer.num}
               onClick={() => setOpenLayer(isOpen ? null : layer.num)}
               style={{
-                border: 'var(--border-w) solid var(--accent)',
+                border: 'var(--border-w) solid var(--card-border)',
                 borderRadius: 'var(--r-sm)',
                 background: isOpen ? 'var(--accent-soft)' : 'var(--surface)',
                 cursor: 'pointer',
@@ -115,7 +115,7 @@ export default function GoogleAdsPlaybook() {
               </div>
 
               {isOpen && (
-                <div style={{ borderTop: 'var(--border-w) solid var(--accent)', padding: '14px 16px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', padding: '14px 16px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
                   <div>
                     <div className="caption" style={{ marginBottom: 6, color: 'var(--positive)' }}>Do</div>
                     <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>

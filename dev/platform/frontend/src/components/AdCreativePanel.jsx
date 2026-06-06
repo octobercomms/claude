@@ -259,7 +259,7 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
 
         <label style={modalStyles.label}>Brand assets to include as reference</label>
         {!assets.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No brand assets uploaded yet.</div>}
-        <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ maxHeight: 220, overflowY: 'auto', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           {assets.map(a => (
             <label key={a.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', borderBottom: '1px solid #f5f5f5', fontSize: 12, cursor: 'pointer' }}>
               <input type="checkbox" checked={selectedAssets.has(a.id)} onChange={() => toggle(a.id)} />
@@ -372,7 +372,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
       </div>
 
       {showRender && (
-        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)' }}>
+        <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           <div className="field">MODE</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
             {['image', 'video'].map(m => (
@@ -412,7 +412,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
               <>
                 <div className="field">SEED FROM IMAGE (OPTIONAL)</div>
                 <select value={fromImageId} onChange={e => setFromImageId(e.target.value)}
-                  style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, fontFamily: 'inherit', boxSizing: 'border-box' }}>
+                  style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, fontFamily: 'inherit', boxSizing: 'border-box' }}>
                   <option value="">Text-to-video (Seedance)</option>
                   {seedableImages.map(i => (
                     <option key={i.id} value={i.id}>Image-to-video from {i.aspect_ratio} ({i.provider})</option>
@@ -427,7 +427,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 
           <input value={styleBrief} onChange={e => setStyleBrief(e.target.value)}
             placeholder="Optional style brief (e.g. 'editorial 35mm film')"
-            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+            style={{ width: '100%', padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
           <button onClick={go} className="btn btn-primary btn-sm" disabled={rendering || (mode === 'image' && !aspects.size)}>
             {rendering
               ? (mode === 'video' ? 'Rendering video…' : 'Rendering…')
@@ -442,7 +442,7 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
 function ImageThumb({ img, onDelete, onFanOut }) {
   const [hovered, setHovered] = useState(false);
   const isVideo = img.media_type === 'video';
-  const thumbStyle = { objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--accent)", ...aspectStyle(img.aspect_ratio) };
+  const thumbStyle = { objectFit: "cover", borderRadius: "var(--r-sm)", border: "var(--border-w) solid var(--card-border)", ...aspectStyle(img.aspect_ratio) };
   return (
     <div style={{ position: 'relative' }} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <a href={img.url} target="_blank" rel="noreferrer">
@@ -453,7 +453,7 @@ function ImageThumb({ img, onDelete, onFanOut }) {
       <div style={{ position: "absolute", bottom: 2, left: 2, padding: "1px 6px", background: "rgba(0,0,0,0.65)", color: "var(--surface)", fontSize: 9, borderRadius: 'var(--r-sm)', fontWeight: 700 }}>
         {isVideo ? `▶ ${img.aspect_ratio}${img.duration_seconds ? ` · ${img.duration_seconds}s` : ''}` : img.aspect_ratio}
       </div>
-      <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--accent)", cursor: "pointer", fontSize: 12, lineHeight: 1 }}>×</button>
+      <button onClick={onDelete} className="text-negative" style={{ position: "absolute", top: -6, right: -6, width: 18, height: 18, borderRadius: "50%", background: "var(--surface)", border: "var(--border-w) solid var(--card-border)", cursor: "pointer", fontSize: 12, lineHeight: 1 }}>×</button>
       {!isVideo && hovered && onFanOut && (
         <button onClick={() => onFanOut(img.id)} title="Adobe Photoshop generative resize — fan out to every other aspect ratio"
           style={{ position: "absolute", bottom: -6, right: -6, width: 22, height: 22, borderRadius: "50%", background: "var(--text)", border: "none", cursor: "pointer", fontSize: 13, lineHeight: 1, color: "var(--surface)", fontWeight: 700 }}>↔</button>
@@ -474,7 +474,7 @@ const modalStyles = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1000 },
   modal: { background: 'var(--surface)', borderRadius: 'var(--r-sm)', width: '100%', maxWidth: 540, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
   label: { display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 10, marginBottom: 5 },
-  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
-  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
+  input: { width: '100%', padding: '7px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box' },
+  textarea: { width: '100%', padding: '8px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'inherit', boxSizing: 'border-box', resize: 'vertical' },
   footer: { display: 'flex', justifyContent: 'flex-end', gap: 8, marginTop: 16 },
 };

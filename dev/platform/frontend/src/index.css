@@ -142,7 +142,7 @@ button { font-family: inherit; }
   margin-bottom: var(--s3);
 }
 .kicker b { color: var(--text); font-weight: 700; }
-.kicker .kicker-name { color: var(--accent); }
+.kicker .kicker-name { color: var(--text); }
 .kicker .pip { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); flex-shrink: 0; }
 
 /* ─── Stat strip ─────────────────────────────────────────────────── */
@@ -209,8 +209,10 @@ button { font-family: inherit; }
 .card.raised { background: var(--surface-raised); }
 .card.accent { background: var(--accent-soft); border-color: var(--accent); }
 .card.plain { background: var(--surface); border-color: var(--border-neutral); }
-.card.filled { background: var(--accent); border-color: var(--accent); color: var(--accent-on); }
-.card.filled .display, .card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .body-sm, .card.filled .body-xs, .card.filled .caption { color: var(--accent-on); }
+/* "filled" = the black feature surface (matches the Dashboard feature
+   KPI card). Ink fill, white text, accent reserved for a highlight inside. */
+.card.filled { background: var(--text); border-color: var(--text); color: #fff; }
+.card.filled .display, .card.filled .h1, .card.filled .h2, .card.filled .h3, .card.filled .body, .card.filled .body-sm, .card.filled .body-xs, .card.filled .caption { color: #fff; }
 .card.outline { background: transparent; border-color: var(--accent); }
 
 /* Status modifiers. Swap the accent for a semantic colour on the
@@ -241,8 +243,11 @@ button { font-family: inherit; }
   border-radius: var(--r-md);
   padding: var(--s4);
 }
-.metric-card.accent { background: var(--accent); border-color: var(--accent); }
-.metric-card.accent .metric, .metric-card.accent .caption { color: var(--accent-on); }
+/* "accent" metric card = the black feature card: ink fill, the metric in
+   accent (the one yellow highlight), caption muted-on-dark. */
+.metric-card.accent { background: var(--text); border-color: var(--text); }
+.metric-card.accent .metric { color: var(--accent); }
+.metric-card.accent .caption { color: rgba(255, 255, 255, 0.6); }
 .metric-card .caption { color: var(--text); opacity: 1; }
 .metric-card .metric { margin-top: var(--s2); color: var(--text); }
 .metric-row {

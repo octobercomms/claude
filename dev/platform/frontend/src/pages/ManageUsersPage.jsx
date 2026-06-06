@@ -213,7 +213,7 @@ function UserModal({ mode, target, clients, onClose, onSaved }) {
         {role === 'viewer' && (
           <div className="field">
             <label className="field-label">Assigned clients</label>
-            <div style={{ border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
+            <div style={{ border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', maxHeight: 200, overflowY: 'auto', padding: 4, background: 'var(--surface-raised)' }}>
               {clients.map(c => (
                 <label key={c.id} className="row center" style={{ gap: 8, padding: '6px 8px', fontSize: 13, cursor: 'pointer' }}>
                   <input
