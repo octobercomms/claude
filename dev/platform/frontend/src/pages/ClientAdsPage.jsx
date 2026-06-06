@@ -169,6 +169,7 @@ export default function ClientAdsPage() {
 
   return (
     <div className="suite-paid">
+      <div className="kicker"><span className="pip" />Paid media · Google Ads + Meta</div>
       <header className="hero">
         <div>
           <div className="client-name">{client?.name}</div>
