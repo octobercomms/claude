@@ -77,7 +77,7 @@ export default function DashboardPage() {
       {/* Clients */}
       <div className="flex items-baseline justify-between mt-s7 mb-s4">
         <h2 className="text-[24px] font-extrabold tracking-[-0.5px] text-ink m-0">Clients</h2>
-        <Link to="/clients" className="text-[12px] font-bold text-accent-on bg-accent px-3.5 py-[7px] rounded-pill no-underline">View all →</Link>
+        <Link to="/clients" className="btn btn-primary btn-sm">View all →</Link>
       </div>
       <div className="grid gap-s4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
         {clients.map(client => (

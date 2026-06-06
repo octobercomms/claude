@@ -231,44 +231,58 @@ button { font-family: inherit; }
 /* ─── Buttons ────────────────────────────────────────────────────── */
 
 .btn {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 10px 18px;
   font-family: var(--font);
-  font-size: 13px; font-weight: 600;
+  font-size: 13px; font-weight: 700;
   border-radius: var(--r-pill);
   cursor: pointer;
   border: var(--border-w) solid transparent;
-  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
 }
+/* Buttons are often links (<a class="btn">). The global a:hover rule
+   would otherwise repaint their text in accent and underline it — which
+   is exactly the yellow-on-yellow bug. Each variant re-asserts its own
+   colours on hover, and we kill the underline here. */
+.btn:hover { text-decoration: none; }
+.btn:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
 .btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .btn:active:not(:disabled) { transform: scale(0.98); }
 .btn-sm { padding: 6px 14px; font-size: 12px; }
 .btn-lg { padding: 13px 24px; font-size: 15px; }
 
+/* Primary — accent fill; darkens on hover while keeping its readable
+   on-accent text colour (works for every suite accent). */
 .btn-primary {
   background: var(--accent); color: var(--accent-on);
   border-color: var(--accent);
 }
-.btn-primary:hover:not(:disabled) { filter: brightness(0.94); }
+.btn-primary:hover:not(:disabled) { filter: brightness(0.90); color: var(--accent-on); }
 
+/* Secondary — outline that fills with the accent on hover. */
 .btn-secondary {
   background: var(--surface); color: var(--accent);
   border-color: var(--accent);
 }
-.btn-secondary:hover:not(:disabled) { background: var(--accent-soft); }
+.btn-secondary:hover:not(:disabled) {
+  background: var(--accent); color: var(--accent-on); border-color: var(--accent);
+}
 
+/* Ghost — quiet until hovered, then a soft accent wash. */
 .btn-ghost {
   background: transparent; color: var(--text-muted);
   border-color: transparent; padding: 6px 10px;
 }
-.btn-ghost:hover:not(:disabled) { color: var(--accent); }
+.btn-ghost:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
 
+/* Danger — neutral until hover, then a solid negative fill. */
 .btn-danger {
   background: var(--surface); color: var(--text-muted);
   border-color: var(--border-neutral);
 }
-.btn-danger:hover:not(:disabled) { border-color: #C62828; color: #C62828; }
+.btn-danger:hover:not(:disabled) { background: var(--negative); color: #fff; border-color: var(--negative); }
 
 /* ─── Chips ──────────────────────────────────────────────────────── */
 
