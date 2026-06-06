@@ -4,7 +4,7 @@
       "command": "npx",
       "args": ["-y", "@21st-dev/magic@latest"],
       "env": {
-        "API_KEY": "${MAGIC_API_KEY}"
+        "API_KEY": "2d632cd0a94b6ac14d9c05a5be76bdaf9486f7c6582e2618fb835800306e9242"
       }
     }
   }
