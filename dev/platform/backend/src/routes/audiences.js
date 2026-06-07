@@ -3,6 +3,7 @@
 // a :segmentId that we resolve back to a client for the check.
 
 const express = require('express');
+const multer = require('multer');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
@@ -13,6 +14,10 @@ const router = express.Router();
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
+
+// CSV customer-list uploads are parsed + hashed in memory — we never
+// write the raw file to disk.
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 25 * 1024 * 1024 } });
 
 // Segment UUID → client_id, refuse cross-tenant access.
 router.param('segmentId', async (req, res, next, id) => {
@@ -56,6 +61,22 @@ router.post('/clients/:clientId/segments', async (req, res) => {
     });
     res.json(segment);
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Upload a first-party customer list (CSV) → becomes a customer_list
+// segment with hashed contacts, exportable as a Meta Custom Audience.
+router.post('/clients/:clientId/customer-lists', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'CSV file required' });
+    const name = String(req.body.name || req.file.originalname || 'Customer list').trim().slice(0, 120) || 'Customer list';
+    const csvText = req.file.buffer.toString('utf8');
+    const segment = await audienceInsights.createCustomerListSegment(req.params.clientId, {
+      name, filename: req.file.originalname, csvText,
+    });
+    res.json(segment);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
 });
 
 router.put('/segments/:segmentId', async (req, res) => {

@@ -11,6 +11,7 @@
 // triggers a walk of every order in the last 365 days, subsequent
 // requests in the same day serve the cached snapshot.
 
+const crypto = require('crypto');
 const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
 const shopify = require('../connectors/shopify');
@@ -151,15 +152,29 @@ async function deleteSegment(clientId, segmentId) {
   await pool.query(`DELETE FROM audience_segments WHERE id = $1 AND client_id = $2`, [segmentId, clientId]);
 }
 
-// Format a segment's matching postcodes as a CSV for Meta Custom
-// Audience upload. Meta's "lookalike seed" format accepts ZIP+country
-// per row — that's what we emit.
+// Format a segment for Meta Custom Audience upload. Two shapes depending
+// on the segment source:
+//   - customer_list → hashed email,phone rows (Meta accepts pre-hashed
+//     multi-key uploads). We never stored the raw PII, only the hashes.
+//   - everything else → first-party postcode segment, emitted as
+//     zip,country per Meta's "lookalike seed" format, deduped by district.
 async function exportSegmentForMeta(clientId, segmentId, countryCode = 'GB') {
   const { rows } = await pool.query(
-    `SELECT filters FROM audience_segments WHERE id = $1 AND client_id = $2`,
+    `SELECT filters, source FROM audience_segments WHERE id = $1 AND client_id = $2`,
     [segmentId, clientId]
   );
   if (!rows.length) throw new Error('Segment not found');
+
+  if (rows[0].source === 'customer_list') {
+    const { rows: contacts } = await pool.query(
+      `SELECT email_hash, phone_hash FROM audience_customer_contacts WHERE segment_id = $1`,
+      [segmentId]
+    );
+    const lines = ['email,phone'];
+    for (const c of contacts) lines.push(`${c.email_hash || ''},${c.phone_hash || ''}`);
+    return lines.join('\n');
+  }
+
   const dist = await getPostcodeDistribution(clientId);
   const { postcodes } = applySegmentFilters(dist, rows[0].filters);
   // CSV header per Meta spec. We dedupe by postcode so a busy district
@@ -169,7 +184,125 @@ async function exportSegmentForMeta(clientId, segmentId, countryCode = 'GB') {
   return lines.join('\n');
 }
 
+// ─── Customer-list uploads ─────────────────────────────────────────────
+// Hash helpers follow Meta's normalisation rules. We hash on ingest so
+// raw emails/phones never touch the database.
+function hashEmail(raw) {
+  const s = String(raw || '').trim().toLowerCase();
+  if (!s || !s.includes('@') || s.length < 5) return null;
+  return crypto.createHash('sha256').update(s).digest('hex');
+}
+function hashPhone(raw) {
+  const digits = String(raw || '').replace(/[^0-9]/g, '');
+  if (digits.length < 7) return null;          // too short to be a real number
+  return crypto.createHash('sha256').update(digits).digest('hex');
+}
+
+// Minimal RFC-4180-ish CSV parser — handles quoted fields, escaped
+// quotes ("") and CRLF. Good enough for the customer exports AMs paste
+// in (Shopify, Klaviyo, Mailchimp, a hand-rolled spreadsheet).
+function parseCsv(text) {
+  const rows = [];
+  let row = [], field = '', inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQuotes = false;
+      } else field += ch;
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ',') {
+      row.push(field); field = '';
+    } else if (ch === '\n') {
+      row.push(field); rows.push(row); row = []; field = '';
+    } else if (ch !== '\r') {
+      field += ch;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}
+
+// Pull hashed contacts out of an uploaded CSV. Detects email/phone
+// columns by header; if no recognisable header exists, assumes a single
+// column of emails. Dedupes on the (email,phone) hash pair.
+function extractContacts(text) {
+  const rows = parseCsv(text).filter(r => r.some(c => c && c.trim()));
+  if (!rows.length) return { contacts: [], withEmail: 0, withPhone: 0 };
+
+  const header = rows[0].map(h => h.trim().toLowerCase());
+  let emailIdx = header.findIndex(h => /e-?mail/.test(h));
+  let phoneIdx = header.findIndex(h => /phone|mobile|tel\b/.test(h));
+  let dataRows;
+  if (emailIdx === -1 && phoneIdx === -1) {
+    // No headers we recognise — treat column 0 as emails. Keep the first
+    // row only if it isn't itself an email value.
+    emailIdx = 0;
+    dataRows = hashEmail(rows[0][0]) ? rows : rows.slice(1);
+  } else {
+    dataRows = rows.slice(1);
+  }
+
+  const seen = new Set();
+  const contacts = [];
+  let withEmail = 0, withPhone = 0;
+  for (const r of dataRows) {
+    const eh = emailIdx >= 0 ? hashEmail(r[emailIdx]) : null;
+    const ph = phoneIdx >= 0 ? hashPhone(r[phoneIdx]) : null;
+    if (!eh && !ph) continue;
+    const key = `${eh || ''}|${ph || ''}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (eh) withEmail++;
+    if (ph) withPhone++;
+    contacts.push({ email_hash: eh, phone_hash: ph });
+  }
+  return { contacts, withEmail, withPhone };
+}
+
+const MAX_CONTACTS = 500_000;
+
+// Create a customer_list segment from an uploaded CSV. Inserts the
+// segment row, then bulk-inserts the hashed contacts in chunks.
+async function createCustomerListSegment(clientId, { name, filename, csvText }) {
+  const { contacts, withEmail, withPhone } = extractContacts(csvText);
+  if (!contacts.length) {
+    throw new Error('No valid email or phone contacts found in that file. Expecting a CSV with an "email" and/or "phone" column.');
+  }
+  if (contacts.length > MAX_CONTACTS) {
+    throw new Error(`That list has ${contacts.length.toLocaleString()} contacts — the limit is ${MAX_CONTACTS.toLocaleString()}. Split it and upload in parts.`);
+  }
+
+  const filters = { kind: 'customer_list', filename: filename || null, has_email: withEmail > 0, has_phone: withPhone > 0 };
+  const { rows } = await pool.query(
+    `INSERT INTO audience_segments (client_id, name, description, filters, estimated_reach, source)
+     VALUES ($1, $2, $3, $4, $5, 'customer_list')
+     RETURNING id, name, description, filters, estimated_reach, source, updated_at`,
+    [clientId, name, `Uploaded customer list — ${contacts.length} contacts`, JSON.stringify(filters), contacts.length]
+  );
+  const segmentId = rows[0].id;
+
+  const CHUNK = 1000;
+  for (let i = 0; i < contacts.length; i += CHUNK) {
+    const slice = contacts.slice(i, i + CHUNK);
+    const params = [];
+    const values = [];
+    slice.forEach((c, j) => {
+      params.push(`($${j * 3 + 1}, $${j * 3 + 2}, $${j * 3 + 3})`);
+      values.push(segmentId, c.email_hash, c.phone_hash);
+    });
+    await pool.query(
+      `INSERT INTO audience_customer_contacts (segment_id, email_hash, phone_hash) VALUES ${params.join(',')}`,
+      values
+    );
+  }
+  return rows[0];
+}
+
 module.exports = {
   getPostcodeDistribution, applySegmentFilters,
   listSegments, saveSegment, deleteSegment, exportSegmentForMeta,
+  createCustomerListSegment,
 };

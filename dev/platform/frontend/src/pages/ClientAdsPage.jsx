@@ -3,6 +3,7 @@ import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import { api } from '../utils/api';
@@ -188,6 +189,7 @@ export default function ClientAdsPage() {
       ]} />
 
       {tab === 'overview' && (
+        <div className="stack stack-lg">
         <SuiteOverview
           tagline="Live ads, AI strategy, on-brand creative."
           description="Google + Meta dashboards, weekly Claude briefings on what to action next, AI-generated ad creative, and audience segments built from your Shopify data."
@@ -206,6 +208,8 @@ export default function ClientAdsPage() {
             { tag: 'Audiences',   title: 'First-party segments',     body: 'Build targetable segments from Shopify postcode data and export them as Meta Custom Audience CSVs.' },
           ]}
         />
+        <GoogleAdsPlaybook />
+        </div>
       )}
 
       {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}

@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
 
 // Visual playbook of the four-layer Google Ads account structure used
-// across October's eight-figure clients. Lives on the Paid Strategist
-// tab — AMs can scan it before reading the weekly brief, and the
-// briefings reference it implicitly. Each layer expands on click for
-// the do / don't detail.
+// across October's eight-figure clients. Rendered on the Paid Overview
+// tab as evergreen reference — AMs scan it before reading the weekly
+// Strategist brief, and the briefings reference it implicitly.
+//
+// Drawn as a funnel: widest at the top (Performance Max — broad-reach
+// new-customer demand capture) tapering to the narrowest at the bottom
+// (Branded Search — defensive only). Hovering or focusing a layer
+// reveals a tooltip with the do / don't detail.
 const LAYERS = [
   {
     num: 1,
@@ -65,68 +69,59 @@ const LAYERS = [
   },
 ];
 
+// Funnel taper — each layer's bar width as a share of the column.
+const WIDTHS = ['100%', '84%', '68%', '52%'];
+
 export default function GoogleAdsPlaybook() {
-  const [openLayer, setOpenLayer] = useState(null);
+  const [active, setActive] = useState(null);
 
   return (
-    <div className="card" style={{ marginBottom: 22 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 14 }}>
+    <div className="card">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
         <div>
           <div className="caption">Reference</div>
           <h3 className="h3" style={{ margin: '4px 0 0' }}>Google Ads playbook — four-layer account structure</h3>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Build in this order — click each layer for detail</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Build top to bottom — hover a layer for the do / don't detail</span>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        {LAYERS.map(layer => {
-          const isOpen = openLayer === layer.num;
+      <div className="ads-funnel">
+        {LAYERS.map((layer, i) => {
+          const isActive = active === layer.num;
           return (
             <div
               key={layer.num}
-              onClick={() => setOpenLayer(isOpen ? null : layer.num)}
-              style={{
-                border: 'var(--border-w) solid var(--card-border)',
-                borderRadius: 'var(--r-sm)',
-                background: isOpen ? 'var(--accent-soft)' : 'var(--surface)',
-                cursor: 'pointer',
-                transition: 'background 120ms ease',
-              }}
+              className="ads-funnel-bar"
+              style={{ width: WIDTHS[i] }}
+              tabIndex={0}
+              onMouseEnter={() => setActive(layer.num)}
+              onMouseLeave={() => setActive(a => (a === layer.num ? null : a))}
+              onFocus={() => setActive(layer.num)}
+              onBlur={() => setActive(a => (a === layer.num ? null : a))}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px' }}>
-                <div
-                  style={{
-                    flex: '0 0 auto',
-                    width: 36, height: 36,
-                    borderRadius: '50%',
-                    background: 'var(--accent)',
-                    color: 'var(--accent-on)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 16, fontWeight: 800,
-                  }}
-                >
-                  {layer.num}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{layer.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{layer.tagline}</div>
-                </div>
-                <div style={{ fontSize: 18, color: 'var(--text-subtle)', transform: isOpen ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease' }}>⌄</div>
+              <div className={`ads-funnel-row${isActive ? ' is-active' : ''}`}>
+                <span className="ads-funnel-num">{layer.num}</span>
+                <span className="ads-funnel-text">
+                  <span className="ads-funnel-title">{layer.title}</span>
+                  <span className="ads-funnel-tagline">{layer.tagline}</span>
+                </span>
               </div>
 
-              {isOpen && (
-                <div style={{ borderTop: 'var(--border-w) solid var(--card-border)', padding: '14px 16px 16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
-                  <div>
-                    <div className="caption" style={{ marginBottom: 6, color: 'var(--positive)' }}>Do</div>
-                    <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
-                      {layer.dos.map((d, i) => <li key={i} style={{ marginBottom: 4 }}>{d}</li>)}
-                    </ul>
-                  </div>
-                  <div>
-                    <div className="caption" style={{ marginBottom: 6, color: 'var(--negative)' }}>Don't</div>
-                    <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
-                      {layer.donts.map((d, i) => <li key={i} style={{ marginBottom: 4 }}>{d}</li>)}
-                    </ul>
+              {isActive && (
+                <div className="ads-funnel-tip" role="tooltip">
+                  <div className="ads-funnel-tip-grid">
+                    <div>
+                      <div className="caption" style={{ color: 'var(--positive)', marginBottom: 6 }}>Do</div>
+                      <ul className="ads-funnel-list">
+                        {layer.dos.map((d, j) => <li key={j}>{d}</li>)}
+                      </ul>
+                    </div>
+                    <div>
+                      <div className="caption" style={{ color: 'var(--negative)', marginBottom: 6 }}>Don't</div>
+                      <ul className="ads-funnel-list">
+                        {layer.donts.map((d, j) => <li key={j}>{d}</li>)}
+                      </ul>
+                    </div>
                   </div>
                 </div>
               )}
@@ -135,7 +130,7 @@ export default function GoogleAdsPlaybook() {
         })}
       </div>
 
-      <p style={{ marginTop: 14, fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6 }}>
+      <p style={{ marginTop: 'var(--s5)', fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, maxWidth: 720 }}>
         Only once layers 1–3 are running cleanly should you dabble with YouTube or Demand Gen. Google is best at capturing demand, not generating it — get the foundation right first.
       </p>
     </div>
