@@ -15,6 +15,37 @@ const CHANNEL_LABEL = {
   manual_task:      'Manual task',
 };
 
+// Static sample queue for the empty state, so a first-time AM can see
+// what a task looks like before any sequence has produced one.
+function ExampleTasks() {
+  const rows = [
+    { channel: 'linkedin_connect', campaign: 'Q3 Architects — London', who: 'Priya Shah · Studio Mara', prompt: 'Send a connection request. No note needed — keep it low-friction.' },
+    { channel: 'linkedin_message', campaign: 'Q3 Architects — London', who: 'Daniel Ortega · Ortega & Co', prompt: 'They accepted your connection. Send the step-2 message referencing their recent Shoreditch project.' },
+  ];
+  return (
+    <div>
+      <div className="caption" style={{ marginBottom: 'var(--s3)' }}>Example — a typical day's queue</div>
+      <div className="stack stack-sm" style={{ opacity: 0.92 }}>
+        {rows.map((t, i) => (
+          <div key={i} className="card">
+            <div className="row between center">
+              <div>
+                <div className="caption">{CHANNEL_LABEL[t.channel]} · {t.campaign}</div>
+                <div className="h3 mt-2">{t.who}</div>
+                <p className="body-sm mt-3">{t.prompt}</p>
+              </div>
+              <div className="row" style={{ gap: 6 }}>
+                <span className="btn btn-secondary btn-sm" style={{ pointerEvents: 'none' }}>Skip</span>
+                <span className="btn btn-primary btn-sm" style={{ pointerEvents: 'none' }}>Done</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function OutreachTasksPanel() {
   const toast = useToast();
   const [tasks, setTasks] = useState([]);
@@ -43,9 +74,16 @@ export default function OutreachTasksPanel() {
   if (loading) return <div className="text-subtle">Loading…</div>;
   if (!tasks.length) {
     return (
-      <div className="empty">
-        <div className="h3">Nothing to do.</div>
-        <p className="body-sm text-muted mt-3">Multichannel sequences create LinkedIn and manual tasks here as they come due.</p>
+      <div>
+        <div className="caption">Tasks</div>
+        <div className="h2 mt-2 mb-3">Your daily action queue</div>
+        <p className="body mb-5" style={{ maxWidth: 660 }}>
+          Not every outreach step is an email. When a campaign uses a <strong>multichannel sequence</strong> — a
+          LinkedIn visit → connect → message, or a manual to-do — each step lands here as a task the day it's due,
+          grouped by client. Check one off and the prospect automatically advances to the next step, exactly as a
+          sent email would. Right now there's nothing due.
+        </p>
+        <ExampleTasks />
       </div>
     );
   }

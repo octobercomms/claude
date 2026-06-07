@@ -200,7 +200,7 @@ const SECTIONS = [
   },
   {
     id: 'outreach',
-    title: 'Client → Outreach',
+    title: 'Client → Email (Outreach)',
     summary: 'Cold-email campaigns with Claude-generated sequences.',
     body: [
       '**Contacts** — manual add or bulk paste. Tag by location, role, contact type.',
@@ -208,7 +208,20 @@ const SECTIONS = [
       '**Audience refinement** — Claude can re-shape the audience based on a brief.',
       '**Launch** sends the first email immediately to the matched audience; the scheduler handles follow-ups.',
       'Replies hit the IMAP inbox configured in Settings, get classified by Claude, and unsubscribe matching contacts automatically.',
-      'Open-tracking pixel + reply detection feed the dashboard system-status panel.',
+      'Open-tracking pixel + reply detection feed the Overview system-status panel.',
+    ],
+  },
+  {
+    id: 'outreach-setup',
+    title: 'Client → Email — setup & integrations',
+    summary: 'The keys and DNS records the Email suite needs to send.',
+    body: [
+      '**Claude AI** — powers audience refinement, email writing and reply classification. Needs a paid Anthropic API key from console.anthropic.com → add credit → create a key → paste into **Settings → AI & Email → Claude AI**.',
+      '**Hunter.io** — finds published email addresses by company domain (free plan: 50/month). Sign up → Dashboard → API → paste the key into **Settings → Outreach → October Outreach**.',
+      '**Icypeas** — lead database with PAYG credits that never expire; primary finder alongside Hunter. Copy **API Key, API Secret and User ID** (all three) from Settings → API into **Settings → Outreach → October Outreach**.',
+      '**Email sending — Amazon SES** — low cost (~$0.10 / 1,000) and good deliverability. Verify your sending domain, leave sandbox mode, create an IAM user with `ses:SendEmail`, and save its Access Key ID + Secret into **Settings → AI & Email → Amazon SES** (the platform uses SESv2 automatically).',
+      '**SPF / DKIM / DMARC** — the three DNS records that decide inbox vs junk. SPF for SES: `v=spf1 include:amazonses.com -all`. DKIM = three CNAMEs from the SES console. DMARC starter: `v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com`. The live status shows on the Email → Overview panel.',
+      '**Reply polling (IMAP)** — use a dedicated reply inbox (e.g. replies@yourbrand.com). For Gmail, enable IMAP and create an App Password, then add host `imap.gmail.com`, port `993`, user + password to **Settings → Outreach → Outreach Reply Inbox**.',
     ],
   },
   {
@@ -392,7 +405,8 @@ function WorkflowDiagram({ workflow }) {
 // library just to render asterisks in guide bullets.
 function bolden(s) {
   return String(s).replace(/[<>]/g, c => ({ '<': '&lt;', '>': '&gt;' }[c]))
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>');
 }
 
 const chip = {
