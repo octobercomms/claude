@@ -208,7 +208,7 @@ export default function ClientChatPage() {
   ];
 
   return (
-    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 64px)' }}>
+    <div className="suite-chat" style={{ display: 'flex', flexDirection: 'column', ...(tab === 'chat' ? { height: 'calc(100vh - 64px)' } : {}) }}>
       <div className="kicker"><span className="pip" />{client?.name && <span className="kicker-name">{client.name}</span>}</div>
       <header className="hero">
         <div>
