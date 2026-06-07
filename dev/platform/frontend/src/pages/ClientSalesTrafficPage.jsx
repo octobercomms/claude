@@ -161,7 +161,7 @@ export default function ClientSalesTrafficPage() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {[7, 14, 30, 90].map(d => (
             <button key={d} onClick={() => selectDays(d)}
-              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid ' + (activeKey === 'd' + d ? 'var(--text)' : 'var(--card-border)'), background: activeKey === 'd' + d ? 'var(--text)' : 'var(--surface)', color: activeKey === 'd' + d ? '#fff' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
               {d}d
             </button>
           ))}
