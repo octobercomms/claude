@@ -183,6 +183,13 @@ export default function ClientAdsPage() {
         { key: 'audiences',   label: 'Audiences',   active: tab === 'audiences',   onClick: () => setTab('audiences') },
       ]} />
 
+      {tab === 'performance' && !loading && !noConnectors && (
+        <SuiteTabs variant="sub" tabs={[
+          showGoogleTab && { key: 'google', label: <>Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'google', onClick: () => setAdsTab('google') },
+          showMetaTab && { key: 'meta', label: <>Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'meta', onClick: () => setAdsTab('meta') },
+        ].filter(Boolean)} />
+      )}
+
       {tab === 'overview' && (
         <SuiteOverview
           tagline="Live ads, AI strategy, on-brand creative."
@@ -224,13 +231,6 @@ export default function ClientAdsPage() {
         </div>
         <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
       </div>
-
-      {!loading && !noConnectors && (
-        <SuiteTabs variant="sub" tabs={[
-          showGoogleTab && { key: 'google', label: <>Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'google', onClick: () => setAdsTab('google') },
-          showMetaTab && { key: 'meta', label: <>Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'meta', onClick: () => setAdsTab('meta') },
-        ].filter(Boolean)} />
-      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-subtle)' }}>Loading ads data…</div>
