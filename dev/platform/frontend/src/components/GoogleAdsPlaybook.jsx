@@ -74,8 +74,8 @@ const LAYERS = [
 // into one continuous funnel (100% → 60% over four layers). Generous
 // horizontal padding on the band keeps the centred text clear of the
 // angled edges. Darkening shades give it depth top → bottom.
-const STEP = 5;
-const BAND_BG = ['#EAD24E', '#E2C63D', '#D4B636', '#C2A22E'];
+const STEP = 7;
+const BAND_BG = ['#EBD24C', '#E4C73E', '#DCBB34', '#D1AE2C'];
 
 function bandClip(i) {
   const top = i * STEP;
