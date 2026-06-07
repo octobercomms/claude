@@ -6,6 +6,7 @@ import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
 import SuiteOverview from '../components/SuiteOverview';
+import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
 
@@ -49,6 +50,7 @@ export default function ClientDetailPage() {
   const [connectors, setConnectors] = useState([]);
   const [reports, setReports] = useState([]);
   const [previewType, setPreviewType] = useState(null);
+  const [reportsTab, setReportsTab] = useState('overview');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -472,6 +474,13 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'reports' && (
+        <SuiteTabs tabs={[
+          { key: 'overview', label: 'Overview', active: reportsTab === 'overview', onClick: () => setReportsTab('overview') },
+          { key: 'generated', label: 'Reports', active: reportsTab === 'generated', onClick: () => setReportsTab('generated') },
+        ]} />
+      )}
+
+      {tab === 'reports' && reportsTab === 'overview' && (
         <SuiteOverview
           tagline="Weekly + monthly reports, auto-generated."
           description="Templated PDFs with Claude-written narratives, sent to the client list on schedule. Preview live before sending; cached for fast iteration."
@@ -490,7 +499,7 @@ export default function ClientDetailPage() {
         />
       )}
 
-      {tab === 'reports' && (
+      {tab === 'reports' && reportsTab === 'generated' && (
         <>
         <div className="card mt-6">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -292,12 +292,14 @@ button { font-family: inherit; }
 .btn-primary:hover:not(:disabled) { filter: brightness(0.90); color: var(--accent-on); }
 
 /* Secondary — outline that fills with the accent on hover. */
+/* Secondary = neutral outline (keeps yellow for the primary action only,
+   so rows of secondary buttons don't flood the page with yellow). */
 .btn-secondary {
-  background: var(--surface); color: var(--accent);
-  border-color: var(--accent);
+  background: var(--surface); color: var(--text);
+  border-color: var(--border-neutral);
 }
 .btn-secondary:hover:not(:disabled) {
-  background: var(--accent); color: var(--accent-on); border-color: var(--accent);
+  background: var(--text); color: var(--surface); border-color: var(--text);
 }
 
 /* Ghost — quiet until hovered, then a soft accent wash. */
@@ -700,7 +702,7 @@ button { font-family: inherit; }
   width: 100%; padding: 10px var(--s3);
   background: var(--surface);
   color: var(--text);
-  border: var(--border-w) solid var(--border-neutral);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-sm);
   font-size: 14px; font-family: inherit;
 }
@@ -720,7 +722,7 @@ select, textarea {
   color: var(--text);
   /* Explicit width+style: the global border reset zeroes widths, so bare
      (un-.input) controls need their border restored here. */
-  border: var(--border-w) solid var(--border-neutral);
+  border: var(--border-w) solid var(--card-border);
   font-family: inherit;
 }
 
