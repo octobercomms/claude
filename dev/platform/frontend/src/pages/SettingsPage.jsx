@@ -274,9 +274,6 @@ export default function SettingsPage() {
   const [testEmail, setTestEmail] = useState('');
   const [sendingTest, setSendingTest] = useState(false);
   const [testMsg, setTestMsg] = useState('');
-  const [account, setAccount] = useState({ username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
-  const [savingAccount, setSavingAccount] = useState(false);
-  const [accountMsg, setAccountMsg] = useState('');
   const [testingDfs, setTestingDfs] = useState(false);
   const [dfsTestMsg, setDfsTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
@@ -299,7 +296,6 @@ export default function SettingsPage() {
       setValues(data);
       setInitialValues(data);
     });
-    api.get('/settings/account').then(data => setAccount(prev => ({ ...prev, username: data.username || '' }))).catch(() => {});
   }, []);
 
   async function toggleReveal(key) {
@@ -349,29 +345,6 @@ export default function SettingsPage() {
       setSectionResult({ title: group.title, ok: false, message: err.message });
     } finally {
       setSavingSection(null);
-    }
-  }
-
-  async function handleSaveAccount(e) {
-    e.preventDefault();
-    if (account.newPassword && account.newPassword !== account.confirmPassword) {
-      setAccountMsg('New passwords do not match.');
-      return;
-    }
-    setSavingAccount(true);
-    setAccountMsg('');
-    try {
-      await api.post('/settings/account', {
-        username: account.username,
-        currentPassword: account.currentPassword,
-        newPassword: account.newPassword || undefined,
-      });
-      setAccountMsg('Account updated.');
-      setAccount(prev => ({ ...prev, currentPassword: '', newPassword: '', confirmPassword: '' }));
-    } catch (err) {
-      setAccountMsg(`Error: ${err.message}`);
-    } finally {
-      setSavingAccount(false);
     }
   }
 
@@ -431,36 +404,6 @@ export default function SettingsPage() {
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && (<>
       <CostsPanel />
-
-      {/* Self-service account — change your own username / password.
-          Platform info bento removed; user management lives on the
-          Users & access tab. */}
-      <div style={{ marginBottom: 16, maxWidth: 520 }}>
-        <Card>
-          <CardTitle>Account</CardTitle>
-          <p className="body-sm text-muted">Change your login username or password.</p>
-          <form onSubmit={handleSaveAccount} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
-            <Field label="Username">
-              <input type="text" className="input" value={account.username} onChange={e => setAccount(p => ({ ...p, username: e.target.value }))} autoComplete="username" />
-            </Field>
-            <Field label="Current Password">
-              <input type="password" className="input" value={account.currentPassword} onChange={e => setAccount(p => ({ ...p, currentPassword: e.target.value }))} autoComplete="current-password" required />
-            </Field>
-            <Field label={<>New Password <span style={{ fontWeight: 400, textTransform: 'none', color: 'var(--text-subtle)' }}>(leave blank to keep current)</span></>}>
-              <input type="password" className="input" value={account.newPassword} onChange={e => setAccount(p => ({ ...p, newPassword: e.target.value }))} autoComplete="new-password" />
-            </Field>
-            {account.newPassword && (
-              <Field label="Confirm New Password">
-                <input type="password" className="input" value={account.confirmPassword} onChange={e => setAccount(p => ({ ...p, confirmPassword: e.target.value }))} autoComplete="new-password" />
-              </Field>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <button type="submit" className="btn btn-primary" disabled={savingAccount}>{savingAccount ? 'Saving…' : 'Update Account'}</button>
-              {accountMsg && <span style={{ fontSize: 13, color: accountMsg.startsWith('Error') ? 'var(--negative)' : 'var(--positive)' }}>{accountMsg}</span>}
-            </div>
-          </form>
-        </Card>
-      </div>
 
       <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
         Tap a category to expand its integrations. Each block has its own Save button.
