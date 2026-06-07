@@ -1101,3 +1101,18 @@ select, textarea {
 .scorecard-row.done .scorecard-area { text-decoration: line-through; }
 .scorecard-check { width: 28px; text-align: center; }
 .scorecard-area { font-weight: 600; }
+
+/* ─── Dismissible example blocks (empty states) ──────────────────── */
+.example-block {
+  border: var(--border-w) dashed var(--card-border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.example-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--accent-soft);
+  border-bottom: var(--border-w) dashed var(--card-border);
+}
+.example-body { padding: var(--s5); }

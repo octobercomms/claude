@@ -328,7 +328,6 @@ export default function ClientSocialPage() {
           <h1 className="display mt-2">Social</h1>
         </div>
         <div className="hero-actions">
-          <UiButton variant="primary" size="sm" onClick={() => setPlannerOpen({ planId: null })}>+ Plan a post</UiButton>
           <UiButton variant="secondary" size="sm" onClick={toggleAutopilotPaused}>
             {client?.social_autopilot_paused ? '▶ Resume autopilot' : '⏸ Pause autopilot'}
           </UiButton>
@@ -422,6 +421,7 @@ export default function ClientSocialPage() {
       {/* BRAINSTORM — past batches sidebar + 9-post grid + generate. */}
       {socialTab === 'brainstorm' && (
         <BrainstormTab
+          clientId={id}
           batches={batches}
           posts={posts}
           activeBatchId={activeBatchId}
@@ -445,16 +445,31 @@ export default function ClientSocialPage() {
 
       {/* PLANS — list / calendar of locked plans. */}
       {socialTab === 'plans' && (
-        <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} />
+        <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
       )}
 
       {/* PERFORMANCE — Winners, framework breakdown, Hook Vault entry. */}
       {socialTab === 'performance' && (
         <div className="stack-lg">
-          <div className="row end">
+          <div className="row between center wrap">
+            <div>
+              <div className="caption">Performance</div>
+              <div className="h2 mt-2">Winners &amp; Hook Vault</div>
+            </div>
             <UiButton variant="secondary" onClick={() => setHookVaultOpen(true)}>✦ Open Hook Vault</UiButton>
           </div>
-          <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+          <p className="body" style={{ maxWidth: 640 }}>
+            Your best-performing published posts surface here as <strong>winners</strong> — ranked by reach and
+            engagement — and the framework breakdown shows which hook styles land. Winning hooks feed the Hook
+            Vault for reuse across clients.
+          </p>
+          {(winners?.length || frameworkBreakdown?.length) ? (
+            <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+          ) : (
+            <ExampleBlock storageKey={`social_winners_example_${id}`} title="this is what a winner looks like once posts start performing">
+              <ExampleWinners />
+            </ExampleBlock>
+          )}
         </div>
       )}
 
@@ -462,15 +477,29 @@ export default function ClientSocialPage() {
           trending sounds (sounds are competitor-adjacent grounding). */}
       {socialTab === 'competitors' && (
         <div className="stack-lg">
+          <div>
+            <div className="caption">Competitors</div>
+            <div className="h2 mt-2">Whose hooks to model against</div>
+          </div>
+          <p className="body" style={{ maxWidth: 640 }}>
+            Add 3–6 competitor handles. Each week we scrape their top-performing posts and pull regional
+            trending sounds — both feed your next Brainstorm so Claude models against what's working in your niche.
+          </p>
           <div id="competitor-editor-anchor">
             <CompetitorEditor competitors={competitors} onSave={saveCompetitors} />
           </div>
-          <CompetitorTrackerPanel
-            posts={competitorPosts}
-            refreshing={refreshingCompetitors}
-            onRefresh={refreshCompetitorPosts}
-            hasCompetitors={competitors.length > 0}
-          />
+          {competitors.length > 0 ? (
+            <CompetitorTrackerPanel
+              posts={competitorPosts}
+              refreshing={refreshingCompetitors}
+              onRefresh={refreshCompetitorPosts}
+              hasCompetitors={competitors.length > 0}
+            />
+          ) : (
+            <ExampleBlock storageKey={`social_competitors_example_${id}`} title="this is what competitor tracking looks like once you add handles">
+              <ExampleCompetitors />
+            </ExampleBlock>
+          )}
           <TrendingSoundsBar sounds={trendingSounds} onRefresh={refreshTrendingSounds} refreshing={refreshingSounds} />
         </div>
       )}
@@ -529,7 +558,7 @@ export default function ClientSocialPage() {
 // brainstorm-only actions (Generate / Bulk schedule / Share for
 // approval) in the section head.
 function BrainstormTab({
-  batches, posts, activeBatchId, onSelectBatch, onDeleteBatch,
+  clientId, batches, posts, activeBatchId, onSelectBatch, onDeleteBatch,
   onGenerate, onBulkSchedule, onShareForApproval, generating,
   engagement, mediaByPost, updatePost, deletePost, publishPost,
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
@@ -572,7 +601,14 @@ function BrainstormTab({
           </div>
         </div>
         <div>
-          {!posts.length && <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left, or generate a new one.</p></div>}
+          {!posts.length && batches.length > 0 && (
+            <div className="empty" style={{ padding: 'var(--s7)' }}><p className="body">Pick a batch on the left to see its posts.</p></div>
+          )}
+          {!posts.length && !batches.length && (
+            <ExampleBlock storageKey={`social_brainstorm_example_${clientId}`} title="this is what one of the 9 posts looks like — click Generate for real ones">
+              <ExamplePostCard />
+            </ExampleBlock>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
             {posts.map(p => (
               <PostCard key={p.id} post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
@@ -819,7 +855,7 @@ function formatNum(n) {
   return String(Math.round(v));
 }
 
-function PlansList({ clientId, clientName, onOpen }) {
+function PlansList({ clientId, clientName, onOpen, onNewPlan }) {
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editingPlanId, setEditingPlanId] = useState(null);
@@ -877,9 +913,52 @@ function PlansList({ clientId, clientName, onOpen }) {
   }
 
   if (loading) return null;
-  if (!plans.length) return null;
+
+  if (!plans.length) {
+    return (
+      <div>
+        <div className="row between center wrap mb-4">
+          <div>
+            <div className="caption">Plans</div>
+            <div className="h2 mt-2">Scheduled &amp; locked posts</div>
+          </div>
+          {onNewPlan && <UiButton variant="primary" onClick={onNewPlan}>+ Plan a post</UiButton>}
+        </div>
+        <p className="body mt-2 mb-5" style={{ maxWidth: 640 }}>
+          A <strong>plan</strong> is a post you've approved and scheduled. Lock posts from a Brainstorm batch
+          (or add one here), set a date, and autopilot publishes them to IG / Facebook / LinkedIn on cadence.
+        </p>
+        <ExampleBlock storageKey={`social_plans_example_${clientId}`} title="this is what a scheduled plan looks like">
+          <div className="stack stack-sm">
+            {[
+              { when: 'Mon 10:00', ch: 'Instagram', hook: '3 ways to style a linen sofa for summer', status: 'Scheduled' },
+              { when: 'Wed 10:00', ch: 'LinkedIn', hook: 'Why we switched to FSC-certified timber', status: 'Scheduled' },
+              { when: 'Fri 10:00', ch: 'Facebook', hook: 'Behind the scenes: the new Quiet Luxury range', status: 'Draft' },
+            ].map((r, i) => (
+              <div key={i} className="card row between center" style={{ padding: 'var(--s3) var(--s4)' }}>
+                <div className="row center" style={{ gap: 'var(--s4)' }}>
+                  <span className="body-sm" style={{ fontWeight: 700, minWidth: 84 }}>{r.when}</span>
+                  <span className="chip chip-outline">{r.ch}</span>
+                  <span className="body-sm">{r.hook}</span>
+                </div>
+                <span className={`chip ${r.status === 'Scheduled' ? 'chip-success' : ''}`}>{r.status}</span>
+              </div>
+            ))}
+          </div>
+        </ExampleBlock>
+      </div>
+    );
+  }
 
   return (
+    <div>
+      <div className="row between center wrap mb-4">
+        <div>
+          <div className="caption">Plans</div>
+          <div className="h2 mt-2">Scheduled &amp; locked posts</div>
+        </div>
+        {onNewPlan && <UiButton variant="primary" onClick={onNewPlan}>+ Plan a post</UiButton>}
+      </div>
     <div style={{ marginBottom: 22, padding: 14, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
@@ -961,6 +1040,7 @@ function PlansList({ clientId, clientName, onOpen }) {
         })}
       </div>
       )}
+    </div>
     </div>
   );
 }
@@ -1049,31 +1129,39 @@ function CompetitorEditor({ competitors, onSave }) {
     onSave(competitors.filter(c => c !== handle));
   }
   return (
-    <div className="row wrap" style={{ alignItems: "center", gap: 6, padding: "8px 12px", background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)", marginBottom: 6 }}>
-      <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginRight: 8 }}>
-        Competitor handles
-      </span>
-      {competitors.map(c => (
-        <span key={c} className="chip chip-outline" style={{ fontFamily: "monospace" }}>
-          {c}
-          {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 14, padding: "0 2px" }}>×</button>}
-        </span>
-      ))}
-      {editing ? (
-        <>
-          <input
-            value={draft}
-            onChange={e => setDraft(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && add()}
-            placeholder="instagram:handle"
-            style={{ padding: '4px 8px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginLeft: 6 }}
-          />
-          <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
-          <button onClick={() => setEditing(false)} className="btn btn-secondary btn-sm">Done</button>
-        </>
-      ) : (
-        <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontSize: 12, marginLeft: 6 }}>edit</button>
+    <div className="card">
+      <div className="row between center wrap mb-3">
+        <div className="caption">Competitor handles</div>
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="btn btn-secondary btn-sm">
+            {competitors.length ? 'Edit' : '+ Add competitors'}
+          </button>
+        )}
+      </div>
+      {!competitors.length && !editing && (
+        <p className="body-sm text-subtle">No competitors yet — add 3–6 handles to start tracking.</p>
       )}
+      <div className="row wrap" style={{ gap: 6, alignItems: 'center' }}>
+        {competitors.map(c => (
+          <span key={c} className="chip chip-outline" style={{ fontFamily: 'monospace' }}>
+            {c}
+            {editing && <button onClick={() => remove(c)} className="btn-ghost" style={{ fontSize: 14, padding: '0 2px' }}>×</button>}
+          </span>
+        ))}
+        {editing && (
+          <>
+            <input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && add()}
+              placeholder="instagram:handle"
+              style={{ padding: '6px 10px', fontSize: 12, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+            />
+            <button onClick={add} className="btn btn-secondary btn-sm">Add</button>
+            <button onClick={() => setEditing(false)} className="btn btn-primary btn-sm">Done</button>
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -1209,13 +1297,10 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
   if (!hasCompetitors) return null;
   const top = posts.slice(0, 6);
   return (
-    <div style={{ background: 'var(--accent-soft)', border: '1px solid #d9d0f0', padding: '12px 14px', borderRadius: 'var(--r-sm)', marginTop: 10, marginBottom: 6 }}>
+    <div className="card">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-          Competitor tracker — top recent posts
-        </div>
-        <button type="button" onClick={onRefresh} disabled={refreshing}
-          style={{ fontSize: 11, padding: '3px 10px', background: 'white', color: 'var(--accent)', border: '1px solid #d9d0f0', borderRadius: 'var(--r-sm)', cursor: 'pointer' }}>
+        <div className="caption">Competitor tracker — top recent posts</div>
+        <button type="button" onClick={onRefresh} disabled={refreshing} className="btn btn-secondary btn-sm">
           {refreshing ? 'Scraping…' : '↻ Refresh now'}
         </button>
       </div>
@@ -1225,10 +1310,10 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {top.map(p => (
             <a key={p.id} href={p.post_url} target="_blank" rel="noreferrer"
-              style={{ display: 'block', padding: 10, background: 'white', border: '1px solid #e5deef', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit' }}>
+              style={{ display: 'block', padding: 10, background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', textDecoration: 'none', color: 'inherit' }}>
               <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
                 <span>@{p.handle} · {p.platform}</span>
-                {p.view_count && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
+                {p.view_count && <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{formatNum(p.view_count)}</span>}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text)', margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>
                 {p.hook || (p.caption || '').slice(0, 80) || '(no caption)'}
@@ -1243,6 +1328,98 @@ function CompetitorTrackerPanel({ posts, refreshing, onRefresh, hasCompetitors }
         </div>
       )}
       <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 8 }}>Scraped weekly. Hooks here feed into the next batch's prompt as exemplars.</div>
+    </div>
+  );
+}
+
+// Dismissible "this is what it looks like" block for empty states across
+// the Social suite. Greyed sample content under a banner; the "Got it"
+// dismissal is remembered per client/tab in localStorage.
+function ExampleBlock({ storageKey, title, children }) {
+  const [dismissed, setDismissed] = useState(() => {
+    try { return localStorage.getItem(storageKey) === '1'; } catch { return false; }
+  });
+  if (dismissed) return null;
+  return (
+    <div className="example-block">
+      <div className="example-banner">
+        <span className="body-sm"><strong>Example</strong> — {title}</span>
+        <button className="btn btn-secondary btn-sm" onClick={() => {
+          setDismissed(true);
+          try { localStorage.setItem(storageKey, '1'); } catch { /* ignore */ }
+        }}>Got it</button>
+      </div>
+      <div className="example-body">{children}</div>
+    </div>
+  );
+}
+
+// Sample brainstorm post — mirrors the real PostCard's key fields so a
+// first-time AM can see the shape of the output before generating.
+function ExamplePostCard() {
+  return (
+    <div className="card" style={{ maxWidth: 420 }}>
+      <div className="row wrap" style={{ gap: 6, marginBottom: 10 }}>
+        <span className="chip chip-accent">Instagram</span>
+        <span className="chip chip-outline">PAS</span>
+      </div>
+      <div className="field">HOOK</div>
+      <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3 }}>POV: your living room finally feels finished</div>
+      <div className="field" style={{ marginTop: 8 }}>CAPTION</div>
+      <div className="body-sm">The linen two-seater in Oatmeal — handmade in the UK, delivered in 4 weeks. Swipe to see it styled three ways. 🛋️</div>
+      <div className="field" style={{ marginTop: 8 }}>HASHTAGS</div>
+      <div className="body-sm" style={{ color: 'var(--text-muted)' }}>#interiordesign #linensofa #britishmade #quietluxury</div>
+      <div className="field" style={{ marginTop: 8 }}>STORYBOARD</div>
+      <div className="row wrap" style={{ gap: 6, marginTop: 4 }}>
+        {['A', 'B', 'C', 'E', 'B', 'D', 'E', 'B', 'G'].map((c, i) => <StyleBadge key={i} code={c} />)}
+      </div>
+    </div>
+  );
+}
+
+// Sample winners + framework breakdown for the empty Insights·Performance.
+function ExampleWinners() {
+  const winners = [
+    { hook: 'POV: your living room finally feels finished', reach: '18.4k', eng: '5.2%', fw: 'PAS' },
+    { hook: '3 ways to style a linen sofa for summer', reach: '12.1k', eng: '4.1%', fw: 'Listicle' },
+    { hook: 'Why we switched to FSC-certified timber', reach: '9.8k', eng: '3.6%', fw: 'Story' },
+  ];
+  return (
+    <div className="stack stack-sm">
+      {winners.map((w, i) => (
+        <div key={i} className="card row between center" style={{ padding: 'var(--s3) var(--s4)' }}>
+          <div className="row center" style={{ gap: 'var(--s4)', minWidth: 0 }}>
+            <span className="chip chip-outline">{w.fw}</span>
+            <span className="body-sm" style={{ fontWeight: 600 }}>{w.hook}</span>
+          </div>
+          <div className="row center" style={{ gap: 'var(--s5)' }}>
+            <span className="body-sm"><strong>{w.reach}</strong> <span className="text-subtle">reach</span></span>
+            <span className="body-sm"><strong>{w.eng}</strong> <span className="text-subtle">eng</span></span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Sample competitor scrape for the empty Competitors tab.
+function ExampleCompetitors() {
+  const posts = [
+    { handle: 'soho.home', platform: 'instagram', views: '212k', hook: 'The £49 trick that makes any room look expensive' },
+    { handle: 'maker.and.son', platform: 'instagram', views: '88k', hook: 'We sat 200 people on this sofa. Here\'s what broke.' },
+    { handle: 'loaf', platform: 'tiktok', views: '430k', hook: 'Rating viral sofa hacks so you don\'t have to' },
+  ];
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+      {posts.map((p, i) => (
+        <div key={i} className="card" style={{ padding: 10 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, display: 'flex', justifyContent: 'space-between' }}>
+            <span>@{p.handle} · {p.platform}</span>
+            <span style={{ color: 'var(--text-muted)', fontWeight: 700 }}>{p.views}</span>
+          </div>
+          <div style={{ fontSize: 12, margin: '4px 0', lineHeight: 1.35, fontWeight: 600 }}>{p.hook}</div>
+        </div>
+      ))}
     </div>
   );
 }
