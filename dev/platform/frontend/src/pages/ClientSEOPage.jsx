@@ -5,6 +5,7 @@ import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
 import SuiteTabs from '../components/SuiteTabs';
+import { useTabParam } from '../hooks/useTabParam';
 
 // Banner shown above the SEO tab listing the data sources that are
 // gated until DataForSEO drops the $100/mo Backlinks + LLM Mentions
@@ -590,10 +591,7 @@ export default function ClientSEOPage() {
       })
     : filtered;
 
-  const [activeTab, setActiveTab] = useState(() => {
-    const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','keywords','gsc','aio','fanout','ai_visibility','gaps','planning','authority','backlinks'].includes(q) ? q : 'overview';
-  });
+  const [activeTab, setActiveTab] = useTabParam('overview', ['overview', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'planning', 'authority', 'backlinks']);
 
   useEffect(() => {
     if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {

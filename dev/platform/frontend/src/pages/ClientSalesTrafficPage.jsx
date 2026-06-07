@@ -5,6 +5,7 @@ import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import { useCssVar } from '../hooks/useCssVar';
+import { useTabParam } from '../hooks/useTabParam';
 
 const fmtMoney = n => '£' + Math.round(Number(n || 0)).toLocaleString('en-GB');
 const fmtNum = n => Number(n || 0).toLocaleString('en-GB');
@@ -42,10 +43,7 @@ export default function ClientSalesTrafficPage() {
   const accent = useCssVar('--accent', '#20A39E', scopeRef);
   const text = useCssVar('--text', '#1a1a1a', scopeRef);
   const subtle = useCssVar('--text-subtle', '#888', scopeRef);
-  const [tab, setTab] = useState(() => {
-    const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','dashboard'].includes(q) ? q : 'overview';
-  });
+  const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard']);
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
   const [start, setStart] = useState(() => isoDaysAgo(29));
