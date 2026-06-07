@@ -1127,3 +1127,10 @@ select, textarea {
   border-bottom: var(--border-w) dashed var(--card-border);
 }
 .example-body { padding: var(--s5); }
+
+/* AI Data Analyst is a flex column (so the Chat thread can scroll inside a
+   fixed height). Keep the kicker / title / tab strip from being shrunk away
+   by tall content — this is why the Overview/Chat tabs vanished on mobile. */
+.suite-chat > .kicker,
+.suite-chat > .hero,
+.suite-chat > .tabs { flex-shrink: 0; }
