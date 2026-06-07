@@ -968,3 +968,102 @@ select, textarea {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ─── Paid · Google Ads funnel (Overview reference) ──────────────── */
+.ads-funnel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s2);
+}
+.ads-funnel-bar {
+  position: relative;
+  max-width: 620px;
+  outline: none;
+}
+.ads-funnel-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  padding: var(--s4) var(--s5);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md);
+  transition: background 120ms ease, border-color 120ms ease;
+  cursor: default;
+}
+.ads-funnel-bar:hover .ads-funnel-row,
+.ads-funnel-bar:focus .ads-funnel-row,
+.ads-funnel-row.is-active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+.ads-funnel-num {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-on);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 800;
+}
+.ads-funnel-text { display: flex; flex-direction: column; min-width: 0; }
+.ads-funnel-title { font-weight: 700; font-size: 15px; color: var(--text); line-height: 1.2; }
+.ads-funnel-tagline { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+/* Tooltip — floats into the right gutter beside the hovered bar. */
+.ads-funnel-tip {
+  position: absolute;
+  top: 50%;
+  left: calc(100% + var(--s4));
+  transform: translateY(-50%);
+  width: 360px;
+  max-width: 42vw;
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.14);
+  padding: var(--s4) var(--s5);
+  z-index: 20;
+}
+.ads-funnel-tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); }
+.ads-funnel-list { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.ads-funnel-list li { margin-bottom: 5px; }
+
+@media (max-width: 900px) {
+  .ads-funnel-bar { width: 100% !important; max-width: none; }
+  .ads-funnel-tip {
+    position: static;
+    transform: none;
+    width: auto;
+    max-width: none;
+    margin-top: var(--s2);
+    box-shadow: none;
+  }
+  .ads-funnel-tip-grid { grid-template-columns: 1fr; gap: var(--s4); }
+}
+
+/* ─── Paid · Strategist briefing layout ──────────────────────────── */
+.strategist-grid {
+  display: grid;
+  gap: var(--s5);
+  align-items: start;
+  grid-template-columns: 220px minmax(0, 1.3fr) minmax(0, 1fr);
+}
+.strategist-grid.no-recs { grid-template-columns: 220px minmax(0, 1fr); }
+.strategist-topbar {
+  display: flex;
+  gap: var(--s4);
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin-bottom: var(--s5);
+}
+.strategist-col-head {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: var(--s3);
+}
+.strategist-list { max-height: 70vh; overflow-y: auto; }
+@media (max-width: 1100px) {
+  .strategist-grid, .strategist-grid.no-recs { grid-template-columns: 1fr; }
+  .strategist-list { max-height: none; }
+}

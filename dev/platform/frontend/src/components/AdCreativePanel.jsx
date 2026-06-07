@@ -14,6 +14,17 @@ export default function AdCreativePanel({ clientId, clientName }) {
   const [showBrief, setShowBrief] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [shareUrl, setShareUrl] = useState(null);
+  // Sample concept shown to first-time users so it's obvious what
+  // "Generate" produces. Disappears once a real batch exists, and can
+  // be dismissed early (remembered per client).
+  const sampleKey = `adcreative_sample_dismissed_${clientId}`;
+  const [sampleDismissed, setSampleDismissed] = useState(() => {
+    try { return localStorage.getItem(sampleKey) === '1'; } catch { return false; }
+  });
+  function dismissSample() {
+    setSampleDismissed(true);
+    try { localStorage.setItem(sampleKey, '1'); } catch { /* ignore */ }
+  }
 
   async function refresh() {
     const [bs, as] = await Promise.all([
@@ -202,7 +213,12 @@ export default function AdCreativePanel({ clientId, clientName }) {
         </div>
 
         <div>
-          {!creatives.length && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a batch, or generate a new one.</div>}
+          {!batches.length && !sampleDismissed && (
+            <ExampleConcept clientName={clientName} onDismiss={dismissSample} />
+          )}
+          {!creatives.length && (batches.length > 0 || sampleDismissed) && (
+            <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a batch, or generate a new one.</div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
             {creatives.map(c => (
               <CreativeCard key={c.id} creative={c}
@@ -212,6 +228,49 @@ export default function AdCreativePanel({ clientId, clientName }) {
                 onFanOut={(imgId) => fanOutImage(imgId, c.id)}
               />
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Static illustrative concept for the empty state — mirrors the real
+// CreativeCard layout so a first-time AM can see the shape of the output
+// (framework + angle chips, headline, body, CTA, visual direction)
+// before generating anything.
+function ExampleConcept({ clientName, onDismiss }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+          <strong>This is an example.</strong> Click <strong>Generate ad concepts</strong> to create real ones for {clientName || 'this client'} — each render is editable and exportable.
+        </div>
+        <button onClick={onDismiss} className="btn btn-secondary btn-sm" style={{ whiteSpace: 'nowrap' }}>Got it</button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+        <div className="card" style={{ position: 'relative', opacity: 0.92 }}>
+          <div style={{ position: 'absolute', top: 10, right: 10, fontSize: 10, fontWeight: 800, letterSpacing: 0.6, textTransform: 'uppercase', color: 'var(--text-subtle)', background: 'var(--surface-sunken)', padding: '2px 8px', borderRadius: 'var(--r-sm)' }}>Example</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            <span className="chip chip-accent" style={{ fontSize: 10 }}>PAS</span>
+            <span className="chip chip-outline" style={{ fontSize: 10 }}>Problem / Solution</span>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <div className="field">HEADLINE</div>
+            <div style={{ fontSize: 16, fontWeight: 700, lineHeight: 1.3, color: 'var(--text)' }}>Still reheating the same flat coffee?</div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <div className="field">BODY</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>The double-walled ceramic keeps your brew at temperature for hours — no microwave, no waste. Designed in the studio, made to last.</div>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <div className="field">CTA</div>
+            <div style={{ fontSize: 12, color: 'var(--accent)', fontWeight: 700 }}>Shop the range</div>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <div className="field">VISUAL CONCEPT</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>Overhead shot of the mug on a sunlit kitchen counter, steam rising, warm editorial 35mm film tones, brand palette in the props.</div>
           </div>
         </div>
       </div>

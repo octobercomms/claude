@@ -18,6 +18,8 @@ export default function AudiencesPanel({ clientId }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -36,6 +38,21 @@ export default function AudiencesPanel({ clientId }) {
       toast('Postcode distribution refreshed.', 'success');
     } catch (e) { toast(`Refresh failed: ${e.message}`, 'error'); }
     finally { setRefreshing(false); }
+  }
+
+  async function uploadCustomerList({ name, file }) {
+    if (!file) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      if (name) fd.append('name', name);
+      const seg = await api.postForm(`/audiences/clients/${clientId}/customer-lists`, fd);
+      setSegments(prev => [seg, ...prev]);
+      setShowUpload(false);
+      toast(`Uploaded ${formatNum(seg.estimated_reach || 0)} contacts.`, 'success');
+    } catch (e) { toast(`Upload failed: ${e.message}`, 'error'); }
+    finally { setUploading(false); }
   }
 
   async function saveSegment(payload) {
@@ -84,7 +101,7 @@ export default function AudiencesPanel({ clientId }) {
   return (
     <>
       <p className="body mt-4 mb-6">
-        Build targetable audiences from first-party data. Postcode distribution from Shopify orders plus named segments exportable as Meta Custom Audiences. Demographic overlay ships next.
+        Build targetable audiences from first-party data — postcode distribution from Shopify orders, or a customer list (email / phone) you upload yourself. Save named segments and export them as Meta Custom Audiences. Demographic overlay ships next.
       </p>
 
       <div className="metric-grid">
@@ -154,16 +171,19 @@ export default function AudiencesPanel({ clientId }) {
         caption="Saved audiences"
         title="Segments"
         action={(
-          <Button onClick={() => setEditing({ name: '', description: '', filters: {} })}>
-            + New segment
-          </Button>
+          <div className="row wrap">
+            <Button variant="secondary" onClick={() => setShowUpload(true)}>↑ Upload customer list</Button>
+            <Button onClick={() => setEditing({ name: '', description: '', filters: {} })}>
+              + New segment
+            </Button>
+          </div>
         )}
       >
         {!segments.length ? (
           <EmptyState
             icon="🎯"
             title="No segments yet"
-            body="Define a named audience (e.g. 'High-value SW postcodes') and export it as a Meta Custom Audience CSV."
+            body="Define a named audience from postcode data (e.g. 'High-value SW postcodes'), or upload a customer list — then export it as a Meta Custom Audience CSV."
             action={{ label: 'Create first segment', onClick: () => setEditing({ name: '', description: '', filters: {} }) }}
           />
         ) : (
@@ -192,7 +212,47 @@ export default function AudiencesPanel({ clientId }) {
       {editing && (
         <SegmentEditor initial={editing} postcodes={postcodes} onClose={() => setEditing(null)} onSave={saveSegment} />
       )}
+
+      {showUpload && (
+        <CustomerListModal uploading={uploading} onClose={() => setShowUpload(false)} onUpload={uploadCustomerList} />
+      )}
     </>
+  );
+}
+
+function CustomerListModal({ uploading, onClose, onUpload }) {
+  const [name, setName] = useState('');
+  const [file, setFile] = useState(null);
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal suite-paid">
+        <div className="modal-head">
+          <h2 className="h2">Upload customer list</h2>
+          <button type="button" className="modal-close" onClick={onClose}>×</button>
+        </div>
+        <p className="body-sm mb-4">
+          Upload a CSV with an <strong>email</strong> and/or <strong>phone</strong> column — a Shopify, Klaviyo or Mailchimp export works as-is.
+          Contacts are hashed (SHA-256) on upload, so raw emails and phone numbers are never stored. The list becomes a segment you can
+          export as a Meta Custom Audience.
+        </p>
+        <div className="field">
+          <label className="field-label">List name</label>
+          <input className="input" value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Newsletter subscribers (June)" autoFocus />
+        </div>
+        <div className="field">
+          <label className="field-label">CSV file</label>
+          <input className="input" type="file" accept=".csv,text/csv" onChange={e => setFile(e.target.files?.[0] || null)} />
+          {file && <p className="body-xs text-subtle mt-2">{file.name} · {(file.size / 1024).toFixed(0)} KB</p>}
+        </div>
+        <div className="row end mt-6">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={() => onUpload({ name: name.trim(), file })} disabled={!file || uploading}>
+            {uploading ? 'Uploading…' : 'Upload & create segment'}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

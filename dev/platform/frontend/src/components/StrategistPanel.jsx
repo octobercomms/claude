@@ -3,11 +3,14 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
-import GoogleAdsPlaybook from './GoogleAdsPlaybook';
 
-// Internal Strategist reports for ads — Manus-style briefing notes. Left
-// rail lists past reports newest first; right pane renders the selected
-// report in markdown with table support via remark-gfm.
+// Internal Strategist reports for ads — Manus-style briefing notes.
+// Three-column working layout: left rail lists past reports newest
+// first; the middle column carries the bulk of the briefing (executive
+// summary, campaign + platform breakdown, what-changed, scorecard) and
+// the right column isolates the actions checklist + recommendations so
+// "what to do this week" reads on its own. Recipients + send/PDF live
+// in a full-width bar above the columns.
 export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   const toast = useToast();
   const [reports, setReports] = useState(null);
@@ -135,14 +138,19 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
     } catch (e2) { toast(e2.message, 'error'); }
   }
 
+  const completed = selected && selected.status === 'completed';
+  const briefing = completed ? splitBriefing(selected.markdown || '') : null;
+  const recsSection = briefing ? briefing.sections.find(s => s.num === 5) : null;
+  const middleSections = briefing ? briefing.sections.filter(s => s.num !== 5) : [];
+  const showRecs = completed && (recsSection || actions.length > 0);
+
   return (
     <div>
       <div className="modal-head">
         <div>
-          <div className="caption">Internal · for the AM</div>
           <h2 className="h2">Strategist briefing</h2>
           <p className="body mt-3">
-            A private, structured analyst note on this client's Meta + Google Ads. Compares the last period
+            A structured analyst note on this client's Meta + Google Ads. Compares the last period
             against the previous one and tells you what to action next. Auto-generated every Monday at 07:00.
           </p>
         </div>
@@ -158,8 +166,6 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
         </div>
       </div>
 
-      {hasGoogle && <GoogleAdsPlaybook />}
-
       {!reports && <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>}
       {reports && reports.length === 0 && !generating && (
         <div className="empty">
@@ -168,74 +174,108 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
       )}
 
       {reports && reports.length > 0 && (
-        <div className="grid">
-          <div className="stack stack-sm">
-            {reports.map(r => (
-              <button key={r.id} onClick={() => setSelectedId(r.id)}
-                className={`card ${selectedId === r.id ? '' : 'plain'}`}
-                style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s3) var(--s4)', width: '100%' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <strong style={{ fontSize: 12 }}>
-                    {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
-                  </strong>
-                  {!r.read_at && r.status === 'completed' && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "var(--r-pill)", background: "var(--accent)", marginLeft: 6 }} />}
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
-                  {r.status === 'generating' && '· Generating…'}
-                  {r.status === 'failed' && <span style={{ color: 'var(--negative)' }}>✗ Failed</span>}
-                  {r.status === 'completed' && (
-                    <>
-                      {r.trigger === 'weekly' ? 'weekly · ' : 'manual · '}
-                      {fmtRelative(r.generated_at)}
-                    </>
+        <>
+          {/* Top bar — Monday email recipients + send / PDF, full width. */}
+          {completed && (
+            <div className="card strategist-topbar">
+              <div style={{ flex: 1, minWidth: 280 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
+                  Monday email recipients
+                </label>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    type="text"
+                    value={recipients}
+                    onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
+                    placeholder="email@example.com, another@example.com"
+                    style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
+                  />
+                  {recipientsDirty && (
+                    <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
+                      {savingRecipients ? 'Saving…' : 'Save'}
+                    </button>
                   )}
                 </div>
-                <button onClick={(e) => destroy(r.id, e)} className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px" }} title="Delete">×</button>
-              </button>
-            ))}
-          </div>
-
-          <div className="card mt-4">
-            {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a report on the left.</div>}
-            {selected && selected.status === 'generating' && (
-              <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
-            )}
-            {selected && selected.status === 'failed' && (
-              <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 13 }}>
-                Generation failed: {selected.error_message || 'unknown error'}
               </div>
-            )}
-            {selected && selected.status === 'completed' && (
-              <>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginBottom: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 280 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                      Monday email recipients
-                    </label>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <input
-                        type="text"
-                        value={recipients}
-                        onChange={e => { setRecipients(e.target.value); setRecipientsDirty(true); }}
-                        placeholder="email@example.com, another@example.com"
-                        style={{ flex: 1, padding: '6px 10px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}
-                      />
-                      {recipientsDirty && (
-                        <button onClick={saveRecipients} disabled={savingRecipients} className="btn btn-secondary btn-sm">
-                          {savingRecipients ? 'Saving…' : 'Save'}
-                        </button>
+              <button onClick={sendBriefingEmail} disabled={emailing || !selected} className="btn btn-secondary btn-sm" title="Send this briefing as an email now (uses the recipients above)">
+                {emailing ? 'Sending…' : '✉ Send to email'}
+              </button>
+              <button onClick={savePdf} className="btn btn-secondary btn-sm" title="Save a PDF copy with the standard report header + footer">
+                ↓ Save PDF
+              </button>
+            </div>
+          )}
+
+          <div className={`strategist-grid${showRecs ? '' : ' no-recs'}`}>
+            {/* Column 1 — list of briefings. */}
+            <div>
+              <div className="strategist-col-head">Briefings</div>
+              <div className="stack stack-sm strategist-list">
+                {reports.map(r => (
+                  <button key={r.id} onClick={() => setSelectedId(r.id)}
+                    className={`card ${selectedId === r.id ? '' : 'plain'}`}
+                    style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s3) var(--s4)', width: '100%' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <strong style={{ fontSize: 12 }}>
+                        {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
+                      </strong>
+                      {!r.read_at && r.status === 'completed' && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "var(--r-pill)", background: "var(--accent)", marginLeft: 6 }} />}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                      {r.status === 'generating' && '· Generating…'}
+                      {r.status === 'failed' && <span style={{ color: 'var(--negative)' }}>✗ Failed</span>}
+                      {r.status === 'completed' && (
+                        <>
+                          {r.trigger === 'weekly' ? 'weekly · ' : 'manual · '}
+                          {fmtRelative(r.generated_at)}
+                        </>
                       )}
                     </div>
-                  </div>
-                  <button onClick={sendBriefingEmail} disabled={emailing || !selected} className="btn btn-secondary btn-sm" title="Send this briefing as an email now (uses the recipients above)">
-                    {emailing ? 'Sending…' : '✉ Send to email'}
+                    <button onClick={(e) => destroy(r.id, e)} className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px" }} title="Delete">×</button>
                   </button>
-                  <button onClick={savePdf} className="btn btn-secondary btn-sm" title="Save a PDF copy with the standard report header + footer">
-                    ↓ Save PDF
-                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Column 2 — the briefing body (sections 1–4 + 6). */}
+            <div className="card">
+              {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a report on the left.</div>}
+              {selected && selected.status === 'generating' && (
+                <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
+              )}
+              {selected && selected.status === 'failed' && (
+                <div style={{ padding: 12, background: 'var(--negative-soft)', border: '1px solid #f5c6cb', borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 13 }}>
+                  Generation failed: {selected.error_message || 'unknown error'}
                 </div>
+              )}
+              {completed && (
+                <div className="body-sm">
+                  {briefing.preamble && (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {briefing.preamble}
+                    </ReactMarkdown>
+                  )}
+                  {middleSections.map(s => (
+                    <ReactMarkdown key={s.num} remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {s.md}
+                    </ReactMarkdown>
+                  ))}
+                  {/* Fallback: a report that didn't parse into numbered
+                      sections still renders in full here. */}
+                  {briefing.sections.length === 0 && briefing.preamble === '' && (
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {selected.markdown || ''}
+                    </ReactMarkdown>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Column 3 — actions checklist + recommendations. */}
+            {showRecs && (
+              <div className="stack stack-lg">
                 {actions.length > 0 && (
-                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', padding: '12px 16px', borderRadius: 'var(--r-sm)', marginBottom: 18 }}>
+                  <div className="card" style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
@@ -256,18 +296,48 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                     </ol>
                   </div>
                 )}
-                <div className="body-sm">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                    {selected.markdown || ''}
-                  </ReactMarkdown>
-                </div>
-              </>
+                {recsSection && (
+                  <div className="card body-sm">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                      {recsSection.md}
+                    </ReactMarkdown>
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        </div>
+        </>
       )}
     </div>
   );
+}
+
+// Split a briefing's markdown into its numbered top-level sections
+// ("## 5. Recommendations" → { num: 5, md }). Anything before the first
+// numbered heading (title, period line) is returned as the preamble.
+// Tolerant of 1–4 leading hashes so older reports still parse.
+function splitBriefing(md) {
+  if (!md) return { preamble: '', sections: [] };
+  const headingRe = /^#{1,4}\s+(\d+)\.\s+.+$/;
+  const preamble = [];
+  const sections = [];
+  let cur = null;
+  for (const line of md.split('\n')) {
+    const m = line.match(headingRe);
+    if (m) {
+      if (cur) sections.push(cur);
+      cur = { num: parseInt(m[1], 10), lines: [line] };
+    } else if (cur) {
+      cur.lines.push(line);
+    } else {
+      preamble.push(line);
+    }
+  }
+  if (cur) sections.push(cur);
+  return {
+    preamble: preamble.join('\n').trim(),
+    sections: sections.map(s => ({ num: s.num, md: s.lines.join('\n') })),
+  };
 }
 
 function fmtDate(d) {
