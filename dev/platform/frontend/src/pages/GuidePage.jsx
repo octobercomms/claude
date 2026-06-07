@@ -110,7 +110,7 @@ const SECTIONS = [
   },
   {
     id: 'organic',
-    title: 'Client → Organic (was SEO)',
+    title: 'Client → Organic',
     summary: 'Keyword tracking, Search Console, AI Overviews, content gaps, planning.',
     body: [
       '**Keywords tab** is the core: rank tracking via DataForSEO. Rank checks run every 3 days automatically.',
@@ -126,7 +126,7 @@ const SECTIONS = [
   },
   {
     id: 'paid',
-    title: 'Client → Paid (was Ads)',
+    title: 'Client → Paid',
     summary: 'Spend, ROAS, and Claude-generated ad creative.',
     workflow: WORKFLOWS.ad,
     body: [
@@ -202,7 +202,7 @@ const SECTIONS = [
   },
   {
     id: 'outreach',
-    title: 'Client → Email (Outreach)',
+    title: 'Client → Email',
     summary: 'Cold-email campaigns with Claude-generated sequences.',
     body: [
       'Tabs: **Overview · Campaigns · Contacts · Tasks · Sending**. The Overview carries the KPI cards + a system-status panel (Claude / Hunter / SES / IMAP / SPF / DMARC) so you can see at a glance what\'s wired up.',
