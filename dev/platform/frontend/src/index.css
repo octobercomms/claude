@@ -307,12 +307,12 @@ button { font-family: inherit; }
 }
 .btn-ghost:hover:not(:disabled) { background: var(--surface-sunken); }
 
-/* Danger = white secondary with red text — destructive stays obvious. */
+/* Danger = filled red with white text — for delete / destructive actions. */
 .btn-danger {
-  background: var(--surface); color: var(--negative);
+  background: var(--negative); color: #fff;
   border-color: var(--negative);
 }
-.btn-danger:hover:not(:disabled) { background: var(--negative); color: #fff; border-color: var(--negative); }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.92); color: #fff; }
 
 /* ─── Chips ──────────────────────────────────────────────────────── */
 

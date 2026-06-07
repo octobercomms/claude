@@ -533,7 +533,7 @@ export default function ClientDetailPage() {
                       </td>
                       <td style={{ padding: '7px 12px 7px 0', borderTop: '1px solid #f5f5f5', color: 'var(--text-subtle)' }}>{r.generated_at ? new Date(r.generated_at).toLocaleDateString('en-GB') : '—'}</td>
                       <td style={{ padding: '7px 0', borderTop: '1px solid #f5f5f5', textAlign: 'right' }}>
-                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
+                        <button type="button" onClick={() => handleDeleteReport(r.id)} className="btn btn-danger btn-sm">Delete</button>
                       </td>
                     </tr>
                     {r.status === 'failed' && r.error_log && (
@@ -1103,7 +1103,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             </button>
           )}
           {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--warning)' }}>Reset</button>}
-          <button onClick={() => onDelete(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Remove</button>
+          <button onClick={() => onDelete(connector.id)} className="btn btn-danger btn-sm">Remove</button>
         </div>
       </div>
       {diagnoseResult && (
