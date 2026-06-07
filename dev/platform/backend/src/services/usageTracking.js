@@ -11,6 +11,7 @@
 const axios = require('axios');
 const pool = require('../db');
 const { getSetting } = require('../utils/settings');
+const { resolveCreds } = require('../connectors/dataforseo');
 
 // Monthly period helpers — most providers think in calendar months.
 function monthBounds(date = new Date()) {
@@ -27,8 +28,12 @@ const POLLERS = [
       const login = await getSetting('DATAFORSEO_LOGIN');
       const password = await getSetting('DATAFORSEO_PASSWORD');
       if (!login || !password) return null;
+      // Use the same credential resolution as the SEO connector — trims
+      // whitespace and unpacks a base64 email:password token if that's how
+      // the key was pasted. Without this the poller 401s even when SEO works.
+      const { username, password: pass } = resolveCreds(login, password);
       const { data } = await axios.get('https://api.dataforseo.com/v3/appendix/user_data', {
-        auth: { username: login, password },
+        auth: { username, password: pass },
       });
       const result = data.tasks?.[0]?.result?.[0];
       if (!result) throw new Error('No user_data returned');
@@ -105,11 +110,16 @@ const POLLERS = [
     label: 'Anthropic (Claude)',
     async poll() {
       // The admin usage API requires an admin-tier key (separate from the
-      // regular CLAUDE_API_KEY). If the operator has set one, we use it;
-      // otherwise we skip silently. Saves a confusing error for the
-      // common case where only the regular key is configured.
+      // regular CLAUDE_API_KEY). Without it we can't read $ spend — but the
+      // chat/report features still work off the regular key, so show
+      // "connected, add an admin key to track spend" rather than the
+      // misleading "Not configured".
       const adminKey = await getSetting('ANTHROPIC_ADMIN_KEY');
-      if (!adminKey) return null;
+      if (!adminKey) {
+        const regularKey = (await getSetting('CLAUDE_API_KEY')) || process.env.CLAUDE_API_KEY;
+        if (!regularKey) return null;
+        return { unit_label: 'tokens', raw: { note: 'Connected — add an Anthropic Admin key in Settings to track spend here.' } };
+      }
       const { period_start, period_end } = monthBounds();
       const { data } = await axios.get('https://api.anthropic.com/v1/organizations/usage_report/messages', {
         params: { starting_at: period_start, ending_at: period_end },
