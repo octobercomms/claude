@@ -579,7 +579,7 @@ export default function ClientOutreachPage() {
             <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
             <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
             {selectedContacts.size > 0 && (
-              <button onClick={handleBulkDelete} className="btn btn-secondary" style={{ color: 'var(--negative)', borderColor: 'var(--negative)' }}>Delete {selectedContacts.size} selected</button>
+              <button onClick={handleBulkDelete} className="btn btn-danger">Delete {selectedContacts.size} selected</button>
             )}
             <span style={{ fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
               CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.

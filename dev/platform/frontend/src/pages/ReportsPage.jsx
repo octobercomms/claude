@@ -184,7 +184,7 @@ export default function ReportsPage() {
                     {(r.status === 'generated' || r.status === 'sent' || r.status === 'failed') && (
                       <button onClick={() => handleResend(r.id)} className="btn btn-secondary btn-sm">{r.status === 'failed' ? 'Retry' : 'Resend'}</button>
                     )}
-                    <button onClick={() => handleDelete(r.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>✕</button>
+                    <button onClick={() => handleDelete(r.id)} className="btn btn-danger btn-sm">✕</button>
                   </div>
                 </td>
               </tr>

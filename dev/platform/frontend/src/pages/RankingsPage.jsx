@@ -337,7 +337,7 @@ export default function RankingsPage() {
                     <td style={{ color: 'var(--positive)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
                     <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
                     <td  onClick={e => e.stopPropagation()}>
-                      <button onClick={() => handleDelete(kw.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
+                      <button onClick={() => handleDelete(kw.id)} className="btn btn-danger btn-sm">Delete</button>
                     </td>
                   </tr>
                 );
