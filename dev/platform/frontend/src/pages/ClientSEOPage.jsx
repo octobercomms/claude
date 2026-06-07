@@ -391,9 +391,11 @@ export default function ClientSEOPage() {
         <td >{kw.previous_position || '—'}</td>
         <td style={{ color: 'var(--accent)', fontWeight: 600 }}>{kw.best_position || '—'}</td>
         <td >{kw.last_checked ? new Date(kw.last_checked).toLocaleDateString('en-GB') : '—'}</td>
-        <td  onClick={e => e.stopPropagation()}>
-          <button onClick={() => setHistoryKeyword(kw)} title="Full position history" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, padding: '0 4px' }}>⊞</button>
-          <button onClick={() => handleDelete(kw.id)} title="Delete keyword" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+        <td onClick={e => e.stopPropagation()}>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <button onClick={() => setHistoryKeyword(kw)} className="btn btn-secondary btn-sm">History</button>
+            <button onClick={() => handleDelete(kw.id)} className="btn btn-danger btn-sm">Delete</button>
+          </div>
         </td>
       </tr>
       {expanded && (
@@ -693,19 +695,19 @@ export default function ClientSEOPage() {
           { label: 'Not ranking', value: keywords.filter(k => !k.current_position).length, spark: trend && trend.map(t => keywords.length - t.ranked) },
         ];
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 16, marginBottom: 16 }}>
-            {cards.map(c => (
-              <div key={c.label} className="card">
-                <div className="caption">{c.label}</div>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)' }}>{c.value}</div>
+          <div className="stat-strip" style={{ gridTemplateColumns: 'repeat(5, 1fr)', marginBottom: 'var(--s4)' }}>
+            {cards.map((c, i) => (
+              <div key={c.label} className={'stat' + (i === 0 ? ' feature' : '')}>
+                <div className="stat-label">{c.label}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 'var(--s2)' }}>
+                  <div className="stat-value" style={{ marginTop: 0 }}>{c.value}</div>
                   {c.delta != null && c.delta !== 0 && (
-                    <span className={c.delta > 0 ? 'text-positive' : 'text-negative'} style={{ fontSize: 12 }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 7px', borderRadius: 'var(--r-sm)', background: c.delta > 0 ? 'var(--positive-soft)' : 'var(--negative-soft)', color: c.delta > 0 ? 'var(--positive)' : 'var(--negative)' }}>
                       {c.delta > 0 ? `▲ ${c.delta}` : `▼ ${Math.abs(c.delta)}`}
                     </span>
                   )}
                 </div>
-                <Sparkline data={c.spark} reverse={c.sparkReverse} />
+                {c.spark && <Sparkline data={c.spark} reverse={c.sparkReverse} />}
               </div>
             ))}
           </div>

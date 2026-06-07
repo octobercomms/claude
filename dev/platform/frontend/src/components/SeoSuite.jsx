@@ -208,26 +208,26 @@ function GSCSection({ title, rows, keyCol, cap }) {
         <table className="table">
           <thead>
             <tr>
-              <th className="caption" style={{ padding: "6px 8px" }}>{keyCol === 'query' ? 'Query' : keyCol === 'page' ? 'Page' : 'Device'}</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Clicks</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Impr.</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>CTR</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Pos.</th>
+              <th>{keyCol === 'query' ? 'Query' : keyCol === 'page' ? 'Page' : 'Device'}</th>
+              <th className="num">Clicks</th>
+              <th className="num">Impr.</th>
+              <th className="num">CTR</th>
+              <th className="num">Pos.</th>
             </tr>
           </thead>
           <tbody>
             {data.map((r, i) => (
-              <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
-                  {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
+              <tr key={i}>
+                <td style={{ maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {keyCol === 'page' && r.page ? <a href={r.page} target="_blank" rel="noreferrer">{r.page.replace(/^https?:\/\//, '')}</a> : r[keyCol]}
                 </td>
-                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.clicks.toLocaleString()}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.impressions.toLocaleString()}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{(r.ctr * 100).toFixed(1)}%</td>
-                <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{r.position.toFixed(1)}</td>
+                <td className="num">{r.clicks.toLocaleString()}</td>
+                <td className="num">{r.impressions.toLocaleString()}</td>
+                <td className="num">{(r.ctr * 100).toFixed(1)}%</td>
+                <td className="num">{r.position.toFixed(1)}</td>
               </tr>
             ))}
-            {!data.length && <tr><td colSpan={5} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)'  }}>No data.</td></tr>}
+            {!data.length && <tr><td colSpan={5} className="text-subtle">No data.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -243,10 +243,10 @@ function SitemapList({ sitemaps }) {
         <table className="table">
           <thead>
             <tr>
-              <th className="caption" style={{ padding: "6px 8px" }}>Sitemap</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Submitted</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Indexed</th>
-              <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Errors</th>
+              <th>Sitemap</th>
+              <th className="num">Submitted</th>
+              <th className="num">Indexed</th>
+              <th className="num">Errors</th>
             </tr>
           </thead>
           <tbody>
@@ -254,17 +254,17 @@ function SitemapList({ sitemaps }) {
               const submitted = sm.contents.reduce((s, c) => s + c.submitted, 0);
               const indexed = sm.contents.reduce((s, c) => s + c.indexed, 0);
               return (
-                <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                  <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'  }}>
-                    <a href={sm.path} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{sm.path.replace(/^https?:\/\//, '')}</a>
+                <tr key={i}>
+                  <td style={{ maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <a href={sm.path} target="_blank" rel="noreferrer">{sm.path.replace(/^https?:\/\//, '')}</a>
                   </td>
-                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{submitted.toLocaleString()}</td>
-                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{indexed.toLocaleString()}</td>
-                  <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right', color: sm.errors > 0 ? 'var(--negative)' : 'var(--text-subtle)'  }}>{sm.errors}</td>
+                  <td className="num">{submitted.toLocaleString()}</td>
+                  <td className="num">{indexed.toLocaleString()}</td>
+                  <td className="num" style={{ color: sm.errors > 0 ? 'var(--negative)' : 'var(--text-subtle)' }}>{sm.errors}</td>
                 </tr>
               );
             })}
-            {!sitemaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)'  }}>No sitemaps registered with Search Console.</td></tr>}
+            {!sitemaps.length && <tr><td colSpan={4} className="text-subtle">No sitemaps registered with Search Console.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -324,7 +324,7 @@ export function AIOverviewsTab({ clientId }) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 14, marginBottom: 18 }}>
-        <SummaryCard label="Keywords tracked" value={latest.length} />
+        <SummaryCard label="Keywords tracked" value={latest.length} feature />
         <SummaryCard label="Currently triggering AIO" value={presentNow} pct={latest.length ? Math.round(presentNow / latest.length * 100) : null} />
         <SummaryCard label="Your brand cited" value={citedNow} pct={presentNow ? Math.round(citedNow / presentNow * 100) : null} />
       </div>
@@ -348,26 +348,26 @@ export function AIOverviewsTab({ clientId }) {
         <table className="table">
           <thead>
             <tr>
-              <th className="caption" style={{ padding: "6px 8px" }}>Keyword</th>
-              <th className="caption" style={{ padding: "6px 8px" }}>Intent</th>
-              <th className="caption" style={{ padding: "6px 8px" }}>AIO present</th>
-              <th className="caption" style={{ padding: "6px 8px" }}>Brand cited</th>
-              <th className="caption" style={{ padding: "6px 8px" }}>Snippet</th>
-              <th className="caption" style={{ padding: "6px 8px" }}>Checked</th>
+              <th>Keyword</th>
+              <th>Intent</th>
+              <th>AIO present</th>
+              <th>Brand cited</th>
+              <th>Snippet</th>
+              <th>Checked</th>
             </tr>
           </thead>
           <tbody>
             {latest.map(r => (
-              <tr key={r.keyword_id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{r.keyword}</strong></td>
-                <td style={{ padding: "6px 8px", fontSize: 12 }}><IntentBadge intent={r.intent} /></td>
-                <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.present ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">No</span>}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12 }}>{r.brand_cited ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">—</span>}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12, maxWidth: 420, color: 'var(--text-muted)', fontSize: 11  }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
-                <td style={{ padding: "6px 8px", fontSize: 12 }}>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
+              <tr key={r.keyword_id}>
+                <td><strong>{r.keyword}</strong></td>
+                <td><IntentBadge intent={r.intent} /></td>
+                <td>{r.present ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">No</span>}</td>
+                <td>{r.brand_cited ? <span className="chip chip-success">Yes</span> : <span className="text-subtle">—</span>}</td>
+                <td style={{ maxWidth: 420, color: 'var(--text-muted)', fontSize: 11 }}>{r.snippet ? r.snippet.slice(0, 160) + (r.snippet.length > 160 ? '…' : '') : '—'}</td>
+                <td>{new Date(r.checked_at).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
-            {!latest.length && <tr><td colSpan={6} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)', padding: 20, textAlign: 'center'  }}>No AIO data yet — click "Check now" to populate.</td></tr>}
+            {!latest.length && <tr><td colSpan={6} className="text-subtle" style={{ textAlign: 'center' }}>No AIO data yet — click "Check now" to populate.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -375,11 +375,13 @@ export function AIOverviewsTab({ clientId }) {
   );
 }
 
-function SummaryCard({ label, value, pct }) {
+function SummaryCard({ label, value, pct, feature }) {
   return (
-    <div style={{ flex: 1, padding: '14px 16px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: 'var(--surface)' }}>
-      <div style={{ fontSize: 22, fontWeight: 700 }}>{value}{pct != null && <span style={{ fontSize: 13, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 6 }}>({pct}%)</span>}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 4 }}>{label}</div>
+    <div className={'stat' + (feature ? ' feature' : '')} style={{ flex: 1 }}>
+      <div className="stat-label">{label}</div>
+      <div className="stat-value" style={{ marginTop: 'var(--s2)' }}>
+        {value}{pct != null && <small> ({pct}%)</small>}
+      </div>
     </div>
   );
 }
