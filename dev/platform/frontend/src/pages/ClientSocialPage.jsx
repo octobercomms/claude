@@ -376,10 +376,15 @@ export default function ClientSocialPage() {
 
       {socialTab === 'overview' && (
         <SuiteOverview
-          tagline="Generate, schedule, autopilot."
-          description="Claude generates nine posts at a time grounded in your brand brief, competitor signals, and trending sounds. Lock the ones you want, schedule them, and autopilot publishes to every channel."
+          tagline="A month of on-brand posts, on autopilot."
+          description="Claude brainstorms nine posts at a time from your brand brief, competitor signals and trending sounds. Lock the ones you like, schedule them, and autopilot publishes to every channel — then learns from what wins."
           ctaLabel="See the loop"
           onCta={() => setSocialTab('loop')}
+          status={[
+            { label: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', ok: !client?.social_autopilot_paused },
+            { label: 'Plans', value: `${plans.length} scheduled`, ok: plans.length > 0 },
+            { label: 'Competitors', value: competitors.length ? `${competitors.length} tracked` : 'None added', ok: competitors.length > 0 },
+          ]}
           flow={[
             { label: 'Brainstorm', detail: '9 posts at a time' },
             { label: 'Lock plan',  detail: 'Edit, approve, schedule' },
@@ -387,12 +392,10 @@ export default function ClientSocialPage() {
             { label: 'Learn',      detail: 'Winners + framework data' },
           ]}
           capabilities={[
-            { tag: 'Brainstorm',  title: 'Nine at a time',            body: 'Hook, caption, hashtags, visual concept, and a frame-by-frame storyboard for each — grounded in the brief.' },
-            { tag: 'Media',       title: 'Generate the assets',       body: 'Static images via Replicate / Ideogram, AI voiceovers, UGC video, and template-rendered A/C/G clips via Remotion.' },
-            { tag: 'Plans',       title: 'Schedule + lock',           body: 'Approve into a Plan, drag to schedule, and autopilot publishes on the right cadence.' },
-            { tag: 'Performance', title: 'Winners + Hook Vault',      body: 'Top-performing posts surface as winners; their hooks land in the Hook Vault for cross-client reuse.' },
-            { tag: 'Competitors', title: 'Track + scrape',            body: 'Competitor social, landing-page change detection, and regional trending sounds — all in one view.' },
-            { tag: 'Approvals',   title: 'Client review links',       body: 'Share a public link for the client to approve / request changes / comment, no login needed.' },
+            { tag: 'Brainstorm',  title: 'Generate nine at a time',   cta: 'Open brainstorm', onClick: () => setSocialTab('brainstorm'), body: 'Hook, caption, hashtags, visual concept and a frame-by-frame storyboard for each — grounded in the brief.' },
+            { tag: 'Plans',       title: 'Schedule & autopilot',      cta: 'Open plans', onClick: () => setSocialTab('plans'), body: 'Approve posts into a Plan, set the cadence, and autopilot publishes to IG / Facebook / LinkedIn.' },
+            { tag: 'Performance', title: 'Learn what wins',           cta: 'Open performance', onClick: () => setSocialTab('performance'), body: 'Top posts surface as winners and their hooks land in the Hook Vault for reuse across clients.' },
+            { tag: 'Competitors', title: 'Model against rivals',      cta: 'Open competitors', onClick: () => setSocialTab('competitors'), body: 'Weekly competitor scrapes and regional trending sounds feed straight into the next brainstorm.' },
           ]}
         />
       )}
