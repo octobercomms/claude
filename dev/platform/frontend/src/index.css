@@ -970,56 +970,56 @@ select, textarea {
 }
 
 /* ─── Paid · Google Ads funnel (Overview reference) ──────────────── */
+/* Three columns: grouped Do list (left), the funnel graphic (centre),
+   grouped Don't list (right). Each band paints a clipped trapezoid as a
+   background layer with the text on a separate, UN-clipped layer so the
+   taper can never cut the label. */
 .ads-funnel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 440px) minmax(0, 1fr);
-  column-gap: var(--s5);
-  row-gap: var(--s2);
-  align-items: stretch;
+  grid-template-columns: minmax(0, 1fr) clamp(240px, 30vw, 380px) minmax(0, 1fr);
+  column-gap: var(--s6);
+  row-gap: var(--s4);
+  align-items: start;
 }
-.ads-funnel-head { align-self: end; padding-bottom: var(--s2); }
-.ads-funnel-do, .ads-funnel-dont {
-  align-self: center;
-  font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text);
+.ads-funnel-head { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+.ads-do, .ads-dont { display: flex; flex-direction: column; gap: var(--s5); }
+.ads-group-head { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 13px; margin-bottom: 5px; }
+.ads-group-num {
+  flex: 0 0 auto; width: 20px; height: 20px; border-radius: 50%;
+  background: #1a1a1a; color: #fff; font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
 }
-.ads-funnel-list { list-style: none; margin: 0; padding: 0; }
-.ads-funnel-list li { position: relative; padding-left: 20px; margin-bottom: 6px; }
-.ads-funnel-do .ads-funnel-list li::before {
-  content: '✓'; position: absolute; left: 0; color: var(--positive); font-weight: 800;
-}
-.ads-funnel-dont .ads-funnel-list li::before {
-  content: '✕'; position: absolute; left: 0; color: var(--negative); font-weight: 800;
-}
-.ads-funnel-band {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--s3);
-  padding: 18px 30px;
-  min-height: 92px;
-  color: #1a1a1a;
-  text-align: left;
+.ads-list { list-style: none; margin: 0; padding: 0; font-size: 12.5px; line-height: 1.5; color: var(--text); }
+.ads-list li { position: relative; padding-left: 20px; margin-bottom: 5px; }
+.ads-do .ads-list li::before { content: '✓'; position: absolute; left: 0; color: var(--positive); font-weight: 800; }
+.ads-dont .ads-list li::before { content: '✕'; position: absolute; left: 0; color: var(--negative); font-weight: 800; }
+
+/* Funnel graphic — centred vertically against the side lists. */
+.ads-funnel-graphic { align-self: center; display: flex; flex-direction: column; gap: 3px; }
+.ads-funnel-band { position: relative; min-height: 104px; display: flex; align-items: center; justify-content: center; }
+.ads-funnel-band-bg { position: absolute; inset: 0; }
+.ads-funnel-band-content {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: 10px;
+  max-width: 56%;             /* keep text inside the narrowest taper */
+  color: #1a1a1a; text-align: left;
 }
 .ads-funnel-num {
-  flex: 0 0 auto;
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  background: #1a1a1a;
-  color: #fff;
+  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
+  background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
-  font-size: 15px; font-weight: 800;
 }
-.ads-funnel-title { display: block; font-weight: 800; font-size: 16px; line-height: 1.15; }
-.ads-funnel-tagline { display: block; font-size: 12px; margin-top: 2px; opacity: 0.82; }
-.ads-funnel-label { display: none; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+.ads-funnel-title { display: block; font-weight: 800; font-size: 15px; line-height: 1.15; }
+.ads-funnel-tagline { display: block; font-size: 11.5px; margin-top: 2px; opacity: 0.82; line-height: 1.25; }
+.ads-col-label { display: none; }
 @media (max-width: 900px) {
   .ads-funnel { grid-template-columns: 1fr; }
   .ads-funnel-head { display: none; }
-  .ads-funnel-do, .ads-funnel-dont { align-self: auto; }
-  .ads-funnel-label { display: block; }
+  .ads-funnel-graphic { align-self: stretch; order: -1; }
+  .ads-funnel-band-content { max-width: 80%; }
+  .ads-col-label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--s2); }
 }
+
 
 /* ─── Paid · Strategist briefing layout ──────────────────────────── */
 /* Two zones: the analytical body up top (list + sections 1–4, where the

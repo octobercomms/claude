@@ -5,16 +5,15 @@ import React from 'react';
 // tab as evergreen reference — AMs scan it before reading the weekly
 // Strategist brief, and the briefings reference it implicitly.
 //
-// Drawn as a real funnel: a central column of tapering trapezoid bands,
-// widest at the top (Performance Max — broad-reach demand capture) down
-// to the narrowest (Branded Search — defensive only). The do / don't
-// detail sits permanently either side — Do on the left, Don't on the
-// right — instead of behind a hover tooltip.
+// Layout: a clean continuous funnel down the middle (widest Performance
+// Max → narrowest Branded Search), with the do / don't detail grouped
+// either side — Do on the left, Don't on the right — each group numbered
+// to match its funnel layer.
 const LAYERS = [
   {
     num: 1,
     title: 'Performance Max',
-    tagline: 'Broad-reach new customer engine — feed only.',
+    tagline: 'Broad-reach new customer engine.',
     dos: [
       'Feed-only — no headlines, descriptions, or images. Shopping placements are where the return lives.',
       'Run multiple PMax campaigns when product margins vary significantly, so each can have its own tROAS target.',
@@ -28,7 +27,7 @@ const LAYERS = [
   {
     num: 2,
     title: 'Standard Shopping',
-    tagline: 'Priority-tiered keyword funnel — the control PMax can\'t give you.',
+    tagline: 'Priority-tiered keyword funnel.',
     dos: [
       'High priority + aggressive (low) tROAS for high-intent search terms. Exclude brand + generics.',
       'Medium priority for generics. Exclude brand. Use a higher tROAS so it doesn\'t overspend on lower-converting traffic.',
@@ -42,7 +41,7 @@ const LAYERS = [
   {
     num: 3,
     title: 'Standard Search',
-    tagline: 'Discovery first, then graduate the winners to exact match.',
+    tagline: 'Discovery first, then graduate winners to exact match.',
     dos: [
       'Start with a broad-match campaign using keyword-themed ad groups — your search-term discovery engine.',
       'After a few weeks, identify the search terms that converted best and ROAS-positive.',
@@ -58,7 +57,7 @@ const LAYERS = [
   {
     num: 4,
     title: 'Branded Search',
-    tagline: 'Defensive only. Most brands probably don\'t need this.',
+    tagline: 'Defensive only. Most brands don\'t need this.',
     dos: [
       'Run it when competitors are aggressively bidding on your brand terms (common at scale).',
       'Run it when your organic SEO is weak and you don\'t reliably show up #1 for your own brand.',
@@ -70,16 +69,30 @@ const LAYERS = [
   },
 ];
 
-// Taper: each band insets its sides by `index * STEP`% at the top and
-// `(index + 1) * STEP`% at the bottom, so consecutive bands line up into
-// one continuous funnel. Darkening shades give it depth top → bottom.
-const STEP = 6;
+// Gentle taper: each band insets its sides by `index * STEP`% at the top
+// and `(index + 1) * STEP`% at the bottom, so consecutive bands line up
+// into one continuous funnel (100% → 60% over four layers). Generous
+// horizontal padding on the band keeps the centred text clear of the
+// angled edges. Darkening shades give it depth top → bottom.
+const STEP = 5;
 const BAND_BG = ['#EAD24E', '#E2C63D', '#D4B636', '#C2A22E'];
 
 function bandClip(i) {
   const top = i * STEP;
   const bottom = (i + 1) * STEP;
   return `polygon(${top}% 0, ${100 - top}% 0, ${100 - bottom}% 100%, ${bottom}% 100%)`;
+}
+
+function Group({ layer, kind }) {
+  const items = kind === 'do' ? layer.dos : layer.donts;
+  return (
+    <div className="ads-group">
+      <div className="ads-group-head"><span className="ads-group-num">{layer.num}</span>{layer.title}</div>
+      <ul className="ads-list">
+        {items.map((d, j) => <li key={j}>{d}</li>)}
+      </ul>
+    </div>
+  );
 }
 
 export default function GoogleAdsPlaybook() {
@@ -94,35 +107,34 @@ export default function GoogleAdsPlaybook() {
       </div>
 
       <div className="ads-funnel">
-        <div className="ads-funnel-head caption" style={{ color: 'var(--positive)', textAlign: 'right' }}>Do</div>
+        <div className="ads-funnel-head" style={{ color: 'var(--positive)' }}>Do</div>
         <div className="ads-funnel-head" />
-        <div className="ads-funnel-head caption" style={{ color: 'var(--negative)' }}>Don't</div>
+        <div className="ads-funnel-head" style={{ color: 'var(--negative)' }}>Don't</div>
 
-        {LAYERS.map((layer, i) => (
-          <React.Fragment key={layer.num}>
-            <div className="ads-funnel-do">
-              <div className="ads-funnel-label" style={{ color: 'var(--positive)' }}>Do</div>
-              <ul className="ads-funnel-list">
-                {layer.dos.map((d, j) => <li key={j}>{d}</li>)}
-              </ul>
-            </div>
+        <div className="ads-do">
+          <div className="ads-col-label" style={{ color: 'var(--positive)' }}>Do</div>
+          {LAYERS.map(l => <Group key={l.num} layer={l} kind="do" />)}
+        </div>
 
-            <div className="ads-funnel-band" style={{ background: BAND_BG[i], clipPath: bandClip(i) }}>
-              <span className="ads-funnel-num">{layer.num}</span>
-              <span>
-                <span className="ads-funnel-title">{layer.title}</span>
-                <span className="ads-funnel-tagline">{layer.tagline}</span>
-              </span>
+        <div className="ads-funnel-graphic">
+          {LAYERS.map((l, i) => (
+            <div key={l.num} className="ads-funnel-band">
+              <div className="ads-funnel-band-bg" style={{ background: BAND_BG[i], clipPath: bandClip(i) }} />
+              <div className="ads-funnel-band-content">
+                <span className="ads-funnel-num">{l.num}</span>
+                <span className="ads-funnel-text">
+                  <span className="ads-funnel-title">{l.title}</span>
+                  <span className="ads-funnel-tagline">{l.tagline}</span>
+                </span>
+              </div>
             </div>
+          ))}
+        </div>
 
-            <div className="ads-funnel-dont">
-              <div className="ads-funnel-label" style={{ color: 'var(--negative)' }}>Don't</div>
-              <ul className="ads-funnel-list">
-                {layer.donts.map((d, j) => <li key={j}>{d}</li>)}
-              </ul>
-            </div>
-          </React.Fragment>
-        ))}
+        <div className="ads-dont">
+          <div className="ads-col-label" style={{ color: 'var(--negative)' }}>Don't</div>
+          {LAYERS.map(l => <Group key={l.num} layer={l} kind="dont" />)}
+        </div>
       </div>
 
       <p style={{ marginTop: 'var(--s5)', fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, maxWidth: 720 }}>
