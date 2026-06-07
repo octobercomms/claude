@@ -315,11 +315,6 @@ export default function ClientDetailPage() {
         <div>
           <h1 className="display mt-2">{pageTitle}</h1>
         </div>
-        <div className="hero-actions">
-          <span className={`chip ${client.active ? 'chip-success' : 'chip-neutral'}`}>
-            {client.active ? 'Active' : 'Inactive'}
-          </span>
-        </div>
       </header>
 
       {['details', 'brand', 'connectors', 'setup_overview'].includes(tab) && (

@@ -613,15 +613,6 @@ export default function ClientSEOPage() {
         <div>
           <h1 className="display mt-2">Organic</h1>
         </div>
-        {activeTab === 'keywords' && (
-          <div className="hero-actions">
-            <button onClick={handleExport} className="btn btn-secondary btn-sm">Export CSV</button>
-            <button onClick={handleClassifyIntent} className="btn btn-secondary btn-sm" disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
-            <button onClick={handleCheckAll} className="btn btn-secondary btn-sm" disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
-            <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} className="btn btn-secondary btn-sm">Bulk Import</button>
-            <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} className="btn btn-secondary btn-sm" style={{ background: 'var(--accent)', color: 'var(--accent-on)' }}>+ Add Keyword</button>
-          </div>
-        )}
       </header>
 
       <SuiteTabs tabs={[
@@ -676,6 +667,13 @@ export default function ClientSEOPage() {
       {activeTab === 'planning' && <PlanningTab clientId={id} />}
 
       {activeTab === 'keywords' && <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button onClick={handleExport} className="btn btn-secondary btn-sm">Export CSV</button>
+        <button onClick={handleClassifyIntent} className="btn btn-secondary btn-sm" disabled={classifying}>{classifying ? 'Classifying…' : 'Classify Intent'}</button>
+        <button onClick={handleCheckAll} className="btn btn-secondary btn-sm" disabled={checking}>{checking ? 'Checking…' : 'Check All Ranks'}</button>
+        <button onClick={() => { setShowBulkForm(true); setShowAddForm(false); }} className="btn btn-secondary btn-sm">Bulk Import</button>
+        <button onClick={() => { setShowAddForm(true); setShowBulkForm(false); }} className="btn btn-primary btn-sm">+ Add Keyword</button>
+      </div>
       {/* Rankings summary */}
       {(() => {
         const trend = buildTrend(rankMatrix);
