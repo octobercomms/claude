@@ -36,13 +36,16 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* Hero — tracked context kicker, oversized title, thick rule */}
-      <div className="text-[11px] font-bold tracking-[0.18em] uppercase text-subtle flex items-center gap-3.5 mb-s3">
-        <span className="w-2 h-2 bg-accent rounded-pill" />
+      {/* Hero — tracked context kicker, oversized title, thick rule.
+          Renders as wrapping inline text (not a rigid flex row) so the
+          line reflows cleanly on narrow screens; tighter tracking on
+          mobile keeps it readable. */}
+      <div className="text-[11px] font-bold tracking-[0.14em] max-md:tracking-[0.08em] uppercase text-subtle leading-[1.7] mb-s3">
+        <span className="inline-block w-2 h-2 bg-accent rounded-pill align-middle mr-2" />
         Overview · <b className="text-ink">{clients.length} {clients.length === 1 ? 'client' : 'clients'}</b> ·{' '}
         {expiredTokens.length
           ? `${expiredTokens.length} need${expiredTokens.length === 1 ? 's' : ''} attention`
-          : 'all systems nominal'}
+          : 'all systems healthy'}
       </div>
       <header className="flex justify-between items-end flex-wrap gap-s4 border-b border-ink pb-s5 mb-s7">
         <h1 className="text-[54px] font-extrabold leading-none tracking-[-1.6px] text-ink m-0 max-md:text-[40px]">Dashboard</h1>
