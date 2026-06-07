@@ -697,6 +697,17 @@ button { font-family: inherit; }
    colour. */
 .hero:has(+ .tabs) { border-bottom: none; padding-bottom: 0; margin-bottom: 0; }
 
+/* Sub-tab strip — used directly below the top-level SuiteTabs when a
+   group fans out into related sub-views (e.g. Organic → Position →
+   [Keywords | Search Console | Authority | Backlinks]). Smaller text +
+   tighter spacing keeps the hierarchy obvious. */
+.tabs-sub {
+  gap: var(--s4);
+  border-bottom: 1px solid var(--accent-soft);
+  margin: calc(var(--s6) * -1) 0 var(--s5);
+}
+.tabs-sub .tab { font-size: 13px; padding: var(--s2) 0; }
+
 /* ─── Form controls ──────────────────────────────────────────────── */
 
 .input, .select, .textarea {

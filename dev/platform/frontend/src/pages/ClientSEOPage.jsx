@@ -617,18 +617,51 @@ export default function ClientSEOPage() {
         </div>
       </header>
 
-      <SuiteTabs tabs={[
-        { key: 'overview',      label: 'Overview',       active: activeTab === 'overview',      onClick: () => setActiveTab('overview') },
-        { key: 'keywords',      label: 'Keywords',       active: activeTab === 'keywords',      onClick: () => setActiveTab('keywords') },
-        { key: 'gsc',           label: 'Search Console', active: activeTab === 'gsc',           onClick: () => setActiveTab('gsc') },
-        { key: 'aio',           label: 'AI Overviews',   active: activeTab === 'aio',           onClick: () => setActiveTab('aio') },
-        { key: 'fanout',        label: 'Fan-out',        active: activeTab === 'fanout',        onClick: () => setActiveTab('fanout') },
-        { key: 'ai_visibility', label: 'AI Visibility',  active: activeTab === 'ai_visibility', onClick: () => setActiveTab('ai_visibility') },
-        { key: 'gaps',          label: 'Content Gaps',   active: activeTab === 'gaps',          onClick: () => setActiveTab('gaps') },
-        { key: 'planning',      label: 'Planning',       active: activeTab === 'planning',      onClick: () => setActiveTab('planning') },
-        { key: 'authority',     label: 'Authority',      active: activeTab === 'authority',     onClick: () => setActiveTab('authority') },
-        { key: 'backlinks',     label: 'Backlinks',      active: activeTab === 'backlinks',     onClick: () => setActiveTab('backlinks') },
-      ]} />
+      {/* 10 flat tabs → 4 groups by job-to-be-done: Position (where are we
+          today), AI Search (visibility in generative AI), Plan (what to
+          write next). Each group fans out into the existing tab content
+          via a sub-strip — no JSX guards below this point change. */}
+      {(() => {
+        const SUB_TABS = {
+          position:  [
+            { key: 'keywords',      label: 'Keywords' },
+            { key: 'gsc',           label: 'Search Console' },
+            { key: 'authority',     label: 'Authority' },
+            { key: 'backlinks',     label: 'Backlinks' },
+          ],
+          ai_search: [
+            { key: 'aio',           label: 'AI Overviews' },
+            { key: 'ai_visibility', label: 'AI Visibility' },
+            { key: 'fanout',        label: 'Fan-out' },
+          ],
+          plan:      [
+            { key: 'gaps',          label: 'Content Gaps' },
+            { key: 'planning',      label: 'Briefs' },
+          ],
+        };
+        const GROUP_OF = {
+          overview: 'overview',
+          keywords: 'position', gsc: 'position', authority: 'position', backlinks: 'position',
+          aio: 'ai_search', ai_visibility: 'ai_search', fanout: 'ai_search',
+          gaps: 'plan', planning: 'plan',
+        };
+        const currentGroup = GROUP_OF[activeTab] || 'overview';
+        const topTabs = [
+          { key: 'overview',  label: 'Overview',  active: currentGroup === 'overview',  onClick: () => setActiveTab('overview') },
+          { key: 'position',  label: 'Position',  active: currentGroup === 'position',  onClick: () => setActiveTab('keywords') },
+          { key: 'ai_search', label: 'AI Search', active: currentGroup === 'ai_search', onClick: () => setActiveTab('aio') },
+          { key: 'plan',      label: 'Plan',      active: currentGroup === 'plan',      onClick: () => setActiveTab('gaps') },
+        ];
+        const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
+          ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
+        }));
+        return (
+          <>
+            <SuiteTabs tabs={topTabs} />
+            {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
+          </>
+        );
+      })()}
 
       {activeTab === 'overview' && (
         <SuiteOverview

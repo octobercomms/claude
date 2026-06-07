@@ -10,10 +10,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-export default function SuiteTabs({ tabs }) {
+export default function SuiteTabs({ tabs, variant }) {
   const navigate = useNavigate();
   return (
-    <div className="tabs">
+    <div className={`tabs${variant === 'sub' ? ' tabs-sub' : ''}`}>
       {tabs.map(t => {
         const handle = () => {
           if (t.to) navigate(t.to);
