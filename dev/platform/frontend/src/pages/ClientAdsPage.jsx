@@ -174,24 +174,6 @@ export default function ClientAdsPage() {
         <div>
           <h1 className="display mt-2">Paid</h1>
         </div>
-        {tab === 'performance' && (
-          <div className="hero-actions">
-            {[7, 14, 30, 90].map(d => (
-              <button key={d} onClick={() => handlePeriodChange(d)}
-                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {d}d
-              </button>
-            ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
-              <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
-              <input type="number" min="0" max="100" step="1" value={adsMarginInput}
-                onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
-                style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
-              <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>%</span>
-            </div>
-            <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
-          </div>
-        )}
       </header>
       <SuiteTabs tabs={[
         { key: 'overview',    label: 'Overview',    active: tab === 'overview',    onClick: () => setTab('overview') },
@@ -226,6 +208,22 @@ export default function ClientAdsPage() {
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {tab === 'audiences' && <AudiencesPanel clientId={id} />}
       {tab === 'performance' && <>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+        {[7, 14, 30, 90].map(d => (
+          <button key={d} onClick={() => handlePeriodChange(d)}
+            style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: days === d ? 'var(--accent)' : 'var(--surface)', color: days === d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            {d}d
+          </button>
+        ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 12px', background: 'var(--surface)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-pill)' }}>
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 600 }}>Margin</span>
+          <input type="number" min="0" max="100" step="1" value={adsMarginInput}
+            onChange={e => setAdsMarginInput(e.target.value)} onBlur={handleMarginBlur}
+            style={{ width: 42, padding: '2px 4px', border: 'none', fontSize: 13, textAlign: 'right', background: 'transparent', fontFamily: 'inherit' }} />
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>%</span>
+        </div>
+        <Link to={`/clients/${id}/chat`} className="btn btn-secondary btn-sm">Ask the AI Analyst →</Link>
+      </div>
 
       {!loading && !noConnectors && (
         <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>

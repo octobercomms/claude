@@ -116,27 +116,6 @@ export default function ClientSalesTrafficPage() {
         <div>
           <h1 className="display mt-2">Sales &amp; Traffic</h1>
         </div>
-        {tab === 'dashboard' && (
-          <div className="hero-actions">
-            {[7, 14, 30, 90].map(d => (
-              <button key={d} onClick={() => selectDays(d)}
-                style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                {d}d
-              </button>
-            ))}
-            <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
-              onChange={e => selectPreset(e.target.value)}
-              style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-              <option value="">Period…</option>
-              <option value="mtd">Month to date</option>
-              <option value="ytd">Year to date</option>
-              <option value="custom">Custom range…</option>
-              <optgroup label="Months">
-                {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
-              </optgroup>
-            </select>
-          </div>
-        )}
       </header>
 
       <SuiteTabs tabs={[
@@ -177,8 +156,27 @@ export default function ClientSalesTrafficPage() {
             style={{ padding: '6px 16px', borderRadius: 'var(--r-pill)', border: 'none', background: 'var(--accent)', color: 'var(--accent-on)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Apply</button>
         </div>
       )}
-      <div className="row mb-4">
+      <div className="row mb-4" style={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>{fmtDay(start)} – {fmtDay(end)}</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {[7, 14, 30, 90].map(d => (
+            <button key={d} onClick={() => selectDays(d)}
+              style={{ padding: '6px 14px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: activeKey === 'd' + d ? 'var(--accent)' : 'var(--surface)', color: activeKey === 'd' + d ? 'var(--accent-on)' : 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+              {d}d
+            </button>
+          ))}
+          <select value={['d7', 'd14', 'd30', 'd90'].includes(activeKey) ? '' : activeKey}
+            onChange={e => selectPreset(e.target.value)}
+            style={{ padding: '6px 12px', borderRadius: 'var(--r-pill)', border: 'var(--border-w) solid var(--card-border)', background: 'var(--surface)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+            <option value="">Period…</option>
+            <option value="mtd">Month to date</option>
+            <option value="ytd">Year to date</option>
+            <option value="custom">Custom range…</option>
+            <optgroup label="Months">
+              {months.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
+            </optgroup>
+          </select>
+        </div>
       </div>
       {loading ? (
         <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
