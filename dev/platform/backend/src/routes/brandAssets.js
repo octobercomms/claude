@@ -40,8 +40,35 @@ router.get('/file/:clientId/:filename', authenticate, loadVisibleClientIds, asyn
   // render as HTML and execute script. With nosniff, the browser
   // refuses to render mismatched content.
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  // SVGs are sanitised on upload, but defend in depth at serve time too:
+  // a CSP sandbox with no allow-scripts neutralises any inline/script
+  // content even if the file is opened as a top-level document (scripts
+  // never run when an SVG is loaded via <img>, which is how the UI shows
+  // it, but a direct navigation to this URL would otherwise execute).
+  if (req.params.filename.toLowerCase().endsWith('.svg')) {
+    res.setHeader('Content-Type', 'image/svg+xml');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; style-src 'unsafe-inline'; sandbox");
+  }
   res.sendFile(filePath);
 });
+
+// Best-effort SVG sanitiser. Strips the script-bearing constructs an
+// attacker could smuggle into an uploaded logo (<script>, event-handler
+// attributes, javascript: URLs, <foreignObject>, custom entities). Run
+// on upload so the stored file is already clean; the serve-time CSP
+// sandbox is the second line of defence.
+function sanitizeSvgFile(filePath) {
+  try {
+    const cleaned = fs.readFileSync(filePath, 'utf8')
+      .replace(/<script[\s\S]*?<\/script>/gi, '')
+      .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+      .replace(/\son\w+\s*=\s*"[^"]*"/gi, '')
+      .replace(/\son\w+\s*=\s*'[^']*'/gi, '')
+      .replace(/(xlink:href|href)\s*=\s*("|')\s*javascript:[^"']*\2/gi, '')
+      .replace(/<!ENTITY[\s\S]*?>/gi, '');
+    fs.writeFileSync(filePath, cleaned, 'utf8');
+  } catch { /* unreadable as text — serve-time CSP sandbox still applies */ }
+}
 
 router.use(authenticate);
 router.use(loadVisibleClientIds);
@@ -59,26 +86,20 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${ext}`);
   },
 });
-// Mime allowlist. SVG is deliberately omitted — SVG files can carry
-// <script> tags that execute when the file is rendered inline through
-// the asset-serve route, giving an authenticated AM stored XSS on
-// other AMs viewing the brand library. PNG/JPEG/WebP cover everything
-// the brand kit actually needs.
+// Mime allowlist. SVG is allowed (logos are often vector — much crisper
+// than a rasterised PNG) but treated as hostile input: every uploaded
+// SVG is sanitised on disk (sanitizeSvgFile) and served under a CSP
+// sandbox, so the stored-XSS vector that originally justified blocking
+// it is closed. PNG/JPEG/WebP/SVG cover everything the brand kit needs.
 const upload = multer({
   storage,
   limits: { fileSize: 100 * 1024 * 1024 },    // 100MB — B-roll clips are bigger
   fileFilter: (req, file, cb) => {
-    if (file.mimetype === 'image/svg+xml') {
-      return cb(new Error('SVG uploads are blocked — convert to PNG/JPEG. SVG can carry inline scripts.'));
-    }
-    const allowed = ['image/png', 'image/jpeg', 'image/webp',
+    const allowed = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml',
                      'video/mp4', 'video/quicktime', 'video/webm',
                      'font/woff', 'font/woff2', 'font/ttf', 'application/font-woff',
                      'application/octet-stream', 'application/pdf'];
-    // The startsWith fallback for image/* and video/* deliberately
-    // re-applies the SVG exclusion above; anything matching image/*
-    // that isn't image/svg+xml is fine.
-    if (allowed.includes(file.mimetype) || (file.mimetype.startsWith('image/') && file.mimetype !== 'image/svg+xml') || file.mimetype.startsWith('video/')) cb(null, true);
+    if (allowed.includes(file.mimetype) || file.mimetype.startsWith('image/') || file.mimetype.startsWith('video/')) cb(null, true);
     else cb(new Error(`Unsupported file type: ${file.mimetype}`));
   },
 });
@@ -100,6 +121,7 @@ router.post('/clients/:clientId/assets', upload.single('file'), async (req, res)
     const { kind, name } = req.body;
     if (!kind) return res.status(400).json({ error: 'kind required' });
     if (!req.file) return res.status(400).json({ error: 'file required' });
+    if (req.file.mimetype === 'image/svg+xml') sanitizeSvgFile(req.file.path);
     const url = `/api/brand/file/${req.params.clientId}/${req.file.filename}`;
     const { rows } = await pool.query(
       `INSERT INTO brand_assets (client_id, kind, name, url, metadata)
@@ -126,6 +148,7 @@ router.post('/clients/:clientId/assets/bulk', upload.array('files', 50), async (
     if (!req.files?.length) return res.status(400).json({ error: 'files required' });
     const inserted = [];
     for (const file of req.files) {
+      if (file.mimetype === 'image/svg+xml') sanitizeSvgFile(file.path);
       const url = `/api/brand/file/${req.params.clientId}/${file.filename}`;
       const { rows } = await pool.query(
         `INSERT INTO brand_assets (client_id, kind, name, url, metadata)
