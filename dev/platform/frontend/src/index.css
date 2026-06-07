@@ -1132,3 +1132,26 @@ select, textarea {
 .suite-chat > .kicker,
 .suite-chat > .hero,
 .suite-chat > .tabs { flex-shrink: 0; }
+
+/* ─── Suite overview — live status strip + clickable capability tiles ── */
+.suite-status {
+  display: flex; flex-wrap: wrap; gap: var(--s3);
+}
+.suite-status-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-pill);
+  font-size: 13px;
+}
+.suite-status-dot { width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--text-subtle); flex: 0 0 auto; }
+.suite-status-dot.ok { background: var(--positive); }
+.suite-status-label { color: var(--text-muted); }
+.suite-status-value { font-weight: 700; color: var(--text); }
+
+/* Capability cards that deep-link into a tab. */
+.suite-cap { text-align: left; width: 100%; cursor: pointer; transition: border-color 120ms ease, transform 0.05s ease; }
+.suite-cap:hover { border-color: var(--text); }
+.suite-cap:active { transform: scale(0.995); }
+.suite-cap-go { margin-top: var(--s4); font-size: 12px; font-weight: 800; letter-spacing: 0.3px; color: var(--text); }

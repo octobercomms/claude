@@ -18,10 +18,13 @@ export default function SuiteOverview({
   capabilities = [],
   ctaLabel,
   onCta,
+  status = null,   // optional [{ label, value, ok }] live status strip
 }) {
   return (
     <div className="stack stack-lg">
       <Hero tagline={tagline} description={description} ctaLabel={ctaLabel} onCta={onCta} />
+
+      {status && status.length > 0 && <StatusStrip items={status} />}
 
       {flow.length > 0 && (
         <Flow steps={flow} />
@@ -29,15 +32,39 @@ export default function SuiteOverview({
 
       {capabilities.length > 0 && (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
-          {capabilities.map((c, i) => (
-            <div className="card" key={i}>
-              <div className="caption">{c.tag || `0${i + 1}`.slice(-2)}</div>
-              <h3 className="h2 mt-2">{c.title}</h3>
-              <p className="body-sm mt-3">{c.body}</p>
-            </div>
-          ))}
+          {capabilities.map((c, i) => {
+            const clickable = typeof c.onClick === 'function';
+            const inner = (
+              <>
+                <div className="caption">{c.tag || `0${i + 1}`.slice(-2)}</div>
+                <h3 className="h2 mt-2">{c.title}</h3>
+                <p className="body-sm mt-3">{c.body}</p>
+                {clickable && <div className="suite-cap-go">{c.cta || 'Open'} →</div>}
+              </>
+            );
+            return clickable
+              ? <button type="button" className="card suite-cap" key={i} onClick={c.onClick}>{inner}</button>
+              : <div className="card" key={i}>{inner}</div>;
+          })}
         </div>
       )}
+    </div>
+  );
+}
+
+// Live, per-client status row — shows what's actually wired up in this
+// section (connected sources, counts), so the overview reflects reality
+// rather than reading like a brochure. Green dot = healthy/connected.
+function StatusStrip({ items }) {
+  return (
+    <div className="suite-status">
+      {items.map((s, i) => (
+        <div className="suite-status-item" key={i}>
+          <span className={'suite-status-dot' + (s.ok ? ' ok' : '')} />
+          <span className="suite-status-label">{s.label}</span>
+          <span className="suite-status-value">{s.value}</span>
+        </div>
+      ))}
     </div>
   );
 }

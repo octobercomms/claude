@@ -191,10 +191,15 @@ export default function ClientAdsPage() {
       {tab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="Live ads, AI strategy, on-brand creative."
-          description="Google + Meta dashboards, weekly Claude briefings on what to action next, AI-generated ad creative, and audience segments built from your Shopify data."
+          tagline="Know what your ad spend is doing — and what to do next."
+          description="One live view of Google + Meta, a weekly Claude brief telling you exactly what to action, on-brand ad creative on demand, and audiences built from your own customer data."
           ctaLabel="View live performance"
           onCta={() => setTab('performance')}
+          status={[
+            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasGoogle },
+            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', ok: hasMeta },
+            { label: 'Spend · 30d', value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), ok: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 },
+          ]}
           flow={[
             { label: 'Connect',  detail: 'Google Ads + Meta Ads' },
             { label: 'Monitor',  detail: 'Live spend, ROAS, profit' },
@@ -202,10 +207,10 @@ export default function ClientAdsPage() {
             { label: 'Generate', detail: 'Creative + audiences' },
           ]}
           capabilities={[
-            { tag: 'Performance', title: 'Live dashboards',          body: 'Spend, revenue, ROAS, profit (margin-aware), and per-campaign breakdown — across every Google + Meta ad account.' },
-            { tag: 'Strategist',  title: 'Weekly Manus-style brief',  body: 'Claude reads the last period vs. the previous one and writes an analyst note telling you what to action next.' },
-            { tag: 'Creative',    title: 'AI ad creative',           body: 'Generate static ads across multiple aspect ratios via Replicate, Ideogram, ChatGPT Image, and Adobe Firefly — grounded in the brand kit.' },
-            { tag: 'Audiences',   title: 'First-party segments',     body: 'Build targetable segments from Shopify postcode data and export them as Meta Custom Audience CSVs.' },
+            { tag: 'Performance', title: 'See spend, ROAS & profit live', cta: 'Open performance', onClick: () => setTab('performance'), body: 'Every Google + Meta account in one margin-aware dashboard — spend, revenue, ROAS, profit and per-campaign breakdown, no spreadsheet needed.' },
+            { tag: 'Strategist',  title: 'Get told what to action',       cta: 'Open strategist',  onClick: () => setTab('strategist'), body: 'A weekly analyst brief: Claude compares this period to last and writes the to-do list — paused campaigns, budget shifts, what is and isn\'t working.' },
+            { tag: 'Creative',    title: 'Generate on-brand ads',         cta: 'Open creative',    onClick: () => setTab('creative'), body: 'Direct-response concepts (PAS/AIDA/…) rendered across every aspect ratio via Replicate, Ideogram and Firefly — grounded in the brand kit.' },
+            { tag: 'Audiences',   title: 'Build first-party audiences',   cta: 'Open audiences',   onClick: () => setTab('audiences'), body: 'Turn Shopify postcodes or an uploaded customer list into targetable segments, exported as Meta Custom Audiences.' },
           ]}
         />
         <GoogleAdsPlaybook />
