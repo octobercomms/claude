@@ -363,20 +363,14 @@ export default function ClientOutreachPage() {
         <div>
           <h1 className="display mt-2">Email</h1>
         </div>
-        <div className="hero-actions">
-          <button onClick={() => { setTab('contacts'); setShowAddContact(true); }} className="btn btn-secondary btn-sm">+ Add Contact</button>
-          <button onClick={() => setShowNewCampaign(true)} className="btn btn-primary btn-sm">+ New Campaign</button>
-        </div>
       </header>
 
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',                                                   active: tab === 'overview',  onClick: () => setTab('overview') },
-        { key: 'dashboard', label: 'Dashboard',                                                  active: tab === 'dashboard', onClick: () => setTab('dashboard') },
         { key: 'campaigns', label: 'Campaigns', badge: campaigns.length || undefined,            active: tab === 'campaigns', onClick: () => setTab('campaigns') },
         { key: 'contacts',  label: 'Contacts',  badge: contacts.length || undefined,             active: tab === 'contacts',  onClick: () => setTab('contacts') },
         { key: 'tasks',     label: 'Tasks',                                                      active: tab === 'tasks',     onClick: () => setTab('tasks') },
         { key: 'sending',   label: 'Sending',                                                    active: tab === 'sending',   onClick: () => setTab('sending') },
-        { key: 'help',      label: 'Help',                                                       active: tab === 'help',      onClick: () => setTab('help') },
       ]} />
 
       {tab === 'tasks' && (
@@ -384,11 +378,12 @@ export default function ClientOutreachPage() {
       )}
 
       {tab === 'overview' && (
+        <div className="stack stack-lg">
         <SuiteOverview
           tagline="Native cold outreach — built for agencies."
           description="Find contacts, draft sequences with Claude, send from your own domain, and track every reply. Press releases ship from the same flow."
-          ctaLabel="Open the dashboard"
-          onCta={() => setTab('dashboard')}
+          ctaLabel="Browse campaigns"
+          onCta={() => setTab('campaigns')}
           flow={[
             { label: 'Find',     detail: 'Hunter + Serper + library' },
             { label: 'Draft',    detail: 'Claude writes the sequence' },
@@ -404,9 +399,7 @@ export default function ClientOutreachPage() {
             { tag: 'Tags',       title: 'Workspace-wide library',     body: 'Contacts are shared across clients — tag once, reuse everywhere. Per-client unsubscribe state respected.' },
           ]}
         />
-      )}
 
-      {tab === 'dashboard' && (
         <div>
           {/* Stats cards */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 16 }}>
@@ -483,14 +476,21 @@ export default function ClientOutreachPage() {
             </div>
           </div>
         </div>
+        </div>
       )}
 
       {tab === 'contacts' && (
         <div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="row wrap" style={{ gap: 8 }}>
             <button onClick={() => setShowAddContact(v => !v)} className="btn btn-primary">{showAddContact ? 'Cancel' : '+ Add contact'}</button>
             <button onClick={() => setShowLibrary(v => !v)} className="btn btn-secondary">{showLibrary ? 'Close library' : '+ Add from library'}</button>
             <button onClick={() => setShowFinder(v => !v)} className="btn btn-secondary">{showFinder ? 'Close finder' : '⌕ Find contacts'}</button>
+            <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
+            <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
+            <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
+            {selectedContacts.size > 0 && (
+              <button onClick={handleBulkDelete} className="btn btn-danger">Delete {selectedContacts.size} selected</button>
+            )}
           </div>
           {showLibrary && (
             <LibraryPicker clientId={id} onAttached={async () => {
@@ -573,18 +573,10 @@ export default function ClientOutreachPage() {
             </form>
           )}
 
-          {/* Secondary toolbar: CSV import/export + bulk actions */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
-            <button onClick={() => setShowImport(true)} className="btn btn-secondary">↑ Import CSV</button>
-            <button onClick={handleCsvExport} disabled={contacts.length === 0} className="btn btn-secondary">↓ Export CSV</button>
-            <VerifyAllButton clientId={id} onDone={() => { /* parent refresh via badge in place */ }} disabled={contacts.length === 0} />
-            {selectedContacts.size > 0 && (
-              <button onClick={handleBulkDelete} className="btn btn-danger">Delete {selectedContacts.size} selected</button>
-            )}
-            <span style={{ fontSize: 11, color: 'var(--text-subtle)', marginLeft: 'auto' }}>
-              CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
-            </span>
-          </div>
+          {/* CSV import column reference */}
+          <p style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 12 }}>
+            CSV columns — required: <code>email</code>. Optional: <code>first_name</code>, <code>last_name</code>, <code>company</code>, <code>contact_type</code>, <code>title</code>, <code>location</code>, <code>linkedin_url</code>, <code>notes</code>.
+          </p>
 
           {/* Filters row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr', gap: 10, marginTop: 12 }}>
@@ -630,7 +622,7 @@ export default function ClientOutreachPage() {
                     <td >{c.created_at ? new Date(c.created_at).toLocaleDateString('en-GB') : '—'}</td>
                     <td >
                       <button onClick={() => setEditingContact(c)} className="btn btn-secondary" style={{ padding: '4px 10px', fontSize: 12 }}>Edit</button>
-                      <button onClick={() => deleteContact(c.id)} title="Delete" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+                      <button onClick={() => deleteContact(c.id)} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: 12, marginLeft: 4 }}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -642,8 +634,6 @@ export default function ClientOutreachPage() {
           </p>
         </div>
       )}
-
-      {tab === 'help' && <HelpPanel dnsCheck={dnsCheck} />}
 
       {editingContact && (
         <EditContactModal
@@ -752,7 +742,7 @@ export default function ClientOutreachPage() {
                         title="Make a draft copy of this campaign with the same sequence + audience">
                         Duplicate
                       </button>
-                      <button onClick={() => deleteCampaign(c.id)} title="Delete" className="text-negative" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: '0 4px' }}>×</button>
+                      <button onClick={() => deleteCampaign(c.id)} className="btn btn-danger" style={{ padding: '4px 10px', fontSize: 12, marginLeft: 4 }}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -788,84 +778,6 @@ export default function ClientOutreachPage() {
 }
 
 // Help & Support panel — static setup guides for the integrations Outreach uses.
-function HelpPanel({ dnsCheck }) {
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, alignItems: 'start' }}>
-      <HelpCard title="Claude AI">
-        <p>Powers audience refinement, email writing and reply classification.</p>
-        <p><strong>What you need:</strong> a paid Anthropic API key from <a href="https://console.anthropic.com" target="_blank" rel="noreferrer">console.anthropic.com</a>.</p>
-        <ol>
-          <li>Create an account and add credit.</li>
-          <li>Create an API key.</li>
-          <li>Paste it into Settings → AI &amp; Email → Claude AI.</li>
-        </ol>
-      </HelpCard>
-
-      <HelpCard title="Hunter.io">
-        <p>Finds published email addresses by company domain. Free plan: 50 searches/month.</p>
-        <ol>
-          <li>Sign up at <a href="https://hunter.io" target="_blank" rel="noreferrer">hunter.io</a>.</li>
-          <li>Open your API key under Dashboard → API.</li>
-          <li>Paste it into Settings → Outreach → October Outreach.</li>
-        </ol>
-      </HelpCard>
-
-      <HelpCard title="Icypeas">
-        <p>Lead database with PAYG credits that never expire. Use as the primary finder alongside Hunter.</p>
-        <ol>
-          <li>Sign up at <a href="https://icypeas.com" target="_blank" rel="noreferrer">icypeas.com</a> and top up credits.</li>
-          <li>Go to Settings → API in your Icypeas account.</li>
-          <li>Copy the <strong>API Key</strong>, <strong>API Secret</strong> and <strong>User ID</strong> — all three are required.</li>
-          <li>Paste all three into Settings → Outreach → October Outreach.</li>
-        </ol>
-      </HelpCard>
-
-      <HelpCard title="Email Sending — Amazon SES">
-        <p>Recommended for outreach because of low cost (~$0.10 / 1,000 emails) and good deliverability.</p>
-        <ol>
-          <li>Verify your sending domain in the SES console.</li>
-          <li>Move out of sandbox mode (request production access) so you can send to any address.</li>
-          <li>Create an IAM user with <code>ses:SendEmail</code> permission and grab its <strong>Access Key ID</strong> + <strong>Secret Access Key</strong>.</li>
-          <li>Save them in Settings → AI &amp; Email → Amazon SES. The platform uses the SESv2 API automatically when these are set.</li>
-        </ol>
-      </HelpCard>
-
-      <HelpCard title="SPF, DKIM &amp; DMARC">
-        <p>Three DNS records that decide whether your emails land in the inbox or junk.</p>
-        <ul>
-          <li><strong>SPF</strong> — TXT record on your sending domain authorising the sender. For SES: <code>v=spf1 include:amazonses.com -all</code></li>
-          <li><strong>DKIM</strong> — set up in the SES console (Verified identities → Configuration → DKIM). Three CNAME records.</li>
-          <li><strong>DMARC</strong> — TXT record on <code>_dmarc.yourdomain.com</code>. A safe starter: <code>v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com</code></li>
-        </ul>
-        {dnsCheck && dnsCheck.domain && (
-          <p style={{ marginTop: 10, fontSize: 12, color: 'var(--text-muted)' }}>
-            Current check for <code>{dnsCheck.domain}</code>:{' '}
-            <span style={{ color: dnsCheck.spf === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600 }}>SPF {dnsCheck.spf === 'found' ? '✓' : '⚠'}</span>{' · '}
-            <span style={{ color: dnsCheck.dmarc === 'found' ? 'var(--positive)' : 'var(--warning)', fontWeight: 600 }}>DMARC {dnsCheck.dmarc === 'found' ? '✓' : '⚠'}</span>
-          </p>
-        )}
-      </HelpCard>
-
-      <HelpCard title="Reply Polling (IMAP)">
-        <p>The platform polls your reply inbox over IMAP. When a reply arrives, Claude classifies it as <em>interested / not_now / not_relevant / unsubscribe / auto_reply / question</em>, follow-ups to that contact are cancelled, and unsubscribes flip the contact's status.</p>
-        <ol>
-          <li>Use a dedicated reply inbox (e.g. <code>replies@yourbrand.com</code>).</li>
-          <li>If using Gmail, enable IMAP and create an <strong>App Password</strong> (Google Account → Security → 2-Step Verification → App passwords).</li>
-          <li>Add the host (<code>imap.gmail.com</code>), port (<code>993</code>), user and password to Settings → Outreach → Outreach Reply Inbox.</li>
-        </ol>
-      </HelpCard>
-    </div>
-  );
-}
-function HelpCard({ title, children }) {
-  return (
-    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 18, fontSize: 13, lineHeight: 1.55, color: 'var(--text)' }}>
-      <h3 style={{ fontSize: 14, fontWeight: 700, margin: '0 0 10px' }}>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
 // Escape a single value for CSV — double-quote and escape inner quotes if the
 // value contains anything CSV-sensitive.
 // Page-local style shorthand. All values now flow from the global
