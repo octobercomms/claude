@@ -976,7 +976,7 @@ select, textarea {
    taper can never cut the label. */
 .ads-funnel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(240px, 30vw, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) clamp(300px, 32vw, 480px) minmax(0, 1fr);
   column-gap: var(--s6);
   row-gap: var(--s4);
   align-items: start;
@@ -994,29 +994,30 @@ select, textarea {
 .ads-do .ads-list li::before { content: '✓'; position: absolute; left: 0; color: var(--positive); font-weight: 800; }
 .ads-dont .ads-list li::before { content: '✕'; position: absolute; left: 0; color: var(--negative); font-weight: 800; }
 
-/* Funnel graphic — centred vertically against the side lists. */
-.ads-funnel-graphic { align-self: center; display: flex; flex-direction: column; gap: 3px; }
-.ads-funnel-band { position: relative; min-height: 104px; display: flex; align-items: center; justify-content: center; }
+/* Funnel graphic — centred vertically against the side lists. Labels
+   live in a fixed-width lane down the middle, stacked + centred, so the
+   bands can taper hard without the text ever reaching the angled edges. */
+.ads-funnel-graphic { align-self: center; display: flex; flex-direction: column; gap: 2px; }
+.ads-funnel-band { position: relative; min-height: 90px; display: flex; align-items: center; justify-content: center; }
 .ads-funnel-band-bg { position: absolute; inset: 0; }
 .ads-funnel-band-content {
   position: relative; z-index: 1;
-  display: flex; align-items: center; gap: 10px;
-  max-width: 56%;             /* keep text inside the narrowest taper */
-  color: #1a1a1a; text-align: left;
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  width: 200px; max-width: 200px;     /* safe lane, narrower than the bottom band */
+  color: #1a1a1a; text-align: center;
 }
 .ads-funnel-num {
-  flex: 0 0 auto; width: 30px; height: 30px; border-radius: 50%;
-  background: #1a1a1a; color: #fff; font-size: 14px; font-weight: 800;
+  flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%;
+  background: #1a1a1a; color: #fff; font-size: 13px; font-weight: 800;
   display: flex; align-items: center; justify-content: center;
 }
 .ads-funnel-title { display: block; font-weight: 800; font-size: 15px; line-height: 1.15; }
-.ads-funnel-tagline { display: block; font-size: 11.5px; margin-top: 2px; opacity: 0.82; line-height: 1.25; }
+.ads-funnel-tagline { display: block; font-size: 11.5px; opacity: 0.82; line-height: 1.25; }
 .ads-col-label { display: none; }
 @media (max-width: 900px) {
   .ads-funnel { grid-template-columns: 1fr; }
   .ads-funnel-head { display: none; }
   .ads-funnel-graphic { align-self: stretch; order: -1; }
-  .ads-funnel-band-content { max-width: 80%; }
   .ads-col-label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: var(--s2); }
 }
 
