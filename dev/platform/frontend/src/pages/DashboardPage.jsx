@@ -187,23 +187,23 @@ function StatusBadge({ status }) {
 // providers bill in different currencies.
 function ApiSpendBanner({ spend }) {
   const entries = Object.entries(spend.totals || {});
-  const providers = (spend.by_provider || []).length;
   const hasSpend = entries.length > 0;
+  const balances = (spend.balances || []).map(b =>
+    b.kind === 'balance'
+      ? `${b.label} ${fmtMoney(b.value, b.currency)}`
+      : `${b.label} ${Number(b.value).toLocaleString()}${b.limit != null ? `/${Number(b.limit).toLocaleString()}` : ''}${b.unit ? ' ' + b.unit : ''}`
+  );
   return (
     <div className="flex items-center gap-3 flex-wrap bg-ink rounded-md px-s5 py-s3 mb-s5">
       <span className="w-2 h-2 rounded-pill bg-accent" />
-      {hasSpend ? (
-        <>
-          <span className="text-[13px] text-white">
-            <strong>API spend this month:</strong> <span className="text-accent font-bold">{entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')}</span>
-          </span>
-          <span className="text-[12px] text-white/55">across {providers} provider{providers === 1 ? '' : 's'}</span>
-        </>
-      ) : (
-        <span className="text-[13px] text-white">
-          <strong>API spend this month:</strong>{' '}
-          <span className="text-white/70">not reported yet — most providers only expose a balance, not a live spend figure.</span>
-        </span>
+      <span className="text-[13px] text-white">
+        <strong>API spend this month:</strong>{' '}
+        {hasSpend
+          ? <span className="text-accent font-bold">{entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')}</span>
+          : <span className="text-white/70">not reported yet</span>}
+      </span>
+      {balances.length > 0 && (
+        <span className="text-[12px] text-white/55">Balances: {balances.join(' · ')}</span>
       )}
       <Link to="/settings" className="ml-auto text-[12px] font-bold text-accent no-underline">Breakdown →</Link>
     </div>

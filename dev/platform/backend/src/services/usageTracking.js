@@ -236,15 +236,22 @@ async function monthlySpend() {
   const snaps = await currentSnapshots();
   const totals = {};
   const byProvider = [];
+  const balances = [];   // providers that report a remaining balance / quota rather than spend
   for (const s of snaps) {
     const snap = s.snapshot;
-    if (!snap || snap.cost_this_period == null) continue;
-    const currency = snap.currency || 'USD';
-    const amount = Number(snap.cost_this_period) || 0;
-    totals[currency] = (totals[currency] || 0) + amount;
-    byProvider.push({ name: s.name, label: s.label, cost: amount, currency });
+    if (!snap) continue;
+    if (snap.cost_this_period != null) {
+      const currency = snap.currency || 'USD';
+      const amount = Number(snap.cost_this_period) || 0;
+      totals[currency] = (totals[currency] || 0) + amount;
+      byProvider.push({ name: s.name, label: s.label, cost: amount, currency });
+    } else if (snap.balance_remaining != null) {
+      balances.push({ name: s.name, label: s.label, kind: 'balance', value: Number(snap.balance_remaining), currency: snap.currency || 'USD' });
+    } else if (snap.units_used != null) {
+      balances.push({ name: s.name, label: s.label, kind: 'quota', value: Number(snap.units_used), limit: snap.units_limit != null ? Number(snap.units_limit) : null, unit: snap.unit_label || '' });
+    }
   }
-  return { totals, by_provider: byProvider, ...bounds };
+  return { totals, by_provider: byProvider, balances, ...bounds };
 }
 
 module.exports = { runAllPollers, pollOne, currentSnapshots, monthlySpend, POLLERS };
