@@ -630,13 +630,13 @@ export default function ClientSEOPage() {
             { key: 'backlinks',     label: 'Backlinks' },
           ],
           ai_search: [
-            { key: 'aio',           label: 'AI Overviews' },
-            { key: 'ai_visibility', label: 'AI Visibility' },
-            { key: 'fanout',        label: 'Fan-out' },
+            { key: 'aio',           label: 'Keywords' },
+            { key: 'ai_visibility', label: 'Visibility' },
+            { key: 'fanout',        label: 'Query fan-out' },
           ],
           plan:      [
             { key: 'gaps',          label: 'Content Gaps' },
-            { key: 'planning',      label: 'Briefs' },
+            { key: 'planning',      label: 'Content Briefs' },
           ],
         };
         const GROUP_OF = {
@@ -648,9 +648,9 @@ export default function ClientSEOPage() {
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
           { key: 'overview',  label: 'Overview',  active: currentGroup === 'overview',  onClick: () => setActiveTab('overview') },
-          { key: 'position',  label: 'Position',  active: currentGroup === 'position',  onClick: () => setActiveTab('keywords') },
-          { key: 'ai_search', label: 'AI Search', active: currentGroup === 'ai_search', onClick: () => setActiveTab('aio') },
-          { key: 'plan',      label: 'Plan',      active: currentGroup === 'plan',      onClick: () => setActiveTab('gaps') },
+          { key: 'position',  label: 'SEO',      active: currentGroup === 'position',  onClick: () => setActiveTab('keywords') },
+          { key: 'ai_search', label: 'GEO',      active: currentGroup === 'ai_search', onClick: () => setActiveTab('aio') },
+          { key: 'plan',      label: 'Content',  active: currentGroup === 'plan',      onClick: () => setActiveTab('gaps') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),

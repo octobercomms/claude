@@ -120,7 +120,7 @@ export default function ClientSalesTrafficPage() {
 
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',  active: tab === 'overview',  onClick: () => setTab('overview') },
-        { key: 'dashboard', label: 'Dashboard', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'dashboard', label: 'Performance', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
       ]} />
 
       {tab === 'overview' && (

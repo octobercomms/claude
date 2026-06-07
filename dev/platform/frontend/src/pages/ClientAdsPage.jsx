@@ -226,18 +226,10 @@ export default function ClientAdsPage() {
       </div>
 
       {!loading && !noConnectors && (
-        <div style={{ display: 'flex', gap: 0, borderBottom: '2px solid #e8e8e8', marginTop: 16, marginBottom: 24 }}>
-          {showGoogleTab && (
-            <button onClick={() => setAdsTab('google')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'google' ? 700 : 400, color: activeAdsTab === 'google' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'google' ? '2px solid var(--card-border)' : '2px solid transparent', marginBottom: -2 }}>
-              Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
-            </button>
-          )}
-          {showMetaTab && (
-            <button onClick={() => setAdsTab('meta')} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '10px 20px', fontSize: 14, fontWeight: activeAdsTab === 'meta' ? 700 : 400, color: activeAdsTab === 'meta' ? 'var(--text)' : 'var(--text-subtle)', borderBottom: activeAdsTab === 'meta' ? '2px solid var(--card-border)' : '2px solid transparent', marginBottom: -2 }}>
-              Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}
-            </button>
-          )}
-        </div>
+        <SuiteTabs variant="sub" tabs={[
+          showGoogleTab && { key: 'google', label: <>Google Ads {!hasGoogle && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'google', onClick: () => setAdsTab('google') },
+          showMetaTab && { key: 'meta', label: <>Meta Ads {!hasMeta && <span className="text-negative" style={{ fontSize: 12, marginLeft: 4 }}>⚠</span>}</>, active: activeAdsTab === 'meta', onClick: () => setAdsTab('meta') },
+        ].filter(Boolean)} />
       )}
 
       {loading ? (
