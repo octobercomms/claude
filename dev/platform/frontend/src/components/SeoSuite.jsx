@@ -482,10 +482,10 @@ export function ContentGapsTab({ clientId }) {
             <table className="table">
               <thead>
                 <tr>
-                  <th className="caption" style={{ padding: "6px 8px" }}>Keyword</th>
-                  <th className="caption" style={{ padding: "6px 8px", textAlign: 'right'  }}>Search vol.</th>
-                  <th className="caption" style={{ padding: "6px 8px" }}>Competitors ranking</th>
-                  <th className="caption" style={{ padding: "6px 8px" }}>Top position</th>
+                  <th>Keyword</th>
+                  <th className="num">Search vol.</th>
+                  <th>Competitors ranking</th>
+                  <th>Top position</th>
                 </tr>
               </thead>
               <tbody>
@@ -493,15 +493,15 @@ export function ContentGapsTab({ clientId }) {
                   const positions = Object.entries(g.competitor_positions || {});
                   const best = positions.length ? Math.min(...positions.map(([, p]) => p)) : null;
                   return (
-                    <tr key={i} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                      <td style={{ padding: "6px 8px", fontSize: 12 }}><strong>{g.keyword}</strong></td>
-                      <td style={{ padding: "6px 8px", fontSize: 12, textAlign: 'right'  }}>{g.search_volume?.toLocaleString() || '—'}</td>
-                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{(g.competitors || []).join(', ')}</td>
-                      <td style={{ padding: "6px 8px", fontSize: 12 }}>{best != null ? `#${best}` : '—'}</td>
+                    <tr key={i}>
+                      <td><strong>{g.keyword}</strong></td>
+                      <td className="num">{g.search_volume?.toLocaleString() || '—'}</td>
+                      <td>{(g.competitors || []).join(', ')}</td>
+                      <td>{best != null ? `#${best}` : '—'}</td>
                     </tr>
                   );
                 })}
-                {!gaps.length && <tr><td colSpan={4} style={{ padding: "6px 8px", fontSize: 12, color: 'var(--text-subtle)', padding: 20, textAlign: 'center'  }}>No gaps found.</td></tr>}
+                {!gaps.length && <tr><td colSpan={4} className="text-subtle" style={{ textAlign: 'center' }}>No gaps found.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -792,10 +792,10 @@ export function FanoutTab({ clientId }) {
                   <table className="table">
                     <thead>
                       <tr>
-                        <th className="caption" style={{ padding: '8px 10px' }}>Fan-out query</th>
-                        <th className="caption" style={{ padding: '8px 10px' }}>Sub-intent</th>
-                        <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Client rank</th>
-                        <th className="caption" style={{ padding: '8px 10px' }}>URL ranked</th>
+                        <th>Fan-out query</th>
+                        <th>Sub-intent</th>
+                        <th className="num">Client rank</th>
+                        <th>URL ranked</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -806,20 +806,20 @@ export function FanoutTab({ clientId }) {
                           : pos <= 10 ? 'var(--warning)'
                           : 'var(--text-subtle)';
                         return (
-                          <tr key={q.id} style={{ borderBottom: '1px solid #f5f5f5' }}>
-                            <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                          <tr key={q.id}>
+                            <td>
                               <strong>{q.query}</strong>
                               {q.rationale && (
                                 <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>{q.rationale}</div>
                               )}
                             </td>
-                            <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)' }}>
+                            <td style={{ color: 'var(--text-muted)' }}>
                               {INTENT_LABELS[q.intent_label] || q.intent_label || '—'}
                             </td>
-                            <td style={{ padding: '8px 10px', fontSize: 13, textAlign: 'right', color: colour, fontWeight: 700 }}>
+                            <td className="num" style={{ color: colour, fontWeight: 700 }}>
                               {pos ? `#${pos}` : 'Not ranking'}
                             </td>
-                            <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <td style={{ color: 'var(--text-subtle)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {q.client_url ? <a href={q.client_url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent)' }}>{q.client_url.replace(/^https?:\/\//, '').slice(0, 60)}</a> : '—'}
                             </td>
                           </tr>
