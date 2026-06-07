@@ -107,10 +107,6 @@ export default function GoogleAdsPlaybook() {
       </div>
 
       <div className="ads-funnel">
-        <div className="ads-funnel-head" style={{ color: 'var(--positive)' }}>Do</div>
-        <div className="ads-funnel-head" />
-        <div className="ads-funnel-head" style={{ color: 'var(--negative)' }}>Don't</div>
-
         <div className="ads-do">
           <div className="ads-col-label" style={{ color: 'var(--positive)' }}>Do</div>
           {LAYERS.map(l => <Group key={l.num} layer={l} kind="do" />)}
