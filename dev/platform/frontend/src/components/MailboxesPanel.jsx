@@ -57,7 +57,7 @@ export default function MailboxesPanel({ clientId }) {
             picks the next eligible mailbox round-robin to keep any single inbox under provider limits.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={() => { setEditing(null); setShowForm(true); }}>+ Add mailbox</button>
+        <button className="btn btn-primary btn-sm" onClick={() => { setEditing(null); setShowForm(true); }}>+ Add mailbox</button>
       </div>
 
       {loading ? (

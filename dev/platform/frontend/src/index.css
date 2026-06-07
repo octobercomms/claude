@@ -750,6 +750,7 @@ select, textarea {
 
 .grid { display: grid; gap: var(--s4); }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
 .grid-loop { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
 
@@ -869,7 +870,7 @@ select, textarea {
   .stat { min-height: 0; }
 
   /* Layout primitives collapse to single column */
-  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
 
   /* Hero stops being a flex row when actions are present — actions
      stack below the title and the buttons grow to fill the width. */

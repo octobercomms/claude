@@ -54,7 +54,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = searchParams.get('tab') || 'details';
+  const tab = searchParams.get('tab') || 'setup_overview';
   function setTab(t) { setSearchParams({ tab: t }, { replace: true }); }
   const [templateChatType, setTemplateChatType] = useState(null);  // 'weekly' | 'monthly' | null
   const [templateSummary, setTemplateSummary] = useState({ weekly: null, monthly: null });
@@ -370,17 +370,17 @@ export default function ClientDetailPage() {
 
       {tab === 'details' && (
         <form onSubmit={handleSave} className="card">
-          <div className="grid grid-2">
+          <div className="grid grid-3">
             <Field label="Client Name">
               <input className="input" value={client.name} onChange={e => setClient(p => ({ ...p, name: e.target.value }))} />
             </Field>
             <Field label="Slug">
               <input className="input" value={client.slug} onChange={e => setClient(p => ({ ...p, slug: e.target.value }))} />
             </Field>
+            <Field label="Domain (for SEO data)">
+              <input className="input" value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
+            </Field>
           </div>
-          <Field label="Domain (used for SEO data — e.g. falconenamelware.com)">
-            <input className="input" value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
-          </Field>
           <Field label="Active">
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
               <input type="checkbox" checked={client.active} onChange={e => setClient(p => ({ ...p, active: e.target.checked }))} />
@@ -395,12 +395,14 @@ export default function ClientDetailPage() {
               onChange={e => setClient(p => ({ ...p, briefing_field: e.target.value }))}
               placeholder="e.g. Premium kitchenware brand selling enamel cookware in the UK, US and EU; D2C via Shopify and trade via separate B2B Shopify stores; also sells on Amazon UK/US/EU."
             />
-            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} className="btn btn-secondary btn-sm" style={{ marginTop: 8 }}>
+          </Field>
+          <div className="row wrap" style={{ gap: 8, alignItems: 'center' }}>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
+            <button type="button" onClick={handleCompleteBriefing} disabled={loadingBriefing || !client.domain} className="btn btn-secondary">
               {loadingBriefing ? 'Researching…' : '✦ Complete with Claude'}
             </button>
-            {!client.domain && <span style={{ marginLeft: 8, fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain above first</span>}
-          </Field>
-          <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</button>
+            {!client.domain && <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Set the domain first to use Claude</span>}
+          </div>
         </form>
       )}
 
@@ -1081,7 +1083,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
               {isActive ? 'Update' : 'Connect'}
             </button>
           )}
-          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-secondary btn-sm" style={{ color: 'var(--warning)' }}>Reset</button>}
+          {(isActive || connector.status === 'error') && <button onClick={() => onReset(connector.id)} className="btn btn-sm" style={{ background: 'var(--warning)', color: '#fff', borderColor: 'var(--warning)' }}>Reset</button>}
           <button onClick={() => onDelete(connector.id)} className="btn btn-danger btn-sm">Remove</button>
         </div>
       </div>

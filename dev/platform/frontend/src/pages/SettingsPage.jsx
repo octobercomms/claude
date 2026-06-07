@@ -432,14 +432,10 @@ export default function SettingsPage() {
       {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && (<>
       <CostsPanel />
 
-      {/* Always-visible essentials: platform info + account */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start', marginBottom: 16 }}>
-        <Card>
-          <CardTitle>Platform</CardTitle>
-          <InfoRow label="Platform URL" value={window.location.origin} />
-          <InfoRow label="Environment" value={import.meta.env.MODE} />
-        </Card>
-
+      {/* Self-service account — change your own username / password.
+          Platform info bento removed; user management lives on the
+          Users & access tab. */}
+      <div style={{ marginBottom: 16, maxWidth: 520 }}>
         <Card>
           <CardTitle>Account</CardTitle>
           <p className="body-sm text-muted">Change your login username or password.</p>
@@ -653,7 +649,7 @@ function CostsPanel() {
   }
 
   return (
-    <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 16, marginBottom: 16 }}>
+    <div className="card" style={{ marginBottom: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
@@ -1004,7 +1000,7 @@ function ContactsLibrary() {
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => setTidyOpen(true)} className="btn btn-secondary btn-sm"
               title="Ask Claude to spot fixes on the contacts matching the current filter">
-              ✨ Tidy with Claude
+              ✦ Tidy with Claude
             </button>
             <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
               title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
@@ -1330,9 +1326,9 @@ function TagsManager() {
               old CSV imports.
             </p>
           </div>
-          <button onClick={tidyWithClaude} disabled={analyzing || applying} className="btn btn-primary"
+          <button onClick={tidyWithClaude} disabled={analyzing || applying} className="btn btn-secondary btn-sm"
             title="Send the tag list to Claude and get cleanup suggestions">
-            {analyzing ? 'Analysing…' : '✨ Tidy with Claude'}
+            {analyzing ? 'Analysing…' : '✦ Tidy with Claude'}
           </button>
         </div>
 
@@ -1394,8 +1390,8 @@ function TagsManager() {
           />
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12, color: 'var(--text-muted)' }}>
             Sort:
-            <button onClick={() => setSort('count')} className={`chip ${sort === 'count' ? "chip-accent" : "chip-outline"}`}>by count</button>
-            <button onClick={() => setSort('name')} className={`chip ${sort === 'name' ? "chip-accent" : "chip-outline"}`}>A → Z</button>
+            <button onClick={() => setSort('count')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'count' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'count' ? 'var(--text)' : 'var(--surface)', color: sort === 'count' ? '#fff' : 'var(--text)' }}>by count</button>
+            <button onClick={() => setSort('name')} className="chip" style={{ cursor: 'pointer', border: 'var(--border-w) solid ' + (sort === 'name' ? 'var(--text)' : 'var(--card-border)'), background: sort === 'name' ? 'var(--text)' : 'var(--surface)', color: sort === 'name' ? '#fff' : 'var(--text)' }}>A → Z</button>
           </div>
         </div>
 
