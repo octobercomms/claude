@@ -1,14 +1,15 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 // Visual playbook of the four-layer Google Ads account structure used
 // across October's eight-figure clients. Rendered on the Paid Overview
 // tab as evergreen reference — AMs scan it before reading the weekly
 // Strategist brief, and the briefings reference it implicitly.
 //
-// Drawn as a funnel: widest at the top (Performance Max — broad-reach
-// new-customer demand capture) tapering to the narrowest at the bottom
-// (Branded Search — defensive only). Hovering or focusing a layer
-// reveals a tooltip with the do / don't detail.
+// Drawn as a real funnel: a central column of tapering trapezoid bands,
+// widest at the top (Performance Max — broad-reach demand capture) down
+// to the narrowest (Branded Search — defensive only). The do / don't
+// detail sits permanently either side — Do on the left, Don't on the
+// right — instead of behind a hover tooltip.
 const LAYERS = [
   {
     num: 1,
@@ -43,9 +44,9 @@ const LAYERS = [
     title: 'Standard Search',
     tagline: 'Discovery first, then graduate the winners to exact match.',
     dos: [
-      'Start with a broad-match campaign using keyword-themed ad groups — this is your search-term discovery engine.',
+      'Start with a broad-match campaign using keyword-themed ad groups — your search-term discovery engine.',
       'After a few weeks, identify the search terms that converted best and ROAS-positive.',
-      'Launch a second campaign using exact-match for those proven winners, same keyword-themed ad-group structure.',
+      'Launch a second campaign using exact-match for those proven winners, same keyword-themed structure.',
       'Exact match + tight ad groups → highest quality score → best rankings for the lowest CPC.',
       'Exclude brand on both — these are new-customer campaigns.',
     ],
@@ -69,12 +70,19 @@ const LAYERS = [
   },
 ];
 
-// Funnel taper — each layer's bar width as a share of the column.
-const WIDTHS = ['100%', '84%', '68%', '52%'];
+// Taper: each band insets its sides by `index * STEP`% at the top and
+// `(index + 1) * STEP`% at the bottom, so consecutive bands line up into
+// one continuous funnel. Darkening shades give it depth top → bottom.
+const STEP = 6;
+const BAND_BG = ['#EAD24E', '#E2C63D', '#D4B636', '#C2A22E'];
+
+function bandClip(i) {
+  const top = i * STEP;
+  const bottom = (i + 1) * STEP;
+  return `polygon(${top}% 0, ${100 - top}% 0, ${100 - bottom}% 100%, ${bottom}% 100%)`;
+}
 
 export default function GoogleAdsPlaybook() {
-  const [active, setActive] = useState(null);
-
   return (
     <div className="card">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12, flexWrap: 'wrap', marginBottom: 'var(--s5)' }}>
@@ -82,52 +90,39 @@ export default function GoogleAdsPlaybook() {
           <div className="caption">Reference</div>
           <h3 className="h3" style={{ margin: '4px 0 0' }}>Google Ads playbook — four-layer account structure</h3>
         </div>
-        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Build top to bottom — hover a layer for the do / don't detail</span>
+        <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Build top to bottom — broadest reach at the top, most defensive at the base</span>
       </div>
 
       <div className="ads-funnel">
-        {LAYERS.map((layer, i) => {
-          const isActive = active === layer.num;
-          return (
-            <div
-              key={layer.num}
-              className="ads-funnel-bar"
-              style={{ width: WIDTHS[i] }}
-              tabIndex={0}
-              onMouseEnter={() => setActive(layer.num)}
-              onMouseLeave={() => setActive(a => (a === layer.num ? null : a))}
-              onFocus={() => setActive(layer.num)}
-              onBlur={() => setActive(a => (a === layer.num ? null : a))}
-            >
-              <div className={`ads-funnel-row${isActive ? ' is-active' : ''}`}>
-                <span className="ads-funnel-num">{layer.num}</span>
-                <span className="ads-funnel-text">
-                  <span className="ads-funnel-title">{layer.title}</span>
-                  <span className="ads-funnel-tagline">{layer.tagline}</span>
-                </span>
-              </div>
+        <div className="ads-funnel-head caption" style={{ color: 'var(--positive)', textAlign: 'right' }}>Do</div>
+        <div className="ads-funnel-head" />
+        <div className="ads-funnel-head caption" style={{ color: 'var(--negative)' }}>Don't</div>
 
-              {isActive && (
-                <div className="ads-funnel-tip" role="tooltip">
-                  <div className="ads-funnel-tip-grid">
-                    <div>
-                      <div className="caption" style={{ color: 'var(--positive)', marginBottom: 6 }}>Do</div>
-                      <ul className="ads-funnel-list">
-                        {layer.dos.map((d, j) => <li key={j}>{d}</li>)}
-                      </ul>
-                    </div>
-                    <div>
-                      <div className="caption" style={{ color: 'var(--negative)', marginBottom: 6 }}>Don't</div>
-                      <ul className="ads-funnel-list">
-                        {layer.donts.map((d, j) => <li key={j}>{d}</li>)}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              )}
+        {LAYERS.map((layer, i) => (
+          <React.Fragment key={layer.num}>
+            <div className="ads-funnel-do">
+              <div className="ads-funnel-label" style={{ color: 'var(--positive)' }}>Do</div>
+              <ul className="ads-funnel-list">
+                {layer.dos.map((d, j) => <li key={j}>{d}</li>)}
+              </ul>
             </div>
-          );
-        })}
+
+            <div className="ads-funnel-band" style={{ background: BAND_BG[i], clipPath: bandClip(i) }}>
+              <span className="ads-funnel-num">{layer.num}</span>
+              <span>
+                <span className="ads-funnel-title">{layer.title}</span>
+                <span className="ads-funnel-tagline">{layer.tagline}</span>
+              </span>
+            </div>
+
+            <div className="ads-funnel-dont">
+              <div className="ads-funnel-label" style={{ color: 'var(--negative)' }}>Don't</div>
+              <ul className="ads-funnel-list">
+                {layer.donts.map((d, j) => <li key={j}>{d}</li>)}
+              </ul>
+            </div>
+          </React.Fragment>
+        ))}
       </div>
 
       <p style={{ marginTop: 'var(--s5)', fontSize: 11, color: 'var(--text-subtle)', lineHeight: 1.6, maxWidth: 720 }}>

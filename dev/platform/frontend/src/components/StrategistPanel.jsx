@@ -141,8 +141,9 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
   const completed = selected && selected.status === 'completed';
   const briefing = completed ? splitBriefing(selected.markdown || '') : null;
   const recsSection = briefing ? briefing.sections.find(s => s.num === 5) : null;
-  const middleSections = briefing ? briefing.sections.filter(s => s.num !== 5) : [];
-  const showRecs = completed && (recsSection || actions.length > 0);
+  const scorecardSection = briefing ? briefing.sections.find(s => s.num === 6) : null;
+  const middleSections = briefing ? briefing.sections.filter(s => s.num !== 5 && s.num !== 6) : [];
+  const hasActionables = completed && (recsSection || scorecardSection || actions.length > 0);
 
   return (
     <div>
@@ -206,22 +207,19 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
             </div>
           )}
 
-          <div className={`strategist-grid${showRecs ? '' : ' no-recs'}`}>
-            {/* Column 1 — list of briefings. */}
+          {/* Zone 1 — analytical body: list + sections 1–4. */}
+          <div className="strategist-main">
             <div>
               <div className="strategist-col-head">Briefings</div>
-              <div className="stack stack-sm strategist-list">
+              <div className="strategist-list">
                 {reports.map(r => (
                   <button key={r.id} onClick={() => setSelectedId(r.id)}
-                    className={`card ${selectedId === r.id ? '' : 'plain'}`}
-                    style={{ textAlign: 'left', cursor: 'pointer', padding: 'var(--s3) var(--s4)', width: '100%' }}>
+                    className={`briefing-card${selectedId === r.id ? ' active' : ''}`}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <strong style={{ fontSize: 12 }}>
-                        {fmtDate(r.period_start)} – {fmtDate(r.period_end)}
-                      </strong>
-                      {!r.read_at && r.status === 'completed' && <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "var(--r-pill)", background: "var(--accent)", marginLeft: 6 }} />}
+                      <span className="briefing-date">{fmtDate(r.period_start)} – {fmtDate(r.period_end)}</span>
+                      {!r.read_at && r.status === 'completed' && <span className="briefing-dot" />}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                    <div className="briefing-meta">
                       {r.status === 'generating' && '· Generating…'}
                       {r.status === 'failed' && <span style={{ color: 'var(--negative)' }}>✗ Failed</span>}
                       {r.status === 'completed' && (
@@ -231,15 +229,14 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                         </>
                       )}
                     </div>
-                    <button onClick={(e) => destroy(r.id, e)} className="text-negative" style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px" }} title="Delete">×</button>
+                    <span className="briefing-del" onClick={(e) => destroy(r.id, e)} title="Delete">×</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Column 2 — the briefing body (sections 1–4 + 6). */}
             <div className="card">
-              {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a report on the left.</div>}
+              {!selected && <div style={{ color: 'var(--text-subtle)' }}>Pick a briefing on the left.</div>}
               {selected && selected.status === 'generating' && (
                 <div style={{ color: 'var(--text-subtle)' }}>Generating… this usually takes 30–60 seconds.</div>
               )}
@@ -270,12 +267,15 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                 </div>
               )}
             </div>
+          </div>
 
-            {/* Column 3 — actions checklist + recommendations. */}
-            {showRecs && (
-              <div className="stack stack-lg">
+          {/* Zone 2 — actionable output: recommendations beside the
+              interactive summary scorecard. */}
+          {hasActionables && (
+            <div className="strategist-actionables">
+              <div className="card body-sm">
                 {actions.length > 0 && (
-                  <div className="card" style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)' }}>
+                  <div style={{ border: '1px solid #E7CD41', background: 'var(--warning-soft)', borderRadius: 'var(--r-sm)', padding: '12px 14px', marginBottom: 'var(--s4)' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
                       Actions for the week — {actions.filter(a => a.done).length} of {actions.length} done
                     </div>
@@ -297,15 +297,17 @@ export default function StrategistPanel({ clientId, hasMeta, hasGoogle }) {
                   </div>
                 )}
                 {recsSection && (
-                  <div className="card body-sm">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
-                      {recsSection.md}
-                    </ReactMarkdown>
-                  </div>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+                    {stripSectionNumber(recsSection.md)}
+                  </ReactMarkdown>
                 )}
               </div>
-            )}
-          </div>
+
+              {scorecardSection && (
+                <ScorecardCard reportId={selected.id} section={scorecardSection.md} />
+              )}
+            </div>
+          )}
         </>
       )}
     </div>
@@ -352,6 +354,90 @@ function fmtRelative(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
+// Strip a leading "N. " from a section's heading so isolated sections
+// read as clean titles ("## 5. Recommendations" → "## Recommendations").
+function stripSectionNumber(md) {
+  return md.replace(/^(#{1,4}\s+)\d+\.\s+/, '$1');
+}
+
+// Parse the first GFM table out of a markdown chunk into { headers, rows }.
+function parseMarkdownTable(md) {
+  const lines = md.split('\n').map(l => l.trim()).filter(Boolean);
+  const tableLines = lines.filter(l => l.startsWith('|'));
+  if (tableLines.length < 2) return null;
+  const splitRow = (l) => l.replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim().replace(/\*\*/g, '').replace(/`/g, ''));
+  if (!/^[\s|:-]+$/.test(tableLines[1])) return null;  // 2nd line must be the --- separator
+  const headers = splitRow(tableLines[0]);
+  const rows = tableLines.slice(2).map(splitRow).filter(r => r.some(Boolean));
+  if (!rows.length) return null;
+  return { headers, rows };
+}
+
+// Interactive Summary Scorecard — the section-6 table rendered with a
+// checkbox per row. Ticking a row greys it out; state is remembered per
+// report in localStorage (no backend needed for a per-AM working list).
+function ScorecardCard({ reportId, section }) {
+  const table = parseMarkdownTable(section);
+  const storageKey = `strategist_scorecard_${reportId}`;
+  const [done, setDone] = useState(new Set());
+
+  useEffect(() => {
+    try { setDone(new Set(JSON.parse(localStorage.getItem(storageKey) || '[]'))); }
+    catch { setDone(new Set()); }
+  }, [storageKey]);
+
+  function toggle(i) {
+    setDone(prev => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i); else next.add(i);
+      try { localStorage.setItem(storageKey, JSON.stringify([...next])); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  if (!table) {
+    return (
+      <div className="card body-sm">
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={mdComponents}>
+          {stripSectionNumber(section)}
+        </ReactMarkdown>
+      </div>
+    );
+  }
+
+  const doneCount = table.rows.filter((_, i) => done.has(i)).length;
+  return (
+    <div className="card">
+      <h2 style={{ fontSize: 17, fontWeight: 700, margin: '0 0 4px' }}>Summary Scorecard</h2>
+      <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginBottom: 12 }}>
+        {doneCount} of {table.rows.length} actioned
+      </div>
+      <div className="md-table-wrap">
+        <table className="scorecard-table">
+          <thead>
+            <tr>
+              <th className="scorecard-check" />
+              {table.headers.map((h, i) => <th key={i}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {table.rows.map((row, i) => (
+              <tr key={i} className={`scorecard-row${done.has(i) ? ' done' : ''}`}>
+                <td className="scorecard-check">
+                  <input type="checkbox" checked={done.has(i)} onChange={() => toggle(i)} style={{ cursor: 'pointer' }} />
+                </td>
+                {row.map((cell, j) => (
+                  <td key={j} className={j === 0 ? 'scorecard-area' : ''}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // Inline styles that give the markdown a tighter, document feel instead
 // of the default browser margins react-markdown emits.
 const mdComponents = {
@@ -363,7 +449,7 @@ const mdComponents = {
   ol: ({ node, ...p }) => <ol style={{ margin: '0 0 12px', paddingLeft: 22 }} {...p} />,
   li: ({ node, ...p }) => <li style={{ marginBottom: 6, lineHeight: 1.6, fontSize: 14 }} {...p} />,
   strong: ({ node, ...p }) => <strong style={{ color: 'var(--text)' }} {...p} />,
-  table: ({ node, ...p }) => <table style={{ width: '100%', borderCollapse: 'collapse', margin: '8px 0 18px', fontSize: 13 }} {...p} />,
+  table: ({ node, ...p }) => <div className="md-table-wrap"><table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} {...p} /></div>,
   th: ({ node, ...p }) => <th style={{ textAlign: 'left', padding: '8px 10px', borderBottom: '2px solid #1a1a1a', fontWeight: 700, fontSize: 12 }} {...p} />,
   td: ({ node, ...p }) => <td style={{ padding: '6px 10px', borderBottom: '1px solid #eee', verticalAlign: 'top' }} {...p} />,
   hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '20px 0' }} />,

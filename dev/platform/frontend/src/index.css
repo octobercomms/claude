@@ -971,85 +971,60 @@ select, textarea {
 
 /* ─── Paid · Google Ads funnel (Overview reference) ──────────────── */
 .ads-funnel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(260px, 34vw, 440px) minmax(0, 1fr);
+  column-gap: var(--s5);
+  row-gap: var(--s2);
+  align-items: stretch;
+}
+.ads-funnel-head { align-self: end; padding-bottom: var(--s2); }
+.ads-funnel-do, .ads-funnel-dont {
+  align-self: center;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.ads-funnel-list { list-style: none; margin: 0; padding: 0; }
+.ads-funnel-list li { position: relative; padding-left: 20px; margin-bottom: 6px; }
+.ads-funnel-do .ads-funnel-list li::before {
+  content: '✓'; position: absolute; left: 0; color: var(--positive); font-weight: 800;
+}
+.ads-funnel-dont .ads-funnel-list li::before {
+  content: '✕'; position: absolute; left: 0; color: var(--negative); font-weight: 800;
+}
+.ads-funnel-band {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: var(--s2);
-}
-.ads-funnel-bar {
-  position: relative;
-  max-width: 620px;
-  outline: none;
-}
-.ads-funnel-row {
-  display: flex;
-  align-items: center;
-  gap: var(--s4);
-  padding: var(--s4) var(--s5);
-  background: var(--surface);
-  border: var(--border-w) solid var(--card-border);
-  border-radius: var(--r-md);
-  transition: background 120ms ease, border-color 120ms ease;
-  cursor: default;
-}
-.ads-funnel-bar:hover .ads-funnel-row,
-.ads-funnel-bar:focus .ads-funnel-row,
-.ads-funnel-row.is-active {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  justify-content: center;
+  gap: var(--s3);
+  padding: 18px 30px;
+  min-height: 92px;
+  color: #1a1a1a;
+  text-align: left;
 }
 .ads-funnel-num {
   flex: 0 0 auto;
-  width: 30px; height: 30px;
+  width: 34px; height: 34px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--accent-on);
+  background: #1a1a1a;
+  color: #fff;
   display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 800;
+  font-size: 15px; font-weight: 800;
 }
-.ads-funnel-text { display: flex; flex-direction: column; min-width: 0; }
-.ads-funnel-title { font-weight: 700; font-size: 15px; color: var(--text); line-height: 1.2; }
-.ads-funnel-tagline { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
-/* Tooltip — floats into the right gutter beside the hovered bar. */
-.ads-funnel-tip {
-  position: absolute;
-  top: 50%;
-  left: calc(100% + var(--s4));
-  transform: translateY(-50%);
-  width: 360px;
-  max-width: 42vw;
-  background: var(--surface);
-  border: var(--border-w) solid var(--card-border);
-  border-radius: var(--r-md);
-  box-shadow: 0 12px 32px rgba(0,0,0,0.14);
-  padding: var(--s4) var(--s5);
-  z-index: 20;
-}
-.ads-funnel-tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s5); }
-.ads-funnel-list { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.5; color: var(--text); }
-.ads-funnel-list li { margin-bottom: 5px; }
-
+.ads-funnel-title { display: block; font-weight: 800; font-size: 16px; line-height: 1.15; }
+.ads-funnel-tagline { display: block; font-size: 12px; margin-top: 2px; opacity: 0.82; }
+.ads-funnel-label { display: none; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 @media (max-width: 900px) {
-  .ads-funnel-bar { width: 100% !important; max-width: none; }
-  .ads-funnel-tip {
-    position: static;
-    transform: none;
-    width: auto;
-    max-width: none;
-    margin-top: var(--s2);
-    box-shadow: none;
-  }
-  .ads-funnel-tip-grid { grid-template-columns: 1fr; gap: var(--s4); }
+  .ads-funnel { grid-template-columns: 1fr; }
+  .ads-funnel-head { display: none; }
+  .ads-funnel-do, .ads-funnel-dont { align-self: auto; }
+  .ads-funnel-label { display: block; }
 }
 
 /* ─── Paid · Strategist briefing layout ──────────────────────────── */
-.strategist-grid {
-  display: grid;
-  gap: var(--s5);
-  align-items: start;
-  grid-template-columns: 220px minmax(0, 1.3fr) minmax(0, 1fr);
-}
-.strategist-grid.no-recs { grid-template-columns: 220px minmax(0, 1fr); }
+/* Two zones: the analytical body up top (list + sections 1–4, where the
+   wide tables get room), then the actionable output below (recommendations
+   beside the interactive summary scorecard). */
 .strategist-topbar {
   display: flex;
   gap: var(--s4);
@@ -1057,13 +1032,72 @@ select, textarea {
   flex-wrap: wrap;
   margin-bottom: var(--s5);
 }
+.strategist-main {
+  display: grid;
+  grid-template-columns: 210px minmax(0, 1fr);
+  gap: var(--s5);
+  align-items: start;
+  margin-bottom: var(--s5);
+}
+.strategist-actionables {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s5);
+  align-items: start;
+}
 .strategist-col-head {
   font-size: 11px; font-weight: 700; color: var(--text-muted);
   text-transform: uppercase; letter-spacing: 0.5px;
   margin-bottom: var(--s3);
 }
-.strategist-list { max-height: 70vh; overflow-y: auto; }
-@media (max-width: 1100px) {
-  .strategist-grid, .strategist-grid.no-recs { grid-template-columns: 1fr; }
+.strategist-list { display: flex; flex-direction: column; gap: var(--s2); max-height: 78vh; overflow-y: auto; }
+@media (max-width: 1000px) {
+  .strategist-main, .strategist-actionables { grid-template-columns: 1fr; }
   .strategist-list { max-height: none; }
 }
+
+/* Briefing list cards — the selected one takes the black "feature"
+   treatment so the current briefing is unmistakable. */
+.briefing-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md);
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.briefing-card:hover { border-color: var(--text-subtle); }
+.briefing-card.active { background: var(--text); border-color: var(--text); }
+.briefing-date { font-size: 12px; font-weight: 700; color: var(--text); }
+.briefing-meta { font-size: 11px; color: var(--text-subtle); margin-top: 4px; }
+.briefing-card.active .briefing-date { color: #fff; }
+.briefing-card.active .briefing-meta { color: rgba(255,255,255,0.6); }
+.briefing-dot { display: inline-block; width: 8px; height: 8px; border-radius: var(--r-pill); background: var(--accent); margin-left: 6px; }
+.briefing-del {
+  position: absolute; top: 6px; right: 8px;
+  background: none; border: none; cursor: pointer;
+  font-size: 18px; line-height: 1; padding: 0 4px;
+  color: var(--negative);
+}
+.briefing-card.active .briefing-del { color: #ff8a80; }
+
+/* Markdown tables inside a briefing — keep them inside the frame, with
+   horizontal scroll as the fallback for very wide tables. */
+.md-table-wrap { overflow-x: auto; max-width: 100%; margin: 8px 0 18px; }
+.md-table-wrap table { margin: 0 !important; }
+
+/* Interactive Summary Scorecard. */
+.scorecard-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.scorecard-table th {
+  text-align: left; padding: 8px 10px; border-bottom: 2px solid var(--text);
+  font-weight: 700; font-size: 12px;
+}
+.scorecard-table td { padding: 8px 10px; border-bottom: 1px solid var(--card-border); vertical-align: top; }
+.scorecard-row.done td { color: var(--text-subtle); }
+.scorecard-row.done .scorecard-area { text-decoration: line-through; }
+.scorecard-check { width: 28px; text-align: center; }
+.scorecard-area { font-weight: 600; }
