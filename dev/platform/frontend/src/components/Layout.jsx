@@ -18,7 +18,12 @@ export default function Layout() {
   const clientBrandMatch = useMatch('/clients/:id/brand');
   const clientAudiencesMatch = useMatch('/clients/:id/audiences');
   const clientAiVisMatch = useMatch('/clients/:id/ai-visibility');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
+  // Derive the active client id straight from the path — robust for every
+  // /clients/:id/* page (chat, audiences, etc.) without having to enumerate
+  // a useMatch for each route. /clients (the list) has no id segment, so the
+  // sub-nav correctly stays hidden there.
+  const clientId = (location.pathname.match(/^\/clients\/([^/]+)(?:\/|$)/) || [])[1]
+    || clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'setup_overview';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
