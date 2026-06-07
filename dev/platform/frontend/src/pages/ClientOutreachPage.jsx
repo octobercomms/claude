@@ -14,6 +14,7 @@ import PressCampaignDetail from '../components/PressCampaignDetail';
 import ImportWizard from '../components/ImportWizard';
 import SequenceBuilder from '../components/SequenceBuilder';
 import { csvEscape } from '../utils/csv';
+import { useTabParam } from '../hooks/useTabParam';
 
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
@@ -121,7 +122,7 @@ export default function ClientOutreachPage() {
   const { id } = useParams();
   const toast = useToast();
   const [client, setClient] = useState(null);
-  const [tab, setTab] = useState('overview');
+  const [tab, setTab] = useTabParam('overview', ['overview', 'campaigns', 'contacts', 'tasks', 'sending']);
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [stats, setStats] = useState(null);

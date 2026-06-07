@@ -6,6 +6,7 @@ import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
 import { useToast } from '../context/ToastContext';
+import { useTabParam } from '../hooks/useTabParam';
 
 // Style overrides for ReactMarkdown — keeps headings, tables, lists,
 // and code blocks legible inside a chat bubble. Same component set is
@@ -71,10 +72,7 @@ export default function ClientChatPage() {
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
-  const [tab, setTab] = useState(() => {
-    const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','chat'].includes(q) ? q : 'overview';
-  });
+  const [tab, setTab] = useTabParam('overview', ['overview', 'chat']);
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
 

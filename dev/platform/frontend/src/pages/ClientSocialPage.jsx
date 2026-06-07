@@ -8,6 +8,7 @@ import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
 import UiButton from '../components/ui/Button';
+import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
 const SUITE_ACCENT_SOCIAL = UiPalette.suite.social;
 
@@ -44,10 +45,7 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
-  const [socialTab, setSocialTab] = useState(() => {
-    const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','loop','brainstorm','plans','performance','competitors'].includes(q) ? q : 'overview';
-  });
+  const [socialTab, setSocialTab] = useTabParam('overview', ['overview', 'loop', 'brainstorm', 'plans', 'performance', 'competitors']);
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
   // receives the array as a prop instead of fetching its own.

@@ -6,6 +6,7 @@ import SuiteOverview from '../components/SuiteOverview';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
+import { useTabParam } from '../hooks/useTabParam';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -23,10 +24,7 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  const [tab, setTab] = useState(() => {
-    const q = new URLSearchParams(window.location.search).get('tab');
-    return ['overview','performance','strategist','creative','audiences'].includes(q) ? q : 'overview';
-  });
+  const [tab, setTab] = useTabParam('overview', ['overview', 'performance', 'strategist', 'creative', 'audiences']);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
