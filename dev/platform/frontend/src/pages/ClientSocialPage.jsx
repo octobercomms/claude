@@ -360,7 +360,7 @@ export default function ClientSocialPage() {
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'loop',     label: 'Loop',     active: currentGroup === 'loop',     onClick: () => setSocialTab('loop') },
+          { key: 'loop',     label: 'Performance', active: currentGroup === 'loop',     onClick: () => setSocialTab('loop') },
           { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
           { key: 'insights', label: 'Insights', active: currentGroup === 'insights', onClick: () => setSocialTab('performance') },
         ];
