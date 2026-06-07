@@ -369,7 +369,7 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'details' && (
-        <form onSubmit={handleSave} className="card">
+        <form onSubmit={handleSave} className="card" style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s5)' }}>
           <div className="grid grid-3">
             <Field label="Client Name">
               <input className="input" value={client.name} onChange={e => setClient(p => ({ ...p, name: e.target.value }))} />
@@ -381,11 +381,18 @@ export default function ClientDetailPage() {
               <input className="input" value={client.domain || ''} onChange={e => setClient(p => ({ ...p, domain: e.target.value }))} placeholder="example.com" />
             </Field>
           </div>
-          <Field label="Active">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14 }}>
-              <input type="checkbox" checked={client.active} onChange={e => setClient(p => ({ ...p, active: e.target.checked }))} />
-              Client is active
-            </label>
+          <Field label="Status">
+            <button type="button" onClick={() => setClient(p => ({ ...p, active: !p.active }))}
+              className={`card ${client.active ? 'success' : ''}`}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', cursor: 'pointer', padding: '12px 16px' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 'var(--r-pill)', background: client.active ? 'var(--positive)' : 'var(--text-subtle)' }} />
+              <span style={{ fontWeight: 600, fontSize: 14, color: client.active ? 'var(--positive)' : 'var(--text)' }}>
+                {client.active ? '✓ Client is active' : 'Client is inactive'}
+              </span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--text-subtle)' }}>
+                {client.active ? 'Click to deactivate' : 'Click to activate'}
+              </span>
+            </button>
           </Field>
           <Field label="About this client">
             <p className="body-xs text-muted">One paragraph describing what the business sells, to whom, where they operate. Used by Claude to give the AI Data Analyst context and to set the tone of report copy. Set once — update only if the business changes.</p>
