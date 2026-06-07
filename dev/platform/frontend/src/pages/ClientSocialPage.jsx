@@ -335,14 +335,45 @@ export default function ClientSocialPage() {
         </div>
       </header>
 
-      <SuiteTabs tabs={[
-        { key: 'overview',     label: 'Overview',     active: socialTab === 'overview',     onClick: () => setSocialTab('overview') },
-        { key: 'loop',         label: 'Loop',         active: socialTab === 'loop',         onClick: () => setSocialTab('loop') },
-        { key: 'brainstorm',   label: 'Brainstorm',   active: socialTab === 'brainstorm',   onClick: () => setSocialTab('brainstorm') },
-        { key: 'plans',        label: 'Plans',        active: socialTab === 'plans',        onClick: () => setSocialTab('plans') },
-        { key: 'performance',  label: 'Performance',  active: socialTab === 'performance',  onClick: () => setSocialTab('performance') },
-        { key: 'competitors',  label: 'Competitors',  active: socialTab === 'competitors',  onClick: () => setSocialTab('competitors') },
-      ]} />
+      {/* 6 flat tabs → 4 groups by job-to-be-done. Loop stays solo as the
+          daily hub; Create pairs Brainstorm+Plans (write→schedule); Insights
+          pairs Performance+Competitors (your winners vs theirs). The per-tab
+          content blocks below are unchanged — clicking a group sets
+          socialTab to its default sub-view. */}
+      {(() => {
+        const SUB_TABS = {
+          create:   [
+            { key: 'brainstorm',  label: 'Brainstorm' },
+            { key: 'plans',       label: 'Plans' },
+          ],
+          insights: [
+            { key: 'performance', label: 'Performance' },
+            { key: 'competitors', label: 'Competitors' },
+          ],
+        };
+        const GROUP_OF = {
+          overview: 'overview',
+          loop: 'loop',
+          brainstorm: 'create', plans: 'create',
+          performance: 'insights', competitors: 'insights',
+        };
+        const currentGroup = GROUP_OF[socialTab] || 'overview';
+        const topTabs = [
+          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
+          { key: 'loop',     label: 'Loop',     active: currentGroup === 'loop',     onClick: () => setSocialTab('loop') },
+          { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
+          { key: 'insights', label: 'Insights', active: currentGroup === 'insights', onClick: () => setSocialTab('performance') },
+        ];
+        const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
+          ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
+        }));
+        return (
+          <>
+            <SuiteTabs tabs={topTabs} />
+            {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
+          </>
+        );
+      })()}
 
       {socialTab === 'overview' && (
         <SuiteOverview
