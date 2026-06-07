@@ -388,4 +388,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
