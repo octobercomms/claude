@@ -190,7 +190,10 @@ button { font-family: inherit; }
   font-size: 13px; font-weight: 700; color: var(--accent);
   text-transform: uppercase; letter-spacing: 0.12em; line-height: 1.2; margin: 0;
 }
-.hero .display { margin-top: var(--s2); }
+/* No top margin on the hero title — the kicker's bottom margin spaces it,
+   and a margin here collapses in block heroes but not in flex heroes
+   (with .hero-actions), which made the title jump between tabs. */
+.hero .display { margin-top: 0; }
 .hero .body { margin-top: var(--s4); max-width: 640px; }
 .hero-actions {
   display: flex; gap: var(--s2); align-items: center;
