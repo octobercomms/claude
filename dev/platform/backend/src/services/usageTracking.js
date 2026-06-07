@@ -218,4 +218,23 @@ async function currentSnapshots() {
   }));
 }
 
-module.exports = { runAllPollers, pollOne, currentSnapshots, POLLERS };
+// Combined spend for the current calendar month — sums each provider's
+// latest cost_this_period, grouped by currency (no FX guessing). Used by
+// the Dashboard banner so the admin can see total API cost at a glance.
+async function monthlySpend() {
+  const bounds = monthBounds();
+  const snaps = await currentSnapshots();
+  const totals = {};
+  const byProvider = [];
+  for (const s of snaps) {
+    const snap = s.snapshot;
+    if (!snap || snap.cost_this_period == null) continue;
+    const currency = snap.currency || 'USD';
+    const amount = Number(snap.cost_this_period) || 0;
+    totals[currency] = (totals[currency] || 0) + amount;
+    byProvider.push({ name: s.name, label: s.label, cost: amount, currency });
+  }
+  return { totals, by_provider: byProvider, ...bounds };
+}
+
+module.exports = { runAllPollers, pollOne, currentSnapshots, monthlySpend, POLLERS };

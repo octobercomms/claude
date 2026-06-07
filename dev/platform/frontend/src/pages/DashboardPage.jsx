@@ -23,7 +23,7 @@ export default function DashboardPage() {
     );
   }
 
-  const { clients = [], alerts = {}, recent_reports = [] } = data || {};
+  const { clients = [], alerts = {}, recent_reports = [], api_spend = null } = data || {};
   const expiredTokens = alerts.expired_meta_tokens || [];
 
   // Headline figures — all derived from the data the dashboard already
@@ -48,6 +48,8 @@ export default function DashboardPage() {
         <h1 className="text-[54px] font-extrabold leading-none tracking-[-1.6px] text-ink m-0 max-md:text-[40px]">Dashboard</h1>
         <div className="text-[13px] text-muted font-medium">{today}</div>
       </header>
+
+      {api_spend && <ApiSpendBanner spend={api_spend} />}
 
       {expiredTokens.length > 0 && (
         <div className="px-s4 py-s3 rounded-sm border border-negative bg-negative-soft text-negative text-[13px] leading-[1.5] mb-s5">
@@ -177,6 +179,36 @@ function StatusBadge({ status }) {
     pending: 'neutral', failed: 'danger', sending: 'warning',
   }[status] || 'neutral';
   return <span className={`chip chip-${tone}`}>{status}</span>;
+}
+
+// Combined API spend this month — a dark feature bar so the total cost
+// across every pay-per-use provider is visible at a glance. Totals are
+// grouped by currency (no FX conversion), so it reads honestly even if
+// providers bill in different currencies.
+function ApiSpendBanner({ spend }) {
+  const entries = Object.entries(spend.totals || {});
+  const amount = entries.length
+    ? entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')
+    : '—';
+  const providers = (spend.by_provider || []).length;
+  return (
+    <div className="flex items-center gap-3 flex-wrap bg-ink rounded-md px-s5 py-s3 mb-s5">
+      <span className="w-2 h-2 rounded-pill bg-accent" />
+      <span className="text-[13px] text-white">
+        <strong>API spend this month:</strong> <span className="text-accent font-bold">{amount}</span>
+      </span>
+      <span className="text-[12px] text-white/55">
+        across {providers} provider{providers === 1 ? '' : 's'}
+      </span>
+      <Link to="/settings" className="ml-auto text-[12px] font-bold text-accent no-underline">Breakdown →</Link>
+    </div>
+  );
+}
+
+function fmtMoney(value, currency) {
+  const c = currency || 'USD';
+  try { return new Intl.NumberFormat('en-GB', { style: 'currency', currency: c, maximumFractionDigits: 2 }).format(value || 0); }
+  catch { return `${c} ${(value || 0).toFixed(2)}`; }
 }
 
 function formatDate(d) {

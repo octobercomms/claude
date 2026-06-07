@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const users = require('../services/users');
+const usageTracking = require('../services/usageTracking');
 
 const router = express.Router();
 router.use(authenticate);
@@ -69,11 +70,20 @@ router.get('/', async (req, res) => {
       LIMIT 10
     `, filterParams);
 
+    // Combined API spend this month — admin only (it's workspace-wide
+    // cost data). visibleIds === null means the user sees everything.
+    let apiSpend = null;
+    if (visibleIds === null) {
+      try { apiSpend = await usageTracking.monthlySpend(); }
+      catch (e) { console.error('[dashboard] api spend failed:', e.message); }
+    }
+
     res.json({
       clients,
       alerts: { expired_meta_tokens: expiredMeta },
       upcoming_reports: upcoming,
       recent_reports: recentReports,
+      api_spend: apiSpend,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
