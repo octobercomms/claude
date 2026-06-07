@@ -54,9 +54,12 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <button className={'app-hamburger' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(o => !o)} aria-label="Menu">
-        {navOpen ? '✕' : '☰'}
-      </button>
+      <header className="app-topbar">
+        <span className="app-topbar-brand">Marketing Intelligence</span>
+        <button className="app-hamburger" onClick={() => setNavOpen(o => !o)} aria-label="Menu" aria-expanded={navOpen}>
+          {navOpen ? '✕' : '☰'}
+        </button>
+      </header>
       <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
       <nav className={'app-nav' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)}>
         <div className="app-nav-brand">

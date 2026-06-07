@@ -834,27 +834,37 @@ select, textarea {
 /* ─── Mobile ─────────────────────────────────────────────────────── */
 
 .app-hamburger { display: none; }
+.app-topbar { display: none; }
 .app-overlay { display: none; }
 
 @media (max-width: 768px) {
-  .app-main { padding: 60px var(--s4) var(--s5); }
+  /* Mobile top bar — branded header with the menu button. Sits above the
+     drawer + overlay so the menu is always reachable. */
+  .app-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 230;
+    height: 56px; padding: 0 8px 0 18px;
+    background: var(--sidebar-bg); color: #fff;
+  }
+  .app-topbar-brand { font-size: 15px; font-weight: 700; letter-spacing: 0.2px; color: #fff; }
+  .app-hamburger {
+    display: flex; align-items: center; justify-content: center;
+    width: 44px; height: 44px;
+    border: none; background: transparent; color: #fff;
+    font-size: 24px; line-height: 1; cursor: pointer;
+  }
+  .app-main { padding: 72px var(--s4) var(--s5); }
   .app-nav {
-    position: fixed; top: 0; left: 0; z-index: 200;
-    width: 260px; transform: translateX(-100%);
+    position: fixed; top: 56px; left: 0; z-index: 225;
+    width: 260px; height: calc(100dvh - 56px); transform: translateX(-100%);
     transition: transform 0.2s ease;
   }
   .app-nav.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4); }
-  .app-hamburger {
-    display: flex; align-items: center; justify-content: center;
-    position: fixed; top: 12px; right: 14px; z-index: 210;
-    width: 44px; height: 44px;
-    border: none; background: transparent;
-    color: var(--text); font-size: 26px; line-height: 1; cursor: pointer;
-  }
-  .app-hamburger.open { color: #fff; }
+  /* The top bar already shows the brand on mobile. */
+  .app-nav-brand { display: none; }
   .app-overlay.open {
-    display: block; position: fixed; inset: 0;
-    background: rgba(0, 0, 0, 0.45); z-index: 190;
+    display: block; position: fixed; inset: 0 0 0 0; top: 56px;
+    background: rgba(0, 0, 0, 0.45); z-index: 220;
   }
 
   /* Type scale shrinks for narrow screens */
