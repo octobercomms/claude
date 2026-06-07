@@ -471,7 +471,7 @@ export default function ClientDetailPage() {
       {tab === 'reports' && (
         <SuiteTabs tabs={[
           { key: 'overview', label: 'Overview', active: reportsTab === 'overview', onClick: () => setReportsTab('overview') },
-          { key: 'generated', label: 'Reports', active: reportsTab === 'generated', onClick: () => setReportsTab('generated') },
+          { key: 'generated', label: 'Generate', active: reportsTab === 'generated', onClick: () => setReportsTab('generated') },
         ]} />
       )}
 
