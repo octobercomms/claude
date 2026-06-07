@@ -16,7 +16,9 @@ export default function Layout() {
   const clientSalesMatch = useMatch('/clients/:id/sales-traffic');
   const clientSocialMatch = useMatch('/clients/:id/social');
   const clientBrandMatch = useMatch('/clients/:id/brand');
-  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id;
+  const clientAudiencesMatch = useMatch('/clients/:id/audiences');
+  const clientAiVisMatch = useMatch('/clients/:id/ai-visibility');
+  const clientId = clientMatch?.params?.id || clientSeoMatch?.params?.id || clientChatMatch?.params?.id || clientAdsMatch?.params?.id || clientOutreachMatch?.params?.id || clientSalesMatch?.params?.id || clientSocialMatch?.params?.id || clientBrandMatch?.params?.id || clientAudiencesMatch?.params?.id || clientAiVisMatch?.params?.id;
   const currentTab = new URLSearchParams(location.search).get('tab') || 'setup_overview';
   const onSeoPage = !!clientSeoMatch;
   const onChatPage = !!clientChatMatch;
@@ -47,7 +49,7 @@ export default function Layout() {
 
   return (
     <div className="app-shell">
-      <button className="app-hamburger" onClick={() => setNavOpen(o => !o)} aria-label="Menu">
+      <button className={'app-hamburger' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(o => !o)} aria-label="Menu">
         {navOpen ? '✕' : '☰'}
       </button>
       <div className={'app-overlay' + (navOpen ? ' open' : '')} onClick={() => setNavOpen(false)} />
