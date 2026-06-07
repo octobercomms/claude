@@ -190,7 +190,10 @@ button { font-family: inherit; }
   font-size: 13px; font-weight: 700; color: var(--accent);
   text-transform: uppercase; letter-spacing: 0.12em; line-height: 1.2; margin: 0;
 }
-.hero .display { margin-top: var(--s2); }
+/* No top margin on the hero title — the kicker's bottom margin spaces it,
+   and a margin here collapses in block heroes but not in flex heroes
+   (with .hero-actions), which made the title jump between tabs. */
+.hero .display { margin-top: 0; }
 .hero .body { margin-top: var(--s4); max-width: 640px; }
 .hero-actions {
   display: flex; gap: var(--s2); align-items: center;
@@ -288,26 +291,26 @@ button { font-family: inherit; }
 }
 .btn-primary:hover:not(:disabled) { filter: brightness(0.90); color: var(--accent-on); }
 
-/* Secondary — outline that fills with the accent on hover. */
+/* Two button styles only:
+   - primary  = yellow fill, black text (the one main action)
+   - secondary = white fill, black text, thick border (everything else)
+   ghost = the white secondary in a compact size; danger = white + red. */
 .btn-secondary {
-  background: var(--surface); color: var(--accent);
-  border-color: var(--accent);
-}
-.btn-secondary:hover:not(:disabled) {
-  background: var(--accent); color: var(--accent-on); border-color: var(--accent);
-}
-
-/* Ghost — quiet until hovered, then a soft accent wash. */
-.btn-ghost {
-  background: transparent; color: var(--text-muted);
-  border-color: transparent; padding: 6px 10px;
-}
-.btn-ghost:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
-
-/* Danger — neutral until hover, then a solid negative fill. */
-.btn-danger {
-  background: var(--surface); color: var(--text-muted);
+  background: var(--surface); color: var(--text);
   border-color: var(--border-neutral);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--surface-sunken); }
+
+.btn-ghost {
+  background: var(--surface); color: var(--text);
+  border-color: var(--border-neutral); padding: 6px 10px;
+}
+.btn-ghost:hover:not(:disabled) { background: var(--surface-sunken); }
+
+/* Danger = white secondary with red text — destructive stays obvious. */
+.btn-danger {
+  background: var(--surface); color: var(--negative);
+  border-color: var(--negative);
 }
 .btn-danger:hover:not(:disabled) { background: var(--negative); color: #fff; border-color: var(--negative); }
 
@@ -697,7 +700,7 @@ button { font-family: inherit; }
   width: 100%; padding: 10px var(--s3);
   background: var(--surface);
   color: var(--text);
-  border: var(--border-w) solid var(--border-neutral);
+  border: var(--border-w) solid var(--card-border);
   border-radius: var(--r-sm);
   font-size: 14px; font-family: inherit;
 }
@@ -717,7 +720,7 @@ select, textarea {
   color: var(--text);
   /* Explicit width+style: the global border reset zeroes widths, so bare
      (un-.input) controls need their border restored here. */
-  border: var(--border-w) solid var(--border-neutral);
+  border: var(--border-w) solid var(--card-border);
   font-family: inherit;
 }
 

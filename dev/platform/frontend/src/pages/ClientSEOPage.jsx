@@ -715,7 +715,7 @@ export default function ClientSEOPage() {
       })()}
 
       {/* Position buckets */}
-      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--accent-soft)' }}>
+      <div style={{ display: 'flex', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', overflow: 'hidden', marginBottom: 16, background: 'var(--surface)' }}>
         {[
           { key: 'all', label: 'All' },
           { key: 'top3', label: 'Top 3' },
@@ -725,10 +725,11 @@ export default function ClientSEOPage() {
           { key: 'none', label: 'Not ranking' },
         ].map((b, i) => (
           <button key={b.key} onClick={() => setBucket(b.key)} style={{
-            flex: 1, padding: '10px 8px', border: 'none', cursor: 'pointer',
-            borderLeft: i ? '1px solid #eee' : 'none',
-            background: bucket === b.key ? 'var(--accent)' : 'var(--surface)',
-            color: bucket === b.key ? 'var(--accent-on)' : 'var(--text-muted)',
+            flex: 1, padding: '10px 8px', cursor: 'pointer',
+            border: 'none', borderLeft: i ? '1px solid var(--card-border)' : 'none',
+            borderBottom: bucket === b.key ? '2px solid var(--accent)' : '2px solid transparent',
+            background: bucket === b.key ? 'var(--surface-sunken)' : 'var(--surface)',
+            color: bucket === b.key ? 'var(--text)' : 'var(--text-muted)',
           }}>
             <div style={{ fontSize: 18, fontWeight: 700 }}>{bucketCounts[b.key]}</div>
             <div style={{ fontSize: 11, opacity: 0.85 }}>{b.label}</div>
@@ -825,9 +826,9 @@ export default function ClientSEOPage() {
         <div style={{ display: 'flex' }}>
           {[['current', 'Current'], ['history', 'By date']].map(([v, label], i) => (
             <button key={v} onClick={() => setKwView(v)} style={{
-              padding: '6px 16px', fontSize: 13, cursor: 'pointer', border: 'var(--border-w) solid var(--card-border)',
-              background: kwView === v ? 'var(--accent)' : 'var(--surface)', color: kwView === v ? 'var(--accent-on)' : 'var(--text-muted)',
-              borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? '1px solid #ddd' : 'none',
+              padding: '6px 16px', fontSize: 13, cursor: 'pointer', fontWeight: kwView === v ? 700 : 400, border: 'var(--border-w) solid var(--card-border)',
+              background: kwView === v ? 'var(--surface-sunken)' : 'var(--surface)', color: kwView === v ? 'var(--text)' : 'var(--text-muted)',
+              borderRadius: i === 0 ? '4px 0 0 4px' : '0 4px 4px 0', borderLeft: i === 0 ? undefined : 'none',
             }}>{label}</button>
           ))}
         </div>
