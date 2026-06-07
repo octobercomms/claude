@@ -125,10 +125,15 @@ export default function ClientSalesTrafficPage() {
 
       {tab === 'overview' && (
         <SuiteOverview
-          tagline="Your commercial overview, live."
-          description="Revenue, orders, traffic — pulled straight from Shopify and Google Analytics the moment you open the page. No reports to wait for."
+          tagline="See how the business is trading — right now."
+          description="Revenue, orders and traffic pulled live from Shopify and Google Analytics the moment you open the page. No reports to wait for, no spreadsheets to build."
           ctaLabel="View live KPIs"
           onCta={() => setTab('dashboard')}
+          status={[
+            { label: 'Shopify', value: k.revenue ? 'Live' : 'No data', ok: !!k.revenue },
+            { label: 'GA4', value: k.sessions ? 'Live' : 'No data', ok: !!k.sessions },
+            { label: 'Revenue · 30d', value: fmtMoney(k.revenue || 0), ok: !!k.revenue },
+          ]}
           flow={[
             { label: 'Shopify + GA4', detail: 'Live connector data' },
             { label: 'Live KPIs',     detail: 'Six headline metrics' },
@@ -136,10 +141,10 @@ export default function ClientSalesTrafficPage() {
             { label: 'Channels',      detail: 'Where revenue comes from' },
           ]}
           capabilities={[
-            { tag: 'Live KPIs',       title: 'Six metrics at a glance', body: 'Revenue, orders, average order value, sessions, users, conversion rate — fresh on each page load.' },
-            { tag: 'Trend chart',     title: '30 days of context',      body: 'Sales and orders overlaid on a single chart so spikes and dips are obvious.' },
-            { tag: 'Channel split',   title: 'Where it comes from',     body: 'Revenue and traffic broken down by acquisition channel — search, paid, social, direct.' },
-            { tag: 'Date flexibility', title: 'Any window',              body: '7 / 14 / 30 / 90 days, month-to-date, year-to-date, per-month, or a custom range.' },
+            { tag: 'Live KPIs',       title: 'Six metrics at a glance', cta: 'View KPIs', onClick: () => setTab('dashboard'), body: 'Revenue, orders, average order value, sessions, users and conversion rate — fresh on every page load.' },
+            { tag: 'Trend chart',     title: 'Spot the spikes & dips',  cta: 'View trends', onClick: () => setTab('dashboard'), body: 'Sales and orders overlaid on one 30-day chart so movement is obvious at a glance.' },
+            { tag: 'Channel split',   title: 'Know where revenue comes from', cta: 'View channels', onClick: () => setTab('dashboard'), body: 'Revenue and traffic broken down by acquisition channel — search, paid, social, direct.' },
+            { tag: 'Date flexibility', title: 'Compare any window',     cta: 'Open dashboard', onClick: () => setTab('dashboard'), body: '7 / 14 / 30 / 90 days, month-to-date, year-to-date, per-month, or a custom range.' },
           ]}
         />
       )}

@@ -230,10 +230,14 @@ export default function ClientChatPage() {
 
       {tab === 'overview' && (
         <SuiteOverview
-          tagline="Ask Claude anything about this client."
-          description="A live conversational layer over every connector. Get answers, generate downloadable reports, and log every decision so the knowledge compounds."
+          tagline="Ask anything — get answers from the live data."
+          description="A conversational layer over every connector. Ask in plain English, get answers with sources, format any reply as a client-ready report, and let Claude log decisions so the knowledge compounds."
           ctaLabel="Start a conversation"
           onCta={() => setTab('chat')}
+          status={[
+            { label: 'Conversation', value: messages.length ? `${messages.length} messages` : 'Not started yet', ok: messages.length > 0 },
+            { label: 'Sources', value: 'Shopify · GA4 · GSC · Ads', ok: true },
+          ]}
           flow={[
             { label: 'Connectors', detail: 'Shopify, GA4, GSC, Ads' },
             { label: 'Claude reads', detail: 'Live data on demand' },
@@ -241,10 +245,10 @@ export default function ClientChatPage() {
             { label: 'Log',       detail: 'Decisions persist in context' },
           ]}
           capabilities={[
-            { tag: 'Ask',           title: 'Plain English questions', body: '"Why did conversions drop last week?" — Claude pulls Shopify + GA4 to answer with the live numbers.' },
-            { tag: '/report',       title: 'Format as a doc',         body: 'Prefix any message with /report and the reply formats as a structured PDF + Word doc you can hand to the client.' },
-            { tag: 'Attachments',   title: 'Images + PDFs',            body: 'Drag in a screenshot of a competitor or a brief PDF — Claude reads it alongside the live data.' },
-            { tag: 'Context log',   title: 'Shared memory',           body: 'Claude logs decisions, investigations, observations and pending items to a persistent sidebar — so the next session picks up where you left off.' },
+            { tag: 'Ask',         title: 'Answer real questions',  cta: 'Start chatting', onClick: () => setTab('chat'), body: '"Why did conversions drop last week?" — Claude pulls Shopify + GA4 and answers with the live numbers, citing sources.' },
+            { tag: '/report',     title: 'Turn it into a report',  cta: 'Open chat', onClick: () => setTab('chat'), body: 'Prefix any message with /report and the reply formats as a structured PDF + Word doc you can hand straight to the client.' },
+            { tag: 'Attachments', title: 'Bring in images & PDFs', cta: 'Open chat', onClick: () => setTab('chat'), body: 'Drop in a competitor screenshot or a brief PDF and Claude reads it alongside the live data.' },
+            { tag: 'Memory',      title: 'Knowledge that compounds', cta: 'Open chat', onClick: () => setTab('chat'), body: 'Decisions, investigations and pending items persist to a sidebar, so the next session picks up where you left off.' },
           ]}
         />
       )}

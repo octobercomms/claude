@@ -380,10 +380,15 @@ export default function ClientOutreachPage() {
       {tab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
-          tagline="Native cold outreach — built for agencies."
-          description="Find contacts, draft sequences with Claude, send from your own domain, and track every reply. Press releases ship from the same flow."
+          tagline="Run cold outreach from your own domain."
+          description="Find the contacts, let Claude draft the multichannel sequence, send from your own mailboxes, and let replies classify themselves. Press releases ship from the same flow."
           ctaLabel="Browse campaigns"
           onCta={() => setTab('campaigns')}
+          status={[
+            { label: 'Contacts', value: `${contacts.length}`, ok: contacts.length > 0 },
+            { label: 'Campaigns', value: `${campaigns.length}`, ok: campaigns.length > 0 },
+            { label: 'Emails sent', value: `${stats?.emails_sent ?? 0}`, ok: (stats?.emails_sent || 0) > 0 },
+          ]}
           flow={[
             { label: 'Find',     detail: 'Hunter + Serper + library' },
             { label: 'Draft',    detail: 'Claude writes the sequence' },
@@ -391,12 +396,10 @@ export default function ClientOutreachPage() {
             { label: 'Classify', detail: 'Replies + bounces routed' },
           ]}
           capabilities={[
-            { tag: 'Find',       title: 'Contact discovery',          body: 'Hunter.io domain search, Serper-backed audience discovery, CSV import, or pull from the workspace contact library.' },
-            { tag: 'Draft',      title: 'Claude writes the sequence', body: 'Three steps — initial, follow-up, final nudge — personalised per recipient from the contact + brand brief.' },
-            { tag: 'Deliver',    title: 'Your domain, honestly',      body: 'SPF / DKIM / DMARC checker keeps deliverability on rails. Open + click tracking via signed URLs. One-click unsubscribe.' },
-            { tag: 'Reply loop', title: 'Auto-classified replies',    body: 'Bounces, OOO, interested, not-interested — all routed to the right column without manual triage.' },
-            { tag: 'Press',      title: 'Press releases too',         body: 'Sibling flow for journalist outreach: same finder, same sequence engine, different copy template.' },
-            { tag: 'Tags',       title: 'Workspace-wide library',     body: 'Contacts are shared across clients — tag once, reuse everywhere. Per-client unsubscribe state respected.' },
+            { tag: 'Contacts',   title: 'Find the right people',       cta: 'Open contacts', onClick: () => setTab('contacts'), body: 'Hunter + Serper discovery, CSV import, or pull from the shared workspace library — tagged and deduped.' },
+            { tag: 'Campaigns',  title: 'Claude drafts the sequence',  cta: 'Open campaigns', onClick: () => setTab('campaigns'), body: 'Initial, follow-up and final nudge — personalised per recipient from the contact + brand brief, then launched and tracked.' },
+            { tag: 'Tasks',      title: 'Work the multichannel steps', cta: 'Open tasks', onClick: () => setTab('tasks'), body: 'LinkedIn and manual steps land in a daily queue; tick one off and the prospect advances automatically.' },
+            { tag: 'Sending',    title: 'Land in the inbox',           cta: 'Open sending', onClick: () => setTab('sending'), body: 'Rotate multiple sender mailboxes with warm-up and daily caps; SPF / DKIM / DMARC kept on rails, replies auto-classified.' },
           ]}
         />
 

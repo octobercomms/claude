@@ -665,10 +665,14 @@ export default function ClientSEOPage() {
 
       {activeTab === 'overview' && (
         <SuiteOverview
-          tagline="SEO and AEO under one roof."
-          description="Rank tracking, Search Console, AI Overviews monitoring, share-of-voice across every answer engine, content gaps, and backlinks — for this client, all in one place."
+          tagline="Win on Google — and in the AI answers."
+          description="Daily rank tracking and Search Console, plus the new battleground: whether your brand shows up when people ask Claude, ChatGPT, Gemini and Google's AI. Content gaps and backlinks round it out."
           ctaLabel="View keyword ranks"
           onCta={() => setActiveTab('keywords')}
+          status={[
+            { label: 'Keywords', value: keywords.length ? `${keywords.length} tracked` : 'None yet', ok: keywords.length > 0 },
+            { label: 'Ranking', value: `${keywords.filter(k => k.current_position).length}`, ok: keywords.filter(k => k.current_position).length > 0 },
+          ]}
           flow={[
             { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
             { label: 'Track',        detail: 'Daily across locations' },
@@ -676,12 +680,12 @@ export default function ClientSEOPage() {
             { label: 'Plan content', detail: 'Briefs ready for Claude' },
           ]}
           capabilities={[
-            { tag: 'Keywords',      title: 'Daily rank tracking',     body: 'DataForSEO across every location and device. Intent classification, SERP feature pills, and per-keyword history graphs.' },
-            { tag: 'Search Console', title: 'Impressions + clicks',    body: 'GSC integration. Queries, pages, CTR and position trends — without leaving the page.' },
-            { tag: 'AI Overviews',  title: 'Google SGE monitoring',   body: 'Spot every query where Google\'s AI answer appears, and whether your brand is cited.' },
-            { tag: 'AI Visibility', title: 'The new SEO',             body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity, and Google AI Overviews — for prompts users actually ask in your category.' },
-            { tag: 'Content gaps',  title: 'What competitors rank for', body: 'Side-by-side comparison surfaces topics your competitors own — and you don\'t.' },
-            { tag: 'Backlinks',     title: 'Authority profile',       body: 'Domain rank, referring domains, new + lost links from the DataForSEO backlink index.' },
+            { tag: 'Keywords',      title: 'See where you rank',       cta: 'Open keywords', onClick: () => setActiveTab('keywords'), body: 'Daily DataForSEO rank tracking across location and device, with intent tags, SERP-feature pills and per-keyword history.' },
+            { tag: 'Search Console', title: 'Clicks & impressions',   cta: 'Open Search Console', onClick: () => setActiveTab('gsc'), body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.' },
+            { tag: 'AI Overviews',  title: 'Track Google AI answers', cta: 'Open AI Overviews', onClick: () => setActiveTab('aio'), body: 'Spot every query where Google\'s AI answer appears, and whether your brand gets cited.' },
+            { tag: 'AI Visibility', title: 'Win the answer engines',  cta: 'Open Visibility', onClick: () => setActiveTab('ai_visibility'), body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.' },
+            { tag: 'Content gaps',  title: 'Find what to write next',  cta: 'Open Content Gaps', onClick: () => setActiveTab('gaps'), body: 'Side-by-side competitor comparison surfaces the topics they own and you don\'t.' },
+            { tag: 'Backlinks',     title: 'Check your authority',     cta: 'Open Backlinks', onClick: () => setActiveTab('backlinks'), body: 'Domain rank, referring domains, and new + lost links from the DataForSEO backlink index.' },
           ]}
         />
       )}
