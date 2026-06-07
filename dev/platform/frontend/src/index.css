@@ -846,13 +846,12 @@ select, textarea {
   .app-nav.open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4); }
   .app-hamburger {
     display: flex; align-items: center; justify-content: center;
-    position: fixed; top: 10px; left: 10px; z-index: 210;
-    width: 42px; height: 42px;
-    border: var(--border-w) solid var(--border-neutral);
-    border-radius: var(--r-sm);
-    background: var(--surface); color: var(--text);
-    font-size: 20px; cursor: pointer;
+    position: fixed; top: 12px; right: 14px; z-index: 210;
+    width: 44px; height: 44px;
+    border: none; background: transparent;
+    color: var(--text); font-size: 26px; line-height: 1; cursor: pointer;
   }
+  .app-hamburger.open { color: #fff; }
   .app-overlay.open {
     display: block; position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.45); z-index: 190;

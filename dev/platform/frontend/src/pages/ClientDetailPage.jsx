@@ -1029,7 +1029,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
 
   return (
     <div className={`card ${statusClass}`} style={{ padding: '10px 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
           {editingLabel ? (
@@ -1067,7 +1067,7 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
             {isActive ? '✓ Connected' : connector.status}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {isActive && <button onClick={() => onCheck(connector.id)} className="btn btn-secondary btn-sm">Check</button>}
           {connector.status !== 'disconnected' && (
             <button onClick={handleDiagnose} disabled={diagnosing} className="btn btn-secondary btn-sm">

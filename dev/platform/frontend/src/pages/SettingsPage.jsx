@@ -931,8 +931,8 @@ function ContactsLibrary() {
         onApplied={async () => { await reload(); }}
       />
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-          <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 280px', minWidth: 0 }}>
             <CardTitle>Contacts</CardTitle>
             <p className="body-sm text-muted">
               One workspace-wide list of contacts. Each contact can be attached to as many clients
@@ -940,7 +940,7 @@ function ContactsLibrary() {
               to the others.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => setTidyOpen(true)} className="btn btn-secondary btn-sm"
               title="Ask Claude to spot fixes on the contacts matching the current filter">
               ✦ Tidy with Claude
@@ -949,7 +949,7 @@ function ContactsLibrary() {
               title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV
             </button>
-            <button onClick={() => setImportOpen(true)} className="btn btn-primary">↑ Import CSV</button>
+            <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">↑ Import CSV</button>
           </div>
         </div>
 
@@ -970,12 +970,12 @@ function ContactsLibrary() {
             const visible = showAll ? filtered : filtered.slice(0, COLLAPSED);
             const hiddenCount = filtered.length - visible.length;
             return (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 100%' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 100%', flexWrap: 'wrap' }}>
                 <input
                   placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
-                  className="input" style={{ padding: '5px 9px', fontSize: 12, width: 200, flex: '0 0 200px' }}
+                  className="input" style={{ padding: '5px 9px', fontSize: 12, flex: '1 1 200px', minWidth: 0 }}
                 />
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
                   {visible.map(t => {
