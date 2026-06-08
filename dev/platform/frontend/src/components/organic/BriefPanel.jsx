@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import PipelineStep from './PipelineStep';
 import { PlanningTab } from '../SeoSuite';
+import RefineChat from '../RefineChat';
 
 // Pipeline → Brief. Two modes:
 //   single  — existing PlanningTab; one keyword → one brief.
@@ -45,7 +46,16 @@ function ClusterMode({ clientId }) {
   const [briefing, setBriefing] = useState(null);   // which cluster.label is being briefed
   const [result, setResult] = useState(null);       // { clusters, unclustered }
   const [briefs, setBriefs] = useState({});         // cluster.label → brief
+  const [refineOpen, setRefineOpen] = useState({}); // cluster.label → bool
   const [err, setErr] = useState(null);
+
+  // Try to JSON.parse a revision returned by the refine chat. Strip
+  // any code fences first because Claude often wraps JSON in them
+  // even inside <revision> tags despite the prompt asking it not to.
+  function tryParseBriefJson(s) {
+    const cleaned = String(s || '').trim().replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
+    try { return JSON.parse(cleaned); } catch { return null; }
+  }
 
   const keywordCount = keywordText.split('\n').map(k => k.trim()).filter(Boolean).length;
 
@@ -95,6 +105,7 @@ function ClusterMode({ clientId }) {
           <div className="stack" style={{ gap: 'var(--s4)', marginBottom: 'var(--s5)' }}>
             {result.clusters.map((c, i) => {
               const brief = briefs[c.label];
+              const isRefining = !!refineOpen[c.label];
               return (
                 <div key={i} className="card">
                   <div className="row between center wrap" style={{ marginBottom: 'var(--s3)' }}>
@@ -106,16 +117,47 @@ function ClusterMode({ clientId }) {
                       </div>
                       {c.rationale && <p className="body-sm text-muted mt-2">{c.rationale}</p>}
                     </div>
-                    <button onClick={() => makeBrief(c)} className="btn btn-secondary btn-sm" disabled={briefing === c.label || !!brief}>
-                      {brief ? '✓ Brief generated' : briefing === c.label ? 'Generating…' : 'Generate brief →'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {brief && (
+                        <button
+                          onClick={() => setRefineOpen(prev => ({ ...prev, [c.label]: !prev[c.label] }))}
+                          className={`btn ${isRefining ? 'btn-primary' : 'btn-secondary'} btn-sm`}>
+                          {isRefining ? 'Hide Claude' : '✦ Refine with Claude'}
+                        </button>
+                      )}
+                      <button onClick={() => makeBrief(c)} className="btn btn-secondary btn-sm" disabled={briefing === c.label || !!brief}>
+                        {brief ? '✓ Brief generated' : briefing === c.label ? 'Generating…' : 'Generate brief →'}
+                      </button>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: brief ? 'var(--s3)' : 0 }}>
                     {c.secondary.map((k, j) => (
                       <span key={j} style={{ fontSize: 11, padding: '2px 8px', borderRadius: 'var(--r-pill)', background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>{k}</span>
                     ))}
                   </div>
-                  {brief && <BriefView brief={brief} />}
+                  {brief && (
+                    <div style={{ display: isRefining ? 'grid' : 'block', gridTemplateColumns: isRefining ? 'minmax(0, 1fr) 380px' : undefined, gap: isRefining ? 'var(--s4)' : 0 }}>
+                      <div><BriefView brief={brief} /></div>
+                      {isRefining && (
+                        <RefineChat
+                          clientId={clientId}
+                          kind="brief_json"
+                          artifact={brief}
+                          artifactMeta={`cluster: ${c.label} · primary: ${c.primary}`}
+                          onApplyRevision={(content) => {
+                            const parsed = tryParseBriefJson(content);
+                            if (parsed) {
+                              setBriefs(prev => ({ ...prev, [c.label]: parsed }));
+                            } else {
+                              setErr('Could not parse revised brief as JSON. Ask Claude to return raw JSON only.');
+                            }
+                          }}
+                          onClose={() => setRefineOpen(prev => ({ ...prev, [c.label]: false }))}
+                          compact
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
