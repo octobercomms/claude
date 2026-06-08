@@ -7,6 +7,7 @@ import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
+import PipelineStrip from '../components/PipelineStrip';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -332,14 +333,15 @@ export default function ClientSocialPage() {
         </div>
       </header>
 
-      {/* 6 flat tabs → 4 groups by job-to-be-done. Loop stays solo as the
-          daily hub; Create pairs Brainstorm+Plans (write→schedule); Insights
-          pairs Performance+Competitors (your winners vs theirs). The per-tab
-          content blocks below are unchanged — clicking a group sets
-          socialTab to its default sub-view. */}
+      {/* Four groups: Overview / Performance (daily hub, was Loop) /
+          Pipeline (write → schedule → publish → learn) / Insights
+          (Winners + Competitors). Renamed Create → Pipeline to match
+          Organic + Paid; sub-tab keys are unchanged so deep links stay
+          valid. A PipelineStrip renders above the sub-tab strip when
+          in Pipeline so the AM sees the full production arc. */}
       {(() => {
         const SUB_TABS = {
-          create:   [
+          pipeline: [
             { key: 'brainstorm',  label: 'Brainstorm' },
             { key: 'plans',       label: 'Plans' },
           ],
@@ -356,23 +358,42 @@ export default function ClientSocialPage() {
         const GROUP_OF = {
           overview: 'overview',
           loop: 'loop',
-          brainstorm: 'create', plans: 'create',
+          brainstorm: 'pipeline', plans: 'pipeline',
           performance: 'insights', competitors: 'insights',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
-          { key: 'overview', label: 'Overview', active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
+          { key: 'overview', label: 'Overview',    active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
           { key: 'loop',     label: 'Performance', active: currentGroup === 'loop',     onClick: () => setSocialTab('loop') },
-          { key: 'create',   label: 'Create',   active: currentGroup === 'create',   onClick: () => setSocialTab('brainstorm') },
-          { key: 'insights', label: 'Insights', active: currentGroup === 'insights', onClick: () => setSocialTab('performance') },
+          { key: 'pipeline', label: 'Pipeline',    active: currentGroup === 'pipeline', onClick: () => setSocialTab('brainstorm') },
+          { key: 'insights', label: 'Insights',    active: currentGroup === 'insights', onClick: () => setSocialTab('performance') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
         }));
+        // In Pipeline, show the full 4-step production arc above the
+        // sub-tabs so the AM sees their place in the flow. Brainstorm
+        // = step 1, Plans = step 2; steps 3 (Publish — autopilot) and
+        // 4 (Learn — Winners panel feeds back into next brainstorm) are
+        // visible-but-not-tabs because they happen automatically /
+        // surface in Insights, not as discrete user actions.
+        const pipelineStep = socialTab === 'brainstorm' ? 1 : socialTab === 'plans' ? 2 : null;
         return (
           <>
             <SuiteTabs tabs={topTabs} />
             {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
+            {currentGroup === 'pipeline' && (
+              <PipelineStrip
+                dense
+                currentStep={pipelineStep}
+                steps={[
+                  { label: 'Brainstorm', detail: '9 posts at a time' },
+                  { label: 'Plan',       detail: 'Lock + schedule' },
+                  { label: 'Publish',    detail: 'Autopilot to channels' },
+                  { label: 'Learn',      detail: 'Winners feed next brainstorm' },
+                ]}
+              />
+            )}
           </>
         );
       })()}
