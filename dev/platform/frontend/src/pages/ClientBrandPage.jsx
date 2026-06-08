@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import BrandVoicePanel from '../components/BrandVoicePanel';
 const KINDS = [
   { value: 'logo',          label: 'Logo',         description: 'PNG, SVG, JPEG. Used as overlay reference and watermark.' },
   { value: 'product_image', label: 'Product image', description: 'Hero shots, lifestyle photography — used as visual reference for generation.' },
@@ -182,6 +183,8 @@ export default function ClientBrandPage({ embedded = false } = {}) {
           <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)} />
         ))}
       </div>
+
+      <BrandVoicePanel clientId={id} />
     </div>
   );
 }

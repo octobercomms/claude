@@ -17,6 +17,7 @@ const cheerio = require('cheerio');
 const pool = require('../db');
 const claudeService = require('./claude');
 const dataForSEO = require('../connectors/dataforseo');
+const brandVoice = require('./brandVoice');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -150,9 +151,15 @@ async function briefForCluster({ clientId, cluster }) {
       ).join('\n');
   }
 
+  // Brand voice profile (when set up) — injected as a tight rubric so
+  // the generated outline + headings inherit the client's voice rather
+  // than generic SEO-speak.
+  const voiceProfile = await brandVoice.loadActiveProfile(clientId);
+  const voiceContext = brandVoice.renderForPrompt(voiceProfile);
+
   const userPrompt = `Client: ${client.name}
 About: ${client.briefing_field || '(no briefing)'}
-Domain: ${client.domain || '(no domain)'}
+Domain: ${client.domain || '(no domain)'}${voiceContext}
 
 Target cluster: "${cluster.label}"
 Primary keyword: "${cluster.primary}"
