@@ -639,4 +639,71 @@ router.put('/backlink-prospects/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// ─── PROMOTE — JOURNALIST RESPONSES (Featured / Qwoted / SOS) ────────────
+// AM pastes a journalist query → Claude drafts a response in the client's
+// voice → AM edits + sends from their own inbox → records outcome here.
+const journalistResponse = require('../services/journalistResponse');
+
+router.get('/clients/:clientId/journalist-responses', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM journalist_responses
+       WHERE client_id = $1
+       ORDER BY (deadline IS NULL), deadline ASC, created_at DESC
+       LIMIT 100`,
+      [req.params.clientId]
+    );
+    res.json({ responses: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/journalist-responses', async (req, res) => {
+  const { source, query_text, journalist_name, outlet, deadline, context } = req.body || {};
+  if (!query_text) return res.status(400).json({ error: 'query_text required' });
+  try {
+    const draft = await journalistResponse.generateResponse({
+      clientId: req.params.clientId,
+      source: source || 'manual',
+      queryText: query_text,
+      journalistName: journalist_name,
+      outlet,
+      deadline,
+      context,
+    });
+    res.status(201).json(draft);
+  } catch (err) {
+    console.error('[seoSuite] journalist response failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.put('/journalist-responses/:id', async (req, res) => {
+  const { response_md, status, external_url, notes } = req.body || {};
+  try {
+    const lookup = await pool.query('SELECT client_id FROM journalist_responses WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Response not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const { rows } = await pool.query(
+      `UPDATE journalist_responses SET
+         response_md = COALESCE($1, response_md),
+         status = COALESCE($2, status),
+         external_url = COALESCE($3, external_url),
+         notes = COALESCE($4, notes),
+         updated_at = NOW()
+       WHERE id = $5 RETURNING *`,
+      [response_md ?? null, status ?? null, external_url ?? null, notes ?? null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.delete('/journalist-responses/:id', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT client_id FROM journalist_responses WHERE id = $1', [req.params.id]);
+    if (lookup.rows.length) assertClientAccess(req, lookup.rows[0].client_id);
+    await pool.query('DELETE FROM journalist_responses WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;
