@@ -56,12 +56,18 @@ resource id wins; refunded/cancelled/failed orders are excluded from revenue.
 runner's transaction on PostgreSQL 12+ (the value is only used at runtime, not
 within the same transaction).
 
+## Inbound draft publish (done)
+
+The Organic → Publish step publishes through the plugin's
+`/wp-json/october-mi/v1/draft` route for `wordpress_plugin` connectors
+(`contentPublish.publishToWordPressViaPlugin`, bearer = `refresh_secret`),
+bypassing the wp/v2 REST API that WAFs challenge. The plugin route only creates
+drafts for the client to review; live/scheduled publishing still uses a
+WooCommerce REST connector. The Publish panel lists the plugin connector as a
+WordPress target alongside WooCommerce.
+
 ## Not yet done
 
-- Inbound draft publish: the platform's Organic → Publish step can POST to the
-  plugin's `/wp-json/october-mi/v1/draft` route (bearer = `refresh_secret`).
-  Wiring the publish step to prefer this channel for `wordpress_plugin`
-  connectors is a follow-up.
 - Per-event workers / derived tables: v1 aggregates on read. If event volume
   makes that slow, roll up into per-day summary tables.
 - Historic backfill (one-off admin script, per the plugin brief).

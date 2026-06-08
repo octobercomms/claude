@@ -25,7 +25,11 @@ export default function PublishPanel({ clientId, onNext }) {
     api.get(`/connectors/client/${clientId}`).then(setConnectors).catch(() => {});
   }, [clientId]);
 
-  const wpConnectors = connectors.filter(c => c.connector_type === 'woocommerce' && c.status === 'active');
+  // The WordPress plugin connector publishes via the plugin's draft route
+  // (bypasses the WAF) alongside the classic WooCommerce REST connector.
+  // (Shopify stays on the custom-OAuth connector — the public app's token is
+  // read-only, so it can't create blog articles.)
+  const wpConnectors = connectors.filter(c => ['woocommerce', 'wordpress_plugin'].includes(c.connector_type) && c.status === 'active');
   const shopifyConnectors = connectors.filter(c => c.connector_type === 'shopify' && c.status === 'active');
 
   // When platform changes, reset connector selection.
