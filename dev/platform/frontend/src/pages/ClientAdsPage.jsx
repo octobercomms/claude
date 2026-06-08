@@ -3,7 +3,6 @@ import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import SuiteOverview from '../components/SuiteOverview';
-import SuitePerformanceHub from '../components/SuitePerformanceHub';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
@@ -26,10 +25,28 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  // 'creative' kept in the whitelist so any existing deep links still
-  // resolve; it's an alias for 'pipeline' that we normalise on render.
-  const [tab, setTab] = useTabParam('overview', ['overview', 'performance', 'strategist', 'pipeline', 'creative', 'audiences']);
-  const normalisedTab = tab === 'creative' ? 'pipeline' : tab;
+  // Top-level tabs: overview / performance / strategist / pipeline / audiences.
+  // Pipeline has 5 sub-tabs (mirrors Organic): brief / concepts / render /
+  // approve / launch. 'creative' and 'pipeline' are aliases that both
+  // resolve to the brief step so old deep links still land sensibly.
+  const [tab, setTab] = useTabParam('overview', [
+    'overview', 'performance', 'strategist', 'audiences',
+    // pipeline sub-tabs
+    'pipeline', 'creative',
+    'brief', 'concepts', 'render', 'approve', 'launch',
+  ]);
+  const PIPELINE_STEPS = ['brief', 'concepts', 'render', 'approve', 'launch'];
+  const isPipelineStep = PIPELINE_STEPS.includes(tab);
+  const isPipelineGroup = isPipelineStep || tab === 'pipeline' || tab === 'creative';
+  const pipelineStep = isPipelineStep ? tab : 'brief';
+  // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
+  const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
+
+  // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
+  useEffect(() => {
+    if (tab === 'creative' || tab === 'pipeline') setTab('brief');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -187,9 +204,18 @@ export default function ClientAdsPage() {
         { key: 'overview',    label: 'Overview',    active: normalisedTab === 'overview',    onClick: () => setTab('overview') },
         { key: 'performance', label: 'Performance', active: normalisedTab === 'performance', onClick: () => setTab('performance') },
         { key: 'strategist',  label: 'Strategist',  active: normalisedTab === 'strategist',  onClick: () => setTab('strategist') },
-        { key: 'pipeline',    label: 'Pipeline',    active: normalisedTab === 'pipeline',    onClick: () => setTab('pipeline') },
+        { key: 'pipeline',    label: 'Pipeline',    active: normalisedTab === 'pipeline',    onClick: () => setTab('brief') },
         { key: 'audiences',   label: 'Audiences',   active: normalisedTab === 'audiences',   onClick: () => setTab('audiences') },
       ]} />
+      {isPipelineGroup && (
+        <SuiteTabs variant="sub" tabs={[
+          { key: 'brief',    label: '1 · Brief',    active: pipelineStep === 'brief',    onClick: () => setTab('brief') },
+          { key: 'concepts', label: '2 · Concepts', active: pipelineStep === 'concepts', onClick: () => setTab('concepts') },
+          { key: 'render',   label: '3 · Render',   active: pipelineStep === 'render',   onClick: () => setTab('render') },
+          { key: 'approve',  label: '4 · Approve',  active: pipelineStep === 'approve',  onClick: () => setTab('approve') },
+          { key: 'launch',   label: '5 · Launch',   active: pipelineStep === 'launch',   onClick: () => setTab('launch') },
+        ]} />
+      )}
 
       {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
@@ -220,35 +246,10 @@ export default function ClientAdsPage() {
         </div>
       )}
 
-      {normalisedTab === 'pipeline' && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} />}
+      {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
       {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {normalisedTab === 'audiences' && <AudiencesPanel clientId={id} />}
       {normalisedTab === 'performance' && <>
-      <div className="mb-6">
-        <SuitePerformanceHub
-          headline="Know what your ad spend is doing — right now."
-          description="Every Google + Meta account in one margin-aware view. Spend, revenue, ROAS, profit and per-campaign breakdown across every market — then jump into a Claude strategist brief or new ad creative when you've decided what to do."
-          status={[
-            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', tone: hasGoogle ? 'positive' : 'warning' },
-            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', tone: hasMeta ? 'positive' : 'warning' },
-            { label: `Spend · ${days}d`, value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), tone: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 ? 'positive' : 'default' },
-            ...((googleTotal.revenue + metaTotal.revenue) > 0 ? [
-              { label: 'Blended ROAS', value: `${((googleTotal.revenue + metaTotal.revenue) / ((googleTotal.spend + metaTotal.spend) || 1)).toFixed(2)}x`, tone: 'positive' },
-            ] : []),
-          ]}
-          flow={[
-            { label: 'Monitor',   detail: 'Live spend, ROAS, profit' },
-            { label: 'Diagnose',  detail: 'Claude strategist brief' },
-            { label: 'Generate',  detail: 'On-brand ad creative' },
-            { label: 'Target',    detail: 'First-party audiences' },
-          ]}
-          cards={[
-            { label: 'STRATEGIST', title: 'Get told what to action',  body: 'Weekly analyst brief — Claude compares this period to last and writes the to-do list.', onClick: () => setTab('strategist') },
-            { label: 'PIPELINE',   title: 'Generate & launch ads',    body: 'Brief → concepts → renders → approve → launch. Direct-response frameworks across every aspect ratio.', onClick: () => setTab('pipeline') },
-            { label: 'AUDIENCES',  title: 'Build first-party segments', body: 'Turn Shopify postcodes or an uploaded customer list into Meta Custom Audiences.', onClick: () => setTab('audiences') },
-          ]}
-        />
-      </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => handlePeriodChange(d)}

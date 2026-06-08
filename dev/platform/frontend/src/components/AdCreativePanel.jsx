@@ -239,7 +239,7 @@ export default function AdCreativePanel({ clientId, clientName }) {
 // CreativeCard layout so a first-time AM can see the shape of the output
 // (framework + angle chips, headline, body, CTA, visual direction)
 // before generating anything.
-function ExampleConcept({ clientName, onDismiss }) {
+export function ExampleConcept({ clientName, onDismiss }) {
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={{ background: 'var(--accent-soft)', border: 'var(--border-w) solid var(--accent)', borderRadius: 'var(--r-sm)', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
@@ -278,7 +278,7 @@ function ExampleConcept({ clientName, onDismiss }) {
   );
 }
 
-function BriefModal({ assets, submitting, onClose, onSubmit }) {
+export function BriefModal({ assets, submitting, onClose, onSubmit }) {
   const [brief, setBrief] = useState('');
   const [platform, setPlatform] = useState('meta');
   const [count, setCount] = useState(8);
@@ -339,8 +339,12 @@ function BriefModal({ assets, submitting, onClose, onSubmit }) {
   );
 }
 
-function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut }) {
-  const [showRender, setShowRender] = useState(false);
+// renderMode: 'auto' (default — collapsed, toggle visible) | 'always-open'
+// (render controls always shown, no toggle — used by the Pipeline → Render
+// step where renders are the whole point) | 'hidden' (no render UI at
+// all — used by Pipeline → Concepts where the AM is reviewing copy only)
+export function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut, renderMode = 'auto' }) {
+  const [showRender, setShowRender] = useState(renderMode === 'always-open');
   const [mode, setMode] = useState('image'); // image | video
   const [provider, setProvider] = useState('replicate');
   const [aspects, setAspects] = useState(new Set(['1:1']));
@@ -424,13 +428,15 @@ function CreativeCard({ creative, onDelete, onRender, onDeleteImage, onFanOut })
         </div>
       )}
 
-      <div style={{ marginTop: 12 }}>
-        <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
-          {showRender ? 'Cancel' : 'Render'}
-        </button>
-      </div>
+      {renderMode === 'auto' && (
+        <div style={{ marginTop: 12 }}>
+          <button onClick={() => setShowRender(s => !s)} className="btn btn-secondary btn-sm">
+            {showRender ? 'Cancel' : 'Render'}
+          </button>
+        </div>
+      )}
 
-      {showRender && (
+      {showRender && renderMode !== 'hidden' && (
         <div style={{ marginTop: 10, padding: 10, background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)' }}>
           <div className="field">MODE</div>
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
