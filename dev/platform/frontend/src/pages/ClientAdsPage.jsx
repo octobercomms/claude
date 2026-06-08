@@ -3,6 +3,7 @@ import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import SuitePerformanceHub from '../components/SuitePerformanceHub';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
@@ -219,6 +220,31 @@ export default function ClientAdsPage() {
       {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {tab === 'audiences' && <AudiencesPanel clientId={id} />}
       {tab === 'performance' && <>
+      <div className="mb-6">
+        <SuitePerformanceHub
+          headline="Know what your ad spend is doing — right now."
+          description="Every Google + Meta account in one margin-aware view. Spend, revenue, ROAS, profit and per-campaign breakdown across every market — then jump into a Claude strategist brief or new ad creative when you've decided what to do."
+          status={[
+            { label: 'Google Ads', value: hasGoogle ? `${googleEntries.filter(g => !g.error).length} account${googleEntries.filter(g => !g.error).length === 1 ? '' : 's'}` : 'Not connected', tone: hasGoogle ? 'positive' : 'warning' },
+            { label: 'Meta Ads',   value: hasMeta ? `${metaEntries.filter(m => !m.error).length} account${metaEntries.filter(m => !m.error).length === 1 ? '' : 's'}` : 'Not connected', tone: hasMeta ? 'positive' : 'warning' },
+            { label: `Spend · ${days}d`, value: fmtCurrency((googleTotal?.spend || 0) + (metaTotal?.spend || 0)), tone: (googleTotal?.spend || 0) + (metaTotal?.spend || 0) > 0 ? 'positive' : 'default' },
+            ...((googleTotal.revenue + metaTotal.revenue) > 0 ? [
+              { label: 'Blended ROAS', value: `${((googleTotal.revenue + metaTotal.revenue) / ((googleTotal.spend + metaTotal.spend) || 1)).toFixed(2)}x`, tone: 'positive' },
+            ] : []),
+          ]}
+          flow={[
+            { label: 'Monitor',   detail: 'Live spend, ROAS, profit' },
+            { label: 'Diagnose',  detail: 'Claude strategist brief' },
+            { label: 'Generate',  detail: 'On-brand ad creative' },
+            { label: 'Target',    detail: 'First-party audiences' },
+          ]}
+          cards={[
+            { label: 'STRATEGIST', title: 'Get told what to action',  body: 'Weekly analyst brief — Claude compares this period to last and writes the to-do list.', onClick: () => setTab('strategist') },
+            { label: 'CREATIVE',   title: 'Generate on-brand ads',    body: 'Direct-response concepts (PAS / AIDA / Before-After) rendered across every aspect ratio.', onClick: () => setTab('creative') },
+            { label: 'AUDIENCES',  title: 'Build first-party segments', body: 'Turn Shopify postcodes or an uploaded customer list into Meta Custom Audiences.', onClick: () => setTab('audiences') },
+          ]}
+        />
+      </div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (
           <button key={d} onClick={() => handlePeriodChange(d)}

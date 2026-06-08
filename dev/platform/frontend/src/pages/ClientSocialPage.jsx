@@ -344,7 +344,12 @@ export default function ClientSocialPage() {
             { key: 'plans',       label: 'Plans' },
           ],
           insights: [
-            { key: 'performance', label: 'Performance' },
+            // Renamed from "Performance" to "Winners" to free the
+            // "Performance" name for the top-level data hub (the
+            // renamed Loop tab). What this panel actually shows is
+            // the WinnersPanel + framework breakdown — "Winners" is
+            // the accurate label.
+            { key: 'performance', label: 'Winners' },
             { key: 'competitors', label: 'Competitors' },
           ],
         };
