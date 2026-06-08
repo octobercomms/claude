@@ -15,6 +15,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
+const { extractPhrases, hasUnclearFocus } = require('../utils/keywordExtract');
 
 const MAX_PAGES = 30;
 const REQUEST_DELAY_MS = 800;
@@ -132,6 +133,7 @@ function parsePage(page) {
   const links = $('a[href]').map((_, el) => $(el).attr('href')).get();
   return {
     title, metaDesc, h1s, noindex, missingAlt, totalImages: images.length, wordCount, links,
+    bodyText,
   };
 }
 
@@ -287,6 +289,7 @@ async function runAudit({ clientId }) {
     }
 
     const allIssues = [];
+    const pageKeywords = [];                                // [{ page_url, phrases: [...] }]
     let pagesCrawled = 0;
     for (const url of urls) {
       const page = await fetchPage(url);
@@ -294,6 +297,22 @@ async function runAudit({ clientId }) {
       const pageIssues = classifyPageIssues({ page, parsed });
       for (const i of pageIssues) {
         allIssues.push({ ...i, page_url: url });
+      }
+      // Page-level keyword footprint — surfaces what each page is
+      // ACTUALLY about per its own copy. Only runs on successful HTML
+      // pages (parsed.bodyText present).
+      if (parsed?.bodyText) {
+        const phrases = extractPhrases(parsed.bodyText, { maxPhrases: 12 });
+        pageKeywords.push({ page_url: url, phrases });
+        if (hasUnclearFocus(parsed.bodyText, phrases)) {
+          allIssues.push({
+            page_url: url,
+            category: 'no_clear_focus',
+            severity: 'medium',
+            detail: 'Page covers ' + Math.min(phrases.length, 10) + ' loosely-related topics with no clear primary keyword — Google can\'t tell what to rank it for.',
+            metadata: { topPhrases: phrases.slice(0, 5).map(p => p.phrase) },
+          });
+        }
       }
       if (page.status > 0 && page.status < 400) pagesCrawled++;
       await new Promise(r => setTimeout(r, REQUEST_DELAY_MS));
@@ -303,6 +322,19 @@ async function runAudit({ clientId }) {
     const summary = {};
     for (const i of allIssues) summary[i.category] = (summary[i.category] || 0) + 1;
     const score = computeScore(pagesCrawled, allIssues);
+
+    // Persist per-page keyword footprint before issues so the
+    // Footprint tab can read alongside issues even if the issue
+    // inserts are still trickling in.
+    for (const pk of pageKeywords) {
+      for (const p of pk.phrases) {
+        await pool.query(
+          `INSERT INTO site_audit_page_keywords (audit_id, client_id, page_url, phrase, frequency, rank)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [audit.id, clientId, pk.page_url, p.phrase, p.frequency, p.rank]
+        );
+      }
+    }
 
     // Persist issues.
     for (const i of allIssues) {
