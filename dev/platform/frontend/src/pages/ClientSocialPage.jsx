@@ -5,9 +5,12 @@ import { useToast } from '../context/ToastContext';
 import SocialPlannerChat from '../components/SocialPlannerChat';
 import Sparkline from '../components/Sparkline';
 import SocialSuiteOverview from '../components/SocialSuiteOverview';
+import SocialBrainstormStep from '../components/social/SocialBrainstormStep';
+import SocialPlanStep from '../components/social/SocialPlanStep';
+import SocialPublishStep from '../components/social/SocialPublishStep';
+import SocialLearnStep from '../components/social/SocialLearnStep';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
-import PipelineStrip from '../components/PipelineStrip';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -46,7 +49,23 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
-  const [socialTab, setSocialTab] = useTabParam('overview', ['overview', 'loop', 'brainstorm', 'plans', 'performance', 'competitors']);
+  // Top-level: overview / performance / pipeline (mirrors Organic).
+  // Performance sub-tabs absorbed the old Insights group (winners +
+  // competitors). Pipeline has 4 numbered steps. 'loop' kept as alias
+  // for the renamed Performance landing so old deep links resolve.
+  const [socialTab, setSocialTab] = useTabParam('overview', [
+    'overview',
+    // performance sub-tabs (perf_insights is the landing — current SocialSuiteOverview)
+    'perf_insights', 'loop', 'performance', 'competitors',
+    // pipeline sub-tabs
+    'brainstorm', 'plans', 'publish', 'learn',
+  ]);
+
+  // Redirect legacy deep links to their new homes.
+  useEffect(() => {
+    if (socialTab === 'loop') setSocialTab('perf_insights');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [socialTab]);
   // Lifted to page level so the SocialSuiteOverview can read it for
   // state-aware "where you are in the loop" detection. PlansList
   // receives the array as a prop instead of fetching its own.
@@ -341,59 +360,36 @@ export default function ClientSocialPage() {
           in Pipeline so the AM sees the full production arc. */}
       {(() => {
         const SUB_TABS = {
-          pipeline: [
-            { key: 'brainstorm',  label: 'Brainstorm' },
-            { key: 'plans',       label: 'Plans' },
+          performance: [
+            { key: 'perf_insights', label: 'Insights' },
+            { key: 'performance',   label: 'Winners' },
+            { key: 'competitors',   label: 'Competitors' },
           ],
-          insights: [
-            // Renamed from "Performance" to "Winners" to free the
-            // "Performance" name for the top-level data hub (the
-            // renamed Loop tab). What this panel actually shows is
-            // the WinnersPanel + framework breakdown — "Winners" is
-            // the accurate label.
-            { key: 'performance', label: 'Winners' },
-            { key: 'competitors', label: 'Competitors' },
+          pipeline: [
+            { key: 'brainstorm', label: '1 · Brainstorm' },
+            { key: 'plans',      label: '2 · Plan' },
+            { key: 'publish',    label: '3 · Publish' },
+            { key: 'learn',      label: '4 · Learn' },
           ],
         };
         const GROUP_OF = {
           overview: 'overview',
-          loop: 'loop',
-          brainstorm: 'pipeline', plans: 'pipeline',
-          performance: 'insights', competitors: 'insights',
+          perf_insights: 'performance', performance: 'performance', competitors: 'performance',
+          brainstorm: 'pipeline', plans: 'pipeline', publish: 'pipeline', learn: 'pipeline',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
-          { key: 'overview', label: 'Overview',    active: currentGroup === 'overview', onClick: () => setSocialTab('overview') },
-          { key: 'loop',     label: 'Performance', active: currentGroup === 'loop',     onClick: () => setSocialTab('loop') },
-          { key: 'pipeline', label: 'Pipeline',    active: currentGroup === 'pipeline', onClick: () => setSocialTab('brainstorm') },
-          { key: 'insights', label: 'Insights',    active: currentGroup === 'insights', onClick: () => setSocialTab('performance') },
+          { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setSocialTab('overview') },
+          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setSocialTab('perf_insights') },
+          { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setSocialTab('brainstorm') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
         }));
-        // In Pipeline, show the full 4-step production arc above the
-        // sub-tabs so the AM sees their place in the flow. Brainstorm
-        // = step 1, Plans = step 2; steps 3 (Publish — autopilot) and
-        // 4 (Learn — Winners panel feeds back into next brainstorm) are
-        // visible-but-not-tabs because they happen automatically /
-        // surface in Insights, not as discrete user actions.
-        const pipelineStep = socialTab === 'brainstorm' ? 1 : socialTab === 'plans' ? 2 : null;
         return (
           <>
             <SuiteTabs tabs={topTabs} />
             {subTabs.length > 0 && <SuiteTabs tabs={subTabs} variant="sub" />}
-            {currentGroup === 'pipeline' && (
-              <PipelineStrip
-                dense
-                currentStep={pipelineStep}
-                steps={[
-                  { label: 'Brainstorm', detail: '9 posts at a time' },
-                  { label: 'Plan',       detail: 'Lock + schedule' },
-                  { label: 'Publish',    detail: 'Autopilot to channels' },
-                  { label: 'Learn',      detail: 'Winners feed next brainstorm' },
-                ]}
-              />
-            )}
           </>
         );
       })()}
@@ -424,9 +420,8 @@ export default function ClientSocialPage() {
         />
       )}
 
-      {/* LOOP — hero metrics, loop, next-up, plus a recap of what's
-          most worth looking at. */}
-      {socialTab === 'loop' && (
+      {/* PERFORMANCE → INSIGHTS — hero metrics, loop, next-up, recap. */}
+      {socialTab === 'perf_insights' && (
         <SocialSuiteOverview
           clientId={id}
           client={client}
@@ -445,34 +440,63 @@ export default function ClientSocialPage() {
         />
       )}
 
-      {/* BRAINSTORM — past batches sidebar + 9-post grid + generate. */}
+      {/* PIPELINE → 1 BRAINSTORM */}
       {socialTab === 'brainstorm' && (
-        <BrainstormTab
-          clientId={id}
-          batches={batches}
-          posts={posts}
-          activeBatchId={activeBatchId}
-          onSelectBatch={selectBatch}
-          onDeleteBatch={deleteBatch}
-          onGenerate={() => setShowBrief(true)}
-          onBulkSchedule={() => setBulkOpen(true)}
-          onShareForApproval={shareBatchForApproval}
-          generating={generating}
-          engagement={engagement}
-          mediaByPost={mediaByPost}
-          updatePost={updatePost}
-          deletePost={deletePost}
-          publishPost={publishPost}
-          refreshInsights={refreshInsights}
-          renderTemplates={renderTemplates}
-          generateMedia={generateMedia}
-          deleteMedia={deleteMedia}
+        <SocialBrainstormStep onNext={() => setSocialTab('plans')}>
+          <BrainstormTab
+            clientId={id}
+            batches={batches}
+            posts={posts}
+            activeBatchId={activeBatchId}
+            onSelectBatch={selectBatch}
+            onDeleteBatch={deleteBatch}
+            onGenerate={() => setShowBrief(true)}
+            onBulkSchedule={() => setBulkOpen(true)}
+            onShareForApproval={shareBatchForApproval}
+            generating={generating}
+            engagement={engagement}
+            mediaByPost={mediaByPost}
+            updatePost={updatePost}
+            deletePost={deletePost}
+            publishPost={publishPost}
+            refreshInsights={refreshInsights}
+            renderTemplates={renderTemplates}
+            generateMedia={generateMedia}
+            deleteMedia={deleteMedia}
+          />
+        </SocialBrainstormStep>
+      )}
+
+      {/* PIPELINE → 2 PLAN */}
+      {socialTab === 'plans' && (
+        <SocialPlanStep onNext={() => setSocialTab('publish')} onBack={() => setSocialTab('brainstorm')}>
+          <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
+        </SocialPlanStep>
+      )}
+
+      {/* PIPELINE → 3 PUBLISH */}
+      {socialTab === 'publish' && (
+        <SocialPublishStep
+          plans={plans}
+          client={client}
+          onOpenPlan={(pid) => setPlannerOpen({ planId: pid })}
+          onNext={() => setSocialTab('learn')}
+          onBack={() => setSocialTab('plans')}
         />
       )}
 
-      {/* PLANS — list / calendar of locked plans. */}
-      {socialTab === 'plans' && (
-        <PlansList key={plansRefreshKey} clientId={id} clientName={client?.name} onOpen={(planId) => setPlannerOpen({ planId })} onNewPlan={() => setPlannerOpen({ planId: null })} />
+      {/* PIPELINE → 4 LEARN — same WinnersPanel as Performance → Winners,
+          framed as production feedback to close the loop. */}
+      {socialTab === 'learn' && (
+        <SocialLearnStep onBack={() => setSocialTab('publish')} onOpenHookVault={() => setHookVaultOpen(true)}>
+          {(winners?.length || frameworkBreakdown?.length) ? (
+            <WinnersPanel winners={winners} frameworkBreakdown={frameworkBreakdown} sparkline={sparkline} />
+          ) : (
+            <ExampleBlock storageKey={`social_winners_example_${id}`} title="this is what a winner looks like once posts start performing">
+              <ExampleWinners />
+            </ExampleBlock>
+          )}
+        </SocialLearnStep>
       )}
 
       {/* PERFORMANCE — Winners, framework breakdown, Hook Vault entry. */}

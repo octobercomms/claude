@@ -50,26 +50,15 @@ export default function SocialSuiteOverview({
 
   return (
     <div className="mb-7">
-      {/* Launchpad-style black hero — matches the Organic Performance Hub
-          aesthetic so the data-heavy Performance pages share a visual
-          language across suites. */}
-      <div
-        style={{
-          background: 'var(--text)', color: 'var(--surface)',
-          padding: 'var(--s8) var(--s7)', borderRadius: 'var(--r-lg)',
-          marginBottom: 'var(--s6)',
-        }}
-      >
-        <h1 className="display" style={{ color: 'var(--surface)', maxWidth: 920, marginBottom: 'var(--s4)' }}>
-          Brainstorm, plan, publish — on autopilot.
-        </h1>
-        <p className="body" style={{ color: 'rgba(255,255,255,0.78)', maxWidth: 760 }}>
-          Claude proposes the posts, you lock the ones you like, the autopilot publishes to every channel — and Winners feed back into the next brainstorm.
-          {client?.social_autopilot_paused && ' Autopilot is paused — toggle from the top bar.'}
-        </p>
-      </div>
-
-      {/* Status pills row — at-a-glance state across the loop. */}
+      {/* Status pills row — at-a-glance state across the loop. The
+          launchpad black hero that used to live above this row was
+          removed; the Overview tab already does the suite pitch, so
+          repeating it on Performance was duplicate surface. */}
+      {client?.social_autopilot_paused && (
+        <div className="callout" style={{ background: 'var(--warning-soft)', border: '1px solid #f0d260', padding: 'var(--s3) var(--s4)', borderRadius: 'var(--r-sm)', fontSize: 13, color: 'var(--warning)', marginBottom: 'var(--s5)' }}>
+          Autopilot is paused — toggle from the top bar to resume scheduled publishing.
+        </div>
+      )}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
         <StatusPill label="Autopilot" value={client?.social_autopilot_paused ? 'Paused' : 'Live'}
           tone={client?.social_autopilot_paused ? 'warning' : 'positive'} />
