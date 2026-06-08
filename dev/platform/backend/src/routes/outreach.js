@@ -1737,6 +1737,46 @@ router.post('/campaigns/:id/sequences/reorder', async (req, res) => {
   }
 });
 
+// Atomic bulk replace — used by the Refine-with-Claude apply on the
+// sequence builder. Client sends the full new array of steps and we
+// DELETE all existing steps + INSERT the new ones inside a single
+// transaction so a partial failure can't leave the campaign half-
+// rewritten. Channels and delay_days come from the parsed revision;
+// step_number is assigned by array position.
+router.post('/campaigns/:id/sequences/replace', async (req, res) => {
+  const steps = Array.isArray(req.body?.steps) ? req.body.steps : null;
+  if (!steps) return res.status(400).json({ error: 'steps array required' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('DELETE FROM outreach_sequences WHERE campaign_id = $1', [req.params.id]);
+    const saved = [];
+    for (let i = 0; i < steps.length; i++) {
+      const s = steps[i];
+      const { rows } = await client.query(
+        `INSERT INTO outreach_sequences (campaign_id, step_number, channel, subject, body, delay_days)
+         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+        [
+          req.params.id,
+          i + 1,
+          s.channel || 'email',
+          s.subject || null,
+          s.body || '',
+          Number.isFinite(s.delay_days) ? s.delay_days : 0,
+        ]
+      );
+      saved.push(rows[0]);
+    }
+    await client.query('COMMIT');
+    res.json(saved);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 // Render a single sequence step as it would arrive in a real recipient's
 // inbox. Substitutes the merge fields against an attached contact (if any)
 // or a generic sample, returns subject + html + text without delivering.

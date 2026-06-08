@@ -113,7 +113,7 @@ function CampaignSequence({ campaign, onCampaignChange }) {
           </span>
         </div>
       )}
-      <SequenceBuilder campaignId={campaign.id} />
+      <SequenceBuilder campaignId={campaign.id} clientId={campaign.client_id} />
     </div>
   );
 }
