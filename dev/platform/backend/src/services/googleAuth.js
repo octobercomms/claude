@@ -102,8 +102,38 @@ function getPlatformAdsMccId() {
   return process.env.GOOGLE_ADS_MCC_ID;
 }
 
+// Google Ads is the one Google connector that can't use the service account
+// directly (its API only accepts OAuth, or a service account via Workspace
+// domain-wide delegation). The agency-standard alternative is a single
+// manager-account (MCC) OAuth refresh token: the agency authorises the MCC
+// once, the client accepts a link request in their Ads UI, and the platform
+// reaches every linked account through login-customer-id = MCC. This mints an
+// access token from that one manager refresh token, cached for its lifetime.
+let adsTokenCache = null;
+async function getPlatformAdsAccessToken() {
+  const refreshToken = process.env.GOOGLE_ADS_MANAGER_REFRESH_TOKEN;
+  if (!refreshToken) {
+    throw new Error('GOOGLE_ADS_MANAGER_REFRESH_TOKEN is not configured in Settings — authorise the manager (MCC) account once to obtain it.');
+  }
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    throw new Error('GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET must be configured to mint the Google Ads manager token.');
+  }
+  if (adsTokenCache && Date.now() < adsTokenCache.expires_at - 60000) return adsTokenCache.access_token;
+  const { data } = await axios.post(TOKEN_URL, new URLSearchParams({
+    refresh_token: refreshToken,
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: 'refresh_token',
+  }), { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
+  adsTokenCache = { access_token: data.access_token, expires_at: Date.now() + (data.expires_in || 3600) * 1000 };
+  return adsTokenCache.access_token;
+}
+
 module.exports = {
   getPlatformGoogleAccessToken,
   getServiceAccountEmail,
   getPlatformAdsMccId,
+  getPlatformAdsAccessToken,
 };
