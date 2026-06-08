@@ -1,0 +1,63 @@
+.index {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "San Francisco", "Segoe UI", Roboto,
+    "Helvetica Neue", sans-serif;
+  padding: 0 1rem;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 40rem;
+  margin: 4rem auto;
+}
+
+.heading {
+  margin: 0 0 1rem;
+  font-size: 2rem;
+  text-align: center;
+}
+
+.text {
+  margin: 0 0 2rem;
+  text-align: center;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #c9cccf;
+  border-radius: 0.5rem;
+  min-width: 18rem;
+}
+
+.button {
+  padding: 0.55rem 1.25rem;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #000;
+}

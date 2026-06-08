@@ -1,0 +1,59 @@
+# Configuration for the October Marketing Intelligence Shopify app.
+# Generated/maintained to match the standard Shopify Remix app template.
+# Run `shopify app config link` to bind this to your Partner app, and
+# `shopify app deploy` to push config + webhook subscriptions.
+
+name = "October Marketing Intelligence"
+client_id = "REPLACE_WITH_PARTNER_APP_CLIENT_ID"
+application_url = "https://shopify-app.octobercomms.com"
+embedded = true
+
+[access_scopes]
+# Read-only access only — October MI observes store activity, it never writes.
+scopes = "read_orders,read_customers,read_products,read_inventory,read_themes"
+
+[auth]
+redirect_urls = [
+  "https://shopify-app.octobercomms.com/auth/callback",
+  "https://shopify-app.octobercomms.com/auth/shopify/callback",
+  "https://shopify-app.octobercomms.com/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+  # GDPR / mandatory compliance webhooks. Shopify App Store review requires all three.
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "/webhooks/gdpr"
+
+  # Shop lifecycle — clean up local session/store rows when the app is uninstalled.
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  # Commerce events forwarded to the October MI platform for real-time sync.
+  [[webhooks.subscriptions]]
+  topics = [
+    "orders/create",
+    "orders/updated",
+    "orders/cancelled",
+    "orders/fulfilled",
+    "refunds/create",
+    "customers/create",
+    "customers/update",
+    "products/create",
+    "products/update",
+    "products/delete",
+    "inventory_levels/update",
+    "themes/publish",
+    "checkouts/create"
+  ]
+  uri = "/webhooks/events"
+
+[pos]
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = true
+include_config_on_deploy = true
