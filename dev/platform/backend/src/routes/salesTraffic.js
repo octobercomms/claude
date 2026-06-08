@@ -54,7 +54,7 @@ router.get('/:clientId', async (req, res) => {
           const creds = decrypt(ga4.credentials);
           const propertyId = ga4.config && ga4.config.value;
           if (!propertyId) { errors.push(`${ga4.store_label || 'ga4'}: no property selected`); return; }
-          const data = await google.fetchGA4Daily(creds, { propertyId, startDate, endDate });
+          const data = await google.fetchGA4Daily(creds, { propertyId, startDate, endDate, authMode: ga4.auth_mode });
           for (const row of data.rows || []) {
             const dv = row.dimensionValues || [];
             const mv = row.metricValues || [];

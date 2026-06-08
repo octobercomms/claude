@@ -58,6 +58,7 @@ async function collectClientData(clientId, periodStart, periodEnd) {
       const config = connector.config || {};
       const data = await connectorModule.fetchData(creds, {
         connectorType: connector.connector_type,
+        authMode: connector.auth_mode,
         startDate: periodStart,
         endDate: periodEnd,
         storeLabel: connector.store_label,

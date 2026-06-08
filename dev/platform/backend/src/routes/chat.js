@@ -176,6 +176,7 @@ async function toolGetConnectorData(clientId, { connector_type, days = 30, start
     const raw = await connModule.fetchData(creds, {
       ...config,
       connectorType: connector_type,
+      authMode: connector.auth_mode,
       propertyId: configValue,
       siteUrl: configValue,
       customerId: configValue,
@@ -510,8 +511,8 @@ async function toolDetectAnomalies(clientId) {
       const cv = config.value;
       const configMapped = { propertyId: cv, siteUrl: cv, customerId: cv, merchantId: cv, adAccountId: cv, accountId: cv, organizationId: cv };
       const [curr, prev] = await Promise.all([
-        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(thisStart), endDate: fmt(now), periodStart: fmt(thisStart), periodEnd: fmt(now) }),
-        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, startDate: fmt(prevStart), endDate: fmt(thisStart), periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),
+        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, authMode: connector.auth_mode, startDate: fmt(thisStart), endDate: fmt(now), periodStart: fmt(thisStart), periodEnd: fmt(now) }),
+        connModule.fetchData(creds, { ...config, ...configMapped, connectorType: connector.connector_type, authMode: connector.auth_mode, startDate: fmt(prevStart), endDate: fmt(thisStart), periodStart: fmt(prevStart), periodEnd: fmt(thisStart) }),
       ]);
       const currSummary = summariseConnectorData(connector.connector_type, curr, 7);
       const prevSummary = summariseConnectorData(connector.connector_type, prev, 7);
