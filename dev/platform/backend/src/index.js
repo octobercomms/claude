@@ -166,11 +166,20 @@ app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));
 
-// Start server, load DB settings + sync env admin in background
-require('./services/scheduler');
-const server = app.listen(PORT, () => {
+// Start server, then load DB settings BEFORE registering cron jobs. The
+// scheduler registers crons (e.g. the 10am weekly-report run) on require, and
+// those jobs need the real API keys — which live in the encrypted
+// platform_settings store, not the boot-time env. Loading settings first
+// (awaited) avoids the failure mode where the first scheduled run fires with a
+// placeholder key still in process.env. PR #421 follow-up.
+const server = app.listen(PORT, async () => {
   console.log(`October Marketing Intelligence backend running on port ${PORT}`);
-  loadSettingsFromDb();
+  try {
+    await loadSettingsFromDb();
+  } catch (err) {
+    console.error('Failed to load settings from DB on boot:', err.message);
+  }
+  require('./services/scheduler');
   require('./services/users').seedAdminIfMissing().catch(err => console.error('Admin seed failed:', err.message));
 });
 

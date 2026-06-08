@@ -304,14 +304,17 @@ async function sendReport(reportId, overrides = {}) {
   await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sending', reportId]);
 
   try {
-    const recipients = report.report_recipients;
+    const recipients = report.report_recipients || {};
     const to = report.report_type === 'monthly'
       ? (recipients.monthly || [])
       : (recipients.weekly || []);
 
     if (!to.length) {
-      console.warn(`No recipients configured for ${report.report_type} report ${reportId}`);
-      await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['sent', reportId]);
+      // Don't mark this 'sent' — nothing went out. A distinct status makes a
+      // mis-configured client (empty report_recipients) visible instead of
+      // looking identical to a delivered report. PR #421 follow-up.
+      console.warn(`No recipients configured for ${report.report_type} report ${reportId} — marking skipped_no_recipients`);
+      await pool.query('UPDATE reports SET status = $1 WHERE id = $2', ['skipped_no_recipients', reportId]);
       return;
     }
 
