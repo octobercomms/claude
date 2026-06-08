@@ -5,9 +5,44 @@ const fs = require('fs');
 const LOGO_GIF_PATH = path.join(__dirname, '../assets/october-logo.gif');
 const LOGO_CID = 'october-logo@octobercomms';
 
+// Does this look like a transient SMTP failure worth retrying, vs a permanent
+// one (bad auth, invalid recipient) where retrying just wastes time? The
+// incident that prompted this saw an SMTP "Connection timeout" briefly hide a
+// breakage; a couple of backed-off retries ride over those blips. PR #421.
+function isTransientSmtpError(err) {
+  const code = err && err.code;
+  if (['ETIMEDOUT', 'ECONNRESET', 'ECONNECTION', 'ESOCKET', 'EDNS', 'ECONNREFUSED', 'EAI_AGAIN'].includes(code)) return true;
+  const responseCode = err && err.responseCode;
+  if (responseCode && responseCode >= 400 && responseCode < 500) return true; // 4xx = temporary
+  const msg = ((err && err.message) || '').toLowerCase();
+  return /timeout|timed out|connection|temporar|try again|greylist|rate limit/.test(msg);
+}
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Send with up to 4 attempts and exponential backoff (1s, 2s, 4s) on transient
+// failures. Permanent failures throw immediately. PR #421 follow-up.
+async function sendMailWithRetry(transporter, message, attempts = 4) {
+  let lastErr;
+  for (let attempt = 1; attempt <= attempts; attempt++) {
+    try {
+      return await transporter.sendMail(message);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === attempts || !isTransientSmtpError(err)) throw err;
+      const delay = 1000 * Math.pow(2, attempt - 1);
+      console.warn(`[email] sendMail attempt ${attempt}/${attempts} failed (${err.message}); retrying in ${delay}ms`);
+      await sleep(delay);
+    }
+  }
+  throw lastErr;
+}
+
 function getTransporter() {
   const { buildTransporter } = require('../routes/settings');
-  return buildTransporter();
+  const transporter = buildTransporter();
+  // Wrap sendMail so every caller gets transient-failure retry for free.
+  return { sendMail: (message) => sendMailWithRetry(transporter, message) };
 }
 
 function getSenderAddress() {
