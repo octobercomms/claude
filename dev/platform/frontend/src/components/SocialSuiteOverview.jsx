@@ -46,12 +46,39 @@ export default function SocialSuiteOverview({
     batchesCount: batches?.length || 0, scheduledCount: scheduledPlans.length,
   });
 
+  const completedSteps = STEPS.filter(s => status[s.key]).length;
+
   return (
     <div className="mb-7">
-      <p className="body mb-5" style={{ maxWidth: 640 }}>
-        Brainstorm, plan, schedule, publish, learn. The autopilot runs the loop — you steer.
-        {client?.social_autopilot_paused && ' Autopilot is paused — toggle from the top bar.'}
-      </p>
+      {/* Launchpad-style black hero — matches the Organic Performance Hub
+          aesthetic so the data-heavy Performance pages share a visual
+          language across suites. */}
+      <div
+        style={{
+          background: 'var(--text)', color: 'var(--surface)',
+          padding: 'var(--s8) var(--s7)', borderRadius: 'var(--r-lg)',
+          marginBottom: 'var(--s6)',
+        }}
+      >
+        <h1 className="display" style={{ color: 'var(--surface)', maxWidth: 920, marginBottom: 'var(--s4)' }}>
+          Brainstorm, plan, publish — on autopilot.
+        </h1>
+        <p className="body" style={{ color: 'rgba(255,255,255,0.78)', maxWidth: 760 }}>
+          Claude proposes the posts, you lock the ones you like, the autopilot publishes to every channel — and Winners feed back into the next brainstorm.
+          {client?.social_autopilot_paused && ' Autopilot is paused — toggle from the top bar.'}
+        </p>
+      </div>
+
+      {/* Status pills row — at-a-glance state across the loop. */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--s3)', marginBottom: 'var(--s6)' }}>
+        <StatusPill label="Autopilot" value={client?.social_autopilot_paused ? 'Paused' : 'Live'}
+          tone={client?.social_autopilot_paused ? 'warning' : 'positive'} />
+        <StatusPill label="Competitors" value={hasCompetitors ? `${competitors.length} tracked` : 'None yet'}
+          tone={hasCompetitors ? 'positive' : 'warning'} />
+        <StatusPill label="Loop" value={`${completedSteps} / ${STEPS.length} steps`}
+          tone={completedSteps === STEPS.length ? 'positive' : 'default'} />
+        {publishedCount > 0 && <StatusPill label="Published" value={publishedCount} tone="positive" />}
+      </div>
 
       <div className="metric-grid">
         <HeroMetric label="Reach · 30d"      value={formatNum(totalReach30)} sparkline={(sparkline || []).map(p => p.reach)} />
@@ -156,6 +183,27 @@ function nextAction({ currentKey, onAddCompetitor, onGenerate, onBulkSchedule, o
         action: { label: 'Generate next batch →', onClick: () => onGenerate?.() },
       };
   }
+}
+
+function StatusPill({ label, value, tone }) {
+  const dotColour = tone === 'positive' ? 'var(--positive)'
+                  : tone === 'warning'  ? 'var(--warning)'
+                  : tone === 'negative' ? 'var(--negative)'
+                  : 'var(--text-subtle)';
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '6px 14px', fontSize: 13, fontWeight: 600,
+        borderRadius: 'var(--r-pill)',
+        background: 'var(--surface)',
+        border: 'var(--border-w) solid var(--card-border)',
+      }}>
+      <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColour }} />
+      <strong style={{ fontWeight: 700 }}>{label}</strong>
+      <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>{value}</span>
+    </span>
+  );
 }
 
 function formatNum(n) {
