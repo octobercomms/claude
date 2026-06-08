@@ -376,7 +376,7 @@ export default function ClientSocialPage() {
         <SuiteOverview
           tagline="A month of on-brand posts, on autopilot."
           description="Claude brainstorms nine posts at a time from your brand brief, competitor signals and trending sounds. Lock the ones you like, schedule them, and autopilot publishes to every channel — then learns from what wins."
-          ctaLabel="See the loop"
+          ctaLabel="See performance"
           onCta={() => setSocialTab('loop')}
           status={[
             { label: 'Autopilot', value: client?.social_autopilot_paused ? 'Paused' : 'On', ok: !client?.social_autopilot_paused },
