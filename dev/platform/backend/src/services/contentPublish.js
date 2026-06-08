@@ -51,6 +51,49 @@ async function publishToWordPress({ draft, connector, scheduledAt, statusOverrid
   };
 }
 
+// ── WordPress publish via the OMI plugin ───────────────────────────────────
+// When the client runs the October MI WordPress plugin, publish through its
+// dedicated draft route instead of the wp/v2 REST API. Server-initiated calls
+// to the plugin route aren't WAF-challenged the way wp/v2 is, and the plugin
+// authenticates with the pairing refresh_secret (not app passwords / WC keys).
+// The plugin route deliberately only creates DRAFTS for the client to review —
+// live/scheduled publishing must use a WooCommerce REST connector.
+async function publishToWordPressViaPlugin({ draft, connector, scheduledAt, statusOverride }) {
+  const creds = decrypt(connector.credentials);
+  if (!creds.site_url || !creds.refresh_secret) {
+    throw new Error('WordPress plugin connector not paired (missing site_url / refresh_secret).');
+  }
+  if (scheduledAt || (statusOverride && statusOverride !== 'draft')) {
+    throw new Error('The WordPress plugin channel only creates drafts for the client to review. To publish live or schedule, use a WooCommerce REST connector.');
+  }
+  const url = creds.site_url.replace(/\/$/, '') + '/wp-json/october-mi/v1/draft';
+  const res = await axios.post(
+    url,
+    {
+      title: draft.title,
+      content: draft.body_html,
+      excerpt: draft.meta_description || undefined,
+      type: 'post',
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${creds.refresh_secret}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'OctoberMI-Platform/1.0',
+      },
+      timeout: 30000,
+      validateStatus: () => true,
+    }
+  );
+  if (res.status >= 400) {
+    throw new Error(res.data?.message || `WordPress plugin returned ${res.status}`);
+  }
+  return {
+    platform_post_id: res.data.post_id != null ? String(res.data.post_id) : null,
+    external_url: res.data.edit_link || null,
+  };
+}
+
 // ── Shopify publish ──────────────────────────────────────────────────────
 // Shopify needs the blog ID — many stores have just one ("news"), so we
 // auto-pick the first blog if config.blog_id isn't set. AM can override
@@ -189,9 +232,13 @@ async function publish({ draftId, platform, connectorId, scheduledAt, statusOver
       );
       if (!cs.length) throw new Error('Selected connector not found or inactive');
       const connector = cs[0];
-      result = platform === 'wordpress'
-        ? await publishToWordPress({ draft, connector, statusOverride })
-        : await publishToShopify({ draft, connector, statusOverride });
+      if (platform === 'wordpress') {
+        result = connector.connector_type === 'wordpress_plugin'
+          ? await publishToWordPressViaPlugin({ draft, connector, statusOverride })
+          : await publishToWordPress({ draft, connector, statusOverride });
+      } else {
+        result = await publishToShopify({ draft, connector, statusOverride });
+      }
     } else if (platform === 'clipboard') {
       result = publishToClipboard({ draft });
     } else {
