@@ -3,7 +3,7 @@
 // component just consumes --accent. Two-tone: white text + terracotta
 // accent. No inline styles.
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Card from './ui/Card';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
@@ -23,12 +23,6 @@ export default function SocialSuiteOverview({
   competitorPosts, sparkline,
   onAddCompetitor, onGenerate, onBulkSchedule, onOpenHookVault,
 }) {
-  const [collapsed, setCollapsed] = useState(false);
-  const storageKey = `social-overview-dismissed-${clientId}`;
-  useEffect(() => { setCollapsed(localStorage.getItem(storageKey) === '1'); }, [storageKey]);
-  function dismiss() { localStorage.setItem(storageKey, '1'); setCollapsed(true); }
-  function expand() { localStorage.removeItem(storageKey); setCollapsed(false); }
-
   const hasCompetitors = (competitors?.length || 0) > 0;
   const hasBrainstorm = (batches?.length || 0) > 0 && (posts?.length || 0) > 0;
   const scheduledPlans = (plans || []).filter(p => p.scheduled_at);
@@ -80,18 +74,12 @@ export default function SocialSuiteOverview({
       </Card>
 
       <div className="mt-6">
-        <div className="caption caption-muted mb-3">The loop</div>
+        <div className="caption caption-muted mb-3">Pipeline</div>
         <div className="grid grid-auto" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
           {STEPS.map((s, i) => (
             <LoopStep key={s.key} step={s} index={i} done={status[s.key]} current={s.key === currentKey} />
           ))}
         </div>
-      </div>
-
-      <div className="row end mt-3">
-        {collapsed
-          ? <Button variant="ghost" size="sm" onClick={expand}>Show how this works</Button>
-          : <Button variant="ghost" size="sm" onClick={dismiss}>Hide loop description</Button>}
       </div>
     </div>
   );
