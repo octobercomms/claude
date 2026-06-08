@@ -68,6 +68,14 @@ export function usePaidPipeline({ clientId, clientName }) {
     } catch (e) { toast(`Delete failed: ${e.message}`, 'error'); }
   }
 
+  async function updateCreative(creativeId, partial) {
+    try {
+      const updated = await api.put(`/ad-creatives/creatives/${creativeId}`, partial);
+      setCreatives(prev => prev.map(c => c.id === creativeId ? { ...c, ...updated } : c));
+      return updated;
+    } catch (e) { toast(`Update failed: ${e.message}`, 'error'); }
+  }
+
   async function deleteBatch(batchId) {
     if (!confirm('Delete this batch and all its concepts?')) return;
     try {
@@ -133,7 +141,7 @@ export function usePaidPipeline({ clientId, clientName }) {
     batches, creatives, activeBatchId, activeBatch, assets,
     showBrief, setShowBrief,
     generating, shareUrl, setShareUrl,
-    selectBatch, generate, deleteCreative, deleteBatch,
+    selectBatch, generate, deleteCreative, updateCreative, deleteBatch,
     renderImages, deleteImage, shareBatchForApproval, fanOutImage,
   };
 }

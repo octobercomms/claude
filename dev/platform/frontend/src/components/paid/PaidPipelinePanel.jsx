@@ -22,7 +22,7 @@ export default function PaidPipelinePanel({ clientId, clientName, step, onNaviga
 
   switch (step) {
     case 'concepts':
-      return <PaidConceptsStep pipeline={pipeline} clientName={clientName}
+      return <PaidConceptsStep pipeline={pipeline} clientId={clientId} clientName={clientName}
         onNext={() => go('render')} onBack={() => go('brief')} />;
     case 'render':
       return <PaidRenderStep pipeline={pipeline}
