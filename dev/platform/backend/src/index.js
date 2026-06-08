@@ -88,8 +88,9 @@ app.use(cors({
     ? process.env.PLATFORM_URL
     : ['http://localhost:3000', 'http://localhost:5173'],
 }));
-// Capture the raw body so HMAC-signed webhooks (the WordPress plugin ingest)
-// can verify signatures over the exact bytes the sender signed.
+// Capture the raw body so HMAC-signed webhooks (the WordPress plugin and
+// Shopify app ingests) can verify signatures over the exact bytes the sender
+// signed.
 app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 // WordPress plugin ingest — called by client WP sites with per-request HMAC
@@ -98,6 +99,13 @@ app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody =
 // own generous limiter and verifies every signature.
 const wpConnectLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
 app.use('/api/wp-connect', wpConnectLimiter, require('./routes/wpConnect'));
+
+// Shopify app ingest — called by the public Shopify app with a shared-secret
+// HMAC (no platform session). Mounted before the global per-IP limiter with its
+// own generous limiter so a busy store's forwarded webhook stream isn't
+// throttled by the dashboard cap.
+const shopifyAppLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
+app.use('/api/shopify-app', shopifyAppLimiter, require('./routes/shopifyApp'));
 
 // Rate limiting on auth endpoint
 const authLimiter = rateLimit({

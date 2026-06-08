@@ -11,6 +11,7 @@ const cin7 = require('./cin7');
 const octoberForms = require('./october_forms');
 const linkedin = require('./linkedin');
 const wordpressPlugin = require('./wordpressPlugin');
+const shopifyApp = require('./shopifyApp');
 
 const connectors = {
   ga4: google,
@@ -31,6 +32,7 @@ const connectors = {
   october_forms: octoberForms,
   linkedin_organic: linkedin,
   wordpress_plugin: wordpressPlugin,
+  shopify_app: shopifyApp,
 };
 
 module.exports = {
