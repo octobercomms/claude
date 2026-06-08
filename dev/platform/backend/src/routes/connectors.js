@@ -1,5 +1,6 @@
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 const pool = require('../db');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, checkClientIdFromBodyOrQuery } = require('../middleware/clientAccess');
@@ -236,6 +237,23 @@ router.post('/client/:clientId', async (req, res) => {
     }
 
     res.status(201).json(newConn);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Generate a one-time pairing token for the WordPress plugin. The AM creates
+// it here, the client pastes it into the plugin's settings, and the plugin
+// exchanges it once at /api/wp-connect/pair for a client_id + refresh_secret.
+// Valid for 7 days, single use.
+router.post('/client/:clientId/wp/pairing-token', async (req, res) => {
+  try {
+    const token = crypto.randomBytes(32).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+    await pool.query(
+      `INSERT INTO wp_pairing_tokens (token, client_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      [token, req.params.clientId]
+    );
+    res.status(201).json({ token, expires_in_days: 7 });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

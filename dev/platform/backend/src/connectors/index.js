@@ -10,6 +10,7 @@ const zohoInventory = require('./zoho_inventory');
 const cin7 = require('./cin7');
 const octoberForms = require('./october_forms');
 const linkedin = require('./linkedin');
+const wordpressPlugin = require('./wordpressPlugin');
 
 const connectors = {
   ga4: google,
@@ -29,6 +30,7 @@ const connectors = {
   cin7: cin7,
   october_forms: octoberForms,
   linkedin_organic: linkedin,
+  wordpress_plugin: wordpressPlugin,
 };
 
 module.exports = {
