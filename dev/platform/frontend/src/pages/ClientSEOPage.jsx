@@ -107,6 +107,12 @@ import {
 } from '../components/SeoSuite';
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import SuiteOverview from '../components/SuiteOverview';
+import FindPanel from '../components/organic/FindPanel';
+import BriefPanel from '../components/organic/BriefPanel';
+import DraftPanel from '../components/organic/DraftPanel';
+import PublishPanel from '../components/organic/PublishPanel';
+import PromotePanel from '../components/organic/PromotePanel';
+import SuitePerformanceHub from '../components/SuitePerformanceHub';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -591,7 +597,13 @@ export default function ClientSEOPage() {
       })
     : filtered;
 
-  const [activeTab, setActiveTab] = useTabParam('overview', ['overview', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'planning', 'authority', 'backlinks']);
+  const [activeTab, setActiveTab] = useTabParam('overview', [
+    'overview',
+    // Performance sub-tabs (perf_hub is the launchpad landing)
+    'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks',
+    // Pipeline sub-tabs
+    'find', 'planning', 'draft', 'publish', 'promote',
+  ]);
 
   useEffect(() => {
     if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {
@@ -619,36 +631,45 @@ export default function ClientSEOPage() {
           today), AI Search (visibility in generative AI), Plan (what to
           write next). Each group fans out into the existing tab content
           via a sub-strip — no JSX guards below this point change. */}
+      {/* Three top-level groups: Overview (launchpad), Performance (live
+          data + measurement), Pipeline (the production wizard — Find →
+          Brief → Draft → Publish → Promote). Briefs (PlanningTab) was
+          previously a standalone tab; it now lives as Pipeline step 2.
+          Content Gaps stays in Performance because it's a measurement
+          view, not a production step. */}
       {(() => {
         const SUB_TABS = {
-          position:  [
+          performance: [
+            { key: 'perf_hub',      label: 'Hub' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
+            { key: 'aio',           label: 'AI Overviews' },
+            { key: 'ai_visibility', label: 'AI Visibility' },
+            { key: 'fanout',        label: 'Query fan-out' },
+            { key: 'gaps',          label: 'Content Gaps' },
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
           ],
-          ai_search: [
-            { key: 'aio',           label: 'Keywords' },
-            { key: 'ai_visibility', label: 'Visibility' },
-            { key: 'fanout',        label: 'Query fan-out' },
-          ],
-          plan:      [
-            { key: 'gaps',          label: 'Content Gaps' },
-            { key: 'planning',      label: 'Content Briefs' },
+          pipeline: [
+            { key: 'find',     label: '1 · Find' },
+            { key: 'planning', label: '2 · Brief' },
+            { key: 'draft',    label: '3 · Draft' },
+            { key: 'publish',  label: '4 · Publish' },
+            { key: 'promote',  label: '5 · Promote' },
           ],
         };
         const GROUP_OF = {
           overview: 'overview',
-          keywords: 'position', gsc: 'position', authority: 'position', backlinks: 'position',
-          aio: 'ai_search', ai_visibility: 'ai_search', fanout: 'ai_search',
-          gaps: 'plan', planning: 'plan',
+          perf_hub: 'performance',
+          keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
+          aio: 'performance', ai_visibility: 'performance', fanout: 'performance', gaps: 'performance',
+          find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
-          { key: 'overview',  label: 'Overview',  active: currentGroup === 'overview',  onClick: () => setActiveTab('overview') },
-          { key: 'position',  label: 'SEO',      active: currentGroup === 'position',  onClick: () => setActiveTab('keywords') },
-          { key: 'ai_search', label: 'GEO',      active: currentGroup === 'ai_search', onClick: () => setActiveTab('aio') },
-          { key: 'plan',      label: 'Content',  active: currentGroup === 'plan',      onClick: () => setActiveTab('gaps') },
+          { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setActiveTab('overview') },
+          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_hub') },
+          { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
@@ -696,12 +717,42 @@ export default function ClientSEOPage() {
         />
       )}
 
+      {activeTab === 'perf_hub' && (
+        <SuitePerformanceHub
+          headline="Win on Google — and in the AI answers."
+          description="Daily rank tracking and Search Console, plus the new battleground: whether your brand shows up when people ask Claude, ChatGPT, Gemini and Google's AI. Content gaps and backlinks round it out."
+          primaryCta={{ label: 'View keyword ranks →', onClick: () => setActiveTab('keywords') }}
+          status={[
+            { label: 'Keywords', value: `${keywords.length || 0} tracked`, tone: 'positive' },
+            { label: 'Ranking',  value: keywords.filter(k => k.current_position).length || 0, tone: 'positive' },
+          ]}
+          flow={[
+            { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
+            { label: 'Track',        detail: 'Daily across locations' },
+            { label: 'Insights',     detail: 'Gaps, intent, citations' },
+            { label: 'Plan content', detail: 'Pipeline-ready briefs' },
+          ]}
+          cards={[
+            { label: 'KEYWORDS',       title: 'See where you rank',     body: "Daily DataForSEO rank tracking across location and device, with intent tags, SERP-feature pills and per-keyword history.", onClick: () => setActiveTab('keywords') },
+            { label: 'SEARCH CONSOLE', title: 'Clicks & impressions',   body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.', onClick: () => setActiveTab('gsc') },
+            { label: 'AI OVERVIEWS',   title: 'Track Google AI answers', body: "Spot every query where Google's AI answer appears, and whether your brand gets cited.", onClick: () => setActiveTab('aio') },
+            { label: 'AI VISIBILITY',  title: 'Win the answer engines',  body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.', onClick: () => setActiveTab('ai_visibility') },
+            { label: 'CONTENT GAPS',   title: 'Find what to write next', body: "Side-by-side competitor comparison surfaces the topics they own and you don't.", onClick: () => setActiveTab('gaps') },
+            { label: 'BACKLINKS',      title: 'Check your authority',    body: 'Domain rank, referring domains, and new + lost links from the DataForSEO backlink index.', onClick: () => setActiveTab('backlinks') },
+          ]}
+        />
+      )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
       {activeTab === 'aio' && <AIOverviewsTab clientId={id} />}
       {activeTab === 'fanout' && <FanoutTab clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'gaps' && <ContentGapsTab clientId={id} />}
-      {activeTab === 'planning' && <PlanningTab clientId={id} />}
+      {/* Pipeline steps */}
+      {activeTab === 'find' && <FindPanel clientId={id} onNext={() => setActiveTab('planning')} />}
+      {activeTab === 'planning' && <BriefPanel clientId={id} onNext={() => setActiveTab('draft')} />}
+      {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
+      {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
+      {activeTab === 'promote' && <PromotePanel clientId={id} />}
 
       {activeTab === 'keywords' && <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
