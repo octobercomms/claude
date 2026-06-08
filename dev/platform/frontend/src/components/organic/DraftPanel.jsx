@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import PipelineStep from './PipelineStep';
+import RefineChat from '../RefineChat';
 
 // Pipeline → Draft. Takes a brief, asks Claude to write a full blog
 // post grounded in the client's brand briefing + uploaded brand assets,
@@ -20,6 +21,7 @@ export default function DraftPanel({ clientId, onNext }) {
   const [editMeta, setEditMeta] = useState('');
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
 
@@ -151,11 +153,16 @@ export default function DraftPanel({ clientId, onNext }) {
                   <div className="caption">Editor</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => deleteDraft(activeDraft.id)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete</button>
+                    <button onClick={() => setChatOpen(o => !o)} className={`btn ${chatOpen ? 'btn-primary' : 'btn-secondary'} btn-sm`}>
+                      {chatOpen ? 'Hide Claude' : '✦ Refine with Claude'}
+                    </button>
                     <button onClick={save} className="btn btn-primary btn-sm" disabled={!dirty || saving}>
                       {saving ? 'Saving…' : dirty ? 'Save changes' : 'Saved'}
                     </button>
                   </div>
                 </div>
+                <div style={{ display: chatOpen ? 'grid' : 'block', gridTemplateColumns: chatOpen ? 'minmax(0, 1fr) 380px' : undefined, gap: chatOpen ? 'var(--s4)' : 0 }}>
+                  <div>
                 <input
                   value={editTitle}
                   onChange={e => { setEditTitle(e.target.value); setDirty(true); }}
@@ -177,6 +184,19 @@ export default function DraftPanel({ clientId, onNext }) {
                 />
                 <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6 }}>
                   Markdown · {editBody.split(/\s+/).filter(Boolean).length.toLocaleString()} words
+                </div>
+                  </div>
+                  {chatOpen && (
+                    <RefineChat
+                      clientId={clientId}
+                      kind="draft_markdown"
+                      artifact={editBody}
+                      artifactMeta={activeDraft.target_keyword ? `target keyword: ${activeDraft.target_keyword}` : null}
+                      onApplyRevision={(next) => { setEditBody(next); setDirty(true); }}
+                      onClose={() => setChatOpen(false)}
+                      compact
+                    />
+                  )}
                 </div>
               </>
             )}
