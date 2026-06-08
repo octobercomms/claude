@@ -210,7 +210,7 @@ router.post('/client/:clientId/shopify/pairing-token', async (req, res) => {
   try {
     const token = crypto.randomBytes(32).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
     await pool.query(
-      `INSERT INTO shopify_pairing_tokens (token, client_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      `INSERT INTO pairing_tokens (token, client_id, surface, expires_at) VALUES ($1, $2, 'shopify', NOW() + INTERVAL '7 days')`,
       [token, req.params.clientId]
     );
     res.status(201).json({ token, expires_in_days: 7 });
@@ -267,7 +267,7 @@ router.post('/client/:clientId/wp/pairing-token', async (req, res) => {
   try {
     const token = crypto.randomBytes(32).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
     await pool.query(
-      `INSERT INTO wp_pairing_tokens (token, client_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      `INSERT INTO pairing_tokens (token, client_id, surface, expires_at) VALUES ($1, $2, 'wordpress', NOW() + INTERVAL '7 days')`,
       [token, req.params.clientId]
     );
     res.status(201).json({ token, expires_in_days: 7 });
