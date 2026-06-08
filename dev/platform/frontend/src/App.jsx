@@ -21,6 +21,7 @@ import ClientAIVisibilityPage from './pages/ClientAIVisibilityPage';
 import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
+import IntegrationsPage from './pages/IntegrationsPage';
 import SettingsPage from './pages/SettingsPage';
 
 function ProtectedRoute({ children }) {
@@ -60,6 +61,7 @@ export default function App() {
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="guide" element={<GuidePage />} />
+            <Route path="integrations" element={<IntegrationsPage />} />
             <Route path="settings" element={<SettingsPage />} />
             {/* Manage was a separate top-level page; now it's a Settings tab.
                 Keep the old URL working so bookmarks redirect cleanly. */}

@@ -136,6 +136,9 @@ const pixelLimiter = rateLimit({ windowMs: 60 * 1000, max: 120 });
 app.use('/api/unsubscribe', require('./routes/unsubscribe'));
 // SES bounce/complaint webhook — mounted before auth so SNS can POST to it.
 app.use('/api/ses', require('./routes/sesWebhook'));
+// Public integration artifacts (GTM container template — no secrets). Before
+// auth so a plain download link works.
+app.use('/api/integrations', require('./routes/integrations'));
 
 app.use('/api/auth', authLimiter, require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
