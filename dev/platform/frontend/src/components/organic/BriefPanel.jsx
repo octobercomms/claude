@@ -11,8 +11,9 @@ import { PlanningTab } from '../SeoSuite';
 //             come out of Find with a Fan-out / Content Gaps run and
 //             have a long keyword list to plan against.
 const MODES = [
-  { key: 'single',  label: 'One keyword',   tagline: "Single-keyword brief. Type a target keyword and Claude proposes the angle, outline, headings, questions to answer, internal links, and meta tags." },
-  { key: 'cluster', label: 'From a list',   tagline: "Paste a list of keywords. Claude groups them into 3–8 topic clusters; pick one and get a brief that targets the whole cluster as a single piece of content." },
+  { key: 'single',       label: 'One keyword',     tagline: "Single-keyword brief. Type a target keyword and Claude proposes the angle, outline, headings, questions to answer, internal links, and meta tags." },
+  { key: 'cluster',      label: 'From a list',     tagline: "Paste a list of keywords. Claude groups them into 3–8 topic clusters; pick one and get a brief that targets the whole cluster as a single piece of content." },
+  { key: 'programmatic', label: 'From a spreadsheet', tagline: "Upload a CSV (service, location, etc) and a template prompt. Claude generates one brief per row — service-area pages, product / competitor variants, industry pages, anything templated at scale." },
 ];
 
 export default function BriefPanel({ clientId, onNext }) {
@@ -33,6 +34,7 @@ export default function BriefPanel({ clientId, onNext }) {
       </div>
       {mode === 'single' && <PlanningTab clientId={clientId} />}
       {mode === 'cluster' && <ClusterMode clientId={clientId} />}
+      {mode === 'programmatic' && <ProgrammaticMode clientId={clientId} />}
     </PipelineStep>
   );
 }
@@ -177,6 +179,197 @@ function BriefView({ brief }) {
             ))}
           </ul>
         </>
+      )}
+    </div>
+  );
+}
+
+// Programmatic page builder — CSV-driven bulk brief generation. AM
+// uploads a CSV + template prompt with {placeholders}; backend generates
+// one brief per row using the brand voice profile + brief skeleton.
+function ProgrammaticMode({ clientId }) {
+  const [runs, setRuns] = useState([]);
+  const [active, setActive] = useState(null);
+  const [activeBriefs, setActiveBriefs] = useState([]);
+  const [name, setName] = useState('');
+  const [templatePrompt, setTemplatePrompt] = useState('');
+  const [primaryKeywordTemplate, setPrimaryKeywordTemplate] = useState('');
+  const [csvText, setCsvText] = useState('');
+  const [running, setRunning] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
+  useEffect(() => {
+    if (!running) return;
+    const t = setInterval(refresh, 4000);
+    return () => clearInterval(t);
+  }, [running]); // eslint-disable-line
+
+  async function refresh() {
+    setLoading(true);
+    try {
+      const { runs: r } = await api.get(`/seo/clients/${clientId}/programmatic-runs`);
+      setRuns(r);
+      if (!active && r.length) openRun(r[0].id);
+      else if (active) openRun(active);
+      setRunning(r.some(x => x.status === 'running'));
+    } catch (e) { setErr(e.message); }
+    finally { setLoading(false); }
+  }
+
+  async function openRun(id) {
+    try {
+      const r = await api.get(`/seo/programmatic-runs/${id}`);
+      setActive(r.run.id);
+      setActiveBriefs(r.briefs || []);
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function start() {
+    if (!templatePrompt.trim() || !primaryKeywordTemplate.trim() || !csvText.trim()) return;
+    setErr(null); setRunning(true);
+    try {
+      await api.post(`/seo/clients/${clientId}/programmatic-runs`, {
+        name: name.trim() || 'Programmatic batch',
+        template_prompt: templatePrompt.trim(),
+        primary_keyword_template: primaryKeywordTemplate.trim(),
+        csv_text: csvText,
+      });
+      setName(''); setTemplatePrompt(''); setPrimaryKeywordTemplate(''); setCsvText('');
+      setTimeout(refresh, 1500);
+    } catch (e) { setErr(e.message); setRunning(false); }
+  }
+
+  async function promote(brief) {
+    try {
+      const draft = await api.post(`/seo/programmatic-briefs/${brief.id}/promote`, {});
+      setActiveBriefs(prev => prev.map(b => b.id === brief.id ? { ...b, content_draft_id: draft.id } : b));
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function deleteRun(id) {
+    if (!confirm('Delete this run and all its briefs?')) return;
+    try {
+      await api.delete(`/seo/programmatic-runs/${id}`);
+      const next = runs.filter(r => r.id !== id);
+      setRuns(next);
+      if (active === id) { setActive(null); setActiveBriefs([]); }
+    } catch (e) { setErr(e.message); }
+  }
+
+  const csvRowCount = csvText.split('\n').filter(l => l.trim()).length - 1;
+  const estCost = csvRowCount > 0 ? (csvRowCount * 0.015).toFixed(2) : '0.00';
+
+  return (
+    <div>
+      <div className="card mb-5">
+        <div className="caption mb-2">New programmatic batch</div>
+        <input value={name} onChange={e => setName(e.target.value)} placeholder="Batch name (e.g. UK service-area pages Q3)"
+          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+        <input value={templatePrompt} onChange={e => setTemplatePrompt(e.target.value)}
+          placeholder="Template — describe the page type. Use {column} placeholders. e.g. 'Local services landing page for {service} in {location}'"
+          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+        <input value={primaryKeywordTemplate} onChange={e => setPrimaryKeywordTemplate(e.target.value)}
+          placeholder="Primary keyword template, e.g. '{service} in {location}'"
+          style={{ width: '100%', padding: '8px 12px', fontSize: 13, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', marginBottom: 8, boxSizing: 'border-box' }} />
+        <textarea value={csvText} onChange={e => setCsvText(e.target.value)} rows={8}
+          placeholder={"CSV with header row. Example:\nservice,location\nplumber,London\nplumber,Manchester\nelectrician,London"}
+          style={{ width: '100%', padding: '10px 12px', fontSize: 13, lineHeight: 1.5, border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', fontFamily: 'ui-monospace, Menlo, Consolas, monospace', boxSizing: 'border-box', resize: 'vertical' }} />
+        <div className="row between center mt-2">
+          <span className="body-xs text-subtle">
+            {csvRowCount > 0 ? `${csvRowCount} data row${csvRowCount === 1 ? '' : 's'} · est cost ~\$${estCost}` : 'paste a CSV with a header + at least one row'}
+          </span>
+          <button onClick={start} className="btn btn-primary" disabled={running || !templatePrompt.trim() || !primaryKeywordTemplate.trim() || csvRowCount < 1}>
+            {running ? 'Generating…' : `Generate ${csvRowCount || 0} briefs`}
+          </button>
+        </div>
+      </div>
+
+      {err && <div className="callout callout-danger mb-3">{err}</div>}
+
+      {loading && !runs.length ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 40 }}>Loading…</div>
+      ) : !runs.length ? (
+        <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+          No programmatic runs yet. Fill in the form above to generate your first batch.
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', gap: 22 }}>
+          <div>
+            <div className="caption mb-3">Past runs</div>
+            <div className="stack" style={{ gap: 6 }}>
+              {runs.map(r => {
+                const isActive = r.id === active;
+                return (
+                  <div key={r.id} className="card"
+                    style={{ padding: 10, cursor: 'pointer',
+                      background: isActive ? 'var(--accent-soft)' : 'var(--surface)',
+                      borderColor: isActive ? 'var(--accent)' : 'var(--card-border)' }}
+                    onClick={() => openRun(r.id)}>
+                    <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.3 }}>{r.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>
+                      {new Date(r.started_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {' · '}
+                      <span style={{ fontWeight: 700, color: r.status === 'failed' ? 'var(--negative)' : r.status === 'running' ? 'var(--warning)' : 'var(--positive)' }}>
+                        {r.completed_rows}/{r.total_rows}{r.failed_rows ? ` (${r.failed_rows} failed)` : ''} · {r.status}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            {!active ? (
+              <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Pick a run on the left.</div>
+            ) : (
+              <>
+                <div className="row between center mb-3" style={{ gap: 12 }}>
+                  <div className="caption">{activeBriefs.length} brief{activeBriefs.length === 1 ? '' : 's'} in this run</div>
+                  <button onClick={() => deleteRun(active)} className="btn btn-ghost btn-sm" style={{ color: 'var(--negative)' }}>Delete run</button>
+                </div>
+                <div className="card" style={{ padding: 0 }}>
+                  <table className="table">
+                    <thead><tr>
+                      <th className="caption" style={{ padding: '8px 10px' }}>#</th>
+                      <th className="caption" style={{ padding: '8px 10px' }}>Row data</th>
+                      <th className="caption" style={{ padding: '8px 10px' }}>Generated title</th>
+                      <th className="caption" style={{ padding: '8px 10px' }}>Status</th>
+                      <th className="caption" style={{ padding: '8px 10px', textAlign: 'right' }}>Actions</th>
+                    </tr></thead>
+                    <tbody>
+                      {activeBriefs.map(b => (
+                        <tr key={b.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
+                          <td style={{ padding: '8px 10px', fontSize: 12, color: 'var(--text-subtle)' }}>{b.row_index + 1}</td>
+                          <td style={{ padding: '8px 10px', fontSize: 11, color: 'var(--text-muted)' }}>
+                            {Object.entries(b.row_data || {}).map(([k, v]) => `${k}: ${v}`).join(' · ').slice(0, 120)}
+                          </td>
+                          <td style={{ padding: '8px 10px', fontSize: 12 }}>
+                            {b.title ? <strong>{b.title}</strong> : <em style={{ color: 'var(--text-subtle)' }}>—</em>}
+                            {b.slug && <div style={{ fontSize: 10, color: 'var(--text-subtle)' }}>/{b.slug}</div>}
+                          </td>
+                          <td style={{ padding: '8px 10px', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                            color: b.status === 'failed' ? 'var(--negative)' : b.status === 'complete' ? 'var(--positive)' : 'var(--warning)' }}>
+                            {b.status}{b.error_message ? ` · ${b.error_message.slice(0, 60)}` : ''}
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right' }}>
+                            {b.status === 'complete' && (
+                              b.content_draft_id
+                                ? <span style={{ fontSize: 11, color: 'var(--positive)', fontWeight: 700 }}>✓ in Pipeline</span>
+                                : <button onClick={() => promote(b)} className="btn btn-ghost btn-sm" style={{ color: 'var(--accent)' }}>Send to Pipeline →</button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1011,4 +1011,77 @@ router.post('/clients/:clientId/brand-voice', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── PROGRAMMATIC PAGE BUILDER ─────────────────────────────────────────────
+// CSV-driven bulk brief generation. AM uploads a CSV + a template
+// prompt with {placeholders}; service generates one brief per row,
+// persists them in programmatic_briefs. AM promotes any single brief
+// into Pipeline → Draft, or exports the lot.
+const programmaticBriefs = require('../services/programmaticBriefs');
+
+router.get('/clients/:clientId/programmatic-runs', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, template_prompt, csv_headers, total_rows, completed_rows, failed_rows,
+              status, estimated_cost_usd, started_at, completed_at, error_message
+       FROM programmatic_runs WHERE client_id = $1
+       ORDER BY started_at DESC LIMIT 30`,
+      [req.params.clientId]
+    );
+    res.json({ runs: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/programmatic-runs/:id', async (req, res) => {
+  try {
+    const { rows: runRows } = await pool.query('SELECT * FROM programmatic_runs WHERE id = $1', [req.params.id]);
+    if (!runRows.length) return res.status(404).json({ error: 'Run not found' });
+    assertClientAccess(req, runRows[0].client_id);
+    const { rows: briefs } = await pool.query(
+      `SELECT * FROM programmatic_briefs WHERE run_id = $1 ORDER BY row_index ASC`,
+      [req.params.id]
+    );
+    res.json({ run: runRows[0], briefs });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/programmatic-runs', async (req, res) => {
+  const { name, template_prompt, primary_keyword_template, csv_text } = req.body || {};
+  if (!template_prompt) return res.status(400).json({ error: 'template_prompt required' });
+  if (!primary_keyword_template) return res.status(400).json({ error: 'primary_keyword_template required' });
+  if (!csv_text) return res.status(400).json({ error: 'csv_text required' });
+  try {
+    // Fire-and-respond — Claude calls run in the background; the UI
+    // polls. We do a quick CSV parse to fail fast on malformed input.
+    programmaticBriefs.csvToObjects(csv_text);
+    programmaticBriefs.runProgrammaticBatch({
+      clientId: req.params.clientId,
+      name, templatePrompt: template_prompt,
+      primaryKeywordTemplate: primary_keyword_template,
+      csvText: csv_text,
+    }).catch(err => console.error('[programmatic] background run failed:', err.message));
+    res.status(202).json({ status: 'started' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/programmatic-briefs/:id/promote', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT client_id FROM programmatic_briefs WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Brief not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const draft = await programmaticBriefs.promoteToDraft({ briefId: req.params.id });
+    res.status(201).json(draft);
+  } catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
+router.delete('/programmatic-runs/:id', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT client_id FROM programmatic_runs WHERE id = $1', [req.params.id]);
+    if (lookup.rows.length) assertClientAccess(req, lookup.rows[0].client_id);
+    await pool.query('DELETE FROM programmatic_runs WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;
