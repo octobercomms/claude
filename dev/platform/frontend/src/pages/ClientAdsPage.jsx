@@ -276,8 +276,35 @@ export default function ClientAdsPage() {
           No active Google Ads or Meta Ads connectors found for this client.<br />
           <span style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Connect them on the client's Connectors tab, then return here.</span>
         </div>
-      ) : (
+      ) : (() => {
+        // Blended totals across Google + Meta when both are connected,
+        // so the AM can see one number for the period without summing in
+        // their head. Each platform's own breakdown still renders below.
+        const blended = {
+          spend:   (googleTotal?.spend   || 0) + (metaTotal?.spend   || 0),
+          revenue: (googleTotal?.revenue || 0) + (metaTotal?.revenue || 0),
+          clicks:  (googleTotal?.clicks  || 0) + (metaTotal?.clicks  || 0),
+        };
+        blended.roas = blended.spend > 0 && blended.revenue > 0 ? blended.revenue / blended.spend : null;
+        blended.profit = blended.revenue > 0 ? blended.revenue * adsMargin - blended.spend : null;
+        const showBlended = hasGoogle && hasMeta;
+        return (
         <>
+          {showBlended && (
+            <div style={{ marginBottom: 28 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>
+                Combined · Google + Meta
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                <MetricCard label="Total Spend"   value={fmtCurrency(blended.spend)} feature />
+                <MetricCard label="Total Revenue" value={blended.revenue > 0 ? fmtCurrency(blended.revenue) : '—'} />
+                <MetricCard label="Blended ROAS"  value={blended.roas != null ? `${blended.roas.toFixed(2)}x` : '—'} />
+                {blended.profit != null && <MetricCard label={`Profit (${Math.round(adsMargin * 100)}%)`} value={fmtCurrency(blended.profit)} sub="Revenue × margin − Spend" />}
+                <MetricCard label="Clicks" value={fmt(blended.clicks)} />
+              </div>
+              <hr style={{ border: 'none', borderTop: '1px solid var(--card-border)', margin: '24px 0 0' }} />
+            </div>
+          )}
           {showGoogleTab && (
             <div>
               <h2 className="h2" style={{ marginBottom: 'var(--s4)' }}>Google Ads</h2>
@@ -412,7 +439,8 @@ export default function ClientAdsPage() {
             </div>
           )}
         </>
-      )}
+        );
+      })()}
       </>}
     </div>
   );

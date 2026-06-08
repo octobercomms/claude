@@ -29,7 +29,10 @@ rsync -a --delete "$SOURCE_DIR/dev/platform/frontend/dist/" "$FRONTEND_DIST/"
 echo "    Published: $(ls "$FRONTEND_DIST"/assets/*.js 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
 
 echo "==> Restarting backend..."
-pm2 restart october-platform
+# --update-env so the latest ecosystem.config.js values (e.g. TZ) are
+# picked up. Plain `pm2 restart` retains the original process env.
+pm2 reload "$SOURCE_DIR/dev/platform/backend/ecosystem.config.js" --update-env \
+  || pm2 restart october-platform --update-env
 
 echo ""
 echo "Done. $(date)"

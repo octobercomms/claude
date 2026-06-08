@@ -112,7 +112,7 @@ import BriefPanel from '../components/organic/BriefPanel';
 import DraftPanel from '../components/organic/DraftPanel';
 import PublishPanel from '../components/organic/PublishPanel';
 import PromotePanel from '../components/organic/PromotePanel';
-import SuitePerformanceHub from '../components/SuitePerformanceHub';
+import OrganicInsightsPanel from '../components/organic/OrganicInsightsPanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -726,42 +726,13 @@ export default function ClientSEOPage() {
         />
       )}
 
-      {activeTab === 'perf_insights' && (() => {
-        const tracked = keywords.length || 0;
-        const ranking = keywords.filter(k => k.current_position).length;
-        const top10 = keywords.filter(k => k.current_position && k.current_position <= 10).length;
-        const top3 = keywords.filter(k => k.current_position && k.current_position <= 3).length;
-        const aioPresent = keywords.filter(k => k.aio_present).length;
-        const aioCited = keywords.filter(k => k.aio_brand_cited).length;
-        return (
-          <SuitePerformanceHub
-            headline="Where you stand — at a glance."
-            description="Live measurement across every data source the suite tracks. Click a card to drill in; the Pipeline tab is where you act on what you find."
-            primaryCta={{ label: 'View keyword ranks →', onClick: () => setActiveTab('keywords') }}
-            status={[
-              { label: 'Keywords',   value: `${tracked} tracked`,  tone: tracked ? 'positive' : 'default' },
-              { label: 'Ranking',    value: `${ranking}`,          tone: ranking ? 'positive' : 'default' },
-              { label: 'Top 10',     value: `${top10}`,            tone: top10 ? 'positive' : 'default' },
-              { label: 'Top 3',      value: `${top3}`,             tone: top3 ? 'positive' : 'default' },
-              ...(aioPresent > 0 ? [{ label: 'In AI Overviews', value: `${aioCited} of ${aioPresent} cited`, tone: aioCited ? 'positive' : 'warning' }] : []),
-            ]}
-            flow={[
-              { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
-              { label: 'Track',        detail: 'Daily across locations' },
-              { label: 'Diagnose',     detail: 'Intent, AIO, share-of-voice' },
-              { label: 'Act',          detail: 'Pipeline-ready inputs' },
-            ]}
-            cards={[
-              { label: 'KEYWORDS',       title: 'Ranks + AI Overviews',   body: 'Daily DataForSEO rank tracking with intent tags, SERP-feature pills, and AI Overview presence + brand-citation per keyword.', onClick: () => setActiveTab('keywords') },
-              { label: 'SEARCH CONSOLE', title: 'Clicks & impressions',   body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.', onClick: () => setActiveTab('gsc') },
-              { label: 'AI VISIBILITY',  title: 'Win the answer engines', body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.', onClick: () => setActiveTab('ai_visibility') },
-              { label: 'AUTHORITY',      title: 'DA + referring domains', body: 'Monthly authority score, Moz DA, and referring domain count tracked over time so trends are visible.', onClick: () => setActiveTab('authority') },
-              { label: 'BACKLINKS',      title: 'Live link profile',      body: 'New + lost links from the DataForSEO backlink index, plus domain rank trend.', onClick: () => setActiveTab('backlinks') },
-              { label: 'NEXT MOVE',      title: 'Open the Pipeline →',    body: 'Find a content gap, brief it, draft it, publish it, promote it. The five-step content production wizard.', onClick: () => setActiveTab('find') },
-            ]}
-          />
-        );
-      })()}
+      {activeTab === 'perf_insights' && (
+        <OrganicInsightsPanel
+          keywords={keywords}
+          onOpenKeywords={() => setActiveTab('keywords')}
+          onOpenAiVisibility={() => setActiveTab('ai_visibility')}
+        />
+      )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {/* Pipeline steps */}

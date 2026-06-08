@@ -58,9 +58,11 @@ nginx -t && systemctl reload nginx
 # 11. SSL
 certbot --nginx -d platform.octobercomms.com --non-interactive --agree-tos -m daniel@octobercomms.com
 
-# 12. PM2
+# 12. PM2 — launched via ecosystem.config.js so the process inherits
+# TZ=Europe/London (otherwise scheduler.js crons fire an hour late
+# during BST because the OS is in UTC).
 cd /opt/october-platform
-pm2 start src/index.js --name october-platform
+pm2 start ecosystem.config.js
 pm2 startup
 pm2 save
 
