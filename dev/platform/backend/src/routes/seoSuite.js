@@ -299,10 +299,17 @@ router.post('/clients/:clientId/content-brief', async (req, res) => {
   try {
     const clientRow = await pool.query('SELECT name, briefing_field, domain FROM clients WHERE id = $1', [req.params.clientId]);
     const client = clientRow.rows[0];
+    // Brand voice profile (when set up) — injected so the single-keyword
+    // brief picks up the same voice context as the cluster brief +
+    // drafter. Lazy require to avoid a circular import when this module
+    // is loaded before brandVoice's own imports settle.
+    const brandVoice = require('../services/brandVoice');
+    const voiceProfile = await brandVoice.loadActiveProfile(req.params.clientId);
+    const voiceContext = brandVoice.renderForPrompt(voiceProfile);
 
     const prompt = `Client: ${client?.name}
 About: ${client?.briefing_field || '(no briefing)'}
-Domain: ${client?.domain || '(no domain)'}
+Domain: ${client?.domain || '(no domain)'}${voiceContext}
 
 Generate a content brief for the target keyword: "${keyword}"
 

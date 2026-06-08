@@ -24,6 +24,28 @@ Run through this list on the day:
 
 ---
 
+## 1b. Already-built endpoints waiting on 1 July
+
+Backend work that's **already shipped and gated**. When `isUnlocked('backlinks')` flips, these routes start returning real data automatically — only the UI panels remain to build. Sequence them after E1's raw pull but before E3 / E4.
+
+### Anchor text distribution
+- **Endpoint:** `GET /api/seo/clients/:clientId/anchor-text` — returns the top 100 anchor texts pointing at the client's domain (ordered by backlink count), each with `{anchor, backlinks, referring_domains, first_seen, lost_date}`.
+- **Backend service:** `dataForSEO.fetchAnchorTextDistribution(domain, { limit })` — calls `/backlinks/anchors/live`.
+- **Pre-cutover behaviour:** route returns 503 with the unlock-date message.
+- **UI to build:** new card on `ClientSEOPage` → Performance → Off-page → **Backlinks** sub-tab. Two views in a single panel:
+  - **Anchor text** table — anchor, backlinks count, referring domains count, sparkline of first→last seen. Sort by backlinks desc. Surface skewed distributions (e.g. "your top anchor is your brand name on 80% of links" — healthy; "your top anchor is 'click here' on 80% of links" — manipulation flag).
+  - **Brand vs commercial vs other** roll-up — group anchors by whether they contain the brand name (from `clients.name`), a money keyword (configurable list), or neither. Pie or stacked bar.
+
+### Dofollow / nofollow split
+- **Endpoint:** `GET /api/seo/clients/:clientId/dofollow-split` — returns `{dofollow, nofollow, total}` counts.
+- **Backend service:** `dataForSEO.fetchDofollowSplit(domain)` — two 1-row count queries against `/backlinks/backlinks/live` with the dofollow filter flipped.
+- **Pre-cutover behaviour:** 503.
+- **UI to build:** small stat card on the same Backlinks sub-tab. Big number on the dofollow %, sparkline if we ever cache history. Healthy benchmark in the helper text: most natural profiles sit around 60–80% dofollow.
+
+Both UI panels are small (~50–80 lines each). Build once we can test against the live API rather than the 503.
+
+---
+
 ## 2. Phase E build plan (post-July)
 
 These are the PRs to write after 1 July. Each one is independent; ship in this order so the foundation is in place before the headline features.
