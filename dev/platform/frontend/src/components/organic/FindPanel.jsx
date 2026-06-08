@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../utils/api';
 import PipelineStep from './PipelineStep';
+import { FanoutTab, ContentGapsTab } from '../SeoSuite';
 
 const LOCATIONS = [
   { code: 2826, label: '🇬🇧 United Kingdom' },
@@ -10,12 +11,28 @@ const LOCATIONS = [
   { code: 2124, label: '🇨🇦 Canada' },
 ];
 
-// Pipeline → Find. Paste a competitor URL → DFS returns every keyword
-// that page ranks for → cross-reference against the client's own ranks
-// → Claude writes a content brief on which sub-intents to cover to
-// outrank that specific page. Different from Content Gaps (domain-wide
-// intersection) — this is page-level.
+// Pipeline → Find. Three modes for surfacing content to write:
+//
+//   url        — paste a competitor blog post URL → that page's keyword
+//                footprint, scored against the client's ranks. Page-level.
+//   query      — type a seed query → Claude's likely Google fan-out, run
+//                each against the client to score AI Overview coverage.
+//   competitor — pick competitor domains → DFS domain intersection
+//                surfaces keywords they rank for that the client doesn't.
+//
+// All three pre-existed as separate Performance tabs (URL gap as
+// FindPanel itself, fan-out as FanoutTab, content gaps as ContentGapsTab).
+// They're consolidated here because they're all production inputs for
+// the Brief step — they belong with the work they feed, not in the
+// measurement view.
+const MODES = [
+  { key: 'url',        label: 'From URL',             tagline: 'Paste a competitor blog post URL. We pull every keyword that page ranks for and cross-reference against your ranks, so you know exactly which sub-topics to cover to outrank it.' },
+  { key: 'query',      label: 'From a query',         tagline: 'Type a seed query. Claude generates the likely Google fan-out (the related queries the AI Overview will pull from), we run each against your domain to score coverage, then identify the sub-intents to cover.' },
+  { key: 'competitor', label: 'From competitor domains', tagline: 'Pick up to 5 competitor domains. DFS Domain Intersection returns the keywords they rank for that you don\'t — the highest-volume content gaps in your category.' },
+];
+
 export default function FindPanel({ clientId, onNext }) {
+  const [mode, setMode] = useState('url');
   const [runs, setRuns] = useState([]);
   const [activeRun, setActiveRun] = useState(null);
   const [keywords, setKeywords] = useState([]);
@@ -24,6 +41,8 @@ export default function FindPanel({ clientId, onNext }) {
   const [loading, setLoading] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState(null);
+
+  const activeMode = MODES.find(m => m.key === mode) || MODES[0];
 
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [clientId]);
 
@@ -78,8 +97,21 @@ export default function FindPanel({ clientId, onNext }) {
   return (
     <PipelineStep
       num={1} title="Find" onNext={onNext} nextLabel="Write a brief"
-      tagline="Paste a competitor blog post URL. We pull every keyword that page ranks for and cross-reference against your ranks, so you know exactly which sub-topics to cover to outrank it."
+      tagline={activeMode.tagline}
     >
+      {/* Mode selector — three different production inputs share this step */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+        {MODES.map(m => (
+          <button key={m.key} onClick={() => setMode(m.key)} type="button"
+            className={`btn btn-sm ${mode === m.key ? 'btn-primary' : 'btn-secondary'}`}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+
+      {mode === 'query' && <FanoutTab clientId={clientId} />}
+      {mode === 'competitor' && <ContentGapsTab clientId={clientId} />}
+      {mode === 'url' && (<>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
         <input
           value={url}
@@ -179,6 +211,7 @@ export default function FindPanel({ clientId, onNext }) {
           </div>
         </div>
       )}
+      </>)}
     </PipelineStep>
   );
 }
