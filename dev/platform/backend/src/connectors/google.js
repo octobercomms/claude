@@ -4,6 +4,7 @@ const { getPlatformGoogleAccessToken } = require('../services/googleAuth');
 const authType = 'oauth';
 
 const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
 
 // Modes that authenticate with the platform service account rather than a
 // per-user OAuth token. See migration 065 and services/googleAuth.js.
@@ -11,16 +12,27 @@ function isServiceAccountMode(authMode) {
   return authMode === 'service_account' || authMode === 'mcc_link';
 }
 
-// Resolve a GA4 bearer token for either auth path. In service-account mode
-// the connector has no per-user credentials — the token comes from the
-// platform service account, which the client has added as a Viewer on the
-// property. In OAuth mode it's the existing refresh-and-return flow.
-async function ga4AccessToken(credentials, authMode) {
+// Resolve a Google bearer token for either auth path. In service-account
+// mode the connector has no per-user credentials — the token comes from the
+// platform service account, which the client has granted access on the
+// resource (a GA4 property, a Search Console site, …). In OAuth mode it's
+// the existing refresh-and-return flow.
+async function resolveAccessToken(credentials, authMode, scopes) {
   if (isServiceAccountMode(authMode)) {
-    return getPlatformGoogleAccessToken([GA4_SCOPE]);
+    return getPlatformGoogleAccessToken(scopes);
   }
   const creds = await getValidToken(credentials);
   return creds.access_token;
+}
+
+// GA4 reads use the analytics scope.
+async function ga4AccessToken(credentials, authMode) {
+  return resolveAccessToken(credentials, authMode, [GA4_SCOPE]);
+}
+
+// Search Console reads use the webmasters scope.
+async function gscAccessToken(credentials, authMode) {
+  return resolveAccessToken(credentials, authMode, [GSC_SCOPE]);
 }
 
 const SCOPES = [
@@ -217,9 +229,9 @@ async function fetchGA4Daily(credentials, { propertyId, startDate, endDate, auth
 
 // Search Console data fetch
 async function fetchSearchConsoleData(credentials, params) {
-  const creds = await getValidToken(credentials);
-  const { siteUrl, startDate, endDate } = params;
+  const { siteUrl, startDate, endDate, authMode } = params;
   if (!siteUrl) throw new Error('Search Console site not selected — open the client connectors tab and choose a site.');
+  const accessToken = await gscAccessToken(credentials, authMode);
 
   // Three queries in parallel:
   //   1. UNDIMENSIONED → period's true total clicks/impressions/ctr/position.
@@ -235,7 +247,7 @@ async function fetchSearchConsoleData(credentials, params) {
   // - Aggregating by averaging CTR/position across sub-combinations
   //   misweights vs the per-query values GSC returns natively.
   const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
-  const auth = { headers: { Authorization: `Bearer ${creds.access_token}` } };
+  const auth = { headers: { Authorization: `Bearer ${accessToken}` } };
   const [totalsRes, queriesRes, pagesRes] = await Promise.all([
     axios.post(url, { startDate, endDate }, auth),
     axios.post(url, { startDate, endDate, dimensions: ['query'], rowLimit: 25 }, auth),
@@ -257,13 +269,13 @@ async function fetchSearchConsoleData(credentials, params) {
 // Single-dimension Search Analytics query — used by the SEO page tabs so we
 // can show top queries and top pages independently, with their own row
 // limits and sort orders rather than slicing one mixed-dimension response.
-async function fetchSearchAnalytics(credentials, { siteUrl, startDate, endDate, dimensions = ['query'], rowLimit = 50 }) {
-  const creds = await getValidToken(credentials);
+async function fetchSearchAnalytics(credentials, { siteUrl, startDate, endDate, dimensions = ['query'], rowLimit = 50, authMode }) {
   if (!siteUrl) throw new Error('Search Console site not selected.');
+  const accessToken = await gscAccessToken(credentials, authMode);
   const { data } = await axios.post(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
     { startDate, endDate, dimensions, rowLimit },
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   return (data.rows || []).map(r => {
     const out = { clicks: r.clicks || 0, impressions: r.impressions || 0, ctr: r.ctr || 0, position: r.position || 0 };
@@ -275,12 +287,12 @@ async function fetchSearchAnalytics(credentials, { siteUrl, startDate, endDate, 
 // Sitemap inventory from GSC — surfaces last-submitted, last-downloaded,
 // errors and warnings counts so we can flag indexing issues without having
 // to call the heavier URL Inspection API.
-async function fetchSearchConsoleSitemaps(credentials, { siteUrl }) {
-  const creds = await getValidToken(credentials);
+async function fetchSearchConsoleSitemaps(credentials, { siteUrl, authMode }) {
   if (!siteUrl) throw new Error('Search Console site not selected.');
+  const accessToken = await gscAccessToken(credentials, authMode);
   const { data } = await axios.get(
     `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/sitemaps`,
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   return (data.sitemap || []).map(s => ({
     path: s.path,
@@ -469,11 +481,11 @@ async function listGA4Properties(credentials, authMode) {
   return options;
 }
 
-async function listSearchConsoleSites(credentials) {
-  const creds = await getValidToken(credentials);
+async function listSearchConsoleSites(credentials, authMode) {
+  const accessToken = await gscAccessToken(credentials, authMode);
   const { data } = await axios.get(
     'https://www.googleapis.com/webmasters/v3/sites',
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   return (data.siteEntry || []).map(site => ({
     value: site.siteUrl,
@@ -518,7 +530,7 @@ async function listMerchantAccounts(credentials) {
 async function listAccounts(credentials, connectorType, authMode) {
   switch (connectorType) {
     case 'ga4': return listGA4Properties(credentials, authMode);
-    case 'google_search_console': return listSearchConsoleSites(credentials);
+    case 'google_search_console': return listSearchConsoleSites(credentials, authMode);
     case 'google_ads': return listGoogleAdsAccounts(credentials);
     case 'google_merchant_center': return listMerchantAccounts(credentials);
     default: return [];

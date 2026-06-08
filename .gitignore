@@ -25,3 +25,4 @@ npm-debug.log*
 # Runtime artefacts — generated reports, not source
 dev/platform/backend/pdfs/
 *.zip
+.claude/worktrees/

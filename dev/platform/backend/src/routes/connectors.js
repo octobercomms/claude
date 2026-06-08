@@ -294,8 +294,18 @@ router.get('/:id/diagnose', async (req, res) => {
         result.live_test = { status: 'error', error: 'No service account configured — paste GOOGLE_SERVICE_ACCOUNT_JSON in Settings.' };
         return res.json(result);
       }
+      // Scope + the "grant access" wording differ per Google resource.
+      const SA_SCOPE_BY_TYPE = {
+        ga4: 'https://www.googleapis.com/auth/analytics.readonly',
+        google_search_console: 'https://www.googleapis.com/auth/webmasters.readonly',
+      };
+      const SA_GRANT_NOTE_BY_TYPE = {
+        ga4: `Add ${saEmail} as a Viewer on this GA4 property, then retry.`,
+        google_search_console: `Add ${saEmail} as a user with Restricted access on this Search Console property, then retry.`,
+      };
       try {
-        const token = await getPlatformGoogleAccessToken(['https://www.googleapis.com/auth/analytics.readonly']);
+        const scope = SA_SCOPE_BY_TYPE[row.connector_type] || 'https://www.googleapis.com/auth/analytics.readonly';
+        const token = await getPlatformGoogleAccessToken([scope]);
         if (row.connector_type === 'ga4') {
           const propertyId = row.config?.value;
           result.property_id = propertyId || '(not set)';
@@ -308,6 +318,22 @@ router.get('/:id/diagnose', async (req, res) => {
             result.live_test = { status: 'ok', detail: `${testRes.data.rowCount || 0} rows returned` };
           } else {
             result.live_test = { status: 'ok', detail: 'Service account token minted; select a property to run a live data test.' };
+          }
+        } else if (row.connector_type === 'google_search_console') {
+          const siteUrl = row.config?.value;
+          result.site_url = siteUrl || '(not set)';
+          if (siteUrl) {
+            const fmt = d => d.toISOString().slice(0, 10);
+            const end = new Date(Date.now() - 3 * 86400000);   // GSC lags ~2-3 days
+            const start = new Date(end.getTime() - 28 * 86400000);
+            const testRes = await axios.post(
+              `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+              { startDate: fmt(start), endDate: fmt(end), dimensions: ['query'], rowLimit: 1 },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            result.live_test = { status: 'ok', detail: `${(testRes.data.rows || []).length} row(s) returned` };
+          } else {
+            result.live_test = { status: 'ok', detail: 'Service account token minted; select a site to run a live data test.' };
           }
         } else {
           result.live_test = { status: 'ok', detail: 'Service account token minted.' };
@@ -322,7 +348,7 @@ router.get('/:id/diagnose', async (req, res) => {
         const http_status = saErr.response?.status;
         result.live_test = { status: 'error', http_status, error: detail };
         if (http_status === 403) {
-          result.live_test.note = `Add ${saEmail} as a Viewer on this GA4 property, then retry.`;
+          result.live_test.note = SA_GRANT_NOTE_BY_TYPE[row.connector_type] || `Grant ${saEmail} access to this resource, then retry.`;
         }
       }
       return res.json(result);

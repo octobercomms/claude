@@ -173,8 +173,11 @@ async function loadGSCConnector(clientId) {
   const conn = rows[0];
   const creds = conn.credentials ? decrypt(conn.credentials) : null;
   const siteUrl = conn.config?.value;
-  if (!creds || !siteUrl) return null;
-  return { creds, siteUrl };
+  if (!siteUrl) return null;
+  // Service-account connectors have no per-user credentials — they read via
+  // the platform service account, so only OAuth connectors need creds here.
+  if (conn.auth_mode === 'oauth' && !creds) return null;
+  return { creds, siteUrl, authMode: conn.auth_mode };
 }
 
 function defaultGSCRange(req) {
@@ -192,7 +195,7 @@ router.get('/clients/:clientId/gsc/queries', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['query'], rowLimit: 100,
+      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['query'], rowLimit: 100,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -206,7 +209,7 @@ router.get('/clients/:clientId/gsc/pages', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['page'], rowLimit: 100,
+      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['page'], rowLimit: 100,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -220,7 +223,7 @@ router.get('/clients/:clientId/gsc/devices', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['device'], rowLimit: 10,
+      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['device'], rowLimit: 10,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -234,7 +237,7 @@ router.get('/clients/:clientId/gsc/countries', async (req, res) => {
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
     const { startDate, endDate } = defaultGSCRange(req);
     const rows = await google.fetchSearchAnalytics(conn.creds, {
-      siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['country'], rowLimit: 25,
+      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate, dimensions: ['country'], rowLimit: 25,
     });
     res.json({ startDate, endDate, rows });
   } catch (err) {
@@ -246,7 +249,7 @@ router.get('/clients/:clientId/gsc/sitemaps', async (req, res) => {
   try {
     const conn = await loadGSCConnector(req.params.clientId);
     if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
-    const sitemaps = await google.fetchSearchConsoleSitemaps(conn.creds, { siteUrl: conn.siteUrl });
+    const sitemaps = await google.fetchSearchConsoleSitemaps(conn.creds, { siteUrl: conn.siteUrl, authMode: conn.authMode });
     res.json({ sitemaps });
   } catch (err) {
     res.status(502).json({ error: err.message });
