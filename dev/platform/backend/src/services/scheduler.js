@@ -1,5 +1,17 @@
 const cron = require('node-cron');
 const pool = require('../db');
+
+// Run every cron in UK local time. The platform's AMs and clients are
+// UK-based; the user-facing schedules ("Weekly reports every Monday at
+// 10:00") need to mean 10:00 in London year-round, BST or GMT, not 10:00
+// in whatever the OS thinks. Cloud Linux defaults to UTC, which during
+// BST shifted the 10am Monday report cron to 11am for the AM.
+// Shadowing cron.schedule once here picks up every cron.schedule(...)
+// call below without per-call edits — and any later additions
+// automatically get the same treatment.
+const PLATFORM_TZ = 'Europe/London';
+const _origSchedule = cron.schedule.bind(cron);
+cron.schedule = (expr, fn, opts = {}) => _origSchedule(expr, fn, { timezone: PLATFORM_TZ, ...opts });
 const { decrypt } = require('../utils/encryption');
 const reportService = require('./reportService');
 const dataForSEO = require('../connectors/dataforseo');
