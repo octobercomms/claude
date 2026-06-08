@@ -5,6 +5,7 @@ const authType = 'oauth';
 
 const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
 const GSC_SCOPE = 'https://www.googleapis.com/auth/webmasters.readonly';
+const MERCHANT_SCOPE = 'https://www.googleapis.com/auth/content';
 
 // Modes that authenticate with the platform service account rather than a
 // per-user OAuth token. See migration 065 and services/googleAuth.js.
@@ -33,6 +34,14 @@ async function ga4AccessToken(credentials, authMode) {
 // Search Console reads use the webmasters scope.
 async function gscAccessToken(credentials, authMode) {
   return resolveAccessToken(credentials, authMode, [GSC_SCOPE]);
+}
+
+// Merchant Center reads use the Content API scope. In service-account mode
+// the platform service account must be added as a user on the client's
+// Merchant Center account (Settings → Users); in OAuth mode it's the
+// existing per-user token.
+async function merchantAccessToken(credentials, authMode) {
+  return resolveAccessToken(credentials, authMode, [MERCHANT_SCOPE]);
 }
 
 const SCOPES = [
@@ -511,12 +520,12 @@ async function listGoogleAdsAccounts(credentials) {
   }
 }
 
-async function listMerchantAccounts(credentials) {
-  const creds = await getValidToken(credentials);
+async function listMerchantAccounts(credentials, authMode) {
   try {
+    const accessToken = await merchantAccessToken(credentials, authMode);
     const { data } = await axios.get(
       'https://shoppingcontent.googleapis.com/content/v2.1/accounts/authinfo',
-      { headers: { Authorization: `Bearer ${creds.access_token}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return (data.accountIdentifiers || []).map(acc => ({
       value: String(acc.merchantId || acc.aggregatorId),
@@ -532,20 +541,20 @@ async function listAccounts(credentials, connectorType, authMode) {
     case 'ga4': return listGA4Properties(credentials, authMode);
     case 'google_search_console': return listSearchConsoleSites(credentials, authMode);
     case 'google_ads': return listGoogleAdsAccounts(credentials);
-    case 'google_merchant_center': return listMerchantAccounts(credentials);
+    case 'google_merchant_center': return listMerchantAccounts(credentials, authMode);
     default: return [];
   }
 }
 
 async function fetchMerchantCenterData(credentials, params) {
-  const creds = await getValidToken(credentials);
-  const { merchantId, startDate, endDate } = params;
+  const { merchantId, startDate, endDate, authMode } = params;
   if (!merchantId) throw new Error('Merchant Center account not selected — open the client connectors tab and choose an account.');
+  const accessToken = await merchantAccessToken(credentials, authMode);
 
   const search = (query) => axios.post(
     `https://merchantapi.googleapis.com/reports/v1beta/accounts/${merchantId}:search`,
     { query },
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   try {

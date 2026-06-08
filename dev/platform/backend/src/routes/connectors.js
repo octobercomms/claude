@@ -298,10 +298,12 @@ router.get('/:id/diagnose', async (req, res) => {
       const SA_SCOPE_BY_TYPE = {
         ga4: 'https://www.googleapis.com/auth/analytics.readonly',
         google_search_console: 'https://www.googleapis.com/auth/webmasters.readonly',
+        google_merchant_center: 'https://www.googleapis.com/auth/content',
       };
       const SA_GRANT_NOTE_BY_TYPE = {
         ga4: `Add ${saEmail} as a Viewer on this GA4 property, then retry.`,
         google_search_console: `Add ${saEmail} as a user with Restricted access on this Search Console property, then retry.`,
+        google_merchant_center: `Add ${saEmail} as a user on this Merchant Center account (Settings → Users), then retry.`,
       };
       try {
         const scope = SA_SCOPE_BY_TYPE[row.connector_type] || 'https://www.googleapis.com/auth/analytics.readonly';
@@ -335,6 +337,13 @@ router.get('/:id/diagnose', async (req, res) => {
           } else {
             result.live_test = { status: 'ok', detail: 'Service account token minted; select a site to run a live data test.' };
           }
+        } else if (row.connector_type === 'google_merchant_center') {
+          const testRes = await axios.get(
+            'https://shoppingcontent.googleapis.com/content/v2.1/accounts/authinfo',
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          const accounts = (testRes.data.accountIdentifiers || []).length;
+          result.live_test = { status: 'ok', detail: `${accounts} Merchant Center account(s) accessible` };
         } else {
           result.live_test = { status: 'ok', detail: 'Service account token minted.' };
         }
