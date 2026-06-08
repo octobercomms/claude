@@ -17,6 +17,12 @@ async function generateReport(reportId) {
   await setStatus(reportId, 'generating');
 
   try {
+    // Preflight the Claude key before any expensive data collection or
+    // section rendering. A 401 here aborts cleanly and the outer catch
+    // marks the report 'failed' — no half-generated PDF, no broken
+    // narrative sections reaching client inboxes.
+    await claudeService.verifyApiKey();
+
     const periodStart = report.period_start.toISOString().split('T')[0];
     const periodEnd = report.period_end.toISOString().split('T')[0];
     const period = formatPeriod(report.report_type, periodStart, periodEnd);
@@ -120,6 +126,19 @@ async function generateTemplatedReport({ report, client, period, periodStart, pe
   const resolved = await templateRenderer.resolveTemplate({
     template, client, period, periodStart, periodEnd, rawData, rawDataPrev, rawDataByPeriod, seoData, chatHistory, fxRates,
   });
+
+  // Refuse to ship a report with any section that fell back to
+  // type: 'error'. templateRenderer absorbs per-section throws so the
+  // rest of the pipeline can finish, but the resulting "section" body
+  // is the raw error message (e.g. an Anthropic 401 JSON blob). We
+  // never want that going to a client — throw here so the outer catch
+  // in generateReport marks the report 'failed' and sendReport is
+  // never called.
+  const errorSections = resolved.filter(s => s.type === 'error');
+  if (errorSections.length) {
+    const summary = errorSections.map(s => `${s.id}: ${s.message}`).join(' · ');
+    throw new Error(`Report has ${errorSections.length} failed section(s) — refusing to send. ${summary}`);
+  }
 
   const htmlContent = pdfService.buildTemplateReportHtml({ client, period, sections: resolved });
   const footerLines = [process.env.REPORT_FOOTER_LINE_1, process.env.REPORT_FOOTER_LINE_2, process.env.REPORT_FOOTER_LINE_3].filter(Boolean);

@@ -445,6 +445,24 @@ Respond with just the paragraph. No preamble, no list, no heading.`,
   return textBlocks.length ? textBlocks[textBlocks.length - 1].text.trim() : '';
 }
 
+// Cheap preflight: confirms the Claude API key is configured and working
+// BEFORE we start an expensive report-generation pass. Without this check
+// a bad / placeholder key (e.g. the `.env.example` literal "sk-ant-...")
+// would burn the whole pipeline — every narrative section would 401 and
+// the renderer used to absorb those errors as section bodies, sending
+// raw "invalid x-api-key" JSON to clients. Now we fail loud here.
+async function verifyApiKey() {
+  const key = process.env.CLAUDE_API_KEY;
+  if (!key || key.length < 50) {
+    throw new Error('CLAUDE_API_KEY missing or looks like a placeholder');
+  }
+  await getClient().messages.create({
+    model: MODEL,
+    max_tokens: 4,
+    messages: [{ role: 'user', content: 'ok' }],
+  });
+}
+
 module.exports = {
   generateExecutiveSummary,
   generateWeeklySummary,
@@ -452,4 +470,5 @@ module.exports = {
   suggestMonthlyFocus,
   callClaude,
   chatBuildReportTemplate,
+  verifyApiKey,
 };
