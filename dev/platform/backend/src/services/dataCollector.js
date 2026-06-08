@@ -160,6 +160,7 @@ function buildReportSections(collectedData, connectorErrors) {
     meta_ads: 'Meta Ads',
     instagram_insights: 'Instagram Insights',
     shopify: 'Shopify',
+    shopify_app: 'Shopify',
     shopify_email: 'Shopify Email',
     woocommerce: 'WooCommerce',
     wordpress_plugin: 'WordPress / WooCommerce',

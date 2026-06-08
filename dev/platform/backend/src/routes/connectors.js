@@ -202,6 +202,23 @@ router.post('/:id/check', async (req, res) => {
 
 const AUTH_MODES = ['oauth', 'service_account', 'mcc_link'];
 
+// Generate a one-time pairing token for the Shopify app. The AM creates it
+// here, the merchant pastes it into the app's embedded admin, and the app
+// exchanges it once at /api/shopify-app/install for the client_id. 7-day,
+// single use.
+router.post('/client/:clientId/shopify/pairing-token', async (req, res) => {
+  try {
+    const token = crypto.randomBytes(32).toString('base64url').replace(/[^a-zA-Z0-9]/g, '').slice(0, 24);
+    await pool.query(
+      `INSERT INTO shopify_pairing_tokens (token, client_id, expires_at) VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+      [token, req.params.clientId]
+    );
+    res.status(201).json({ token, expires_in_days: 7 });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create a new connector for a client
 router.post('/client/:clientId', async (req, res) => {
   const { connector_type, store_label, auth_mode } = req.body;

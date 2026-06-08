@@ -1,9 +1,10 @@
 # Platform API contract — October MI Shopify app
 
 The Shopify app calls two endpoints on the October Marketing Intelligence
-platform. **The platform-side routes are a separate, future PR** — they do not
-exist yet. This document is the contract the app is written against so the
-platform team can implement the matching handlers.
+platform. **Status: the platform-side routes are now implemented** (backend
+`src/routes/shopifyApp.js`, connector `shopify_app`, migration
+`067_shopify_app.sql`). This document remains the contract they're built to
+match.
 
 Base URL: `https://platform.octobercomms.com` (overridable via
 `OMI_PLATFORM_BASE_URL`).
