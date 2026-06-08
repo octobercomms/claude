@@ -9,6 +9,31 @@ import './styles/tailwind.css';
 // outside the React tree (event handlers attached imperatively, async
 // code in setTimeouts, etc.) get reported to the backend too. Quietly
 // best-effort.
+// Filter out errors that didn't originate in our own code. Browser
+// extensions (password managers, grammar checkers, outdated form-fillers)
+// inject scripts that often throw — we'd otherwise log every one of
+// them in the daily error digest as if it were ours. Cross-origin
+// 'Script error.' is the standard sanitised message; same-origin
+// errors get checked by stack / filename to make sure the trigger came
+// from our own bundle.
+function isOurError(e) {
+  const filename = e?.filename || e?.error?.fileName || '';
+  if (filename) {
+    if (/^(chrome|moz|safari-web|safari|webkit)-extension:/i.test(filename)) return false;
+    try {
+      const u = new URL(filename, window.location.href);
+      if (u.origin !== window.location.origin) return false;
+    } catch { /* ignore */ }
+  }
+  // Cross-origin without a usable filename — browsers report these as
+  // 'Script error.' with no stack. Treat as not ours.
+  if (!filename && /^Script error\.?$/i.test(String(e?.message || ''))) return false;
+  // Stack traces that reference extension URLs are also a giveaway.
+  const stack = String(e?.error?.stack || e?.reason?.stack || '');
+  if (/(chrome|moz|safari-web|safari|webkit)-extension:/i.test(stack)) return false;
+  return true;
+}
+
 function reportToBackend(payload) {
   try {
     fetch('/api/_internal/log-frontend-error', {
@@ -23,6 +48,7 @@ function reportToBackend(payload) {
   } catch { /* ignore */ }
 }
 window.addEventListener('error', e => {
+  if (!isOurError(e)) return;
   reportToBackend({
     message: String(e?.message || e),
     stack: String(e?.error?.stack || ''),
@@ -32,6 +58,7 @@ window.addEventListener('error', e => {
   });
 });
 window.addEventListener('unhandledrejection', e => {
+  if (!isOurError(e)) return;
   reportToBackend({
     message: String(e?.reason?.message || e?.reason || 'unhandled rejection'),
     stack: String(e?.reason?.stack || ''),

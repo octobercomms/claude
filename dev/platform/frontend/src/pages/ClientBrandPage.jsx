@@ -37,8 +37,23 @@ export default function ClientBrandPage({ embedded = false } = {}) {
   }
   useEffect(() => { refresh(); /* eslint-disable-line */ }, [id]);
 
+  // SVGs are rejected on the server because they can carry inline
+  // <script> tags (XSS risk once we serve them back from our own
+  // origin). Catch it on the client so the AM gets a clear message
+  // instead of a generic upload-failed toast + an entry in the daily
+  // error digest.
+  function rejectIfSvg(file) {
+    if (!file) return false;
+    if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '')) {
+      toast('SVGs are blocked for security — convert to PNG or JPEG and try again.', 'error');
+      return true;
+    }
+    return false;
+  }
+
   async function handleFileUpload(file, kind, name) {
     if (!file) return;
+    if (rejectIfSvg(file)) return;
     setUploadingKind(kind);
     try {
       const fd = new FormData();
@@ -65,6 +80,13 @@ export default function ClientBrandPage({ embedded = false } = {}) {
   // be uploading 30+ files at once. Multipart with multiple files.
   async function handleBulkUpload(files, kind) {
     if (!files?.length) return;
+    // Pre-filter SVGs out of the batch — better than failing the whole
+    // upload because one file in the set was an SVG.
+    const accepted = Array.from(files).filter(f => !(f.type === 'image/svg+xml' || /\.svg$/i.test(f.name || '')));
+    const dropped = files.length - accepted.length;
+    if (dropped > 0) toast(`Skipping ${dropped} SVG file${dropped === 1 ? '' : 's'} — convert to PNG/JPEG to upload.`, 'error');
+    if (!accepted.length) return;
+    files = accepted;
     setUploadingKind(kind);
     try {
       const fd = new FormData();
@@ -130,11 +152,14 @@ export default function ClientBrandPage({ embedded = false } = {}) {
 
       {/* Upload buttons */}
       <div className="row wrap" style={{ marginBottom: 22, padding: 14, background: "var(--surface-raised)", border: "var(--border-w) solid var(--card-border)", borderRadius: "var(--r-sm)" }}>
-        <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/*" />
-        <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/*" />
+        {/* SVG excluded — backend rejects it (inline-script XSS risk).
+            Listing the safe MIME types explicitly so the OS picker
+            doesn't even offer SVG. */}
+        <UploadButton label="+ Upload logo" disabled={uploadingKind === 'logo'} onPick={f => handleFileUpload(f, 'logo')} accept="image/png,image/jpeg,image/webp,image/gif" />
+        <UploadButton label="+ Upload product image" disabled={uploadingKind === 'product_image'} onPick={f => handleFileUpload(f, 'product_image')} accept="image/png,image/jpeg,image/webp,image/gif" />
         <UploadButton label="+ Upload font" disabled={uploadingKind === 'font'} onPick={f => handleFileUpload(f, 'font')} accept=".woff,.woff2,.ttf,.otf" />
         <BulkUploadButton label="+ Bulk upload B-roll" disabled={uploadingKind === 'b_roll_clip'} onPick={files => handleBulkUpload(files, 'b_roll_clip')} accept="video/*" />
-        <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/*" />
+        <BulkUploadButton label="+ Bulk upload props" disabled={uploadingKind === 'prop_image'} onPick={files => handleBulkUpload(files, 'prop_image')} accept="image/png,image/jpeg,image/webp,image/gif" />
         <button className="btn btn-secondary" onClick={() => setShowPaletteForm(true)}>+ Add palette</button>
         <button className="btn btn-secondary" onClick={() => setShowGuidelineForm(true)}>+ Add guideline</button>
       </div>
