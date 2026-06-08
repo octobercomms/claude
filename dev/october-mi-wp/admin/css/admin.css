@@ -1,0 +1,72 @@
+/* October Marketing Intelligence — admin styles. */
+
+.octobermi-wrap .octobermi-tagline {
+	max-width: 720px;
+	font-size: 14px;
+	color: #50575e;
+}
+
+.octobermi-card {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 20px 24px;
+	margin: 16px 0;
+	max-width: 920px;
+}
+
+.octobermi-card h2 {
+	margin-top: 0;
+}
+
+.octobermi-stats {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 24px;
+	margin: 0 0 16px;
+	padding: 0;
+	list-style: none;
+}
+
+.octobermi-stats li {
+	display: flex;
+	flex-direction: column;
+	min-width: 160px;
+}
+
+.octobermi-stat-label {
+	font-size: 12px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #787c82;
+}
+
+.octobermi-stat-value {
+	font-size: 18px;
+	font-weight: 600;
+	color: #1d2327;
+}
+
+.octobermi-log code {
+	font-size: 12px;
+}
+
+.octobermi-log small {
+	display: block;
+	color: #787c82;
+}
+
+.octobermi-ok {
+	color: #008a20;
+	font-weight: 600;
+}
+
+.octobermi-fail {
+	color: #b32d2e;
+	font-weight: 600;
+}
+
+.octobermi-card form {
+	display: inline-block;
+	margin-right: 12px;
+}
