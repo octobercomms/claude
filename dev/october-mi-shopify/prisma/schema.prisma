@@ -1,0 +1,47 @@
+// Prisma schema for the October Marketing Intelligence Shopify app.
+// The Session model is the standard Shopify session store consumed by
+// @shopify/shopify-app-session-storage-prisma. The StorePairing model
+// records the link between a shop and its October MI client account.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite for local dev. Switch the provider + DATABASE_URL to
+  // postgresql for the shopify-app.octobercomms.com deployment.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Session {
+  id            String    @id
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        BigInt?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
+}
+
+// Local record of the pairing between a Shopify shop and an October MI client.
+// Populated when the merchant submits their pairing token and the platform
+// confirms the link. Cleared on app uninstall / shop redaction.
+model StorePairing {
+  id          String   @id @default(cuid())
+  shop        String   @unique
+  clientId    String?
+  clientName  String?
+  pairedAt    DateTime @default(now())
+  lastSyncAt  DateTime?
+  eventsThisWeek Int    @default(0)
+  status      String   @default("connected")
+}
