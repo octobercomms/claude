@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import RefineChat from './RefineChat';
 
 const CHANNELS = [
   { value: 'email',            label: 'Email',              tone: 'accent'  },
@@ -14,12 +15,15 @@ const CHANNELS = [
   { value: 'linkedin_message', label: 'LinkedIn · message',  tone: 'outline' },
   { value: 'manual_task',      label: 'Manual task',         tone: 'neutral' },
 ];
+const VALID_CHANNELS = new Set(CHANNELS.map(c => c.value));
 
-export default function SequenceBuilder({ campaignId }) {
+export default function SequenceBuilder({ campaignId, clientId }) {
   const toast = useToast();
   const [steps, setSteps] = useState(null);
   const [dragId, setDragId] = useState(null);
   const [dirtyMap, setDirtyMap] = useState({});
+  const [refineOpen, setRefineOpen] = useState(false);
+  const [refineErr, setRefineErr] = useState(null);
 
   async function refresh() {
     try {
@@ -86,9 +90,24 @@ export default function SequenceBuilder({ campaignId }) {
     } catch (e) { toast(e.message, 'error'); refresh(); }
   }
 
+  async function applyRefinedSequence(content) {
+    const parsed = parseSequenceSteps(content);
+    if (!parsed || !parsed.length) {
+      setRefineErr('Could not parse the revised sequence. Ask Claude to use the STEP N / CHANNEL: / DELAY: / BODY: format.');
+      return;
+    }
+    setRefineErr(null);
+    try {
+      const saved = await api.post(`/outreach/campaigns/${campaignId}/sequences/replace`, { steps: parsed });
+      setSteps(saved);
+      setDirtyMap({});
+      toast(`Sequence replaced — ${saved.length} step${saved.length === 1 ? '' : 's'}.`, 'success');
+    } catch (e) { toast(`Apply failed: ${e.message}`, 'error'); }
+  }
+
   if (!steps) return <div className="text-subtle">Loading sequence…</div>;
 
-  return (
+  const builderInner = (
     <div className="sequence-builder">
       {steps.length === 0 && (
         <div className="empty">
@@ -116,6 +135,79 @@ export default function SequenceBuilder({ campaignId }) {
       <AddSlot onAdd={(ch) => addStep(ch)} />
     </div>
   );
+
+  return (
+    <div>
+      {clientId && (
+        <div className="row between center mb-3">
+          <div className="caption text-subtle">{steps.length} step{steps.length === 1 ? '' : 's'}</div>
+          <button onClick={() => setRefineOpen(o => !o)} className={`btn ${refineOpen ? 'btn-primary' : 'btn-secondary'} btn-sm`}>
+            {refineOpen ? 'Hide Claude' : '✦ Refine with Claude'}
+          </button>
+        </div>
+      )}
+      {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
+      <div style={{ display: refineOpen ? 'grid' : 'block', gridTemplateColumns: refineOpen ? 'minmax(0, 1fr) 380px' : undefined, gap: refineOpen ? 'var(--s4)' : 0 }}>
+        <div>{builderInner}</div>
+        {refineOpen && clientId && (
+          <RefineChat
+            clientId={clientId}
+            kind="outreach_sequence"
+            artifact={renderSequenceForArtifact(steps)}
+            artifactMeta={`${steps.length} step${steps.length === 1 ? '' : 's'}`}
+            onApplyRevision={applyRefinedSequence}
+            onClose={() => setRefineOpen(false)}
+            compact
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Render the whole sequence as a single labelled text block so Claude
+// can reason across steps (cadence, length, redundancy). The format
+// matches what we expect back so Claude has a strong template to echo.
+function renderSequenceForArtifact(steps) {
+  if (!steps?.length) return '(empty sequence)';
+  return steps.map((s, i) => {
+    const lines = [
+      `STEP ${i + 1}`,
+      `CHANNEL: ${s.channel || 'email'}`,
+      `DELAY: ${s.delay_days ?? 0} days`,
+    ];
+    if ((s.channel || 'email') === 'email' && s.subject) lines.push(`SUBJECT: ${s.subject}`);
+    lines.push(`BODY: ${s.body || ''}`);
+    return lines.join('\n');
+  }).join('\n\n');
+}
+
+// Parse Claude's revision back into [{ channel, delay_days, subject,
+// body }] for the bulk-replace endpoint. Tolerant of markdown bold,
+// stray fences, and missing optional fields. Returns null if no STEP
+// blocks were found so the caller can show a friendly error.
+function parseSequenceSteps(text) {
+  if (!text) return null;
+  const cleaned = String(text).replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').replace(/\*\*/g, '').trim();
+  const blocks = cleaned.split(/(?=^\s*step\s+\d+\b)/im).map(b => b.trim()).filter(Boolean);
+  if (!blocks.length) return null;
+  const steps = [];
+  for (const block of blocks) {
+    if (!/^step\s+\d+/i.test(block)) continue;
+    const channelMatch = block.match(/(?:^|\n)\s*channel\s*:\s*([^\n]+)/i);
+    const delayMatch   = block.match(/(?:^|\n)\s*delay\s*:\s*(-?\d+)/i);
+    const subjectMatch = block.match(/(?:^|\n)\s*subject\s*:\s*([^\n]+)/i);
+    const bodyMatch    = block.match(/(?:^|\n)\s*body\s*:\s*([\s\S]*?)(?=\n\s*step\s+\d+\b|$)/i);
+    let channel = (channelMatch?.[1] || 'email').trim().toLowerCase().replace(/\s+/g, '_');
+    if (!VALID_CHANNELS.has(channel)) channel = 'email';
+    steps.push({
+      channel,
+      delay_days: delayMatch ? parseInt(delayMatch[1], 10) : 0,
+      subject: subjectMatch ? subjectMatch[1].trim() : null,
+      body: bodyMatch ? bodyMatch[1].trim() : '',
+    });
+  }
+  return steps.length ? steps : null;
 }
 
 function AddSlot({ onAdd }) {
