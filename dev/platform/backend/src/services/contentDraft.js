@@ -14,6 +14,7 @@
 const crypto = require('crypto');
 const pool = require('../db');
 const claudeService = require('./claude');
+const brandVoice = require('./brandVoice');
 
 const DRAFT_MODEL = 'claude-sonnet-4-6';
 
@@ -121,9 +122,14 @@ async function generateDraft({ clientId, brief, targetKeyword }) {
   const client = clientRows[0];
 
   const brandSummary = await loadBrandContext(clientId);
+  // Brand voice profile — extracted from real existing brand pages.
+  // Injected as a structured rubric so the draft inherits the client's
+  // voice rather than reading like generic AI prose.
+  const voiceProfile = await brandVoice.loadActiveProfile(clientId);
+  const voiceContext = brandVoice.renderForPrompt(voiceProfile);
 
   const userPrompt = `Client: ${client.name}
-Domain: ${client.domain || '(not set)'}
+Domain: ${client.domain || '(not set)'}${voiceContext}
 Brand briefing / tone-of-voice:
 ${client.briefing_field || '(no briefing supplied — infer voice from brand assets)'}
 

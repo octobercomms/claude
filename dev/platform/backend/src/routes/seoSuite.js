@@ -980,4 +980,35 @@ router.get('/clients/:clientId/dofollow-split', async (req, res) => {
   } catch (err) { res.status(502).json({ error: err.message }); }
 });
 
+// ─── BRAND VOICE PROFILE ───────────────────────────────────────────────────
+// One active profile per client. Re-running marks the previous one
+// inactive (history preserved). Cluster briefs + full drafts read the
+// active profile automatically via brandVoice.loadActiveProfile().
+const brandVoice = require('../services/brandVoice');
+
+router.get('/clients/:clientId/brand-voice', async (req, res) => {
+  try {
+    const active = await brandVoice.loadActiveProfile(req.params.clientId);
+    const { rows: history } = await pool.query(
+      `SELECT id, source_urls, status, started_at, completed_at, error_message
+       FROM brand_voice_profiles
+       WHERE client_id = $1
+       ORDER BY started_at DESC LIMIT 20`,
+      [req.params.clientId]
+    );
+    res.json({ active, history });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/brand-voice', async (req, res) => {
+  const { urls } = req.body || {};
+  if (!Array.isArray(urls) || !urls.length) return res.status(400).json({ error: 'urls array required' });
+  try {
+    // Fire-and-respond — Claude analysis takes 20–40s.
+    brandVoice.runExtraction({ clientId: req.params.clientId, urls })
+      .catch(err => console.error('[brandVoice] background extraction failed:', err.message));
+    res.status(202).json({ status: 'started' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
