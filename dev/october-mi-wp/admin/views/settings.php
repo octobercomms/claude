@@ -140,20 +140,8 @@ foreach ( $log as $entry ) {
 	<div class="octobermi-card">
 		<h2><?php esc_html_e( 'Automatic updates', 'october-mi' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'Add a GitHub fine-grained token (Contents: read) so the plugin can update itself from the October release feed.', 'october-mi' ); ?>
+			<?php esc_html_e( 'This plugin updates itself automatically from the October platform — no token or manual download needed. New versions appear on the WordPress Updates screen and install on schedule.', 'october-mi' ); ?>
 		</p>
-		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<input type="hidden" name="action" value="octobermi_save_token" />
-			<?php wp_nonce_field( 'octobermi_save_token' ); ?>
-			<p>
-				<label for="octobermi_github_token"><strong><?php esc_html_e( 'Update token', 'october-mi' ); ?></strong></label><br />
-				<input type="password" id="octobermi_github_token" name="octobermi_github_token" class="regular-text" autocomplete="off"
-					placeholder="<?php echo ! empty( $settings['github_token'] ) ? '********' : 'github_pat_…'; ?>" />
-			</p>
-			<p>
-				<button type="submit" class="button"><?php esc_html_e( 'Save token', 'october-mi' ); ?></button>
-			</p>
-		</form>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="octobermi_test_update" />
 			<?php wp_nonce_field( 'octobermi_test_update' ); ?>

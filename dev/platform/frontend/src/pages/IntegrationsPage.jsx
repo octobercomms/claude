@@ -54,8 +54,9 @@ const SECTIONS = [
     summary: 'Install the plugin, paste a pairing token — data flows out to us.',
     body: [
       'For WooCommerce/WordPress clients, the **October Marketing Intelligence** plugin replaces fragile REST polling: the site pushes orders, customers, products, inventory, content and SEO scores out to the platform (and can receive draft posts back).',
-      '**Get the file:** download the latest `october-marketing-intelligence.zip` from **[GitHub Releases](https://github.com/octobercomms/claude/releases)** (tagged `omi-wp-v…`). The plugin self-updates from there afterwards.',
+      '**Get the file:** use **Download WordPress plugin** in the Tools panel above (served straight from the platform).',
       '**Install (on the client\'s WordPress):** Plugins → Add New → Upload Plugin → choose the ZIP → Activate.',
+      '**Updates are automatic:** the plugin updates itself from the platform — no token, no re-upload. When a new version is deployed here, paired sites pick it up on the WordPress Updates screen and install it on schedule.',
       '**Pair it:** in WP admin go to **Tools → October Marketing Intelligence**, paste a **pairing token**, and click Connect. Generate the token below (Tools panel → pick the client → WordPress).',
       '**Verify:** the plugin\'s admin screen shows "Connected to [client name]", last sync, and a count of events pushed. The connector also appears on the client\'s Connectors tab.',
       'Publishing back: the Organic → Publish step can push drafts straight into the client\'s WordPress through the plugin (bypassing the WAF). Pick the plugin connector as the WordPress target.',
@@ -166,8 +167,8 @@ function IntegrationTools() {
         <a className="btn btn-secondary btn-sm" href="/api/integrations/gtm-container" download>
           ↓ Download GTM container (october-mi-v1.json)
         </a>
-        <a className="btn btn-secondary btn-sm" href="https://github.com/octobercomms/claude/releases" target="_blank" rel="noopener noreferrer">
-          ↗ WordPress plugin (GitHub Releases)
+        <a className="btn btn-secondary btn-sm" href="/api/integrations/wordpress-plugin" download>
+          ↓ Download WordPress plugin (.zip)
         </a>
       </div>
 
