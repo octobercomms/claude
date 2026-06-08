@@ -8,7 +8,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
-const { execFileSync } = require('child_process');
+const wpPackage = require('../services/wpPluginPackage');
 
 const router = express.Router();
 
@@ -18,13 +18,7 @@ const router = express.Router();
 const REPO_ROOT = path.join(__dirname, '..', '..', '..', '..', '..');
 const GTM_CONTAINER = path.join(REPO_ROOT, 'docs', 'october-mi-gtm', 'october-mi-v1.json');
 
-const WP_SLUG = 'october-marketing-intelligence';
-const WP_PLUGIN_DIR = path.join(REPO_ROOT, 'dev', 'october-mi-wp');
-const WP_PLUGIN_MAIN = path.join(WP_PLUGIN_DIR, `${WP_SLUG}.php`);
-const WP_BUILD_SCRIPT = path.join(WP_PLUGIN_DIR, 'bin', 'build-zip.sh');
-// Built zips live here; update.sh pre-builds on deploy, and we build on demand
-// as a fallback. Kept out of git (see .gitignore).
-const WP_ZIP_DIR = path.join(__dirname, '..', '..', 'assets', 'plugin');
+const WP_SLUG = wpPackage.SLUG;
 
 router.get('/gtm-container', (req, res) => {
   if (!fs.existsSync(GTM_CONTAINER)) {
@@ -36,41 +30,15 @@ router.get('/gtm-container', (req, res) => {
 });
 
 // ─── WordPress plugin distribution ──────────────────────────────────────────
-// The platform is the single distribution point: it serves the plugin zip built
-// from the deployed source, and the plugin's self-updater polls /info. A merge
-// that bumps the version → deploy rebuilds the zip → every paired site updates,
-// with no GitHub token on any site.
-
-function readPluginVersion() {
-  try {
-    const src = fs.readFileSync(WP_PLUGIN_MAIN, 'utf8');
-    const m = src.match(/^\s*\*\s*Version:\s*(.+)$/m);
-    return m ? m[1].trim() : null;
-  } catch {
-    return null;
-  }
-}
-
-// Path to the current plugin zip, building it on demand if the deploy step
-// didn't (or this is a fresh box). Returns { version, path } or null.
-function ensurePluginZip() {
-  const version = readPluginVersion();
-  if (!version) return null;
-  const target = path.join(WP_ZIP_DIR, `${WP_SLUG}-${version}.zip`);
-  if (fs.existsSync(target)) return { version, path: target };
-  try {
-    fs.mkdirSync(WP_ZIP_DIR, { recursive: true });
-    execFileSync('bash', [WP_BUILD_SCRIPT, WP_ZIP_DIR], { stdio: 'ignore' });
-  } catch (err) {
-    console.error('[integrations] plugin zip build failed (is `zip` installed?):', err.message);
-    return null;
-  }
-  return fs.existsSync(target) ? { version, path: target } : null;
-}
+// The platform is the single distribution point: it builds the plugin zip from
+// the deployed source (dependency-free, see services/wpPluginPackage.js) and
+// the plugin's self-updater polls /info. A merge that bumps the version →
+// deploy rebuilds the zip → every paired site updates, with no GitHub token on
+// any site and no `zip` CLI on the host.
 
 // Manifest the plugin's self-updater polls.
 router.get('/wordpress-plugin/info', (req, res) => {
-  const version = readPluginVersion();
+  const version = wpPackage.pluginVersion();
   if (!version) return res.status(503).json({ error: 'Plugin version unavailable.' });
   const base = `${req.protocol}://${req.get('host')}`;
   res.json({
@@ -85,7 +53,12 @@ router.get('/wordpress-plugin/info', (req, res) => {
 // The plugin zip itself (initial install from the Integrations page, and the
 // self-updater's download).
 router.get('/wordpress-plugin', (req, res) => {
-  const built = ensurePluginZip();
+  let built;
+  try {
+    built = wpPackage.ensurePluginZip();
+  } catch (err) {
+    console.error('[integrations] plugin package build failed:', err.message);
+  }
   if (!built) {
     return res.status(503).json({ error: 'The plugin package is not available yet — try again shortly.' });
   }

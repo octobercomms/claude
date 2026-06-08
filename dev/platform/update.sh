@@ -21,12 +21,11 @@ npm install --omit=dev --silent
 
 echo "==> Building WordPress plugin package..."
 # The platform is the plugin's distribution point: it serves this zip to new
-# installs and to the self-updater. Building it on deploy means a merge that
-# bumps the plugin version rolls out to every paired site. Non-fatal — if 'zip'
-# isn't installed the backend rebuilds it on demand instead.
-mkdir -p "$SOURCE_DIR/dev/platform/backend/assets/plugin"
-( cd "$SOURCE_DIR/dev/october-mi-wp" && bash bin/build-zip.sh "$SOURCE_DIR/dev/platform/backend/assets/plugin" ) \
-  || echo "    (plugin package build skipped — ensure 'zip' is installed on the host)"
+# installs and to the self-updater. Built in pure Node (no `zip` CLI needed) so
+# a merge that bumps the plugin version rolls out to every paired site on
+# deploy. Non-fatal — the backend also builds it on demand.
+node -e "require('./src/services/wpPluginPackage').ensurePluginZip()" \
+  || echo "    (plugin package prebuild skipped — backend will build it on first request)"
 
 echo "==> Rebuilding frontend..."
 cd "$SOURCE_DIR/dev/platform/frontend"
