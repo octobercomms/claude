@@ -4,9 +4,9 @@ This documents the platform endpoints the WordPress plugin calls, and the one
 route the plugin exposes for the platform to call back. It is the **spec the
 platform-side team implements**.
 
-> The platform `/api/wp-connect/*` ingest routes are a **separate, future PR** —
-> they do not exist yet. This file defines what the plugin sends so they can be
-> built to match.
+> **Status:** the platform `/api/wp-connect/*` ingest routes are now implemented
+> (backend `src/routes/wpConnect.js`, connector `wordpress_plugin`, migration
+> `066_wp_connect.sql`). This file remains the contract they're built to match.
 
 - **Platform base:** `https://platform.octobercomms.com`
 - **Outbound prefix:** `/api/wp-connect/`

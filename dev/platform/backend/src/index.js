@@ -88,7 +88,16 @@ app.use(cors({
     ? process.env.PLATFORM_URL
     : ['http://localhost:3000', 'http://localhost:5173'],
 }));
-app.use(express.json({ limit: '10mb' }));
+// Capture the raw body so HMAC-signed webhooks (the WordPress plugin ingest)
+// can verify signatures over the exact bytes the sender signed.
+app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
+
+// WordPress plugin ingest — called by client WP sites with per-request HMAC
+// auth (no platform session). Mounted before the global per-IP limiter so a
+// busy store's event stream isn't throttled by the dashboard cap; it has its
+// own generous limiter and verifies every signature.
+const wpConnectLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
+app.use('/api/wp-connect', wpConnectLimiter, require('./routes/wpConnect'));
 
 // Rate limiting on auth endpoint
 const authLimiter = rateLimit({

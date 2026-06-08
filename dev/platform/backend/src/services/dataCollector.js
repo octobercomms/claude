@@ -162,6 +162,7 @@ function buildReportSections(collectedData, connectorErrors) {
     shopify: 'Shopify',
     shopify_email: 'Shopify Email',
     woocommerce: 'WooCommerce',
+    wordpress_plugin: 'WordPress / WooCommerce',
     klaviyo: 'Klaviyo',
     brevo: 'Brevo',
     amazon_seller: 'Amazon Seller',
