@@ -27,9 +27,9 @@ router.post('/pair', async (req, res) => {
 
     const { rows } = await pool.query(
       `SELECT t.client_id, t.used_at, t.expires_at, c.name AS client_name
-         FROM wp_pairing_tokens t
+         FROM pairing_tokens t
          JOIN clients c ON c.id = t.client_id
-        WHERE t.token = $1`,
+        WHERE t.token = $1 AND t.surface = 'wordpress'`,
       [token]
     );
     if (!rows.length) return res.status(404).json({ message: 'Unknown pairing token. Generate a new one in the dashboard.' });
@@ -68,7 +68,7 @@ router.post('/pair', async (req, res) => {
     }
 
     // Burn the token.
-    await pool.query(`UPDATE wp_pairing_tokens SET used_at = NOW() WHERE token = $1`, [token]);
+    await pool.query(`UPDATE pairing_tokens SET used_at = NOW() WHERE token = $1`, [token]);
 
     return res.json({ client_id: clientId, refresh_secret: refreshSecret, client_name: row.client_name });
   } catch (err) {

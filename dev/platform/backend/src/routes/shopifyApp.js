@@ -66,9 +66,9 @@ router.post('/install', verifyForwardSignature, async (req, res) => {
 
     const { rows } = await pool.query(
       `SELECT t.client_id, t.used_at, t.expires_at, c.name AS client_name
-         FROM shopify_pairing_tokens t
+         FROM pairing_tokens t
          JOIN clients c ON c.id = t.client_id
-        WHERE t.token = $1`,
+        WHERE t.token = $1 AND t.surface = 'shopify'`,
       [pairing_token]
     );
     if (!rows.length || rows[0].used_at || (rows[0].expires_at && new Date(rows[0].expires_at) < new Date())) {
@@ -97,7 +97,7 @@ router.post('/install', verifyForwardSignature, async (req, res) => {
       );
     }
 
-    await pool.query(`UPDATE shopify_pairing_tokens SET used_at = NOW() WHERE token = $1`, [pairing_token]);
+    await pool.query(`UPDATE pairing_tokens SET used_at = NOW() WHERE token = $1`, [pairing_token]);
     return res.json({ ok: true, client_id: clientId, client_name: rows[0].client_name });
   } catch (err) {
     console.error('[shopify-app] install failed:', err.message);
