@@ -708,6 +708,26 @@ button { font-family: inherit; }
 }
 .tabs-sub .tab { font-size: 13px; padding: var(--s2) 0; }
 
+/* Inline group label inside a tabs strip — visually separates clusters
+   of tabs without forcing a third nav tier. Tiny, uppercase, muted —
+   reads as 'these next tabs are about X'. */
+.tabs .tab-group-label {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-subtle);
+  padding: var(--s2) 0;
+  margin-left: var(--s3);
+  margin-right: calc(var(--s2) * -1);
+}
+.tabs .tab-group-label::before {
+  content: ""; display: inline-block;
+  width: 1px; height: 14px; margin-right: var(--s3);
+  background: var(--card-border);
+}
+.tabs .tab-group-label:first-child::before { display: none; margin: 0; }
+.tabs .tab-group-label:first-child { margin-left: 0; }
+
 /* ─── Form controls ──────────────────────────────────────────────── */
 
 .input, .select, .textarea {

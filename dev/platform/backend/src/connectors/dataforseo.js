@@ -71,6 +71,26 @@ async function checkTokenValidity(credentials) {
   return true;
 }
 
+// Top N organic SERP URLs for a keyword — used to ground the cluster
+// brief outline in what's actually winning page 1 right now, not what
+// Claude guesses people might want. Returns just url + title.
+async function fetchTopSerpResults(keyword, { locationCode = 2826, limit = 10 } = {}) {
+  const client = await getClient();
+  const { data } = await client.post('/serp/google/organic/live/advanced', [{
+    keyword,
+    location_code: locationCode,
+    language_code: 'en',
+    device: 'desktop',
+    depth: Math.min(limit + 3, 20),
+    se_domain: 'google.co.uk',
+  }]);
+  const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  return items
+    .filter(i => i.type === 'organic' && i.url)
+    .slice(0, limit)
+    .map(i => ({ url: i.url, title: i.title || '', description: i.description || '' }));
+}
+
 async function checkRank(keyword) {
   const client = await getClient();
 
@@ -249,6 +269,54 @@ async function fetchBacklinkData(domain) {
   return data.tasks[0].result[0];
 }
 
+// Anchor text distribution — what words are linking TO the client's
+// domain. DFS returns each unique anchor + the backlink count using it
+// + the count of referring domains. Gated like the rest of the
+// Backlinks API; reads zero post-cutover when DFS is locked.
+async function fetchAnchorTextDistribution(domain, { limit = 100 } = {}) {
+  const client = await getClient();
+  const { data } = await client.post('/backlinks/anchors/live', [{
+    target: normalizeDomain(domain),
+    limit,
+    order_by: ['backlinks,desc'],
+    mode: 'as_is',
+  }]);
+  const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  return items.map(i => ({
+    anchor: i.anchor || '',
+    backlinks: i.backlinks || 0,
+    referring_domains: i.referring_domains || 0,
+    first_seen: i.first_seen || null,
+    lost_date: i.lost_date || null,
+  })).filter(a => a.anchor);
+}
+
+// Dofollow / nofollow split — sample the backlinks index, separating by
+// the dofollow flag. We use a sample (200) rather than full pull because
+// the absolute counts are already in the summary; we just want the
+// proportion. Cheap.
+async function fetchDofollowSplit(domain) {
+  const client = await getClient();
+  const cleanDomain = normalizeDomain(domain);
+  // DFS doesn't expose a direct "count dofollow vs nofollow" endpoint;
+  // closest is filtering /backlinks/backlinks/live by dofollow=true vs
+  // dofollow=false, with a 1-row limit, and reading the totals from
+  // the response's `items_count` metadata.
+  const [dofollowRes, nofollowRes] = await Promise.all([
+    client.post('/backlinks/backlinks/live', [{
+      target: cleanDomain, mode: 'as_is', limit: 1,
+      filters: [['dofollow', '=', true]],
+    }]),
+    client.post('/backlinks/backlinks/live', [{
+      target: cleanDomain, mode: 'as_is', limit: 1,
+      filters: [['dofollow', '=', false]],
+    }]),
+  ]);
+  const dofollow = dofollowRes.data.tasks?.[0]?.result?.[0]?.total_count || 0;
+  const nofollow = nofollowRes.data.tasks?.[0]?.result?.[0]?.total_count || 0;
+  return { dofollow, nofollow, total: dofollow + nofollow };
+}
+
 async function fetchDomainAuthority(domain) {
   const client = await getClient();
   const { data } = await client.post('/domain_analytics/whois/overview/live', [{
@@ -412,4 +480,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };

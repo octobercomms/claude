@@ -947,4 +947,37 @@ router.get('/clients/:clientId/keyword-footprint', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── BACKLINKS: ANCHOR TEXT + DOFOLLOW SPLIT ───────────────────────────────
+// DFS Backlinks endpoints — gated until 1 Jul 2026. Pre-cutover the
+// route returns a 503 with the unlock date; post-cutover it works.
+const { isUnlocked } = require('../services/dfsAvailability');
+
+router.get('/clients/:clientId/anchor-text', async (req, res) => {
+  if (!isUnlocked('backlinks')) {
+    return res.status(503).json({
+      error: 'Backlinks anchor-text is gated until DataForSEO Backlinks unlocks on 1 July 2026.',
+    });
+  }
+  try {
+    const { rows } = await pool.query('SELECT domain FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length || !rows[0].domain) return res.status(400).json({ error: 'Client has no domain set' });
+    const anchors = await dataForSEO.fetchAnchorTextDistribution(rows[0].domain, { limit: 100 });
+    res.json({ anchors });
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/dofollow-split', async (req, res) => {
+  if (!isUnlocked('backlinks')) {
+    return res.status(503).json({
+      error: 'Backlinks dofollow split is gated until DataForSEO Backlinks unlocks on 1 July 2026.',
+    });
+  }
+  try {
+    const { rows } = await pool.query('SELECT domain FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!rows.length || !rows[0].domain) return res.status(400).json({ error: 'Client has no domain set' });
+    const split = await dataForSEO.fetchDofollowSplit(rows[0].domain);
+    res.json(split);
+  } catch (err) { res.status(502).json({ error: err.message }); }
+});
+
 module.exports = router;
