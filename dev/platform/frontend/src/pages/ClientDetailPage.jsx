@@ -88,6 +88,7 @@ export default function ClientDetailPage() {
   const [credValues, setCredValues] = useState({});
   const [addAnotherModal, setAddAnotherModal] = useState(null);
   const [shopifyModal, setShopifyModal] = useState(null);
+  const [connectGoogleModal, setConnectGoogleModal] = useState(null); // { types: [...] }
 
   useEffect(() => {
     Promise.all([
@@ -197,6 +198,17 @@ export default function ClientDetailPage() {
     } catch (err) {
       toast(err.message, 'error');
     }
+  }
+
+  // Create a Google connector on the durable auth path (service account, or
+  // an MCC link for Ads). Returns the new connector plus its diagnose result
+  // so the modal can surface the service-account email / live test.
+  async function connectGoogleDurable(type, authMode) {
+    const conn = await api.post(`/connectors/client/${id}`, { connector_type: type, auth_mode: authMode });
+    setConnectors(prev => [...prev, conn]);
+    let diagnose = null;
+    try { diagnose = await api.get(`/connectors/${conn.id}/diagnose`); } catch {}
+    return { conn, diagnose };
   }
 
   async function deleteConnector(connectorId) {
@@ -424,8 +436,8 @@ export default function ClientDetailPage() {
                   <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700 }}>{group.label}</h3>
                   {group.oauth && unconnected.length > 0 && (
                     <button onClick={() => {
-                      const firstUnconnected = unconnected[0];
-                      addConnector(firstUnconnected);
+                      if (group.oauth === 'google') setConnectGoogleModal({ types: unconnected });
+                      else addConnector(unconnected[0]);
                     }} className="btn btn-secondary btn-sm">
                       + Connect {group.label}
                     </button>
@@ -460,6 +472,9 @@ export default function ClientDetailPage() {
                         <span style={{ fontSize: 13, color: 'var(--text-subtle)' }}>{CONNECTOR_LABELS[type]}</span>
                         {!group.oauth && (
                           <button onClick={() => addConnector(type)} className="btn btn-secondary btn-sm">+ Add</button>
+                        )}
+                        {group.oauth === 'google' && (
+                          <button onClick={() => setConnectGoogleModal({ types: [type] })} className="btn btn-secondary btn-sm">Connect</button>
                         )}
                       </div>
                     ))}
@@ -712,6 +727,15 @@ export default function ClientDetailPage() {
             setShopifyModal(null);
           }}
           onClose={() => setShopifyModal(null)}
+        />
+      )}
+
+      {connectGoogleModal && (
+        <ConnectGoogleModal
+          types={connectGoogleModal.types}
+          onOAuth={(type) => { addConnector(type); setConnectGoogleModal(null); }}
+          onDurable={connectGoogleDurable}
+          onClose={() => setConnectGoogleModal(null)}
         />
       )}
 
@@ -1032,6 +1056,11 @@ function ConnectorRow({ connector, clientId, onCheck, onOpenOAuth, onOpenShopify
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontWeight: 600, fontSize: 13 }}>{CONNECTOR_LABELS[connector.connector_type] || connector.connector_type}</span>
+          {connector.auth_mode && connector.auth_mode !== 'oauth' && (
+            <span title="Durable auth — never expires" style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.4, color: 'var(--text-muted)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: '1px 6px' }}>
+              {connector.auth_mode === 'mcc_link' ? 'MCC link' : 'Service acct'}
+            </span>
+          )}
           {editingLabel ? (
             <span style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
               <input
@@ -1328,6 +1357,120 @@ function Field({ label, children }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</label>
       {children}
+    </div>
+  );
+}
+
+// Two-mode connect flow for the Google connectors: the durable path
+// (service account, or an MCC link for Ads) alongside the existing one-click
+// OAuth. Durable connections never expire, which is the whole point of the
+// dual-auth work — OAuth tokens get revoked when staff/passwords change.
+const GOOGLE_DURABLE = {
+  ga4: { mode: 'service_account', label: 'Use a service account', grant: 'Add the service-account email below as a Viewer on the client’s GA4 property.' },
+  google_search_console: { mode: 'service_account', label: 'Use a service account', grant: 'Add the service-account email below as a user with Restricted access on the client’s Search Console property.' },
+  google_merchant_center: { mode: 'service_account', label: 'Use a service account', grant: 'Add the service-account email below as a user on the client’s Merchant Center account (Settings → Users).' },
+  google_ads: { mode: 'mcc_link', label: 'Link my MCC account', grant: 'Accept the manager (MCC) link request in the client’s Google Ads account. The platform reaches the account through the configured MCC — no per-client sign-in.' },
+};
+
+function ConnectGoogleModal({ types, onOAuth, onDurable, onClose }) {
+  const [type, setType] = useState(types[0]);
+  const [choice, setChoice] = useState('durable'); // 'durable' (recommended) | 'oauth'
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null); // { conn, diagnose }
+  const [copied, setCopied] = useState(false);
+  const durable = GOOGLE_DURABLE[type] || GOOGLE_DURABLE.ga4;
+
+  async function confirm() {
+    if (choice === 'oauth') { onOAuth(type); return; }
+    setBusy(true);
+    try {
+      setDone(await onDurable(type, durable.mode));
+    } catch (err) {
+      setDone({ conn: null, diagnose: { live_test: { status: 'error', error: err.message } } });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) {
+    const email = done.diagnose?.service_account_email;
+    const live = done.diagnose?.live_test;
+    const accLabel = ACCOUNT_LABEL[type] || 'account';
+    const liveColour = live?.status === 'ok' ? 'var(--success, #15803d)' : 'var(--warning, #b45309)';
+    return (
+      <div className="modal-backdrop">
+        <div className="modal">
+          <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>{CONNECTOR_LABELS[type]} — next step</h3>
+          <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>{durable.grant}</p>
+          {type !== 'google_ads' && email && (
+            <Field label="Service-account email">
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="input" readOnly value={email} onFocus={e => e.target.select()} />
+                <button className="btn btn-secondary btn-sm" onClick={() => { try { navigator.clipboard.writeText(email); setCopied(true); } catch { /* clipboard unavailable */ } }}>
+                  {copied ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </Field>
+          )}
+          {type === 'google_ads' && (
+            <p style={{ margin: '0 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+              Manager account (MCC): <strong>{done.diagnose?.mcc_id || 'set GOOGLE_ADS_MCC_ID in Settings'}</strong>
+            </p>
+          )}
+          {live && (
+            <p style={{ margin: '12px 0 0', fontSize: 12, color: liveColour, lineHeight: 1.5 }}>
+              Live check: {live.status === 'ok' ? live.detail : (live.error || 'pending access')}
+              {live.note ? ` — ${live.note}` : ''}
+            </p>
+          )}
+          <p style={{ margin: '12px 0 0', fontSize: 12, color: 'var(--text-muted)' }}>
+            Then choose the {accLabel} for this connector in the row below and run Diagnose to confirm.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+            <button onClick={onClose} className="btn btn-primary">Done</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const radio = (value, title, sub) => (
+    <label style={{ display: 'flex', gap: 10, alignItems: 'flex-start', cursor: 'pointer', padding: '10px 12px', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', background: choice === value ? 'var(--surface-raised)' : 'transparent' }}>
+      <input type="radio" name="authmode" checked={choice === value} onChange={() => setChoice(value)} style={{ marginTop: 2 }} />
+      <span>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{title}</span>
+        <span style={{ display: 'block', fontSize: 12, color: 'var(--text-muted)' }}>{sub}</span>
+      </span>
+    </label>
+  );
+
+  return (
+    <div className="modal-backdrop">
+      <div className="modal">
+        <h3 style={{ margin: '0 0 8px', fontSize: 15 }}>Connect {types.length > 1 ? 'Google' : CONNECTOR_LABELS[type]}</h3>
+        <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          Choose how this connector authenticates. The durable path never expires; OAuth is one click but breaks when staff leave or passwords change.
+        </p>
+        {types.length > 1 && (
+          <div style={{ marginBottom: 14 }}>
+            <Field label="Connector">
+              <select className="input" value={type} onChange={e => { setType(e.target.value); }}>
+                {types.map(t => <option key={t} value={t}>{CONNECTOR_LABELS[t]}</option>)}
+              </select>
+            </Field>
+          </div>
+        )}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {radio('durable', `${durable.label} (recommended)`, 'Never expires. The client grants the platform access once.')}
+          {radio('oauth', 'Sign in with Google', 'One click for the client, but the grant can be revoked.')}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+          <button onClick={confirm} className="btn btn-primary" disabled={busy}>
+            {busy ? 'Connecting…' : (choice === 'oauth' ? 'Sign in with Google' : 'Continue')}
+          </button>
+          <button onClick={onClose} className="btn btn-secondary">Cancel</button>
+        </div>
+      </div>
     </div>
   );
 }
