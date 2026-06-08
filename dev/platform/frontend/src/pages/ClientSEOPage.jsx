@@ -103,7 +103,7 @@ function DfsAvailabilityBanner() {
 
 import {
   IntentBadge, SerpFeaturePills, KeywordHistoryModal,
-  SearchConsoleTab, AIOverviewsTab, ContentGapsTab, PlanningTab, FanoutTab,
+  SearchConsoleTab,
 } from '../components/SeoSuite';
 import AIVisibilityPanel from '../components/AIVisibilityPanel';
 import SuiteOverview from '../components/SuiteOverview';
@@ -599,11 +599,23 @@ export default function ClientSEOPage() {
 
   const [activeTab, setActiveTab] = useTabParam('overview', [
     'overview',
-    // Performance sub-tabs (perf_hub is the launchpad landing)
-    'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks',
+    // Performance sub-tabs (perf_insights is the summary landing).
+    // aio / fanout / gaps stay in the whitelist as backwards-compat
+    // aliases — they redirect to their new homes (keywords / find).
+    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
   ]);
+
+  // Redirect stale deep links to their new homes after the AI Overviews
+  // tab was merged into Keywords and fan-out / content gaps moved into
+  // the Pipeline → Find step. Hub renamed to Insights for clarity.
+  useEffect(() => {
+    if (activeTab === 'perf_hub') setActiveTab('perf_insights');
+    else if (activeTab === 'aio') setActiveTab('keywords');
+    else if (activeTab === 'fanout' || activeTab === 'gaps') setActiveTab('find');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   useEffect(() => {
     if (activeTab === 'backlinks' && !backlinksFetched && !backlinksLoading) {
@@ -640,13 +652,10 @@ export default function ClientSEOPage() {
       {(() => {
         const SUB_TABS = {
           performance: [
-            { key: 'perf_hub',      label: 'Hub' },
+            { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
-            { key: 'aio',           label: 'AI Overviews' },
             { key: 'ai_visibility', label: 'AI Visibility' },
-            { key: 'fanout',        label: 'Query fan-out' },
-            { key: 'gaps',          label: 'Content Gaps' },
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
           ],
@@ -660,15 +669,15 @@ export default function ClientSEOPage() {
         };
         const GROUP_OF = {
           overview: 'overview',
-          perf_hub: 'performance',
+          perf_insights: 'performance',
           keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
-          aio: 'performance', ai_visibility: 'performance', fanout: 'performance', gaps: 'performance',
+          ai_visibility: 'performance',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
           { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setActiveTab('overview') },
-          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_hub') },
+          { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_insights') },
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
@@ -717,36 +726,44 @@ export default function ClientSEOPage() {
         />
       )}
 
-      {activeTab === 'perf_hub' && (
-        <SuitePerformanceHub
-          headline="Win on Google — and in the AI answers."
-          description="Daily rank tracking and Search Console, plus the new battleground: whether your brand shows up when people ask Claude, ChatGPT, Gemini and Google's AI. Content gaps and backlinks round it out."
-          primaryCta={{ label: 'View keyword ranks →', onClick: () => setActiveTab('keywords') }}
-          status={[
-            { label: 'Keywords', value: `${keywords.length || 0} tracked`, tone: 'positive' },
-            { label: 'Ranking',  value: keywords.filter(k => k.current_position).length || 0, tone: 'positive' },
-          ]}
-          flow={[
-            { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
-            { label: 'Track',        detail: 'Daily across locations' },
-            { label: 'Insights',     detail: 'Gaps, intent, citations' },
-            { label: 'Plan content', detail: 'Pipeline-ready briefs' },
-          ]}
-          cards={[
-            { label: 'KEYWORDS',       title: 'See where you rank',     body: "Daily DataForSEO rank tracking across location and device, with intent tags, SERP-feature pills and per-keyword history.", onClick: () => setActiveTab('keywords') },
-            { label: 'SEARCH CONSOLE', title: 'Clicks & impressions',   body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.', onClick: () => setActiveTab('gsc') },
-            { label: 'AI OVERVIEWS',   title: 'Track Google AI answers', body: "Spot every query where Google's AI answer appears, and whether your brand gets cited.", onClick: () => setActiveTab('aio') },
-            { label: 'AI VISIBILITY',  title: 'Win the answer engines',  body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.', onClick: () => setActiveTab('ai_visibility') },
-            { label: 'CONTENT GAPS',   title: 'Find what to write next', body: "Side-by-side competitor comparison surfaces the topics they own and you don't.", onClick: () => setActiveTab('gaps') },
-            { label: 'BACKLINKS',      title: 'Check your authority',    body: 'Domain rank, referring domains, and new + lost links from the DataForSEO backlink index.', onClick: () => setActiveTab('backlinks') },
-          ]}
-        />
-      )}
+      {activeTab === 'perf_insights' && (() => {
+        const tracked = keywords.length || 0;
+        const ranking = keywords.filter(k => k.current_position).length;
+        const top10 = keywords.filter(k => k.current_position && k.current_position <= 10).length;
+        const top3 = keywords.filter(k => k.current_position && k.current_position <= 3).length;
+        const aioPresent = keywords.filter(k => k.aio_present).length;
+        const aioCited = keywords.filter(k => k.aio_brand_cited).length;
+        return (
+          <SuitePerformanceHub
+            headline="Where you stand — at a glance."
+            description="Live measurement across every data source the suite tracks. Click a card to drill in; the Pipeline tab is where you act on what you find."
+            primaryCta={{ label: 'View keyword ranks →', onClick: () => setActiveTab('keywords') }}
+            status={[
+              { label: 'Keywords',   value: `${tracked} tracked`,  tone: tracked ? 'positive' : 'default' },
+              { label: 'Ranking',    value: `${ranking}`,          tone: ranking ? 'positive' : 'default' },
+              { label: 'Top 10',     value: `${top10}`,            tone: top10 ? 'positive' : 'default' },
+              { label: 'Top 3',      value: `${top3}`,             tone: top3 ? 'positive' : 'default' },
+              ...(aioPresent > 0 ? [{ label: 'In AI Overviews', value: `${aioCited} of ${aioPresent} cited`, tone: aioCited ? 'positive' : 'warning' }] : []),
+            ]}
+            flow={[
+              { label: 'Crawl + APIs', detail: 'DataForSEO, GSC, LLMs' },
+              { label: 'Track',        detail: 'Daily across locations' },
+              { label: 'Diagnose',     detail: 'Intent, AIO, share-of-voice' },
+              { label: 'Act',          detail: 'Pipeline-ready inputs' },
+            ]}
+            cards={[
+              { label: 'KEYWORDS',       title: 'Ranks + AI Overviews',   body: 'Daily DataForSEO rank tracking with intent tags, SERP-feature pills, and AI Overview presence + brand-citation per keyword.', onClick: () => setActiveTab('keywords') },
+              { label: 'SEARCH CONSOLE', title: 'Clicks & impressions',   body: 'Live GSC queries, pages, CTR and position trends — without leaving the page.', onClick: () => setActiveTab('gsc') },
+              { label: 'AI VISIBILITY',  title: 'Win the answer engines', body: 'Share-of-voice across Claude, ChatGPT, Gemini, Perplexity and Google AI for the prompts users actually ask in your category.', onClick: () => setActiveTab('ai_visibility') },
+              { label: 'AUTHORITY',      title: 'DA + referring domains', body: 'Monthly authority score, Moz DA, and referring domain count tracked over time so trends are visible.', onClick: () => setActiveTab('authority') },
+              { label: 'BACKLINKS',      title: 'Live link profile',      body: 'New + lost links from the DataForSEO backlink index, plus domain rank trend.', onClick: () => setActiveTab('backlinks') },
+              { label: 'NEXT MOVE',      title: 'Open the Pipeline →',    body: 'Find a content gap, brief it, draft it, publish it, promote it. The five-step content production wizard.', onClick: () => setActiveTab('find') },
+            ]}
+          />
+        );
+      })()}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
-      {activeTab === 'aio' && <AIOverviewsTab clientId={id} />}
-      {activeTab === 'fanout' && <FanoutTab clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
-      {activeTab === 'gaps' && <ContentGapsTab clientId={id} />}
       {/* Pipeline steps */}
       {activeTab === 'find' && <FindPanel clientId={id} onNext={() => setActiveTab('planning')} />}
       {activeTab === 'planning' && <BriefPanel clientId={id} onNext={() => setActiveTab('draft')} />}
