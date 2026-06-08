@@ -185,6 +185,30 @@ async function fetchDomainIntersection(targetDomain, competitorDomains, location
   return Array.from(gapMap.values()).sort((a, b) => (b.search_volume || 0) - (a.search_volume || 0));
 }
 
+// Every organic keyword a SPECIFIC URL ranks for (top 100). Used by the
+// Pipeline → Find step: AM pastes a competitor's blog post URL, we
+// return that page's keyword footprint so the AM can see what topics +
+// sub-intents to cover to outrank it. Different from domain
+// intersection — that's domain-wide; this is page-level.
+async function fetchKeywordsForUrl(url, locationCode = 2826, limit = 200) {
+  const client = await getClient();
+  const { data } = await client.post('/dataforseo_labs/google/ranked_keywords/live', [{
+    target: url,
+    location_code: locationCode,
+    language_code: 'en',
+    limit,
+    order_by: ['ranked_serp_element.serp_item.rank_absolute,asc'],
+    filters: [['ranked_serp_element.serp_item.type', '=', 'organic']],
+  }]);
+  const items = data.tasks?.[0]?.result?.[0]?.items || [];
+  return items.map(item => ({
+    keyword: item.keyword_data?.keyword || '',
+    search_volume: item.keyword_data?.keyword_info?.search_volume || null,
+    position: item.ranked_serp_element?.serp_item?.rank_absolute || null,
+    url: item.ranked_serp_element?.serp_item?.url || null,
+  })).filter(k => k.keyword);
+}
+
 // Monthly Google search volume for a batch of keywords (one location).
 async function fetchSearchVolume(keywords, locationCode = 2826) {
   const client = await getClient();
@@ -388,4 +412,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchSearchVolume, fetchBacklinkData, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
