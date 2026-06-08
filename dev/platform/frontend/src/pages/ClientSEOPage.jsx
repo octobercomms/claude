@@ -655,15 +655,24 @@ export default function ClientSEOPage() {
           view, not a production step. */}
       {(() => {
         const SUB_TABS = {
+          // Performance sub-tabs grouped with inline labels (rendered
+          // by SuiteTabs as small uppercase separators) so 10 entries
+          // scan as 3 logical clusters rather than a wall of options.
+          //   Measurement — what's happening today: ranks + GSC + AI visibility
+          //   On-page     — health of pages we control: site/content/footprint/wins
+          //   Off-page    — authority + links
           performance: [
+            { groupLabel: 'Measurement' },
             { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
+            { key: 'ai_visibility', label: 'AI Visibility' },
+            { groupLabel: 'On-page' },
             { key: 'site_audit',    label: 'Site audit' },
-            { key: 'quick_wins',    label: 'Quick wins' },
             { key: 'content_audit', label: 'Content audit' },
             { key: 'keyword_footprint', label: 'Keyword footprint' },
-            { key: 'ai_visibility', label: 'AI Visibility' },
+            { key: 'quick_wins',    label: 'Quick wins' },
+            { groupLabel: 'Off-page' },
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
           ],
@@ -689,7 +698,7 @@ export default function ClientSEOPage() {
           { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_insights') },
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
         ];
-        const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
+        const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
         }));
         return (

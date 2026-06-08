@@ -243,12 +243,17 @@ function OwnSiteMode({ clientId }) {
     })();
   }, [clientId]);
 
+  // Two content-shaped audit categories surface as production
+  // opportunities. Everything else is a CMS / dev fix and lives in
+  // the Site audit tab.
   const thinContent = issues.filter(i => i.category === 'thin_content');
-  const otherIssues = issues.filter(i => i.category !== 'thin_content');
+  const noClearFocus = issues.filter(i => i.category === 'no_clear_focus');
+  const contentIssues = [...thinContent, ...noClearFocus];
+  const otherIssues = issues.filter(i => i.category !== 'thin_content' && i.category !== 'no_clear_focus');
 
   if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>;
   if (err) return <div className="callout callout-danger">{err}</div>;
-  if (!thinContent.length && !wins.length && !otherIssues.length) {
+  if (!contentIssues.length && !wins.length && !otherIssues.length) {
     return (
       <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
         Nothing surfaced. Run a Site audit on Performance, or get keywords ranking in the #11–#20 range before this mode has anything to show.
@@ -266,6 +271,25 @@ function OwnSiteMode({ clientId }) {
               <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12 }}>
                 <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
                 <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!!noClearFocus.length && (
+        <div className="card">
+          <div className="caption">Low-focus pages · pick a primary keyword</div>
+          <p className="body-xs text-subtle mt-2 mb-3">Pages where no recurring phrase appears often enough for Google to anchor a ranking on. A refresh that picks one primary keyword and weaves it through headings + body usually fixes this in weeks.</p>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {noClearFocus.map(i => (
+              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12 }}>
+                <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
+                <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
+                {Array.isArray(i.metadata?.topPhrases) && !!i.metadata.topPhrases.length && (
+                  <div style={{ color: 'var(--text-subtle)', marginTop: 4, fontSize: 11 }}>
+                    Currently scattered across: {i.metadata.topPhrases.join(' · ')}
+                  </div>
+                )}
               </li>
             ))}
           </ul>
