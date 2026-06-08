@@ -706,4 +706,127 @@ router.delete('/journalist-responses/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// ─── SITE AUDIT ────────────────────────────────────────────────────────────
+// Crawls the client's domain, scores on-page technical issues, persists
+// them so they can be dismissed individually + pulled into Pipeline as
+// content opportunities.
+const siteAudit = require('../services/siteAudit');
+
+router.get('/clients/:clientId/site-audits', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, domain, pages_crawled, status, score, summary_json, started_at, completed_at, error_message
+       FROM site_audits WHERE client_id = $1 ORDER BY started_at DESC LIMIT 30`,
+      [req.params.clientId]
+    );
+    res.json({ audits: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/site-audits/latest', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM site_audits WHERE client_id = $1 AND status = 'complete'
+       ORDER BY completed_at DESC LIMIT 1`,
+      [req.params.clientId]
+    );
+    if (!rows.length) return res.json({ audit: null, issues: [] });
+    const audit = rows[0];
+    const { rows: issues } = await pool.query(
+      `SELECT id, page_url, category, severity, detail, metadata, status, notes, created_at, updated_at
+       FROM site_audit_issues WHERE audit_id = $1
+       ORDER BY CASE severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, category`,
+      [audit.id]
+    );
+    res.json({ audit, issues });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Open issues across all audits — what Pipeline → Find "From your own
+// site" reads to surface content opportunities. Filters to open status
+// and groups by category for easy AM scan.
+router.get('/clients/:clientId/site-audits/open-issues', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT i.id, i.page_url, i.category, i.severity, i.detail, i.metadata, i.status
+       FROM site_audit_issues i
+       JOIN site_audits a ON a.id = i.audit_id AND a.status = 'complete'
+       WHERE i.client_id = $1 AND i.status = 'open'
+       ORDER BY CASE i.severity WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
+                a.completed_at DESC`,
+      [req.params.clientId]
+    );
+    res.json({ issues: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/site-audits/run', async (req, res) => {
+  // Fire-and-respond: kick off the crawl async, return the running row
+  // immediately so the UI can poll. A 30-page crawl with 800ms delay
+  // is ~30s minimum — blocking the request defeats the dashboard UX.
+  try {
+    const { rows: clientRows } = await pool.query('SELECT domain FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!clientRows.length || !clientRows[0].domain) {
+      return res.status(400).json({ error: 'Client has no domain set' });
+    }
+    const { rows } = await pool.query(
+      `SELECT id FROM site_audits WHERE client_id = $1 AND status = 'running'
+       AND started_at > NOW() - INTERVAL '10 minutes'`,
+      [req.params.clientId]
+    );
+    if (rows.length) {
+      return res.status(409).json({ error: 'An audit is already running for this client.', audit_id: rows[0].id });
+    }
+    // Kick off async — let errors land on the audit row, not the response.
+    siteAudit.runAudit({ clientId: req.params.clientId })
+      .catch(err => console.error(`[siteAudit] background run failed for client ${req.params.clientId}:`, err.message));
+    res.status(202).json({ status: 'started' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/site-audit-issues/:id', async (req, res) => {
+  const { status, notes } = req.body || {};
+  try {
+    const lookup = await pool.query('SELECT client_id FROM site_audit_issues WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Issue not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const { rows } = await pool.query(
+      `UPDATE site_audit_issues SET status = COALESCE($1, status), notes = COALESCE($2, notes), updated_at = NOW()
+       WHERE id = $3 RETURNING *`,
+      [status ?? null, notes ?? null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// ─── QUICK WINS ────────────────────────────────────────────────────────────
+// Keywords ranked 11–20 — one good refresh away from page 1. Computed
+// from seo_keywords at read time; dismiss state persists.
+const quickWins = require('../services/quickWins');
+
+router.get('/clients/:clientId/quick-wins', async (req, res) => {
+  try {
+    const wins = await quickWins.listForClient(req.params.clientId);
+    res.json({ wins });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/quick-wins/:keywordId/dismiss', async (req, res) => {
+  try {
+    await quickWins.dismiss({
+      clientId: req.params.clientId,
+      keywordId: req.params.keywordId,
+      reason: req.body?.reason,
+    });
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/quick-wins/:keywordId/restore', async (req, res) => {
+  try {
+    await quickWins.undismiss({ clientId: req.params.clientId, keywordId: req.params.keywordId });
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
