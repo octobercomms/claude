@@ -18,7 +18,6 @@ class OctoberMI_Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_post_octobermi_connect', array( $this, 'handle_connect' ) );
 		add_action( 'admin_post_octobermi_reset', array( $this, 'handle_reset' ) );
-		add_action( 'admin_post_octobermi_save_token', array( $this, 'handle_save_token' ) );
 		add_action( 'admin_post_octobermi_test_update', array( $this, 'handle_test_update' ) );
 		add_action( 'admin_post_octobermi_clear_log', array( $this, 'handle_clear_log' ) );
 	}
@@ -101,29 +100,12 @@ class OctoberMI_Admin {
 		$this->redirect_back( __( 'Connection reset. The site is no longer paired.', 'october-mi' ), true );
 	}
 
-	public function handle_save_token() {
-		$this->verify( 'octobermi_save_token' );
-		$token = isset( $_POST['octobermi_github_token'] ) ? trim( sanitize_text_field( wp_unslash( $_POST['octobermi_github_token'] ) ) ) : '';
-		// Empty submission leaves the stored token untouched (masked field).
-		if ( '' !== $token && '********' !== $token ) {
-			OctoberMI_Settings::update( array( 'github_token' => $token ) );
-			$this->redirect_back( __( 'Update token saved.', 'october-mi' ), true );
-		}
-		$this->redirect_back( __( 'No change to the update token.', 'october-mi' ), true );
-	}
-
 	public function handle_test_update() {
 		$this->verify( 'octobermi_test_update' );
-		$token = OctoberMI_Settings::get( 'github_token' );
-		if ( empty( $token ) ) {
-			$this->redirect_back( __( 'Add a GitHub update token first.', 'october-mi' ), false );
-		}
 		$updater = new OctoberMI_Updater(
 			OCTOBERMI_BASENAME,
 			OCTOBERMI_VERSION,
-			OCTOBERMI_GITHUB_REPO,
-			$token,
-			OCTOBERMI_GITHUB_TAG_PREFIX
+			OCTOBERMI_PLATFORM_URL
 		);
 		$result = $updater->diagnose();
 		$this->redirect_back( $result['message'], $result['ok'] );

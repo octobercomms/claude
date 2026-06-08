@@ -58,19 +58,24 @@ add_action( 'plugins_loaded', function () {
 // Inbound REST route (publish a draft from the platform).
 add_action( 'rest_api_init', array( 'OctoberMI_REST', 'register_routes' ) );
 
-// Self-updater: pulls signed release zips from the GitHub repo using a stored token.
+// Self-updater: pulls new builds from the October platform. The platform is the
+// distribution point, so no GitHub token is needed on the site — a new version
+// rolls out automatically once it's deployed to the platform.
 add_action( 'plugins_loaded', function () {
-	$token = OctoberMI_Settings::get( 'github_token' );
-	if ( ! empty( $token ) ) {
-		new OctoberMI_Updater(
-			OCTOBERMI_BASENAME,
-			OCTOBERMI_VERSION,
-			OCTOBERMI_GITHUB_REPO,
-			$token,
-			OCTOBERMI_GITHUB_TAG_PREFIX
-		);
-	}
+	new OctoberMI_Updater(
+		OCTOBERMI_BASENAME,
+		OCTOBERMI_VERSION,
+		OCTOBERMI_PLATFORM_URL
+	);
 } );
+
+// Let WordPress auto-install our updates on its schedule — hands-off rollout.
+add_filter( 'auto_update_plugin', function ( $update, $item ) {
+	if ( is_object( $item ) && isset( $item->plugin ) && OCTOBERMI_BASENAME === $item->plugin ) {
+		return true;
+	}
+	return $update;
+}, 10, 2 );
 
 if ( is_admin() ) {
 	require_once OCTOBERMI_PATH . 'admin/class-octobermi-admin.php';
