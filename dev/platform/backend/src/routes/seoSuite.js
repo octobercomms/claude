@@ -409,4 +409,234 @@ router.delete('/clients/:clientId/fanout/:runId', async (req, res) => {
   }
 });
 
+// ─── PIPELINE STEP 1: URL GAP ─────────────────────────────────────────────
+// Paste a competitor URL → get every keyword that page ranks for +
+// cross-reference against the client's own ranks. Output is the AM's
+// brief for outranking that specific page.
+const urlGap = require('../services/urlGap');
+
+router.get('/clients/:clientId/url-gap', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, competitor_url, location_code, page_keyword_count, gap_count, summary_md, created_at
+       FROM url_gap_runs
+       WHERE client_id = $1
+       ORDER BY created_at DESC
+       LIMIT 30`,
+      [req.params.clientId]
+    );
+    res.json({ runs: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/clients/:clientId/url-gap/:runId', async (req, res) => {
+  try {
+    const { rows: runRows } = await pool.query(
+      `SELECT * FROM url_gap_runs WHERE id = $1 AND client_id = $2`,
+      [req.params.runId, req.params.clientId]
+    );
+    if (!runRows.length) return res.status(404).json({ error: 'Run not found' });
+    const { rows: keywords } = await pool.query(
+      `SELECT id, keyword, search_volume, competitor_position, client_position, is_gap, position_order
+       FROM url_gap_keywords
+       WHERE run_id = $1
+       ORDER BY position_order ASC`,
+      [req.params.runId]
+    );
+    res.json({ run: runRows[0], keywords });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/url-gap', async (req, res) => {
+  const { competitor_url, location_code } = req.body || {};
+  if (!competitor_url) return res.status(400).json({ error: 'competitor_url required' });
+  try {
+    const result = await urlGap.runUrlGap({
+      clientId: req.params.clientId,
+      competitorUrl: competitor_url,
+      locationCode: parseInt(location_code) || 2826,
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('[seoSuite] url-gap failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.delete('/clients/:clientId/url-gap/:runId', async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM url_gap_runs WHERE id = $1 AND client_id = $2`,
+      [req.params.runId, req.params.clientId]);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── PIPELINE STEP 3: CONTENT DRAFTS ──────────────────────────────────────
+// Generate a brand-aware full blog post from a brief; list / read / edit
+// / delete drafts; sanitize is applied on edit so AM-pasted edits also
+// get the AI-tells filter.
+const contentDraft = require('../services/contentDraft');
+
+router.get('/clients/:clientId/drafts', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT d.*,
+              COALESCE(json_agg(
+                json_build_object('id', p.id, 'platform', p.platform, 'status', p.status, 'external_url', p.external_url, 'published_at', p.published_at)
+                ORDER BY p.created_at DESC
+              ) FILTER (WHERE p.id IS NOT NULL), '[]') AS publications
+       FROM content_drafts d
+       LEFT JOIN content_publications p ON p.draft_id = d.id
+       WHERE d.client_id = $1
+       GROUP BY d.id
+       ORDER BY d.created_at DESC
+       LIMIT 50`,
+      [req.params.clientId]
+    );
+    res.json({ drafts: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/drafts/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`SELECT * FROM content_drafts WHERE id = $1`, [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Draft not found' });
+    assertClientAccess(req, rows[0].client_id);
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/drafts', async (req, res) => {
+  const { brief, target_keyword } = req.body || {};
+  if (!brief) return res.status(400).json({ error: 'brief required' });
+  try {
+    const draft = await contentDraft.generateDraft({
+      clientId: req.params.clientId, brief, targetKeyword: target_keyword,
+    });
+    res.status(201).json(draft);
+  } catch (err) {
+    console.error('[seoSuite] draft generate failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.put('/drafts/:id', async (req, res) => {
+  const { title, meta_description, body_markdown, status } = req.body || {};
+  try {
+    const lookup = await pool.query('SELECT client_id FROM content_drafts WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Draft not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const cleanMd = body_markdown ? contentDraft.sanitizeUnicode(body_markdown) : null;
+    const html = cleanMd ? contentDraft.renderMarkdownToHtml(cleanMd) : null;
+    const wordCount = cleanMd ? cleanMd.split(/\s+/).filter(Boolean).length : null;
+    const { rows } = await pool.query(
+      `UPDATE content_drafts SET
+         title = COALESCE($1, title),
+         meta_description = COALESCE($2, meta_description),
+         body_markdown = COALESCE($3, body_markdown),
+         body_html = COALESCE($4, body_html),
+         word_count = COALESCE($5, word_count),
+         status = COALESCE($6, status),
+         updated_at = NOW()
+       WHERE id = $7 RETURNING *`,
+      [title ?? null, meta_description ?? null, cleanMd, html, wordCount, status ?? null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.delete('/drafts/:id', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT client_id FROM content_drafts WHERE id = $1', [req.params.id]);
+    if (lookup.rows.length) assertClientAccess(req, lookup.rows[0].client_id);
+    await pool.query('DELETE FROM content_drafts WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// ─── PIPELINE STEP 4: PUBLISH ─────────────────────────────────────────────
+const contentPublish = require('../services/contentPublish');
+
+router.post('/drafts/:id/publish', async (req, res) => {
+  const { platform, connector_id, scheduled_at, status_override } = req.body || {};
+  if (!platform) return res.status(400).json({ error: 'platform required' });
+  try {
+    const lookup = await pool.query('SELECT client_id FROM content_drafts WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Draft not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const pub = await contentPublish.publish({
+      draftId: req.params.id,
+      platform,
+      connectorId: connector_id || null,
+      scheduledAt: scheduled_at || null,
+      statusOverride: status_override || null,
+    });
+    res.status(201).json(pub);
+  } catch (err) {
+    console.error('[seoSuite] publish failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.get('/drafts/:id/export/:format', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT * FROM content_drafts WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Draft not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const draft = lookup.rows[0];
+    if (req.params.format === 'docx') {
+      const { mime, bytes } = await contentPublish.exportDraftAsDocx(draft);
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Content-Disposition', `attachment; filename="${(draft.title || 'draft').replace(/[^a-z0-9-]+/gi, '-')}.docx"`);
+      return res.send(bytes);
+    }
+    if (req.params.format === 'md') {
+      res.setHeader('Content-Type', 'text/markdown');
+      return res.send(draft.body_markdown || '');
+    }
+    res.status(400).json({ error: 'format must be docx or md' });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+// ─── PIPELINE STEP 5: PROMOTE — BACKLINK PROSPECTS ────────────────────────
+const backlinkProspect = require('../services/backlinkProspect');
+
+router.get('/clients/:clientId/backlink-prospects', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM backlink_prospects
+       WHERE client_id = $1
+       ORDER BY relevance_score DESC, created_at DESC
+       LIMIT 200`,
+      [req.params.clientId]
+    );
+    res.json({ prospects: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/backlink-prospects/scan', async (req, res) => {
+  try {
+    const inserted = await backlinkProspect.prospectFromCompetitors({
+      clientId: req.params.clientId,
+    });
+    res.status(201).json({ inserted: inserted.length, prospects: inserted });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
+router.put('/backlink-prospects/:id', async (req, res) => {
+  const { status, notes } = req.body || {};
+  try {
+    const lookup = await pool.query('SELECT client_id FROM backlink_prospects WHERE id = $1', [req.params.id]);
+    if (!lookup.rows.length) return res.status(404).json({ error: 'Prospect not found' });
+    assertClientAccess(req, lookup.rows[0].client_id);
+    const { rows } = await pool.query(
+      `UPDATE backlink_prospects SET status = COALESCE($1, status), notes = COALESCE($2, notes) WHERE id = $3 RETURNING *`,
+      [status ?? null, notes ?? null, req.params.id]
+    );
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;
