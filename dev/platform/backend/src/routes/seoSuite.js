@@ -882,4 +882,38 @@ router.delete('/content-audits/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// ─── BRIEF CLUSTER MODE ────────────────────────────────────────────────────
+// Two-stage: paste N keywords → Claude groups them into 3–8 topic
+// clusters (cheap, one call). AM picks a cluster → Claude generates a
+// brief targeting the whole cluster (one secondary call per cluster).
+const keywordClusters = require('../services/keywordClusters');
+
+router.post('/clients/:clientId/keyword-clusters', async (req, res) => {
+  const { keywords } = req.body || {};
+  if (!keywords) return res.status(400).json({ error: 'keywords required' });
+  try {
+    const out = await keywordClusters.clusterKeywords({
+      clientId: req.params.clientId, keywords,
+    });
+    res.json(out);
+  } catch (err) {
+    console.error('[seoSuite] cluster failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.post('/clients/:clientId/keyword-clusters/brief', async (req, res) => {
+  const { cluster } = req.body || {};
+  if (!cluster?.primary) return res.status(400).json({ error: 'cluster with primary required' });
+  try {
+    const brief = await keywordClusters.briefForCluster({
+      clientId: req.params.clientId, cluster,
+    });
+    res.json({ brief });
+  } catch (err) {
+    console.error('[seoSuite] cluster brief failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 module.exports = router;
