@@ -15,6 +15,10 @@ const SETTINGS_KEYS = [
   // durable, never-expiring auth path for Google connectors set to
   // auth_mode='service_account'. Handled by googleAuth.js.
   'GOOGLE_SERVICE_ACCOUNT_JSON',
+  // Manager-account (MCC) OAuth refresh token. Obtained once by authorising
+  // the MCC account; used as the durable auth path for Google Ads connectors
+  // set to auth_mode='mcc_link' (Google Ads can't use the service account).
+  'GOOGLE_ADS_MANAGER_REFRESH_TOKEN',
   'META_APP_ID', 'META_APP_SECRET', 'META_REDIRECT_URI',
   'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET', 'LINKEDIN_REDIRECT_URI',
   'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REDIRECT_URI',

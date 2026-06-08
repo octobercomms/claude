@@ -182,7 +182,7 @@ router.post('/:id/check', async (req, res) => {
     let status = 'active';
     let errorMsg = null;
     try {
-      await connector.checkTokenValidity(creds, row.auth_mode);
+      await connector.checkTokenValidity(creds, row.auth_mode, row.connector_type);
     } catch (err) {
       status = 'error';
       errorMsg = err.message;
@@ -286,7 +286,42 @@ router.get('/:id/diagnose', async (req, res) => {
     // service account — there are no per-connector credentials to inspect.
     // Diagnose the platform credential and (for GA4) run a live test.
     if (row.auth_mode !== 'oauth' && GOOGLE_TYPES.includes(row.connector_type)) {
-      const { getServiceAccountEmail, getPlatformGoogleAccessToken } = require('../services/googleAuth');
+      const { getServiceAccountEmail, getPlatformGoogleAccessToken, getPlatformAdsAccessToken } = require('../services/googleAuth');
+
+      // Google Ads authenticates with the platform manager (MCC) refresh
+      // token, not the service account — handle it before the service-account
+      // checks so an Ads connector doesn't require GOOGLE_SERVICE_ACCOUNT_JSON.
+      if (row.connector_type === 'google_ads') {
+        const mccId = (process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '');
+        result.credentials = `MCC manager token (${row.auth_mode})`;
+        result.mcc_id = mccId || '(GOOGLE_ADS_MCC_ID not set in Settings)';
+        result.customer_id = row.config?.value || '(not set)';
+        if (!mccId) {
+          result.live_test = { status: 'error', error: 'GOOGLE_ADS_MCC_ID is not set in Settings — required for MCC link mode.' };
+          return res.json(result);
+        }
+        try {
+          const token = await getPlatformAdsAccessToken();
+          const testRes = await axios.get(
+            'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
+            { headers: { Authorization: `Bearer ${token}`, 'developer-token': process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '' } }
+          );
+          const n = (testRes.data.resourceNames || []).length;
+          result.live_test = { status: 'ok', detail: `${n} account(s) accessible to the manager` };
+          await pool.query(
+            'UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2',
+            ['active', row.id]
+          );
+          result.status = 'active';
+        } catch (adsErr) {
+          const detail = adsErr.response?.data?.error?.message || adsErr.message;
+          const http_status = adsErr.response?.status;
+          result.live_test = { status: 'error', http_status, error: detail };
+          result.live_test.note = 'Confirm the client has accepted the manager (MCC) link request in their Google Ads account, and that GOOGLE_ADS_MANAGER_REFRESH_TOKEN is set.';
+        }
+        return res.json(result);
+      }
+
       result.credentials = `service account (${row.auth_mode})`;
       const saEmail = getServiceAccountEmail();
       result.service_account_email = saEmail || '(GOOGLE_SERVICE_ACCOUNT_JSON not configured in Settings)';
@@ -497,6 +532,7 @@ router.get('/client/:clientId/ads-data', async (req, res) => {
     const raw = await connModule.fetchData(creds, {
       ...config,
       connectorType: row.connector_type,
+      authMode: row.auth_mode,
       customerId: config.value,
       adAccountId: config.value,
       startDate,

@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { getPlatformGoogleAccessToken } = require('../services/googleAuth');
+const { getPlatformGoogleAccessToken, getPlatformAdsAccessToken } = require('../services/googleAuth');
 
 const authType = 'oauth';
 
@@ -100,12 +100,18 @@ async function refreshToken(credentials) {
   };
 }
 
-async function checkTokenValidity(credentials, authMode) {
+async function checkTokenValidity(credentials, authMode, connectorType) {
   if (isServiceAccountMode(authMode)) {
-    // No per-user token to validate — confirm the platform service account
-    // is configured and can mint a token. Access to the specific property
-    // is checked separately when data is fetched.
-    await getPlatformGoogleAccessToken([GA4_SCOPE]);
+    // No per-user token to validate — confirm the relevant platform-level
+    // credential is configured and can mint a token. Google Ads uses the
+    // manager (MCC) refresh token; the others use the service account.
+    // Access to the specific resource is checked separately when data is
+    // fetched (and by the diagnose route's live test).
+    if (connectorType === 'google_ads') {
+      await getPlatformAdsAccessToken();
+    } else {
+      await getPlatformGoogleAccessToken([GA4_SCOPE]);
+    }
     return true;
   }
   if (!credentials || !credentials.access_token) throw new Error('No credentials');
@@ -325,11 +331,23 @@ async function fetchSearchConsoleSitemaps(credentials, { siteUrl, authMode }) {
 const adsLoginCache = new Map();
 
 async function fetchGoogleAdsData(credentials, params) {
-  const creds = await getValidToken(credentials);
-  const { customerId, startDate, endDate } = params;
+  const { customerId, startDate, endDate, authMode } = params;
   // API requires customer ID without dashes (e.g. 9543280011 not 954-328-0011)
   const cleanCustomerId = (customerId || '').replace(/-/g, '');
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN || '';
+
+  // Google Ads can't use the platform service account. In mcc_link mode the
+  // platform authenticates with the manager-account (MCC) refresh token and
+  // reaches the client account through login-customer-id = GOOGLE_ADS_MCC_ID,
+  // which the explicit-MCC branch below already handles. OAuth mode keeps the
+  // existing per-client refresh flow + login-customer-id auto-discovery.
+  const useManager = isServiceAccountMode(authMode);
+  if (useManager && !(process.env.GOOGLE_ADS_MCC_ID || '').replace(/-/g, '')) {
+    throw new Error('Google Ads MCC link mode requires GOOGLE_ADS_MCC_ID to be set in Settings.');
+  }
+  const accessToken = useManager
+    ? await getPlatformAdsAccessToken()
+    : (await getValidToken(credentials)).access_token;
 
   // Use /search (not /searchStream) — simpler JSON response, easier error messages
   // metrics.conversion_value is not a valid GAQL field; use metrics.conversions_value
@@ -356,7 +374,7 @@ async function fetchGoogleAdsData(credentials, params) {
   `;
 
   const search = (loginCustomerId, query) => {
-    const headers = { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken };
+    const headers = { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken };
     if (loginCustomerId) headers['login-customer-id'] = loginCustomerId;
     return axios.post(
       `https://googleads.googleapis.com/v21/customers/${cleanCustomerId}/googleAds:search`,
@@ -421,7 +439,7 @@ async function fetchGoogleAdsData(credentials, params) {
     try {
       const { data: accountsData } = await axios.get(
         'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
-        { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
+        { headers: { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken } }
       );
       candidates = (accountsData.resourceNames || [])
         .map(r => r.replace('customers/', ''))
@@ -502,14 +520,16 @@ async function listSearchConsoleSites(credentials, authMode) {
   }));
 }
 
-async function listGoogleAdsAccounts(credentials) {
-  const creds = await getValidToken(credentials);
+async function listGoogleAdsAccounts(credentials, authMode) {
   const devToken = process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
   if (!devToken) return [];
+  const accessToken = isServiceAccountMode(authMode)
+    ? await getPlatformAdsAccessToken()
+    : (await getValidToken(credentials)).access_token;
   try {
     const { data } = await axios.get(
       'https://googleads.googleapis.com/v21/customers:listAccessibleCustomers',
-      { headers: { Authorization: `Bearer ${creds.access_token}`, 'developer-token': devToken } }
+      { headers: { Authorization: `Bearer ${accessToken}`, 'developer-token': devToken } }
     );
     return (data.resourceNames || []).map(name => ({
       value: name.replace('customers/', ''),
@@ -540,7 +560,7 @@ async function listAccounts(credentials, connectorType, authMode) {
   switch (connectorType) {
     case 'ga4': return listGA4Properties(credentials, authMode);
     case 'google_search_console': return listSearchConsoleSites(credentials, authMode);
-    case 'google_ads': return listGoogleAdsAccounts(credentials);
+    case 'google_ads': return listGoogleAdsAccounts(credentials, authMode);
     case 'google_merchant_center': return listMerchantAccounts(credentials, authMode);
     default: return [];
   }
