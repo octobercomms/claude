@@ -829,4 +829,57 @@ router.post('/clients/:clientId/quick-wins/:keywordId/restore', async (req, res)
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── CONTENT QUALITY AUDIT ─────────────────────────────────────────────────
+// Per-page Claude-graded deep dive — different from the heuristic
+// site_audit which sweeps 30 pages for tech issues. This goes deep on
+// one URL: thin-content score, readability, keyword usage, missing
+// sub-topics, suggested additions, priority. AM triggers per page.
+const contentAudit = require('../services/contentAudit');
+
+router.get('/clients/:clientId/content-audits', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, url, target_keyword, status, title, word_count,
+              thin_content_score, readability_grade, keyword_usage,
+              priority, started_at, completed_at, error_message
+       FROM content_audits WHERE client_id = $1 ORDER BY started_at DESC LIMIT 50`,
+      [req.params.clientId]
+    );
+    res.json({ audits: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/content-audits/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM content_audits WHERE id = $1', [req.params.id]);
+    if (!rows.length) return res.status(404).json({ error: 'Audit not found' });
+    assertClientAccess(req, rows[0].client_id);
+    res.json(rows[0]);
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/content-audits', async (req, res) => {
+  const { url, target_keyword } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    // Fire-and-respond: a Claude call takes 15–40s; return the running
+    // row immediately so the UI can poll.
+    const { rows: clientRows } = await pool.query('SELECT id FROM clients WHERE id = $1', [req.params.clientId]);
+    if (!clientRows.length) return res.status(404).json({ error: 'Client not found' });
+    contentAudit.runAudit({
+      clientId: req.params.clientId, url, targetKeyword: target_keyword,
+    }).catch(err => console.error(`[contentAudit] background run failed:`, err.message));
+    res.status(202).json({ status: 'started' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/content-audits/:id', async (req, res) => {
+  try {
+    const lookup = await pool.query('SELECT client_id FROM content_audits WHERE id = $1', [req.params.id]);
+    if (lookup.rows.length) assertClientAccess(req, lookup.rows[0].client_id);
+    await pool.query('DELETE FROM content_audits WHERE id = $1', [req.params.id]);
+    res.status(204).end();
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;
