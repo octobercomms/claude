@@ -1091,4 +1091,29 @@ router.delete('/programmatic-runs/:id', async (req, res) => {
   } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
+// ─── REFINE CHAT ───────────────────────────────────────────────────────────
+// Generic single-turn iteration on a Claude-generated artifact (a draft,
+// a brief, an ad concept). The AM sends the current artifact + their
+// instruction; Claude replies conversationally and optionally returns a
+// revised version inside <revision> tags for one-click Apply. Stateless
+// server-side — transcript lives in component state.
+const refineChat = require('../services/refineChat');
+
+router.post('/clients/:clientId/refine-chat', async (req, res) => {
+  const { kind, artifact, messages, artifact_meta } = req.body || {};
+  if (!kind || artifact == null || !Array.isArray(messages)) {
+    return res.status(400).json({ error: 'kind, artifact, messages required' });
+  }
+  try {
+    const reply = await refineChat.refine({
+      clientId: req.params.clientId,
+      kind, artifact, messages, artifactMeta: artifact_meta,
+    });
+    res.json({ reply });
+  } catch (err) {
+    console.error('[refine-chat] failed:', err);
+    res.status(502).json({ error: err.message });
+  }
+});
+
 module.exports = router;
