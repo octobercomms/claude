@@ -10,6 +10,7 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../db');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { withDbRetry } = require('../utils/dbRetry');
 
 const router = express.Router();
 
@@ -132,10 +133,12 @@ function ingest(fallbackType) {
     try {
       const body = req.body || {};
       const eventType = body.event || fallbackType;
-      await pool.query(
+      // The raw event is the durable record — retry past a momentary DB blip
+      // so we don't drop a webhook the plugin won't re-send.
+      await withDbRetry(() => pool.query(
         `INSERT INTO wp_connect_events (client_id, event_type, payload) VALUES ($1, $2, $3)`,
         [req.omiClientId, eventType, JSON.stringify(body)]
-      );
+      ));
       // A live event means the connector is healthy — clear any stale error.
       pool.query(
         `UPDATE connectors SET status = 'active', error_message = NULL, last_checked = NOW() WHERE id = $1`,

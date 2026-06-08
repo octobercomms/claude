@@ -10,6 +10,7 @@ const express = require('express');
 const crypto = require('crypto');
 const pool = require('../db');
 const { encrypt, decrypt } = require('../utils/encryption');
+const { withDbRetry } = require('../utils/dbRetry');
 
 const router = express.Router();
 
@@ -131,10 +132,12 @@ router.post('/webhook', verifyForwardSignature, async (req, res) => {
       return res.json({ ok: true });
     }
 
-    await pool.query(
+    // The raw event is the durable record — the app returns 200 to Shopify
+    // regardless, so retry past a momentary DB blip rather than drop it.
+    await withDbRetry(() => pool.query(
       `INSERT INTO shopify_app_events (client_id, shop_domain, topic, payload) VALUES ($1, $2, $3, $4)`,
       [pairing.clientId, shop_domain, topic, JSON.stringify(payload || {})]
-    );
+    ));
     pool.query(
       `UPDATE connectors SET status = 'active', error_message = NULL, last_checked = NOW() WHERE id = $1`,
       [pairing.connectorId]

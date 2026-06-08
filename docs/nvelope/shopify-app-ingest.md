@@ -47,9 +47,18 @@ the **same shape as the custom-OAuth shopify connector**
 financial_status_breakdown/daily`, `top_products`, `orders`). Latest event per
 order id wins. Coexists with the existing `shopify` connector for migration.
 
+## Durability
+
+The event INSERT is wrapped in `utils/dbRetry.withDbRetry` (a few backed-off
+retries on transient DB errors — connection failures, serialization/deadlock,
+too-many-connections — failing fast on permanent ones). Since the connector
+aggregates on read, the persisted raw event *is* the durable record, so a
+reliable insert is the whole job; there's no separate async work to queue. A
+full job-queue/worker would only be warranted if downstream async processing is
+added later. The WordPress plugin ingest uses the same helper.
+
 ## Not yet done
 
-- Durable retry/queue for forwarded webhooks (currently stored synchronously).
 - Embedded-admin "synced events this week" count could read
   `shopify_app_events`; wiring the app's status panel to a platform stats
   endpoint is a follow-up.
