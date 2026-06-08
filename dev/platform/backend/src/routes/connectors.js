@@ -41,7 +41,7 @@ const KNOWN_LIMITATIONS = {
 router.get('/client/:clientId', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, config, created_at FROM connectors WHERE client_id = $1 ORDER BY connector_type, store_label',
+      'SELECT id, client_id, connector_type, store_label, status, last_checked, error_message, config, auth_mode, created_at FROM connectors WHERE client_id = $1 ORDER BY connector_type, store_label',
       [req.params.clientId]
     );
     res.json(rows);
@@ -127,11 +127,14 @@ router.get('/:id/accounts', async (req, res) => {
     const { rows } = await pool.query('SELECT * FROM connectors WHERE id = $1', [req.params.id]);
     if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
     const row = rows[0];
-    if (!row.credentials || row.credentials === '{}') return res.json([]);
-    const creds = decrypt(row.credentials);
+    // Service-account connectors have no stored credentials — they list
+    // accounts via the platform service account, so don't short-circuit them.
+    const hasCreds = row.credentials && row.credentials !== '{}';
+    if (row.auth_mode === 'oauth' && !hasCreds) return res.json([]);
+    const creds = hasCreds ? decrypt(row.credentials) : null;
     const connector = connectorFactory.get(row.connector_type);
     if (!connector.listAccounts) return res.json([]);
-    const accounts = await connector.listAccounts(creds, row.connector_type);
+    const accounts = await connector.listAccounts(creds, row.connector_type, row.auth_mode);
     res.json(accounts);
   } catch (err) {
     const detail = err.response?.data?.error?.message || err.response?.data?.error || err.message;
@@ -174,12 +177,12 @@ router.post('/:id/check', async (req, res) => {
     const row = rows[0];
 
     const connector = connectorFactory.get(row.connector_type);
-    const creds = decrypt(row.credentials);
+    const creds = row.credentials && row.credentials !== '{}' ? decrypt(row.credentials) : null;
 
     let status = 'active';
     let errorMsg = null;
     try {
-      await connector.checkTokenValidity(creds);
+      await connector.checkTokenValidity(creds, row.auth_mode);
     } catch (err) {
       status = 'error';
       errorMsg = err.message;
@@ -196,20 +199,32 @@ router.post('/:id/check', async (req, res) => {
   }
 });
 
+const AUTH_MODES = ['oauth', 'service_account', 'mcc_link'];
+
 // Create a new connector for a client
 router.post('/client/:clientId', async (req, res) => {
-  const { connector_type, store_label } = req.body;
+  const { connector_type, store_label, auth_mode } = req.body;
   if (!connector_type) return res.status(400).json({ error: 'connector_type required' });
+  if (auth_mode && !AUTH_MODES.includes(auth_mode)) {
+    return res.status(400).json({ error: `auth_mode must be one of: ${AUTH_MODES.join(', ')}` });
+  }
   try {
     const { rows } = await pool.query(
-      'INSERT INTO connectors (client_id, connector_type, store_label) VALUES ($1, $2, $3) RETURNING id, client_id, connector_type, store_label, status, config',
-      [req.params.clientId, connector_type, store_label || null]
+      'INSERT INTO connectors (client_id, connector_type, store_label, auth_mode) VALUES ($1, $2, $3, $4) RETURNING id, client_id, connector_type, store_label, status, config, auth_mode',
+      [req.params.clientId, connector_type, store_label || null, auth_mode || 'oauth']
     );
     const newConn = { ...rows[0] };
 
+    // Service-account connectors carry no per-user credentials — there's
+    // nothing to copy, and they're usable as soon as the platform service
+    // account is granted access on the property.
+    if (newConn.auth_mode !== 'oauth') {
+      return res.status(201).json(newConn);
+    }
+
     // Auto-copy OAuth credentials from an existing active connector of the same type
     const { rows: existing } = await pool.query(
-      `SELECT credentials FROM connectors WHERE client_id = $1 AND connector_type = $2 AND status = 'active' AND id != $3 LIMIT 1`,
+      `SELECT credentials FROM connectors WHERE client_id = $1 AND connector_type = $2 AND status = 'active' AND auth_mode = 'oauth' AND id != $3 LIMIT 1`,
       [req.params.clientId, connector_type, newConn.id]
     );
     if (existing.length && existing[0].credentials && Object.keys(existing[0].credentials).length > 0) {
@@ -221,6 +236,29 @@ router.post('/client/:clientId', async (req, res) => {
     }
 
     res.status(201).json(newConn);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Switch a connector's authentication mode. Switching to a service-account /
+// MCC mode clears any stored OAuth credentials (they're no longer used) and
+// leaves the connector active — it authenticates via the platform service
+// account from here on.
+router.put('/:id/auth-mode', async (req, res) => {
+  const { auth_mode } = req.body;
+  if (!AUTH_MODES.includes(auth_mode)) {
+    return res.status(400).json({ error: `auth_mode must be one of: ${AUTH_MODES.join(', ')}` });
+  }
+  try {
+    const credsClause = auth_mode === 'oauth' ? '' : ", credentials = '{}'::jsonb";
+    const { rows } = await pool.query(
+      `UPDATE connectors SET auth_mode = $1, error_message = NULL${credsClause} WHERE id = $2
+       RETURNING id, client_id, connector_type, store_label, status, config, auth_mode`,
+      [auth_mode, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Connector not found' });
+    res.json(rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -239,7 +277,56 @@ router.get('/:id/diagnose', async (req, res) => {
       status: row.status,
       last_checked: row.last_checked,
       config: row.config || null,
+      auth_mode: row.auth_mode,
     };
+
+    const GOOGLE_TYPES = ['ga4', 'google_search_console', 'google_ads', 'google_merchant_center'];
+
+    // Service-account / MCC-link connectors authenticate via the platform
+    // service account — there are no per-connector credentials to inspect.
+    // Diagnose the platform credential and (for GA4) run a live test.
+    if (row.auth_mode !== 'oauth' && GOOGLE_TYPES.includes(row.connector_type)) {
+      const { getServiceAccountEmail, getPlatformGoogleAccessToken } = require('../services/googleAuth');
+      result.credentials = `service account (${row.auth_mode})`;
+      const saEmail = getServiceAccountEmail();
+      result.service_account_email = saEmail || '(GOOGLE_SERVICE_ACCOUNT_JSON not configured in Settings)';
+      if (!saEmail) {
+        result.live_test = { status: 'error', error: 'No service account configured — paste GOOGLE_SERVICE_ACCOUNT_JSON in Settings.' };
+        return res.json(result);
+      }
+      try {
+        const token = await getPlatformGoogleAccessToken(['https://www.googleapis.com/auth/analytics.readonly']);
+        if (row.connector_type === 'ga4') {
+          const propertyId = row.config?.value;
+          result.property_id = propertyId || '(not set)';
+          if (propertyId) {
+            const testRes = await axios.post(
+              `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
+              { dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }], metrics: [{ name: 'sessions' }] },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            result.live_test = { status: 'ok', detail: `${testRes.data.rowCount || 0} rows returned` };
+          } else {
+            result.live_test = { status: 'ok', detail: 'Service account token minted; select a property to run a live data test.' };
+          }
+        } else {
+          result.live_test = { status: 'ok', detail: 'Service account token minted.' };
+        }
+        await pool.query(
+          'UPDATE connectors SET status = $1, last_checked = NOW(), error_message = NULL WHERE id = $2',
+          ['active', row.id]
+        );
+        result.status = 'active';
+      } catch (saErr) {
+        const detail = saErr.response?.data?.error?.message || saErr.message;
+        const http_status = saErr.response?.status;
+        result.live_test = { status: 'error', http_status, error: detail };
+        if (http_status === 403) {
+          result.live_test.note = `Add ${saEmail} as a Viewer on this GA4 property, then retry.`;
+        }
+      }
+      return res.json(result);
+    }
 
     // Check if credentials are stored at all
     const creds = decrypt(row.credentials);
@@ -251,7 +338,6 @@ router.get('/:id/diagnose', async (req, res) => {
     // Report which credential fields are present (not values)
     result.credentials = Object.keys(creds).join(', ');
 
-    const GOOGLE_TYPES = ['ga4', 'google_search_console', 'google_ads', 'google_merchant_center'];
     const isGoogle = GOOGLE_TYPES.includes(row.connector_type);
 
     if (isGoogle) {

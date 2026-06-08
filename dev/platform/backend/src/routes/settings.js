@@ -11,6 +11,10 @@ const bcrypt = require('bcryptjs');
 
 const SETTINGS_KEYS = [
   'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_ADS_DEVELOPER_TOKEN', 'GOOGLE_ADS_MCC_ID',
+  // Full service-account key file contents (JSON). Pasted once; used as the
+  // durable, never-expiring auth path for Google connectors set to
+  // auth_mode='service_account'. Handled by googleAuth.js.
+  'GOOGLE_SERVICE_ACCOUNT_JSON',
   'META_APP_ID', 'META_APP_SECRET', 'META_REDIRECT_URI',
   'LINKEDIN_CLIENT_ID', 'LINKEDIN_CLIENT_SECRET', 'LINKEDIN_REDIRECT_URI',
   'SHOPIFY_CLIENT_ID', 'SHOPIFY_CLIENT_SECRET', 'SHOPIFY_REDIRECT_URI',

@@ -1,6 +1,27 @@
 const axios = require('axios');
+const { getPlatformGoogleAccessToken } = require('../services/googleAuth');
 
 const authType = 'oauth';
+
+const GA4_SCOPE = 'https://www.googleapis.com/auth/analytics.readonly';
+
+// Modes that authenticate with the platform service account rather than a
+// per-user OAuth token. See migration 065 and services/googleAuth.js.
+function isServiceAccountMode(authMode) {
+  return authMode === 'service_account' || authMode === 'mcc_link';
+}
+
+// Resolve a GA4 bearer token for either auth path. In service-account mode
+// the connector has no per-user credentials — the token comes from the
+// platform service account, which the client has added as a Viewer on the
+// property. In OAuth mode it's the existing refresh-and-return flow.
+async function ga4AccessToken(credentials, authMode) {
+  if (isServiceAccountMode(authMode)) {
+    return getPlatformGoogleAccessToken([GA4_SCOPE]);
+  }
+  const creds = await getValidToken(credentials);
+  return creds.access_token;
+}
 
 const SCOPES = [
   'https://www.googleapis.com/auth/analytics.readonly',
@@ -58,7 +79,14 @@ async function refreshToken(credentials) {
   };
 }
 
-async function checkTokenValidity(credentials) {
+async function checkTokenValidity(credentials, authMode) {
+  if (isServiceAccountMode(authMode)) {
+    // No per-user token to validate — confirm the platform service account
+    // is configured and can mint a token. Access to the specific property
+    // is checked separately when data is fetched.
+    await getPlatformGoogleAccessToken([GA4_SCOPE]);
+    return true;
+  }
   if (!credentials || !credentials.access_token) throw new Error('No credentials');
   // Refresh if expired
   if (credentials.expires_at && Date.now() > credentials.expires_at - 60000) {
@@ -94,14 +122,14 @@ function ga4Rows(report) {
 
 // GA4 data fetch
 async function fetchGA4Data(credentials, params) {
-  const creds = await getValidToken(credentials);
-  const { propertyId, startDate, endDate } = params;
+  const { propertyId, startDate, endDate, authMode } = params;
   if (!propertyId) throw new Error('GA4 property not selected — open the client connectors tab and choose a property.');
+  const accessToken = await ga4AccessToken(credentials, authMode);
 
   const runReport = (body) => axios.post(
     `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
     body,
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
 
   try {
@@ -165,9 +193,9 @@ async function fetchGA4Data(credentials, params) {
 // every channel are silently dropped — which on a sparse / new property
 // looks identical to a truncated date range. We'd rather plot zeros than
 // have the chart silently compress to the last month with traffic.
-async function fetchGA4Daily(credentials, { propertyId, startDate, endDate }) {
-  const creds = await getValidToken(credentials);
+async function fetchGA4Daily(credentials, { propertyId, startDate, endDate, authMode }) {
   if (!propertyId) throw new Error('GA4 property not selected — choose one on the Connectors tab.');
+  const accessToken = await ga4AccessToken(credentials, authMode);
   try {
     const { data } = await axios.post(
       `https://analyticsdata.googleapis.com/v1beta/properties/${propertyId}:runReport`,
@@ -178,7 +206,7 @@ async function fetchGA4Daily(credentials, { propertyId, startDate, endDate }) {
         keepEmptyRows: true,
         limit: 100000,
       },
-      { headers: { Authorization: `Bearer ${creds.access_token}` } }
+      { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return data;
   } catch (err) {
@@ -423,11 +451,11 @@ async function getAccessReport(credentials) {
   };
 }
 
-async function listGA4Properties(credentials) {
-  const creds = await getValidToken(credentials);
+async function listGA4Properties(credentials, authMode) {
+  const accessToken = await ga4AccessToken(credentials, authMode);
   const { data } = await axios.get(
     'https://analyticsadmin.googleapis.com/v1beta/accountSummaries',
-    { headers: { Authorization: `Bearer ${creds.access_token}` } }
+    { headers: { Authorization: `Bearer ${accessToken}` } }
   );
   const options = [];
   for (const account of (data.accountSummaries || [])) {
@@ -487,9 +515,9 @@ async function listMerchantAccounts(credentials) {
   }
 }
 
-async function listAccounts(credentials, connectorType) {
+async function listAccounts(credentials, connectorType, authMode) {
   switch (connectorType) {
-    case 'ga4': return listGA4Properties(credentials);
+    case 'ga4': return listGA4Properties(credentials, authMode);
     case 'google_search_console': return listSearchConsoleSites(credentials);
     case 'google_ads': return listGoogleAdsAccounts(credentials);
     case 'google_merchant_center': return listMerchantAccounts(credentials);

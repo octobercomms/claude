@@ -1,0 +1,16 @@
+-- Connector authentication mode.
+--
+-- Until now every Google connector authenticated with a per-user OAuth
+-- refresh token. Those tokens get revoked whenever client staff change
+-- their password, leave the company, or remove the grant — which is the
+-- single biggest source of recurring GA4 400s in the connector health
+-- check.
+--
+-- This column lets a connector opt into a platform-level service account
+-- (or, for Google Ads/Merchant Center later, an MCC/account link) instead.
+-- Existing rows stay on 'oauth' — no live connection is migrated.
+--
+--   'oauth'           — per-user OAuth refresh token (the existing path)
+--   'service_account' — platform service account added as a viewer/user
+--   'mcc_link'        — platform manager-account (MCC) link request
+ALTER TABLE connectors ADD COLUMN IF NOT EXISTS auth_mode TEXT NOT NULL DEFAULT 'oauth';
