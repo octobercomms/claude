@@ -916,4 +916,35 @@ router.post('/clients/:clientId/keyword-clusters/brief', async (req, res) => {
   }
 });
 
+// ─── PAGE KEYWORD FOOTPRINT ────────────────────────────────────────────────
+// Per-page noun-phrase extraction, populated by the site_audit crawler.
+// Returns the latest audit's footprint grouped by page so the AM can see
+// "this page is about: enamel mug, double walled, cast iron" at a glance.
+router.get('/clients/:clientId/keyword-footprint', async (req, res) => {
+  try {
+    const latest = await pool.query(
+      `SELECT id, started_at, completed_at FROM site_audits
+       WHERE client_id = $1 AND status = 'complete'
+       ORDER BY completed_at DESC LIMIT 1`,
+      [req.params.clientId]
+    );
+    if (!latest.rows.length) return res.json({ audit: null, pages: [] });
+    const auditId = latest.rows[0].id;
+    const { rows } = await pool.query(
+      `SELECT page_url, phrase, frequency, rank
+       FROM site_audit_page_keywords
+       WHERE audit_id = $1
+       ORDER BY page_url, rank`,
+      [auditId]
+    );
+    // Group by page.
+    const byPage = new Map();
+    for (const r of rows) {
+      if (!byPage.has(r.page_url)) byPage.set(r.page_url, { page_url: r.page_url, phrases: [] });
+      byPage.get(r.page_url).phrases.push({ phrase: r.phrase, frequency: r.frequency, rank: r.rank });
+    }
+    res.json({ audit: latest.rows[0], pages: Array.from(byPage.values()) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
