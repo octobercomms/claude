@@ -5,6 +5,7 @@ import AudiencesPanel from '../components/AudiencesPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import SuitePerformanceHub from '../components/SuitePerformanceHub';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
+import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import SuiteTabs from '../components/SuiteTabs';
 import { useTabParam } from '../hooks/useTabParam';
@@ -25,7 +26,10 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  const [tab, setTab] = useTabParam('overview', ['overview', 'performance', 'strategist', 'creative', 'audiences']);
+  // 'creative' kept in the whitelist so any existing deep links still
+  // resolve; it's an alias for 'pipeline' that we normalise on render.
+  const [tab, setTab] = useTabParam('overview', ['overview', 'performance', 'strategist', 'pipeline', 'creative', 'audiences']);
+  const normalisedTab = tab === 'creative' ? 'pipeline' : tab;
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(c => {
@@ -180,14 +184,14 @@ export default function ClientAdsPage() {
         </div>
       </header>
       <SuiteTabs tabs={[
-        { key: 'overview',    label: 'Overview',    active: tab === 'overview',    onClick: () => setTab('overview') },
-        { key: 'performance', label: 'Performance', active: tab === 'performance', onClick: () => setTab('performance') },
-        { key: 'strategist',  label: 'Strategist',  active: tab === 'strategist',  onClick: () => setTab('strategist') },
-        { key: 'creative',    label: 'Creative',    active: tab === 'creative',    onClick: () => setTab('creative') },
-        { key: 'audiences',   label: 'Audiences',   active: tab === 'audiences',   onClick: () => setTab('audiences') },
+        { key: 'overview',    label: 'Overview',    active: normalisedTab === 'overview',    onClick: () => setTab('overview') },
+        { key: 'performance', label: 'Performance', active: normalisedTab === 'performance', onClick: () => setTab('performance') },
+        { key: 'strategist',  label: 'Strategist',  active: normalisedTab === 'strategist',  onClick: () => setTab('strategist') },
+        { key: 'pipeline',    label: 'Pipeline',    active: normalisedTab === 'pipeline',    onClick: () => setTab('pipeline') },
+        { key: 'audiences',   label: 'Audiences',   active: normalisedTab === 'audiences',   onClick: () => setTab('audiences') },
       ]} />
 
-      {tab === 'overview' && (
+      {normalisedTab === 'overview' && (
         <div className="stack stack-lg">
         <SuiteOverview
           tagline="Know what your ad spend is doing — and what to do next."
@@ -208,7 +212,7 @@ export default function ClientAdsPage() {
           capabilities={[
             { tag: 'Performance', title: 'See spend, ROAS & profit live', cta: 'Open performance', onClick: () => setTab('performance'), body: 'Every Google + Meta account in one margin-aware dashboard — spend, revenue, ROAS, profit and per-campaign breakdown, no spreadsheet needed.' },
             { tag: 'Strategist',  title: 'Get told what to action',       cta: 'Open strategist',  onClick: () => setTab('strategist'), body: 'A weekly analyst brief: Claude compares this period to last and writes the to-do list — paused campaigns, budget shifts, what is and isn\'t working.' },
-            { tag: 'Creative',    title: 'Generate on-brand ads',         cta: 'Open creative',    onClick: () => setTab('creative'), body: 'Direct-response concepts (PAS/AIDA/…) rendered across every aspect ratio via Replicate, Ideogram and Firefly — grounded in the brand kit.' },
+            { tag: 'Pipeline',    title: 'Generate on-brand ads',         cta: 'Open pipeline',    onClick: () => setTab('pipeline'), body: 'Brief → concepts → renders → approve → launch. Direct-response frameworks (PAS / AIDA / Before-After) across every aspect ratio via Replicate, Ideogram and Firefly — grounded in the brand kit.' },
             { tag: 'Audiences',   title: 'Build first-party audiences',   cta: 'Open audiences',   onClick: () => setTab('audiences'), body: 'Turn Shopify postcodes or an uploaded customer list into targetable segments, exported as Meta Custom Audiences.' },
           ]}
         />
@@ -216,10 +220,10 @@ export default function ClientAdsPage() {
         </div>
       )}
 
-      {tab === 'creative' && <AdCreativePanel clientId={id} clientName={client?.name || ''} />}
-      {tab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
-      {tab === 'audiences' && <AudiencesPanel clientId={id} />}
-      {tab === 'performance' && <>
+      {normalisedTab === 'pipeline' && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} />}
+      {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
+      {normalisedTab === 'audiences' && <AudiencesPanel clientId={id} />}
+      {normalisedTab === 'performance' && <>
       <div className="mb-6">
         <SuitePerformanceHub
           headline="Know what your ad spend is doing — right now."
@@ -240,7 +244,7 @@ export default function ClientAdsPage() {
           ]}
           cards={[
             { label: 'STRATEGIST', title: 'Get told what to action',  body: 'Weekly analyst brief — Claude compares this period to last and writes the to-do list.', onClick: () => setTab('strategist') },
-            { label: 'CREATIVE',   title: 'Generate on-brand ads',    body: 'Direct-response concepts (PAS / AIDA / Before-After) rendered across every aspect ratio.', onClick: () => setTab('creative') },
+            { label: 'PIPELINE',   title: 'Generate & launch ads',    body: 'Brief → concepts → renders → approve → launch. Direct-response frameworks across every aspect ratio.', onClick: () => setTab('pipeline') },
             { label: 'AUDIENCES',  title: 'Build first-party segments', body: 'Turn Shopify postcodes or an uploaded customer list into Meta Custom Audiences.', onClick: () => setTab('audiences') },
           ]}
         />
