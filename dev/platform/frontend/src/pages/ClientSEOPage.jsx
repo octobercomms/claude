@@ -113,6 +113,8 @@ import DraftPanel from '../components/organic/DraftPanel';
 import PublishPanel from '../components/organic/PublishPanel';
 import PromotePanel from '../components/organic/PromotePanel';
 import OrganicInsightsPanel from '../components/organic/OrganicInsightsPanel';
+import SiteAuditPanel from '../components/organic/SiteAuditPanel';
+import QuickWinsPanel from '../components/organic/QuickWinsPanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -602,7 +604,7 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
-    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks',
+    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
   ]);
@@ -655,6 +657,8 @@ export default function ClientSEOPage() {
             { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
+            { key: 'site_audit',    label: 'Site audit' },
+            { key: 'quick_wins',    label: 'Quick wins' },
             { key: 'ai_visibility', label: 'AI Visibility' },
             { key: 'authority',     label: 'Authority' },
             { key: 'backlinks',     label: 'Backlinks' },
@@ -672,6 +676,7 @@ export default function ClientSEOPage() {
           perf_insights: 'performance',
           keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
           ai_visibility: 'performance',
+          site_audit: 'performance', quick_wins: 'performance',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
@@ -731,10 +736,14 @@ export default function ClientSEOPage() {
           keywords={keywords}
           onOpenKeywords={() => setActiveTab('keywords')}
           onOpenAiVisibility={() => setActiveTab('ai_visibility')}
+          onOpenSiteAudit={() => setActiveTab('site_audit')}
+          onOpenQuickWins={() => setActiveTab('quick_wins')}
         />
       )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
+      {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
+      {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
       {/* Pipeline steps */}
       {activeTab === 'find' && <FindPanel clientId={id} onNext={() => setActiveTab('planning')} />}
       {activeTab === 'planning' && <BriefPanel clientId={id} onNext={() => setActiveTab('draft')} />}

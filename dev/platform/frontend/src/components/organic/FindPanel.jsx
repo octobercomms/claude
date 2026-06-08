@@ -29,6 +29,7 @@ const MODES = [
   { key: 'url',        label: 'From URL',             tagline: 'Paste a competitor blog post URL. We pull every keyword that page ranks for and cross-reference against your ranks, so you know exactly which sub-topics to cover to outrank it.' },
   { key: 'query',      label: 'From a query',         tagline: 'Type a seed query. Claude generates the likely Google fan-out (the related queries the AI Overview will pull from), we run each against your domain to score coverage, then identify the sub-intents to cover.' },
   { key: 'competitor', label: 'From competitor domains', tagline: 'Pick up to 5 competitor domains. DFS Domain Intersection returns the keywords they rank for that you don\'t — the highest-volume content gaps in your category.' },
+  { key: 'own_site',   label: 'From your own site',   tagline: 'Pull open issues from the Site audit + Quick wins (keywords #11–20) into one list so you can pick a refresh target without leaving Pipeline.' },
 ];
 
 export default function FindPanel({ clientId, onNext }) {
@@ -111,6 +112,7 @@ export default function FindPanel({ clientId, onNext }) {
 
       {mode === 'query' && <FanoutTab clientId={clientId} />}
       {mode === 'competitor' && <ContentGapsTab clientId={clientId} />}
+      {mode === 'own_site' && <OwnSiteMode clientId={clientId} />}
       {mode === 'url' && (<>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
         <input
@@ -213,5 +215,83 @@ export default function FindPanel({ clientId, onNext }) {
       )}
       </>)}
     </PipelineStep>
+  );
+}
+
+// Pipeline → Find → "From your own site" mode. Pulls open Site audit
+// issues + Quick wins (rank 11–20) in one list so the AM can pick a
+// refresh target without bouncing into Performance. Read-only here —
+// the actual rewrite happens in Pipeline → Draft.
+function OwnSiteMode({ clientId }) {
+  const [issues, setIssues] = useState([]);
+  const [wins, setWins] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const [iss, qw] = await Promise.all([
+          fetch('/api/seo/clients/' + clientId + '/site-audits/open-issues', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({ issues: [] })),
+          fetch('/api/seo/clients/' + clientId + '/quick-wins',                { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({ wins: [] })),
+        ]);
+        setIssues(iss.issues || []);
+        setWins((qw.wins || []).filter(w => !w.dismissed_at));
+      } catch (e) { setErr(e.message); }
+      finally { setLoading(false); }
+    })();
+  }, [clientId]);
+
+  const thinContent = issues.filter(i => i.category === 'thin_content');
+  const otherIssues = issues.filter(i => i.category !== 'thin_content');
+
+  if (loading) return <div style={{ color: 'var(--text-subtle)', padding: 20 }}>Loading…</div>;
+  if (err) return <div className="callout callout-danger">{err}</div>;
+  if (!thinContent.length && !wins.length && !otherIssues.length) {
+    return (
+      <div style={{ color: 'var(--text-subtle)', padding: 20, fontSize: 13 }}>
+        Nothing surfaced. Run a Site audit on Performance, or get keywords ranking in the #11–#20 range before this mode has anything to show.
+      </div>
+    );
+  }
+  return (
+    <div className="stack" style={{ gap: 'var(--s5)' }}>
+      {!!thinContent.length && (
+        <div className="card">
+          <div className="caption">Thin content pages · refresh</div>
+          <p className="body-xs text-subtle mt-2 mb-3">From the latest Site audit. Each row is a page that came in under 300 words — prime candidates for the Pipeline → Draft refresh flow.</p>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {thinContent.map(i => (
+              <li key={i.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12 }}>
+                <a href={i.page_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)' }}>{i.page_url.replace(/^https?:\/\//, '')}</a>
+                <div style={{ color: 'var(--text-subtle)', marginTop: 2 }}>{i.detail}</div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!!wins.length && (
+        <div className="card">
+          <div className="caption">Quick wins · keywords #11–20</div>
+          <p className="body-xs text-subtle mt-2 mb-3">One refresh away from page 1.</p>
+          <ul style={{ margin: 0, padding: 0, listStyle: 'none' }}>
+            {wins.slice(0, 20).map(w => (
+              <li key={w.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--card-border)', fontSize: 12, display: 'flex', justifyContent: 'space-between' }}>
+                <span><strong>{w.keyword}</strong>{w.target_url && <span style={{ color: 'var(--text-subtle)', marginLeft: 6 }}>· {w.target_url.replace(/^https?:\/\//, '').slice(0, 50)}</span>}</span>
+                <span style={{ color: 'var(--text-muted)' }}>#{w.current_position} · effort {w.effort_score}/10</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {!!otherIssues.length && (
+        <div className="card">
+          <div className="caption">Other open audit issues</div>
+          <p className="body-xs text-subtle mt-2 mb-3">Most of these are CMS fixes rather than content work — addressing them on the Site audit tab is the cleaner workflow.</p>
+          <p className="body-sm text-muted">{otherIssues.length} other issue{otherIssues.length === 1 ? '' : 's'} open across {new Set(otherIssues.map(i => i.page_url)).size} pages.</p>
+        </div>
+      )}
+    </div>
   );
 }

@@ -28,7 +28,7 @@ const INTENT_COLOURS = {
   Transactional: 'var(--positive)',
 };
 
-export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, onOpenAiVisibility }) {
+export default function OrganicInsightsPanel({ keywords = [], onOpenKeywords, onOpenAiVisibility, onOpenSiteAudit, onOpenQuickWins }) {
   const tracked = keywords.length;
   const ranking = keywords.filter(k => k.current_position).length;
   const top10 = keywords.filter(k => k.current_position && k.current_position <= 10).length;
