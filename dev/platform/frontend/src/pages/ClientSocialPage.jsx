@@ -9,6 +9,7 @@ import SocialBrainstormStep from '../components/social/SocialBrainstormStep';
 import SocialPlanStep from '../components/social/SocialPlanStep';
 import SocialPublishStep from '../components/social/SocialPublishStep';
 import SocialLearnStep from '../components/social/SocialLearnStep';
+import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
 import UiButton from '../components/ui/Button';
@@ -615,6 +616,9 @@ function BrainstormTab({
   refreshInsights, renderTemplates, generateMedia, deleteMedia,
 }) {
   const hasAutopilotSupported = activeBatchId && posts.some(p => ['instagram','facebook','linkedin'].includes(p.platform));
+  const [refiningId, setRefiningId] = useState(null);
+  const [refineErr, setRefineErr] = useState(null);
+  const refining = refiningId ? posts.find(p => p.id === refiningId) : null;
   return (
     <div>
       <div className="row between center wrap mb-4">
@@ -660,22 +664,112 @@ function BrainstormTab({
               <ExamplePostCard />
             </ExampleBlock>
           )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
-            {posts.map(p => (
-              <PostCard key={p.id} post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
-                onChange={patch => updatePost(p.id, patch)}
-                onDelete={() => deletePost(p.id)}
-                onPublish={(url) => publishPost(p.id, url)}
-                onRefreshInsights={() => refreshInsights(p.id)}
-                onRenderTemplates={() => renderTemplates(p.id)}
-                onGenerateMedia={(kind) => generateMedia(p.id, kind)}
-                onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
-            ))}
-          </div>
+          {refining ? (
+            <div>
+              <div className="row between center mb-3">
+                <button onClick={() => { setRefiningId(null); setRefineErr(null); }} className="btn btn-ghost btn-sm">
+                  ← Back to all {posts.length} posts
+                </button>
+                <div className="caption">Refining: {refining.platform} · {refining.kind}{refining.framework ? ` · ${refining.framework}` : ''}</div>
+              </div>
+              {refineErr && <div className="callout callout-danger mb-3">{refineErr}</div>}
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 380px', gap: 'var(--s4)' }}>
+                <PostCard post={refining} engagement={engagement[refining.id]} media={mediaByPost[refining.id] || []}
+                  onChange={patch => updatePost(refining.id, patch)}
+                  onDelete={() => { setRefiningId(null); deletePost(refining.id); }}
+                  onPublish={(url) => publishPost(refining.id, url)}
+                  onRefreshInsights={() => refreshInsights(refining.id)}
+                  onRenderTemplates={() => renderTemplates(refining.id)}
+                  onGenerateMedia={(kind) => generateMedia(refining.id, kind)}
+                  onDeleteMedia={(mediaId) => deleteMedia(mediaId, refining.id)} />
+                <RefineChat
+                  clientId={clientId}
+                  kind="social_post"
+                  artifact={renderPostForArtifact(refining)}
+                  artifactMeta={`${refining.platform} · ${refining.kind}${refining.framework ? ` · ${refining.framework}` : ''}`}
+                  onApplyRevision={(content) => {
+                    const partial = parsePostFields(content);
+                    if (!partial) {
+                      setRefineErr('Could not parse revised post. Ask Claude to use the HOOK/CAPTION/HASHTAGS/STORYBOARD labels.');
+                      return;
+                    }
+                    setRefineErr(null);
+                    updatePost(refining.id, partial);
+                  }}
+                  onClose={() => setRefiningId(null)}
+                  compact
+                />
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(380px, 1fr))', gap: 14 }}>
+              {posts.map(p => (
+                <div key={p.id} style={{ display: 'flex', flexDirection: 'column' }}>
+                  <PostCard post={p} engagement={engagement[p.id]} media={mediaByPost[p.id] || []}
+                    onChange={patch => updatePost(p.id, patch)}
+                    onDelete={() => deletePost(p.id)}
+                    onPublish={(url) => publishPost(p.id, url)}
+                    onRefreshInsights={() => refreshInsights(p.id)}
+                    onRenderTemplates={() => renderTemplates(p.id)}
+                    onGenerateMedia={(kind) => generateMedia(p.id, kind)}
+                    onDeleteMedia={(mediaId) => deleteMedia(mediaId, p.id)} />
+                  <button onClick={() => setRefiningId(p.id)}
+                    className="btn btn-secondary btn-sm"
+                    style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+                    ✦ Refine with Claude
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+// Render a brainstorm post as a labelled text block so Claude sees the
+// same structure the AM is editing. Storyboard frames render as a
+// numbered list — the parser on the way back expects that shape.
+function renderPostForArtifact(p) {
+  const lines = [
+    `PLATFORM: ${p.platform || ''} · ${p.kind || ''}`,
+    p.framework ? `FRAMEWORK: ${p.framework}` : null,
+    `HOOK: ${p.hook || ''}`,
+    `CAPTION: ${p.caption || ''}`,
+    `HASHTAGS: ${(p.hashtags || []).join(', ')}`,
+    `STORYBOARD:\n${(p.storyboard || []).map((f, i) => `${i + 1}. ${typeof f === 'string' ? f : (f.description || JSON.stringify(f))}`).join('\n')}`,
+  ].filter(Boolean);
+  return lines.join('\n\n');
+}
+
+// Pull hook/caption/hashtags/storyboard back out of Claude's revision
+// block. Tolerant of markdown bold and stray code fences. Returns only
+// the fields that actually changed so the PUT is a partial update.
+function parsePostFields(text) {
+  if (!text) return null;
+  const cleaned = String(text).replace(/```[a-z]*\n?/gi, '').replace(/```/g, '').replace(/\*\*/g, '').trim();
+  const labels = ['hook', 'caption', 'hashtags', 'storyboard'];
+  const out = {};
+  for (const label of labels) {
+    const re = new RegExp(`(?:^|\\n)\\s*${label}\\s*:\\s*([\\s\\S]*?)(?=\\n\\s*(?:${labels.join('|')})\\s*:|$)`, 'i');
+    const m = cleaned.match(re);
+    if (!m) continue;
+    const raw = m[1].trim();
+    if (!raw) continue;
+    if (label === 'hashtags') {
+      const tags = raw.split(/[,\n]/).map(t => t.trim().replace(/^#/, '')).filter(Boolean).slice(0, 30);
+      if (tags.length) out.hashtags = tags;
+    } else if (label === 'storyboard') {
+      const frames = raw.split(/\n+/)
+        .map(line => line.replace(/^\s*\d+[.)]\s*/, '').trim())
+        .filter(Boolean);
+      if (frames.length) out.storyboard = frames;
+    } else {
+      out[label] = raw;
+    }
+  }
+  return Object.keys(out).length ? out : null;
 }
 
 function BulkScheduleModal({ clientId, posts, onClose, onScheduled }) {

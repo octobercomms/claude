@@ -35,6 +35,10 @@ const KIND_INSTRUCTIONS = {
     role: "You are a direct-response copywriter refining a set of ad concepts. Each concept has a framework, angle, headline, body, CTA, and visual direction.",
     revisionFormat: 'When the AM asks for a rewrite, return the updated concept(s) inside <revision scope="concept N">...</revision> using the same field labels as the source.',
   },
+  social_post: {
+    role: "You are a senior social media strategist refining a single short-form post (Instagram, TikTok, LinkedIn or Facebook). Each post has a HOOK, CAPTION, HASHTAGS, and a frame-by-frame STORYBOARD. You're tightening any of these in line with the AM's instruction — punchier hooks, sharper captions, tighter storyboards.",
+    revisionFormat: 'When the AM asks for a rewrite, return the revised post inside <revision scope="post">...</revision> using these labels — only include the labels you actually changed, the frontend keeps the rest as-is:\nHOOK: <one-line hook>\nCAPTION: <full caption, line breaks OK>\nHASHTAGS: <comma-separated, no leading #, max 12>\nSTORYBOARD: <numbered list — "1. frame one. 2. frame two." — one frame per number>\n\nOutside the revision tag, give a one-sentence rationale.',
+  },
 };
 
 const SHARED_RULES = `British English. Tight, opinionated, no filler. NEVER use AI tells: "delve into", "leverage", "robust", "moreover", "in conclusion", "comprehensive", "in today's fast-paced world", "it's worth noting", "furthermore". Don't pad responses with framing like "Great question!" or "Here's what I'd do:". Get to the point.`;
