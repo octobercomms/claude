@@ -134,9 +134,20 @@ class OO_Database {
             summary text NOT NULL DEFAULT '',
             audience_defined text NOT NULL DEFAULT '',
             campaign_id bigint(20) DEFAULT NULL,
+            client varchar(200) NOT NULL DEFAULT '',
+            brand varchar(100) NOT NULL DEFAULT '',
+            angle text NOT NULL DEFAULT '',
+            key_facts text NOT NULL DEFAULT '',
+            body_html longtext NULL,
+            embargo_at datetime DEFAULT NULL,
+            review_token varchar(64) NOT NULL DEFAULT '',
+            approved_at datetime DEFAULT NULL,
+            approved_by varchar(200) NOT NULL DEFAULT '',
             status varchar(50) NOT NULL DEFAULT 'draft',
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (id)
+            PRIMARY KEY (id),
+            KEY review_token (review_token),
+            KEY status (status)
         ) $charset;";
 
         $campaign_contacts = "CREATE TABLE {$wpdb->prefix}oo_campaign_contacts (

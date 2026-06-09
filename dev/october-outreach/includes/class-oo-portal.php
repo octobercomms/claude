@@ -21,7 +21,52 @@ class OO_Portal {
         return home_url( '/?oo_pr=' . rawurlencode( $token ) );
     }
 
+    public static function review_url( $token ) {
+        return home_url( '/?oo_pr_review=' . rawurlencode( $token ) );
+    }
+
+    /** Public press-release approval page (token-gated, no login). */
+    private static function render_review( $token ) {
+        global $wpdb;
+        if ( $token === '' ) { status_header( 404 ); self::shell( 'Not found', '<p>Invalid link.</p>' ); return; }
+        $pr = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_press_releases WHERE review_token = %s", $token
+        ) );
+        if ( ! $pr ) { status_header( 404 ); self::shell( 'Not found', '<p>This approval link is invalid or has expired.</p>' ); return; }
+
+        // Handle approval submit (the token is the authorisation).
+        if ( ! empty( $_POST['oo_approve'] ) ) {
+            $by = sanitize_text_field( wp_unslash( $_POST['approver'] ?? '' ) ) ?: 'Client';
+            $wpdb->update( $wpdb->prefix . 'oo_press_releases', array(
+                'status'      => 'approved',
+                'approved_at' => current_time( 'mysql' ),
+                'approved_by' => $by,
+            ), array( 'id' => $pr->id ) );
+            $pr->status = 'approved';
+        }
+
+        $approved = ( $pr->status === 'approved' || $pr->status === 'sent' );
+        ob_start();
+        echo '<div class="oo-pr-head"><h1>' . esc_html( $pr->title ) . '</h1>';
+        echo '<p class="oo-pr-sub">' . ( $pr->client ? esc_html( $pr->client ) . ' · ' : '' ) . 'Press release for approval</p></div>';
+        echo '<div style="font-size:15px">' . wp_kses_post( $pr->body_html ?: '<p><em>Draft not written yet.</em></p>' ) . '</div>';
+        echo '<hr style="margin:22px 0;border:none;border-top:1px solid #e5e7eb">';
+        if ( $approved ) {
+            echo '<p class="oo-pr-badge is-pub" style="display:inline-block">✓ Approved' . ( $pr->approved_by ? ' by ' . esc_html( $pr->approved_by ) : '' ) . '</p>';
+        } else {
+            echo '<form method="post" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">';
+            echo '<input type="text" name="approver" placeholder="Your name" style="padding:8px 12px;border:1px solid #d1d5db;border-radius:8px">';
+            echo '<button type="submit" name="oo_approve" value="1" style="background:#166534;color:#fff;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-size:15px">Approve this release</button>';
+            echo '</form><p class="oo-pr-empty" style="font-size:13px;margin-top:10px">Spotted something? Reply to the email this link came from and we\'ll revise it.</p>';
+        }
+        self::shell( esc_html( $pr->title ) . ' — Approval', ob_get_clean() );
+    }
+
     public static function maybe_render() {
+        if ( ! empty( $_GET['oo_pr_review'] ) ) {
+            self::render_review( sanitize_text_field( wp_unslash( $_GET['oo_pr_review'] ) ) );
+            exit;
+        }
         if ( empty( $_GET['oo_pr'] ) ) return;
         $token = sanitize_text_field( wp_unslash( $_GET['oo_pr'] ) );
 
