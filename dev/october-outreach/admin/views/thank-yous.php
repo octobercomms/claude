@@ -32,12 +32,49 @@ $from_set   = ! empty( get_option( 'oo_settings', array() )['default_reply_to'] 
 </div>
 
 <div id="oo-thanks-notice" class="oo-notice" style="display:none"></div>
+<?php if ( isset( $_GET['stage_saved'] ) ) : ?><div class="oo-notice oo-notice-success">Autonomy updated.</div><?php endif; ?>
 
 <?php if ( ! $from_set ) : ?>
 <div class="oo-notice oo-notice-warning">Set a <strong>Default Reply-To</strong> address in Settings — thank-yous send from there (so replies reach you).</div>
 <?php endif; ?>
 
-<p class="oo-muted" style="margin-bottom:14px">Published coverage with a known journalist email, not yet thanked. Claude drafts a fresh note each time (never the same one twice to the same journalist) — review, edit if you like, and send. This is the assisted stage; auto-send comes later.</p>
+<p class="oo-muted" style="margin-bottom:14px">Published coverage with a known journalist email, not yet thanked. Claude drafts a fresh note each time (never the same one twice to the same journalist) — review, edit if you like, and send.</p>
+
+<?php
+$auto_clients = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}oo_clients ORDER BY name ASC" );
+if ( $auto_clients ) :
+?>
+<div class="oo-card" style="margin-bottom:16px">
+    <h2 class="oo-card-title">Auto-send autonomy <span class="oo-muted" style="font-weight:400;font-size:13px">— per client</span></h2>
+    <p class="oo-muted" style="margin-bottom:10px">Everything starts <strong>Assisted</strong> (you approve every send). As Claude builds a track record you can let it auto-send confident thank-yous for a client. Only Active journalists with an email are ever auto-thanked, capped per day, and only when a Default Reply-To is set.</p>
+    <div class="oo-table-wrap"><table class="oo-table">
+        <thead><tr><th>Client</th><th>Track record</th><th>Autonomy</th></tr></thead>
+        <tbody>
+        <?php foreach ( $auto_clients as $cl ) :
+            $tr = OO_Thanks::track_record( $cl->name );
+        ?>
+        <tr>
+            <td><strong><?php echo esc_html( $cl->name ); ?></strong></td>
+            <td class="oo-muted" style="font-size:13px"><?php echo (int) $tr['approved']; ?> approved · <?php echo (int) $tr['edited']; ?> edited · <?php echo (int) $tr['rejected']; ?> rejected · <?php echo (int) $tr['auto']; ?> auto</td>
+            <td>
+                <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:flex;gap:6px;align-items:center">
+                    <?php wp_nonce_field( 'oo_save_thank_stage' ); ?>
+                    <input type="hidden" name="action" value="oo_save_thank_stage">
+                    <input type="hidden" name="client_id" value="<?php echo esc_attr( $cl->id ); ?>">
+                    <select name="thank_stage" class="oo-select" style="width:auto">
+                        <?php foreach ( OO_Thanks::stages() as $val => $lbl ) : ?>
+                        <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $cl->thank_stage ?? 'assist', $val ); ?>><?php echo esc_html( $lbl ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button type="submit" class="oo-btn oo-btn-secondary oo-btn-sm">Set</button>
+                </form>
+            </td>
+        </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table></div>
+</div>
+<?php endif; ?>
 
 <?php if ( $rows ) : ?>
 <div id="oo-thanks-list">

@@ -233,6 +233,7 @@ class OO_Database {
             token varchar(64) NOT NULL DEFAULT '',
             alert_email varchar(200) NOT NULL DEFAULT '',
             report_cadence varchar(20) NOT NULL DEFAULT 'off',
+            thank_stage varchar(20) NOT NULL DEFAULT 'assist',
             last_report_at datetime DEFAULT NULL,
             created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
