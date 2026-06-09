@@ -139,7 +139,7 @@ Find one who ticks every box → nvelope.co"
 ```
 Format:   Talking head, phone-shot, authentic feel
 Script:   "We tried to find an architect for months. Then we found [Studio]
-          on OMI — submitted our brief on a Tuesday, had a call by Friday.
+          on nvelope — submitted our brief on a Tuesday, had a call by Friday.
           We've just broken ground."
 CTA:      "Find your studio today"
 ```
@@ -184,7 +184,7 @@ Angle: Urgency (seasonal — pre-summer builds)
 and submit your brief before the calendar fills up."
 
 Angle: Quality Positioning
-"These aren't listing-site results. Every studio on OMI has been
+"These aren't listing-site results. Every studio on nvelope has been
 reviewed. See their real work, then decide."
 ```
 

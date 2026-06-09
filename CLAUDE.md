@@ -48,7 +48,10 @@ zip that the plugin's built-in self-updater installs.
 **October Marketing Intelligence (OMI)** is the product name for the October
 Performance Marketing Platform; its code lives in `dev/platform` (backend +
 frontend) and its strategy/marketing docs live in `docs/omi/`. Do **not** brand
-the platform "nvelope" — that is a separate project. (`nvelope.co` is a distinct
-product/domain; its ad-integration code in `dev/meta-ads` and its own funnel
-plugins like `dev/oc-forms` / `dev/brevo-widgets` legitimately reference the
-`nvelope.co` domain and must keep their existing identifiers.)
+the platform "nvelope", and don't introduce new "nvelope" references into OMI.
+
+**nvelope.co** is a separate lead-gen platform (not OMI). Its own assets stay as
+they are: its marketing/strategy docs live in `docs/nvelope/`, its ad-integration
+code in `dev/meta-ads`, and its funnel plugins (`dev/oc-forms`, `dev/brevo-widgets`)
+legitimately reference the `nvelope.co` domain and keep their existing
+identifiers. Leave those alone; just don't let nvelope branding back into OMI.

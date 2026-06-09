@@ -25,9 +25,9 @@ Examples:
 Google Ads Account — nvelope.co
 │
 ├── BRAND CAMPAIGNS (always-on)
-│   └── GOOG_SRCH_Brand_[Geo]_OMI_[YYYYMM]
-│       └── Ad Group: OMI brand terms
-│           Keywords: [OMI], [nvelope.co], [OMI architects]
+│   └── GOOG_SRCH_Brand_[Geo]_nvelope_[YYYYMM]
+│       └── Ad Group: nvelope brand terms
+│           Keywords: [nvelope], [nvelope.co], [nvelope architects]
 │           Bid: Target Impression Share 90%+ (top of page)
 │
 ├── NON-BRAND — PER STUDIO
@@ -49,7 +49,7 @@ Google Ads Account — nvelope.co
 │       └── Ad Group 3: Design studio intent
 │
 ├── PERFORMANCE MAX (Month 3+ when conversion data exists)
-│   └── GOOG_PMAX_AllNetworks_[Geo]_OMI_[YYYYMM]
+│   └── GOOG_PMAX_AllNetworks_[Geo]_nvelope_[YYYYMM]
 │       ├── Asset Group 1: Residential Architecture
 │       ├── Asset Group 2: Interior Design
 │       └── Asset Group 3: Commercial Design
