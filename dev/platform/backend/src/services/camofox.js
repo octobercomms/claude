@@ -1,6 +1,6 @@
 // Camofox — stealth headless browser (Camoufox/Firefox with C++-level
 // fingerprint spoofing) exposed over a REST API. We run it as a sibling
-// PM2 process on the platform box (see docs/nvelope/external-integrations-plan.md)
+// PM2 process on the platform box (see docs/omi/external-integrations-plan.md)
 // bound to localhost, and use it as the FALLBACK scraping path for the
 // pages our plain axios+cheerio scrapers can't reach: competitor landing
 // pages, SERPs, and AI-visibility checks that sit behind Cloudflare/Sucuri

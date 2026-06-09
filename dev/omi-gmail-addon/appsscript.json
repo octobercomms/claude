@@ -10,7 +10,7 @@
   ],
   "addOns": {
     "common": {
-      "name": "nvelope PR for Gmail",
+      "name": "OMI for Gmail",
       "logoUrl": "https://www.gstatic.com/images/icons/material/system/2x/campaign_black_24dp.png",
       "useLocaleFromApp": true,
       "homepageTrigger": {

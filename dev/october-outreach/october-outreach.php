@@ -55,7 +55,7 @@ function oo_init() {
     OO_Portal::init();  // public client portal (front-end, token-gated)
     OO_Reports::init(); // scheduled client reports + alerts
     OO_Monitor::init(); // scheduled coverage monitoring
-    OO_REST::init();    // REST API (nvelope front-end + Gmail add-on)
+    OO_REST::init();    // REST API (OMI front-end + Gmail add-on)
     OO_Thanks::init();  // thank-you auto-send ramp (graduated autonomy)
     if ( is_admin() ) {
         new OO_Admin();

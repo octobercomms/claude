@@ -1,10 +1,10 @@
 <?php
 /**
  * REST API for the PR module — the shared gateway for external surfaces
- * (the nvelope front-end at platform.octobercomms.com, and the Gmail add-on).
+ * (the OMI front-end at platform.octobercomms.com, and the Gmail add-on).
  *
  * Namespace: oo/v1. Auth: a logged-in manage_options user, OR an `X-OO-Key`
- * header matching the key in Settings (for off-site apps like nvelope).
+ * header matching the key in Settings (for off-site apps like OMI).
  * The WordPress plugin stays the single source of truth; these endpoints just
  * expose/accept its data so the logic isn't duplicated elsewhere.
  */

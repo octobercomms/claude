@@ -5,7 +5,7 @@
 // coreyhaines31/marketingskills skills (the full skills are also installed at
 // repo .claude/skills/ for human/editor use; these fragments are the trimmed
 // versions safe to inject into a system prompt without blowing the token
-// budget). See docs/nvelope/external-integrations-plan.md, Integration 3.
+// budget). See docs/omi/external-integrations-plan.md, Integration 3.
 //
 // Services append the relevant playbook to their existing system prompt so
 // every automated run is grounded in proven methodology. This slice ships the

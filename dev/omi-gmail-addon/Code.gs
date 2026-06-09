@@ -1,9 +1,9 @@
 /**
- * nvelope PR for Gmail — contextual sidebar add-on.
+ * OMI for Gmail — contextual sidebar add-on.
  *
  * Opening a message shows the sender's journalist profile + recent coverage
- * from the nvelope platform (via its PR add-on API), with one-tap actions to
- * log the thread to a client's editorial log or capture an unknown sender as a
+ * from October Marketing Intelligence (via its PR add-on API), with one-tap
+ * actions to log the thread to a client's editorial log or capture an unknown sender as a
  * press or industry contact.
  *
  * Config (Script Properties): OMI_BASE = https://platform.octobercomms.com/api/pr-addon
@@ -55,7 +55,7 @@ function onHomepage() {
   var cfg = getConfig();
   if (!cfg.base || !cfg.key) return configCard().build();
   return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('nvelope PR for Gmail'))
+    .setHeader(CardService.newCardHeader().setTitle('OMI for Gmail'))
     .addSection(CardService.newCardSection().addWidget(
       CardService.newTextParagraph().setText('Open an email to see the sender’s coverage profile, log the thread, or add them to your database.')
     ))
@@ -88,7 +88,7 @@ function onGmailMessageOpen(e) {
 
 function configCard() {
   var section = CardService.newCardSection()
-    .addWidget(CardService.newTextParagraph().setText('Connect this add-on to your nvelope platform.'))
+    .addWidget(CardService.newTextParagraph().setText('Connect this add-on to your October Marketing Intelligence platform.'))
     .addWidget(CardService.newTextInput().setFieldName('base').setTitle('API base URL')
       .setHint('e.g. https://platform.octobercomms.com/api/pr-addon'))
     .addWidget(CardService.newTextInput().setFieldName('key').setTitle('API key')
@@ -96,13 +96,13 @@ function configCard() {
     .addWidget(CardService.newTextButton().setText('Save')
       .setOnClickAction(CardService.newAction().setFunctionName('saveConfig')));
   return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('Connect nvelope'))
+    .setHeader(CardService.newCardHeader().setTitle('Connect OMI'))
     .addSection(section);
 }
 
 function errorCard(msg) {
   return CardService.newCardBuilder()
-    .setHeader(CardService.newCardHeader().setTitle('Couldn’t reach nvelope'))
+    .setHeader(CardService.newCardHeader().setTitle('Couldn’t reach OMI'))
     .addSection(CardService.newCardSection()
       .addWidget(CardService.newTextParagraph().setText(msg + '. Check the base URL and key in the add-on settings.'))
       .addWidget(CardService.newTextButton().setText('Settings')
