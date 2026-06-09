@@ -1,0 +1,10 @@
+{
+  "name": "paywalls",
+  "description": "",
+  "source": "coreyhaines31/marketingskills",
+  "sourceType": "github",
+  "subpath": "paywalls",
+  "installedAt": "2026-06-09T21:19:30.193Z",
+  "enabled": true,
+  "checksum": "d062c03f6b99e76f"
+}
