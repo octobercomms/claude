@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const { getSetting } = require('../utils/settings');
+const playbooks = require('./playbooks');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -12,7 +13,8 @@ async function writeSequence(campaign, instructions = '') {
 
   const system = "You are an expert B2B email copywriter. You write concise, warm, non-salesy "
     + "cold-outreach emails that feel personal and human. Never use generic phrases like "
-    + "'I hope this email finds you well' or 'I am reaching out because'. Keep each email under 150 words.";
+    + "'I hope this email finds you well' or 'I am reaching out because'. Keep each email under 150 words."
+    + playbooks.systemSuffix(['cold-email']);
 
   let prompt = 'Write a 3-email outreach sequence for this campaign:\n\n';
   prompt += `Campaign: ${campaign.name}\n`;

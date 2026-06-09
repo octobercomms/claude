@@ -13,6 +13,7 @@
 const pool = require('../db');
 const claudeService = require('./claude');
 const brandVoice = require('./brandVoice');
+const playbooks = require('./playbooks');
 
 // Blended (desktop + mobile) organic CTR-by-position curve. Derived from the
 // shape of widely published GSC aggregate studies — used only as a baseline to
@@ -109,7 +110,7 @@ Return ONLY the JSON object. No prose, no markdown fences.`;
 
   const reply = await claudeService.callClaude({
     max_tokens: 1024,
-    system: 'You are an SEO copywriter specialising in title tags and meta descriptions that earn clicks. British English. Output JSON only.',
+    system: 'You are an SEO copywriter specialising in title tags and meta descriptions that earn clicks. British English. Output JSON only.' + playbooks.systemSuffix(['copywriting']),
     user: prompt,
   });
   const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
