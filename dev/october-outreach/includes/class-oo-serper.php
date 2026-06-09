@@ -34,6 +34,41 @@ class OO_Serper {
         return ! empty( $this->api_key );
     }
 
+    /**
+     * Search Google News for a query. Returns normalised hits:
+     * [ { title, link, source, date, snippet } … ] or WP_Error.
+     */
+    public function search_news( $query, $num = 20 ) {
+        $response = wp_remote_post( 'https://google.serper.dev/news', array(
+            'timeout' => 15,
+            'headers' => array(
+                'X-API-KEY'    => $this->api_key,
+                'Content-Type' => 'application/json',
+            ),
+            'body' => wp_json_encode( array( 'q' => $query, 'num' => $num ) ),
+        ) );
+        if ( is_wp_error( $response ) ) return $response;
+
+        $code = wp_remote_retrieve_response_code( $response );
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+        if ( $code !== 200 ) {
+            return new WP_Error( 'serper_error', $data['message'] ?? 'Serper news error (HTTP ' . $code . ')' );
+        }
+
+        $hits = array();
+        foreach ( ( $data['news'] ?? array() ) as $n ) {
+            if ( empty( $n['link'] ) ) continue;
+            $hits[] = array(
+                'title'   => $n['title']   ?? '',
+                'link'    => $n['link'],
+                'source'  => $n['source']  ?? '',
+                'date'    => $n['date']    ?? '',
+                'snippet' => $n['snippet'] ?? '',
+            );
+        }
+        return $hits;
+    }
+
     private function search( $query, $num = 10 ) {
         $response = wp_remote_post( $this->base_url, array(
             'timeout' => 15,

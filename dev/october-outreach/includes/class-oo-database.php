@@ -227,6 +227,23 @@ class OO_Database {
             KEY name (name)
         ) $charset;";
 
+        $coverage_searches = "CREATE TABLE {$wpdb->prefix}oo_coverage_searches (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            client varchar(200) NOT NULL DEFAULT '',
+            query varchar(500) NOT NULL DEFAULT '',
+            sources varchar(200) NOT NULL DEFAULT 'serper',
+            alerts_rss varchar(1000) NOT NULL DEFAULT '',
+            cadence varchar(20) NOT NULL DEFAULT 'daily',
+            status varchar(20) NOT NULL DEFAULT 'active',
+            last_run_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY client (client),
+            KEY status (status)
+        ) $charset;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $contacts );
         dbDelta( $campaigns );
@@ -239,6 +256,7 @@ class OO_Database {
         dbDelta( $outlets );
         dbDelta( $editorial_log );
         dbDelta( $clients );
+        dbDelta( $coverage_searches );
 
         update_option( 'oo_db_version', OO_VERSION );
     }

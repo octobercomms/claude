@@ -151,7 +151,14 @@ $search        = sanitize_text_field( $_GET['s'] ?? '' );
 $where = "WHERE 1=1";
 $args  = array();
 if ( $client_filter ) { $where .= " AND l.client = %s"; $args[] = $client_filter; }
-if ( $status_filter && isset( $statuses[ $status_filter ] ) ) { $where .= " AND l.status = %s"; $args[] = $status_filter; }
+if ( $status_filter && isset( $statuses[ $status_filter ] ) ) {
+    $where .= " AND l.status = %s";
+    $args[] = $status_filter;
+} else {
+    // Hide auto-found (unconfirmed) and dismissed rows by default — those live
+    // in the Coverage Monitor review queue, not the main log.
+    $where .= " AND l.status NOT IN ('new','dismissed')";
+}
 if ( $search ) {
     $like = '%' . $wpdb->esc_like( $search ) . '%';
     $where .= " AND (l.story_title LIKE %s OR l.pitch_request LIKE %s)";
