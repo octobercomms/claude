@@ -9,6 +9,8 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const pool = require('../db');
 const dataCollector = require('./dataCollector');
+const adAudit = require('./adAudit');
+const playbooks = require('./playbooks');
 
 const MODEL = 'claude-sonnet-4-6';
 const SYSTEM_PROMPT = `You are an internal performance marketing strategist writing a private briefing note for an account manager at October Communications, a UK marketing agency. The reader is the AM — not the client. Write like a senior strategist talking to a colleague: confident, specific, commercially literate, British English. No hype, no filler, no generic advice. Recommendations must be specific enough to act on tomorrow ("pause ad X in ad set Y because…"), not generic ("consider improving creative"). If the data is thin or the period is too short to draw conclusions, say so plainly.`;
@@ -133,7 +135,28 @@ async function snapshot(clientId, start, end) {
   };
 }
 
-function buildPrompt({ client, current, previous, previousReport, previousActions = [] }) {
+// Render the deterministic rubric audit (adAudit.scoreSnapshot) as a compact
+// markdown block Claude can lean on as the spine of its scorecard.
+function renderAudit(audit) {
+  if (!audit || audit.score == null) return '';
+  const cats = audit.categories.map(c => {
+    const head = `- **${c.label}** — ${c.status}${c.score != null ? ` (${Math.round(c.score * 100)}/100)` : ''}`;
+    const findings = c.findings
+      .filter(f => f.status !== 'na')
+      .map(f => `    - ${f.label}: ${f.status} — ${f.evidence}`)
+      .join('\n');
+    return findings ? `${head}\n${findings}` : head;
+  }).join('\n');
+  return `# Deterministic ad-health audit (rubric-scored)
+A rule-based scorer has already graded this account against a fixed rubric (methodology adapted from claude-ads). Use it as the SPINE of your Summary Scorecard and cite the overall score in your Executive Summary. Don't contradict a finding's evidence — you may add nuance and the "why".
+
+Overall ad-health score: **${audit.score}/100** (${audit.status}); confidence: ${audit.confidence}.
+
+${cats}
+`;
+}
+
+function buildPrompt({ client, current, previous, previousReport, previousActions = [], audit = null }) {
   const hasMeta = current.meta.campaigns.length > 0;
   const hasGoogle = current.google.campaigns.length > 0;
   const platforms = [hasMeta && 'Meta Ads', hasGoogle && 'Google Ads'].filter(Boolean).join(' and ') || 'Meta Ads + Google Ads';
@@ -148,12 +171,12 @@ function buildPrompt({ client, current, previous, previousReport, previousAction
 # Output shape
 Write a markdown document with these sections, in this order. Skip a section only if there is genuinely no data for it.
 
-1. **Executive Summary** — 1 paragraph. Total spend, headline result (ROAS, purchases, conversions). One sentence on the single biggest issue and the single biggest opportunity.
+1. **Executive Summary** — 1 paragraph. Lead with the overall ad-health score (NN/100) from the deterministic audit below. Total spend, headline result (ROAS, purchases, conversions). One sentence on the single biggest issue and the single biggest opportunity.
 2. **Campaign Overview** — markdown table of headline metrics (Total spend, Impressions, Reach, Frequency, CPM, CTR, CPC, Add to cart, Initiate checkout, Purchases / Conversions, Cost per purchase / CPA, ROAS). Include benchmark column for retail/ecommerce where you have a defensible benchmark.
 3. **Platform breakdown** — one subsection per platform (Meta / Google) if both are running. Per-campaign table with the campaign name, spend, key actions, ROAS or CPA. Identify the converter(s) and the budget drains by name.
 4. **What changed since the last report** — only if a previous report is provided. Diff: spend delta, new converters, new drains, ad sets that have wound down. Reference the previous report's date.
 5. **Recommendations** — numbered list, **ordered by expected impact**. Each item names the specific campaign / ad set / creative, says what to do, and why (the data evidence). Be willing to recommend "pause this specific ad in this specific ad set" not just "review creatives".
-6. **Summary Scorecard** — markdown table with rows for each area (Top-of-funnel, each major creative, landing page, pixel/conversion tracking, budget) with a Status column (Healthy / Strong / Weak / Broken / Mixed) and a Priority Action column. One row per item.
+6. **Summary Scorecard** — markdown table built from the deterministic audit below: one row per audit category carrying its Status (Healthy / Strong / Weak / Broken / Mixed) and a Priority Action column. You may add extra rows (e.g. a specific creative, landing page, pixel/conversion tracking) where the data supports them, but keep the audit categories as the backbone and don't restate a status that contradicts the audit's evidence.
 
 # Constraints
 - Cite specific numbers from the data (spend, CPC, ROAS). Do not invent.
@@ -161,6 +184,7 @@ Write a markdown document with these sections, in this order. Skip a section onl
 - Don't refuse to make recommendations because data is imperfect. Make the best recommendation you can given the data.
 - Do not include a header or sign-off line — the UI adds its own.
 
+${renderAudit(audit)}
 # Current period snapshot
 \`\`\`json
 ${JSON.stringify(current, null, 2)}
@@ -269,14 +293,25 @@ async function generate({ clientId, periodDays = 7, trigger = 'manual' }) {
       previousActions = actionRows;
     }
 
-    const prompt = buildPrompt({ client, current, previous, previousReport, previousActions });
-    const markdown = await callClaude({ system: SYSTEM_PROMPT, user: prompt });
+    // Deterministic rubric score (claude-ads methodology) + paid-ads
+    // methodology playbook (marketingskills). The score anchors the scorecard;
+    // the playbook grounds the recommendations. Both degrade gracefully — a
+    // null audit just omits the block, a missing playbook just omits the
+    // methodology section.
+    const audit = adAudit.scoreSnapshot(current);
+    const adsPlaybook = playbooks.getPlaybook('ads');
+    const system = adsPlaybook
+      ? `${SYSTEM_PROMPT}\n\n# Methodology to apply\nGround your analysis and recommendations in this paid-ads methodology:\n\n${adsPlaybook}`
+      : SYSTEM_PROMPT;
+
+    const prompt = buildPrompt({ client, current, previous, previousReport, previousActions, audit });
+    const markdown = await callClaude({ system, user: prompt });
 
     await pool.query(
       `UPDATE strategist_reports
           SET status = 'completed', markdown = $1, data_snapshot = $2
         WHERE id = $3`,
-      [markdown, { current, previous }, reportId]
+      [markdown, { current, previous, audit }, reportId]
     );
 
     // Parse the Recommendations section into individual rows so the AM
