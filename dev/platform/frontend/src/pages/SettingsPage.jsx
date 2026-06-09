@@ -408,6 +408,7 @@ export default function SettingsPage() {
       {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && (<>
       <CostsPanel />
       <KeywordSpendPanel />
+      <PrAddonPanel />
 
       <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
         Tap a category to expand its integrations. Each block has its own Save button.
@@ -569,6 +570,60 @@ function ScopesBlock({ scopes }) {
         {scopes.values.map(s => (
           <span key={s} className="chip chip-outline" style={{ fontFamily: "monospace", fontSize: 10 }}>{s}</span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// PR Gmail add-on — surfaces the API base URL + shared key to paste into the
+// Google Apps Script add-on's config, with a Regenerate (rotate) button.
+function PrAddonPanel() {
+  const [key, setKey] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [reveal, setReveal] = useState(false);
+  const base = `${window.location.origin}/api/pr-addon`;
+
+  useEffect(() => { api.get('/settings/pr-addon-key').then((r) => setKey(r.key || '')).catch(() => setKey('')); }, []);
+
+  async function regenerate() {
+    if (key && !window.confirm('Regenerate the key? The current key stops working immediately and the add-on must be updated.')) return;
+    setBusy(true);
+    try { const r = await api.post('/settings/pr-addon-key/regenerate', {}); setKey(r.key); setReveal(true); }
+    catch (e) { alert(e.message); }
+    finally { setBusy(false); }
+  }
+  const copy = (v) => { try { navigator.clipboard.writeText(v); } catch { window.prompt('Copy:', v); } };
+  const masked = key ? '•'.repeat(Math.min(40, key.length)) : '';
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+        <div>
+          <h2 className="caption">PR · Gmail add-on</h2>
+          <p className="body-sm text-muted">Connect the OMI for Gmail add-on so you can look up journalists, log threads, and capture contacts from your inbox. Paste these two values into the add-on's setup.</p>
+        </div>
+        <button onClick={regenerate} disabled={busy} className="btn btn-primary" style={{ padding: '6px 14px' }}>{busy ? 'Generating…' : (key ? 'Regenerate' : 'Generate key')}</button>
+      </div>
+      <div className="field" style={{ marginBottom: 10 }}>
+        <label className="field-label">API base URL</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input className="input" readOnly value={base} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(base)}>Copy</button>
+        </div>
+      </div>
+      <div className="field">
+        <label className="field-label">API key (X-OMI-Key)</label>
+        {key ? (
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input className="input" readOnly value={reveal ? key : masked} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 12 }} />
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => setReveal((r) => !r)}>{reveal ? 'Hide' : 'Reveal'}</button>
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(key)}>Copy</button>
+          </div>
+        ) : key === '' ? (
+          <p className="body-sm text-muted">No key yet — generate one to connect the add-on.</p>
+        ) : (
+          <p className="body-sm text-muted">Loading…</p>
+        )}
       </div>
     </div>
   );
