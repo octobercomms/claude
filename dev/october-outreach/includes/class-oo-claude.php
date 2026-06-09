@@ -435,6 +435,23 @@ class OO_Claude {
     }
 
     /**
+     * Draft a full press release from a brief. Returns clean HTML (headline,
+     * dateline, body paragraphs, boilerplate placeholder) or a WP_Error.
+     */
+    public function write_press_release_draft( $title, $client, $key_facts, $angle ) {
+        $system = 'You are an experienced PR writer producing publication-ready press releases. British English. Inverted-pyramid structure: strong headline, optional subhead, a dateline opening paragraph with the core news, supporting paragraphs, a quote (attributed plausibly to a spokesperson — use a clearly-placeholder name like "[Spokesperson Name, Title]" if none is given), and a short boilerplate "About" paragraph. Return clean HTML using only <h1>, <h2>, <p>, <strong>, <em> tags. No markdown, no commentary outside the release.';
+
+        $prompt  = "Write a press release.\n";
+        $prompt .= "Headline / working title: {$title}\n";
+        if ( $client )    $prompt .= "Client / organisation: {$client}\n";
+        if ( $angle )     $prompt .= "Angle / what makes it newsworthy: {$angle}\n";
+        if ( $key_facts ) $prompt .= "Key facts to include:\n{$key_facts}\n";
+        $prompt .= "\nReturn only the press release as clean HTML. Mark anything you had to assume with square brackets so the team can fill it in.";
+
+        return $this->request( array( array( 'role' => 'user', 'content' => $prompt ) ), 1800, $system );
+    }
+
+    /**
      * Write a short, genuine thank-you to a journalist for a published piece.
      * Pass prior thank-you excerpts sent to THIS journalist so the new one is
      * demonstrably different (never the same note twice).

@@ -51,8 +51,15 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   clients), authed by a logged-in admin **or** an `X-OO-Key` header matching the
   Settings key. The shared gateway for the nvelope front-end **and** the Gmail
   add-on. Settings card to view/regenerate the key.
-- ⬜ Next: nvelope front-end (consumes this API), thank-you auto-send ramp,
-  press-release wizard, profiles, Gmail add-on.
+- ✅ **Phase 9 — press-release wizard (authoring + sign-off)** (this branch):
+  Press Releases under the PR menu; brief → `OO_Claude::write_press_release_draft`
+  → editable body; status machine draft → in_review → approved → sent; a public
+  **client approval link** (token, no login) where the client signs off. Extends
+  `oo_press_releases`. **Distribution (build media list → pitch → send) + removing
+  it from Email = follow-up.**
+- ⬜ Next: PR distribution + remove from Email, thank-you auto-send ramp,
+  profiles, Gmail add-on, then the **nvelope front-end** (consumes the API) and
+  the "copy to platform.octobercomms.com" step.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 

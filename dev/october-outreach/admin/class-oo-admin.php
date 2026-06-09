@@ -18,6 +18,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_delete_campaign', array( $this, 'delete_campaign' ) );
         add_action( 'admin_post_oo_duplicate_campaign', array( $this, 'duplicate_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
+        add_action( 'admin_post_oo_delete_press_release', array( $this, 'delete_press_release' ) );
         add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
         add_action( 'admin_post_oo_import_contacts', array( $this, 'import_contacts_csv' ) );
         add_action( 'admin_post_oo_save_editorial_entry', array( $this, 'save_editorial_entry' ) );
@@ -165,6 +166,7 @@ class OO_Admin {
             add_submenu_page( 'oo-pr', 'Media Database',   'Media Database',   'manage_options', 'oo-media',     array( $this, 'page_media_database' ) );
             add_submenu_page( 'oo-pr', 'Coverage Monitor', 'Coverage Monitor', 'manage_options', 'oo-monitor',   array( $this, 'page_coverage_monitor' ) );
             add_submenu_page( 'oo-pr', 'Thank-yous',       'Thank-yous',       'manage_options', 'oo-thanks',    array( $this, 'page_thank_yous' ) );
+            add_submenu_page( 'oo-pr', 'Press Releases',   'Press Releases',   'manage_options', 'oo-press',     array( $this, 'page_press' ) );
             add_submenu_page( 'oo-pr', 'Clients',          'Clients',          'manage_options', 'oo-clients',   array( $this, 'page_clients' ) );
         }
     }
@@ -190,6 +192,9 @@ class OO_Admin {
         }
         if ( $screen && strpos( $screen->id, 'oo-thanks' ) !== false ) {
             wp_enqueue_script( 'oo-thanks', OO_PLUGIN_URL . 'admin/js/thanks.js', array(), OO_VERSION, true );
+        }
+        if ( $screen && strpos( $screen->id, 'oo-press' ) !== false && in_array( ( $_GET['action'] ?? '' ), array( 'new', 'edit' ), true ) ) {
+            wp_enqueue_script( 'oo-press-release', OO_PLUGIN_URL . 'admin/js/press-release.js', array(), OO_VERSION, true );
         }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
@@ -228,7 +233,7 @@ class OO_Admin {
     }
 
     public function page_tags()     { $this->render( 'tags',     'tags' ); }
-    public function page_press()    { $this->render( 'press',    'press' ); }
+    public function page_press()    { $this->render( 'press',    'pr' ); }
     public function page_settings() { $this->render( 'settings', 'settings' ); }
     public function page_help()     { $this->render( 'help',     'help' ); }
 
@@ -591,18 +596,51 @@ class OO_Admin {
         if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
 
         global $wpdb;
+        $valid_status = array( 'draft', 'in_review', 'approved', 'sent' );
+        $status = sanitize_text_field( $_POST['status'] ?? 'draft' );
+        if ( ! in_array( $status, $valid_status, true ) ) $status = 'draft';
+
         $data = array(
-            'title'  => sanitize_text_field( $_POST['title'] ?? '' ),
-            'url'    => esc_url_raw( $_POST['url'] ?? '' ),
-            'status' => sanitize_text_field( $_POST['status'] ?? 'draft' ),
+            'title'      => sanitize_text_field( $_POST['title'] ?? '' ),
+            'client'     => sanitize_text_field( $_POST['client'] ?? '' ),
+            'brand'      => sanitize_text_field( $_POST['brand'] ?? '' ),
+            'angle'      => sanitize_textarea_field( $_POST['angle'] ?? '' ),
+            'key_facts'  => sanitize_textarea_field( $_POST['key_facts'] ?? '' ),
+            'body_html'  => wp_kses_post( $_POST['body_html'] ?? '' ),
+            'url'        => esc_url_raw( $_POST['url'] ?? '' ),
+            'embargo_at' => ! empty( $_POST['embargo_at'] ) ? gmdate( 'Y-m-d H:i:s', strtotime( $_POST['embargo_at'] ) ) : null,
+            'status'     => $status,
         );
+
+        // Generate a review token the first time it's sent for sign-off.
+        if ( $status === 'in_review' ) {
+            $id_for_token = intval( $_POST['pr_id'] ?? 0 );
+            $existing = $id_for_token ? $wpdb->get_var( $wpdb->prepare( "SELECT review_token FROM {$wpdb->prefix}oo_press_releases WHERE id = %d", $id_for_token ) ) : '';
+            if ( ! $existing ) $data['review_token'] = strtolower( wp_generate_password( 24, false, false ) );
+        }
+        if ( $status === 'approved' && empty( $_POST['keep_approval'] ) ) {
+            $data['approved_at'] = current_time( 'mysql' );
+            $data['approved_by'] = wp_get_current_user()->display_name;
+        }
+
         $id = intval( $_POST['pr_id'] ?? 0 );
         if ( $id ) {
             $wpdb->update( $wpdb->prefix . 'oo_press_releases', $data, array( 'id' => $id ) );
         } else {
             $wpdb->insert( $wpdb->prefix . 'oo_press_releases', $data );
+            $id = (int) $wpdb->insert_id;
         }
-        wp_redirect( admin_url( 'admin.php?page=oo-press&saved=1' ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-press&action=edit&id=' . $id . '&saved=1' ) );
+        exit;
+    }
+
+    public function delete_press_release() {
+        check_admin_referer( 'oo_delete_press_release' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['pr_id'] ?? 0 );
+        if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_press_releases', array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-press&deleted=1' ) );
         exit;
     }
 

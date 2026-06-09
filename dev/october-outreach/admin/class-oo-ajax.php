@@ -46,6 +46,7 @@ class OO_Ajax {
             'oo_thank_draft',
             'oo_thank_send',
             'oo_thank_skip',
+            'oo_pr_draft',
         );
 
         foreach ( $actions as $action ) {
@@ -1595,6 +1596,20 @@ class OO_Ajax {
             'decided_by'       => get_current_user_id(),
         ) );
         wp_send_json_success( array( 'skipped' => true ) );
+    }
+
+    public function pr_draft() {
+        $this->check_nonce();
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) wp_send_json_error( 'Claude API key not configured (Settings).' );
+        $body = $claude->write_press_release_draft(
+            sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
+            sanitize_text_field( wp_unslash( $_POST['client'] ?? '' ) ),
+            sanitize_textarea_field( wp_unslash( $_POST['key_facts'] ?? '' ) ),
+            sanitize_textarea_field( wp_unslash( $_POST['angle'] ?? '' ) )
+        );
+        if ( is_wp_error( $body ) ) wp_send_json_error( $body->get_error_message() );
+        wp_send_json_success( array( 'body_html' => wp_kses_post( $body ) ) );
     }
 
     public function dedup_merge() {
