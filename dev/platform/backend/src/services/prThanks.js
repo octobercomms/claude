@@ -53,7 +53,7 @@ async function draftForEntry(entryId) {
      FROM pr_editorial_log l
      LEFT JOIN clients cl ON cl.id = l.client_id
      LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-     LEFT JOIN pr_contacts c ON c.id = l.contact_id
+     LEFT JOIN outreach_contacts c ON c.id = l.contact_id
      WHERE l.id = $1`, [entryId]
   )).rows[0];
   if (!row || !row.contact_id) return { error: 'No journalist linked to this entry.' };
@@ -89,7 +89,7 @@ async function runAuto() {
     const rows = (await db.query(
       `SELECT l.id, l.story_title, cl.name AS client, c.id AS contact_id, c.first_name, c.last_name, c.email, o.name AS outlet
        FROM pr_editorial_log l
-       JOIN pr_contacts c ON c.id = l.contact_id
+       JOIN outreach_contacts c ON c.id = l.contact_id
        LEFT JOIN clients cl ON cl.id = l.client_id
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
        WHERE l.client_id = $1 AND l.status IN ('published','download')

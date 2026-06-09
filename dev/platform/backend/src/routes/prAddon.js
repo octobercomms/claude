@@ -45,7 +45,7 @@ router.get('/lookup', async (req, res) => {
     if (!email) return res.json({ matched: false, clients });
 
     const c = (await db.query(
-      `SELECT c.*, o.name AS outlet FROM pr_contacts c
+      `SELECT c.*, o.name AS outlet FROM outreach_contacts c
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        WHERE lower(c.email) = $1 LIMIT 1`, [email]
     )).rows[0];
@@ -69,8 +69,8 @@ router.get('/lookup', async (req, res) => {
       matched: true,
       clients,
       id: c.id,
-      name: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
-      segment: c.segment,
+      name: (`${c.first_name || ''} ${c.last_name || ''}`.trim()) || c.name || '',
+      segment: c.kind === 'industry' ? 'commercial' : c.kind, // add-on speaks media/commercial
       outlet: c.outlet || '',
       beats: Array.isArray(c.beats) ? c.beats : [],
       availability: c.availability_status,
@@ -89,6 +89,7 @@ router.post('/contacts', async (req, res) => {
   try {
     const b = req.body || {};
     const segment = b.segment === 'media' ? 'media' : 'commercial';
+    const kind = segment === 'media' ? 'media' : 'industry'; // unified contacts kind
     const email = String(b.email || '').trim().toLowerCase();
     const name = String(b.name || '').trim();
     const sp = name.split(/\s+/);
@@ -97,8 +98,8 @@ router.post('/contacts', async (req, res) => {
 
     // Existing contact by real email → return it (idempotent).
     if (REAL_EMAIL(email)) {
-      const found = (await db.query('SELECT id, segment FROM pr_contacts WHERE lower(email) = $1 LIMIT 1', [email])).rows[0];
-      if (found) return res.json({ id: found.id, segment: found.segment, matched: true });
+      const found = (await db.query('SELECT id, kind FROM outreach_contacts WHERE lower(email) = $1 LIMIT 1', [email])).rows[0];
+      if (found) return res.json({ id: found.id, segment: found.kind === 'industry' ? 'commercial' : found.kind, matched: true });
     }
 
     const outletId = segment === 'media' && b.publication ? await pr.resolveOutlet(b.publication) : null;
@@ -106,10 +107,10 @@ router.post('/contacts', async (req, res) => {
     const finalEmail = REAL_EMAIL(email) ? email : `noemail+${crypto.createHash('md5').update(name.toLowerCase() || String(Date.now())).digest('hex')}@import.local`;
 
     const { rows } = await db.query(
-      `INSERT INTO pr_contacts (first_name, last_name, email, outlet_id, segment, beats, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-      [first, last, finalEmail, outletId, segment, JSON.stringify(segment === 'media' ? tags : []),
-       segment === 'commercial' && tags.length ? `Tags: ${tags.join(', ')}` : '']
+      `INSERT INTO outreach_contacts (first_name, last_name, name, email, outlet_id, kind, beats, notes)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [first, last, name, finalEmail, outletId, kind, JSON.stringify(kind === 'media' ? tags : []),
+       kind === 'industry' && tags.length ? `Tags: ${tags.join(', ')}` : '']
     );
     res.status(201).json({ id: rows[0].id, segment, created: true });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -132,7 +133,7 @@ router.post('/editorial-log', async (req, res) => {
     let contactId = null;
     const email = String(b.email || '').trim().toLowerCase();
     if (REAL_EMAIL(email)) {
-      const found = (await db.query('SELECT id FROM pr_contacts WHERE lower(email) = $1 LIMIT 1', [email])).rows[0];
+      const found = (await db.query('SELECT id FROM outreach_contacts WHERE lower(email) = $1 LIMIT 1', [email])).rows[0];
       if (found) contactId = found.id;
     }
     if (!contactId && b.press_contact) contactId = await pr.resolveContact(b.press_contact, outletId);
