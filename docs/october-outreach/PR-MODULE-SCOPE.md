@@ -101,9 +101,28 @@ OMI proxy/key are gone.
   behaviour as the plugin, validated on the real 4,371-row export); the client
   PR tab now reads native endpoints + has an import button. Removed the OMI
   proxy and its Settings fields.
-- ⬜ Native next: AI dedup, profiles/notes/availability, client coverage portal,
-  reports/alerts, coverage monitor, thank-yous, press-release authoring — porting
-  the plugin's remaining phases into the platform incrementally.
+- ✅ **Native Phase 2–4** (merged): AI outlet dedup, journalist/outlet profile
+  pages (notes, availability/return date, photo, Claude beats/summary), and the
+  public token-gated client coverage portal (`/coverage/:token`) + CSV download.
+- ✅ **Native Phase 5–6** (merged): automated client reports/alerts (`prReports`,
+  daily cron, weekly/monthly digest + featured alert) and the coverage monitor
+  (`prMonitor` — Serper Google News + Google Alerts RSS → review queue, 12-hourly).
+- ✅ **Native Phase 7–8** (merged): thank-you engine — `prThanks` drafts a fresh,
+  never-repeating thank-you per journalist (`pr_sent_thanks` no-repeat memory +
+  `pr_thank_feedback`); a Thank-yous tab to draft → edit → send.
+- ✅ **Native Phase 8b** (this branch): thank-you auto-send trust ramp — per-client
+  `thank_stage` (assist → supervised → auto), daily tick auto-sends drafts whose
+  Claude confidence clears the stage threshold (supervised 0.85 / auto 0.70),
+  capped 10/client/run, active journalists with a real email only. Stage selector +
+  track-record panel on the Thank-yous tab. Mirrors the plugin `OO_Thanks` ramp.
+- ✅ **Native Phase 9** (this branch): press-release authoring + sign-off —
+  `pr_press_releases` (migration `075`); brief → `prPress.draftBody` (Claude HTML
+  draft) → editable body; status machine draft → in_review → approved → sent; a
+  public **client approval link** (`/press-release/:token`, no login) where the
+  client signs off. Press-releases tab in the client PR page. Mirrors the plugin
+  `oo_press_releases` authoring/sign-off flow.
+- ⬜ Native next (optional): distribution hand-off (approved release → pitch
+  campaign) and a Gmail add-on against the native API.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 

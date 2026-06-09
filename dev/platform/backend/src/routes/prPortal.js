@@ -5,6 +5,25 @@
 const express = require('express');
 const router = express.Router();
 const pr = require('../services/pr');
+const prPress = require('../services/prPress');
+
+// Public press-release approval (token-gated, no login). Defined before the
+// catch-all /:token coverage route so the two-segment paths match first.
+router.get('/review/:token', async (req, res) => {
+  try {
+    const data = await prPress.getByReviewToken(req.params.token);
+    if (!data) return res.status(404).json({ error: 'Not found' });
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/review/:token/approve', async (req, res) => {
+  try {
+    const data = await prPress.approveByToken(req.params.token, (req.body || {}).approver);
+    if (!data) return res.status(404).json({ error: 'Not found' });
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 router.get('/:token', async (req, res) => {
   try {
