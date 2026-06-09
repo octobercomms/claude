@@ -8,6 +8,21 @@ This document scopes a new **PR (Public Relations)** capability for the
 October Outreach plugin (the "October Marketing Intelligence" app). It is a
 planning artefact — no code has been written yet.
 
+> **This is an AI-powered *Smart PR system*, not a database.** A database is
+> something you maintain; a smart system does the work *for* you — it watches for
+> coverage, logs it, alerts the client, thanks the journalist, and keeps the
+> relationship warm, with the human only confirming. The database is the
+> by-product, not the point.
+
+### Guiding principle: fast, or nobody uses it
+
+Every flow is designed for **minimum clicks and minimum typing**. If logging a
+story, finding a contact, or sending a report takes effort, the team falls back
+to Notion/spreadsheets and the system dies. So throughout this scope:
+**Claude pre-fills, typeahead suggests, and automation fires by default** —
+the human approves, they don't author. Speed-first UX choices are called out
+inline as **⚡ Fast** notes.
+
 ---
 
 ## 1. Why
@@ -260,6 +275,22 @@ enum above), `pitch_request`, `request_date`, `interview_date`, `issue_date`,
 `story_url`, `archive_url`, `notes_outcome` (**internal only**), `sentiment`,
 `source` (manual | serper | alerts | webzio | notion-import), `created_at`.
 
+### ⚡ Fast logging (speed-first UX)
+
+Logging a story must take seconds, or the log rots:
+
+- **Paste-a-URL → auto-fill.** Paste a story link; Claude (via the existing
+  `extract_*`/scraper) reads the page and pre-fills publication, journalist,
+  title, date and a suggested sentiment. The human glances and saves.
+- **Typeahead everywhere, alias-aware.** Typing a publication or contact searches
+  existing records *and their `aliases`* — so "Dezeen.com" surfaces the existing
+  "Dezeen" rather than letting you create a dupe. Inline "＋ create new" only if
+  there's genuinely no match (this is the duplicate-guard from §5.1, surfaced as
+  autocomplete).
+- **Auto-status.** Scraped/confirmed hits set `status = Published` automatically;
+  no dropdown fiddling.
+- **Keyboard-first table** with inline edit, mirroring the Notion muscle memory.
+
 ### Journalist ↔ coverage analytics (the payoff)
 
 Because the log FKs into `oo_contacts`/`oo_outlets`, the media database becomes
@@ -276,8 +307,18 @@ Because the log FKs into `oo_contacts`/`oo_outlets`, the media database becomes
 
 A **saved search** = brand/client + keywords + sources + cadence. Action Scheduler
 (already bundled) runs them on a recurring schedule, the same way
-`oo_process_sequences` already runs. New hits land in `oo_editorial_log` with
-`status = 'new'` for a human to confirm (→ Published) or dismiss.
+`oo_process_sequences` already runs. Hits are matched to journalist + outlet
+(alias-aware) and scored by Claude for relevance + sentiment, then:
+
+- **High confidence** → **auto-logged as Published, client alerted, journalist
+  thanked** (§7.1) — zero human steps, exactly the "scrape → log → alert" flow.
+- **Lower confidence** → a one-tap **confirm queue**; confirming triggers the
+  same alert + thank-you chain. Confirmation *is* the only manual step, and it's
+  one click.
+
+The confidence threshold and whether thank-yous wait for confirmation are
+configurable (see §12) — the default favours speed with a safety net on the
+genuinely ambiguous matches.
 
 ### Source adapters (one interface, several backends)
 | Source | Cost | Notes | Phase |
@@ -323,7 +364,7 @@ publication (`outlet_id`) in the media DB → written to `oo_editorial_log` with
 
 ---
 
-## 7. Client portal & automated reports
+## 7. Client portal, automation & the relationship engine
 
 The thing Notion can't do well — and the module's headline win for October's
 clients.
@@ -360,6 +401,49 @@ view scoped to that client.
 
 Reuses the mailer for delivery and the brand list (`OO_Database::get_brands()`)
 as the client dimension (see open decision on `clients` vs `brand`).
+
+### 7.1 The "coverage logged" automation chain
+
+This is what makes it *smart*. A single trigger — a row reaching `Published` —
+fans out into a chain that previously took the team manual effort, now firing
+automatically (or on one confirming click for ambiguous scraped hits):
+
+```
+Published row  →  ① client alert ("you've been featured")
+               →  ② thank-you email to the journalist   ← the relationship win
+               →  ③ relationship stats refresh (last-featured, count, strength)
+               →  ④ feeds the next weekly digest
+```
+
+All built on existing parts: Action Scheduler queues it, the mailer sends it,
+Claude writes it.
+
+### 7.2 Journalist thank-you engine
+
+> *"Thank the journalist when coverage is logged… 10 different thank-yous so they
+> never get the same one twice… saves time and builds relationships."*
+
+- **Auto-drafted, never repetitive.** Rather than 10 static templates that will
+  eventually repeat, Claude **generates a fresh, personalised thank-you per
+  send**, referencing the actual story (title, client, a genuine specific
+  detail). To guarantee no repetition we pass Claude the last N notes/openers
+  used with *that* journalist (tracked in `oo_sent_thanks`) so each one is
+  demonstrably different. A seed library of ~10 tones/angles (warm, brief,
+  praising a specific line, looking-forward, etc.) anchors the rotation.
+- **Sent from a real person, not no-reply.** Relationship-building only works if
+  replies land in the account manager's inbox — the thank-you uses the human's
+  sending identity (per-client From/Reply-To), not a system address.
+- **Safety gates (so we never thank wrongly):** only fires when
+  `status = Published` **and** sentiment is neutral/positive **and** the
+  journalist↔story match is confident. Negative or unmatched coverage never
+  auto-thanks. A per-contact/per-client **opt-out** and a global kill-switch are
+  honoured.
+- **⚡ Fast:** default is fire-on-publish for clean cases; ambiguous scraped hits
+  surface the drafted thank-you next to the confirm button for one-tap send.
+
+**Table:** `oo_sent_thanks` — `contact_id`, `editorial_log_id`, `body_excerpt`,
+`tone`, `sent_at`, `sent_by` — both the no-repeat memory and an auditable record
+of what was said to whom.
 
 ---
 
@@ -405,8 +489,8 @@ have separate entry points, audiences (commercial vs media), and Claude prompts.
 ## 9. Data model — summary of changes
 
 **New tables:** `oo_outlets`, `oo_articles`, `oo_editorial_log` (the spine —
-replaces the earlier `oo_coverage`), `oo_coverage_searches`. (Optional sidecar
-`oo_journalist_meta`.)
+replaces the earlier `oo_coverage`), `oo_coverage_searches`, `oo_sent_thanks`
+(thank-you no-repeat memory + audit). (Optional sidecar `oo_journalist_meta`.)
 
 **Altered tables:**
 - `oo_contacts`: `segment` (media|commercial), optional `outlet_id`,
@@ -451,9 +535,11 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 | **2b** | AI deduplication pipeline (normalise → fuzzy block → Claude "Do you mean X?" review + merge) + ongoing duplicate-guard on create | 4–6 days |
 | **3** | Journalist ↔ coverage analytics (counts, last-featured, hit-rate, relationship strength) | 3–4 days |
 | **4** | Client portal (token URL, Published+pipeline, download report) + weekly automated reports & alerts | 5–7 days |
-| **5** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
-| **6** | Journalist Finder (media variant of contact finder) + byline catalogue (`oo_articles`) + Claude beat tagging | 5–8 days |
-| **7** | Coverage Monitor (Serper + Google Alerts → log) + webz.io + archive.is | 5–8 days |
+| **4b** | ⚡ Fast-logging UX (paste-URL auto-fill, alias-aware typeahead, inline edit) | 3–4 days |
+| **5** | Coverage Monitor (Serper + Google Alerts → auto-log) + webz.io + archive.is | 5–8 days |
+| **5b** | "Coverage logged" automation chain + **journalist thank-you engine** (`oo_sent_thanks`, no-repeat, safety gates) | 3–5 days |
+| **6** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
+| **7** | Journalist Finder (media variant of contact finder) + extend byline catalogue + Claude beat tagging | 5–8 days |
 
 Phases are independently shippable. Phase 0 unblocks everything; **Phases 1–4 are
 the new priority spine** — getting October's existing log into OMI and giving
@@ -492,3 +578,11 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
    always require a human click? (Recommend: human-confirm with a "bulk-accept
    high-confidence" button — same UX as the Tags merge plan. The first clean-up
    pass on 1,581 outlets is a one-time effort worth eyeballing.)
+7. **Thank-you auto-send** — fire automatically on publish, or always one-tap
+   confirm first? (Recommend: auto-send for high-confidence positive coverage;
+   one-tap for anything scraped-but-ambiguous. Per-contact opt-out + global
+   kill-switch regardless.)
+8. **Thank-you/alert sending identity** — from the account manager's own
+   address (best for relationships) or a brand PR address? (Recommend: the
+   human's identity, so replies build the relationship.) Depends on the
+   `clients` model (decision #2).
