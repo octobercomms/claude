@@ -256,6 +256,45 @@ router.get('/clients/:clientId/gsc/sitemaps', async (req, res) => {
   }
 });
 
+// ─── CTR BOOST ────────────────────────────────────────────────────────────
+// The white-hat counterpart to CTR-manipulation services: instead of faking
+// the NavBoost click signals, find pages that rank well but are under-clicked
+// (a title/meta gap) and rewrite the snippet to earn the real click.
+const ctrBoost = require('../services/ctrBoost');
+
+router.get('/clients/:clientId/ctr-opportunities', async (req, res) => {
+  try {
+    const conn = await loadGSCConnector(req.params.clientId);
+    if (!conn) return res.status(404).json({ error: 'No active Search Console connector for this client.' });
+    const { startDate, endDate } = defaultGSCRange(req);
+    const rows = await google.fetchSearchAnalytics(conn.creds, {
+      authMode: conn.authMode, siteUrl: conn.siteUrl, startDate, endDate,
+      dimensions: ['query', 'page'], rowLimit: 1000,
+    });
+    const opportunities = ctrBoost.scoreOpportunities(rows, {
+      minImpressions: parseInt(req.query.minImpressions || '50'),
+      maxPosition: parseInt(req.query.maxPosition || '20'),
+    });
+    res.json({ startDate, endDate, opportunities });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+router.post('/clients/:clientId/ctr-opportunities/rewrite', async (req, res) => {
+  const { query, url, current_title, current_description, position, ctr } = req.body || {};
+  if (!query) return res.status(400).json({ error: 'query required' });
+  try {
+    const suggestion = await ctrBoost.rewrite(req.params.clientId, {
+      query, url, current_title, current_description, position, ctr,
+    });
+    res.json({ suggestion });
+  } catch (err) {
+    if (err instanceof SyntaxError) return res.status(502).json({ error: 'Claude returned malformed JSON' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── COMPETITORS + CONTENT GAPS ───────────────────────────────────────────
 router.get('/clients/:clientId/competitors', async (req, res) => {
   try {

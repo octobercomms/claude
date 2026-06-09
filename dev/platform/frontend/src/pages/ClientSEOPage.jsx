@@ -115,6 +115,7 @@ import PromotePanel from '../components/organic/PromotePanel';
 import OrganicInsightsPanel from '../components/organic/OrganicInsightsPanel';
 import SiteAuditPanel from '../components/organic/SiteAuditPanel';
 import QuickWinsPanel from '../components/organic/QuickWinsPanel';
+import CtrBoostPanel from '../components/organic/CtrBoostPanel';
 import ContentAuditPanel from '../components/organic/ContentAuditPanel';
 import KeywordFootprintPanel from '../components/organic/KeywordFootprintPanel';
 
@@ -606,7 +607,7 @@ export default function ClientSEOPage() {
     // Performance sub-tabs (perf_insights is the summary landing).
     // aio / fanout / gaps stay in the whitelist as backwards-compat
     // aliases — they redirect to their new homes (keywords / find).
-    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint',
+    'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
   ]);
@@ -666,6 +667,7 @@ export default function ClientSEOPage() {
             { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
+            { key: 'ctr_boost',     label: 'CTR boosters' },
             { key: 'ai_visibility', label: 'AI Visibility' },
             { groupLabel: 'On-page' },
             { key: 'site_audit',    label: 'Site audit' },
@@ -687,7 +689,7 @@ export default function ClientSEOPage() {
         const GROUP_OF = {
           overview: 'overview',
           perf_insights: 'performance',
-          keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
+          keywords: 'performance', gsc: 'performance', ctr_boost: 'performance', authority: 'performance', backlinks: 'performance',
           ai_visibility: 'performance',
           site_audit: 'performance', quick_wins: 'performance', content_audit: 'performance', keyword_footprint: 'performance',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
@@ -754,6 +756,7 @@ export default function ClientSEOPage() {
         />
       )}
       {activeTab === 'gsc' && <SearchConsoleTab clientId={id} />}
+      {activeTab === 'ctr_boost' && <CtrBoostPanel clientId={id} />}
       {activeTab === 'ai_visibility' && <AIVisibilityPanel clientId={id} />}
       {activeTab === 'site_audit' && <SiteAuditPanel clientId={id} onSendToPipeline={() => setActiveTab('draft')} />}
       {activeTab === 'quick_wins' && <QuickWinsPanel clientId={id} onRefresh={() => setActiveTab('draft')} />}
