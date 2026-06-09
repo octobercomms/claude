@@ -70,6 +70,19 @@ class OO_REST {
             'callback'            => array( __CLASS__, 'clients' ),
             'permission_callback' => $perm,
         ) );
+
+        // Gmail add-on: look up a sender by email, and capture a new contact.
+        register_rest_route( self::NS, '/lookup', array(
+            'methods'             => 'GET',
+            'callback'            => array( __CLASS__, 'lookup' ),
+            'permission_callback' => $perm,
+        ) );
+
+        register_rest_route( self::NS, '/contacts', array(
+            'methods'             => 'POST',
+            'callback'            => array( __CLASS__, 'contact_create' ),
+            'permission_callback' => $perm,
+        ) );
     }
 
     /** Auth: logged-in admin, or a matching X-OO-Key header. */
@@ -298,5 +311,102 @@ class OO_REST {
                 'cadence'    => $r->report_cadence,
             );
         }, $rows ) );
+    }
+
+    /**
+     * Look up a contact by email (Gmail add-on sidebar). Returns the journalist
+     * profile + recent coverage when matched, or { matched:false } so the
+     * add-on can offer to add them.
+     */
+    public static function lookup( $request ) {
+        global $wpdb;
+        $email = sanitize_email( (string) $request->get_param( 'email' ) );
+        if ( ! $email ) return array( 'matched' => false );
+
+        $c = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}oo_contacts WHERE email = %s LIMIT 1", $email
+        ) );
+        if ( ! $c ) return array( 'matched' => false, 'email' => $email );
+
+        $outlet = $c->outlet_id ? (string) $wpdb->get_var( $wpdb->prepare( "SELECT name FROM {$wpdb->prefix}oo_outlets WHERE id = %d", $c->outlet_id ) ) : '';
+        $agg = $wpdb->get_row( $wpdb->prepare(
+            "SELECT SUM(status='published') AS published, SUM(status='pitched') AS pitched, SUM(status='declined') AS declined,
+                    MAX(CASE WHEN status='published' THEN COALESCE(issue_date,request_date) END) AS last_featured
+             FROM {$wpdb->prefix}oo_editorial_log WHERE contact_id = %d", $c->id
+        ) );
+        $recent = $wpdb->get_results( $wpdb->prepare(
+            "SELECT client, story_title, status, issue_date FROM {$wpdb->prefix}oo_editorial_log
+             WHERE contact_id = %d ORDER BY COALESCE(issue_date,request_date) DESC LIMIT 5", $c->id
+        ) );
+        $ts  = $agg && $agg->last_featured ? strtotime( $agg->last_featured ) : null;
+        $str = OO_Analytics::relationship_strength( $agg->published ?? 0, $ts );
+        $tags = json_decode( $c->tags ?? '[]', true );
+
+        return array(
+            'matched'        => true,
+            'id'             => (int) $c->id,
+            'name'           => trim( $c->first_name . ' ' . $c->last_name ),
+            'segment'        => $c->segment,
+            'outlet'         => $outlet,
+            'beats'          => is_array( $tags ) ? $tags : array(),
+            'availability'   => $c->availability_status,
+            'photo_url'      => $c->photo_url,
+            'published'      => (int) ( $agg->published ?? 0 ),
+            'last_featured'  => $agg->last_featured ?? null,
+            'strength'       => $str['score'],
+            'strength_label' => $str['label'],
+            'recent'         => array_map( function ( $r ) {
+                return array( 'client' => $r->client, 'title' => $r->story_title, 'status' => $r->status, 'date' => $r->issue_date );
+            }, $recent ),
+        );
+    }
+
+    /**
+     * Create / resolve a contact (Gmail "add this sender"). Media segment goes
+     * through the alias-aware resolver; commercial is inserted directly.
+     */
+    public static function contact_create( $request ) {
+        global $wpdb;
+        $p = $request->get_json_params();
+        if ( ! is_array( $p ) ) $p = $request->get_params();
+
+        $segment = ( ( $p['segment'] ?? 'commercial' ) === 'media' ) ? 'media' : 'commercial';
+        $email   = sanitize_email( $p['email'] ?? '' );
+        $name    = trim( sanitize_text_field( $p['name'] ?? '' ) );
+        $parts   = preg_split( '/\s+/', $name, 2 );
+
+        if ( $segment === 'media' ) {
+            $outlet_id = ! empty( $p['publication'] ) ? OO_Dedup::resolve_outlet( sanitize_text_field( $p['publication'] ) ) : 0;
+            $id = OO_Dedup::resolve_contact( array(
+                'first_name' => $parts[0] ?? '',
+                'last_name'  => $parts[1] ?? '',
+                'email'      => $email,
+                'outlet_id'  => $outlet_id,
+                'company'    => sanitize_text_field( $p['publication'] ?? '' ),
+                'source'     => 'Gmail add-on',
+            ) );
+            return new WP_REST_Response( array( 'id' => $id, 'segment' => 'media' ), 201 );
+        }
+
+        // Commercial: match by email if present, else create.
+        $existing = $email ? (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$wpdb->prefix}oo_contacts WHERE email = %s", $email ) ) : 0;
+        if ( $existing ) return new WP_REST_Response( array( 'id' => $existing, 'segment' => 'commercial', 'matched' => true ), 200 );
+
+        $tags = array();
+        if ( ! empty( $p['tags'] ) ) {
+            $tags = array_values( array_filter( array_map( fn( $t ) => strtolower( trim( $t ) ), preg_split( '/[\s,;]+/', (string) $p['tags'] ) ) ) );
+        }
+        $wpdb->insert( $wpdb->prefix . 'oo_contacts', array(
+            'first_name' => $parts[0] ?? '',
+            'last_name'  => $parts[1] ?? '',
+            'email'      => $email ?: ( 'noemail+' . md5( strtolower( $name ) ) . '@import.local' ),
+            'company'    => sanitize_text_field( $p['company'] ?? '' ),
+            'type'       => sanitize_text_field( $p['type'] ?? 'other' ),
+            'segment'    => 'commercial',
+            'tags'       => wp_json_encode( $tags ),
+            'source'     => 'Gmail add-on',
+            'status'     => 'active',
+        ) );
+        return new WP_REST_Response( array( 'id' => (int) $wpdb->insert_id, 'segment' => 'commercial', 'created' => true ), 201 );
     }
 }

@@ -73,8 +73,15 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   stage threshold (supervised 0.85 / auto 0.70), capped per client per run,
   Active journalists with a real email only, requires a Default Reply-To.
   Per-client autonomy + track-record panel on the Thank-yous page.
-- ⬜ Next: Gmail add-on (separate deployable, uses the API), then the **nvelope
-  front-end** — the "copy to platform.octobercomms.com" step.
+- ✅ **Phase 13 — Gmail add-on** (this branch): a Workspace Add-on
+  (`dev/oo-gmail-addon`, Apps Script) — contextual sidebar showing the sender's
+  journalist profile + recent coverage, **log this thread** to the editorial log,
+  and **add unknown senders** (press/media or industry/commercial). Backed by new
+  REST endpoints `GET /lookup` + `POST /contacts`. Deploy docs in
+  `docs/oo-gmail-addon`. (Plugin v3.19.0.)
+- ✅ **All plugin-side dev complete.**
+- ⬜ Next: the **nvelope front-end** — consume the REST API to render the PR
+  module in platform.octobercomms.com (the "copy it all to platform" step).
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 
