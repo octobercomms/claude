@@ -61,9 +61,14 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   editable notes, **availability/maternity status + return date**, **photo**, and
   Claude-suggested **beats** from coverage; new **outlet profile** page (editable
   Claude-generated summary, tier/region, coverage-with-them, journalists-here).
-- ⬜ Next: PR distribution + remove from Email, thank-you auto-send ramp, Gmail
-  add-on, then the **nvelope front-end** (consumes the API) and the "copy to
-  platform.octobercomms.com" step.
+- ✅ **Phase 11 — PR distribution + move out of Email** (this branch): an
+  approved release gets a **"Create pitch campaign"** action that spins up the
+  (existing, proven) `press_release` campaign seeded from the release and hands
+  off to the campaign wizard for contacts → pitch → launch. Press releases are
+  **removed from the Email wizard dropdown** (`get_email_campaign_types`) — they
+  now originate only in PR — while existing press campaigns keep their type on edit.
+- ⬜ Next: thank-you auto-send ramp, Gmail add-on, then the **nvelope front-end**
+  (consumes the API) — the "copy to platform.octobercomms.com" step.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 

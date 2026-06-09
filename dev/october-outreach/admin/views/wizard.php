@@ -17,7 +17,7 @@ if ( $campaign_id ) {
 }
 
 $brands   = OO_Database::get_brands();
-$types    = OO_Database::get_campaign_types();
+$types    = OO_Database::get_email_campaign_types(); // press releases are created from the PR module, not here
 $settings = get_option( 'oo_settings', array() );
 
 // Load existing sequences and contact count so JS can pre-populate step 3
@@ -48,7 +48,11 @@ $enable_outreach       = ( $settings['enable_outreach']       ?? '1' ) === '1';
 $enable_press          = ( $settings['enable_press_releases'] ?? '1' ) === '1';
 $single_module         = $enable_outreach xor $enable_press;
 $forced_type           = $enable_outreach ? 'outreach' : 'press_release';
-$show_press_card_init  = ( $single_module && $forced_type === 'press_release' ) || ( ! $single_module && ( $campaign->type ?? 'outreach' ) === 'press_release' );
+// A press-release pitch campaign (created from the PR module) keeps its type on
+// edit even though Email no longer offers it in the dropdown.
+$is_press_campaign     = ( $campaign->type ?? '' ) === 'press_release';
+$hidden_type           = $single_module ? $forced_type : ( $is_press_campaign ? 'press_release' : '' );
+$show_press_card_init  = ( $hidden_type === 'press_release' ) || ( ! $single_module && $is_press_campaign );
 ?>
 
 <div class="oo-page-header">
@@ -103,8 +107,8 @@ $show_press_card_init  = ( $single_module && $forced_type === 'press_release' ) 
                     </datalist>
                     <p class="oo-hint">Type freely or pick from your existing brands.</p>
                 </div>
-                <?php if ( $single_module ) : ?>
-                <input type="hidden" id="w_type" value="<?php echo esc_attr( $forced_type ); ?>">
+                <?php if ( $hidden_type ) : ?>
+                <input type="hidden" id="w_type" value="<?php echo esc_attr( $hidden_type ); ?>">
                 <?php else : ?>
                 <div class="oo-field">
                     <label class="oo-label">Campaign Type</label>

@@ -19,6 +19,7 @@ class OO_Admin {
         add_action( 'admin_post_oo_duplicate_campaign', array( $this, 'duplicate_campaign' ) );
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
         add_action( 'admin_post_oo_delete_press_release', array( $this, 'delete_press_release' ) );
+        add_action( 'admin_post_oo_create_pitch_campaign', array( $this, 'create_pitch_campaign' ) );
         add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
         add_action( 'admin_post_oo_import_contacts', array( $this, 'import_contacts_csv' ) );
         add_action( 'admin_post_oo_save_editorial_entry', array( $this, 'save_editorial_entry' ) );
@@ -689,6 +690,48 @@ class OO_Admin {
         $id = intval( $_POST['pr_id'] ?? 0 );
         if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_press_releases', array( 'id' => $id ) );
         wp_redirect( admin_url( 'admin.php?page=oo-press&deleted=1' ) );
+        exit;
+    }
+
+    /**
+     * Spin up a journalist pitch campaign from an approved press release and
+     * hand off to the existing campaign wizard (contacts → pitch → launch).
+     * Reuses the proven press_release send pipeline; the entry point now lives
+     * in PR rather than the Email wizard.
+     */
+    public function create_pitch_campaign() {
+        check_admin_referer( 'oo_create_pitch_campaign' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $pr_id = intval( $_REQUEST['pr_id'] ?? 0 );
+        $pr = $pr_id ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_press_releases WHERE id = %d", $pr_id ) ) : null;
+        if ( ! $pr ) { wp_redirect( admin_url( 'admin.php?page=oo-press' ) ); exit; }
+
+        // Reuse an already-created campaign for this release if present.
+        if ( $pr->campaign_id ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . intval( $pr->campaign_id ) ) );
+            exit;
+        }
+
+        $settings = get_option( 'oo_settings', array() );
+        $from     = $settings['default_reply_to'] ?? '';
+        $url      = $pr->url ?: ( $pr->review_token ? OO_Portal::review_url( $pr->review_token ) : '' );
+
+        $wpdb->insert( $wpdb->prefix . 'oo_campaigns', array(
+            'name'                 => 'Pitch: ' . $pr->title,
+            'brand'                => $pr->brand,
+            'type'                 => 'press_release',
+            'status'               => 'draft',
+            'from_name'            => $pr->brand ?: 'October Comms',
+            'from_email'           => $from,
+            'reply_to'             => $from,
+            'audience_description' => $pr->angle,
+            'press_release_url'    => $url,
+        ) );
+        $cid = (int) $wpdb->insert_id;
+        $wpdb->update( $wpdb->prefix . 'oo_press_releases', array( 'campaign_id' => $cid ), array( 'id' => $pr_id ) );
+
+        wp_redirect( admin_url( 'admin.php?page=oo-campaigns&action=wizard&id=' . $cid ) );
         exit;
     }
 

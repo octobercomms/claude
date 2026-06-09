@@ -445,4 +445,16 @@ class OO_Database {
             'product'       => 'Product / Service',
         );
     }
+
+    /**
+     * Campaign types offered in the Email campaign wizard. Press releases are
+     * no longer created from Email — they live in the PR module and create their
+     * pitch campaigns from there — so they're excluded from this dropdown (the
+     * label still resolves via get_campaign_types for existing campaigns).
+     */
+    public static function get_email_campaign_types() {
+        $types = self::get_campaign_types();
+        unset( $types['press_release'] );
+        return $types;
+    }
 }
