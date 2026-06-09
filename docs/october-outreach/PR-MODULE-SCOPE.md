@@ -50,6 +50,10 @@ to the right people.
   cheap/instant sources land first and paid sources follow. **Print/magazine
   (Cafeyn/Readly) is a separate later track** — see §6 for why (no self-serve
   API; DRM/ToS rule out browser scraping).
+- **Editorial log: OMI is the system of record** (not Notion) — so journalist
+  contacts and coverage live together and can be joined for analytics. Notion's
+  free API migrates the existing 4,371-row log in; clients get self-serve
+  **token URLs + downloadable + weekly auto reports**. See §6–§7.
 
 ---
 
@@ -85,10 +89,11 @@ module toggle, with these sub-pages:
 
 ```
 PR
-├── Media Database      (journalists, editors, outlets — categorised by beat)
+├── Editorial Log       (the spine — pitch→coverage lifecycle, ex-Notion)
+├── Media Database      (journalists, editors, outlets — coverage analytics)
 ├── Press Releases      (authoring + sign-off wizard → pitch → send → track)
-├── Coverage Monitor    (saved searches + auto-ingest from all sources)
-└── Coverage & Reports  (coverage log + weekly/monthly client reports)
+├── Coverage Monitor    (saved searches auto-capturing into the log)
+└── Client Portal       (per-client token pages, downloads, weekly auto reports)
 ```
 
 Email/Outreach keeps: Dashboard, Contacts, Tags, Campaigns, Settings, Help.
@@ -160,11 +165,72 @@ Finder — plus a byline catalogue.
 
 ---
 
-## 6. Coverage monitoring (all sources, phased)
+## 6. Editorial Log — the spine (system of record)
 
-Track where clients/brands get mentioned. A **saved search** = brand/client +
-keywords + sources + cadence. Action Scheduler (already bundled) runs them on a
-recurring schedule, the same way `oo_process_sequences` already runs.
+> Added after reviewing October's real Notion **Editorial Log**: 4,371 rows,
+> 34 clients, back to 2019.
+
+The Editorial Log is the heart of the whole PR module — broader than a "coverage
+log". Each row is a **pitch with a lifecycle**, and the published rows *are* the
+coverage. October's live status flow:
+
+`Pitched → Pending / No Response → Confirmed → Published / Declined`
+(+ `Download`, `Interview Prep`).
+
+Its columns map almost 1:1 onto the model already proposed here — crucially,
+**Press Contact** and **Publication name** are relations, i.e. the media database
+and the log are already entangled. That is the key decision driver (below).
+
+### Decision: OMI is the system of record (not Notion)
+
+The team currently keeps this log in Notion, deliberately separate from the app.
+But the value October actually wants — *"which journalists cover us most, when
+did X last feature this client, who's gone quiet"* — is a **join between contacts
+and coverage**. That join only exists if coverage lives in the same database as
+the contacts. Syncing a flattened copy to Notion (or vice-versa) throws it away.
+
+**So coverage/the editorial log moves into OMI, with `contact_id` and `outlet_id`
+as first-class foreign keys.** The **free Notion API** (any workspace; rate-limited
+~3 req/s, no cost) is used not as the destination but as the **migration tool**:
+a one-off import of the 4,371 rows that resolves each `Press Contact` → an
+`oo_contacts` row (`segment = media`, created if missing) and each `Publication`
+→ an `oo_outlets` row, by name. A one-way Notion→OMI sync can run during a
+transition window so the team isn't forced to switch cold.
+
+> CSV import works today as a zero-integration fallback — the exported log
+> (`Story Title, Client, Country, Interview Date, Issue Date, Link to story,
+> Notes/Outcome, Pitch/Request, Press Contact, Publication name, Request Date,
+> Status`) can seed the table before the Notion API sync is built.
+
+### Table: `oo_editorial_log`
+
+Replaces the earlier `oo_coverage` proposal — same idea, but modelled on the real
+log so it captures the full pitch lifecycle, not just published hits:
+
+`id`, `client` (→ brand/client), `story_title`, `contact_id` (press contact →
+journalist, FK), `outlet_id` (publication, FK), `country`, `status` (the lifecycle
+enum above), `pitch_request`, `request_date`, `interview_date`, `issue_date`,
+`story_url`, `archive_url`, `notes_outcome` (**internal only**), `sentiment`,
+`source` (manual | serper | alerts | webzio | notion-import), `created_at`.
+
+### Journalist ↔ coverage analytics (the payoff)
+
+Because the log FKs into `oo_contacts`/`oo_outlets`, the media database becomes
+*intelligent* rather than a flat list:
+
+- **Per journalist:** total pieces, last-featured date, which clients/beats they
+  favour, hit-rate, and a "gone quiet" flag (no coverage in N months).
+- **Per client:** coverage volume over time, top outlets/journalists, hit rate
+  (Published ÷ Pitched).
+- **Relationship strength** score surfaced on the contact record and used to rank
+  the media list when building a press-release pitch (§8).
+
+### Coverage monitoring auto-captures into the log
+
+A **saved search** = brand/client + keywords + sources + cadence. Action Scheduler
+(already bundled) runs them on a recurring schedule, the same way
+`oo_process_sequences` already runs. New hits land in `oo_editorial_log` with
+`status = 'new'` for a human to confirm (→ Published) or dismiss.
 
 ### Source adapters (one interface, several backends)
 | Source | Cost | Notes | Phase |
@@ -197,33 +263,56 @@ log print hits by hand so they still appear in client reports from day one, with
 zero integration risk.
 
 Each adapter returns normalised hits → de-duped → Claude scores relevance &
-sentiment, attempts to **match the byline to a journalist** in the media DB →
-written to `oo_coverage` with `status = 'new'` for human confirm/dismiss.
+sentiment, attempts to **match the byline to a journalist** (`contact_id`) and
+publication (`outlet_id`) in the media DB → written to `oo_editorial_log` with
+`status = 'new'` for human confirm/dismiss.
 
 **Paywall handling:** when a hit is paywalled, store an `archive_url`
 (archive.is) alongside the original so the team can actually read it.
 
-### New table
-- **`oo_coverage`** — `client/brand`, `title`, `url`, `archive_url`, `outlet_id`,
-  `contact_id` (matched journalist, nullable), `published_at`, `snippet`,
-  `sentiment`, `relevance`, `reach/AVE` (optional), `source`,
-  `status` (new/confirmed/dismissed), `created_at`.
-- **`oo_coverage_searches`** — saved monitors: `brand`, `keywords`, `sources`
+### Supporting table
+- **`oo_coverage_searches`** — saved monitors: `client`, `keywords`, `sources`
   (JSON), `cadence`, `last_run_at`.
 
 ---
 
-## 7. Coverage log & client reports
+## 7. Client portal & automated reports
 
-- **Coverage log**: filterable table of `oo_coverage` (by client/brand, date,
-  sentiment, outlet, confirmed-only). Manual "add coverage" for items found
-  off-platform. Confirm/dismiss queue for auto-captured hits.
-- **Reports**: pick client + period (weekly/monthly) → Claude writes a narrative
-  summary (volume, highlights, sentiment, key outlets/journalists) over the
-  confirmed coverage → export as branded **HTML/PDF** and/or **email to client**.
-  Reuses the mailer for delivery and the brand list (`OO_Database::get_brands()`)
-  for client identity.
-- Optional: schedule recurring report emails via Action Scheduler.
+The thing Notion can't do well — and the module's headline win for October's
+clients.
+
+### Internal editorial log (team)
+Filterable table over `oo_editorial_log` (by client, status, date, outlet,
+journalist), mirroring the Notion views (All Stories / By Status / By Date /
+Published). Manual "add row" for anything found off-platform; confirm/dismiss
+queue for auto-captured hits. This is the team's working surface once they move
+off Notion.
+
+### Public client page (token URL)
+Each client gets an **unguessable token URL** (`?pr_client=<token>`) — public to
+anyone with the link, not listed or indexed. Renders a front-end (non-wp-admin)
+view scoped to that client.
+
+- **Shows: Published + pipeline, *without* internal notes** (confirmed via Q&A).
+  i.e. story, publication, journalist, country, status (Published / Confirmed /
+  Pitched), issue date, link. The candid `notes_outcome` and `Declined`
+  reasons are **never** exposed.
+- **Download report button** — generates the current view as a branded
+  PDF/HTML on demand.
+- Optional client-set email for **alerts** (see below).
+
+### Automated weekly reports & alerts
+- Action Scheduler runs a **weekly per-client digest**: Claude writes a short
+  narrative (new coverage this week, highlights, who featured them) over that
+  client's confirmed rows → emailed via the existing mailer, with the portal
+  link + PDF attached.
+- **Alerts**: when a row flips to `Published` for a client, optionally fire an
+  immediate "you've been featured" email. This is the self-serve visibility
+  clients keep asking Notion for.
+- Cadence (weekly/monthly/off) configurable per client.
+
+Reuses the mailer for delivery and the brand list (`OO_Database::get_brands()`)
+as the client dimension (see open decision on `clients` vs `brand`).
 
 ---
 
@@ -268,12 +357,14 @@ have separate entry points, audiences (commercial vs media), and Claude prompts.
 
 ## 9. Data model — summary of changes
 
-**New tables:** `oo_outlets`, `oo_articles`, `oo_coverage`,
-`oo_coverage_searches`. (Optional sidecar `oo_journalist_meta`.)
+**New tables:** `oo_outlets`, `oo_articles`, `oo_editorial_log` (the spine —
+replaces the earlier `oo_coverage`), `oo_coverage_searches`. (Optional sidecar
+`oo_journalist_meta`.)
 
 **Altered tables:**
 - `oo_contacts`: `segment` (media|commercial), optional `outlet_id`,
-  `seniority`.
+  `seniority`. Gains derived analytics (coverage count, last-featured) via the
+  `oo_editorial_log` FK.
 - `oo_press_releases`: `body_html`, `brand`, `approved_by`, `approved_at`,
   `embargo_at`, `review_token`, `campaign_id` (already nullable today).
 - `oo_campaigns`: new type value `pr_pitch` (no schema change — it's a varchar).
@@ -289,6 +380,9 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 
 - **New API keys** (Settings → new "PR & Coverage" card): webz.io key.
   Serper key already exists. Google Alerts = paste RSS feed URL(s) per client.
+- **Notion integration** (free): internal integration token + the Editorial Log
+  database ID, used for the one-off migration import and the optional transition
+  sync. Free tier, ~3 req/s — fine for a batched 4,371-row import.
 - **archive.is**: no key; on-demand fetch.
 - **Module toggle**: `enable_pr` shows/hides the whole PR menu.
 - **3rd-party media list (future):** leave a documented import adapter seam
@@ -302,31 +396,44 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 | Phase | Deliverable | Rough effort |
 |---|---|---|
 | **0** | Contacts `segment` split + Media/Commercial filtering; `enable_pr` toggle; PR menu shell | 2–3 days |
-| **1** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
-| **2** | Journalist Finder (media variant of contact finder) + `oo_outlets` | 3–5 days |
-| **3** | Byline catalogue (`oo_articles`) + Claude beat categorisation | 3–5 days |
-| **4** | Coverage Monitor v1 (Serper + Google Alerts) + `oo_coverage` + confirm/dismiss | 4–6 days |
-| **5** | Coverage log + client reports (Claude summary + HTML/PDF/email) | 3–5 days |
-| **6** | webz.io adapter; archive.is paywall handling; Readly | 2–4 days |
+| **1** | `oo_editorial_log` table + internal log UI + CSV import of the existing log | 3–4 days |
+| **2** | Notion API migration/sync (resolve Press Contact → contact, Publication → outlet) + `oo_outlets` | 3–5 days |
+| **3** | Journalist ↔ coverage analytics (counts, last-featured, hit-rate, relationship strength) | 3–4 days |
+| **4** | Client portal (token URL, Published+pipeline, download report) + weekly automated reports & alerts | 5–7 days |
+| **5** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
+| **6** | Journalist Finder (media variant of contact finder) + byline catalogue (`oo_articles`) + Claude beat tagging | 5–8 days |
+| **7** | Coverage Monitor (Serper + Google Alerts → log) + webz.io + archive.is | 5–8 days |
 
-Phases are independently shippable. Phase 0 unblocks everything and is the
-smallest sensible first PR.
+Phases are independently shippable. Phase 0 unblocks everything; **Phases 1–4 are
+the new priority spine** — getting October's existing log into OMI and giving
+clients self-serve access is the highest-value, lowest-risk slice. Press-release
+authoring and live monitoring (5–7) build on top once the log + media graph exist.
 
 ---
 
-## 12. Open decisions (please confirm)
+## 12. Decisions
 
+### Resolved (from scoping Q&A)
+- **Media database:** build our own, reuse existing infra. *(no 3rd-party licence in v1)*
+- **Coverage sources:** all of them, phased; print/magazine is a separate later track.
+- **Editorial log source of truth:** **OMI**, not Notion — to keep the
+  contacts↔coverage join. Notion's free API is the migration tool; CSV import as fallback.
+- **Client public view:** **Published + pipeline, no internal notes.**
+
+### Still open
 1. **Press page fate** — replace the orphaned `views/press.php` entirely with
    the new authoring wizard, or keep it as a simple list view that links into
    the wizard? (Recommend: keep as the list, wizard for create/edit.)
-2. **Client sign-off mechanism** — in-WordPress status only, or a token-gated
-   public review link the client can open without logging in?
-   (Recommend: token-gated link — it's the differentiator for agencies.)
-3. **Report export format** — HTML email + PDF, or HTML only for v1?
-   (Recommend: HTML first, PDF in phase 6.)
-4. **"Client" identity** — reuse the existing `brand` list as the client
-   dimension, or introduce a dedicated `clients` concept? (Recommend: reuse
-   `brand` for now; promote to `clients` only if multi-tenancy lands.)
+2. **"Client" identity** — the log has **34 clients**, more than the 6-entry
+   `brand` list. So we likely need a dedicated lightweight **`clients`** concept
+   (name, token, report cadence, alert email) rather than reusing `brand`.
+   (Recommend: add `oo_clients`; it's also what the portal/token model needs.)
+3. **Transition sync** — one-off Notion import only, or keep a one-way
+   Notion→OMI sync running for a few weeks while the team switches?
+   (Recommend: import first; add a manual "re-sync from Notion" button before
+   committing to scheduled sync.)
+4. **Report export format** — HTML email + PDF, or HTML only for v1?
+   (Recommend: HTML email first, on-demand PDF in Phase 4.)
 5. **AVE / reach metrics** — do clients want estimated reach/AVE in reports, or
-   is volume + sentiment + highlights enough for v1? (Affects whether we need an
-   outlet-reach data source.)
+   is volume + highlights + journalist relationships enough for v1? (Affects
+   whether we need an outlet-reach data source on `oo_outlets`.)
