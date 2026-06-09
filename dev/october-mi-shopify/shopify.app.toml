@@ -22,10 +22,14 @@ redirect_urls = [
 [webhooks]
 api_version = "2025-01"
 
-  # GDPR / mandatory compliance webhooks. Shopify App Store review requires all three.
-  [[webhooks.subscriptions]]
-  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
-  uri = "/webhooks/gdpr"
+  # GDPR / mandatory compliance webhooks. Shopify App Store review requires
+  # all three to be declared in the new [webhooks.privacy_compliance] block
+  # (the older `compliance_topics` shorthand under `[[webhooks.subscriptions]]`
+  # is no longer honoured by the Partner-dashboard automated-check pass).
+  [webhooks.privacy_compliance]
+  customer_data_request_url = "https://omi.octobercomms.com/webhooks/gdpr"
+  customer_deletion_url = "https://omi.octobercomms.com/webhooks/gdpr"
+  shop_deletion_url = "https://omi.octobercomms.com/webhooks/gdpr"
 
   # Shop lifecycle — clean up local session/store rows when the app is uninstalled.
   [[webhooks.subscriptions]]
