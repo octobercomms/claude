@@ -205,10 +205,12 @@ consistent score and the AM can trust the scorecard.
 
 ### PR slices
 
-1. **Rubric data + scorer** (~3 days) — `ad-audit-rubric.md`,
-   `adAuditRubric.json`, `adAudit.js` with `scoreSnapshot()`, unit-tested
-   against fixture snapshots (good account, drain account, thin-data account).
-   Self-contained, no Strategist changes.
+1. ✅ **Rubric data + scorer** (**done**) — `docs/nvelope/ad-audit-rubric.md`,
+   `src/data/adAuditRubric.json` (categories, weights, benchmarks + MIT
+   attribution), `src/services/adAudit.js` with a pure `scoreSnapshot()`.
+   Verified against good / drain / thin / empty fixtures (93 strong, 33 weak,
+   86 low-confidence, null respectively). Self-contained, no Strategist
+   changes.
 2. **Wire into the Strategist** (~2 days) — call the scorer, feed it into the
    prompt, persist + surface the score. Keeps the existing thin-data
    short-circuit and recommendation-parsing intact.
