@@ -36,12 +36,17 @@ October Outreach plugin (the "October Marketing Intelligence" app).
 - ✅ **Phase 5 — fast logging** (merged): ⚡ paste-a-URL → Claude auto-fills
   the log entry (`extract_story_meta`), and alias-aware typeahead on the
   publication/press-contact fields to prevent duplicates at entry.
-- ✅ **Phase 6 — coverage monitor** (this branch): `oo_coverage_searches` +
+- ✅ **Phase 6 — coverage monitor** (merged): `oo_coverage_searches` +
   `OO_Monitor` (Serper Google News + Google Alerts RSS adapters, alias-aware
   outlet matching, URL de-dupe) → auto-logs as `new`; daily Action Scheduler
   tick; Coverage Monitor page with saved searches (run-now) + a confirm/dismiss
   review queue. Auto-found rows are hidden from the main log until confirmed.
-- ⬜ Next: thank-you engine, press-release wizard, profiles, Gmail add-on; plus
+- ✅ **Phase 7 — thank-you engine (assisted stage)** (this branch):
+  `OO_Claude::write_thank_you` (fresh, never-repeating per journalist),
+  `oo_sent_thanks` (no-repeat memory) + `oo_thank_feedback` (approve/edit/reject
+  capture), a Thank-yous review page that drafts → edit → send from the team's
+  reply-to address. **Auto-send + adaptive trust ramp = follow-up (Stage 2/3).**
+- ⬜ Next: auto-send ramp, press-release wizard, profiles, Gmail add-on; plus
   the **dual-surface** track below.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction

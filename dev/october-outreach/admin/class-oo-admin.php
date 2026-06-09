@@ -155,6 +155,7 @@ class OO_Admin {
             add_submenu_page( 'oo-pr', 'Journalists',    'Journalists',    'manage_options', 'oo-journalists',  array( $this, 'page_journalists' ) );
             add_submenu_page( 'oo-pr', 'Media Database',   'Media Database',   'manage_options', 'oo-media',     array( $this, 'page_media_database' ) );
             add_submenu_page( 'oo-pr', 'Coverage Monitor', 'Coverage Monitor', 'manage_options', 'oo-monitor',   array( $this, 'page_coverage_monitor' ) );
+            add_submenu_page( 'oo-pr', 'Thank-yous',       'Thank-yous',       'manage_options', 'oo-thanks',    array( $this, 'page_thank_yous' ) );
             add_submenu_page( 'oo-pr', 'Clients',          'Clients',          'manage_options', 'oo-clients',   array( $this, 'page_clients' ) );
         }
     }
@@ -177,6 +178,9 @@ class OO_Admin {
         }
         if ( $screen && strpos( $screen->id, 'oo-pr' ) !== false && in_array( ( $_GET['action'] ?? '' ), array( 'new', 'edit' ), true ) ) {
             wp_enqueue_script( 'oo-editorial-log', OO_PLUGIN_URL . 'admin/js/editorial-log.js', array(), OO_VERSION, true );
+        }
+        if ( $screen && strpos( $screen->id, 'oo-thanks' ) !== false ) {
+            wp_enqueue_script( 'oo-thanks', OO_PLUGIN_URL . 'admin/js/thanks.js', array(), OO_VERSION, true );
         }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
@@ -224,6 +228,7 @@ class OO_Admin {
     public function page_media_database() { $this->render( 'media-database', 'pr' ); }
     public function page_clients()        { $this->render( 'clients',        'pr' ); }
     public function page_coverage_monitor() { $this->render( 'coverage-monitor', 'pr' ); }
+    public function page_thank_yous()        { $this->render( 'thank-yous',       'pr' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';

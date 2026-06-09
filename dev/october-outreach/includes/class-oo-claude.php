@@ -435,6 +435,34 @@ class OO_Claude {
     }
 
     /**
+     * Write a short, genuine thank-you to a journalist for a published piece.
+     * Pass prior thank-you excerpts sent to THIS journalist so the new one is
+     * demonstrably different (never the same note twice).
+     *
+     * @return array|WP_Error { tone, subject, body }
+     */
+    public function write_thank_you( $journalist_name, $outlet, $story_title, $client, $prior_excerpts = array() ) {
+        $first = trim( explode( ' ', trim( $journalist_name ) )[0] );
+
+        $system = 'You write short, warm, genuine thank-you emails from a PR professional to a journalist who has just featured their client. British English. 2–4 sentences. Specific, not gushing. No marketing speak, no "I hope this finds you well", no hard ask. Vary tone and opening each time. Respond as JSON only.';
+
+        $prompt  = "Write a thank-you email.\n";
+        $prompt .= "Journalist: {$journalist_name}" . ( $first ? " (use first name \"{$first}\")" : '' ) . "\n";
+        if ( $outlet )      $prompt .= "Publication: {$outlet}\n";
+        if ( $story_title ) $prompt .= "Article: {$story_title}\n";
+        if ( $client )      $prompt .= "Client featured: {$client}\n";
+        if ( $prior_excerpts ) {
+            $prompt .= "\nYou have thanked this journalist before. DO NOT reuse these openings/phrasings — write something clearly different:\n";
+            foreach ( array_slice( $prior_excerpts, 0, 5 ) as $ex ) {
+                $prompt .= '- "' . mb_substr( $ex, 0, 140 ) . "\"\n";
+            }
+        }
+        $prompt .= "\nReturn JSON: {\"tone\":\"one or two words for the tone you chose\",\"subject\":\"short subject line\",\"body\":\"the email body, plain text, with the first-name greeting\"}";
+
+        return $this->request_json( array( array( 'role' => 'user', 'content' => $prompt ) ), 700, $system );
+    }
+
+    /**
      * Write a short, warm client-facing summary of a period's press coverage.
      * $items: [ {outlet, journalist, title, date} … ] (published pieces only).
      * Returns plain prose (2–4 sentences) or a WP_Error.
