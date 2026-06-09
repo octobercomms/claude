@@ -168,10 +168,14 @@ connector statuses rather than silently degrading scrapes.
    from the revision note) — `src/services/flaresolverr.js`
    (`isConfigured`/`health`/`render` returning solved HTML), wired into
    `fetchHtml.js` as the stealth path, `FLARESOLVERR_URL` in `SETTINGS_KEYS`,
-   health ping added to the daily cron. **No code unknowns remain** — the only
+   health ping added to the daily cron, plus a **"Test FlareSolverr" button**
+   in Settings (`POST /settings/test-flaresolverr` → pings the service and
+   solves a sample page end-to-end). **No code unknowns remain** — the only
    outstanding step is the ops task of running FlareSolverr (`docker run
    ghcr.io/flaresolverr/flaresolverr`, bind `127.0.0.1:8191`) and setting
    `FLARESOLVERR_URL`; the stealth path then activates automatically.
+   *(FlareSolverr stood up on the production box 2026-06-09; v3.5.0 confirmed
+   ready.)*
 
 ---
 

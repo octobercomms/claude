@@ -22,8 +22,10 @@ const { getSetting } = require('../utils/settings');
 
 const DEFAULT_MAX_TIMEOUT_MS = 60000;
 
-async function baseUrl() {
-  const u = await getSetting('FLARESOLVERR_URL');
+// `override` lets the Settings "Test" button check a URL the operator has
+// typed but not yet saved; falls back to the stored FLARESOLVERR_URL.
+async function baseUrl(override) {
+  const u = override || (await getSetting('FLARESOLVERR_URL'));
   return u ? String(u).replace(/\/+$/, '') : null;
 }
 
@@ -34,8 +36,8 @@ async function isConfigured() {
 }
 
 // GET / — liveness ping for the daily health check. Never throws.
-async function health() {
-  const url = await baseUrl();
+async function health(override) {
+  const url = await baseUrl(override);
   if (!url) return { ok: false, configured: false, message: 'FLARESOLVERR_URL not set in Settings' };
   try {
     const { data } = await axios.get(`${url}/`, { timeout: 8000 });
@@ -59,8 +61,8 @@ async function health() {
 // Returns { html, status, finalUrl, userAgent, cookies } or null when the
 // solver itself reports failure (so the wrapper can fall back / flag it).
 // Throws only on transport errors (caught by the wrapper).
-async function render(url, { maxTimeout = DEFAULT_MAX_TIMEOUT_MS } = {}) {
-  const base = await baseUrl();
+async function render(url, { maxTimeout = DEFAULT_MAX_TIMEOUT_MS, baseUrlOverride } = {}) {
+  const base = await baseUrl(baseUrlOverride);
   if (!base) throw new Error('FLARESOLVERR_URL not set in Settings');
   const { data } = await axios.post(
     `${base}/v1`,

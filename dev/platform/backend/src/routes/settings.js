@@ -6,6 +6,7 @@ const { requireAdmin } = require('../middleware/clientAccess');
 const { encrypt, decrypt } = require('../utils/encryption');
 const nodemailer = require('nodemailer');
 const dataforseo = require('../connectors/dataforseo');
+const flaresolverr = require('../services/flaresolverr');
 
 const bcrypt = require('bcryptjs');
 
@@ -169,6 +170,29 @@ router.post('/test-dataforseo', async (req, res) => {
       password: clean(req.body.password),
     });
     res.json(result);
+  } catch (err) {
+    res.json({ ok: false, message: err.message });
+  }
+});
+
+// POST test FlareSolverr (uses the supplied URL, or the saved one). Pings the
+// service, then does a real end-to-end solve of a benign page to prove the
+// whole chain returns HTML — not just that the port is open.
+router.post('/test-flaresolverr', async (req, res) => {
+  const override = (req.body.url && req.body.url !== '••••••••') ? req.body.url : undefined;
+  try {
+    const h = await flaresolverr.health(override);
+    if (!h.ok) return res.json({ ok: false, message: h.message });
+    const testUrl = req.body.testUrl || 'https://www.example.com';
+    const solved = await flaresolverr.render(testUrl, { baseUrlOverride: override, maxTimeout: 30000 });
+    if (solved && solved.html) {
+      const version = h.detail?.version ? ` (v${h.detail.version})` : '';
+      return res.json({
+        ok: true,
+        message: `Connected${version}. Solved ${testUrl} — HTTP ${solved.status}, ${solved.html.length.toLocaleString()} bytes of HTML.`,
+      });
+    }
+    return res.json({ ok: false, message: `Reachable, but couldn't solve ${testUrl}. Check the FlareSolverr container logs.` });
   } catch (err) {
     res.json({ ok: false, message: err.message });
   }
