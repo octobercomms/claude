@@ -52,7 +52,8 @@ class OO_Admin {
         $settings = get_option( 'oo_settings', array() );
         if ( ( $settings['enable_pr'] ?? '1' ) === '1' ) {
             add_menu_page( 'October PR', 'PR', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ), 'dashicons-megaphone', 31 );
-            add_submenu_page( 'oo-pr', 'Editorial Log', 'Editorial Log', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ) );
+            add_submenu_page( 'oo-pr', 'Editorial Log',  'Editorial Log',  'manage_options', 'oo-pr',           array( $this, 'page_editorial_log' ) );
+            add_submenu_page( 'oo-pr', 'Media Database', 'Media Database', 'manage_options', 'oo-media',        array( $this, 'page_media_database' ) );
         }
     }
 
@@ -68,6 +69,9 @@ class OO_Admin {
         }
         if ( $screen && strpos( $screen->id, 'oo-tags' ) !== false ) {
             wp_enqueue_script( 'oo-tags', OO_PLUGIN_URL . 'admin/js/tags.js', array(), OO_VERSION, true );
+        }
+        if ( $screen && strpos( $screen->id, 'oo-media' ) !== false ) {
+            wp_enqueue_script( 'oo-dedup', OO_PLUGIN_URL . 'admin/js/dedup.js', array(), OO_VERSION, true );
         }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
@@ -110,7 +114,8 @@ class OO_Admin {
     public function page_settings() { $this->render( 'settings', 'settings' ); }
     public function page_help()     { $this->render( 'help',     'help' ); }
 
-    public function page_editorial_log() { $this->render( 'editorial-log', 'pr' ); }
+    public function page_editorial_log()  { $this->render( 'editorial-log',  'pr' ); }
+    public function page_media_database() { $this->render( 'media-database', 'pr' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';
@@ -659,23 +664,11 @@ class OO_Admin {
     }
 
     /**
-     * Find an outlet by name (case-insensitive); create it if missing. Returns id or 0.
+     * Resolve an outlet name to an id — alias-aware (won't recreate a known
+     * duplicate), creating it only if genuinely new. Delegates to OO_Dedup.
      */
     private function resolve_outlet_by_name( $name ) {
-        $name = trim( $name );
-        if ( $name === '' ) return 0;
-        global $wpdb;
-        $table = $wpdb->prefix . 'oo_outlets';
-        $id    = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM {$table} WHERE name = %s LIMIT 1", $name
-        ) );
-        if ( $id ) return $id;
-        $wpdb->insert( $table, array(
-            'name'           => sanitize_text_field( $name ),
-            'canonical_name' => sanitize_text_field( $name ),
-            'status'         => stripos( $name, 'do not use' ) !== false ? 'do_not_use' : 'active',
-        ) );
-        return (int) $wpdb->insert_id;
+        return OO_Dedup::resolve_outlet( $name );
     }
 
     /**

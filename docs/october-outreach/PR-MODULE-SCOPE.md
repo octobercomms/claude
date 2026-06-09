@@ -1,12 +1,21 @@
 # PR Module — Scope
 
-**Status:** Draft for review
-**Plugin:** October Outreach (`dev/october-outreach`, v3.7.0)
+**Status:** In build
+**Plugin:** October Outreach (`dev/october-outreach`, v3.8.0)
 **Author:** scoping pass, 2026-06-09
 
 This document scopes a new **PR (Public Relations)** capability for the
-October Outreach plugin (the "October Marketing Intelligence" app). It is a
-planning artefact — no code has been written yet.
+October Outreach plugin (the "October Marketing Intelligence" app).
+
+### Build status
+- ✅ **Phase 0–1** (merged): `segment` split, gated PR menu, `oo_editorial_log`
+  + `oo_outlets` tables, Editorial Log page + Notion-export CSV import.
+- ✅ **Phase 2b** (this branch): AI outlet deduplication — `OO_Dedup` engine
+  (normalise → fuzzy cluster), Claude adjudication of fuzzy clusters, Media
+  Database page with a "find duplicates" review/merge tool, alias-aware
+  resolver wired into the importer so future imports don't re-duplicate.
+- ⬜ Next: Phase 2 (master DB import + Notion API), Phase 3 (analytics),
+  Phase 4 (client portal + reports), then 5–8.
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for

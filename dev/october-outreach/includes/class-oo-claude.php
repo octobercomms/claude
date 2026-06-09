@@ -408,6 +408,59 @@ class OO_Claude {
         return $this->request_json( $messages, 1024, $system );
     }
 
+    /**
+     * Adjudicate candidate duplicate publication groups. Each input cluster is
+     * a list of names that MIGHT be the same outlet; Claude confirms true
+     * duplicates, splits false matches, and picks a canonical name.
+     *
+     * @param array $clusters array of arrays of names
+     * @return array|WP_Error  [ { canonical, members:[names], confidence } ]
+     */
+    public function adjudicate_duplicates( array $clusters ) {
+        $lines = array();
+        foreach ( $clusters as $i => $names ) {
+            $lines[] = 'Group ' . ( $i + 1 ) . ': ' . implode( ' | ', $names );
+        }
+        $blocks = implode( "\n", $lines );
+
+        $system = 'You are a data-quality assistant cleaning a publications/media database for a PR tool. You decide which publication names refer to the SAME outlet. Respond ONLY with a JSON array — no prose outside it.';
+
+        $prompt  = "Below are candidate groups of publication names that may be duplicates. ";
+        $prompt .= "For each, decide which names are truly the SAME publication.\n\n";
+        $prompt .= "RULES:\n";
+        $prompt .= "- TREAT AS SAME: case/punctuation/spacing differences, a website/URL form (e.g. 'Dezeen' and 'Dezeen.com'), a trailing 'DO NOT USE' marker, obvious typos ('Dezeen' / 'Dazeen').\n";
+        $prompt .= "- KEEP SEPARATE: different regional editions (e.g. 'Elle Decor Spain' vs 'Elle Decor Italia' vs 'Elle Decor India' are DIFFERENT). \n";
+        $prompt .= "- KEEP SEPARATE: distinct titles that merely sound alike ('Interior Design' vs 'Interior Designer', 'Architect' vs 'Archinect', 'Kent Live' vs 'Kent Life').\n";
+        $prompt .= "- Pick the cleanest real name as the canonical (no URL, no 'DO NOT USE').\n\n";
+        $prompt .= "Candidate groups:\n" . $blocks . "\n\n";
+        $prompt .= "Respond with a JSON array of confirmed duplicate sets only (omit anything you'd keep separate). ";
+        $prompt .= 'Each item: {"canonical":"Clean Name","members":["name a","name b"],"confidence":0.0-1.0}. ';
+        $prompt .= 'Only include sets with 2+ members that are genuinely the same. JSON array only.';
+
+        $raw = $this->request( array( array( 'role' => 'user', 'content' => $prompt ) ), 4096, $system );
+        if ( is_wp_error( $raw ) ) return $raw;
+
+        $groups = json_decode( $raw, true );
+        if ( is_array( $groups ) ) return $groups;
+
+        // Salvage balanced {...} objects if the model wrapped the array.
+        $groups = array(); $depth = 0; $buf = ''; $in = false;
+        for ( $i = 0, $n = strlen( $raw ); $i < $n; $i++ ) {
+            $ch = $raw[ $i ];
+            if ( $ch === '{' ) { $in = true; $depth++; }
+            if ( $in ) $buf .= $ch;
+            if ( $ch === '}' && $in ) {
+                $depth--;
+                if ( $depth === 0 ) {
+                    $obj = json_decode( $buf, true );
+                    if ( $obj && isset( $obj['members'] ) ) $groups[] = $obj;
+                    $buf = ''; $in = false;
+                }
+            }
+        }
+        return $groups;
+    }
+
     public function analyze_tags( array $tags_map ) {
         $tag_lines = array();
         foreach ( $tags_map as $tag => $count ) {
