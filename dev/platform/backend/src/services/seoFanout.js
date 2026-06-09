@@ -16,6 +16,7 @@
 const pool = require('../db');
 const claudeService = require('./claude');
 const dataForSEO = require('../connectors/dataforseo');
+const playbooks = require('./playbooks');
 
 const FANOUT_PROMPT = (seedQuery, clientName, clientDomain) => `You are designing a Google AI Overview "query fan-out" simulation. Google's official guide describes fan-out as a set of concurrent, related queries the model generates from the user's original query, then pulls results from all of them to build the answer. Example from Google: seed "how to fix a lawn that's full of weeds" fans out to "best herbicides for lawns", "remove weeds without chemicals", "how to prevent weeds in lawn".
 
@@ -108,7 +109,7 @@ No filler, no preamble, no headings. Plain markdown only.`;
 async function generateSummary({ seedQuery, clientName, rows, coverage }) {
   return claudeService.callClaude({
     max_tokens: 600,
-    system: 'You are a performance marketing analyst writing AM briefings on SEO data. British English. Tight, commercial, no filler.',
+    system: 'You are a performance marketing analyst writing AM briefings on SEO data. British English. Tight, commercial, no filler.' + playbooks.systemSuffix(['seo-audit']),
     user: SUMMARY_PROMPT(seedQuery, clientName, rows, coverage),
   });
 }

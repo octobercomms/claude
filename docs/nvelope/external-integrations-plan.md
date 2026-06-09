@@ -288,7 +288,15 @@ client, which is where the leverage is.
    claude-ads slice 2; content now wired too: `contentDraft.js` gets
    `copywriting` + `content-strategy`, `socialCaptions.js` gets `copywriting`,
    both via a new reusable `playbooks.systemSuffix([...])` helper.
-3. **Wire remaining services** (~2 days) — CRO, SEO, outreach, brand voice rows.
+3. ✅ **Wire remaining services** (**done**) — `contentAudit.js`
+   (seo-audit + content-strategy), `seoFanout.js` briefing (seo-audit),
+   `ctrBoost.js` (copywriting), `outreachAi.js` email writer (cold-email), all
+   via `systemSuffix`. **Deliberately skipped:** `backlinkProspect.js` (uses
+   DataForSEO, makes no Claude call) and `brandVoice.js` (its job is to capture
+   a brand's *specific* mannerisms — explicitly "not generic write-clearly
+   advice" — so the copywriting playbook would fight its purpose; its best-fit
+   `product-marketing`/`marketing-psychology` playbooks aren't distilled yet —
+   deferred to a future batch).
 
 ---
 

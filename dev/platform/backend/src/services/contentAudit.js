@@ -14,6 +14,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 const claudeService = require('./claude');
+const playbooks = require('./playbooks');
 
 const MODEL = 'claude-sonnet-4-6';
 const USER_AGENT = 'Mozilla/5.0 (compatible; OctoberMarketingIntelligence/1.0; +https://platform.octobercomms.com/audit)';
@@ -115,7 +116,7 @@ Audit this page. Return the JSON object only.`;
     const raw = await claudeService.callClaude({
       model: MODEL,
       max_tokens: 2500,
-      system: SYSTEM,
+      system: SYSTEM + playbooks.systemSuffix(['seo-audit', 'content-strategy']),
       user: userPrompt,
     });
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
