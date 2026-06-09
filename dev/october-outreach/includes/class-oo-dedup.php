@@ -253,4 +253,73 @@ class OO_Dedup {
         ) );
         return (int) $wpdb->insert_id;
     }
+
+    /**
+     * Resolve a media contact, matching first by real email then by name, so
+     * imports enrich an existing record (incl. placeholder contacts created
+     * during the editorial-log import) instead of creating duplicates.
+     *
+     * Accepts: first_name, last_name, email, outlet_id, location, bio_link,
+     * company, last_contacted (Y-m-d|null), source. Returns the contact id.
+     */
+    public static function resolve_contact( array $f ) {
+        global $wpdb;
+        $t = $wpdb->prefix . 'oo_contacts';
+
+        $first = sanitize_text_field( trim( $f['first_name'] ?? '' ) );
+        $last  = sanitize_text_field( trim( $f['last_name'] ?? '' ) );
+        $email = sanitize_email( $f['email'] ?? '' );
+        $real  = ( $email && is_email( $email ) && ! str_ends_with( $email, '@import.local' ) );
+        if ( $first === '' && $last === '' && ! $real ) return 0;
+
+        $id = 0;
+        if ( $real ) {
+            $id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$t} WHERE email = %s LIMIT 1", $email ) );
+        }
+        if ( ! $id && ( $first !== '' || $last !== '' ) ) {
+            $id = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$t} WHERE first_name = %s AND last_name = %s LIMIT 1", $first, $last
+            ) );
+        }
+
+        // Build the field set we *could* fill.
+        $fields = array();
+        if ( ! empty( $f['location'] ) ) $fields['location'] = sanitize_text_field( $f['location'] );
+        if ( ! empty( $f['company'] ) )  $fields['company']  = sanitize_text_field( $f['company'] );
+        if ( ! empty( $f['bio_link'] ) ) $fields['bio_link'] = esc_url_raw( $f['bio_link'] );
+        if ( ! empty( $f['last_contacted'] ) ) $fields['last_contacted'] = $f['last_contacted'];
+        if ( ! empty( $f['outlet_id'] ) ) $fields['outlet_id'] = (int) $f['outlet_id'];
+
+        if ( $id ) {
+            $existing = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$t} WHERE id = %d", $id ), ARRAY_A );
+            $update   = array();
+            // Upgrade a placeholder/empty email to the real one.
+            if ( $real && ( $existing['email'] === '' || str_ends_with( $existing['email'], '@import.local' ) ) ) {
+                $update['email'] = $email;
+            }
+            // Only fill columns that are currently empty (never overwrite real data).
+            foreach ( $fields as $k => $v ) {
+                if ( empty( $existing[ $k ] ) ) $update[ $k ] = $v;
+            }
+            // Promote to media segment if it was a bare import.
+            if ( ( $existing['segment'] ?? '' ) !== 'media' && ( $existing['type'] ?? '' ) === 'journalist' ) {
+                $update['segment'] = 'media';
+            }
+            if ( $update ) $wpdb->update( $t, $update, array( 'id' => $id ) );
+            return $id;
+        }
+
+        // Create.
+        $insert = array_merge( array(
+            'first_name' => $first,
+            'last_name'  => $last,
+            'email'      => $real ? $email : 'noemail+' . md5( strtolower( $first . ' ' . $last ) . '|' . ( $f['outlet_id'] ?? 0 ) ) . '@import.local',
+            'type'       => 'journalist',
+            'segment'    => 'media',
+            'status'     => 'active',
+            'source'     => sanitize_text_field( $f['source'] ?? 'Master import' ),
+        ), $fields );
+        $wpdb->insert( $t, $insert );
+        return (int) $wpdb->insert_id;
+    }
 }

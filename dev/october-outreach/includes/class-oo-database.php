@@ -33,6 +33,9 @@ class OO_Database {
             website varchar(500) NOT NULL DEFAULT '',
             location varchar(200) NOT NULL DEFAULT '',
             linkedin_url varchar(500) NOT NULL DEFAULT '',
+            bio_link varchar(500) NOT NULL DEFAULT '',
+            last_contacted date DEFAULT NULL,
+            outlet_id bigint(20) DEFAULT NULL,
             tags longtext NULL,
             source varchar(100) NOT NULL DEFAULT '',
             status varchar(50) NOT NULL DEFAULT 'active',
@@ -48,6 +51,7 @@ class OO_Database {
             KEY segment (segment),
             KEY status (status),
             KEY location (location),
+            KEY outlet_id (outlet_id),
             KEY verified_status (verified_status)
         ) $charset;";
 
