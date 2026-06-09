@@ -80,6 +80,13 @@ Thanks!</div>
                         <span class="oo-muted" style="display:block;margin-top:2px">Pitch journalists and editors. Claude reads your press release URL and writes the pitch emails.</span>
                     </span>
                 </label>
+                <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+                    <input type="checkbox" name="enable_pr" value="1" <?php checked( ( $settings['enable_pr'] ?? '1' ), '1' ); ?> style="margin-top:2px;width:16px;height:16px;cursor:pointer">
+                    <span>
+                        <strong style="font-size:14px">PR &amp; Editorial Log</strong>
+                        <span class="oo-muted" style="display:block;margin-top:2px">Track pitches and coverage in one editorial log, build a media database, and report to clients. Adds the PR menu.</span>
+                    </span>
+                </label>
             </div>
         </div>
 

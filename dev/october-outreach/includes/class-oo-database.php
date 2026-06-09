@@ -28,6 +28,7 @@ class OO_Database {
             email varchar(200) NOT NULL,
             company varchar(200) NOT NULL DEFAULT '',
             type varchar(50) NOT NULL DEFAULT '',
+            segment varchar(20) NOT NULL DEFAULT 'commercial',
             title varchar(200) NOT NULL DEFAULT '',
             website varchar(500) NOT NULL DEFAULT '',
             location varchar(200) NOT NULL DEFAULT '',
@@ -44,6 +45,7 @@ class OO_Database {
             PRIMARY KEY (id),
             UNIQUE KEY email (email),
             KEY type (type),
+            KEY segment (segment),
             KEY status (status),
             KEY location (location),
             KEY verified_status (verified_status)
@@ -139,6 +141,58 @@ class OO_Database {
             PRIMARY KEY (campaign_id, contact_id)
         ) $charset;";
 
+        $outlets = "CREATE TABLE {$wpdb->prefix}oo_outlets (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            name varchar(300) NOT NULL DEFAULT '',
+            canonical_name varchar(300) NOT NULL DEFAULT '',
+            aliases longtext NULL,
+            domain varchar(255) NOT NULL DEFAULT '',
+            tier varchar(50) NOT NULL DEFAULT '',
+            region varchar(100) NOT NULL DEFAULT '',
+            summary text NOT NULL DEFAULT '',
+            status varchar(30) NOT NULL DEFAULT 'active',
+            merged_into bigint(20) DEFAULT NULL,
+            notes text NOT NULL DEFAULT '',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY name (name),
+            KEY domain (domain),
+            KEY status (status)
+        ) $charset;";
+
+        $editorial_log = "CREATE TABLE {$wpdb->prefix}oo_editorial_log (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            client varchar(200) NOT NULL DEFAULT '',
+            story_title varchar(500) NOT NULL DEFAULT '',
+            contact_id bigint(20) DEFAULT NULL,
+            outlet_id bigint(20) DEFAULT NULL,
+            country varchar(100) NOT NULL DEFAULT '',
+            status varchar(40) NOT NULL DEFAULT 'pitched',
+            pitch_request text NOT NULL DEFAULT '',
+            request_date date DEFAULT NULL,
+            interview_date date DEFAULT NULL,
+            issue_date date DEFAULT NULL,
+            story_url varchar(1000) NOT NULL DEFAULT '',
+            archive_url varchar(1000) NOT NULL DEFAULT '',
+            notes_outcome text NOT NULL DEFAULT '',
+            sentiment varchar(20) NOT NULL DEFAULT '',
+            source varchar(30) NOT NULL DEFAULT 'manual',
+            gmail_thread_id varchar(100) NOT NULL DEFAULT '',
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY user_id (user_id),
+            KEY client (client),
+            KEY status (status),
+            KEY contact_id (contact_id),
+            KEY outlet_id (outlet_id),
+            KEY issue_date (issue_date)
+        ) $charset;";
+
         $contact_audit = "CREATE TABLE {$wpdb->prefix}oo_contact_audit (
             id bigint(20) NOT NULL AUTO_INCREMENT,
             contact_id bigint(20) NOT NULL,
@@ -163,6 +217,8 @@ class OO_Database {
         dbDelta( $press_releases );
         dbDelta( $campaign_contacts );
         dbDelta( $contact_audit );
+        dbDelta( $outlets );
+        dbDelta( $editorial_log );
 
         update_option( 'oo_db_version', OO_VERSION );
     }
@@ -193,6 +249,15 @@ class OO_Database {
         if ( $col && ( strtolower( $col->DATA_TYPE ) === 'text' || $col->IS_NULLABLE === 'NO' ) ) {
             $wpdb->query( "ALTER TABLE {$wpdb->prefix}oo_contacts MODIFY COLUMN tags longtext NULL" );
         }
+
+        // Backfill segment from type for contacts that haven't been classified yet.
+        $media_types = array( 'journalist', 'editor', 'media_outlet', 'pr_contact' );
+        $ph          = implode( ',', array_fill( 0, count( $media_types ), '%s' ) );
+        $wpdb->query( $wpdb->prepare(
+            "UPDATE {$wpdb->prefix}oo_contacts SET segment = 'media'
+             WHERE type IN ($ph) AND ( segment = '' OR segment IS NULL OR segment = 'commercial' )",
+            $media_types
+        ) );
     }
 
     private static function set_defaults() {
@@ -234,6 +299,32 @@ class OO_Database {
             'lolo'           => 'Lolo',
             'nvelope'        => 'Nvelope',
             'press'          => 'Press / Media',
+        );
+    }
+
+    /**
+     * Which segment a contact type belongs to — media (PR flow) or commercial (outreach).
+     */
+    public static function get_segment_for_type( $type ) {
+        $media = array( 'journalist', 'editor', 'media_outlet', 'pr_contact' );
+        return in_array( $type, $media, true ) ? 'media' : 'commercial';
+    }
+
+    /**
+     * Editorial Log pitch→coverage lifecycle statuses (key => label).
+     * Mirrors October's existing Notion log statuses.
+     */
+    public static function get_editorial_statuses() {
+        return array(
+            'pitched'        => 'Pitched',
+            'pending'        => 'Pending',
+            'no_response'    => 'No Response',
+            'confirmed'      => 'Confirmed',
+            'interview_prep' => 'Interview Prep',
+            'download'       => 'Download',
+            'published'      => 'Published',
+            'declined'       => 'Declined',
+            'new'            => 'New (unconfirmed)',
         );
     }
 

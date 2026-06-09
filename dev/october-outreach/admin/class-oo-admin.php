@@ -20,6 +20,9 @@ class OO_Admin {
         add_action( 'admin_post_oo_save_press_release', array( $this, 'save_press_release' ) );
         add_action( 'admin_post_oo_export_contacts', array( $this, 'export_contacts_csv' ) );
         add_action( 'admin_post_oo_import_contacts', array( $this, 'import_contacts_csv' ) );
+        add_action( 'admin_post_oo_save_editorial_entry', array( $this, 'save_editorial_entry' ) );
+        add_action( 'admin_post_oo_delete_editorial_entry', array( $this, 'delete_editorial_entry' ) );
+        add_action( 'admin_post_oo_import_editorial_log', array( $this, 'import_editorial_log' ) );
     }
 
     public function app_body_class( $classes ) {
@@ -44,6 +47,13 @@ class OO_Admin {
         add_submenu_page( 'october-outreach', 'Campaigns',      'Campaigns',      'manage_options', 'oo-campaigns',     array( $this, 'page_campaigns' ) );
         add_submenu_page( 'october-outreach', 'Settings',       'Settings',       'manage_options', 'oo-settings',      array( $this, 'page_settings' ) );
         add_submenu_page( 'october-outreach', 'Help & Support', 'Help & Support', 'manage_options', 'oo-help',          array( $this, 'page_help' ) );
+
+        // PR module — separate top-level menu, gated by the enable_pr toggle.
+        $settings = get_option( 'oo_settings', array() );
+        if ( ( $settings['enable_pr'] ?? '1' ) === '1' ) {
+            add_menu_page( 'October PR', 'PR', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ), 'dashicons-megaphone', 31 );
+            add_submenu_page( 'oo-pr', 'Editorial Log', 'Editorial Log', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ) );
+        }
     }
 
     public function enqueue_assets( $hook ) {
@@ -100,6 +110,8 @@ class OO_Admin {
     public function page_settings() { $this->render( 'settings', 'settings' ); }
     public function page_help()     { $this->render( 'help',     'help' ); }
 
+    public function page_editorial_log() { $this->render( 'editorial-log', 'pr' ); }
+
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';
         if ( $action === 'wizard' ) {
@@ -134,6 +146,7 @@ class OO_Admin {
         // Checkboxes — unchecked fields are absent from POST
         $settings['enable_outreach']       = isset( $_POST['enable_outreach'] ) ? '1' : '0';
         $settings['enable_press_releases'] = isset( $_POST['enable_press_releases'] ) ? '1' : '0';
+        $settings['enable_pr']             = isset( $_POST['enable_pr'] ) ? '1' : '0';
         update_option( 'oo_settings', $settings );
         wp_redirect( admin_url( 'admin.php?page=oo-settings&saved=1' ) );
         exit;
@@ -157,6 +170,7 @@ class OO_Admin {
             'email'        => sanitize_email( $_POST['email'] ?? '' ),
             'company'      => sanitize_text_field( $_POST['company'] ?? '' ),
             'type'         => sanitize_text_field( $_POST['type'] ?? '' ),
+            'segment'      => OO_Database::get_segment_for_type( sanitize_text_field( $_POST['type'] ?? '' ) ),
             'title'        => sanitize_text_field( $_POST['title'] ?? '' ),
             'website'      => esc_url_raw( $_POST['website'] ?? '' ),
             'location'     => sanitize_text_field( $_POST['location'] ?? '' ),
@@ -463,5 +477,248 @@ class OO_Admin {
         }
         wp_redirect( admin_url( 'admin.php?page=oo-press&saved=1' ) );
         exit;
+    }
+
+    // ── Editorial Log ──────────────────────────────────────
+
+    public function save_editorial_entry() {
+        check_admin_referer( 'oo_save_editorial_entry' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $outlet_id  = $this->resolve_outlet_by_name( sanitize_text_field( $_POST['publication'] ?? '' ) );
+        $contact_id = $this->resolve_contact_by_name(
+            sanitize_text_field( $_POST['press_contact'] ?? '' ),
+            $outlet_id
+        );
+
+        $statuses = OO_Database::get_editorial_statuses();
+        $status   = sanitize_text_field( $_POST['status'] ?? 'pitched' );
+        if ( ! isset( $statuses[ $status ] ) ) $status = 'pitched';
+
+        $data = array(
+            'client'        => sanitize_text_field( $_POST['client'] ?? '' ),
+            'story_title'   => sanitize_text_field( $_POST['story_title'] ?? '' ),
+            'contact_id'    => $contact_id ?: null,
+            'outlet_id'     => $outlet_id ?: null,
+            'country'       => sanitize_text_field( $_POST['country'] ?? '' ),
+            'status'        => $status,
+            'pitch_request' => sanitize_textarea_field( $_POST['pitch_request'] ?? '' ),
+            'request_date'  => $this->parse_date( $_POST['request_date'] ?? '' ),
+            'interview_date'=> $this->parse_date( $_POST['interview_date'] ?? '' ),
+            'issue_date'    => $this->parse_date( $_POST['issue_date'] ?? '' ),
+            'story_url'     => esc_url_raw( $_POST['story_url'] ?? '' ),
+            'notes_outcome' => sanitize_textarea_field( $_POST['notes_outcome'] ?? '' ),
+        );
+
+        $id = intval( $_POST['entry_id'] ?? 0 );
+        if ( $id ) {
+            $wpdb->update( $wpdb->prefix . 'oo_editorial_log', $data, array( 'id' => $id ) );
+        } else {
+            $data['source'] = 'manual';
+            $wpdb->insert( $wpdb->prefix . 'oo_editorial_log', $data );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-pr&saved=1' ) );
+        exit;
+    }
+
+    public function delete_editorial_entry() {
+        check_admin_referer( 'oo_delete_editorial_entry' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['entry_id'] ?? 0 );
+        if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_editorial_log', array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-pr&deleted=1' ) );
+        exit;
+    }
+
+    /**
+     * Import October's exported editorial log CSV. Columns:
+     * Story Title, Client, Country, Interview Date, Issue Date, Link to story,
+     * Notes / Outcome, Pitch / Request, Press Contact, Publication name,
+     * Request Date, Status. Notion relations arrive as "Name (https://…)".
+     */
+    public function import_editorial_log() {
+        check_admin_referer( 'oo_import_editorial_log' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        if ( empty( $_FILES['csv_file']['tmp_name'] ) ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-pr&import_error=no_file' ) );
+            exit;
+        }
+        $handle = fopen( $_FILES['csv_file']['tmp_name'], 'r' );
+        if ( ! $handle ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-pr&import_error=unreadable' ) );
+            exit;
+        }
+
+        $raw_headers = fgetcsv( $handle );
+        if ( ! $raw_headers ) {
+            fclose( $handle );
+            wp_redirect( admin_url( 'admin.php?page=oo-pr&import_error=empty' ) );
+            exit;
+        }
+        // Normalise headers → lowercase, strip non-alphanumerics for matching.
+        $norm = array();
+        foreach ( $raw_headers as $i => $h ) {
+            $norm[ $i ] = preg_replace( '/[^a-z0-9]/', '', strtolower( $h ) );
+        }
+        $find = function( $key ) use ( $norm ) {
+            $idx = array_search( $key, $norm, true );
+            return $idx === false ? null : $idx;
+        };
+        $col = array(
+            'story_title'   => $find( 'storytitle' ),
+            'client'        => $find( 'client' ),
+            'country'       => $find( 'country' ),
+            'interview'     => $find( 'interviewdate' ),
+            'issue'         => $find( 'issuedate' ),
+            'link'          => $find( 'linktostory' ),
+            'notes'         => $find( 'notesoutcome' ),
+            'pitch'         => $find( 'pitchrequest' ),
+            'press_contact' => $find( 'presscontact' ),
+            'publication'   => $find( 'publicationname' ),
+            'request'       => $find( 'requestdate' ),
+            'status'        => $find( 'status' ),
+        );
+
+        $status_map = array(
+            'pitched' => 'pitched', 'pending' => 'pending', 'noresponse' => 'no_response',
+            'confirmed' => 'confirmed', 'interviewprep' => 'interview_prep',
+            'download' => 'download', 'published' => 'published', 'declined' => 'declined',
+        );
+
+        global $wpdb;
+        $table    = $wpdb->prefix . 'oo_editorial_log';
+        $imported = 0;
+        $get = function( $row, $key ) use ( $col ) {
+            $i = $col[ $key ] ?? null;
+            return $i === null ? '' : trim( (string) ( $row[ $i ] ?? '' ) );
+        };
+
+        while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+            $title       = $this->strip_notion_ref( $get( $row, 'story_title' ) );
+            $publication = $this->strip_notion_ref( $get( $row, 'publication' ) );
+            $contact     = $this->strip_notion_ref( $get( $row, 'press_contact' ) );
+            $client      = $get( $row, 'client' );
+            // Skip wholly empty lines.
+            if ( ! $title && ! $publication && ! $contact && ! $client ) continue;
+
+            $outlet_id  = $publication ? $this->resolve_outlet_by_name( $publication ) : null;
+            $contact_id = $contact ? $this->resolve_contact_by_name( $contact, $outlet_id ) : null;
+
+            $status_key = preg_replace( '/[^a-z]/', '', strtolower( $get( $row, 'status' ) ) );
+            $status     = $status_map[ $status_key ] ?? 'pitched';
+
+            $wpdb->insert( $table, array(
+                'client'        => sanitize_text_field( $client ),
+                'story_title'   => sanitize_text_field( $title ),
+                'contact_id'    => $contact_id ?: null,
+                'outlet_id'     => $outlet_id ?: null,
+                'country'       => sanitize_text_field( $get( $row, 'country' ) ),
+                'status'        => $status,
+                'pitch_request' => sanitize_textarea_field( $get( $row, 'pitch' ) ),
+                'request_date'  => $this->parse_date( $get( $row, 'request' ) ),
+                'interview_date'=> $this->parse_date( $get( $row, 'interview' ) ),
+                'issue_date'    => $this->parse_date( $get( $row, 'issue' ) ),
+                'story_url'     => esc_url_raw( $this->strip_notion_ref( $get( $row, 'link' ), true ) ),
+                'notes_outcome' => sanitize_textarea_field( $get( $row, 'notes' ) ),
+                'source'        => 'notion-import',
+            ) );
+            $imported++;
+        }
+        fclose( $handle );
+        wp_redirect( admin_url( 'admin.php?page=oo-pr&imported=' . $imported ) );
+        exit;
+    }
+
+    // ── Editorial Log helpers ──────────────────────────────
+
+    /**
+     * Notion exports relations as "Label (https://notion.so/…)". Return the
+     * label, or — when $want_url — the URL inside the parentheses.
+     */
+    private function strip_notion_ref( $value, $want_url = false ) {
+        $value = trim( (string) $value );
+        if ( $value === '' ) return '';
+        if ( preg_match( '/^(.*?)\s*\((https?:\/\/[^)]+)\)\s*$/', $value, $m ) ) {
+            return $want_url ? trim( $m[2] ) : trim( $m[1] );
+        }
+        // Bare URL with no label.
+        if ( $want_url ) {
+            return preg_match( '/^https?:\/\//', $value ) ? $value : '';
+        }
+        return $value;
+    }
+
+    private function parse_date( $value ) {
+        $value = trim( (string) $value );
+        if ( $value === '' ) return null;
+        $ts = strtotime( $value );
+        return $ts ? gmdate( 'Y-m-d', $ts ) : null;
+    }
+
+    /**
+     * Find an outlet by name (case-insensitive); create it if missing. Returns id or 0.
+     */
+    private function resolve_outlet_by_name( $name ) {
+        $name = trim( $name );
+        if ( $name === '' ) return 0;
+        global $wpdb;
+        $table = $wpdb->prefix . 'oo_outlets';
+        $id    = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$table} WHERE name = %s LIMIT 1", $name
+        ) );
+        if ( $id ) return $id;
+        $wpdb->insert( $table, array(
+            'name'           => sanitize_text_field( $name ),
+            'canonical_name' => sanitize_text_field( $name ),
+            'status'         => stripos( $name, 'do not use' ) !== false ? 'do_not_use' : 'active',
+        ) );
+        return (int) $wpdb->insert_id;
+    }
+
+    /**
+     * Find a media contact by name (+ optional outlet); create if missing. Returns id or 0.
+     * Names without an email use a synthesised placeholder so the UNIQUE(email) holds.
+     */
+    private function resolve_contact_by_name( $name, $outlet_id = 0 ) {
+        $name = trim( $name );
+        if ( $name === '' ) return 0;
+        global $wpdb;
+        $table = $wpdb->prefix . 'oo_contacts';
+
+        $parts = preg_split( '/\s+/', $name, 2 );
+        $first = $parts[0] ?? '';
+        $last  = $parts[1] ?? '';
+
+        $id = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$table} WHERE first_name = %s AND last_name = %s LIMIT 1",
+            $first, $last
+        ) );
+        if ( $id ) return $id;
+
+        $company = '';
+        if ( $outlet_id ) {
+            $company = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT name FROM {$wpdb->prefix}oo_outlets WHERE id = %d", $outlet_id
+            ) );
+        }
+
+        // Placeholder e-mail keeps the UNIQUE(email) constraint satisfied for
+        // imported contacts we don't yet have an address for.
+        $placeholder = 'noemail+' . md5( strtolower( $name ) . '|' . $outlet_id ) . '@import.local';
+
+        $wpdb->insert( $table, array(
+            'first_name' => sanitize_text_field( $first ),
+            'last_name'  => sanitize_text_field( $last ),
+            'email'      => $placeholder,
+            'company'    => sanitize_text_field( $company ),
+            'type'       => 'journalist',
+            'segment'    => 'media',
+            'source'     => 'Editorial Log import',
+            'status'     => 'active',
+        ) );
+        return (int) $wpdb->insert_id;
     }
 }
