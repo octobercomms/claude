@@ -409,6 +409,32 @@ class OO_Claude {
     }
 
     /**
+     * Write a short, warm client-facing summary of a period's press coverage.
+     * $items: [ {outlet, journalist, title, date} … ] (published pieces only).
+     * Returns plain prose (2–4 sentences) or a WP_Error.
+     */
+    public function write_coverage_report( $client_name, array $items, $period_label = 'this period' ) {
+        $lines = array();
+        foreach ( $items as $it ) {
+            $lines[] = trim(
+                ( $it['outlet'] ?? '' )
+                . ( ! empty( $it['journalist'] ) ? ' (' . $it['journalist'] . ')' : '' )
+                . ( ! empty( $it['title'] ) ? ' — ' . $it['title'] : '' )
+                . ( ! empty( $it['date'] ) ? ', ' . $it['date'] : '' )
+            );
+        }
+        $list = implode( "\n", array_filter( $lines ) );
+
+        $system = 'You write concise, warm PR coverage summaries for clients. Plain prose, British English. No greeting, no sign-off, no markdown, no invented facts — only summarise what is listed.';
+
+        $prompt  = "Summarise the press coverage for the client \"{$client_name}\" for {$period_label}, in 2–4 sentences. ";
+        $prompt .= "Mention the volume, any standout publications, and notable journalists if relevant. Keep it upbeat but factual.\n\n";
+        $prompt .= ( $list !== '' ? "Coverage:\n{$list}" : "There was no new published coverage in this period." );
+
+        return $this->request( array( array( 'role' => 'user', 'content' => $prompt ) ), 600, $system );
+    }
+
+    /**
      * Adjudicate candidate duplicate publication groups. Each input cluster is
      * a list of names that MIGHT be the same outlet; Claude confirms true
      * duplicates, splits false matches, and picks a canonical name.

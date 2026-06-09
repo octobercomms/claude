@@ -25,13 +25,16 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   history.
 - ❌ **Notion API sync — dropped.** October is retiring Notion for this; the
   one-time CSV import is the migration, OMI is the sole system of record.
-- ✅ **Phase 4a** (this branch): `oo_clients` (name, unguessable token, alert
+- ✅ **Phase 4a** (merged): `oo_clients` (name, unguessable token, alert
   email, cadence) + Clients admin page; public **token portal** (`/?oo_pr=…`)
   showing Published + positive pipeline, never internal notes, with CSV
   download. Resolves the "clients vs brand" decision (dedicated `oo_clients`).
-- ⬜ Next: Phase 4b (automated weekly report emails + alerts), then 5–8
-  (fast-logging UX, coverage monitor + thank-you engine, press-release wizard,
-  profiles, Gmail add-on).
+- ✅ **Phase 4b** (this branch): automated client reports + alerts — `OO_Reports`
+  (daily Action Scheduler tick → weekly/monthly Claude-written digest via the
+  mailer), a "Send report now" button, and a "you've been featured" alert on a
+  manual transition to Published. `OO_Claude::write_coverage_report`.
+- ⬜ Next: 5–8 (fast-logging UX, coverage monitor + thank-you engine,
+  press-release wizard, profiles, Gmail add-on).
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for

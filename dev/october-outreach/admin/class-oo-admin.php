@@ -28,6 +28,17 @@ class OO_Admin {
         add_action( 'admin_post_oo_save_client', array( $this, 'save_client' ) );
         add_action( 'admin_post_oo_delete_client', array( $this, 'delete_client' ) );
         add_action( 'admin_post_oo_sync_clients', array( $this, 'sync_clients' ) );
+        add_action( 'admin_post_oo_send_client_report', array( $this, 'send_client_report' ) );
+    }
+
+    public function send_client_report() {
+        check_admin_referer( 'oo_send_client_report' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        $id  = intval( $_POST['client_id'] ?? 0 );
+        $res = OO_Reports::send_client_report( $id, true );
+        $arg = is_wp_error( $res ) ? 'report_error=' . rawurlencode( $res->get_error_message() ) : 'report_sent=1';
+        wp_redirect( admin_url( 'admin.php?page=oo-clients&' . $arg ) );
+        exit;
     }
 
     public function app_body_class( $classes ) {
@@ -526,12 +537,31 @@ class OO_Admin {
         );
 
         $id = intval( $_POST['entry_id'] ?? 0 );
+        $prev_status = '';
         if ( $id ) {
+            $prev_status = (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT status FROM {$wpdb->prefix}oo_editorial_log WHERE id = %d", $id
+            ) );
             $wpdb->update( $wpdb->prefix . 'oo_editorial_log', $data, array( 'id' => $id ) );
         } else {
             $data['source'] = 'manual';
             $wpdb->insert( $wpdb->prefix . 'oo_editorial_log', $data );
         }
+
+        // Fire a "you've been featured" alert on a fresh transition to published.
+        $now_pub  = in_array( $status, array( 'published', 'download' ), true );
+        $was_pub  = in_array( $prev_status, array( 'published', 'download' ), true );
+        if ( $now_pub && ! $was_pub && $data['client'] ) {
+            $outlet_name = $outlet_id ? (string) $wpdb->get_var( $wpdb->prepare(
+                "SELECT name FROM {$wpdb->prefix}oo_outlets WHERE id = %d", $outlet_id
+            ) ) : '';
+            OO_Reports::send_published_alert( $data['client'], array(
+                'outlet' => $outlet_name,
+                'title'  => $data['story_title'],
+                'url'    => $data['story_url'],
+            ) );
+        }
+
         wp_redirect( admin_url( 'admin.php?page=oo-pr&saved=1' ) );
         exit;
     }

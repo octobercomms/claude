@@ -75,6 +75,8 @@ $unlinked = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT l.client) FROM {$log_t}
 <?php if ( isset( $_GET['deleted'] ) ) : ?><div class="oo-notice oo-notice-success">Client deleted.</div><?php endif; ?>
 <?php if ( isset( $_GET['synced'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval( $_GET['synced'] ); ?> client record(s) created.</div><?php endif; ?>
 <?php if ( isset( $_GET['error'] ) ) : ?><div class="oo-notice oo-notice-warning">Client name is required.</div><?php endif; ?>
+<?php if ( isset( $_GET['report_sent'] ) ) : ?><div class="oo-notice oo-notice-success">Report sent.</div><?php endif; ?>
+<?php if ( isset( $_GET['report_error'] ) ) : ?><div class="oo-notice oo-notice-warning">Could not send report: <?php echo esc_html( wp_unslash( $_GET['report_error'] ) ); ?>.</div><?php endif; ?>
 
 <p class="oo-muted" style="margin-bottom:14px">Each client gets a private link showing their published coverage and pipeline (never internal notes). Share it — no login needed.</p>
 
@@ -98,6 +100,14 @@ $unlinked = (int) $wpdb->get_var( "SELECT COUNT(DISTINCT l.client) FROM {$log_t}
             <td>
                 <div class="oo-row-actions">
                     <a href="<?php echo esc_url( $url ); ?>" target="_blank">Open</a>
+                    <?php if ( $c->alert_email ) : ?>
+                    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="display:inline">
+                        <?php wp_nonce_field( 'oo_send_client_report' ); ?>
+                        <input type="hidden" name="action" value="oo_send_client_report">
+                        <input type="hidden" name="client_id" value="<?php echo esc_attr( $c->id ); ?>">
+                        <button type="submit" class="oo-linklike" style="background:none;border:none;padding:0;color:var(--oo-accent,#6366f1);cursor:pointer">Send report</button>
+                    </form>
+                    <?php endif; ?>
                     <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-clients&action=edit&id=' . $c->id ) ); ?>">Edit</a>
                     <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('Delete this client (the portal link will stop working)?')">
                         <?php wp_nonce_field( 'oo_delete_client' ); ?>

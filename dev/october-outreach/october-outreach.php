@@ -29,6 +29,7 @@ require_once OO_PLUGIN_DIR . 'includes/class-oo-license.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-dedup.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-analytics.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-portal.php';
+require_once OO_PLUGIN_DIR . 'includes/class-oo-reports.php';
 
 // Integrations
 require_once OO_PLUGIN_DIR . 'includes/class-oo-claude.php';
@@ -48,7 +49,8 @@ register_deactivation_hook( __FILE__, array( 'OO_Database', 'deactivate' ) );
 
 function oo_init() {
     OO_Database::maybe_update();
-    OO_Portal::init(); // public client portal (front-end, token-gated)
+    OO_Portal::init();  // public client portal (front-end, token-gated)
+    OO_Reports::init(); // scheduled client reports + alerts
     if ( is_admin() ) {
         new OO_Admin();
         new OO_Ajax();
