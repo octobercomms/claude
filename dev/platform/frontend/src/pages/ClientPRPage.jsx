@@ -38,8 +38,47 @@ export default function ClientPRPage() {
   const [searches, setSearches] = useState([]);
   const [queue, setQueue] = useState([]);
   const [newSearch, setNewSearch] = useState({ query: '', src_serper: true, src_alerts: false, alerts_rss: '', cadence: 'daily' });
+  const [thanks, setThanks] = useState([]);
+  const [thankDraft, setThankDraft] = useState(null); // null | { entryId, to, subject, body, tone, confidence, edited }
+  const [drafting, setDrafting] = useState(false);
+  const [sendingThank, setSendingThank] = useState(false);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
+
+  function loadThanks() {
+    api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
+  }
+  useEffect(() => { if (tab === 'thanks') loadThanks(); }, [tab, id]);
+
+  async function openDraft(row) {
+    setDrafting(true);
+    setThankDraft({ entryId: row.id, journalist: row.journalist, outlet: row.outlet, to: '', subject: '', body: '', tone: '', confidence: 0, edited: false });
+    try {
+      const d = await api.post(`/pr/editorial-log/${row.id}/thank-draft`, {});
+      if (d.error) { toast(d.error, 'error'); setThankDraft(null); return; }
+      setThankDraft((t) => ({ ...t, to: d.to || '', subject: d.subject || '', body: d.body || '', tone: d.tone || '', confidence: d.confidence || 0 }));
+    } catch (e) { toast(e.message, 'error'); setThankDraft(null); }
+    finally { setDrafting(false); }
+  }
+  async function sendThank() {
+    if (!thankDraft) return;
+    setSendingThank(true);
+    try {
+      const r = await api.post(`/pr/editorial-log/${thankDraft.entryId}/thank-send`, {
+        subject: thankDraft.subject, body: thankDraft.body, tone: thankDraft.tone,
+        confidence: thankDraft.confidence, edited: thankDraft.edited,
+      });
+      if (r.error) { toast(r.error, 'error'); return; }
+      toast('Thank-you sent', 'success');
+      setThankDraft(null);
+      loadThanks();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSendingThank(false); }
+  }
+  async function skipThank(row) {
+    try { await api.post(`/pr/editorial-log/${row.id}/thank-skip`, {}); loadThanks(); }
+    catch (e) { toast(e.message, 'error'); }
+  }
 
   function loadMonitor() {
     api.get(`/pr/clients/${id}/searches`).then((r) => setSearches(r.items || [])).catch(() => {});
@@ -221,6 +260,7 @@ export default function ClientPRPage() {
         <button onClick={() => setTab('coverage')} className={'btn ' + (tab === 'coverage' ? 'btn-primary' : 'btn-secondary')}>Coverage</button>
         <button onClick={() => setTab('journalists')} className={'btn ' + (tab === 'journalists' ? 'btn-primary' : 'btn-secondary')}>Journalists</button>
         <button onClick={() => setTab('monitor')} className={'btn ' + (tab === 'monitor' ? 'btn-primary' : 'btn-secondary')}>Monitor{queue.length ? ` (${queue.length})` : ''}</button>
+        <button onClick={() => setTab('thanks')} className={'btn ' + (tab === 'thanks' ? 'btn-primary' : 'btn-secondary')}>Thank-yous{thanks.length ? ` (${thanks.length})` : ''}</button>
       </div>
 
       <div className="card">
@@ -263,7 +303,7 @@ export default function ClientPRPage() {
               {!journalists.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
             </tbody>
           </table>
-        ) : (
+        ) : tab === 'monitor' ? (
           <div>
             <h3 className="h3 mb-2">Saved searches</h3>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
@@ -311,8 +351,60 @@ export default function ClientPRPage() {
               </tbody>
             </table>
           </div>
+        ) : (
+          <div>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 12 }}>
+              Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
+            </p>
+            <table className="table">
+              <thead><tr><th>Journalist</th><th>Publication</th><th>Story</th><th>Date</th><th></th></tr></thead>
+              <tbody>
+                {thanks.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.journalist || '—'}</td>
+                    <td>{r.outlet || '—'}</td>
+                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
+                    <td>{fmtDate(r.issue_date)}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => openDraft(r)}>Draft thank-you</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => skipThank(r)}>Skip</button>
+                    </td>
+                  </tr>
+                ))}
+                {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published or Download and the journalist has an email on file.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
+
+      {thankDraft && (
+        <div className="modal-backdrop" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 }} onClick={() => !sendingThank && setThankDraft(null)}>
+          <div className="card" style={{ maxWidth: 560, width: '100%', maxHeight: '90vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+            <h3 className="h3 mb-2">Thank {thankDraft.journalist || 'journalist'}{thankDraft.outlet ? ` · ${thankDraft.outlet}` : ''}</h3>
+            {drafting ? (
+              <p style={{ color: 'var(--text-subtle)', padding: 24 }}>Drafting…</p>
+            ) : (
+              <>
+                {thankDraft.tone || thankDraft.confidence ? (
+                  <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 10 }}>
+                    {thankDraft.tone ? <>Tone: <strong>{thankDraft.tone}</strong>. </> : null}
+                    {thankDraft.confidence ? <>Claude confidence: <strong>{Math.round(thankDraft.confidence * 100)}%</strong></> : null}
+                  </p>
+                ) : null}
+                {!thankDraft.to && <div className="card" style={{ borderLeft: '3px solid var(--accent)', marginBottom: 10, fontSize: 13 }}>No real email on file for this journalist — can't send.</div>}
+                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">To</span><input className="input" value={thankDraft.to} readOnly placeholder="—" /></label>
+                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Subject</span><input className="input" value={thankDraft.subject} onChange={(e) => setThankDraft((t) => ({ ...t, subject: e.target.value, edited: true }))} /></label>
+                <label className="field" style={{ marginBottom: 10 }}><span className="field-label">Message</span><textarea className="input" rows={8} value={thankDraft.body} onChange={(e) => setThankDraft((t) => ({ ...t, body: e.target.value, edited: true }))} /></label>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-secondary" disabled={sendingThank} onClick={() => setThankDraft(null)}>Cancel</button>
+                  <button className="btn btn-primary" disabled={sendingThank || !thankDraft.to || !thankDraft.subject || !thankDraft.body} onClick={sendThank}>{sendingThank ? 'Sending…' : 'Send thank-you'}</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

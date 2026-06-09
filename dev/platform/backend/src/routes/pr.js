@@ -9,6 +9,7 @@ const db = require('../db');
 const pr = require('../services/pr');
 const prReports = require('../services/prReports');
 const prMonitor = require('../services/prMonitor');
+const prThanks = require('../services/prThanks');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -422,6 +423,58 @@ router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
     const titles = (await db.query("SELECT story_title FROM pr_editorial_log WHERE contact_id = $1 AND story_title <> '' LIMIT 40", [req.params.contactId])).rows.map((r) => r.story_title);
     res.json({ beats: await pr.suggestBeats(`${c.first_name} ${c.last_name}`.trim(), titles) });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Thank-yous (assisted) ────────────────────────────────────────────────────
+// Published pieces with a known journalist email, not yet thanked or skipped.
+router.get('/clients/:clientId/thank-opportunities', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT l.id, l.story_title, l.story_url, l.issue_date, o.name AS outlet,
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
+       FROM pr_editorial_log l
+       JOIN pr_contacts c ON c.id = l.contact_id
+       LEFT JOIN pr_outlets o ON o.id = l.outlet_id
+       WHERE l.client_id = $1 AND l.status IN ('published','download')
+         AND c.email <> '' AND c.email NOT LIKE '%@import.local'
+         AND NOT EXISTS (SELECT 1 FROM pr_sent_thanks s WHERE s.editorial_log_id = l.id)
+         AND NOT EXISTS (SELECT 1 FROM pr_thank_feedback f WHERE f.editorial_log_id = l.id AND f.decision = 'rejected')
+       ORDER BY COALESCE(l.issue_date, l.created_at) DESC LIMIT 100`,
+      [req.params.clientId]
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/editorial-log/:id/thank-draft', async (req, res) => {
+  try { res.json(await prThanks.draftForEntry(req.params.id)); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/editorial-log/:id/thank-send', async (req, res) => {
+  try {
+    const row = (await db.query(
+      `SELECT l.contact_id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email
+       FROM pr_editorial_log l JOIN pr_contacts c ON c.id = l.contact_id WHERE l.id = $1`, [req.params.id]
+    )).rows[0];
+    if (!row) return res.status(400).json({ error: 'No journalist linked.' });
+    const to = row.email && !/@import\.local$/.test(row.email) ? row.email : '';
+    const b = req.body || {};
+    const result = await prThanks.deliver({
+      entryId: req.params.id, contactId: row.contact_id, to, name: row.name,
+      subject: b.subject, body: b.body, tone: b.tone, confidence: b.confidence,
+      decision: b.edited ? 'edited' : 'approved', userId: req.user && req.user.id,
+    });
+    if (result.error) return res.status(400).json(result);
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/editorial-log/:id/thank-skip', async (req, res) => {
+  try {
+    const row = (await db.query('SELECT contact_id FROM pr_editorial_log WHERE id = $1', [req.params.id])).rows[0];
+    res.json(await prThanks.skip({ entryId: req.params.id, contactId: row && row.contact_id, userId: req.user && req.user.id }));
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 module.exports = router;
