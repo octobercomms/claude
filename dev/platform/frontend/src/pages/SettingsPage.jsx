@@ -407,6 +407,7 @@ export default function SettingsPage() {
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && (<>
       <CostsPanel />
+      <KeywordSpendPanel />
 
       <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
         Tap a category to expand its integrations. Each block has its own Save button.
@@ -611,6 +612,62 @@ function CostsPanel() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
           {rows.map(r => <ProviderCard key={r.name} entry={r} />)}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Keyword spend estimator — totals every billable (active) keyword across
+// the app and projects the recurring DataForSEO cost the scheduler will
+// incur (rank checks every 4 days at depth 50 + weekly AI Overview). Gives
+// the AM a self-sizing recommended daily spending cap to set on the
+// DataForSEO dashboard as a runaway-cost backstop.
+function KeywordSpendPanel() {
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    api.get('/settings/dataforseo-estimate').then(setData).catch(e => setErr(e.message));
+  }, []);
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 10 }}>
+        <h2 className="caption">DataForSEO keyword spend</h2>
+        <p className="body-sm text-muted">
+          Projected from every active keyword the scheduler checks — rank checks every 4 days plus weekly AI Overview.
+          Use it to size a daily spending cap on the DataForSEO dashboard as a runaway-cost backstop.
+        </p>
+      </div>
+      {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
+      {!data && !err && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
+      {data && (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10 }}>
+            <div className="card" style={{ padding: 12 }}>
+              <div className="caption mb-2">Active keywords</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{data.active_keywords.toLocaleString()}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>across {data.active_clients} active client{data.active_clients === 1 ? '' : 's'}</div>
+            </div>
+            <div className="card" style={{ padding: 12 }}>
+              <div className="caption mb-2">Est. spend / month</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtCurrency(data.est_monthly_gbp, 'GBP')}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>≈ {fmtCurrency(data.est_monthly_usd, 'USD')} · rank {fmtCurrency(data.rank.monthly_usd, 'USD')} + AIO {fmtCurrency(data.aio.monthly_usd, 'USD')}</div>
+            </div>
+            <div className="card success" style={{ padding: 12 }}>
+              <div className="caption mb-2">Suggested daily cap</div>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}<span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>/ day</span></div>
+              <div style={{ fontSize: 12, color: 'var(--text-subtle)', marginTop: 2 }}>3× peak run-day ({fmtCurrency(data.peak_day_usd, 'USD')})</div>
+            </div>
+          </div>
+          <div className="callout" style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6 }}>
+            <strong>Set the backstop:</strong> DataForSEO dashboard → <em>API Settings → Spending limits</em> → set the
+            <strong> General Daily Limit</strong> to <strong>{fmtCurrency(data.recommended_daily_cap_usd, 'USD')}</strong>.
+            Spend is spiky (every keyword is checked on one run day every 4 days), so this sits ~3× above a normal sweep —
+            high enough never to block legitimate checks, low enough to stop a runaway loop. Over-limit calls return
+            <code> 40203</code> until the 00:00 UTC reset. This is a backstop, not a throttle; it doesn&apos;t change normal spend.
+          </div>
+        </>
       )}
     </div>
   );
