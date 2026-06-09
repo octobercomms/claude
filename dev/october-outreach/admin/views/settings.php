@@ -90,6 +90,21 @@ Thanks!</div>
             </div>
         </div>
 
+        <!-- PR REST API -->
+        <div class="oo-card" style="grid-column:1/-1">
+            <h2 class="oo-card-title">PR API (for nvelope &amp; Gmail add-on)</h2>
+            <p class="oo-muted" style="margin-bottom:14px">External apps (the nvelope platform front-end, the Gmail add-on) read and write the PR data through this API. Send the key as an <code>X-OO-Key</code> header. Base URL: <code><?php echo esc_html( rest_url( 'oo/v1/' ) ); ?></code></p>
+            <?php if ( isset( $_GET['apikey'] ) ) : ?><div class="oo-notice oo-notice-success" style="margin-bottom:10px">API key regenerated — update it in any connected app.</div><?php endif; ?>
+            <div class="oo-field">
+                <label class="oo-label">API Key</label>
+                <div class="oo-secret-wrap">
+                    <input type="password" class="oo-input" readonly value="<?php echo esc_attr( get_option( 'oo_api_key', '' ) ); ?>" onclick="this.type='text';this.select();">
+                    <?php if ( get_option( 'oo_api_key' ) ) : ?><button type="button" class="oo-eye-btn" aria-label="Show"><?php echo oo_eye_svg(); ?></button><?php endif; ?>
+                </div>
+                <p class="oo-hint">Click to reveal &amp; copy. Treat it like a password. <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_regenerate_api_key' ), 'oo_regenerate_api_key' ) ); ?>" onclick="return confirm('Regenerate the API key? Connected apps will need the new key.')">Regenerate</a></p>
+            </div>
+        </div>
+
         <!-- License -->
         <div class="oo-card">
             <h2 class="oo-card-title">License</h2>

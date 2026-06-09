@@ -34,6 +34,15 @@ class OO_Admin {
         add_action( 'admin_post_oo_run_search', array( $this, 'run_search_now' ) );
         add_action( 'admin_post_oo_confirm_coverage', array( $this, 'confirm_coverage' ) );
         add_action( 'admin_post_oo_dismiss_coverage', array( $this, 'dismiss_coverage' ) );
+        add_action( 'admin_post_oo_regenerate_api_key', array( $this, 'regenerate_api_key' ) );
+    }
+
+    public function regenerate_api_key() {
+        check_admin_referer( 'oo_regenerate_api_key' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        update_option( 'oo_api_key', wp_generate_password( 40, false, false ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-settings&apikey=1' ) );
+        exit;
     }
 
     public function send_client_report() {

@@ -46,8 +46,13 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   `oo_sent_thanks` (no-repeat memory) + `oo_thank_feedback` (approve/edit/reject
   capture), a Thank-yous review page that drafts → edit → send from the team's
   reply-to address. **Auto-send + adaptive trust ramp = follow-up (Stage 2/3).**
-- ⬜ Next: auto-send ramp, press-release wizard, profiles, Gmail add-on; plus
-  the **dual-surface** track below.
+- ✅ **Phase 8 — REST API** (this branch): `OO_REST` exposes the PR data on
+  `oo/v1` (stats, editorial-log [GET+POST], journalists [+detail], outlets,
+  clients), authed by a logged-in admin **or** an `X-OO-Key` header matching the
+  Settings key. The shared gateway for the nvelope front-end **and** the Gmail
+  add-on. Settings card to view/regenerate the key.
+- ⬜ Next: nvelope front-end (consumes this API), thank-you auto-send ramp,
+  press-release wizard, profiles, Gmail add-on.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 
