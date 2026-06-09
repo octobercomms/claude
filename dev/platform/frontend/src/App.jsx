@@ -26,6 +26,7 @@ import ClientPRPage from './pages/ClientPRPage';
 import MediaPage from './pages/MediaPage';
 import JournalistProfilePage from './pages/JournalistProfilePage';
 import OutletProfilePage from './pages/OutletProfilePage';
+import PublicCoveragePage from './pages/PublicCoveragePage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/" element={<HomeRoute />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/approve/:token" element={<ApprovePage />} />
+          <Route path="/coverage/:token" element={<PublicCoveragePage />} />
           <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="clients" element={<ClientsPage />} />

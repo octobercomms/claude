@@ -3,8 +3,16 @@
  * analytics and outlet deduplication, native to the platform (Postgres).
  */
 const db = require('../db');
+const crypto = require('crypto');
 let claude;
 try { claude = require('./claude'); } catch (e) { claude = null; }
+
+// Statuses shown on a client's public coverage portal — Published + the
+// positive pipeline only. Internal notes/declines are never exposed.
+const CLIENT_VISIBLE_STATUS = {
+  published: 'Published', download: 'Published', confirmed: 'Confirmed',
+  interview_prep: 'In progress', pitched: 'Pitched',
+};
 
 const STATUS_LABELS = {
   pitched: 'Pitched', pending: 'Pending', no_response: 'No Response',
@@ -375,12 +383,53 @@ async function writeOutletSummary(name, titles) {
   } catch (e) { return ''; }
 }
 
+// ── Client portal ────────────────────────────────────────────────────────────
+/** Get (or create) a client's public portal token. */
+async function ensureClientToken(clientId) {
+  const found = await db.query('SELECT portal_token FROM pr_client_settings WHERE client_id = $1', [clientId]);
+  if (found.rows.length) return found.rows[0].portal_token;
+  const token = crypto.randomBytes(16).toString('hex');
+  await db.query('INSERT INTO pr_client_settings (client_id, portal_token) VALUES ($1, $2)', [clientId, token]);
+  return token;
+}
+
+/** Public coverage for a portal token: client name + visible (no-notes) items. */
+async function getCoverageByToken(token) {
+  const cs = await db.query(
+    `SELECT cs.client_id, cl.name FROM pr_client_settings cs
+     JOIN clients cl ON cl.id = cs.client_id WHERE cs.portal_token = $1`, [token]
+  );
+  if (!cs.rows.length) return null;
+  const keys = Object.keys(CLIENT_VISIBLE_STATUS);
+  const ph = keys.map((_, i) => `$${i + 2}`).join(',');
+  const rows = (await db.query(
+    `SELECT l.story_title, l.status, l.country, l.issue_date, l.story_url,
+            o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
+     FROM pr_editorial_log l
+     LEFT JOIN pr_outlets o ON o.id = l.outlet_id
+     LEFT JOIN pr_contacts c ON c.id = l.contact_id
+     WHERE l.client_id = $1 AND l.status IN (${ph})
+     ORDER BY (l.status IN ('published','download')) DESC, COALESCE(l.issue_date, l.request_date) DESC NULLS LAST`,
+    [cs.rows[0].client_id, ...keys]
+  )).rows;
+  return {
+    client_name: cs.rows[0].name,
+    items: rows.map((r) => ({
+      outlet: r.outlet, journalist: (r.journalist || '').trim(), country: r.country,
+      status: r.status, status_label: CLIENT_VISIBLE_STATUS[r.status] || r.status,
+      issue_date: r.issue_date, story_url: r.story_url,
+      published: r.status === 'published' || r.status === 'download',
+    })),
+  };
+}
+
 module.exports = {
-  STATUS_LABELS, PUBLISHED, statusLabel,
+  STATUS_LABELS, PUBLISHED, statusLabel, CLIENT_VISIBLE_STATUS,
   relationshipStrength, hitRate, isGoneQuiet,
   parseCsv, stripNotionRef, parseDate,
   resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
   normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates,
   adjudicateOutletClusters, mergeOutlets,
   suggestBeats, writeOutletSummary,
+  ensureClientToken, getCoverageByToken,
 };
