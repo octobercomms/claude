@@ -313,7 +313,8 @@ log so it captures the full pitch lifecycle, not just published hits:
 journalist, FK), `outlet_id` (publication, FK), `country`, `status` (the lifecycle
 enum above), `pitch_request`, `request_date`, `interview_date`, `issue_date`,
 `story_url`, `archive_url`, `notes_outcome` (**internal only**), `sentiment`,
-`source` (manual | serper | alerts | webzio | notion-import), `created_at`.
+`source` (manual | serper | alerts | webzio | notion-import | gmail),
+`gmail_thread_id` (the "living link" for status auto-advance, §6), `created_at`.
 
 ### ⚡ Fast logging (speed-first UX)
 
@@ -408,30 +409,50 @@ The real back-and-forth with journalists lives in Gmail today, invisible to the
 log. We close that gap so the log reflects *what's actually happening*, not just
 outcomes. Three routes, in build order:
 
-1. **⚡ Gmail Add-on button (recommended v1).** A Google Workspace Add-on ("OMI
-   for Gmail", built in Apps Script/CardService) puts a sidebar button in Gmail.
-   Open a thread → it reads subject/participants/date/snippet → calls a new
-   **authenticated OMI REST endpoint** (`POST /wp-json/oo/v1/ingest-email`). OMI
-   matches the journalist by email (alias-aware), and **Claude reads the thread to
-   pre-fill** the client, the status (pitched / interested / declined /
-   published), and a one-line outcome. One tap confirms → a log row is created or
-   updated, and the thread summary is attached. If it's a "published/confirmed"
-   thread, it can hand straight to the thank-you engine (§7.2).
-   - This is the literal "button in Gmail" ask. It's a **separate deployable**
-     (Apps Script project) talking to the WP plugin — per the repo's two-folder
-     rule it'd live in `dev/oo-gmail-addon/` with docs in `docs/oo-gmail-addon/`.
-   - Needs: the new REST API on the plugin (auth via WordPress application
-     password or a generated OMI API key in Settings); minimal Gmail scope (only
-     the thread the user is viewing/logs — not the whole mailbox).
+1. **⚡ Gmail Add-on — contextual sidebar (recommended v1).** A Google Workspace
+   Add-on ("OMI for Gmail", Apps Script/CardService) that opens a **right-hand
+   sidebar in context**. Gmail's `onGmailMessageOpen` trigger hands the add-on the
+   sender/subject/thread when you open a message; the card then shows, at a glance:
+   - **Journalist panel** — photo, outlet, beats, **availability (incl. the
+     maternity flag)**, relationship strength, last-featured, and their recent
+     coverage. *"See immediately what they've done before."*
+   - **Publication panel** — Claude summary, topic tags, recent coverage with this
+     client.
+   - **Edit in place** — quick-edit notes, availability/maternity toggle, beats
+     (CardService form inputs → callback → OMI REST update). Deeper edits deep-link
+     to the full profile (§5.2).
+   - **Log this thread** — one tap: Claude reads the thread and pre-fills client +
+     status + one-line outcome (reusing `OO_Claude::classify_reply()`); confirm
+     creates/updates the `oo_editorial_log` row and stores the `gmail_thread_id`
+     ("linking" the thread).
+   - All via a new **authenticated OMI REST endpoint**
+     (`/wp-json/oo/v1/...`); journalist matched by email (alias-aware).
+   - Separate deployable per the two-folder rule: `dev/oo-gmail-addon/` (+
+     `docs/oo-gmail-addon/`). Minimal Gmail scope — only the open message, **not**
+     the whole mailbox.
+
+   **Living link — status auto-advances as the conversation moves.** Once a thread
+   is linked (`gmail_thread_id` on the log row), each time you open it the add-on
+   re-sends the latest messages and Claude re-classifies the state, advancing
+   `Pitched → Confirmed → Published` (or `Declined`). Per the **per-client trust
+   ramp** (§7.2): confident transitions apply automatically, ambiguous ones offer a
+   one-tap confirm — so it feels automatic without a background watch. A move to
+   **Published** hands straight to the thank-you engine (§7.2); because "published"
+   is high-stakes, it's corroborated against an actual story link / coverage hit
+   before auto-thanking, not taken from the journalist's word alone.
+   *(True hands-off background advancing — updates while you're not in the thread —
+   needs the Gmail-API watch/push in route 3.)*
 2. **Forward / BCC ingest address (zero-friction fallback).** A dedicated mailbox
    (e.g. `log@inbox.octobercomms.com`); forward a thread or BCC it when pitching.
    OMI ingests it (REST relay or IMAP poll), Claude parses + matches + logs.
    Works from **any client incl. mobile**, no add-on install — good for "on the go".
-3. **Gmail API OAuth sync (later, heavier).** OMI connects to the account and
-   surfaces ongoing threads with known journalist emails for one-click logging —
-   no manual forwarding. Powerful, but full-mailbox read scope means Google
-   verification + a real privacy review; deferred until the button/forward flows
-   prove the value.
+3. **Gmail API OAuth sync (later, heavier).** OMI connects to the account and,
+   via `users.watch` + Pub/Sub push, gets notified when a **linked thread** gets a
+   new reply — re-classifying and advancing status **in the background**, with no
+   need to open the email. This is what makes "it auto-updates by itself" fully
+   hands-off. It also surfaces ongoing threads with known journalist emails for
+   one-click logging. The cost: full-mailbox scope → Google verification + a real
+   privacy review, so it's deferred until the button/sidebar prove the value.
 
 **Privacy stance:** v1 only ever ingests threads the user explicitly logs — no
 background mailbox reading until (and unless) the OAuth phase is chosen.
@@ -652,8 +673,8 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 | **6** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
 | **6b** | Outlet & journalist **profile pages** (coverage history, Claude summary/tags, notes, maternity/availability, photo) | 4–6 days |
 | **7** | Journalist Finder (media variant of contact finder) + extend byline catalogue + Claude beat tagging | 5–8 days |
-| **8** | **Gmail capture**: OMI REST ingest endpoint + Workspace Add-on button (`dev/oo-gmail-addon`) + forward/BCC fallback | 6–9 days |
-| **8b** | Gmail API OAuth sync (optional, heavier — Google verification) | 5–8 days |
+| **8** | **Gmail Add-on**: OMI REST API + contextual sidebar (journalist/publication summary, edit-in-place), "log thread" + living-link status auto-advance on open; forward/BCC fallback | 8–12 days |
+| **8b** | Gmail API OAuth sync — background status auto-advance via watch/push (heavier — Google verification) | 6–9 days |
 
 Phases are independently shippable. Phase 0 unblocks everything; **Phases 1–4 are
 the new priority spine** — getting October's existing log into OMI and giving
