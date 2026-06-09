@@ -99,7 +99,13 @@ async function checkRank(keyword) {
     location_code: keyword.location_code || 2826,
     language_code: 'en',
     device: keyword.device || 'desktop',
-    depth: 100,
+    // depth 50 covers positions 1–50 (5 SERP pages). We deliberately don't
+    // pull the full top 100: Live-Advanced bills $0.0015 per extra page, so
+    // depth 100 (~$0.0155/check) costs roughly 2x depth 50 (~$0.008/check)
+    // for ranks nobody acts on. 50 still surfaces the "focus on these"
+    // keywords sitting in the 40s. Don't bump this back to 100 without
+    // weighing the per-keyword/month bill (≈ depth_cost × ~7.6 checks/month).
+    depth: 50,
     se_domain: 'google.co.uk',
   }]);
 
