@@ -39,6 +39,8 @@ class OO_Ajax {
             'oo_delete_tag',
             'oo_analyze_tags',
             'oo_apply_tag_plan',
+            'oo_dedup_scan',
+            'oo_dedup_merge',
         );
 
         foreach ( $actions as $action ) {
@@ -1342,6 +1344,110 @@ class OO_Ajax {
         }
 
         wp_send_json_success( array( 'updated' => $updated ) );
+    }
+
+    /**
+     * Scan outlets for duplicate clusters. Exact (normalised-key) clusters are
+     * returned as high-confidence; fuzzy clusters are handed to Claude to
+     * confirm/split (keeping regional editions and distinct titles apart).
+     */
+    public function dedup_scan() {
+        $this->check_nonce();
+
+        $clusters = OO_Dedup::scan_outlets();
+        $exact = array();
+        $fuzzy = array();
+        foreach ( $clusters as $c ) {
+            if ( $c['method'] === 'exact' ) $exact[] = $c; else $fuzzy[] = $c;
+        }
+
+        $out = array();
+        foreach ( $exact as $c ) {
+            $out[] = array(
+                'method'     => 'exact',
+                'confidence' => $c['confidence'],
+                'suggested'  => $this->cleanest_name( $c['members'] ),
+                'members'    => $c['members'],
+            );
+        }
+
+        // Refine fuzzy clusters with Claude when available.
+        $claude = new OO_Claude();
+        if ( $fuzzy && $claude->is_configured() ) {
+            // name → id map within fuzzy members (names are unique per scan)
+            $name_id = array();
+            $payload = array();
+            foreach ( $fuzzy as $c ) {
+                $names = array();
+                foreach ( $c['members'] as $m ) { $name_id[ $m['name'] ] = $m['id']; $names[] = $m['name']; }
+                $payload[] = $names;
+            }
+            $groups = $claude->adjudicate_duplicates( $payload );
+            if ( ! is_wp_error( $groups ) && is_array( $groups ) ) {
+                foreach ( $groups as $g ) {
+                    $names   = array_values( array_filter( (array) ( $g['members'] ?? array() ), fn( $nm ) => isset( $name_id[ $nm ] ) ) );
+                    if ( count( $names ) < 2 ) continue;
+                    $members = array_map( fn( $nm ) => array( 'id' => $name_id[ $nm ], 'name' => $nm ), $names );
+                    $out[] = array(
+                        'method'     => 'ai',
+                        'confidence' => isset( $g['confidence'] ) ? floatval( $g['confidence'] ) : 0.8,
+                        'suggested'  => $g['canonical'] ?? $this->cleanest_name( $members ),
+                        'members'    => $members,
+                    );
+                }
+            } else {
+                // Claude failed — fall back to heuristic fuzzy, flagged for review.
+                foreach ( $fuzzy as $c ) {
+                    $out[] = array(
+                        'method'     => 'fuzzy',
+                        'confidence' => $c['confidence'],
+                        'suggested'  => $this->cleanest_name( $c['members'] ),
+                        'members'    => $c['members'],
+                    );
+                }
+            }
+        } else {
+            foreach ( $fuzzy as $c ) {
+                $out[] = array(
+                    'method'     => 'fuzzy',
+                    'confidence' => $c['confidence'],
+                    'suggested'  => $this->cleanest_name( $c['members'] ),
+                    'members'    => $c['members'],
+                );
+            }
+        }
+
+        wp_send_json_success( array(
+            'clusters'      => $out,
+            'claude'        => $claude->is_configured(),
+        ) );
+    }
+
+    /** Pick the cleanest display name from a member list (no URL, no DO NOT USE). */
+    private function cleanest_name( $members ) {
+        $names = array_map( fn( $m ) => $m['name'], $members );
+        usort( $names, function( $a, $b ) {
+            $score = function( $n ) {
+                $s = 0;
+                if ( OO_Dedup::is_do_not_use( $n ) ) $s += 100;
+                if ( preg_match( '#https?://|www\.|\.[a-z]{2,4}($|/)#i', $n ) ) $s += 50;
+                return $s + strlen( $n ) / 100;
+            };
+            return $score( $a ) <=> $score( $b );
+        } );
+        return $names[0] ?? '';
+    }
+
+    public function dedup_merge() {
+        $this->check_nonce();
+
+        $canonical_id = intval( $_POST['canonical_id'] ?? 0 );
+        $member_ids   = json_decode( stripslashes( $_POST['member_ids'] ?? '[]' ), true );
+        if ( ! is_array( $member_ids ) ) $member_ids = array();
+        if ( ! $canonical_id || ! $member_ids ) wp_send_json_error( 'Pick a canonical outlet and at least one duplicate.' );
+
+        $merged = OO_Dedup::merge_outlets( $canonical_id, $member_ids );
+        wp_send_json_success( array( 'merged' => $merged ) );
     }
 
     public function analyze_tags() {

@@ -26,6 +26,7 @@ define( 'OO_HAS_ACTION_SCHEDULER', true );
 // Core
 require_once OO_PLUGIN_DIR . 'includes/class-oo-database.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-license.php';
+require_once OO_PLUGIN_DIR . 'includes/class-oo-dedup.php';
 
 // Integrations
 require_once OO_PLUGIN_DIR . 'includes/class-oo-claude.php';
