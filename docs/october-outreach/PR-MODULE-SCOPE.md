@@ -46,8 +46,10 @@ to the right people.
   (Serper + scraper + Hunter/Icypeas + Claude). No third-party media-list
   licence in v1; leave an import path open for later.
 - **Coverage monitoring: support all sources** — Serper (Google News),
-  Google Alerts (RSS), webz.io News API, and Readly / archive.is — phased so the
-  cheap/instant sources land first and paid/niche sources follow.
+  Google Alerts (RSS), webz.io News API, and archive.is — phased so the
+  cheap/instant sources land first and paid sources follow. **Print/magazine
+  (Cafeyn/Readly) is a separate later track** — see §6 for why (no self-serve
+  API; DRM/ToS rule out browser scraping).
 
 ---
 
@@ -170,7 +172,29 @@ recurring schedule, the same way `oo_process_sequences` already runs.
 | **Serper (Google News)** | Cheap, key already configured | Best v1 default; query per brand on schedule | **v1** |
 | **Google Alerts (RSS)** | Free | Ingest one RSS feed per client alert; noisy → Claude de-dupes/filters | **v1** |
 | **webz.io News API** | Paid | Comprehensive + historical archive, structured data; add behind a settings key | **v2** |
-| **Readly / archive.is** | Niche / manual-ish | Readly = print/magazine (no real API); archive.is to read paywalled hits found by other sources | **v3** |
+| **archive.is** | Free | No key; read paywalled hits surfaced by the other sources | **v2** |
+| **Print / magazine (Cafeyn/Readly)** | Paid + partnership | See note below — own track, not part of the online engine | **later / TBC** |
+
+#### Print & magazine coverage (Cafeyn / Readly)
+
+Researched June 2026. Cafeyn (which acquired Readly) **does** expose a partner
+API (`partner-api.cafeyn.co`) with issued `API_ID`/`API_PASSWORD` credentials —
+but it's a **B2B "harvesting" arrangement** aimed at libraries/aggregators, not
+self-serve, and governed by a content-licensing agreement. Readly itself has no
+public developer API.
+
+A **browser-automation approach** (logging into a Readly/Cafeyn subscription and
+having the tool read pages) was considered and **rejected as a shipped feature**:
+it violates their ToS, the content is DRM-protected page *images* (would need OCR
+before any keyword match), it's per-session manual browsing rather than scheduled
+monitoring, and it carries real legal risk for a client-facing tool.
+
+**Decision:** print/magazine monitoring is a **separate later track**, decoupled
+from the online engine. The realistic routes are (a) a formal **Cafeyn partner
+agreement**, or (b) a dedicated print-monitoring vendor that already holds the
+licences. In the meantime, the **manual "add coverage" entry** (§7) lets the team
+log print hits by hand so they still appear in client reports from day one, with
+zero integration risk.
 
 Each adapter returns normalised hits → de-duped → Claude scores relevance &
 sentiment, attempts to **match the byline to a journalist** in the media DB →
