@@ -8,6 +8,7 @@ const multer = require('multer');
 const db = require('../db');
 const pr = require('../services/pr');
 const prReports = require('../services/prReports');
+const prMonitor = require('../services/prMonitor');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -37,7 +38,7 @@ router.get('/clients/:clientId/stats', async (req, res) => {
          COUNT(*) FILTER (WHERE status IN ('published','download')) AS published,
          COUNT(*) AS tracked,
          COUNT(DISTINCT contact_id) FILTER (WHERE contact_id IS NOT NULL) AS journalists
-       FROM pr_editorial_log WHERE client_id = $1`,
+       FROM pr_editorial_log WHERE client_id = $1 AND status NOT IN ('new','dismissed')`,
       [req.params.clientId]
     );
     const r = rows[0] || {};
@@ -55,7 +56,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
        FROM pr_editorial_log l
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
        LEFT JOIN pr_contacts c ON c.id = l.contact_id
-       WHERE l.client_id = $1
+       WHERE l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST, l.created_at DESC
        LIMIT 500`,
       [req.params.clientId]
@@ -83,7 +84,7 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
               COUNT(*) FILTER (WHERE l.status = 'declined') AS declined,
               MAX(CASE WHEN l.status IN ('published','download') THEN COALESCE(l.issue_date, l.request_date) END) AS last_featured
        FROM pr_contacts c
-       JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $1
+       JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        GROUP BY c.id, o.name
        ORDER BY published DESC, total DESC
@@ -198,6 +199,63 @@ router.delete('/editorial-log/:id', async (req, res) => {
     await db.query('DELETE FROM pr_editorial_log WHERE id = $1', [req.params.id]);
     res.json({ deleted: 1 });
   } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Coverage monitor ─────────────────────────────────────────────────────────
+router.param('searchId', async (req, res, next, id) => {
+  try {
+    const { rows } = await db.query('SELECT client_id FROM pr_coverage_searches WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Search not found' });
+    try { assertClientAccess(req, rows[0].client_id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+    next();
+  } catch (err) { next(err); }
+});
+
+router.get('/clients/:clientId/searches', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM pr_coverage_searches WHERE client_id = $1 ORDER BY created_at DESC', [req.params.clientId]);
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/searches', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const sources = Array.isArray(b.sources) ? b.sources.filter((s) => ['serper', 'alerts'].includes(s)).join(',') : 'serper';
+    const cadence = ['daily', 'weekly'].includes(b.cadence) ? b.cadence : 'daily';
+    const { rows } = await db.query(
+      `INSERT INTO pr_coverage_searches (client_id, query, sources, alerts_rss, cadence) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+      [req.params.clientId, String(b.query || '').trim(), sources || 'serper', String(b.alerts_rss || '').trim(), cadence]
+    );
+    res.status(201).json({ id: rows[0].id });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.delete('/searches/:searchId', async (req, res) => {
+  try { await db.query('DELETE FROM pr_coverage_searches WHERE id = $1', [req.params.searchId]); res.json({ deleted: 1 }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/searches/:searchId/run', async (req, res) => {
+  try {
+    const s = (await db.query('SELECT * FROM pr_coverage_searches WHERE id = $1', [req.params.searchId])).rows[0];
+    const found = s ? await prMonitor.runSearch(s) : 0;
+    res.json({ found });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Auto-found coverage awaiting review (status='new').
+router.get('/clients/:clientId/review-queue', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT l.id, l.story_title, l.issue_date, l.story_url, l.source, o.name AS outlet
+       FROM pr_editorial_log l LEFT JOIN pr_outlets o ON o.id = l.outlet_id
+       WHERE l.client_id = $1 AND l.status = 'new'
+       ORDER BY l.created_at DESC LIMIT 200`,
+      [req.params.clientId]
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Get (or create) the client's public coverage-portal token.

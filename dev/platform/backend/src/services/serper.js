@@ -80,4 +80,16 @@ async function findBusinessDomains({ industry, location, specialisation }, exclu
   return domains;
 }
 
-module.exports = { findBusinessDomains };
+// Google News search (PR coverage monitor). Returns normalised hits.
+async function searchNews(apiKey, query, num = 20) {
+  const { data } = await axios.post(
+    'https://google.serper.dev/news',
+    { q: query, num },
+    { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 }
+  );
+  return (data.news || []).filter(n => n.link).map(n => ({
+    title: n.title || '', link: n.link, source: n.source || '', date: n.date || '', snippet: n.snippet || '',
+  }));
+}
+
+module.exports = { findBusinessDomains, searchNews };

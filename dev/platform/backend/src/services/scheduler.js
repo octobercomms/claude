@@ -42,6 +42,13 @@ cron.schedule('0 9 * * *', async () => {
   try { await require('./prReports').runDueReports(); } catch (e) { console.error('[Scheduler] PR reports failed:', e.message); }
 });
 
+// PR coverage monitor: twice daily (00:00 + 12:00). Runs due saved searches
+// (Serper Google News + Google Alerts) into each client's review queue.
+cron.schedule('0 */12 * * *', async () => {
+  console.log('[Scheduler] Running due PR coverage searches...');
+  try { await require('./prMonitor').runDue(); } catch (e) { console.error('[Scheduler] PR monitor failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the

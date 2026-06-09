@@ -35,8 +35,38 @@ export default function ClientPRPage() {
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
   const [savingReports, setSavingReports] = useState(false);
+  const [searches, setSearches] = useState([]);
+  const [queue, setQueue] = useState([]);
+  const [newSearch, setNewSearch] = useState({ query: '', src_serper: true, src_alerts: false, alerts_rss: '', cadence: 'daily' });
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
+
+  function loadMonitor() {
+    api.get(`/pr/clients/${id}/searches`).then((r) => setSearches(r.items || [])).catch(() => {});
+    api.get(`/pr/clients/${id}/review-queue`).then((r) => setQueue(r.items || [])).catch(() => {});
+  }
+  useEffect(() => { if (tab === 'monitor') loadMonitor(); }, [tab, id]);
+
+  async function addSearch() {
+    try {
+      const sources = [newSearch.src_serper && 'serper', newSearch.src_alerts && 'alerts'].filter(Boolean);
+      await api.post(`/pr/clients/${id}/searches`, { query: newSearch.query, sources, alerts_rss: newSearch.alerts_rss, cadence: newSearch.cadence });
+      setNewSearch({ query: '', src_serper: true, src_alerts: false, alerts_rss: '', cadence: 'daily' });
+      loadMonitor();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function runSearchNow(sid) {
+    try { const r = await api.post(`/pr/searches/${sid}/run`, {}); toast(`Found ${r.found} new item(s)`, 'success'); loadMonitor(); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+  async function deleteSearch(sid) {
+    if (!window.confirm('Delete this search?')) return;
+    try { await api.delete(`/pr/searches/${sid}`); loadMonitor(); } catch (e) { toast(e.message, 'error'); }
+  }
+  async function reviewItem(entryId, status) {
+    try { await api.patch(`/pr/editorial-log/${entryId}`, { status }); loadMonitor(); loadData(); }
+    catch (e) { toast(e.message, 'error'); }
+  }
   useEffect(() => { api.get(`/pr/clients/${id}/report-settings`).then(setReports).catch(() => {}); }, [id]);
 
   async function saveReports() {
@@ -190,6 +220,7 @@ export default function ClientPRPage() {
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--s4)' }}>
         <button onClick={() => setTab('coverage')} className={'btn ' + (tab === 'coverage' ? 'btn-primary' : 'btn-secondary')}>Coverage</button>
         <button onClick={() => setTab('journalists')} className={'btn ' + (tab === 'journalists' ? 'btn-primary' : 'btn-secondary')}>Journalists</button>
+        <button onClick={() => setTab('monitor')} className={'btn ' + (tab === 'monitor' ? 'btn-primary' : 'btn-secondary')}>Monitor{queue.length ? ` (${queue.length})` : ''}</button>
       </div>
 
       <div className="card">
@@ -215,7 +246,7 @@ export default function ClientPRPage() {
               {!log.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet. Add an entry, or import your editorial log CSV.</td></tr>}
             </tbody>
           </table>
-        ) : (
+        ) : tab === 'journalists' ? (
           <table className="table">
             <thead><tr><th>Journalist</th><th>Outlet</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
             <tbody>
@@ -232,6 +263,54 @@ export default function ClientPRPage() {
               {!journalists.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
             </tbody>
           </table>
+        ) : (
+          <div>
+            <h3 className="h3 mb-2">Saved searches</h3>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 12 }}>
+              <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Google News query</span><input className="input" value={newSearch.query} onChange={(e) => setNewSearch((s) => ({ ...s, query: e.target.value }))} placeholder='e.g. "Forgeworks" architecture' /></label>
+              <label className="field" style={{ minWidth: 220 }}><span className="field-label">Google Alerts RSS (optional)</span><input className="input" value={newSearch.alerts_rss} onChange={(e) => setNewSearch((s) => ({ ...s, alerts_rss: e.target.value }))} placeholder="https://www.google.com/alerts/feeds/…" /></label>
+              <label className="field"><span className="field-label">Frequency</span><select className="input" value={newSearch.cadence} onChange={(e) => setNewSearch((s) => ({ ...s, cadence: e.target.value }))}><option value="daily">Daily</option><option value="weekly">Weekly</option></select></label>
+              <button className="btn btn-primary" onClick={addSearch}>Add search</button>
+            </div>
+            <table className="table" style={{ marginBottom: 24 }}>
+              <thead><tr><th>Query</th><th>Sources</th><th>Frequency</th><th>Last run</th><th></th></tr></thead>
+              <tbody>
+                {searches.map((s) => (
+                  <tr key={s.id}>
+                    <td>{s.query || '—'}</td>
+                    <td>{(s.sources || '').replace('serper', 'News').replace('alerts', 'Alerts')}</td>
+                    <td>{s.cadence}</td>
+                    <td>{s.last_run_at ? fmtDate(s.last_run_at) : 'never'}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => runSearchNow(s.id)}>Run now</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => deleteSearch(s.id)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+                {!searches.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No saved searches. Add one above — it checks Google News + your Alerts feed on a schedule.</td></tr>}
+              </tbody>
+            </table>
+
+            <h3 className="h3 mb-2">Review queue {queue.length ? `(${queue.length})` : ''}</h3>
+            <table className="table">
+              <thead><tr><th>Publication</th><th>Story</th><th>Date</th><th>Source</th><th></th></tr></thead>
+              <tbody>
+                {queue.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.outlet || '—'}</td>
+                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 70)}</a> : (r.story_title || '—')}</td>
+                    <td>{fmtDate(r.issue_date)}</td>
+                    <td>{r.source === 'alerts' ? 'Alerts' : 'News'}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-primary btn-sm" onClick={() => reviewItem(r.id, 'published')}>✓ Confirm</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => reviewItem(r.id, 'dismissed')}>Dismiss</button>
+                    </td>
+                  </tr>
+                ))}
+                {!queue.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>Nothing awaiting review. Run a search or wait for the scheduled check.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
