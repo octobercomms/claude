@@ -140,11 +140,18 @@ connector statuses rather than silently degrading scrapes.
    connector health-check cron, PM2 run/deploy note above. No scraper touches
    yet; proven via the health ping. (The PM2 process itself is stood up on the
    box per the deploy note — an ops step, not a repo change.)
-2. **`fetchRenderedHtml` wrapper** (~2 days) — the detection logic, unit-tested
-   against saved challenge-page fixtures (Cloudflare "Just a moment", Sucuri,
-   empty SPA shell). Pure function, no external calls in tests.
-3. **Wire competitorPages + siteAudit** (~2 days) — route both scrapers through
-   the wrapper, add the `waf_blocked` issue category, preserve the SSRF guard.
+2. ✅ **`fetchRenderedHtml` wrapper** (**done**) — `src/utils/challengeDetect.js`
+   (pure: Cloudflare/Sucuri markers, 401/403/429/503-with-HTML, JS-shell
+   detection) + `src/utils/fetchHtml.js` (`fetchRenderedHtml`: axios → fallback
+   on detection → never throws, always tags `via`) + `camofox.renderHtml()`
+   **seam** (returns `null` until the raw-HTML path is confirmed on a live
+   instance, so the wrapper degrades to the axios result). 15-assertion fixture
+   test in `challengeDetect.test.js` (run with `node`).
+3. ⏳ **Wire competitorPages + siteAudit** (**blocked on a live sidecar**) —
+   route both scrapers through `fetchRenderedHtml`, add the `waf_blocked` issue
+   category, preserve the SSRF guard. Gated on standing up the Camofox process
+   and confirming `renderHtml()`'s raw-HTML path; until then rerouting would
+   no-op (the seam returns null), so it's deferred rather than shipped half-wired.
 
 ---
 
