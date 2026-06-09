@@ -71,6 +71,7 @@ export default function Layout() {
           {[
             { to: '/dashboard', label: 'Dashboard' },
             { to: '/clients', label: 'Clients' },
+            { to: '/pr', label: 'PR' },
           ].map(item => (
             <li key={item.to}>
               <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>

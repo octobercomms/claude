@@ -22,6 +22,7 @@ import ClientBrandPage from './pages/ClientBrandPage';
 import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
 import SettingsPage from './pages/SettingsPage';
+import PRPage from './pages/PRPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
+            <Route path="pr" element={<PRPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />
             {/* Manage and Integrations were separate top-level pages; now both
