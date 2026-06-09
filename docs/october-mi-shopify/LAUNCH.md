@@ -13,8 +13,8 @@ Work through the steps in order. Each step ends with what to send back to me / w
 1. Sign in to https://partners.shopify.com. If you don't have a Partner account, create one with `octobercomms.com` as the business email.
 2. **Apps** → **Create app** → **Create app manually**.
 3. App name: `October Marketing Intelligence`.
-4. App URL: leave as a placeholder for now (e.g. `https://shopify-app.octobercomms.com`) — we'll set the real one in step 2.
-5. Allowed redirection URLs: `https://shopify-app.octobercomms.com/auth/callback`, `https://shopify-app.octobercomms.com/auth/shopify/callback`, `https://shopify-app.octobercomms.com/api/auth/callback`.
+4. App URL: leave as a placeholder for now (e.g. `https://omi.octobercomms.com`) — we'll set the real one in step 2.
+5. Allowed redirection URLs: `https://omi.octobercomms.com/auth/callback`, `https://omi.octobercomms.com/auth/shopify/callback`, `https://omi.octobercomms.com/api/auth/callback`.
 6. Create. You'll land on the app's overview page.
 7. Note the two values Shopify shows you:
    - **Client ID** (looks like `abc123def456...`)
@@ -33,13 +33,13 @@ The Remix app needs to run somewhere with a real domain + TLS. Cheapest is along
 ### What you do
 
 1. **DNS** — at your DNS provider, add an `A` record:
-   - `shopify-app.octobercomms.com` → same IP as `platform.octobercomms.com`
-2. Wait a few mins for it to propagate (`dig shopify-app.octobercomms.com +short` should return the IP).
+   - `omi.octobercomms.com` → same IP as `platform.octobercomms.com`
+2. Wait a few mins for it to propagate (`dig omi.octobercomms.com +short` should return the IP).
 
 ### What I do (one PR)
 
 I'll ship a PR that adds:
-- An nginx vhost for `shopify-app.octobercomms.com` proxying to a new PM2 process on port `3002`
+- An nginx vhost for `omi.octobercomms.com` proxying to a new PM2 process on port `3002`
 - A second PM2 app entry in `dev/platform/ecosystem.config.js` (or a sibling config) that runs `dev/october-mi-shopify` via Remix's production server
 - A snippet for `update.sh` so the Shopify app gets installed / built / reloaded alongside the platform
 - TLS via Let's Encrypt (assuming `certbot` is already on the box — same pattern as `platform.octobercomms.com`)
@@ -49,7 +49,7 @@ I'll ship a PR that adds:
 ```
 SHOPIFY_API_KEY=<the Client ID from step 1>
 SHOPIFY_API_SECRET=<the Client secret from step 1>
-SHOPIFY_APP_URL=https://shopify-app.octobercomms.com
+SHOPIFY_APP_URL=https://omi.octobercomms.com
 SCOPES=read_orders,read_customers,read_products,read_inventory,read_themes
 OMI_PLATFORM_URL=https://platform.octobercomms.com
 OMI_FORWARD_SECRET=<generate a random 64-char hex string with: openssl rand -hex 32>
@@ -58,9 +58,9 @@ DATABASE_URL=file:./prisma/prod.db
 
 The same `OMI_FORWARD_SECRET` value must also be set on the platform backend (`/opt/october-source/dev/platform/backend/.env`) so HMAC verification matches.
 
-**Send back to me:** confirmation that `dig shopify-app.octobercomms.com` returns the right IP and the env file is in place.
+**Send back to me:** confirmation that `dig omi.octobercomms.com` returns the right IP and the env file is in place.
 
-**I will:** ship the nginx + PM2 + update.sh PR. Once merged and `update.sh` is run, the Remix app will be reachable at `https://shopify-app.octobercomms.com/`.
+**I will:** ship the nginx + PM2 + update.sh PR. Once merged and `update.sh` is run, the Remix app will be reachable at `https://omi.octobercomms.com/`.
 
 ---
 
@@ -112,7 +112,7 @@ Save them all into `docs/october-mi-shopify/assets/` so we have them in the repo
 
 ## Step 6 — End-to-end test on a development store (you, 30 mins)
 
-Once steps 1–2 are done and the app is live at `shopify-app.octobercomms.com`:
+Once steps 1–2 are done and the app is live at `omi.octobercomms.com`:
 
 1. In Partners → your app → **Test on development store** → create a dev store called e.g. `omi-test-store.myshopify.com`.
 2. Install the app on the dev store via the Partners "Install on test store" button.
@@ -130,7 +130,7 @@ Once steps 1–2 are done and the app is live at `shopify-app.octobercomms.com`:
 
 In the Shopify Partner dashboard for the app:
 
-- [ ] **App URL** set to `https://shopify-app.octobercomms.com`
+- [ ] **App URL** set to `https://omi.octobercomms.com`
 - [ ] **Redirect URLs** — all three listed in step 1
 - [ ] **GDPR webhook URLs** — Shopify auto-detects these from `shopify.app.toml`, confirm they're showing
 - [ ] **Privacy policy URL** — pointing at the page you published in step 3

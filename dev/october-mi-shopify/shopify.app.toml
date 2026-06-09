@@ -5,7 +5,7 @@
 
 name = "October Marketing Intelligence"
 client_id = "REPLACE_WITH_PARTNER_APP_CLIENT_ID"
-application_url = "https://shopify-app.octobercomms.com"
+application_url = "https://omi.octobercomms.com"
 embedded = true
 
 [access_scopes]
@@ -14,9 +14,9 @@ scopes = "read_orders,read_customers,read_products,read_inventory,read_themes"
 
 [auth]
 redirect_urls = [
-  "https://shopify-app.octobercomms.com/auth/callback",
-  "https://shopify-app.octobercomms.com/auth/shopify/callback",
-  "https://shopify-app.octobercomms.com/api/auth/callback"
+  "https://omi.octobercomms.com/auth/callback",
+  "https://omi.octobercomms.com/auth/shopify/callback",
+  "https://omi.octobercomms.com/api/auth/callback"
 ]
 
 [webhooks]

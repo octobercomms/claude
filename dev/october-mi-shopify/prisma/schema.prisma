@@ -9,7 +9,7 @@ generator client {
 
 datasource db {
   // SQLite for local dev. Switch the provider + DATABASE_URL to
-  // postgresql for the shopify-app.octobercomms.com deployment.
+  // postgresql for the omi.octobercomms.com deployment.
   provider = "sqlite"
   url      = env("DATABASE_URL")
 }

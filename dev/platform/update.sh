@@ -42,7 +42,7 @@ echo "==> Restarting backend..."
 pm2 reload "$SOURCE_DIR/dev/platform/backend/ecosystem.config.js" --update-env \
   || pm2 restart october-platform --update-env
 
-# ─── Shopify app (October MI on shopify-app.octobercomms.com) ──────────────
+# ─── Shopify app (October MI on omi.octobercomms.com) ──────────────
 # Skipped if the app's .env is missing (host not yet provisioned). Keeps
 # this script safe to run on a partially-set-up box.
 SHOPIFY_APP_DIR="$SOURCE_DIR/dev/october-mi-shopify"

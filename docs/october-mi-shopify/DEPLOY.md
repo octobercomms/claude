@@ -1,4 +1,4 @@
-# Deploying the October MI Shopify app to `shopify-app.octobercomms.com`
+# Deploying the October MI Shopify app to `omi.octobercomms.com`
 
 One-time setup to host the app at the production URL. After this, every `bash /opt/october-source/dev/platform/update.sh` rebuilds and reloads the Shopify app alongside the platform backend.
 
@@ -20,7 +20,7 @@ At your DNS provider (whoever holds `octobercomms.com`):
    - TTL: 300 (5 minutes) for the rollout — bump to 3600 after it's stable
 2. Wait a few minutes, then verify on the production box:
    ```bash
-   dig shopify-app.octobercomms.com +short
+   dig omi.octobercomms.com +short
    ```
    Should return the platform's IP. If it returns nothing, give it another 5 minutes (DNS propagation).
 
@@ -39,7 +39,7 @@ Paste this content, replacing the two placeholder values:
 DATABASE_URL="file:./prisma/prod.db"
 SHOPIFY_API_KEY="d59fb0a14692a91f650978180ef0cde8"
 SHOPIFY_API_SECRET="REPLACE_WITH_CLIENT_SECRET_FROM_PARTNER_DASHBOARD"
-SHOPIFY_APP_URL="https://shopify-app.octobercomms.com"
+SHOPIFY_APP_URL="https://omi.octobercomms.com"
 SCOPES="read_customers,read_inventory,read_orders,read_products,read_themes"
 OMI_PLATFORM_BASE_URL="https://platform.octobercomms.com"
 OMI_FORWARD_SECRET="REPLACE_WITH_SAME_VALUE_AS_PLATFORM_BACKEND_ENV"
@@ -84,9 +84,9 @@ The vhost template is checked into the repo at `docs/october-mi-shopify/nginx.co
 
 ```bash
 sudo cp /opt/october-source/docs/october-mi-shopify/nginx.conf.example \
-        /etc/nginx/sites-available/shopify-app.octobercomms.com
+        /etc/nginx/sites-available/omi.octobercomms.com
 
-sudo ln -s /etc/nginx/sites-available/shopify-app.octobercomms.com \
+sudo ln -s /etc/nginx/sites-available/omi.octobercomms.com \
            /etc/nginx/sites-enabled/
 
 sudo nginx -t
@@ -96,7 +96,7 @@ sudo systemctl reload nginx
 Then issue a TLS cert via certbot (the platform box already has certbot installed):
 
 ```bash
-sudo certbot --nginx -d shopify-app.octobercomms.com
+sudo certbot --nginx -d omi.octobercomms.com
 ```
 
 certbot rewrites the vhost to add the 443 listener + HTTP→HTTPS redirect. Reload nginx is automatic.
@@ -104,7 +104,7 @@ certbot rewrites the vhost to add the 443 listener + HTTP→HTTPS redirect. Relo
 Verify:
 
 ```bash
-curl -I https://shopify-app.octobercomms.com/
+curl -I https://omi.octobercomms.com/
 ```
 
 Should return 200 (or 302 redirect to a login flow) — anything that's not a connection error or a cert error means it's live.
@@ -118,7 +118,7 @@ cd ~/code/claude/dev/october-mi-shopify
 shopify app deploy
 ```
 
-Confirm when it asks. This pushes `shopify.app.october-marketing-intelligence.toml` to Shopify, which uses `application_url = "https://shopify-app.octobercomms.com"` and updates the webhook subscription URIs accordingly.
+Confirm when it asks. This pushes `shopify.app.october-marketing-intelligence.toml` to Shopify, which uses `application_url = "https://omi.octobercomms.com"` and updates the webhook subscription URIs accordingly.
 
 ## Step F — Verify end-to-end against the production URL
 

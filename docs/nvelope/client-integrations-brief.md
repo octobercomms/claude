@@ -128,7 +128,7 @@ Use Shopify's standard Remix template (`shopify app init`). Stack:
 - Remix server + Polaris UI for the embedded admin
 - Shopify Admin GraphQL API for queries
 - Shopify webhook subscriptions for real-time data
-- App must be deployed somewhere — recommend the same box as the platform backend, behind `shopify-app.octobercomms.com`
+- App must be deployed somewhere — recommend the same box as the platform backend, behind `omi.octobercomms.com`
 
 ### Pairing flow
 
