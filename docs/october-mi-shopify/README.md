@@ -140,7 +140,7 @@ data-request/redact are primarily relays; `shop/redact` performs local cleanup.
 
 ## Deployment target
 
-- Host: **`shopify-app.octobercomms.com`** (the `application_url` /
+- Host: **`omi.octobercomms.com`** (the `application_url` /
   `redirect_urls` in `shopify.app.toml`).
 - Distribution: **public Shopify App Store** listing
   (`distribution = AppDistribution.AppStore`).
@@ -148,7 +148,7 @@ data-request/redact are primarily relays; `shop/redact` performs local cleanup.
   `DATABASE_URL` accordingly. A `Dockerfile` is included for containerised
   deploys (`npm run docker-start` runs migrations then serves).
 
-> Infra provisioning for `shopify-app.octobercomms.com` is documented only; it is
+> Infra provisioning for `omi.octobercomms.com` is documented only; it is
 > not provisioned by this repo.
 
 ## Out of scope (v1)

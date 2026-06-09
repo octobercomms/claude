@@ -2,7 +2,7 @@
 //
 // Lives alongside the platform backend on the same box but as its own PM2
 // process so each can be restarted independently. Port 3002 — the nginx
-// vhost for shopify-app.octobercomms.com proxies here.
+// vhost for omi.octobercomms.com proxies here.
 //
 // Real env vars (SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_APP_URL,
 // SCOPES, OMI_FORWARD_SECRET, DATABASE_URL) come from .env in this folder,

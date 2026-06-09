@@ -1,12 +1,12 @@
-# nginx vhost for shopify-app.octobercomms.com
+# nginx vhost for omi.octobercomms.com
 #
 # Copy this file to:
-#   /etc/nginx/sites-available/shopify-app.octobercomms.com
+#   /etc/nginx/sites-available/omi.octobercomms.com
 # Then link it:
-#   ln -s /etc/nginx/sites-available/shopify-app.octobercomms.com \
+#   ln -s /etc/nginx/sites-available/omi.octobercomms.com \
 #         /etc/nginx/sites-enabled/
 # Then issue a cert and reload:
-#   certbot --nginx -d shopify-app.octobercomms.com
+#   certbot --nginx -d omi.octobercomms.com
 #   nginx -t && systemctl reload nginx
 #
 # certbot rewrites this file to add the TLS listener + redirect; the
@@ -15,7 +15,7 @@
 server {
     listen 80;
     listen [::]:80;
-    server_name shopify-app.octobercomms.com;
+    server_name omi.octobercomms.com;
 
     # Health-check / liveness without TLS — used by uptime monitors before
     # certbot has run. Everything else redirects to HTTPS (certbot adds the

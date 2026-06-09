@@ -33,7 +33,7 @@
   PR** (see `API.md` for the contract).
 - Backfill/initial historical import via the Admin API (the access token is
   forwarded so this can be added platform-side later).
-- Provisioning of `shopify-app.octobercomms.com` infra (documented, not built).
+- Provisioning of `omi.octobercomms.com` infra (documented, not built).
 
 ## Verified in this PR
 
@@ -63,4 +63,4 @@
 - [ ] **Performance check** (Shopify's automated install/load checks).
 - [ ] **Contact / emergency developer details** in the Partner dashboard.
 - [ ] Confirm `client_id` set in `shopify.app.toml` and URLs point at
-      `shopify-app.octobercomms.com` before submission.
+      `omi.octobercomms.com` before submission.
