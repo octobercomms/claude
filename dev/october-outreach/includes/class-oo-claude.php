@@ -282,6 +282,32 @@ class OO_Claude {
     }
 
     /**
+     * Extract editorial-log fields from a story page. Given the URL and the
+     * page's text, returns { publication, author, title, published_date
+     * (YYYY-MM-DD|''), sentiment (positive|neutral|negative) } for one-tap
+     * log entry. Returns WP_Error on failure.
+     */
+    public function extract_story_meta( $url, $text ) {
+        $host = '';
+        if ( $url && ( $p = wp_parse_url( $url ) ) && ! empty( $p['host'] ) ) {
+            $host = preg_replace( '/^www\./', '', $p['host'] );
+        }
+
+        $system = 'You extract structured metadata from a press/news article page. Respond with JSON only — no prose. Never invent values; use an empty string when unsure.';
+
+        $prompt  = "Article URL: {$url}\n";
+        if ( $host ) $prompt .= "Domain: {$host}\n";
+        $prompt .= "\nPage text (truncated):\n" . mb_substr( (string) $text, 0, 2500 ) . "\n\n";
+        $prompt .= "Return JSON: {\"publication\":\"the outlet/masthead name (not the domain if a real name is clear)\",";
+        $prompt .= "\"author\":\"the journalist's full name, or ''\",";
+        $prompt .= "\"title\":\"the article headline\",";
+        $prompt .= "\"published_date\":\"YYYY-MM-DD or ''\",";
+        $prompt .= "\"sentiment\":\"positive|neutral|negative\"}";
+
+        return $this->request_json( array( array( 'role' => 'user', 'content' => $prompt ) ), 400, $system );
+    }
+
+    /**
      * Write the intro paragraph + subject for a press release email 1,
      * plus follow-up emails 2 and 3.
      * Email 1 body = returned intro + <hr> + extracted press release HTML (assembled by caller).

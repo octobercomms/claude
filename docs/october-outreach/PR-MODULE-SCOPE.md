@@ -29,12 +29,15 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   email, cadence) + Clients admin page; public **token portal** (`/?oo_pr=…`)
   showing Published + positive pipeline, never internal notes, with CSV
   download. Resolves the "clients vs brand" decision (dedicated `oo_clients`).
-- ✅ **Phase 4b** (this branch): automated client reports + alerts — `OO_Reports`
+- ✅ **Phase 4b** (merged): automated client reports + alerts — `OO_Reports`
   (daily Action Scheduler tick → weekly/monthly Claude-written digest via the
   mailer), a "Send report now" button, and a "you've been featured" alert on a
   manual transition to Published. `OO_Claude::write_coverage_report`.
-- ⬜ Next: 5–8 (fast-logging UX, coverage monitor + thank-you engine,
-  press-release wizard, profiles, Gmail add-on).
+- ✅ **Phase 5 — fast logging** (this branch): ⚡ paste-a-URL → Claude auto-fills
+  the log entry (`extract_story_meta`), and alias-aware typeahead on the
+  publication/press-contact fields to prevent duplicates at entry.
+- ⬜ Next: coverage monitor + thank-you engine, press-release wizard, profiles,
+  Gmail add-on.
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for

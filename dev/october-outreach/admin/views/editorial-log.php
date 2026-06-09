@@ -46,10 +46,25 @@ if ( $entry ) {
     <a href="<?php echo esc_url( admin_url( 'admin.php?page=oo-pr' ) ); ?>" class="oo-btn oo-btn-secondary">← Back to Log</a>
 </div>
 
+<div class="oo-card" id="oo-log-autofill" style="margin-bottom:16px;background:#f8f9ff;border:1px solid #e0e3ff">
+    <h2 class="oo-card-title">⚡ Quick add from a link</h2>
+    <p class="oo-muted" style="margin-bottom:10px">Paste a story URL and Claude will read the page and fill in the publication, journalist, title, date and sentiment below.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <input type="url" id="oo-autofill-url" class="oo-input" style="flex:1;min-width:240px" placeholder="https://www.dezeen.com/2026/…">
+        <button type="button" class="oo-btn oo-btn-primary" id="oo-autofill-btn">
+            <span class="oo-btn-text">Auto-fill ↓</span>
+            <span class="oo-btn-loading" style="display:none">Reading…</span>
+        </button>
+    </div>
+    <p id="oo-autofill-msg" class="oo-muted" style="font-size:13px;margin-top:8px;display:none"></p>
+</div>
+
 <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
     <?php wp_nonce_field( 'oo_save_editorial_entry' ); ?>
     <input type="hidden" name="action" value="oo_save_editorial_entry">
     <input type="hidden" name="entry_id" value="<?php echo esc_attr( $entry_id ); ?>">
+    <datalist id="oo-publication-list"></datalist>
+    <datalist id="oo-contact-list"></datalist>
 
     <div class="oo-settings-grid">
         <div class="oo-card">
@@ -60,20 +75,21 @@ if ( $entry ) {
             </div>
             <div class="oo-field">
                 <label class="oo-label">Story Title</label>
-                <input type="text" name="story_title" class="oo-input" value="<?php echo esc_attr( $entry->story_title ?? '' ); ?>" placeholder="e.g. House of Wood Shingle">
+                <input type="text" id="oo-f-story_title" name="story_title" class="oo-input" value="<?php echo esc_attr( $entry->story_title ?? '' ); ?>" placeholder="e.g. House of Wood Shingle">
             </div>
             <div class="oo-field">
                 <label class="oo-label">Press Contact</label>
-                <input type="text" name="press_contact" class="oo-input" value="<?php echo esc_attr( $entry_contact ); ?>" placeholder="Journalist name">
+                <input type="text" id="oo-f-press_contact" name="press_contact" class="oo-input" list="oo-contact-list" autocomplete="off" value="<?php echo esc_attr( $entry_contact ); ?>" placeholder="Journalist name">
                 <p class="oo-hint">Matched to your media database by name (created if new).</p>
             </div>
             <div class="oo-field">
                 <label class="oo-label">Publication</label>
-                <input type="text" name="publication" class="oo-input" value="<?php echo esc_attr( $entry_outlet ); ?>" placeholder="Publication name">
+                <input type="text" id="oo-f-publication" name="publication" class="oo-input" list="oo-publication-list" autocomplete="off" value="<?php echo esc_attr( $entry_outlet ); ?>" placeholder="Publication name">
+                <p class="oo-hint">Start typing — existing publications (and their aliases) are suggested to avoid duplicates.</p>
             </div>
             <div class="oo-field">
                 <label class="oo-label">Country</label>
-                <input type="text" name="country" class="oo-input" value="<?php echo esc_attr( $entry->country ?? '' ); ?>" placeholder="e.g. UK">
+                <input type="text" id="oo-f-country" name="country" class="oo-input" value="<?php echo esc_attr( $entry->country ?? '' ); ?>" placeholder="e.g. UK">
             </div>
         </div>
 
@@ -97,11 +113,11 @@ if ( $entry ) {
             </div>
             <div class="oo-field">
                 <label class="oo-label">Issue Date</label>
-                <input type="date" name="issue_date" class="oo-input" value="<?php echo esc_attr( $entry->issue_date ?? '' ); ?>">
+                <input type="date" id="oo-f-issue_date" name="issue_date" class="oo-input" value="<?php echo esc_attr( $entry->issue_date ?? '' ); ?>">
             </div>
             <div class="oo-field">
                 <label class="oo-label">Link to Story</label>
-                <input type="url" name="story_url" class="oo-input" value="<?php echo esc_attr( $entry->story_url ?? '' ); ?>" placeholder="https://...">
+                <input type="url" id="oo-f-story_url" name="story_url" class="oo-input" value="<?php echo esc_attr( $entry->story_url ?? '' ); ?>" placeholder="https://...">
             </div>
         </div>
 
