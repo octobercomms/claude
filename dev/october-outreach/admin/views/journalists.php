@@ -61,6 +61,63 @@ if ( $action === 'view' && $contact_id ) {
         </div>
     </div>
 
+    <?php if ( isset( $_GET['saved'] ) ) : ?><div class="oo-notice oo-notice-success">Profile saved.</div><?php endif; ?>
+    <div id="oo-prof-notice" class="oo-notice" style="display:none"></div>
+    <?php
+    $avail_statuses = OO_Database::get_availability_statuses();
+    $cur_tags = json_decode( $c->tags ?? '[]', true );
+    $cur_tags = is_array( $cur_tags ) ? implode( ', ', $cur_tags ) : '';
+    ?>
+    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" id="oo-journalist-meta" data-id="<?php echo esc_attr( $c->id ); ?>">
+        <?php wp_nonce_field( 'oo_save_journalist_meta' ); ?>
+        <input type="hidden" name="action" value="oo_save_journalist_meta">
+        <input type="hidden" name="contact_id" value="<?php echo esc_attr( $c->id ); ?>">
+        <div class="oo-settings-grid" style="margin-bottom:18px">
+            <div class="oo-card">
+                <h2 class="oo-card-title">Editable details</h2>
+                <div class="oo-field" style="display:flex;gap:14px;align-items:flex-start">
+                    <?php if ( $c->photo_url ) : ?><img id="oo-prof-photo" src="<?php echo esc_url( $c->photo_url ); ?>" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:1px solid var(--oo-border,#e5e7eb)"><?php else : ?><div id="oo-prof-photo-ph" style="width:64px;height:64px;border-radius:50%;background:#eef2ff;display:flex;align-items:center;justify-content:center;color:#6366f1;font-weight:700"><?php echo esc_html( strtoupper( substr( $c->first_name, 0, 1 ) . substr( $c->last_name, 0, 1 ) ) ); ?></div><?php endif; ?>
+                    <div style="flex:1">
+                        <label class="oo-label">Photo URL</label>
+                        <input type="url" name="photo_url" class="oo-input" value="<?php echo esc_attr( $c->photo_url ); ?>" placeholder="https://… (paste a headshot URL)">
+                    </div>
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Availability</label>
+                    <select name="availability_status" class="oo-select" id="oo-avail">
+                        <?php foreach ( $avail_statuses as $val => $lbl ) : ?>
+                        <option value="<?php echo esc_attr( $val ); ?>" <?php selected( $c->availability_status ?? 'active', $val ); ?>><?php echo esc_html( $lbl ); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="oo-field" id="oo-return-wrap" style="<?php echo ( $c->availability_status ?? 'active' ) === 'active' ? 'display:none' : ''; ?>">
+                    <label class="oo-label">Back / review on <span class="oo-muted" style="font-weight:400">(e.g. end of maternity leave)</span></label>
+                    <input type="date" name="available_from" class="oo-input" value="<?php echo esc_attr( $c->available_from ?? '' ); ?>">
+                </div>
+            </div>
+            <div class="oo-card">
+                <h2 class="oo-card-title">Beats &amp; notes</h2>
+                <div class="oo-field">
+                    <label class="oo-label">Beats / topics
+                        <button type="button" class="oo-btn oo-btn-secondary oo-btn-sm" id="oo-suggest-beats" style="float:right">
+                            <span class="oo-btn-text">✨ Suggest from coverage</span>
+                            <span class="oo-btn-loading" style="display:none">…</span>
+                        </button>
+                    </label>
+                    <input type="text" name="tags" id="oo-beats" class="oo-input" value="<?php echo esc_attr( $cur_tags ); ?>" placeholder="architecture, interiors, sustainability">
+                    <p class="oo-hint">Comma-separated. Claude can suggest these from the stories they've covered.</p>
+                </div>
+                <div class="oo-field">
+                    <label class="oo-label">Notes</label>
+                    <textarea name="notes" class="oo-textarea" rows="4" placeholder="Anything useful — preferences, history, do/don't…"><?php echo esc_textarea( $c->notes ?? '' ); ?></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="oo-wizard-actions" style="padding-top:0;margin-bottom:8px">
+            <button type="submit" class="oo-btn oo-btn-primary">Save profile</button>
+        </div>
+    </form>
+
     <h2 class="oo-card-title" style="margin-bottom:10px">Coverage history (<?php echo count( $rows ); ?>)</h2>
     <?php if ( $rows ) : ?>
     <div class="oo-table-wrap"><table class="oo-table">

@@ -36,6 +36,9 @@ class OO_Database {
             bio_link varchar(500) NOT NULL DEFAULT '',
             last_contacted date DEFAULT NULL,
             outlet_id bigint(20) DEFAULT NULL,
+            availability_status varchar(30) NOT NULL DEFAULT 'active',
+            available_from date DEFAULT NULL,
+            photo_url varchar(500) NOT NULL DEFAULT '',
             tags longtext NULL,
             source varchar(100) NOT NULL DEFAULT '',
             status varchar(50) NOT NULL DEFAULT 'active',
@@ -419,6 +422,17 @@ class OO_Database {
             'confirmed'      => 'Confirmed',
             'interview_prep' => 'In progress',
             'pitched'        => 'Pitched',
+        );
+    }
+
+    /** Journalist availability states (key => label). */
+    public static function get_availability_statuses() {
+        return array(
+            'active'         => 'Active',
+            'maternity_leave'=> 'Maternity / parental leave',
+            'sabbatical'     => 'Sabbatical',
+            'moved_on'       => 'Moved on / left outlet',
+            'unreachable'    => 'Unreachable',
         );
     }
 

@@ -36,6 +36,51 @@ class OO_Admin {
         add_action( 'admin_post_oo_confirm_coverage', array( $this, 'confirm_coverage' ) );
         add_action( 'admin_post_oo_dismiss_coverage', array( $this, 'dismiss_coverage' ) );
         add_action( 'admin_post_oo_regenerate_api_key', array( $this, 'regenerate_api_key' ) );
+        add_action( 'admin_post_oo_save_journalist_meta', array( $this, 'save_journalist_meta' ) );
+        add_action( 'admin_post_oo_save_outlet_meta', array( $this, 'save_outlet_meta' ) );
+    }
+
+    public function save_journalist_meta() {
+        check_admin_referer( 'oo_save_journalist_meta' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['contact_id'] ?? 0 );
+        if ( ! $id ) wp_die( 'Missing contact.' );
+
+        $avail = sanitize_text_field( $_POST['availability_status'] ?? 'active' );
+        if ( ! isset( OO_Database::get_availability_statuses()[ $avail ] ) ) $avail = 'active';
+
+        $raw_tags = sanitize_text_field( $_POST['tags'] ?? '' );
+        $tags     = array_values( array_unique( array_filter( array_map(
+            fn( $t ) => strtolower( trim( $t ) ),
+            preg_split( '/[\s,;]+/', $raw_tags )
+        ) ) ) );
+
+        $wpdb->update( $wpdb->prefix . 'oo_contacts', array(
+            'notes'               => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+            'availability_status' => $avail,
+            'available_from'      => ! empty( $_POST['available_from'] ) ? gmdate( 'Y-m-d', strtotime( $_POST['available_from'] ) ) : null,
+            'photo_url'           => esc_url_raw( $_POST['photo_url'] ?? '' ),
+            'tags'                => wp_json_encode( $tags ),
+        ), array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-journalists&action=view&id=' . $id . '&saved=1' ) );
+        exit;
+    }
+
+    public function save_outlet_meta() {
+        check_admin_referer( 'oo_save_outlet_meta' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['outlet_id'] ?? 0 );
+        if ( ! $id ) wp_die( 'Missing outlet.' );
+        $wpdb->update( $wpdb->prefix . 'oo_outlets', array(
+            'summary' => sanitize_textarea_field( $_POST['summary'] ?? '' ),
+            'notes'   => sanitize_textarea_field( $_POST['notes'] ?? '' ),
+            'tier'    => sanitize_text_field( $_POST['tier'] ?? '' ),
+            'region'  => sanitize_text_field( $_POST['region'] ?? '' ),
+        ), array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-media&action=view&id=' . $id . '&saved=1' ) );
+        exit;
     }
 
     public function regenerate_api_key() {
@@ -195,6 +240,9 @@ class OO_Admin {
         }
         if ( $screen && strpos( $screen->id, 'oo-press' ) !== false && in_array( ( $_GET['action'] ?? '' ), array( 'new', 'edit' ), true ) ) {
             wp_enqueue_script( 'oo-press-release', OO_PLUGIN_URL . 'admin/js/press-release.js', array(), OO_VERSION, true );
+        }
+        if ( $screen && ( strpos( $screen->id, 'oo-journalists' ) !== false || strpos( $screen->id, 'oo-media' ) !== false ) && ( $_GET['action'] ?? '' ) === 'view' ) {
+            wp_enqueue_script( 'oo-profiles', OO_PLUGIN_URL . 'admin/js/profiles.js', array(), OO_VERSION, true );
         }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
