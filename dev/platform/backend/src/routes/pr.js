@@ -185,4 +185,51 @@ router.delete('/editorial-log/:id', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// ── Outlet deduplication (cross-client, admin) ───────────────────────────────
+function cleanestName(members) {
+  return [...members].sort((a, b) => {
+    const score = (n) => (pr.isDoNotUse(n) ? 100 : 0) + (/https?:\/\/|www\.|\.[a-z]{2,4}($|\/)/i.test(n) ? 50 : 0) + n.length / 100;
+    return score(a.name) - score(b.name);
+  })[0]?.name || '';
+}
+
+router.get('/dedup/outlets/scan', requireAdmin, async (req, res) => {
+  try {
+    const clusters = await pr.scanOutletDuplicates();
+    const exact = clusters.filter((c) => c.method === 'exact');
+    const fuzzy = clusters.filter((c) => c.method === 'fuzzy');
+    const out = exact.map((c) => ({ method: 'exact', confidence: c.confidence, suggested: cleanestName(c.members), members: c.members }));
+
+    let aiUsed = false;
+    if (fuzzy.length) {
+      const nameId = new Map();
+      fuzzy.forEach((c) => c.members.forEach((m) => nameId.set(m.name, m.id)));
+      const groups = await pr.adjudicateOutletClusters(fuzzy.map((c) => c.members));
+      if (groups && Array.isArray(groups)) {
+        aiUsed = true;
+        for (const g of groups) {
+          const names = (g.members || []).filter((nm) => nameId.has(nm));
+          if (names.length < 2) continue;
+          const members = names.map((nm) => ({ id: nameId.get(nm), name: nm }));
+          out.push({ method: 'ai', confidence: g.confidence || 0.8, suggested: g.canonical || cleanestName(members), members });
+        }
+      } else {
+        fuzzy.forEach((c) => out.push({ method: 'fuzzy', confidence: c.confidence, suggested: cleanestName(c.members), members: c.members }));
+      }
+    }
+    res.json({ clusters: out, ai: aiUsed });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/dedup/outlets/merge', requireAdmin, async (req, res) => {
+  try {
+    const { canonical_id, member_ids } = req.body || {};
+    if (!canonical_id || !Array.isArray(member_ids) || !member_ids.length) {
+      return res.status(400).json({ error: 'canonical_id and member_ids required' });
+    }
+    const merged = await pr.mergeOutlets(canonical_id, member_ids);
+    res.json({ merged });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 module.exports = router;

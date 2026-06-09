@@ -1,8 +1,10 @@
 /**
- * PR module service — CSV import, outlet/contact resolution and the
- * relationship-strength analytics, native to the platform (Postgres).
+ * PR module service — CSV import, outlet/contact resolution, relationship
+ * analytics and outlet deduplication, native to the platform (Postgres).
  */
 const db = require('../db');
+let claude;
+try { claude = require('./claude'); } catch (e) { claude = null; }
 
 const STATUS_LABELS = {
   pitched: 'Pitched', pending: 'Pending', no_response: 'No Response',
@@ -221,9 +223,138 @@ async function importEditorialCsvAllClients(csvText) {
   return { imported, skipped, unmatched: [...unmatched] };
 }
 
+// ── Outlet deduplication ────────────────────────────────────────────────────
+const TLDS = new Set(['com', 'co', 'uk', 'net', 'org', 'io', 'mx', 'de', 'fr', 'es', 'it', 'cn', 'ru', 'eu', 'us', 'au', 'nl', 'se', 'ch', 'at', 'be', 'ie', 'info', 'online', 'news', 'mag']);
+
+function foldDiacritics(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
+
+/** Reduce a publication name to a canonical match key (lowercase alnum). */
+function normaliseOutlet(name) {
+  let s = String(name || '').trim().toLowerCase();
+  if (!s) return '';
+  s = s.replace(/\bdo not use\b/g, '').trim();
+  s = foldDiacritics(s).replace(/&/g, ' and ');
+  const looksUrl = /^(https?:\/\/|www\.)/.test(s) || /^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(\/|$)/.test(s);
+  if (looksUrl) {
+    s = s.replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/[/?].*$/, '');
+    return s.split(/[^a-z0-9]+/).filter(Boolean).filter((p) => !TLDS.has(p)).join('');
+  }
+  const parts = s.split(/[^a-z0-9]+/).filter(Boolean);
+  if (parts[0] === 'the') parts.shift();
+  return parts.join('');
+}
+
+function isDoNotUse(name) { return /do not use/i.test(String(name || '')); }
+
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i);
+  for (let i = 1; i <= m; i++) {
+    let cur = [i];
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = cur;
+  }
+  return prev[n];
+}
+
+function similar(a, b) {
+  if (a === b) return 1;
+  const len = Math.max(a.length, b.length);
+  if (!len) return 0;
+  if (a.includes(b) || b.includes(a)) return Math.min(a.length, b.length) / len;
+  if (len > 40) return 0;
+  return 1 - levenshtein(a, b) / len;
+}
+
+/** Cluster duplicate outlets from [{id,name}]. Returns clusters (>=2 members). */
+function buildOutletClusters(records, threshold = 0.86) {
+  const byKey = new Map();
+  for (const r of records) {
+    const key = normaliseOutlet(r.name);
+    if (!key) continue;
+    if (!byKey.has(key)) byKey.set(key, []);
+    byKey.get(key).push({ ...r, _key: key });
+  }
+  const keys = [...byKey.keys()];
+  const parent = new Map(keys.map((k) => [k, k]));
+  const find = (x) => { while (parent.get(x) !== x) { parent.set(x, parent.get(parent.get(x))); x = parent.get(x); } return x; };
+  const union = (a, b) => { parent.set(find(a), find(b)); };
+
+  const blocks = new Map();
+  for (const k of keys) { const b = k[0] || ''; if (!blocks.has(b)) blocks.set(b, []); blocks.get(b).push(k); }
+  for (const bucket of blocks.values()) {
+    for (let i = 0; i < bucket.length; i++) {
+      for (let j = i + 1; j < bucket.length; j++) {
+        if (similar(bucket[i], bucket[j]) >= threshold) union(bucket[i], bucket[j]);
+      }
+    }
+  }
+  const groups = new Map();
+  for (const k of keys) { const root = find(k); if (!groups.has(root)) groups.set(root, []); for (const rec of byKey.get(k)) groups.get(root).push(rec); }
+
+  const clusters = [];
+  for (const members of groups.values()) {
+    if (members.length < 2) continue;
+    const distinct = new Set(members.map((m) => m._key)).size;
+    clusters.push({
+      method: distinct === 1 ? 'exact' : 'fuzzy',
+      confidence: distinct === 1 ? 0.99 : 0.8,
+      members: members.map((m) => ({ id: m.id, name: m.name })),
+    });
+  }
+  return clusters;
+}
+
+/** Scan all live outlets for duplicate clusters. */
+async function scanOutletDuplicates() {
+  const { rows } = await db.query("SELECT id, name FROM pr_outlets WHERE status <> 'merged'");
+  return buildOutletClusters(rows);
+}
+
+/** Ask Claude to confirm/split fuzzy clusters. Returns [{canonical, members[], confidence}] or null. */
+async function adjudicateOutletClusters(clusters) {
+  if (!claude || !claude.callClaude || !clusters.length) return null;
+  const blocks = clusters.map((c, i) => `Group ${i + 1}: ${c.map((m) => m.name).join(' | ')}`).join('\n');
+  const system = 'You clean a publications database. Decide which names are the SAME outlet. TREAT AS SAME: case/punctuation, URL vs name (Dezeen / Dezeen.com), trailing "DO NOT USE", typos. KEEP SEPARATE: regional editions (Elle Decor Spain vs Italia vs India) and distinct titles (Interior Design vs Interior Designer). Respond with a JSON array only.';
+  const user = `Candidate groups:\n${blocks}\n\nReturn a JSON array of confirmed duplicate sets: [{"canonical":"Clean Name","members":["a","b"],"confidence":0.0-1.0}]. Only sets with 2+ genuinely-same members.`;
+  try {
+    const text = await claude.callClaude({ max_tokens: 2000, system, user });
+    const m = text.match(/\[[\s\S]*\]/);
+    return m ? JSON.parse(m[0]) : null;
+  } catch (e) { return null; }
+}
+
+/** Merge member outlets into canonical: repoint FKs, fold aliases, tombstone members. */
+async function mergeOutlets(canonicalId, memberIds) {
+  memberIds = (memberIds || []).filter((mid) => mid && mid !== canonicalId);
+  if (!canonicalId || !memberIds.length) return 0;
+  const canon = await db.query('SELECT name, aliases FROM pr_outlets WHERE id = $1', [canonicalId]);
+  if (!canon.rows.length) return 0;
+  let aliases = canon.rows[0].aliases || [];
+  if (!Array.isArray(aliases)) aliases = [];
+
+  for (const mid of memberIds) {
+    const m = await db.query('SELECT name, aliases FROM pr_outlets WHERE id = $1', [mid]);
+    if (!m.rows.length) continue;
+    await db.query('UPDATE pr_editorial_log SET outlet_id = $1 WHERE outlet_id = $2', [canonicalId, mid]);
+    await db.query('UPDATE pr_contacts SET outlet_id = $1 WHERE outlet_id = $2', [canonicalId, mid]);
+    aliases.push(m.rows[0].name);
+    if (Array.isArray(m.rows[0].aliases)) aliases = aliases.concat(m.rows[0].aliases);
+    await db.query("UPDATE pr_outlets SET status = 'merged', merged_into = $1 WHERE id = $2", [canonicalId, mid]);
+  }
+  const clean = [...new Set(aliases.map((a) => String(a).trim()).filter((a) => a && a !== canon.rows[0].name))];
+  await db.query('UPDATE pr_outlets SET aliases = $1 WHERE id = $2', [JSON.stringify(clean), canonicalId]);
+  return memberIds.length;
+}
+
 module.exports = {
   STATUS_LABELS, PUBLISHED, statusLabel,
   relationshipStrength, hitRate, isGoneQuiet,
   parseCsv, stripNotionRef, parseDate,
   resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
+  normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates,
+  adjudicateOutletClusters, mergeOutlets,
 };
