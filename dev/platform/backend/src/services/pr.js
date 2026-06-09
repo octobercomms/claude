@@ -350,6 +350,31 @@ async function mergeOutlets(canonicalId, memberIds) {
   return memberIds.length;
 }
 
+// ── Profile AI helpers ───────────────────────────────────────────────────────
+/** Suggest beat tags for a journalist from the stories they've covered. */
+async function suggestBeats(name, titles) {
+  if (!claude || !claude.callClaude) return [];
+  const list = (titles || []).filter(Boolean).slice(0, 40).join('\n');
+  if (!list) return [];
+  const system = 'You categorise journalists by beat from the stories they cover. Respond with a JSON array of 3–8 short lowercase topic tags (e.g. "architecture","interiors","sustainability"). JSON array only.';
+  try {
+    const text = await claude.callClaude({ max_tokens: 300, system, user: `Journalist: ${name}\nStories:\n${list}\n\nReturn the beat tags as a JSON array.` });
+    const m = text.match(/\[[\s\S]*\]/);
+    const arr = m ? JSON.parse(m[0]) : [];
+    return Array.isArray(arr) ? arr.map((t) => String(t).trim().toLowerCase()).filter(Boolean) : [];
+  } catch (e) { return []; }
+}
+
+/** Write a 1–2 sentence "who they are" summary for a publication. */
+async function writeOutletSummary(name, titles) {
+  if (!claude || !claude.callClaude) return '';
+  const list = (titles || []).filter(Boolean).slice(0, 40).join('\n');
+  const system = 'You write a concise, factual 1–2 sentence description of a publication for an internal media database. British English, no marketing fluff, plain text only.';
+  try {
+    return (await claude.callClaude({ max_tokens: 300, system, user: `Publication: ${name}\n${list ? `Recent stories:\n${list}\n` : ''}\nWrite the 1–2 sentence description.` })).trim();
+  } catch (e) { return ''; }
+}
+
 module.exports = {
   STATUS_LABELS, PUBLISHED, statusLabel,
   relationshipStrength, hitRate, isGoneQuiet,
@@ -357,4 +382,5 @@ module.exports = {
   resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
   normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates,
   adjudicateOutletClusters, mergeOutlets,
+  suggestBeats, writeOutletSummary,
 };

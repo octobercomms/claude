@@ -232,4 +232,89 @@ router.post('/dedup/outlets/merge', requireAdmin, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// ── Profiles (global media DB; :outletId/:contactId avoid the editorial-log :id hook) ──
+router.get('/outlets/:outletId', async (req, res) => {
+  try {
+    const o = await db.query('SELECT * FROM pr_outlets WHERE id = $1', [req.params.outletId]);
+    if (!o.rows.length) return res.status(404).json({ error: 'Outlet not found' });
+    const coverage = await db.query(
+      `SELECT l.client_id, cl.name AS client, l.story_title, l.status, l.issue_date, l.story_url,
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
+       FROM pr_editorial_log l
+       LEFT JOIN clients cl ON cl.id = l.client_id
+       LEFT JOIN pr_contacts c ON c.id = l.contact_id
+       WHERE l.outlet_id = $1 ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST LIMIT 200`,
+      [req.params.outletId]
+    );
+    const journos = await db.query(
+      "SELECT id, TRIM(CONCAT(first_name,' ',last_name)) AS name FROM pr_contacts WHERE outlet_id = $1 ORDER BY last_name LIMIT 100",
+      [req.params.outletId]
+    );
+    res.json({ ...o.rows[0], coverage: coverage.rows, journalists: journos.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/outlets/:outletId', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const sets = []; const vals = []; let n = 1;
+    const set = (c, v) => { sets.push(`${c} = $${n++}`); vals.push(v); };
+    ['summary', 'tier', 'region', 'notes', 'domain'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    if (!sets.length) return res.json({ updated: 0 });
+    vals.push(req.params.outletId);
+    await db.query(`UPDATE pr_outlets SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+    res.json({ updated: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/outlets/:outletId/summary', async (req, res) => {
+  try {
+    const name = (await db.query('SELECT name FROM pr_outlets WHERE id = $1', [req.params.outletId])).rows[0]?.name;
+    if (!name) return res.status(404).json({ error: 'Outlet not found' });
+    const titles = (await db.query("SELECT story_title FROM pr_editorial_log WHERE outlet_id = $1 AND story_title <> '' LIMIT 40", [req.params.outletId])).rows.map((r) => r.story_title);
+    res.json({ summary: await pr.writeOutletSummary(name, titles) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/contacts/:contactId', async (req, res) => {
+  try {
+    const c = await db.query('SELECT * FROM pr_contacts WHERE id = $1', [req.params.contactId]);
+    if (!c.rows.length) return res.status(404).json({ error: 'Contact not found' });
+    const outlet = c.rows[0].outlet_id ? (await db.query('SELECT name FROM pr_outlets WHERE id = $1', [c.rows[0].outlet_id])).rows[0]?.name : '';
+    const coverage = await db.query(
+      `SELECT cl.name AS client, l.story_title, l.status, l.issue_date, l.story_url, o.name AS outlet
+       FROM pr_editorial_log l
+       LEFT JOIN clients cl ON cl.id = l.client_id
+       LEFT JOIN pr_outlets o ON o.id = l.outlet_id
+       WHERE l.contact_id = $1 ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST LIMIT 200`,
+      [req.params.contactId]
+    );
+    res.json({ ...c.rows[0], outlet, coverage: coverage.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/contacts/:contactId', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const sets = []; const vals = []; let n = 1;
+    const set = (c, v) => { sets.push(`${c} = $${n++}`); vals.push(v); };
+    ['notes', 'availability_status', 'photo_url', 'location', 'bio_link', 'email'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    if ('available_from' in b) set('available_from', pr.parseDate(b.available_from));
+    if (Array.isArray(b.beats)) set('beats', JSON.stringify(b.beats.map((t) => String(t).trim().toLowerCase()).filter(Boolean)));
+    if (!sets.length) return res.json({ updated: 0 });
+    vals.push(req.params.contactId);
+    await db.query(`UPDATE pr_contacts SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+    res.json({ updated: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
+  try {
+    const c = (await db.query('SELECT first_name, last_name FROM pr_contacts WHERE id = $1', [req.params.contactId])).rows[0];
+    if (!c) return res.status(404).json({ error: 'Contact not found' });
+    const titles = (await db.query("SELECT story_title FROM pr_editorial_log WHERE contact_id = $1 AND story_title <> '' LIMIT 40", [req.params.contactId])).rows.map((r) => r.story_title);
+    res.json({ beats: await pr.suggestBeats(`${c.first_name} ${c.last_name}`.trim(), titles) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;

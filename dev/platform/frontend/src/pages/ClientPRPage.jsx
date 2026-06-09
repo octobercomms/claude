@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -181,7 +181,7 @@ export default function ClientPRPage() {
             <tbody>
               {journalists.map((j) => (
                 <tr key={j.id}>
-                  <td>{j.name}</td>
+                  <td><Link to={`/media/journalist/${j.id}`}>{j.name}</Link></td>
                   <td>{j.outlet || '—'}</td>
                   <td>{j.published}</td>
                   <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
