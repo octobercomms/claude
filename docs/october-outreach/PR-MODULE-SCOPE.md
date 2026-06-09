@@ -80,8 +80,14 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   REST endpoints `GET /lookup` + `POST /contacts`. Deploy docs in
   `docs/oo-gmail-addon`. (Plugin v3.19.0.)
 - ✅ **All plugin-side dev complete.**
-- ⬜ Next: the **nvelope front-end** — consume the REST API to render the PR
-  module in platform.octobercomms.com (the "copy it all to platform" step).
+- ✅ **Phase 14 — nvelope front-end (read-first)** (this branch): the PR module
+  now appears in **platform.octobercomms.com**. A backend proxy
+  (`/api/pr/*`, keeps the OMI key server-side) calls the plugin's REST API; a new
+  **PR** page renders stats + the editorial log, journalist analytics and client
+  coverage (with a client filter). The "in both" surfaces are live: plugin =
+  source of truth, nvelope = a front-end on the same data.
+- ⬜ Next (optional): nvelope **write** actions (log entries, run thank-yous)
+  layered on the read-first dashboards.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 
