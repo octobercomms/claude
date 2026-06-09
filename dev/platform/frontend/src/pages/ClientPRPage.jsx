@@ -42,13 +42,23 @@ export default function ClientPRPage() {
   const [thankDraft, setThankDraft] = useState(null); // null | { entryId, to, subject, body, tone, confidence, edited }
   const [drafting, setDrafting] = useState(false);
   const [sendingThank, setSendingThank] = useState(false);
+  const [thankSettings, setThankSettings] = useState(null); // { thank_stage, stages, record }
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
 
   function loadThanks() {
     api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
+    api.get(`/pr/clients/${id}/thank-settings`).then(setThankSettings).catch(() => {});
   }
   useEffect(() => { if (tab === 'thanks') loadThanks(); }, [tab, id]);
+
+  async function setThankStage(stage) {
+    try {
+      await api.patch(`/pr/clients/${id}/thank-settings`, { thank_stage: stage });
+      setThankSettings((s) => ({ ...(s || {}), thank_stage: stage }));
+      toast('Auto-send stage updated', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+  }
 
   async function openDraft(row) {
     setDrafting(true);
@@ -353,9 +363,25 @@ export default function ClientPRPage() {
           </div>
         ) : (
           <div>
-            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 12 }}>
-              Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
-            </p>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
+              <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0, flex: 1, minWidth: 240 }}>
+                Journalists who featured {client?.name || 'this client'} and have a real email on file but haven't been thanked yet. Claude drafts a fresh, never-repeating note — review and send.
+              </p>
+              {thankSettings && (
+                <label className="field" style={{ minWidth: 280 }}>
+                  <span className="field-label">Auto-send</span>
+                  <select className="input" value={thankSettings.thank_stage || 'assist'} onChange={(e) => setThankStage(e.target.value)}>
+                    {Object.entries(thankSettings.stages || { assist: 'Assisted — I approve every send' }).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                </label>
+              )}
+            </div>
+            {thankSettings && thankSettings.record && (thankSettings.record.approved + thankSettings.record.edited + thankSettings.record.rejected + thankSettings.record.auto > 0) && (
+              <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginBottom: 12 }}>
+                Track record: {thankSettings.record.approved} approved · {thankSettings.record.edited} edited · {thankSettings.record.auto} auto-sent · {thankSettings.record.rejected} skipped.
+                {thankSettings.thank_stage === 'assist' ? ' Once the approvals build up, switch on supervised or auto sending above.' : ''}
+              </p>
+            )}
             <table className="table">
               <thead><tr><th>Journalist</th><th>Publication</th><th>Story</th><th>Date</th><th></th></tr></thead>
               <tbody>

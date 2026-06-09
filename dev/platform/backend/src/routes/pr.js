@@ -477,4 +477,21 @@ router.post('/editorial-log/:id/thank-skip', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Auto-send trust ramp: per-client stage + the approve/edit/reject track record.
+router.get('/clients/:clientId/thank-settings', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT thank_stage FROM pr_client_settings WHERE client_id = $1', [req.params.clientId]);
+    res.json({ thank_stage: (rows[0] && rows[0].thank_stage) || 'assist', stages: prThanks.STAGES, record: await prThanks.trackRecord(req.params.clientId) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/clients/:clientId/thank-settings', async (req, res) => {
+  try {
+    const stage = ['assist', 'supervised', 'auto'].includes(req.body.thank_stage) ? req.body.thank_stage : 'assist';
+    await pr.ensureClientToken(req.params.clientId); // guarantees a settings row
+    await db.query('UPDATE pr_client_settings SET thank_stage = $1 WHERE client_id = $2', [stage, req.params.clientId]);
+    res.json({ updated: 1, thank_stage: stage });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 module.exports = router;
