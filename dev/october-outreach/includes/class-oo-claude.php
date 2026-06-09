@@ -435,6 +435,31 @@ class OO_Claude {
     }
 
     /**
+     * Suggest beat/topic tags for a journalist from the titles they've covered.
+     * Returns a flat array of lowercase tags, or WP_Error.
+     */
+    public function suggest_beats( $name, array $titles ) {
+        $list = implode( "\n", array_slice( array_filter( $titles ), 0, 40 ) );
+        if ( $list === '' ) return array();
+        $system = 'You categorise journalists by beat from the stories they cover. Respond with a JSON array of 3–8 short lowercase topic tags (e.g. "architecture", "interiors", "sustainability", "hospitality design"). JSON array only.';
+        $prompt = "Journalist: {$name}\nStories they've covered:\n{$list}\n\nReturn the beat tags as a JSON array.";
+        $res = $this->request_json( array( array( 'role' => 'user', 'content' => $prompt ) ), 300, $system );
+        if ( is_wp_error( $res ) ) return $res;
+        return is_array( $res ) ? array_values( array_filter( array_map( fn( $t ) => strtolower( trim( (string) $t ) ), $res ) ) ) : array();
+    }
+
+    /**
+     * Write a 1–2 sentence "who they are" summary for a publication from the
+     * coverage we have with them. Returns plain text or WP_Error.
+     */
+    public function write_outlet_summary( $name, array $titles ) {
+        $list = implode( "\n", array_slice( array_filter( $titles ), 0, 40 ) );
+        $system = 'You write a concise, factual 1–2 sentence description of a publication for an internal media database. British English. No marketing fluff. Plain text only.';
+        $prompt = "Publication: {$name}\n" . ( $list ? "Recent stories they've run (for context):\n{$list}\n" : '' ) . "\nWrite the 1–2 sentence description.";
+        return $this->request( array( array( 'role' => 'user', 'content' => $prompt ) ), 300, $system );
+    }
+
+    /**
      * Draft a full press release from a brief. Returns clean HTML (headline,
      * dateline, body paragraphs, boilerplate placeholder) or a WP_Error.
      */

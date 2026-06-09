@@ -47,6 +47,8 @@ class OO_Ajax {
             'oo_thank_send',
             'oo_thank_skip',
             'oo_pr_draft',
+            'oo_suggest_beats',
+            'oo_outlet_summary',
         );
 
         foreach ( $actions as $action ) {
@@ -1596,6 +1598,40 @@ class OO_Ajax {
             'decided_by'       => get_current_user_id(),
         ) );
         wp_send_json_success( array( 'skipped' => true ) );
+    }
+
+    public function suggest_beats() {
+        $this->check_nonce();
+        global $wpdb;
+        $id = intval( $_POST['contact_id'] ?? 0 );
+        if ( ! $id ) wp_send_json_error( 'Missing contact.' );
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) wp_send_json_error( 'Claude API key not configured.' );
+
+        $c = $wpdb->get_row( $wpdb->prepare( "SELECT first_name, last_name FROM {$wpdb->prefix}oo_contacts WHERE id = %d", $id ) );
+        $titles = $wpdb->get_col( $wpdb->prepare(
+            "SELECT story_title FROM {$wpdb->prefix}oo_editorial_log WHERE contact_id = %d AND story_title <> '' LIMIT 40", $id
+        ) );
+        $beats = $claude->suggest_beats( trim( ( $c->first_name ?? '' ) . ' ' . ( $c->last_name ?? '' ) ), $titles );
+        if ( is_wp_error( $beats ) ) wp_send_json_error( $beats->get_error_message() );
+        wp_send_json_success( array( 'beats' => $beats ) );
+    }
+
+    public function outlet_summary() {
+        $this->check_nonce();
+        global $wpdb;
+        $id = intval( $_POST['outlet_id'] ?? 0 );
+        if ( ! $id ) wp_send_json_error( 'Missing outlet.' );
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) wp_send_json_error( 'Claude API key not configured.' );
+
+        $name   = (string) $wpdb->get_var( $wpdb->prepare( "SELECT name FROM {$wpdb->prefix}oo_outlets WHERE id = %d", $id ) );
+        $titles = $wpdb->get_col( $wpdb->prepare(
+            "SELECT story_title FROM {$wpdb->prefix}oo_editorial_log WHERE outlet_id = %d AND story_title <> '' LIMIT 40", $id
+        ) );
+        $summary = $claude->write_outlet_summary( $name, $titles );
+        if ( is_wp_error( $summary ) ) wp_send_json_error( $summary->get_error_message() );
+        wp_send_json_success( array( 'summary' => trim( $summary ) ) );
     }
 
     public function pr_draft() {

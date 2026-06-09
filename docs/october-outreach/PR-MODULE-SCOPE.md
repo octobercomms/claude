@@ -57,9 +57,13 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   **client approval link** (token, no login) where the client signs off. Extends
   `oo_press_releases`. **Distribution (build media list → pitch → send) + removing
   it from Email = follow-up.**
-- ⬜ Next: PR distribution + remove from Email, thank-you auto-send ramp,
-  profiles, Gmail add-on, then the **nvelope front-end** (consumes the API) and
-  the "copy to platform.octobercomms.com" step.
+- ✅ **Phase 10 — profile pages** (this branch): journalist profile gains
+  editable notes, **availability/maternity status + return date**, **photo**, and
+  Claude-suggested **beats** from coverage; new **outlet profile** page (editable
+  Claude-generated summary, tier/region, coverage-with-them, journalists-here).
+- ⬜ Next: PR distribution + remove from Email, thank-you auto-send ramp, Gmail
+  add-on, then the **nvelope front-end** (consumes the API) and the "copy to
+  platform.octobercomms.com" step.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 
