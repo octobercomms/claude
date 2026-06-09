@@ -61,7 +61,7 @@ if [ -f "$SHOPIFY_APP_DIR/.env" ]; then
   npm prune --omit=dev --silent
 
   echo "==> Restarting Shopify app..."
-  pm2 reload "$SHOPIFY_APP_DIR/ecosystem.config.js" --update-env \
+  pm2 reload "$SHOPIFY_APP_DIR/ecosystem.config.cjs" --update-env \
     || pm2 restart october-mi-shopify --update-env
 else
   echo "==> Skipping Shopify app deploy (no .env at $SHOPIFY_APP_DIR/.env)"
