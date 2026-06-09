@@ -16,6 +16,7 @@ const FIELD_OPTIONS = [
   { value: 'last_name', label: 'Last name' },
   { value: 'name', label: 'Full name' },
   { value: 'company', label: 'Company / outlet' },
+  { value: 'kind', label: 'Type (Press / Industry / Prospect)' },
   { value: 'contact_type', label: 'Beat / contact type' },
   { value: 'title', label: 'Title / role' },
   { value: 'location', label: 'Location' },
@@ -35,7 +36,8 @@ const AUTO_DETECT = {
   name: 'name', fullname: 'name', contact: 'name',
   company: 'company', companyname: 'company', practice: 'company',
   organisation: 'company', organization: 'company', outlet: 'company', publication: 'company',
-  type: 'contact_type', contacttype: 'contact_type', beat: 'contact_type', category: 'contact_type',
+  type: 'kind', kind: 'kind', recordtype: 'kind', contactkind: 'kind',
+  contacttype: 'contact_type', beat: 'contact_type', category: 'contact_type',
   role: 'title', position: 'title', jobtitle: 'title', title: 'title',
   city: 'location', location: 'location', address: 'location', country: 'location',
   linkedin: 'linkedin_url', linkedinurl: 'linkedin_url',
@@ -62,6 +64,7 @@ export default function ImportWizard({
   const [headers, setHeaders] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
   const [mapping, setMapping] = useState({});
+  const [defaultKind, setDefaultKind] = useState('prospect'); // used when a row has no Type value
   const [tags, setTags] = useState(new Set());
   const [tagInput, setTagInput] = useState('');
   const [knownTags, setKnownTags] = useState([]);
@@ -167,7 +170,7 @@ export default function ImportWizard({
     setImporting(true);
     setErr(null);
     try {
-      const body = { contacts: builtRows };
+      const body = { contacts: builtRows.map(r => ({ ...r, kind: r.kind || defaultKind })) };
       if (clientIdForAttach) body.client_id = clientIdForAttach;
       if (allowClients && attachClients.size) body.attach_clients = Array.from(attachClients);
       const res = await api.post('/outreach/contacts/bulk', body);
@@ -252,6 +255,19 @@ export default function ImportWizard({
             </div>
 
             <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                Import these as
+              </div>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
+                <select value={defaultKind} onChange={e => setDefaultKind(e.target.value)} style={select}>
+                  <option value="prospect">Prospects</option>
+                  <option value="media">Press (journalists)</option>
+                  <option value="industry">Industry contacts</option>
+                </select>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                  Used for rows without a value in a column mapped to <strong>Type</strong>.
+                </span>
+              </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                 Apply these tags to every imported contact
               </div>
