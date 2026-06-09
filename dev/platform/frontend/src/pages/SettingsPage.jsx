@@ -210,7 +210,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'PR Module',
-    category: 'Outreach',
+    category: 'PR',
     hint: 'Connects the per-client PR tab to the October Outreach PR data. Base URL is your WordPress REST root (…/wp-json/oo/v1); the API key comes from October Outreach → Settings → PR API.',
     keys: [
       { key: 'OMI_BASE', label: 'PR API Base URL', placeholder: 'https://octobercomms.com/wp-json/oo/v1', type: 'text' },
@@ -272,6 +272,7 @@ const CATEGORIES = [
   { title: 'Ecommerce & Inventory', description: 'Shopify, Amazon Seller and Zoho Inventory.' },
   { title: 'SEO', description: 'Keyword rank tracking, backlinks and search volume.' },
   { title: 'Outreach', description: 'Contact-finding, AI-drafted emails and reply tracking for cold outreach.' },
+  { title: 'PR', description: 'Press coverage, journalists and client coverage portals (October Outreach PR module).' },
   { title: 'Other', description: 'Webhooks and platform alerts.' },
 ];
 
