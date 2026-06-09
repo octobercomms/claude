@@ -10,6 +10,7 @@ const pr = require('../services/pr');
 const prReports = require('../services/prReports');
 const prMonitor = require('../services/prMonitor');
 const prThanks = require('../services/prThanks');
+const prPress = require('../services/prPress');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -26,6 +27,16 @@ router.param('id', async (req, res, next, id) => {
   try {
     const { rows } = await db.query('SELECT client_id FROM pr_editorial_log WHERE id = $1', [id]);
     if (!rows.length) return res.status(404).json({ error: 'Entry not found' });
+    try { assertClientAccess(req, rows[0].client_id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+    next();
+  } catch (err) { next(err); }
+});
+
+// Resolve a press release's client and enforce access for /press-releases/:prId routes.
+router.param('prId', async (req, res, next, id) => {
+  try {
+    const { rows } = await db.query('SELECT client_id FROM pr_press_releases WHERE id = $1', [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Press release not found' });
     try { assertClientAccess(req, rows[0].client_id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
     next();
   } catch (err) { next(err); }
@@ -491,6 +502,76 @@ router.patch('/clients/:clientId/thank-settings', async (req, res) => {
     await pr.ensureClientToken(req.params.clientId); // guarantees a settings row
     await db.query('UPDATE pr_client_settings SET thank_stage = $1 WHERE client_id = $2', [stage, req.params.clientId]);
     res.json({ updated: 1, thank_stage: stage });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// ── Press-release authoring + sign-off ───────────────────────────────────────
+const PR_STATUSES = ['draft', 'in_review', 'approved', 'sent'];
+
+router.get('/clients/:clientId/press-releases', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      'SELECT id, title, brand, status, review_token, approved_at, created_at FROM pr_press_releases WHERE client_id = $1 ORDER BY created_at DESC',
+      [req.params.clientId]
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/press-releases', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const { rows } = await db.query(
+      `INSERT INTO pr_press_releases (client_id, title, brand, angle, key_facts)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [req.params.clientId, String(b.title || '').slice(0, 500), String(b.brand || '').slice(0, 120), b.angle || '', b.key_facts || '']
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.get('/press-releases/:prId', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId]);
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/press-releases/:prId', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const sets = []; const vals = []; let n = 1;
+    const set = (col, v) => { sets.push(`${col} = $${n++}`); vals.push(v); };
+    if (typeof b.title === 'string') set('title', b.title.slice(0, 500));
+    if (typeof b.brand === 'string') set('brand', b.brand.slice(0, 120));
+    if (typeof b.angle === 'string') set('angle', b.angle);
+    if (typeof b.key_facts === 'string') set('key_facts', b.key_facts);
+    if (typeof b.body_html === 'string') set('body_html', b.body_html);
+    if (typeof b.url === 'string') set('url', b.url.slice(0, 1000));
+    if ('embargo_at' in b) set('embargo_at', b.embargo_at || null);
+    if (PR_STATUSES.includes(b.status)) set('status', b.status);
+    if (!sets.length) return res.json({ updated: 0 });
+    vals.push(req.params.prId);
+    await db.query(`UPDATE pr_press_releases SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+    // Going to review (or beyond) needs a token for the client approval link.
+    if (['in_review', 'approved', 'sent'].includes(b.status)) await prPress.ensureReviewToken(req.params.prId);
+    const { rows } = await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId]);
+    res.json(rows[0]);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.delete('/press-releases/:prId', async (req, res) => {
+  try { await db.query('DELETE FROM pr_press_releases WHERE id = $1', [req.params.prId]); res.json({ deleted: 1 }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/press-releases/:prId/draft', async (req, res) => {
+  try {
+    const p = (await db.query('SELECT p.title, p.angle, p.key_facts, cl.name AS client FROM pr_press_releases p JOIN clients cl ON cl.id = p.client_id WHERE p.id = $1', [req.params.prId])).rows[0];
+    const d = await prPress.draftBody({ title: p.title, client: p.client, angle: p.angle, key_facts: p.key_facts });
+    if (d.error) return res.status(400).json(d);
+    await db.query('UPDATE pr_press_releases SET body_html = $1 WHERE id = $2', [d.body_html, req.params.prId]);
+    res.json({ body_html: d.body_html });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

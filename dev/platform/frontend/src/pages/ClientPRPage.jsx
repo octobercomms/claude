@@ -43,8 +43,66 @@ export default function ClientPRPage() {
   const [drafting, setDrafting] = useState(false);
   const [sendingThank, setSendingThank] = useState(false);
   const [thankSettings, setThankSettings] = useState(null); // { thank_stage, stages, record }
+  const [releases, setReleases] = useState([]);
+  const [pr, setPr] = useState(null); // null | release row being edited
+  const [prDrafting, setPrDrafting] = useState(false);
+  const [prSaving, setPrSaving] = useState(false);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
+
+  function loadReleases() {
+    api.get(`/pr/clients/${id}/press-releases`).then((r) => setReleases(r.items || [])).catch(() => {});
+  }
+  useEffect(() => { if (tab === 'press') loadReleases(); }, [tab, id]);
+
+  async function newRelease() {
+    try {
+      const row = await api.post(`/pr/clients/${id}/press-releases`, { title: '', brand: client?.name || '' });
+      setPr(row);
+    } catch (e) { toast(e.message, 'error'); }
+  }
+  async function openRelease(rid) {
+    try { setPr(await api.get(`/pr/press-releases/${rid}`)); } catch (e) { toast(e.message, 'error'); }
+  }
+  async function savePR(extra) {
+    if (!pr) return;
+    setPrSaving(true);
+    try {
+      const body = { title: pr.title, brand: pr.brand, angle: pr.angle, key_facts: pr.key_facts, body_html: pr.body_html, status: pr.status, url: pr.url, embargo_at: pr.embargo_at || null, ...(extra || {}) };
+      const row = await api.patch(`/pr/press-releases/${pr.id}`, body);
+      setPr(row);
+      if (!extra) { toast('Saved', 'success'); loadReleases(); }
+      return row;
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPrSaving(false); }
+  }
+  async function draftPR() {
+    if (!pr) return;
+    if (!pr.title) { toast('Add a headline first', 'error'); return; }
+    setPrDrafting(true);
+    try {
+      await savePR({}); // persist the brief before drafting
+      const r = await api.post(`/pr/press-releases/${pr.id}/draft`, {});
+      if (r.error) { toast(r.error, 'error'); return; }
+      setPr((p) => ({ ...p, body_html: r.body_html }));
+      toast('Draft written — review and edit', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPrDrafting(false); }
+  }
+  async function deletePR(row) {
+    if (!window.confirm('Delete this press release?')) return;
+    try { await api.delete(`/pr/press-releases/${row.id}`); if (pr && pr.id === row.id) setPr(null); loadReleases(); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+  function reviewUrl(token) { return `${window.location.origin}/press-release/${token}`; }
+  async function copyReviewLink() {
+    const row = await savePR({ status: pr.status === 'draft' ? 'in_review' : pr.status });
+    const token = row && row.review_token;
+    if (!token) { toast('Set status to In review to generate a link', 'error'); return; }
+    const url = reviewUrl(token);
+    try { await navigator.clipboard.writeText(url); toast('Client approval link copied', 'success'); }
+    catch { window.prompt('Client approval link:', url); }
+  }
 
   function loadThanks() {
     api.get(`/pr/clients/${id}/thank-opportunities`).then((r) => setThanks(r.items || [])).catch(() => {});
@@ -271,6 +329,7 @@ export default function ClientPRPage() {
         <button onClick={() => setTab('journalists')} className={'btn ' + (tab === 'journalists' ? 'btn-primary' : 'btn-secondary')}>Journalists</button>
         <button onClick={() => setTab('monitor')} className={'btn ' + (tab === 'monitor' ? 'btn-primary' : 'btn-secondary')}>Monitor{queue.length ? ` (${queue.length})` : ''}</button>
         <button onClick={() => setTab('thanks')} className={'btn ' + (tab === 'thanks' ? 'btn-primary' : 'btn-secondary')}>Thank-yous{thanks.length ? ` (${thanks.length})` : ''}</button>
+        <button onClick={() => setTab('press')} className={'btn ' + (tab === 'press' ? 'btn-primary' : 'btn-secondary')}>Press releases</button>
       </div>
 
       <div className="card">
@@ -361,7 +420,7 @@ export default function ClientPRPage() {
               </tbody>
             </table>
           </div>
-        ) : (
+        ) : tab === 'thanks' ? (
           <div>
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 12 }}>
               <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0, flex: 1, minWidth: 240 }}>
@@ -398,6 +457,59 @@ export default function ClientPRPage() {
                   </tr>
                 ))}
                 {!thanks.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No thank-yous waiting. They appear here once a piece is marked Published or Download and the journalist has an email on file.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        ) : pr ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <h3 className="h3" style={{ margin: 0 }}>{pr.title || 'New press release'}</h3>
+              <button className="btn btn-secondary btn-sm" onClick={() => { setPr(null); loadReleases(); }}>← All releases</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label className="field"><span className="field-label">Headline / working title</span><input className="input" value={pr.title || ''} onChange={(e) => setPr((p) => ({ ...p, title: e.target.value }))} placeholder="e.g. Forgeworks unveils House of Wood Shingle" /></label>
+              <label className="field"><span className="field-label">Brand</span><input className="input" value={pr.brand || ''} onChange={(e) => setPr((p) => ({ ...p, brand: e.target.value }))} /></label>
+              <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Angle / why it's newsworthy</span><textarea className="input" rows={2} value={pr.angle || ''} onChange={(e) => setPr((p) => ({ ...p, angle: e.target.value }))} placeholder="The hook a journalist would care about." /></label>
+              <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Key facts</span><textarea className="input" rows={4} value={pr.key_facts || ''} onChange={(e) => setPr((p) => ({ ...p, key_facts: e.target.value }))} placeholder="Who, what, where, when, numbers, quotes…" /></label>
+            </div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end', margin: '12px 0' }}>
+              <button className="btn btn-primary" disabled={prDrafting} onClick={draftPR}>{prDrafting ? 'Writing…' : '✍️ Draft with Claude'}</button>
+              <label className="field"><span className="field-label">Status</span><select className="input" value={pr.status || 'draft'} onChange={(e) => setPr((p) => ({ ...p, status: e.target.value }))}><option value="draft">Draft</option><option value="in_review">In review</option><option value="approved">Approved</option><option value="sent">Sent</option></select></label>
+              <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
+              <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+              <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
+              {pr.approved_at && <span className="chip chip-accent" style={{ alignSelf: 'center' }}>✓ Approved by {pr.approved_by || 'client'}</span>}
+            </div>
+            <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button className="btn btn-primary" disabled={prSaving} onClick={() => savePR()}>{prSaving ? 'Saving…' : 'Save'}</button>
+              <button className="btn btn-secondary" onClick={() => { setPr(null); loadReleases(); }}>Cancel</button>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>Write a release from a brief, have Claude draft it, then send a client approval link for sign-off.</p>
+              <button className="btn btn-primary" onClick={newRelease}>+ New press release</button>
+            </div>
+            <table className="table">
+              <thead><tr><th>Title</th><th>Brand</th><th>Status</th><th>Created</th><th></th></tr></thead>
+              <tbody>
+                {releases.map((r) => (
+                  <tr key={r.id}>
+                    <td><button className="link-btn" onClick={() => openRelease(r.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit' }}>{r.title || '(untitled)'}</button></td>
+                    <td>{r.brand || '—'}</td>
+                    <td><span className="chip">{({ draft: 'Draft', in_review: 'In review', approved: 'Approved', sent: 'Sent' })[r.status] || r.status}</span></td>
+                    <td>{fmtDate(r.created_at)}</td>
+                    <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openRelease(r.id)}>Edit</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => deletePR(r)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+                {!releases.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No press releases yet. Start from a brief and let Claude draft the release.</td></tr>}
               </tbody>
             </table>
           </div>
