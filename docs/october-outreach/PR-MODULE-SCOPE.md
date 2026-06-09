@@ -153,7 +153,10 @@ bylines/bio, Claude proposes beat tags. This reuses the existing
 `OO_Claude::analyze_tags()` + tag-plan apply pattern.
 
 Filtering UI: the Contacts list and finder gain a **Media / Commercial / All**
-toggle; PR pages are pre-filtered to Media.
+toggle; PR pages are pre-filtered to Media. The **Gmail add-on (§6)** is the
+fastest capture surface for both segments — sorting each person you email into
+press (media) or an industry type (commercial) at the moment you're looking at
+their signature.
 
 ---
 
@@ -425,6 +428,23 @@ outcomes. Three routes, in build order:
      status + one-line outcome (reusing `OO_Claude::classify_reply()`); confirm
      creates/updates the `oo_editorial_log` row and stores the `gmail_thread_id`
      ("linking" the thread).
+   - **Not in the database? Add them — into the right segment.** When the sender
+     isn't matched, the card flips to a one-tap **add contact**, with Claude
+     pre-filling name/company/title/location/website from the email signature +
+     sender domain. The team picks:
+     - **Press** → `segment = media`; tries to match/create the publication and
+       suggest beats. Feeds the PR flow.
+     - **Industry contact** → `segment = commercial`; Claude suggests a **contact
+       type** from the existing `get_contact_types()` (architect, interior
+       designer, **property developer**, etc.) and relevance **tags** (e.g.
+       "property developer — relevant to architecture clients"). Feeds **invite
+       lists and outreach** — so the add-on quietly grows the right industry lists
+       every time you email someone, not just the press DB.
+
+     The §5.1 duplicate-guard applies, so adding from Gmail never creates a dupe.
+     This makes the always-open sidebar the **shared capture surface for the whole
+     contacts DB** — both the Email/Outreach and PR modules — reinforcing the
+     media/commercial split in §4.
    - All via a new **authenticated OMI REST endpoint**
      (`/wp-json/oo/v1/...`); journalist matched by email (alias-aware).
    - Separate deployable per the two-folder rule: `dev/oo-gmail-addon/` (+
@@ -673,7 +693,7 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 | **6** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
 | **6b** | Outlet & journalist **profile pages** (coverage history, Claude summary/tags, notes, maternity/availability, photo) | 4–6 days |
 | **7** | Journalist Finder (media variant of contact finder) + extend byline catalogue + Claude beat tagging | 5–8 days |
-| **8** | **Gmail Add-on**: OMI REST API + contextual sidebar (journalist/publication summary, edit-in-place), "log thread" + living-link status auto-advance on open; forward/BCC fallback | 8–12 days |
+| **8** | **Gmail Add-on**: OMI REST API + contextual sidebar (journalist/publication summary, edit-in-place), "log thread" + living-link status auto-advance on open, **add unknown senders into media/commercial segment**; forward/BCC fallback | 9–13 days |
 | **8b** | Gmail API OAuth sync — background status auto-advance via watch/push (heavier — Google verification) | 6–9 days |
 
 Phases are independently shippable. Phase 0 unblocks everything; **Phases 1–4 are
