@@ -14,13 +14,18 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   (normalise → fuzzy cluster), Claude adjudication of fuzzy clusters, Media
   Database page with a "find duplicates" review/merge tool, alias-aware
   resolver wired into the importer so future imports don't re-duplicate.
-- ✅ **Phase 2 (CSV)** (this branch): master Publications + Press Contacts CSV
+- ✅ **Phase 2 (CSV)** (merged): master Publications + Press Contacts CSV
   importers routed through the alias-aware resolvers; new contact fields
   (`bio_link`, `last_contacted`, `outlet_id`); shared `OO_Dedup::resolve_contact`
   (email-then-name) so log + master imports converge on one record per
-  journalist. Notion-API path still to come.
-- ⬜ Next: Phase 2 (Notion API sync), Phase 3 (analytics), Phase 4 (client
-  portal + reports), then 5–8.
+  journalist.
+- ✅ **Phase 3** (this branch): journalist ↔ coverage analytics — `OO_Analytics`
+  (relationship strength, hit rate, "gone quiet"), a Journalists leaderboard
+  (per-client scoping, search) and per-journalist drill-down with coverage
+  history.
+- ❌ **Notion API sync — dropped.** October is retiring Notion for this; the
+  one-time CSV import is the migration, OMI is the sole system of record.
+- ⬜ Next: Phase 4 (client portal + reports), then 5–8.
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for
@@ -80,9 +85,10 @@ to the right people.
   (Cafeyn/Readly) is a separate later track** — see §6 for why (no self-serve
   API; DRM/ToS rule out browser scraping).
 - **Editorial log: OMI is the system of record** (not Notion) — so journalist
-  contacts and coverage live together and can be joined for analytics. Notion's
-  free API migrates the existing 4,371-row log in; clients get self-serve
-  **token URLs + downloadable + weekly auto reports**. See §6–§7.
+  contacts and coverage live together and can be joined for analytics. A one-time
+  **CSV import** migrates the existing 4,371-row log in (Notion is being retired
+  for this — no ongoing API sync); clients get self-serve **token URLs +
+  downloadable + weekly auto reports**. See §6–§7.
 - **Profiles + Gmail capture:** dedicated outlet & journalist profile pages
   (coverage history, Claude summary/tags, notes, maternity/availability, photo —
   §5.2), and a **Gmail "log this thread" button** so real conversations reach the
@@ -309,17 +315,17 @@ and coverage**. That join only exists if coverage lives in the same database as
 the contacts. Syncing a flattened copy to Notion (or vice-versa) throws it away.
 
 **So coverage/the editorial log moves into OMI, with `contact_id` and `outlet_id`
-as first-class foreign keys.** The **free Notion API** (any workspace; rate-limited
-~3 req/s, no cost) is used not as the destination but as the **migration tool**:
-a one-off import of the 4,371 rows that resolves each `Press Contact` → an
-`oo_contacts` row (`segment = media`, created if missing) and each `Publication`
-→ an `oo_outlets` row, by name. A one-way Notion→OMI sync can run during a
-transition window so the team isn't forced to switch cold.
+as first-class foreign keys.** Migration is a **one-time CSV import** of the
+exported log — each row resolves its `Press Contact` → an `oo_contacts` row
+(`segment = media`, created if missing) and its `Publication` → an `oo_outlets`
+row, by name. **October is retiring Notion for this workflow**, so there is *no*
+ongoing Notion API sync — OMI is the sole home (decision confirmed; the
+earlier Notion-API option is dropped).
 
-> CSV import works today as a zero-integration fallback — the exported log
-> (`Story Title, Client, Country, Interview Date, Issue Date, Link to story,
-> Notes/Outcome, Pitch/Request, Press Contact, Publication name, Request Date,
-> Status`) can seed the table before the Notion API sync is built.
+> The exported log columns (`Story Title, Client, Country, Interview Date,
+> Issue Date, Link to story, Notes/Outcome, Pitch/Request, Press Contact,
+> Publication name, Request Date, Status`) map straight into the importer —
+> ✅ built in Phase 1.
 
 ### Table: `oo_editorial_log`
 
@@ -680,9 +686,8 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 
 - **New API keys** (Settings → new "PR & Coverage" card): webz.io key.
   Serper key already exists. Google Alerts = paste RSS feed URL(s) per client.
-- **Notion integration** (free): internal integration token + the Editorial Log
-  database ID, used for the one-off migration import and the optional transition
-  sync. Free tier, ~3 req/s — fine for a batched 4,371-row import.
+- **Notion**: no integration — migration is a one-time CSV import (✅ Phase 1/2);
+  Notion is being retired for this workflow, so there's no API key or sync.
 - **archive.is**: no key; on-demand fetch.
 - **Module toggle**: `enable_pr` shows/hides the whole PR menu.
 - **3rd-party media list (future):** leave a documented import adapter seam
@@ -697,7 +702,7 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 |---|---|---|
 | **0** | Contacts `segment` split + Media/Commercial filtering; `enable_pr` toggle; PR menu shell | 2–3 days |
 | **1** | `oo_editorial_log` table + internal log UI + CSV import of the existing log | 3–4 days |
-| **2** | Master import (Notion API / CSV) of 1,581 outlets + 2,181 contacts + bylines → `oo_outlets`/`oo_contacts`/`oo_articles`, resolving Press Contact & Publication relations | 4–6 days |
+| **2** | Master import (CSV) of 1,581 outlets + 2,181 contacts → `oo_outlets`/`oo_contacts`, resolving Press Contact & Publication relations | 4–6 days |
 | **2b** | AI deduplication pipeline (normalise → fuzzy block → Claude "Do you mean X?" review + merge) + ongoing duplicate-guard on create | 4–6 days |
 | **3** | Journalist ↔ coverage analytics (counts, last-featured, hit-rate, relationship strength) | 3–4 days |
 | **4** | Client portal (token URL, Published+pipeline, download report) + weekly automated reports & alerts | 5–7 days |
@@ -723,7 +728,8 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
 - **Media database:** build our own, reuse existing infra. *(no 3rd-party licence in v1)*
 - **Coverage sources:** all of them, phased; print/magazine is a separate later track.
 - **Editorial log source of truth:** **OMI**, not Notion — to keep the
-  contacts↔coverage join. Notion's free API is the migration tool; CSV import as fallback.
+  contacts↔coverage join. Migration is a one-time CSV import; **Notion is being
+  retired for this, no API sync.**
 - **Client public view:** **Published + pipeline, no internal notes.**
 
 ### Still open
@@ -734,10 +740,8 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
    `brand` list. So we likely need a dedicated lightweight **`clients`** concept
    (name, token, report cadence, alert email) rather than reusing `brand`.
    (Recommend: add `oo_clients`; it's also what the portal/token model needs.)
-3. **Transition sync** — one-off Notion import only, or keep a one-way
-   Notion→OMI sync running for a few weeks while the team switches?
-   (Recommend: import first; add a manual "re-sync from Notion" button before
-   committing to scheduled sync.)
+3. **Transition sync** — *Resolved:* none. Notion is being retired for this
+   workflow; the one-time CSV import is the whole migration.
 4. **Report export format** — HTML email + PDF, or HTML only for v1?
    (Recommend: HTML email first, on-demand PDF in Phase 4.)
 5. **AVE / reach metrics** — do clients want estimated reach/AVE in reports, or
