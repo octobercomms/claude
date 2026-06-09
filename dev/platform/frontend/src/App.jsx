@@ -23,7 +23,6 @@ import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
 import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
-import MediaPage from './pages/MediaPage';
 import JournalistProfilePage from './pages/JournalistProfilePage';
 import OutletProfilePage from './pages/OutletProfilePage';
 import PublicCoveragePage from './pages/PublicCoveragePage';
@@ -66,7 +65,7 @@ export default function App() {
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="clients/:id/pr" element={<ClientPRPage />} />
-            <Route path="media" element={<MediaPage />} />
+            <Route path="media" element={<Navigate to="/settings?tab=publications" replace />} />
             <Route path="media/journalist/:id" element={<JournalistProfilePage />} />
             <Route path="media/outlet/:id" element={<OutletProfilePage />} />
             <Route path="reports" element={<ReportsPage />} />
