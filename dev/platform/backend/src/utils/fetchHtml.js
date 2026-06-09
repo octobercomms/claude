@@ -1,18 +1,20 @@
 // Fetch-with-fallback: get a URL's HTML over plain axios, and when that
-// response looks like a bot-challenge or an empty JS shell, retry through the
-// Camofox stealth browser. This is the integration seam for Camofox — the
-// scrapers (siteAudit, competitorPages) call this instead of axios directly.
+// response looks like a bot-challenge or an empty JS shell, retry through
+// FlareSolverr (a stealth proxy that solves the challenge and returns the
+// rendered page HTML). This is the integration seam for stealth fetching —
+// the scrapers (siteAudit, competitorPages) call this instead of axios
+// directly.
 //
 // Design guarantees:
 //  - Cheap path first: the overwhelming majority of pages are fetched by axios
-//    exactly as today; Camofox is only reached for the minority that need it.
-//  - Never throws: a Camofox outage, a missing config, or an empty render all
+//    exactly as today; the solver is only reached for the minority that need it.
+//  - Never throws: a solver outage, a missing config, or an empty render all
 //    fall back to the original axios result, so behaviour degrades to exactly
 //    today's rather than breaking the caller.
 //  - Always reports which path served the response via `via`.
 
 const axios = require('axios');
-const camofox = require('../services/camofox');
+const flaresolverr = require('../services/flaresolverr');
 const { needsStealthFetch } = require('./challengeDetect');
 
 const DEFAULT_UA =
@@ -54,32 +56,32 @@ async function fetchRenderedHtml(url, opts = {}) {
     return { ...axiosResult, via: 'axios' };
   }
 
-  // Fallback only makes sense if a Camofox sidecar is actually configured.
+  // Fallback only makes sense if a FlareSolverr instance is actually configured.
   let configured = false;
   try {
-    configured = await camofox.isConfigured();
+    configured = await flaresolverr.isConfigured();
   } catch {
     configured = false;
   }
   if (!configured) {
-    return { ...axiosResult, via: 'axios', fallbackSkipped: 'camofox_not_configured' };
+    return { ...axiosResult, via: 'axios', fallbackSkipped: 'flaresolverr_not_configured' };
   }
 
   try {
-    const html = await camofox.renderHtml(url, opts);
-    if (html) {
+    const solved = await flaresolverr.render(url, opts);
+    if (solved && solved.html) {
       return {
-        status: 200,
-        html,
+        status: solved.status || 200,
+        html: solved.html,
         contentType: 'text/html',
         responseMs: axiosResult.responseMs,
-        finalUrl: axiosResult.finalUrl || url,
-        via: 'camofox',
+        finalUrl: solved.finalUrl || axiosResult.finalUrl || url,
+        via: 'flaresolverr',
       };
     }
-    // Seam not yet wired (renderHtml returns null until verified against a live
-    // instance) or an empty render — keep the axios result so the caller still
-    // sees the challenge/shell and can flag it (e.g. siteAudit's waf_blocked).
+    // Solver couldn't solve it (or returned nothing) — keep the axios result so
+    // the caller still sees the challenge/shell and can flag it (e.g.
+    // siteAudit's waf_blocked).
     return { ...axiosResult, via: 'axios', fallbackEmpty: true };
   } catch (err) {
     return { ...axiosResult, via: 'axios', fallbackError: err.message };

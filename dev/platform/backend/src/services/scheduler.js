@@ -394,25 +394,27 @@ async function runConnectorHealthCheck() {
       errorMessage: r.error_message,
     }));
 
-    // Platform-level infra: the Camofox stealth browser is a shared scraping
-    // fallback, not a per-client connector, so it isn't in the connectors
-    // table. Ping it directly and fold any outage into the same alert — a
-    // dead Camofox silently degrades competitor/SERP scraping otherwise.
-    try {
-      const camofox = require('./camofox');
-      if (await camofox.isConfigured()) {
-        const h = await camofox.health();
-        if (!h.ok) {
-          issues.push({
-            clientName: 'Platform',
-            connectorType: 'camofox (stealth browser)',
-            status: 'error',
-            errorMessage: h.message,
-          });
+    // Platform-level infra: the stealth-fetch backends are shared scraping
+    // fallbacks, not per-client connectors, so they aren't in the connectors
+    // table. Ping each configured one and fold any outage into the same alert —
+    // a dead solver silently degrades competitor/SERP/site-audit scraping.
+    for (const svc of ['flaresolverr', 'camofox']) {
+      try {
+        const mod = require(`./${svc}`);
+        if (await mod.isConfigured()) {
+          const h = await mod.health();
+          if (!h.ok) {
+            issues.push({
+              clientName: 'Platform',
+              connectorType: `${svc} (stealth fetch)`,
+              status: 'error',
+              errorMessage: h.message,
+            });
+          }
         }
+      } catch (svcErr) {
+        console.error(`[Scheduler] ${svc} health check failed:`, svcErr.message);
       }
-    } catch (camofoxErr) {
-      console.error('[Scheduler] Camofox health check failed:', camofoxErr.message);
     }
 
     if (!issues.length) {

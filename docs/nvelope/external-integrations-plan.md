@@ -26,7 +26,20 @@ re-litigated later.
 
 ---
 
-## Integration 1 — Camofox stealth browser (shared scraping fallback)
+## Integration 1 — stealth scraping fallback (FlareSolverr; camofox retained)
+
+> **Revision (2026-06-09).** During slice 3, reading camofox-browser's source
+> confirmed it **deliberately returns no raw HTML** — only an accessibility
+> snapshot ("token-efficient, not bloated HTML"). Our scrapers parse HTML with
+> cheerio, so camofox can't feed them. **Decision: swap the HTML render backend
+> to [FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)** — a stealth
+> proxy purpose-built to solve Cloudflare/WAF challenges and return the rendered
+> page HTML (`solution.response`), which drops straight into the
+> `fetchRenderedHtml` seam. The camofox client is **retained** in the codebase
+> for future agentic/snapshot use, but is no longer the scraper fallback.
+> Sections below that say "Camofox" for the HTML path now mean FlareSolverr;
+> the architecture (detect challenge → stealth fallback → degrade to axios) is
+> unchanged.
 
 ### The problem it solves
 
@@ -142,20 +155,23 @@ connector statuses rather than silently degrading scrapes.
    box per the deploy note — an ops step, not a repo change.)
 2. ✅ **`fetchRenderedHtml` wrapper** (**done**) — `src/utils/challengeDetect.js`
    (pure: Cloudflare/Sucuri markers, 401/403/429/503-with-HTML, JS-shell
-   detection) + `src/utils/fetchHtml.js` (`fetchRenderedHtml`: axios → fallback
-   on detection → never throws, always tags `via`) + `camofox.renderHtml()`
-   **seam** (returns `null` until the raw-HTML path is confirmed on a live
-   instance, so the wrapper degrades to the axios result). 15-assertion fixture
-   test in `challengeDetect.test.js` (run with `node`).
+   detection) + `src/utils/fetchHtml.js` (`fetchRenderedHtml`: axios → stealth
+   fallback on detection → never throws, always tags `via`). 15-assertion
+   fixture test in `challengeDetect.test.js`.
 3. ✅ **Wire competitorPages + siteAudit** (**code-complete**) — both scrapers
-   now fetch via `fetchRenderedHtml` (`siteAudit.fetchPage`,
-   `competitorPages.scrapePage`), the SSRF guard + 2xx contract + audit
-   user-agent are preserved, and `siteAudit` gains the **`waf_blocked`** issue
-   category (medium severity) so bot-challenge / JS-shell pages stop being
-   mis-filed as high-severity `broken_link` — a real fix *today*, independent
-   of Camofox. The stealth-render benefit activates automatically once the
-   sidecar is live and `camofox.renderHtml()` is completed (the only remaining
-   step, gated on a running instance — see slice 2's seam).
+   fetch via `fetchRenderedHtml` (`siteAudit.fetchPage`,
+   `competitorPages.scrapePage`), SSRF guard + 2xx contract + audit user-agent
+   preserved, and `siteAudit` gains the **`waf_blocked`** issue category
+   (medium) so challenge/JS-shell pages stop being mis-filed as high-severity
+   `broken_link` — a real fix *today*.
+4. ✅ **FlareSolverr render backend** (**done** — the camofox→FlareSolverr swap
+   from the revision note) — `src/services/flaresolverr.js`
+   (`isConfigured`/`health`/`render` returning solved HTML), wired into
+   `fetchHtml.js` as the stealth path, `FLARESOLVERR_URL` in `SETTINGS_KEYS`,
+   health ping added to the daily cron. **No code unknowns remain** — the only
+   outstanding step is the ops task of running FlareSolverr (`docker run
+   ghcr.io/flaresolverr/flaresolverr`, bind `127.0.0.1:8191`) and setting
+   `FLARESOLVERR_URL`; the stealth path then activates automatically.
 
 ---
 

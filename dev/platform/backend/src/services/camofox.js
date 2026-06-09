@@ -119,18 +119,11 @@ async function fetchSnapshot(url, { userId = DEFAULT_USER, includeScreenshot = f
   }
 }
 
-// SEAM (Camofox slice 3): return rendered DOM *HTML* for a URL, for callers
-// (siteAudit, competitorPages) that parse with cheerio and therefore need real
-// HTML, not the accessibility snapshot fetchSnapshot() returns.
-//
-// camofox-browser's documented content endpoint is the a11y snapshot; whether
-// it also exposes raw page HTML (e.g. a content/outerHTML route) has to be
-// confirmed against a running instance. Until that's verified this returns
-// null on purpose, so fetchRenderedHtml() cleanly degrades to the axios
-// result rather than guessing an endpoint. See
-// docs/nvelope/external-integrations-plan.md (Camofox slice 2 open question).
-async function renderHtml(/* url, opts = {} */) {
-  return null;
-}
+// NOTE: camofox-browser deliberately returns NO raw HTML — only the
+// accessibility snapshot (its "token-efficient, not bloated HTML" design). It
+// therefore can't feed the cheerio-based scrapers, so the fetch-with-fallback
+// wrapper (utils/fetchHtml.js) uses FlareSolverr (services/flaresolverr.js)
+// for the HTML render path instead. This module is retained for future
+// agentic / snapshot-based features (fetchSnapshot above).
 
-module.exports = { isConfigured, health, openTab, closeTab, fetchSnapshot, renderHtml };
+module.exports = { isConfigured, health, openTab, closeTab, fetchSnapshot };
