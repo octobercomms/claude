@@ -56,9 +56,9 @@ export default function MediaPage() {
 
   return (
     <div className="suite-media">
-      <div className="kicker"><span className="pip" /><span>Media database • Publications</span></div>
+      <div className="kicker"><span className="pip" /><span>Press • Publications</span></div>
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
-        <h1 className="display">Media DB</h1>
+        <h1 className="display">Press</h1>
         <button className="btn btn-primary" disabled={scanning} onClick={scan}>{scanning ? 'Scanning…' : '🔍 Find duplicate publications'}</button>
       </header>
 
