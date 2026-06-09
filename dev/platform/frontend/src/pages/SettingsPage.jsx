@@ -237,6 +237,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'Stealth Scraping (FlareSolverr)',
+    category: 'Other',
+    hint: 'Optional. A FlareSolverr instance that solves Cloudflare/WAF challenges so the Site Audit and Competitor Tracker can read pages that block plain requests. Run it on the box (docker run -d --restart unless-stopped -p 127.0.0.1:8191:8191 ghcr.io/flaresolverr/flaresolverr), then put its URL here. Leave blank to keep scrapers on the direct-fetch path.',
+    test: 'flaresolverr',
+    keys: [
+      { key: 'FLARESOLVERR_URL', label: 'FlareSolverr URL', placeholder: 'http://127.0.0.1:8191', type: 'text' },
+    ],
+  },
+  {
     title: 'Alerts',
     category: 'Other',
     hint: 'Email address for platform alerts — connector failures, token expiry, and daily health check summaries.',
@@ -263,7 +272,7 @@ const CATEGORIES = [
   { title: 'Ecommerce & Inventory', description: 'Shopify, Amazon Seller and Zoho Inventory.' },
   { title: 'SEO', description: 'Keyword rank tracking, backlinks and search volume.' },
   { title: 'Outreach', description: 'Contact-finding, AI-drafted emails and reply tracking for cold outreach.' },
-  { title: 'Other', description: 'Webhooks and platform alerts.' },
+  { title: 'Other', description: 'Webhooks, stealth scraping and platform alerts.' },
 ];
 
 export default function SettingsPage() {
@@ -277,6 +286,8 @@ export default function SettingsPage() {
   const [testMsg, setTestMsg] = useState('');
   const [testingDfs, setTestingDfs] = useState(false);
   const [dfsTestMsg, setDfsTestMsg] = useState(null);
+  const [testingFs, setTestingFs] = useState(false);
+  const [fsTestMsg, setFsTestMsg] = useState(null);
   const [openCategories, setOpenCategories] = useState({});
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get('tab') || 'general');
 
@@ -376,6 +387,22 @@ export default function SettingsPage() {
       setDfsTestMsg({ ok: false, message: err.message });
     } finally {
       setTestingDfs(false);
+    }
+  }
+
+  async function handleTestFlareSolverr() {
+    setTestingFs(true);
+    setFsTestMsg(null);
+    try {
+      // Real end-to-end solve can take 10–20s while the browser spins up.
+      const result = await api.post('/settings/test-flaresolverr', {
+        url: values.FLARESOLVERR_URL,
+      });
+      setFsTestMsg(result);
+    } catch (err) {
+      setFsTestMsg({ ok: false, message: err.message });
+    } finally {
+      setTestingFs(false);
     }
   }
 
@@ -499,6 +526,24 @@ export default function SettingsPage() {
                                 Sent login <code>{dfsTestMsg.sent.login}</code>, password {dfsTestMsg.sent.passwordLength} chars ({dfsTestMsg.sent.passwordPreview}){dfsTestMsg.code != null ? `. DataForSEO code ${dfsTestMsg.code}` : ''}.
                               </div>
                             )}
+                          </div>
+                        )}
+                        {group.test === 'flaresolverr' && (
+                          <div style={{ marginTop: 12 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <button type="button" onClick={handleTestFlareSolverr} disabled={testingFs}
+                                className="btn btn-primary" style={{ padding: '7px 14px', fontSize: 12 }}>
+                                {testingFs ? 'Testing… (can take ~15s)' : 'Test connection'}
+                              </button>
+                              {fsTestMsg && (
+                                <span style={{ fontSize: 12, color: fsTestMsg.ok ? 'var(--positive)' : 'var(--negative)' }}>
+                                  {fsTestMsg.ok ? '✓ ' : '✗ '}{fsTestMsg.message}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6, lineHeight: 1.5 }}>
+                              Pings the service and solves a sample page end-to-end. Save the URL first if you've just changed it.
+                            </div>
                           </div>
                         )}
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
