@@ -29,6 +29,11 @@ class OO_Admin {
         add_action( 'admin_post_oo_delete_client', array( $this, 'delete_client' ) );
         add_action( 'admin_post_oo_sync_clients', array( $this, 'sync_clients' ) );
         add_action( 'admin_post_oo_send_client_report', array( $this, 'send_client_report' ) );
+        add_action( 'admin_post_oo_save_search', array( $this, 'save_search' ) );
+        add_action( 'admin_post_oo_delete_search', array( $this, 'delete_search' ) );
+        add_action( 'admin_post_oo_run_search', array( $this, 'run_search_now' ) );
+        add_action( 'admin_post_oo_confirm_coverage', array( $this, 'confirm_coverage' ) );
+        add_action( 'admin_post_oo_dismiss_coverage', array( $this, 'dismiss_coverage' ) );
     }
 
     public function send_client_report() {
@@ -38,6 +43,84 @@ class OO_Admin {
         $res = OO_Reports::send_client_report( $id, true );
         $arg = is_wp_error( $res ) ? 'report_error=' . rawurlencode( $res->get_error_message() ) : 'report_sent=1';
         wp_redirect( admin_url( 'admin.php?page=oo-clients&' . $arg ) );
+        exit;
+    }
+
+    // ── Coverage Monitor ───────────────────────────────────
+
+    public function save_search() {
+        check_admin_referer( 'oo_save_search' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $sources = array();
+        if ( ! empty( $_POST['src_serper'] ) ) $sources[] = 'serper';
+        if ( ! empty( $_POST['src_alerts'] ) ) $sources[] = 'alerts';
+        if ( ! $sources ) $sources[] = 'serper';
+
+        $cadence = in_array( $_POST['cadence'] ?? 'daily', array( 'daily', 'weekly' ), true ) ? $_POST['cadence'] : 'daily';
+
+        $data = array(
+            'client'     => sanitize_text_field( $_POST['client'] ?? '' ),
+            'query'      => sanitize_text_field( $_POST['query'] ?? '' ),
+            'sources'    => implode( ',', $sources ),
+            'alerts_rss' => esc_url_raw( $_POST['alerts_rss'] ?? '' ),
+            'cadence'    => $cadence,
+            'status'     => 'active',
+        );
+        $id = intval( $_POST['search_id'] ?? 0 );
+        if ( $id ) {
+            $wpdb->update( $wpdb->prefix . 'oo_coverage_searches', $data, array( 'id' => $id ) );
+        } else {
+            $wpdb->insert( $wpdb->prefix . 'oo_coverage_searches', $data );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-monitor&saved=1' ) );
+        exit;
+    }
+
+    public function delete_search() {
+        check_admin_referer( 'oo_delete_search' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['search_id'] ?? 0 );
+        if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_coverage_searches', array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-monitor&deleted=1' ) );
+        exit;
+    }
+
+    public function run_search_now() {
+        check_admin_referer( 'oo_run_search' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id     = intval( $_POST['search_id'] ?? 0 );
+        $search = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}oo_coverage_searches WHERE id = %d", $id ) );
+        $found  = $search ? OO_Monitor::run_search( $search ) : 0;
+        wp_redirect( admin_url( 'admin.php?page=oo-monitor&found=' . intval( $found ) ) );
+        exit;
+    }
+
+    public function confirm_coverage() {
+        check_admin_referer( 'oo_confirm_coverage' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['entry_id'] ?? 0 );
+        if ( $id ) {
+            $wpdb->update( $wpdb->prefix . 'oo_editorial_log', array( 'status' => 'published' ), array( 'id' => $id ) );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-monitor&confirmed=1' ) );
+        exit;
+    }
+
+    public function dismiss_coverage() {
+        check_admin_referer( 'oo_dismiss_coverage' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['entry_id'] ?? 0 );
+        // Keep the row as 'dismissed' so the same URL isn't re-ingested next run.
+        if ( $id ) {
+            $wpdb->update( $wpdb->prefix . 'oo_editorial_log', array( 'status' => 'dismissed' ), array( 'id' => $id ) );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-monitor&dismissed=1' ) );
         exit;
     }
 
@@ -70,8 +153,9 @@ class OO_Admin {
             add_menu_page( 'October PR', 'PR', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ), 'dashicons-megaphone', 31 );
             add_submenu_page( 'oo-pr', 'Editorial Log',  'Editorial Log',  'manage_options', 'oo-pr',           array( $this, 'page_editorial_log' ) );
             add_submenu_page( 'oo-pr', 'Journalists',    'Journalists',    'manage_options', 'oo-journalists',  array( $this, 'page_journalists' ) );
-            add_submenu_page( 'oo-pr', 'Media Database', 'Media Database', 'manage_options', 'oo-media',        array( $this, 'page_media_database' ) );
-            add_submenu_page( 'oo-pr', 'Clients',        'Clients',        'manage_options', 'oo-clients',      array( $this, 'page_clients' ) );
+            add_submenu_page( 'oo-pr', 'Media Database',   'Media Database',   'manage_options', 'oo-media',     array( $this, 'page_media_database' ) );
+            add_submenu_page( 'oo-pr', 'Coverage Monitor', 'Coverage Monitor', 'manage_options', 'oo-monitor',   array( $this, 'page_coverage_monitor' ) );
+            add_submenu_page( 'oo-pr', 'Clients',          'Clients',          'manage_options', 'oo-clients',   array( $this, 'page_clients' ) );
         }
     }
 
@@ -139,6 +223,7 @@ class OO_Admin {
     public function page_journalists()    { $this->render( 'journalists',    'pr' ); }
     public function page_media_database() { $this->render( 'media-database', 'pr' ); }
     public function page_clients()        { $this->render( 'clients',        'pr' ); }
+    public function page_coverage_monitor() { $this->render( 'coverage-monitor', 'pr' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';

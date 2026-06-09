@@ -33,11 +33,31 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   (daily Action Scheduler tick → weekly/monthly Claude-written digest via the
   mailer), a "Send report now" button, and a "you've been featured" alert on a
   manual transition to Published. `OO_Claude::write_coverage_report`.
-- ✅ **Phase 5 — fast logging** (this branch): ⚡ paste-a-URL → Claude auto-fills
+- ✅ **Phase 5 — fast logging** (merged): ⚡ paste-a-URL → Claude auto-fills
   the log entry (`extract_story_meta`), and alias-aware typeahead on the
   publication/press-contact fields to prevent duplicates at entry.
-- ⬜ Next: coverage monitor + thank-you engine, press-release wizard, profiles,
-  Gmail add-on.
+- ✅ **Phase 6 — coverage monitor** (this branch): `oo_coverage_searches` +
+  `OO_Monitor` (Serper Google News + Google Alerts RSS adapters, alias-aware
+  outlet matching, URL de-dupe) → auto-logs as `new`; daily Action Scheduler
+  tick; Coverage Monitor page with saved searches (run-now) + a confirm/dismiss
+  review queue. Auto-found rows are hidden from the main log until confirmed.
+- ⬜ Next: thank-you engine, press-release wizard, profiles, Gmail add-on; plus
+  the **dual-surface** track below.
+
+### Architecture: dual-surface (plugin + nvelope) — confirmed direction
+
+The PR module should be usable in **both** the WordPress plugin **and**
+platform.octobercomms.com (nvelope). To avoid duplicating business logic:
+
+- **WordPress plugin = single source of truth + backend** (all data, dedup,
+  analytics, portal, reports, monitor — already built here).
+- **Plugin exposes a REST API** (`/wp-json/oo/v1/…`, authenticated) — the same
+  API the Gmail add-on needs.
+- **nvelope consumes that API** and renders the PR module inside the platform
+  UI. Same data, two front-ends, no logic duplication.
+
+Workstream order: keep completing backend features in the plugin → stand up the
+REST API → build the nvelope front-end against it. (New dedicated track.)
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for
