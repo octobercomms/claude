@@ -14,6 +14,16 @@ const outreachSender = require('../services/outreachSender');
 const outreachVerification = require('../services/outreachVerification');
 const outreachMailboxes = require('../services/outreachMailboxes');
 const outreachTasks = require('../services/outreachTasks');
+const pr = require('../services/pr');
+
+// Map a free-text "Type" column value to the unified contact kind.
+function contactKind(v) {
+  const s = String(v == null ? '' : v).trim().toLowerCase();
+  if (!s) return 'prospect';
+  if (/press|media|journalist|editor|reporter|writer|freelance/.test(s)) return 'media';
+  if (/industry|commercial|\bpr\b|agency|partner|supplier|brand/.test(s)) return 'industry';
+  return 'prospect';
+}
 
 // Verifier for the track-link HMAC. Returns true if the supplied
 // signature matches what outreachSender would have produced for this
@@ -303,6 +313,10 @@ function buildLibraryFilter(req, q) {
     )`);
   }
   if (q.contact_type) { params.push(q.contact_type); where.push(`c.contact_type = $${params.length}`); }
+  if (q.kind) {
+    const arr = Array.isArray(q.kind) ? q.kind : String(q.kind).split(',').map(s => s.trim()).filter(Boolean);
+    if (arr.length) { params.push(arr); where.push(`c.kind = ANY($${params.length})`); }
+  }
   if (q.search) {
     params.push(`%${String(q.search).toLowerCase()}%`);
     where.push(`(LOWER(COALESCE(c.name, '')) LIKE $${params.length} OR LOWER(COALESCE(c.email, '')) LIKE $${params.length} OR LOWER(COALESCE(c.company, '')) LIKE $${params.length})`);
@@ -935,6 +949,9 @@ router.post('/contacts/bulk', async (req, res) => {
       const tags = normaliseTags(c.tags);
       const combinedName = c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || null;
       const emailLower = c.email ? String(c.email).toLowerCase() : null;
+      const kind = ['media', 'industry', 'prospect'].includes(c.kind) ? c.kind : contactKind(c.kind);
+      // Press contacts link to a Publication; resolve/create it from the company column.
+      const outletId = (kind === 'media' || kind === 'industry') && c.company ? await pr.resolveOutlet(c.company) : null;
       let row = null;
       if (emailLower) {
         const { rows: existing } = await pool.query(
@@ -943,16 +960,16 @@ router.post('/contacts/bulk', async (req, res) => {
         );
         if (existing.length) {
           row = existing[0];
-          // Merge new tags in; keep existing fields intact rather than
-          // letting a sparse CSV stomp over richer library data.
-          if (tags.length) {
-            const merged = Array.from(new Set([...(row.tags || []), ...tags]));
-            const upd = await pool.query(
-              'UPDATE outreach_contacts SET tags = $1, updated_at = NOW() WHERE id = $2 RETURNING *',
-              [merged, row.id]
-            );
-            row = upd.rows[0];
-          }
+          // Merge new tags in and, if this row was a bare prospect, upgrade it
+          // to the imported press kind — but otherwise keep existing richer data.
+          const merged = tags.length ? Array.from(new Set([...(row.tags || []), ...tags])) : (row.tags || []);
+          const upgradeKind = row.kind === 'prospect' && kind !== 'prospect' ? kind : row.kind;
+          const upgradeOutlet = row.outlet_id || outletId;
+          const upd = await pool.query(
+            'UPDATE outreach_contacts SET tags = $1, kind = $2, outlet_id = $3, updated_at = NOW() WHERE id = $4 RETURNING *',
+            [merged, upgradeKind, upgradeOutlet, row.id]
+          );
+          row = upd.rows[0];
           reused++;
         }
       }
@@ -960,8 +977,8 @@ router.post('/contacts/bulk', async (req, res) => {
         const { rows } = await pool.query(
           `INSERT INTO outreach_contacts
              (client_id, name, first_name, last_name, email, company, role, title,
-              contact_type, location, linkedin_url, source, website, tags)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+              contact_type, location, linkedin_url, source, website, tags, kind, outlet_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
            RETURNING *`,
           [
             client_id || null, combinedName,
@@ -970,7 +987,7 @@ router.post('/contacts/bulk', async (req, res) => {
             c.role || c.title || null, c.title || null,
             c.contact_type || null, c.location || null,
             c.linkedin_url || null, c.source || null,
-            c.website || null, tags,
+            c.website || null, tags, kind, outletId,
           ]
         );
         row = rows[0];

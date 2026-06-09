@@ -872,6 +872,7 @@ function ContactsLibrary() {
   const [clients, setClients] = useState([]);
   const [tags, setTags] = useState([]);
   const [search, setSearch] = useState('');
+  const [kindFilter, setKindFilter] = useState('all'); // all | press | prospect
   const [activeTags, setActiveTags] = useState(() => new Set());
   const [selected, setSelected] = useState(() => new Set());
   const [err, setErr] = useState(null);
@@ -899,6 +900,8 @@ function ContactsLibrary() {
     p.set('include_totals', '1');
     p.set('include_count', '1');
     if (search.trim()) p.set('search', search.trim());
+    if (kindFilter === 'press') p.set('kind', 'media,industry');
+    else if (kindFilter === 'prospect') p.set('kind', 'prospect');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
     return p;
   }
@@ -908,6 +911,8 @@ function ContactsLibrary() {
   function filterBody() {
     const o = {};
     if (search.trim()) o.search = search.trim();
+    if (kindFilter === 'press') o.kind = ['media', 'industry'];
+    else if (kindFilter === 'prospect') o.kind = ['prospect'];
     if (activeTags.size) o.tags_all = Array.from(activeTags);
     return o;
   }
@@ -934,7 +939,7 @@ function ContactsLibrary() {
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, activeTags]);
+  }, [search, activeTags, kindFilter]);
 
   async function reload() {
     try {
@@ -1111,6 +1116,13 @@ function ContactsLibrary() {
             </button>
             <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">↑ Import CSV</button>
           </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
+          {[['all', 'All'], ['press', 'Press'], ['prospect', 'Prospects']].map(([v, l]) => (
+            <button key={v} onClick={() => setKindFilter(v)}
+              className={'btn btn-sm ' + (kindFilter === v ? 'btn-primary' : 'btn-secondary')}>{l}</button>
+          ))}
         </div>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
