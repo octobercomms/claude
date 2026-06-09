@@ -364,17 +364,38 @@ async function runConnectorHealthCheck() {
        ORDER BY cl.name, con.connector_type`
     );
 
-    if (!rows.length) {
-      console.log('[Scheduler] Connector health check: all connectors healthy.');
-      return;
-    }
-
     const issues = rows.map(r => ({
       clientName: r.client_name,
       connectorType: r.store_label ? `${r.connector_type} (${r.store_label})` : r.connector_type,
       status: r.status,
       errorMessage: r.error_message,
     }));
+
+    // Platform-level infra: the Camofox stealth browser is a shared scraping
+    // fallback, not a per-client connector, so it isn't in the connectors
+    // table. Ping it directly and fold any outage into the same alert — a
+    // dead Camofox silently degrades competitor/SERP scraping otherwise.
+    try {
+      const camofox = require('./camofox');
+      if (await camofox.isConfigured()) {
+        const h = await camofox.health();
+        if (!h.ok) {
+          issues.push({
+            clientName: 'Platform',
+            connectorType: 'camofox (stealth browser)',
+            status: 'error',
+            errorMessage: h.message,
+          });
+        }
+      }
+    } catch (camofoxErr) {
+      console.error('[Scheduler] Camofox health check failed:', camofoxErr.message);
+    }
+
+    if (!issues.length) {
+      console.log('[Scheduler] Connector health check: all connectors healthy.');
+      return;
+    }
 
     console.log(`[Scheduler] Connector health check: ${issues.length} issue(s) found. Sending alert.`);
     await emailService.sendConnectorHealthAlert(issues);

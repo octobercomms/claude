@@ -56,17 +56,35 @@ launch/shutdown, session isolation, optional proxy/GeoIP. Docker-deployable.
 
 ### Where it lives
 
-**Infra — Docker sidecar on the platform box.**
-- New service `camofox` in the platform's compose/PM2 setup, bound to
-  `127.0.0.1:3100` (internal only — never exposed publicly).
-- Deployment note added to `docs/nvelope/` and the `update.sh` flow documented
-  so a redeploy brings it up.
+**Infra — sibling PM2 process on the platform box.**
+The platform is **PM2-on-a-VPS, not Docker** (`deploy.sh` / `update.sh` / PM2
+`ecosystem.config.js`; the public Shopify app already runs as a sibling PM2
+process). Camofox is a Node server, so it runs the same way — no Docker
+required:
+- Clone `jo-inc/camofox-browser` to `/opt/camofox-browser`, `npm install`,
+  start under PM2 (`pm2 start … --name camofox`) bound to `127.0.0.1:3100`
+  (internal only — never exposed publicly; nginx does not proxy it).
+- Started with a bearer token; the same value goes in Settings as
+  `CAMOFOX_API_KEY`, and `CAMOFOX_URL=http://127.0.0.1:3100`.
+- `update.sh` gets a guarded block mirroring the Shopify app's: if
+  `/opt/camofox-browser` exists, `git pull` + `npm install` + `pm2 reload
+  camofox`. Absent dir → skipped, so the script stays safe on a box without it.
+- (Docker remains an option via the upstream image, but PM2 matches the
+  existing box and keeps one process manager.)
 
 **Code — one thin client + one fallback wrapper.**
-- `dev/platform/backend/src/services/camofox.js` — REST client. Single
-  responsibility: `render(url, opts) → { html, status, snapshot? }` plus a
-  `health()` ping. Reads `CAMOFOX_URL` + `CAMOFOX_API_KEY` via the existing
-  `getSetting()` pattern (`src/utils/settings.js`).
+- `dev/platform/backend/src/services/camofox.js` — REST client **(built,
+  slice 1)**. Exposes `isConfigured()`, `health()` (`GET /health`), tab
+  helpers (`openTab`/`closeTab`), and `fetchSnapshot(url)` which opens a tab,
+  navigates, returns the token-efficient accessibility snapshot, and always
+  closes the tab. Reads `CAMOFOX_URL` + `CAMOFOX_API_KEY` via the existing
+  `getSetting()` pattern. Degrades cleanly (no throw) when unconfigured.
+  - **Open question for slice 2:** camofox-browser's documented content
+    endpoint returns the a11y *snapshot*, not raw DOM HTML. `siteAudit`'s
+    cheerio checks (meta tags, alt text, H1s) need real HTML; competitor
+    diffing and AI-visibility can likely work off snapshot text. Slice 2 must
+    confirm against a running instance whether a raw-HTML path exists (and add
+    it to the client) or whether the snapshot suffices per scraper.
 - `dev/platform/backend/src/utils/fetchHtml.js` — **the integration seam**.
   `fetchRenderedHtml(url, opts) → { html, status, via: 'axios' | 'camofox' }`:
   1. Try plain `axios` first (cheap, fast — unchanged behaviour for the ~90% of
@@ -116,10 +134,12 @@ connector statuses rather than silently degrading scrapes.
 
 ### PR slices (each independently mergeable)
 
-1. **Sidecar + client + config** (~2 days) — compose/PM2 entry for the
-   `camofox` service, `camofox.js` client with `render()` + `health()`, settings
-   keys, health-check wiring. No scraper touches yet; proven via the health
-   ping.
+1. ✅ **Sidecar + client + config** (**done**) — `camofox.js` client
+   (`isConfigured`/`health`/tab helpers/`fetchSnapshot`), `CAMOFOX_URL` +
+   `CAMOFOX_API_KEY` in `SETTINGS_KEYS`, health ping folded into the daily
+   connector health-check cron, PM2 run/deploy note above. No scraper touches
+   yet; proven via the health ping. (The PM2 process itself is stood up on the
+   box per the deploy note — an ops step, not a repo change.)
 2. **`fetchRenderedHtml` wrapper** (~2 days) — the detection logic, unit-tested
    against saved challenge-page fixtures (Cloudflare "Just a moment", Sucuri,
    empty SPA shell). Pure function, no external calls in tests.
