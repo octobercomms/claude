@@ -11,6 +11,7 @@ const prReports = require('../services/prReports');
 const prMonitor = require('../services/prMonitor');
 const prThanks = require('../services/prThanks');
 const prPress = require('../services/prPress');
+const pressRelease = require('../services/pressRelease');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -572,6 +573,22 @@ router.post('/press-releases/:prId/draft', async (req, res) => {
     if (d.error) return res.status(400).json(d);
     await db.query('UPDATE pr_press_releases SET body_html = $1 WHERE id = $2', [d.body_html, req.params.prId]);
     res.json({ body_html: d.body_html });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Hand off an approved release to distribution: spin up the outreach
+// press_release campaign (seeded from the authored body) and link it back.
+// Idempotent — returns the existing campaign if one already exists.
+router.post('/press-releases/:prId/create-campaign', async (req, res) => {
+  try {
+    const p = (await db.query('SELECT * FROM pr_press_releases WHERE id = $1', [req.params.prId])).rows[0];
+    if (!p) return res.status(404).json({ error: 'Press release not found' });
+    if (p.campaign_id) return res.json({ campaign_id: p.campaign_id, existing: true });
+    if (!['approved', 'sent'].includes(p.status)) return res.status(400).json({ error: 'Approve the release before creating a pitch campaign.' });
+    if (!p.body_html) return res.status(400).json({ error: 'Draft the release body first.' });
+    const created = await pressRelease.createReleaseWithCampaign(p.client_id, { title: p.title || 'Press release', body_html: p.body_html, boilerplate: p.brand || null });
+    await db.query('UPDATE pr_press_releases SET campaign_id = $1 WHERE id = $2', [created.campaign_id, p.id]);
+    res.status(201).json({ campaign_id: created.campaign_id });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 

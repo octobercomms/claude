@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -19,6 +19,7 @@ const dateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
 export default function ClientPRPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const fileRef = useRef(null);
   const combinedRef = useRef(null);
@@ -102,6 +103,17 @@ export default function ClientPRPage() {
     const url = reviewUrl(token);
     try { await navigator.clipboard.writeText(url); toast('Client approval link copied', 'success'); }
     catch { window.prompt('Client approval link:', url); }
+  }
+  async function createPitchCampaign() {
+    if (!pr) return;
+    if (pr.campaign_id) { navigate(`/clients/${id}/outreach`); return; }
+    try {
+      const r = await api.post(`/pr/press-releases/${pr.id}/create-campaign`, {});
+      if (r.error) { toast(r.error, 'error'); return; }
+      setPr((p) => ({ ...p, campaign_id: r.campaign_id }));
+      toast('Pitch campaign created — opening Email', 'success');
+      navigate(`/clients/${id}/outreach`);
+    } catch (e) { toast(e.message, 'error'); }
   }
 
   function loadThanks() {
@@ -478,9 +490,12 @@ export default function ClientPRPage() {
               <label className="field"><span className="field-label">Embargo until (optional)</span><input className="input" type="datetime-local" value={pr.embargo_at ? new Date(pr.embargo_at).toISOString().slice(0, 16) : ''} onChange={(e) => setPr((p) => ({ ...p, embargo_at: e.target.value }))} /></label>
               <label className="field" style={{ flex: 1, minWidth: 200 }}><span className="field-label">Published URL (once live)</span><input className="input" value={pr.url || ''} onChange={(e) => setPr((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
             </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
               <button className="btn btn-secondary" onClick={copyReviewLink}>🔗 Client approval link</button>
-              {pr.approved_at && <span className="chip chip-accent" style={{ alignSelf: 'center' }}>✓ Approved by {pr.approved_by || 'client'}</span>}
+              {pr.approved_at && <span className="chip chip-accent">✓ Approved by {pr.approved_by || 'client'}</span>}
+              {['approved', 'sent'].includes(pr.status) && (
+                <button className="btn btn-primary" onClick={createPitchCampaign} title="Pitch this release to journalists in the Email tab">{pr.campaign_id ? 'Open pitch campaign →' : '📣 Create pitch campaign →'}</button>
+              )}
             </div>
             <label className="field"><span className="field-label">Release body <span style={{ fontWeight: 400, color: 'var(--text-subtle)' }}>— Claude marks assumptions in [brackets] to fill in</span></span><textarea className="input" rows={16} style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }} value={pr.body_html || ''} onChange={(e) => setPr((p) => ({ ...p, body_html: e.target.value }))} /></label>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>

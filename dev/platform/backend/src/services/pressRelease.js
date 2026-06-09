@@ -391,10 +391,53 @@ async function getOrGenerateEmails({ pressReleaseId, contactId, force = false })
   return rows[0];
 }
 
+// Create a distribution press-release row + its backing outreach campaign and
+// the standard four-step sequence (release + 3 follow-ups), in one transaction.
+// Shared by the /api/press create route and the PR authoring → pitch hand-off.
+async function createReleaseWithCampaign(clientId, { title, body_html, source_url, dateline, images, contact_block, boilerplate, embargo_at, fetched_at }) {
+  const plain = String(body_html || '').replace(/<[^>]+>/g, ' ');
+  const dbClient = await pool.connect();
+  try {
+    await dbClient.query('BEGIN');
+    const { rows: campaignRows } = await dbClient.query(
+      `INSERT INTO outreach_campaigns (client_id, name, kind, status, audience_description)
+       VALUES ($1, $2, 'press_release', 'draft', $3) RETURNING *`,
+      [clientId, `Press: ${title}`.slice(0, 250), 'Press release distribution']
+    );
+    const campaign = campaignRows[0];
+    const { rows } = await dbClient.query(
+      `INSERT INTO outreach_press_releases
+         (client_id, title, body, summary, source_url, dateline, body_html, images, contact_block, boilerplate, embargo_at, fetched_at, campaign_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [clientId, title, plain, plain.slice(0, 280), source_url || null, dateline || null, body_html,
+       JSON.stringify(images || []), contact_block || null, boilerplate || null,
+       embargo_at || null, fetched_at || new Date().toISOString(), campaign.id]
+    );
+    const offsets = [0, 5, 10, 16];
+    for (let i = 0; i < offsets.length; i++) {
+      await dbClient.query(
+        `INSERT INTO outreach_sequences (campaign_id, step_number, subject, body, delay_days) VALUES ($1,$2,$3,$4,$5)`,
+        [campaign.id, i + 1,
+         i === 0 ? title : `Follow-up ${i}: ${title}`.slice(0, 250),
+         i === 0 ? '__press_release__' : `__press_followup_${i}__`,
+         offsets[i]]
+      );
+    }
+    await dbClient.query('COMMIT');
+    return { ...rows[0], campaign_id: campaign.id };
+  } catch (err) {
+    await dbClient.query('ROLLBACK');
+    throw err;
+  } finally {
+    dbClient.release();
+  }
+}
+
 module.exports = {
   fetchAndParse,
   buildEmailHtml,
   generatePitch,
   generateFollowUps,
   getOrGenerateEmails,
+  createReleaseWithCampaign,
 };
