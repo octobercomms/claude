@@ -36,11 +36,12 @@ cron.schedule('0 8 1 * *', async () => {
 });
 
 // Daily SEO rank checks: 06:00 AM
-// SEO rank checks: every 3 days at 06:00. Daily was overkill and burned API
-// spend without meaningful detail; every-3-days still surfaces movements in
-// the report period while cutting cost by roughly two thirds.
-cron.schedule('0 6 */3 * *', async () => {
-  console.log('[Scheduler] Running tri-daily SEO rank checks...');
+// SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
+// spend without meaningful detail; every-4-days surfaces movements in the
+// report period while keeping DataForSEO spend low (~25% cheaper than the
+// previous every-3-days cadence). Paired with depth 50 in checkRank.
+cron.schedule('0 6 */4 * *', async () => {
+  console.log('[Scheduler] Running SEO rank checks (every 4 days)...');
   await runDailyRankChecks();
 });
 
