@@ -433,17 +433,46 @@ Claude writes it.
 - **Sent from a real person, not no-reply.** Relationship-building only works if
   replies land in the account manager's inbox — the thank-you uses the human's
   sending identity (per-client From/Reply-To), not a system address.
-- **Safety gates (so we never thank wrongly):** only fires when
-  `status = Published` **and** sentiment is neutral/positive **and** the
-  journalist↔story match is confident. Negative or unmatched coverage never
-  auto-thanks. A per-contact/per-client **opt-out** and a global kill-switch are
-  honoured.
-- **⚡ Fast:** default is fire-on-publish for clean cases; ambiguous scraped hits
-  surface the drafted thank-you next to the confirm button for one-tap send.
+- **Claude decides auto vs confirm, per item.** For every opportunity Claude
+  returns a **confidence score** across three checks: (1) is the journalist↔story
+  match right, (2) is the coverage genuinely positive/neutral, (3) is a thank-you
+  appropriate at all. **Confident → auto-send. Unsure → queue for one-tap
+  confirm.** Negative/unmatched coverage never auto-thanks. Per-contact/per-client
+  **opt-out** and a global **kill-switch** always apply.
 
-**Table:** `oo_sent_thanks` — `contact_id`, `editorial_log_id`, `body_excerpt`,
-`tone`, `sent_at`, `sent_by` — both the no-repeat memory and an auditable record
-of what was said to whom.
+#### Graduated autonomy (starts safe, earns trust)
+
+The default is *auto-send*, but the system **ramps into it** rather than trusting
+itself cold:
+
+- **Stage 1 — Assisted (cold start).** Everything is drafted; nothing sends
+  itself. The team hits **Approve / Edit / Reject** on each. Every decision is
+  logged against the confidence Claude had assigned.
+- **Stage 2 — Supervised auto.** Once there's a track record — e.g. ≥N decisions
+  and a high approve-without-edit rate in the top confidence band — the system
+  **auto-sends that band** and keeps queueing the rest. Can ramp per-client.
+- **Stage 3 — Trusted auto.** Broad auto-send; only genuinely ambiguous or
+  novel cases queue.
+
+**What "learns" actually means** (honest scope — no model training):
+1. **Feedback capture** — approve/edit/reject + the human's edits are stored.
+2. **Adaptive threshold** — the auto-send cutoff moves *both ways*: it loosens as
+   approvals accumulate, and **tightens again** if auto-sent items start getting
+   corrected. Trust is revocable, not one-way.
+3. **Few-shot improvement** — recent approved (and rejected) examples are fed back
+   to Claude as context, so drafts and its own confidence calibration improve.
+4. **Calibration check** — we compare "Claude said high-confidence" vs "human
+   approved unedited" to catch over/under-confidence and adjust.
+
+This is a transparent rules-and-feedback loop, not a black box — the team can see
+why something auto-sent or got queued, and override the stage at any time.
+
+**Tables:**
+- `oo_sent_thanks` — `contact_id`, `editorial_log_id`, `body_excerpt`, `tone`,
+  `confidence`, `sent_at`, `sent_by` — no-repeat memory + audit of what was said.
+- `oo_thank_feedback` — `editorial_log_id`, `claude_confidence`, `decision`
+  (approved | edited | rejected), `edit_diff`, `decided_by`, `decided_at` — the
+  learning signal behind the adaptive threshold and few-shot examples.
 
 ---
 
@@ -490,7 +519,9 @@ have separate entry points, audiences (commercial vs media), and Claude prompts.
 
 **New tables:** `oo_outlets`, `oo_articles`, `oo_editorial_log` (the spine —
 replaces the earlier `oo_coverage`), `oo_coverage_searches`, `oo_sent_thanks`
-(thank-you no-repeat memory + audit). (Optional sidecar `oo_journalist_meta`.)
+(thank-you no-repeat memory + audit), `oo_thank_feedback` (approve/edit/reject
+signal driving the adaptive auto-send threshold). (Optional sidecar
+`oo_journalist_meta`.)
 
 **Altered tables:**
 - `oo_contacts`: `segment` (media|commercial), optional `outlet_id`,
@@ -578,10 +609,12 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
    always require a human click? (Recommend: human-confirm with a "bulk-accept
    high-confidence" button — same UX as the Tags merge plan. The first clean-up
    pass on 1,581 outlets is a one-time effort worth eyeballing.)
-7. **Thank-you auto-send** — fire automatically on publish, or always one-tap
-   confirm first? (Recommend: auto-send for high-confidence positive coverage;
-   one-tap for anything scraped-but-ambiguous. Per-contact opt-out + global
-   kill-switch regardless.)
+7. **Thank-you auto-send** — *Resolved:* auto-send is the goal, but via
+   **graduated autonomy** (§7.2) — start in confirm-everything mode, let Claude's
+   confidence + an adaptive threshold ramp it to auto as a track record builds.
+   Confident → auto; unsure → one-tap confirm. Open sub-question: ramp the trust
+   **per-client** or **globally**? (Recommend per-client — trust builds at
+   different rates and a new client starts cautious.)
 8. **Thank-you/alert sending identity** — from the account manager's own
    address (best for relationships) or a brand PR address? (Recommend: the
    human's identity, so replies build the relationship.) Depends on the
