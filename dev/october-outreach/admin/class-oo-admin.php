@@ -55,6 +55,7 @@ class OO_Admin {
         if ( ( $settings['enable_pr'] ?? '1' ) === '1' ) {
             add_menu_page( 'October PR', 'PR', 'manage_options', 'oo-pr', array( $this, 'page_editorial_log' ), 'dashicons-megaphone', 31 );
             add_submenu_page( 'oo-pr', 'Editorial Log',  'Editorial Log',  'manage_options', 'oo-pr',           array( $this, 'page_editorial_log' ) );
+            add_submenu_page( 'oo-pr', 'Journalists',    'Journalists',    'manage_options', 'oo-journalists',  array( $this, 'page_journalists' ) );
             add_submenu_page( 'oo-pr', 'Media Database', 'Media Database', 'manage_options', 'oo-media',        array( $this, 'page_media_database' ) );
         }
     }
@@ -117,6 +118,7 @@ class OO_Admin {
     public function page_help()     { $this->render( 'help',     'help' ); }
 
     public function page_editorial_log()  { $this->render( 'editorial-log',  'pr' ); }
+    public function page_journalists()    { $this->render( 'journalists',    'pr' ); }
     public function page_media_database() { $this->render( 'media-database', 'pr' ); }
 
     public function page_campaigns() {
