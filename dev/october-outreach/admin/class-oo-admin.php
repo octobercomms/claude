@@ -91,6 +91,9 @@ class OO_Admin {
         if ( $screen && strpos( $screen->id, 'oo-media' ) !== false ) {
             wp_enqueue_script( 'oo-dedup', OO_PLUGIN_URL . 'admin/js/dedup.js', array(), OO_VERSION, true );
         }
+        if ( $screen && strpos( $screen->id, 'oo-pr' ) !== false && in_array( ( $_GET['action'] ?? '' ), array( 'new', 'edit' ), true ) ) {
+            wp_enqueue_script( 'oo-editorial-log', OO_PLUGIN_URL . 'admin/js/editorial-log.js', array(), OO_VERSION, true );
+        }
         if ( $screen && strpos( $screen->id, 'oo-contacts' ) !== false ) {
             if ( ( $_GET['action'] ?? '' ) === 'finder' ) {
                 wp_enqueue_script( 'oo-contact-finder', OO_PLUGIN_URL . 'admin/js/contact-finder.js', array( 'jquery' ), OO_VERSION, true );

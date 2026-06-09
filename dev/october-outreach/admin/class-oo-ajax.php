@@ -41,6 +41,8 @@ class OO_Ajax {
             'oo_apply_tag_plan',
             'oo_dedup_scan',
             'oo_dedup_merge',
+            'oo_log_extract_url',
+            'oo_log_suggest',
         );
 
         foreach ( $actions as $action ) {
@@ -1436,6 +1438,69 @@ class OO_Ajax {
             return $score( $a ) <=> $score( $b );
         } );
         return $names[0] ?? '';
+    }
+
+    /**
+     * Paste-a-URL → auto-fill: read a story page and extract publication,
+     * journalist, title, date and sentiment for one-tap editorial-log entry.
+     */
+    public function log_extract_url() {
+        $this->check_nonce();
+        $url = esc_url_raw( wp_unslash( $_POST['url'] ?? '' ) );
+        if ( ! $url || ! filter_var( $url, FILTER_VALIDATE_URL ) ) {
+            wp_send_json_error( 'Enter a valid story URL.' );
+        }
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) {
+            wp_send_json_error( 'Claude API key not configured (Settings).' );
+        }
+        $text = $claude->fetch_press_release_content( $url );
+        if ( $text === '' ) {
+            wp_send_json_error( "Couldn't read that page (it may block bots or require a login)." );
+        }
+        $meta = $claude->extract_story_meta( $url, $text );
+        if ( is_wp_error( $meta ) ) {
+            wp_send_json_error( $meta->get_error_message() );
+        }
+        wp_send_json_success( array(
+            'publication'    => $meta['publication'] ?? '',
+            'author'         => $meta['author'] ?? '',
+            'title'          => $meta['title'] ?? '',
+            'published_date' => $meta['published_date'] ?? '',
+            'sentiment'      => $meta['sentiment'] ?? '',
+        ) );
+    }
+
+    /**
+     * Alias-aware typeahead suggestions for the editorial-log form — surfaces
+     * existing outlets (incl. aliases) and media contacts so the team picks a
+     * known record instead of creating a duplicate.
+     */
+    public function log_suggest() {
+        $this->check_nonce();
+        global $wpdb;
+        $q    = sanitize_text_field( wp_unslash( $_POST['q'] ?? '' ) );
+        $type = sanitize_text_field( $_POST['type'] ?? 'outlet' );
+        if ( strlen( $q ) < 2 ) wp_send_json_success( array( 'items' => array() ) );
+        $like = '%' . $wpdb->esc_like( $q ) . '%';
+
+        if ( $type === 'contact' ) {
+            $rows = $wpdb->get_col( $wpdb->prepare(
+                "SELECT DISTINCT TRIM(CONCAT(first_name,' ',last_name)) AS n
+                 FROM {$wpdb->prefix}oo_contacts
+                 WHERE segment = 'media' AND (first_name LIKE %s OR last_name LIKE %s)
+                 ORDER BY n ASC LIMIT 10",
+                $like, $like
+            ) );
+        } else {
+            $rows = $wpdb->get_col( $wpdb->prepare(
+                "SELECT name FROM {$wpdb->prefix}oo_outlets
+                 WHERE status != 'merged' AND ( name LIKE %s OR aliases LIKE %s )
+                 ORDER BY name ASC LIMIT 10",
+                $like, $like
+            ) );
+        }
+        wp_send_json_success( array( 'items' => array_values( array_filter( $rows ) ) ) );
     }
 
     public function dedup_merge() {
