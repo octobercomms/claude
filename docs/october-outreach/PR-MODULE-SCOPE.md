@@ -54,6 +54,11 @@ to the right people.
   contacts and coverage live together and can be joined for analytics. Notion's
   free API migrates the existing 4,371-row log in; clients get self-serve
   **token URLs + downloadable + weekly auto reports**. See §6–§7.
+- **Master import + AI dedup:** import October's two Notion master databases
+  (**1,581 publications**, **2,181 press contacts** with bylines) and clean the
+  heavy duplication (`Dezeen`/`Dezeen.com`/`Dazeen`, `DO NOT USE` flags, etc.)
+  with a normalise → fuzzy → Claude "Do you mean X?" pipeline, plus an ongoing
+  duplicate-guard. See §5.1.
 
 ---
 
@@ -149,19 +154,61 @@ Finder — plus a byline catalogue.
 3. **Categorise**: Claude assigns beat tags from the byline corpus.
 
 ### New tables
-- **`oo_outlets`** — publications: `name`, `domain`, `tier`, `region`,
-  `circulation/reach` (optional), `notes`.
+- **`oo_outlets`** — publications: `name`, `canonical_name`, `aliases` (JSON),
+  `domain`, `tier`, `region`, `circulation/reach` (optional), `status`
+  (active | do_not_use | merged), `merged_into` (FK, nullable), `notes`.
 - **`oo_articles`** — byline catalogue: `contact_id` (author), `outlet_id`,
   `title`, `url`, `published_at`, `vertical`, `style`, `keywords` (JSON),
   `source`. This is the "link journalists to the articles they wrote" piece and
-  the input to beat categorisation.
+  the input to beat categorisation. **Confirmed present in October's data** —
+  the Master Press Contact DB's `Articles` column is exactly this relation.
 
 > **Reality check on the aspiration.** "Every article/journalist/contact ever
 > written" is not literally buildable in-house. What *is* buildable, and what
 > this scopes, is an **incrementally growing, well-keyworded catalogue** that
 > deepens every time you run a finder/monitor pass — owned by you, no per-seat
 > licence. A 3rd-party import path is left open (§10) if you later want a
-> jump-start.
+> jump-start. October already has a strong seed: **1,581 publications** and
+> **2,181 press contacts** (with bylines, emails, locations, last-contacted) in
+> the two Notion master databases.
+
+### 5.1 Master import & AI deduplication
+
+October's two master databases are rich but **full of duplicates and quality
+debt** — real examples from the export: `Dezeen` / `Dazeen` (typo) /
+`Dezeen Daily`; `Telegraph.co.uk` / `The Telegraph` / `Daily Telegraph` /
+`Telegraph Magazine`; `A Mum Reviews` / `A Mums Review`; `Selfbuild` /
+`Self Build & Design`; `Architects Journal` / `Architects Jo` /
+`AJ / The Architects' Journal`; exact repeats (`Planted`, `OLIVA Lifestyle`,
+`BBC Culture`); plus **~40+ `DO NOT USE` flags embedded in the name string**.
+
+Import must therefore clean as it loads, and prevent re-duplication afterwards.
+A 3-stage pipeline (reusing the **Tags** feature's existing
+`analyze_tags` → human-approved `apply_tag_plan` pattern):
+
+1. **Mechanical normalise** — trim; strip ` DO NOT USE` → `status = do_not_use`;
+   drop URL scheme; fold case/punctuation/diacritics; extract `domain`. Resolves
+   exact dupes and `Dezeen` ↔ `Dezeen.com` with no AI cost.
+2. **Fuzzy blocking** — trigram / Levenshtein clustering generates *candidate*
+   dupe groups cheaply. This avoids the 1,581² (~1.2M) pairwise blow-up — only
+   ambiguous clusters proceed.
+3. **Claude adjudication + "Do you mean X?" review** — Claude returns
+   `{canonical, members[], confidence}` per cluster; a review screen lets the
+   team **merge / keep-separate** with a *bulk-accept high-confidence* option.
+   Merge picks the canonical record, **repoints** every dependent
+   contact/article/editorial-log row, and records old names in `aliases`.
+
+**Stop-it-happening going forward:** the `aliases` JSON means a later "Dezeen.com"
+from a monitor hit auto-resolves to the canonical outlet. Every new outlet/contact
+(manual, finder, or monitor) runs normalise + fuzzy first and prompts
+*"Do you mean X?"* before creating a near-match.
+
+**Contacts** dedup uses `name + publication + email` as the key (two "Sarah King"
+at different outlets may be different people → human confirm), and preserves
+publication history when a journalist moves outlet.
+
+Scale note: ~1,581 outlets + ~2,181 contacts → expect a few hundred candidate
+clusters to adjudicate, batched to keep Claude cost/latency sane.
 
 ---
 
@@ -363,8 +410,11 @@ replaces the earlier `oo_coverage`), `oo_coverage_searches`. (Optional sidecar
 
 **Altered tables:**
 - `oo_contacts`: `segment` (media|commercial), optional `outlet_id`,
-  `seniority`. Gains derived analytics (coverage count, last-featured) via the
-  `oo_editorial_log` FK.
+  `seniority`, `last_contacted`, `bio_link`, `aliases` (JSON), `status`
+  (incl. `do_not_use` | `merged`), `merged_into`. Gains derived analytics
+  (coverage count, last-featured) via the `oo_editorial_log` FK.
+- `oo_outlets` carries dedup fields (`canonical_name`, `aliases`, `status`,
+  `merged_into`) — see §5.1.
 - `oo_press_releases`: `body_html`, `brand`, `approved_by`, `approved_at`,
   `embargo_at`, `review_token`, `campaign_id` (already nullable today).
 - `oo_campaigns`: new type value `pr_pitch` (no schema change — it's a varchar).
@@ -397,7 +447,8 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 |---|---|---|
 | **0** | Contacts `segment` split + Media/Commercial filtering; `enable_pr` toggle; PR menu shell | 2–3 days |
 | **1** | `oo_editorial_log` table + internal log UI + CSV import of the existing log | 3–4 days |
-| **2** | Notion API migration/sync (resolve Press Contact → contact, Publication → outlet) + `oo_outlets` | 3–5 days |
+| **2** | Master import (Notion API / CSV) of 1,581 outlets + 2,181 contacts + bylines → `oo_outlets`/`oo_contacts`/`oo_articles`, resolving Press Contact & Publication relations | 4–6 days |
+| **2b** | AI deduplication pipeline (normalise → fuzzy block → Claude "Do you mean X?" review + merge) + ongoing duplicate-guard on create | 4–6 days |
 | **3** | Journalist ↔ coverage analytics (counts, last-featured, hit-rate, relationship strength) | 3–4 days |
 | **4** | Client portal (token URL, Published+pipeline, download report) + weekly automated reports & alerts | 5–7 days |
 | **5** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
@@ -437,3 +488,7 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
 5. **AVE / reach metrics** — do clients want estimated reach/AVE in reports, or
    is volume + highlights + journalist relationships enough for v1? (Affects
    whether we need an outlet-reach data source on `oo_outlets`.)
+6. **Dedup merge policy** — auto-merge clusters above a confidence threshold, or
+   always require a human click? (Recommend: human-confirm with a "bulk-accept
+   high-confidence" button — same UX as the Tags merge plan. The first clean-up
+   pass on 1,581 outlets is a one-time effort worth eyeballing.)
