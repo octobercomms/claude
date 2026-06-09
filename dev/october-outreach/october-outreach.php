@@ -3,7 +3,7 @@
  * Plugin Name: October Outreach, powered by Claude AI
  * Plugin URI:  https://octobercomms.com
  * Description: AI-powered email outreach platform. Find contacts, write personalised emails with Claude AI, send follow-up emails.
- * Version:     3.17.0
+ * Version:     3.18.0
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     Proprietary
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-define( 'OO_VERSION', '3.17.0' );
+define( 'OO_VERSION', '3.18.0' );
 define( 'OO_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OO_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'OO_MASTER_LICENSE', 'OO-MASTER-OCTOBER-UNLIMITED' );
@@ -32,6 +32,7 @@ require_once OO_PLUGIN_DIR . 'includes/class-oo-portal.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-reports.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-monitor.php';
 require_once OO_PLUGIN_DIR . 'includes/class-oo-rest.php';
+require_once OO_PLUGIN_DIR . 'includes/class-oo-thanks.php';
 
 // Integrations
 require_once OO_PLUGIN_DIR . 'includes/class-oo-claude.php';
@@ -55,6 +56,7 @@ function oo_init() {
     OO_Reports::init(); // scheduled client reports + alerts
     OO_Monitor::init(); // scheduled coverage monitoring
     OO_REST::init();    // REST API (nvelope front-end + Gmail add-on)
+    OO_Thanks::init();  // thank-you auto-send ramp (graduated autonomy)
     if ( is_admin() ) {
         new OO_Admin();
         new OO_Ajax();

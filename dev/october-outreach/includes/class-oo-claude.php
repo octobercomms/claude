@@ -499,7 +499,8 @@ class OO_Claude {
                 $prompt .= '- "' . mb_substr( $ex, 0, 140 ) . "\"\n";
             }
         }
-        $prompt .= "\nReturn JSON: {\"tone\":\"one or two words for the tone you chose\",\"subject\":\"short subject line\",\"body\":\"the email body, plain text, with the first-name greeting\"}";
+        $prompt .= "\nAlso judge your confidence that sending this thank-you is appropriate and well-grounded (the article clearly features the client positively, you have enough to personalise it): 1.0 = certain, 0.5 = unsure, lower if the link to the client or the positivity is unclear.";
+        $prompt .= "\nReturn JSON: {\"tone\":\"one or two words for the tone you chose\",\"subject\":\"short subject line\",\"body\":\"the email body, plain text, with the first-name greeting\",\"confidence\":0.0-1.0}";
 
         return $this->request_json( array( array( 'role' => 'user', 'content' => $prompt ) ), 700, $system );
     }

@@ -39,6 +39,19 @@ class OO_Admin {
         add_action( 'admin_post_oo_regenerate_api_key', array( $this, 'regenerate_api_key' ) );
         add_action( 'admin_post_oo_save_journalist_meta', array( $this, 'save_journalist_meta' ) );
         add_action( 'admin_post_oo_save_outlet_meta', array( $this, 'save_outlet_meta' ) );
+        add_action( 'admin_post_oo_save_thank_stage', array( $this, 'save_thank_stage' ) );
+    }
+
+    public function save_thank_stage() {
+        check_admin_referer( 'oo_save_thank_stage' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id    = intval( $_POST['client_id'] ?? 0 );
+        $stage = sanitize_text_field( $_POST['thank_stage'] ?? 'assist' );
+        if ( ! isset( OO_Thanks::stages()[ $stage ] ) ) $stage = 'assist';
+        if ( $id ) $wpdb->update( $wpdb->prefix . 'oo_clients', array( 'thank_stage' => $stage ), array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-thanks&stage_saved=1' ) );
+        exit;
     }
 
     public function save_journalist_meta() {

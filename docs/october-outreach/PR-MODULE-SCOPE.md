@@ -67,8 +67,14 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   off to the campaign wizard for contacts → pitch → launch. Press releases are
   **removed from the Email wizard dropdown** (`get_email_campaign_types`) — they
   now originate only in PR — while existing press campaigns keep their type on edit.
-- ⬜ Next: thank-you auto-send ramp, Gmail add-on, then the **nvelope front-end**
-  (consumes the API) — the "copy to platform.octobercomms.com" step.
+- ✅ **Phase 12 — thank-you auto-send ramp** (this branch): per-client
+  `thank_stage` (assist → supervised → auto, default **assist**); `OO_Thanks`
+  daily tick auto-sends only thank-yous whose Claude confidence clears the
+  stage threshold (supervised 0.85 / auto 0.70), capped per client per run,
+  Active journalists with a real email only, requires a Default Reply-To.
+  Per-client autonomy + track-record panel on the Thank-yous page.
+- ⬜ Next: Gmail add-on (separate deployable, uses the API), then the **nvelope
+  front-end** — the "copy to platform.octobercomms.com" step.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 
