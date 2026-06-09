@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "attribution": "Audit categories, weighting approach and benchmark methodology adapted from AgriciDaniel/claude-ads (MIT License) — https://github.com/AgriciDaniel/claude-ads. Scoped here to the campaign-performance aggregates the Strategist already pulls (Meta Ads + Google Ads); creative/account-structure/tracking-config checks from the upstream skill are out of scope until the platform ingests that data.",
+  "notes": "Benchmarks are defensible retail/ecommerce defaults for UK paid social + search. They are intentionally conservative and editable — a future slice can make them per-client. The scorer (services/adAudit.js) reads thresholds from this file; each check's evaluation logic lives in code keyed by check id.",
+  "benchmarks": {
+    "roas": { "good": 4.0, "weak": 2.0, "broken": 1.0 },
+    "ctr_pct": { "good": 1.0, "weak": 0.4 },
+    "meta_frequency": { "weak": 3.0, "broken": 5.0 },
+    "atc_to_purchase_pct": { "good": 25, "weak": 10 },
+    "min_spend_for_judgement": 100,
+    "drain_min_spend": 50,
+    "spend_concentration_pct": 60
+  },
+  "categories": [
+    {
+      "id": "efficiency",
+      "label": "Efficiency & ROI",
+      "weight": 30,
+      "checks": [
+        { "id": "blended_roas", "label": "Blended return on ad spend", "benchmark": "roas" },
+        { "id": "zero_conversion_drain", "label": "Spend on zero-conversion campaigns", "benchmark": "drain_min_spend" }
+      ]
+    },
+    {
+      "id": "conversion",
+      "label": "Conversion & tracking signal",
+      "weight": 20,
+      "checks": [
+        { "id": "conversion_signal_present", "label": "Conversions recorded at all", "benchmark": null },
+        { "id": "meta_funnel", "label": "Add-to-cart → purchase rate (Meta)", "benchmark": "atc_to_purchase_pct" }
+      ]
+    },
+    {
+      "id": "engagement",
+      "label": "Engagement & creative health",
+      "weight": 20,
+      "checks": [
+        { "id": "ctr_health", "label": "Spend-weighted click-through rate", "benchmark": "ctr_pct" },
+        { "id": "frequency_fatigue", "label": "Audience frequency / creative fatigue (Meta)", "benchmark": "meta_frequency" }
+      ]
+    },
+    {
+      "id": "budget",
+      "label": "Budget allocation",
+      "weight": 15,
+      "checks": [
+        { "id": "spend_concentration", "label": "Spend concentration in a single campaign", "benchmark": "spend_concentration_pct" }
+      ]
+    },
+    {
+      "id": "sufficiency",
+      "label": "Scale & data sufficiency",
+      "weight": 15,
+      "checks": [
+        { "id": "spend_sufficiency", "label": "Enough spend to judge the account", "benchmark": "min_spend_for_judgement" }
+      ]
+    }
+  ]
+}
