@@ -32,6 +32,11 @@ const SETTINGS_KEYS = [
   'ADOBE_CLIENT_ID', 'ADOBE_CLIENT_SECRET',
   'ARCADS_API_KEY', 'ELEVENLABS_API_KEY',
   'APIFY_API_TOKEN',
+  // Camofox stealth browser (shared scraping fallback). CAMOFOX_URL is the
+  // sidecar's base URL (e.g. http://127.0.0.1:3100); CAMOFOX_API_KEY is the
+  // optional bearer token the sidecar is started with. Leave both blank to
+  // keep scrapers on the axios-only path. Used by services/camofox.js.
+  'CAMOFOX_URL', 'CAMOFOX_API_KEY',
   'AMAZON_CLIENT_ID', 'AMAZON_CLIENT_SECRET', 'AMAZON_REDIRECT_URI',
   'HUNTER_API_KEY', 'ICYPEAS_API_KEY', 'ICYPEAS_API_SECRET', 'ICYPEAS_USER_ID', 'SERPER_API_KEY',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
