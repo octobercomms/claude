@@ -23,6 +23,7 @@ import ApprovePage from './pages/ApprovePage';
 import GuidePage from './pages/GuidePage';
 import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
+import MediaPage from './pages/MediaPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -59,6 +60,7 @@ export default function App() {
             <Route path="clients/:id/ai-visibility" element={<ClientAIVisibilityPage />} />
             <Route path="clients/:id/brand" element={<ClientBrandPage />} />
             <Route path="clients/:id/pr" element={<ClientPRPage />} />
+            <Route path="media" element={<MediaPage />} />
             <Route path="reports" element={<ReportsPage />} />
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="guide" element={<GuidePage />} />
