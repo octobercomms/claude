@@ -273,9 +273,14 @@ client, which is where the leverage is.
 
 ### PR slices
 
-1. **Playbook library + loader** (~2 days) — extract and trim the first batch of
-   methodology fragments into `marketingPlaybooks/`, build `playbooks.js`, MIT
-   attribution headers. No service changes.
+1. ✅ **Playbook library + loader** (**done**) — `src/services/playbooks.js`
+   (`getPlaybook`/`getPlaybooks`/`list`, cached, path-traversal-guarded,
+   returns `''` for missing so it's always safe to append) + first-batch
+   fragments in `src/data/marketingPlaybooks/` (copywriting, content-strategy,
+   ads, cro, cold-email, seo-audit), each distilled from the MIT skills with
+   attribution + a README. No service changes. (The full skills are already
+   committed at `.claude/skills/` for editor use; these are the trimmed runtime
+   fragments.)
 2. **Wire content + strategist** (~1 day) — inject playbooks into
    `contentDraft.js` / `socialCaptions.js` / `strategistReport.js`. Eyeball
    before/after on a real client.
