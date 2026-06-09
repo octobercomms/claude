@@ -11,6 +11,7 @@
 // (Phase 3) — same function, same output.
 
 const Anthropic = require('@anthropic-ai/sdk');
+const playbooks = require('./playbooks');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -68,7 +69,7 @@ Return only the caption.`;
   const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: SYSTEM_PROMPT + playbooks.systemSuffix(['copywriting']),
     messages: [{ role: 'user', content: userPrompt }],
   });
   return (response.content.find(b => b.type === 'text')?.text || '').trim();
