@@ -7,6 +7,7 @@ const router = express.Router();
 const multer = require('multer');
 const db = require('../db');
 const pr = require('../services/pr');
+const prReports = require('../services/prReports');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -143,6 +144,9 @@ router.post('/clients/:clientId/editorial-log', async (req, res) => {
         pr.parseDate(b.issue_date), b.story_url || '', b.notes_outcome || '',
       ]
     );
+    if (status === 'published' || status === 'download') {
+      prReports.sendFeaturedAlert(req.params.clientId, { outlet: b.publication || '', title: b.story_title || '', url: b.story_url || '' }).catch(() => {});
+    }
     res.status(201).json({ id: rows[0].id });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -151,6 +155,7 @@ router.post('/clients/:clientId/editorial-log', async (req, res) => {
 router.patch('/editorial-log/:id', async (req, res) => {
   try {
     const b = req.body || {};
+    const prev = (await db.query('SELECT status, client_id FROM pr_editorial_log WHERE id = $1', [req.params.id])).rows[0] || {};
     const sets = [];
     const vals = [];
     let n = 1;
@@ -173,6 +178,16 @@ router.patch('/editorial-log/:id', async (req, res) => {
     if (!sets.length) return res.json({ updated: 0 });
     vals.push(req.params.id);
     await db.query(`UPDATE pr_editorial_log SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+
+    const nowPub = ['published', 'download'].includes(b.status);
+    const wasPub = ['published', 'download'].includes(prev.status);
+    if (nowPub && !wasPub && prev.client_id) {
+      const r = (await db.query(
+        `SELECT l.story_title, l.story_url, o.name AS outlet FROM pr_editorial_log l
+         LEFT JOIN pr_outlets o ON o.id = l.outlet_id WHERE l.id = $1`, [req.params.id]
+      )).rows[0] || {};
+      prReports.sendFeaturedAlert(prev.client_id, { outlet: r.outlet || '', title: r.story_title || '', url: r.story_url || '' }).catch(() => {});
+    }
     res.json({ updated: 1 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
@@ -191,6 +206,32 @@ router.get('/clients/:clientId/portal', async (req, res) => {
     const token = await pr.ensureClientToken(req.params.clientId);
     res.json({ token });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Report/alert settings for a client.
+router.get('/clients/:clientId/report-settings', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT alert_email, report_cadence FROM pr_client_settings WHERE client_id = $1', [req.params.clientId]);
+    res.json(rows[0] || { alert_email: '', report_cadence: 'off' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/clients/:clientId/report-settings', async (req, res) => {
+  try {
+    await pr.ensureClientToken(req.params.clientId); // guarantees a settings row
+    const cadence = ['off', 'weekly', 'monthly'].includes(req.body.report_cadence) ? req.body.report_cadence : 'off';
+    await db.query('UPDATE pr_client_settings SET alert_email = $1, report_cadence = $2 WHERE client_id = $3',
+      [String(req.body.alert_email || '').trim(), cadence, req.params.clientId]);
+    res.json({ updated: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/send-report', async (req, res) => {
+  try {
+    const result = await prReports.sendClientReport(req.params.clientId, true);
+    if (result.error) return res.status(400).json(result);
+    res.json(result);
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── Outlet deduplication (cross-client, admin) ───────────────────────────────
