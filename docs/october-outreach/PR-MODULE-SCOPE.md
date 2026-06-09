@@ -69,6 +69,10 @@ to the right people.
   contacts and coverage live together and can be joined for analytics. Notion's
   free API migrates the existing 4,371-row log in; clients get self-serve
   **token URLs + downloadable + weekly auto reports**. See §6–§7.
+- **Profiles + Gmail capture:** dedicated outlet & journalist profile pages
+  (coverage history, Claude summary/tags, notes, maternity/availability, photo —
+  §5.2), and a **Gmail "log this thread" button** so real conversations reach the
+  log (a separate Workspace Add-on talking to a new OMI REST API — §6).
 - **Master import + AI dedup:** import October's two Notion master databases
   (**1,581 publications**, **2,181 press contacts** with bylines) and clean the
   heavy duplication (`Dezeen`/`Dezeen.com`/`Dazeen`, `DO NOT USE` flags, etc.)
@@ -225,6 +229,42 @@ publication history when a journalist moves outlet.
 Scale note: ~1,581 outlets + ~2,181 contacts → expect a few hundred candidate
 clusters to adjudicate, batched to keep Claude cost/latency sane.
 
+### 5.2 Outlet & journalist profile pages
+
+Once the log FKs into outlets/contacts, a profile page is just a query — and it's
+where the "smart database" feeling lands for the team.
+
+**Publication (outlet) profile** — `oo_outlets` detail view:
+- **Summary header** — Claude-generated 1–2 line "who they are" written from their
+  articles/site, plus tier, region, domain, status.
+- **Topic tags** — Claude-generated from the outlet's articles (what they actually
+  cover), via the existing tags system + `oo_articles.keywords`. Refreshes as new
+  bylines are catalogued.
+- **All coverage with them** — every `oo_editorial_log` row for this outlet across
+  all clients; total pieces, last featured, which clients/journalists.
+- **Journalists here** — contacts linked to this outlet.
+
+**Journalist (contact) profile** — `oo_contacts` detail view:
+- **Header** — photo, name, outlet(s), location, beat tags (Claude from bylines),
+  relationship strength, last-contacted, last-featured.
+- **Notes** — free-text the team writes (the `notes` column already exists).
+- **Availability status** — `active | maternity_leave | sabbatical | moved_on |
+  unreachable`, with an optional **`available_from`** date. A "maternity leave"
+  toggle sets the status (this happens often); journalists on leave are **excluded
+  from pitch lists**, and once `available_from` passes the system surfaces a
+  *"reactivate?"* nudge (the "back a year later" case).
+- **Coverage & bylines** — their `oo_articles` + the log rows where they featured
+  our clients.
+
+**Photo sourcing (best-effort, honest):** there's no clean free "journalist photo"
+API. Practical order: scrape the author/bio page (the scraper already exists →
+`og:image`/headshot), then Gravatar from their email, then manual upload/paste-URL.
+LinkedIn photos are off the table (ToS + unreliable). Store `photo_url`; treat
+auto-fetch as a convenience, manual override always available.
+
+New `oo_contacts` columns: `availability_status`, `available_from`, `photo_url`.
+New `oo_outlets` column: `summary`. Topic/beat tags reuse the tag system.
+
 ---
 
 ## 6. Editorial Log — the spine (system of record)
@@ -361,6 +401,45 @@ publication (`outlet_id`) in the media DB → written to `oo_editorial_log` with
 ### Supporting table
 - **`oo_coverage_searches`** — saved monitors: `client`, `keywords`, `sources`
   (JSON), `cadence`, `last_run_at`.
+
+### Email capture from Gmail (conversations → log)
+
+The real back-and-forth with journalists lives in Gmail today, invisible to the
+log. We close that gap so the log reflects *what's actually happening*, not just
+outcomes. Three routes, in build order:
+
+1. **⚡ Gmail Add-on button (recommended v1).** A Google Workspace Add-on ("OMI
+   for Gmail", built in Apps Script/CardService) puts a sidebar button in Gmail.
+   Open a thread → it reads subject/participants/date/snippet → calls a new
+   **authenticated OMI REST endpoint** (`POST /wp-json/oo/v1/ingest-email`). OMI
+   matches the journalist by email (alias-aware), and **Claude reads the thread to
+   pre-fill** the client, the status (pitched / interested / declined /
+   published), and a one-line outcome. One tap confirms → a log row is created or
+   updated, and the thread summary is attached. If it's a "published/confirmed"
+   thread, it can hand straight to the thank-you engine (§7.2).
+   - This is the literal "button in Gmail" ask. It's a **separate deployable**
+     (Apps Script project) talking to the WP plugin — per the repo's two-folder
+     rule it'd live in `dev/oo-gmail-addon/` with docs in `docs/oo-gmail-addon/`.
+   - Needs: the new REST API on the plugin (auth via WordPress application
+     password or a generated OMI API key in Settings); minimal Gmail scope (only
+     the thread the user is viewing/logs — not the whole mailbox).
+2. **Forward / BCC ingest address (zero-friction fallback).** A dedicated mailbox
+   (e.g. `log@inbox.octobercomms.com`); forward a thread or BCC it when pitching.
+   OMI ingests it (REST relay or IMAP poll), Claude parses + matches + logs.
+   Works from **any client incl. mobile**, no add-on install — good for "on the go".
+3. **Gmail API OAuth sync (later, heavier).** OMI connects to the account and
+   surfaces ongoing threads with known journalist emails for one-click logging —
+   no manual forwarding. Powerful, but full-mailbox read scope means Google
+   verification + a real privacy review; deferred until the button/forward flows
+   prove the value.
+
+**Privacy stance:** v1 only ever ingests threads the user explicitly logs — no
+background mailbox reading until (and unless) the OAuth phase is chosen.
+
+New table: `oo_email_activity` — `contact_id`, `editorial_log_id` (nullable),
+`client`, `gmail_thread_id`, `direction`, `summary`, `occurred_at`, `captured_via`
+(addon | forward | oauth) — so a contact's profile shows the conversation trail,
+not just published outcomes.
 
 ---
 
@@ -520,16 +599,17 @@ have separate entry points, audiences (commercial vs media), and Claude prompts.
 **New tables:** `oo_outlets`, `oo_articles`, `oo_editorial_log` (the spine —
 replaces the earlier `oo_coverage`), `oo_coverage_searches`, `oo_sent_thanks`
 (thank-you no-repeat memory + audit), `oo_thank_feedback` (approve/edit/reject
-signal driving the adaptive auto-send threshold). (Optional sidecar
-`oo_journalist_meta`.)
+signal driving the adaptive auto-send threshold), `oo_email_activity` (Gmail
+conversation trail). (Optional sidecar `oo_journalist_meta`.)
 
 **Altered tables:**
 - `oo_contacts`: `segment` (media|commercial), optional `outlet_id`,
   `seniority`, `last_contacted`, `bio_link`, `aliases` (JSON), `status`
-  (incl. `do_not_use` | `merged`), `merged_into`. Gains derived analytics
-  (coverage count, last-featured) via the `oo_editorial_log` FK.
+  (incl. `do_not_use` | `merged`), `merged_into`, plus profile fields
+  `availability_status`, `available_from`, `photo_url` (§5.2). Gains derived
+  analytics (coverage count, last-featured) via the `oo_editorial_log` FK.
 - `oo_outlets` carries dedup fields (`canonical_name`, `aliases`, `status`,
-  `merged_into`) — see §5.1.
+  `merged_into`) plus `summary` (Claude bio) — see §5.1 / §5.2.
 - `oo_press_releases`: `body_html`, `brand`, `approved_by`, `approved_at`,
   `embargo_at`, `review_token`, `campaign_id` (already nullable today).
 - `oo_campaigns`: new type value `pr_pitch` (no schema change — it's a varchar).
@@ -570,7 +650,10 @@ include `user_id bigint NOT NULL DEFAULT 0` from day one to avoid reworking them
 | **5** | Coverage Monitor (Serper + Google Alerts → auto-log) + webz.io + archive.is | 5–8 days |
 | **5b** | "Coverage logged" automation chain + **journalist thank-you engine** (`oo_sent_thanks`, no-repeat, safety gates) | 3–5 days |
 | **6** | Move press-release flow into PR + authoring/sign-off wizard | 4–6 days |
+| **6b** | Outlet & journalist **profile pages** (coverage history, Claude summary/tags, notes, maternity/availability, photo) | 4–6 days |
 | **7** | Journalist Finder (media variant of contact finder) + extend byline catalogue + Claude beat tagging | 5–8 days |
+| **8** | **Gmail capture**: OMI REST ingest endpoint + Workspace Add-on button (`dev/oo-gmail-addon`) + forward/BCC fallback | 6–9 days |
+| **8b** | Gmail API OAuth sync (optional, heavier — Google verification) | 5–8 days |
 
 Phases are independently shippable. Phase 0 unblocks everything; **Phases 1–4 are
 the new priority spine** — getting October's existing log into OMI and giving
@@ -612,9 +695,9 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
 7. **Thank-you auto-send** — *Resolved:* auto-send is the goal, but via
    **graduated autonomy** (§7.2) — start in confirm-everything mode, let Claude's
    confidence + an adaptive threshold ramp it to auto as a track record builds.
-   Confident → auto; unsure → one-tap confirm. Open sub-question: ramp the trust
-   **per-client** or **globally**? (Recommend per-client — trust builds at
-   different rates and a new client starts cautious.)
+   Confident → auto; unsure → one-tap confirm. *Resolved:* the trust ramp is
+   **per-client** — trust builds at different rates and a new client starts
+   cautious even when the system is broadly trusted.
 8. **Thank-you/alert sending identity** — from the account manager's own
    address (best for relationships) or a brand PR address? (Recommend: the
    human's identity, so replies build the relationship.) Depends on the
