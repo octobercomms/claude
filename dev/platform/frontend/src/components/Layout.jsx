@@ -51,6 +51,11 @@ export default function Layout() {
     borderLeft: `2px solid ${isActive ? 'var(--accent)' : 'transparent'}`,
     letterSpacing: 0.2,
   });
+  // Non-clickable PESO group label in the client sub-nav.
+  const navGroupStyle = {
+    padding: '12px 24px 3px 24px', fontSize: 10, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '0.09em', color: 'rgba(255,255,255,0.4)',
+  };
 
   return (
     <div className="app-shell">
@@ -76,15 +81,23 @@ export default function Layout() {
               <NavLink to={item.to} style={({ isActive }) => linkStyle(isActive)}>{item.label}</NavLink>
               {item.to === '/clients' && clientId && (
                 <div>
+                  {/* Grouped by the PESO model (Paid · Earned · Shared · Owned),
+                      bookended by Data (overview/analysis) and Admin. */}
+                  <div style={navGroupStyle}>Data</div>
                   <NavLink to={`/clients/${clientId}/sales-traffic`} style={({ isActive }) => subLinkStyle(isActive)}>Sales &amp; Traffic</NavLink>
                   <NavLink to={`/clients/${clientId}/chat`} style={({ isActive }) => subLinkStyle(isActive)}>AI Data Analyst</NavLink>
-                  <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
-                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
-                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Paid</NavLink>
-                  <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Social</NavLink>
-                  <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Email</NavLink>
+                  <div style={navGroupStyle}>Paid</div>
+                  <NavLink to={`/clients/${clientId}/ads`} style={({ isActive }) => subLinkStyle(isActive)}>Ads</NavLink>
+                  <div style={navGroupStyle}>Earned</div>
                   <NavLink to={`/clients/${clientId}/pr`} style={({ isActive }) => subLinkStyle(isActive)}>PR</NavLink>
+                  <div style={navGroupStyle}>Shared</div>
+                  <NavLink to={`/clients/${clientId}/social`} style={({ isActive }) => subLinkStyle(isActive)}>Social</NavLink>
+                  <div style={navGroupStyle}>Owned</div>
+                  <NavLink to={`/clients/${clientId}/seo`} style={({ isActive }) => subLinkStyle(isActive)}>Organic</NavLink>
+                  <NavLink to={`/clients/${clientId}/outreach`} style={({ isActive }) => subLinkStyle(isActive)}>Email</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=forms`} style={subLinkStyle(!!clientMatch && currentTab === 'forms')}>Forms</NavLink>
+                  <div style={navGroupStyle}>Admin</div>
+                  <NavLink to={`/clients/${clientId}?tab=reports`} style={subLinkStyle(!!clientMatch && currentTab === 'reports')}>Reports</NavLink>
                   <NavLink to={`/clients/${clientId}?tab=setup_overview`} style={subLinkStyle(!!clientMatch && ['setup_overview', 'details', 'brand', 'connectors'].includes(currentTab))}>Setup</NavLink>
                 </div>
               )}
