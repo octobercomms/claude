@@ -43,6 +43,9 @@ class OO_Ajax {
             'oo_dedup_merge',
             'oo_log_extract_url',
             'oo_log_suggest',
+            'oo_thank_draft',
+            'oo_thank_send',
+            'oo_thank_skip',
         );
 
         foreach ( $actions as $action ) {
@@ -1501,6 +1504,97 @@ class OO_Ajax {
             ) );
         }
         wp_send_json_success( array( 'items' => array_values( array_filter( $rows ) ) ) );
+    }
+
+    /** Load the entry/contact/outlet context for a thank-you, or send error. */
+    private function thank_context( $entry_id ) {
+        global $wpdb;
+        $row = $wpdb->get_row( $wpdb->prepare(
+            "SELECT l.*, o.name AS outlet_name, c.first_name, c.last_name, c.email
+             FROM {$wpdb->prefix}oo_editorial_log l
+             LEFT JOIN {$wpdb->prefix}oo_outlets o ON o.id = l.outlet_id
+             LEFT JOIN {$wpdb->prefix}oo_contacts c ON c.id = l.contact_id
+             WHERE l.id = %d", $entry_id
+        ) );
+        if ( ! $row || ! $row->contact_id ) wp_send_json_error( 'No journalist linked to this entry.' );
+        return $row;
+    }
+
+    public function thank_draft() {
+        $this->check_nonce();
+        global $wpdb;
+        $entry_id = intval( $_POST['entry_id'] ?? 0 );
+        $row = $this->thank_context( $entry_id );
+
+        $claude = new OO_Claude();
+        if ( ! $claude->is_configured() ) wp_send_json_error( 'Claude API key not configured (Settings).' );
+
+        $prior = $wpdb->get_col( $wpdb->prepare(
+            "SELECT body_excerpt FROM {$wpdb->prefix}oo_sent_thanks WHERE contact_id = %d ORDER BY sent_at DESC LIMIT 5",
+            $row->contact_id
+        ) );
+        $name = trim( $row->first_name . ' ' . $row->last_name );
+        $res  = $claude->write_thank_you( $name, $row->outlet_name, $row->story_title, $row->client, $prior );
+        if ( is_wp_error( $res ) ) wp_send_json_error( $res->get_error_message() );
+
+        wp_send_json_success( array(
+            'tone'    => $res['tone'] ?? '',
+            'subject' => $res['subject'] ?? ( 'Thank you' ),
+            'body'    => $res['body'] ?? '',
+            'to'      => ( $row->email && ! str_ends_with( $row->email, '@import.local' ) ) ? $row->email : '',
+        ) );
+    }
+
+    public function thank_send() {
+        $this->check_nonce();
+        global $wpdb;
+        $entry_id = intval( $_POST['entry_id'] ?? 0 );
+        $row = $this->thank_context( $entry_id );
+
+        $to = ( $row->email && ! str_ends_with( $row->email, '@import.local' ) ) ? $row->email : '';
+        if ( ! $to ) wp_send_json_error( 'This journalist has no email address on file.' );
+
+        $subject = sanitize_text_field( wp_unslash( $_POST['subject'] ?? '' ) );
+        $body    = sanitize_textarea_field( wp_unslash( $_POST['body'] ?? '' ) );
+        if ( $subject === '' || $body === '' ) wp_send_json_error( 'Subject and body are required.' );
+
+        $settings = get_option( 'oo_settings', array() );
+        $from     = $settings['default_reply_to'] ?? '';
+        if ( ! $from || ! is_email( $from ) ) wp_send_json_error( 'Set a Default Reply-To address in Settings to send.' );
+
+        $name = trim( $row->first_name . ' ' . $row->last_name );
+        $html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#111;line-height:1.6">' . nl2br( esc_html( $body ) ) . '</div>';
+        $result = ( new OO_Mailer() )->send( $to, $name, $from, 'October Comms', $from, $subject, $html );
+        if ( is_wp_error( $result ) ) wp_send_json_error( $result->get_error_message() );
+
+        $wpdb->insert( $wpdb->prefix . 'oo_sent_thanks', array(
+            'contact_id'       => $row->contact_id,
+            'editorial_log_id' => $entry_id,
+            'tone'             => sanitize_text_field( $_POST['tone'] ?? '' ),
+            'body_excerpt'     => mb_substr( $body, 0, 240 ),
+            'sent_by'          => get_current_user_id(),
+        ) );
+        $wpdb->insert( $wpdb->prefix . 'oo_thank_feedback', array(
+            'editorial_log_id' => $entry_id,
+            'contact_id'       => $row->contact_id,
+            'decision'         => isset( $_POST['edited'] ) && $_POST['edited'] ? 'edited' : 'approved',
+            'decided_by'       => get_current_user_id(),
+        ) );
+        wp_send_json_success( array( 'sent' => true ) );
+    }
+
+    public function thank_skip() {
+        $this->check_nonce();
+        global $wpdb;
+        $entry_id = intval( $_POST['entry_id'] ?? 0 );
+        $row = $this->thank_context( $entry_id );
+        $wpdb->insert( $wpdb->prefix . 'oo_thank_feedback', array(
+            'editorial_log_id' => $entry_id,
+            'contact_id'       => $row->contact_id,
+            'decision'         => 'rejected',
+            'decided_by'       => get_current_user_id(),
+        ) );
+        wp_send_json_success( array( 'skipped' => true ) );
     }
 
     public function dedup_merge() {

@@ -244,6 +244,34 @@ class OO_Database {
             KEY status (status)
         ) $charset;";
 
+        $sent_thanks = "CREATE TABLE {$wpdb->prefix}oo_sent_thanks (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            contact_id bigint(20) NOT NULL DEFAULT 0,
+            editorial_log_id bigint(20) NOT NULL DEFAULT 0,
+            tone varchar(60) NOT NULL DEFAULT '',
+            body_excerpt text NOT NULL DEFAULT '',
+            confidence decimal(4,3) NOT NULL DEFAULT 0,
+            sent_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            sent_by bigint(20) NOT NULL DEFAULT 0,
+            PRIMARY KEY (id),
+            KEY contact_id (contact_id),
+            KEY editorial_log_id (editorial_log_id)
+        ) $charset;";
+
+        $thank_feedback = "CREATE TABLE {$wpdb->prefix}oo_thank_feedback (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            editorial_log_id bigint(20) NOT NULL DEFAULT 0,
+            contact_id bigint(20) NOT NULL DEFAULT 0,
+            claude_confidence decimal(4,3) NOT NULL DEFAULT 0,
+            decision varchar(20) NOT NULL DEFAULT '',
+            decided_by bigint(20) NOT NULL DEFAULT 0,
+            decided_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            KEY editorial_log_id (editorial_log_id)
+        ) $charset;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $contacts );
         dbDelta( $campaigns );
@@ -257,6 +285,8 @@ class OO_Database {
         dbDelta( $editorial_log );
         dbDelta( $clients );
         dbDelta( $coverage_searches );
+        dbDelta( $sent_thanks );
+        dbDelta( $thank_feedback );
 
         update_option( 'oo_db_version', OO_VERSION );
     }
