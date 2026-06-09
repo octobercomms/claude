@@ -49,6 +49,15 @@ cron.schedule('0 */12 * * *', async () => {
   try { await require('./prMonitor').runDue(); } catch (e) { console.error('[Scheduler] PR monitor failed:', e.message); }
 });
 
+// PR thank-you auto-send ramp: daily at 10:00. For clients on the
+// supervised/auto trust stage, drafts each unthanked published piece and
+// auto-sends those whose Claude confidence clears the stage threshold.
+cron.schedule('0 10 * * *', async () => {
+  console.log('[Scheduler] Running PR thank-you auto-send...');
+  try { const r = await require('./prThanks').runAuto(); if (r && r.sent) console.log(`[Scheduler] auto-sent ${r.sent} thank-you(s)`); }
+  catch (e) { console.error('[Scheduler] PR thank-you auto-send failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the
