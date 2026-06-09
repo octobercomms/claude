@@ -280,5 +280,59 @@ router.get('/usage/history', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// DataForSEO recurring-spend estimate. Mirrors the scheduled jobs that
+// actually bill per active keyword, so the daily cap can be sized safely:
+//   - Rank checks: serp/google/organic/live/advanced at depth 50 (5 pages),
+//     every 4 days   (connectors/dataforseo.js checkRank + scheduler cron */4)
+//   - AI Overview:  serp/google/ai_overview/live/advanced at depth 10,
+//     weekly         (scheduler runWeeklyAIOChecks)
+// Live-Advanced pricing: $0.002 first page + $0.0015 per extra page.
+const DFS_COST = {
+  rankPerCheck: 0.002 + 4 * 0.0015,   // depth 50 → $0.008
+  aioPerCheck: 0.002,                  // depth 10 → $0.002
+  rankCadenceDays: 4,
+  aioCadenceDays: 7,
+  gbpPerUsd: 0.79,                     // approx, display only
+};
+const DAYS_PER_MONTH = 30.437;
+const round2 = (n) => Math.round(n * 100) / 100;
+
+router.get('/dataforseo-estimate', async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT COUNT(*)::int AS active_keywords,
+              COUNT(DISTINCT k.client_id)::int AS active_clients
+         FROM seo_keywords k
+         JOIN clients c ON c.id = k.client_id
+        WHERE k.active = true AND c.active = true`
+    );
+    const activeKeywords = rows[0]?.active_keywords || 0;
+    const activeClients = rows[0]?.active_clients || 0;
+
+    const rankMonthly = activeKeywords * DFS_COST.rankPerCheck * (DAYS_PER_MONTH / DFS_COST.rankCadenceDays);
+    const aioMonthly = activeKeywords * DFS_COST.aioPerCheck * (DAYS_PER_MONTH / DFS_COST.aioCadenceDays);
+    const monthlyUsd = rankMonthly + aioMonthly;
+
+    // Peak single-day spend: the 4-day rank sweep landing on the same day as
+    // the weekly AIO sweep — worst case for sizing a daily cap.
+    const peakDayUsd = activeKeywords * (DFS_COST.rankPerCheck + DFS_COST.aioPerCheck);
+    // Recommended daily cap = 3x the peak run day (headroom so a legitimate
+    // sweep never trips it), floored at $5. A real runaway loop is 10-100x
+    // normal, so this still catches it.
+    const recommendedDailyCapUsd = Math.max(5, Math.ceil(peakDayUsd * 3));
+
+    res.json({
+      active_keywords: activeKeywords,
+      active_clients: activeClients,
+      rank: { per_check_usd: round2(DFS_COST.rankPerCheck), cadence_days: DFS_COST.rankCadenceDays, monthly_usd: round2(rankMonthly) },
+      aio: { per_check_usd: round2(DFS_COST.aioPerCheck), cadence_days: DFS_COST.aioCadenceDays, monthly_usd: round2(aioMonthly) },
+      est_monthly_usd: round2(monthlyUsd),
+      est_monthly_gbp: round2(monthlyUsd * DFS_COST.gbpPerUsd),
+      peak_day_usd: round2(peakDayUsd),
+      recommended_daily_cap_usd: recommendedDailyCapUsd,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
 module.exports.buildTransporter = buildTransporter;
