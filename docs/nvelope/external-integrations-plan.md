@@ -284,10 +284,10 @@ client, which is where the leverage is.
    attribution + a README. No service changes. (The full skills are already
    committed at `.claude/skills/` for editor use; these are the trimmed runtime
    fragments.)
-2. 🟡 **Wire content + strategist** (~1 day) — **strategist done**: the `ads`
-   playbook is injected into `strategistReport.js`'s system prompt (shipped with
-   claude-ads slice 2 above). **Still to do**: inject `copywriting` +
-   `content-strategy` into `contentDraft.js` / `socialCaptions.js`.
+2. ✅ **Wire content + strategist** (**done**) — strategist shipped with
+   claude-ads slice 2; content now wired too: `contentDraft.js` gets
+   `copywriting` + `content-strategy`, `socialCaptions.js` gets `copywriting`,
+   both via a new reusable `playbooks.systemSuffix([...])` helper.
 3. **Wire remaining services** (~2 days) — CRO, SEO, outreach, brand voice rows.
 
 ---

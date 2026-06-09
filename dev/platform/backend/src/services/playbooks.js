@@ -47,6 +47,14 @@ function getPlaybooks(names = []) {
   return parts.join('\n\n---\n\n');
 }
 
+// Convenience: render selected playbooks as a system-prompt suffix, or '' if
+// none resolve. Lets a service do `SYSTEM + playbooks.systemSuffix([...])`
+// without each one re-implementing the "# Methodology to apply" framing.
+function systemSuffix(names = []) {
+  const body = getPlaybooks(names);
+  return body ? `\n\n# Methodology to apply\n${body}` : '';
+}
+
 // Names of every available playbook — handy for diagnostics / a Settings list.
 function list() {
   try {
@@ -59,4 +67,4 @@ function list() {
   }
 }
 
-module.exports = { getPlaybook, getPlaybooks, list };
+module.exports = { getPlaybook, getPlaybooks, systemSuffix, list };

@@ -15,6 +15,7 @@ const crypto = require('crypto');
 const pool = require('../db');
 const claudeService = require('./claude');
 const brandVoice = require('./brandVoice');
+const playbooks = require('./playbooks');
 
 const DRAFT_MODEL = 'claude-sonnet-4-6';
 
@@ -146,7 +147,7 @@ Write the full blog post now in markdown. Hit the word count from the brief. Lea
   const md = await claudeService.callClaude({
     model: DRAFT_MODEL,
     max_tokens: 8000,
-    system: SYSTEM,
+    system: SYSTEM + playbooks.systemSuffix(['copywriting', 'content-strategy']),
     user: userPrompt,
   });
   let cleaned = sanitizeUnicode(md);
