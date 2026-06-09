@@ -8,11 +8,11 @@
 // Built on the same urlSafety guard as the press parser so an AM
 // can't aim the fetcher at an internal service.
 
-const axios = require('axios');
 const cheerio = require('cheerio');
 const crypto = require('crypto');
 const pool = require('../db');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
+const { fetchRenderedHtml } = require('../utils/fetchHtml');
 
 // Tags we consider semantic — the ones that carry brand message rather
 // than navigation chrome. h1/h2 lead the page, hero paragraphs are
@@ -23,14 +23,25 @@ const SEMANTIC_SELECTORS = ['h1', 'h2', 'h3', 'p[class*="hero"]', 'p[class*="lea
   'button', 'a[class*="cta"], a[class*="btn"]'];
 
 async function scrapePage(url) {
+  // SSRF guard first — unchanged. The URL is validated public BEFORE it can
+  // reach either axios or (on a challenge) the Camofox sidecar.
   await assertPublicHttpUrl(url);
-  const { data: html } = await axios.get(url, {
+  // Routed through the fetch-with-fallback wrapper. Competitor pages are sites
+  // we don't control, so they're the likeliest to sit behind a WAF — exactly
+  // what Camofox is for. Degrades to the old axios behaviour until a sidecar
+  // is live.
+  const res = await fetchRenderedHtml(url, {
     timeout: 15000,
     maxRedirects: 0,
-    headers: { 'User-Agent': 'Mozilla/5.0 (compatible; OctoberPlatform/1.0; +https://platform.octobercomms.com)' },
-    validateStatus: s => s >= 200 && s < 300,
+    userAgent: 'Mozilla/5.0 (compatible; OctoberPlatform/1.0; +https://platform.octobercomms.com)',
   });
-  const $ = cheerio.load(html);
+  // Preserve the previous 2xx-only contract: any other status is an error the
+  // caller records. A WAF challenge therefore stays an error today, and once
+  // Camofox is live the wrapper returns the rendered 200 page to scrape.
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(res.error || `Request failed with status ${res.status}`);
+  }
+  const $ = cheerio.load(res.html || '');
   $('script, style, noscript, iframe').remove();
 
   const blocks = [];

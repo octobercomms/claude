@@ -16,6 +16,8 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const pool = require('../db');
 const { extractPhrases, hasUnclearFocus } = require('../utils/keywordExtract');
+const { fetchRenderedHtml } = require('../utils/fetchHtml');
+const { looksLikeChallenge, looksLikeEmptyShell } = require('../utils/challengeDetect');
 
 const MAX_PAGES = 30;
 const REQUEST_DELAY_MS = 800;
@@ -91,23 +93,26 @@ function isBlockedByRobots(pathname, disallow) {
 // on errors — the caller turns "fetch failed" into its own issue type
 // so we don't lose visibility of broken pages.
 async function fetchPage(url) {
-  const start = Date.now();
-  try {
-    const res = await axios.get(url, {
-      timeout: REQUEST_TIMEOUT_MS, maxRedirects: 5,
-      validateStatus: () => true,
-      headers: { 'User-Agent': USER_AGENT, 'Accept': 'text/html,application/xhtml+xml' },
-    });
-    const responseMs = Date.now() - start;
-    return {
-      url, status: res.status, responseMs,
-      contentType: res.headers['content-type'] || '',
-      html: typeof res.data === 'string' ? res.data : '',
-      finalUrl: res.request?.res?.responseUrl || url,
-    };
-  } catch (err) {
-    return { url, status: 0, responseMs: Date.now() - start, error: err.message };
-  }
+  // Routed through the fetch-with-fallback wrapper: plain axios for the common
+  // case, Camofox stealth browser when a bot challenge / JS shell is detected
+  // (and a sidecar is configured). Degrades to exactly the old axios behaviour
+  // when Camofox isn't available, so this is behaviour-neutral until the
+  // sidecar is live. `via` tells classifyPageIssues whether content was
+  // resolved by the stealth path.
+  const r = await fetchRenderedHtml(url, {
+    timeout: REQUEST_TIMEOUT_MS,
+    maxRedirects: 5,
+    userAgent: USER_AGENT,
+    headers: { 'Accept': 'text/html,application/xhtml+xml' },
+  });
+  return {
+    url, status: r.status, responseMs: r.responseMs,
+    contentType: r.contentType || '',
+    html: r.html || '',
+    finalUrl: r.finalUrl || url,
+    error: r.error,
+    via: r.via,
+  };
 }
 
 function parsePage(page) {
@@ -142,6 +147,15 @@ function classifyPageIssues({ page, parsed }) {
   const url = page.url;
   if (page.status === 0) {
     issues.push({ category: 'fetch_failed', severity: 'high', detail: page.error || 'Request failed' });
+    return issues;
+  }
+  // Bot challenge / WAF interstitial (or an unresolved JS shell) — NOT a
+  // genuine broken link. Only classified as such when Camofox didn't resolve
+  // it (page.via !== 'camofox'). Previously these were mis-filed as
+  // broken_link (high penalty), polluting the audit score with false findings.
+  if (page.via !== 'camofox' && (looksLikeChallenge(page) || looksLikeEmptyShell(page))) {
+    issues.push({ category: 'waf_blocked', severity: 'medium',
+      detail: `Page is behind a bot challenge / WAF or renders client-side (HTTP ${page.status}) — couldn't read its content. Configure the Camofox stealth browser to audit pages like this.` });
     return issues;
   }
   if (page.status >= 400) {
