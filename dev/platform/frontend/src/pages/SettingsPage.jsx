@@ -209,6 +209,15 @@ const KEY_GROUPS = [
     ],
   },
   {
+    title: 'PR Module',
+    category: 'Outreach',
+    hint: 'Connects the per-client PR tab to the October Outreach PR data. Base URL is your WordPress REST root (…/wp-json/oo/v1); the API key comes from October Outreach → Settings → PR API.',
+    keys: [
+      { key: 'OMI_BASE', label: 'PR API Base URL', placeholder: 'https://octobercomms.com/wp-json/oo/v1', type: 'text' },
+      { key: 'OMI_KEY', label: 'PR API Key', placeholder: 'X-OO-Key from October Outreach', type: 'password' },
+    ],
+  },
+  {
     title: 'Outreach Reply Inbox',
     category: 'Outreach',
     hint: 'IMAP login for the inbox outreach replies land in. The platform polls it to detect replies, classify them with Claude, and stop follow-ups automatically.',
