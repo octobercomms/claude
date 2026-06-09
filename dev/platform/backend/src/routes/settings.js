@@ -73,6 +73,30 @@ router.get('/platform-keys', async (req, res) => {
   }
 });
 
+// PR Gmail add-on key — the shared secret the Apps Script add-on sends as
+// X-OMI-Key. Returned in full (admin-only route) so it can be pasted into the
+// add-on's config; regenerate to rotate.
+async function readAddonKey() {
+  const { rows } = await db.query("SELECT value FROM platform_settings WHERE key = 'PR_ADDON_KEY'");
+  if (!rows.length) return '';
+  try { return decrypt(JSON.parse(rows[0].value)) || ''; } catch { return ''; }
+}
+router.get('/pr-addon-key', async (req, res) => {
+  try { res.json({ key: await readAddonKey() }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/pr-addon-key/regenerate', async (req, res) => {
+  try {
+    const key = require('crypto').randomBytes(24).toString('hex');
+    await db.query(
+      `INSERT INTO platform_settings (key, value, updated_at) VALUES ('PR_ADDON_KEY', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(encrypt(key))]
+    );
+    res.json({ key });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // GET revealed settings (decrypted values)
 router.get('/platform-keys/values', async (req, res) => {
   try {
