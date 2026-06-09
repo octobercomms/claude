@@ -89,6 +89,12 @@ $brands = OO_Database::get_brands();
             <?php if ( $pr && $pr->approved_at ) : ?>
             <p class="oo-muted" style="font-size:13px">✓ Approved by <strong><?php echo esc_html( $pr->approved_by ?: 'client' ); ?></strong> on <?php echo esc_html( date( 'd M Y', strtotime( $pr->approved_at ) ) ); ?>.</p>
             <?php endif; ?>
+            <?php if ( $pr && in_array( $pr->status, array( 'approved', 'sent' ), true ) ) : ?>
+            <div class="oo-field" style="border-top:1px solid var(--oo-border,#e5e7eb);padding-top:12px">
+                <p class="oo-muted" style="font-size:13px;margin-bottom:8px">Pitch this release to journalists — builds a campaign you'll fill with media contacts, draft pitches for, and launch.</p>
+                <a href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=oo_create_pitch_campaign&pr_id=' . $pr->id ), 'oo_create_pitch_campaign' ) ); ?>" class="oo-btn oo-btn-primary"><?php echo $pr->campaign_id ? 'Open pitch campaign →' : 'Create pitch campaign →'; ?></a>
+            </div>
+            <?php endif; ?>
             <div class="oo-field">
                 <label class="oo-label">Embargo until <span class="oo-muted" style="font-weight:400">(optional)</span></label>
                 <input type="datetime-local" name="embargo_at" class="oo-input" value="<?php echo $pr && $pr->embargo_at ? esc_attr( date( 'Y-m-d\TH:i', strtotime( $pr->embargo_at ) ) ) : ''; ?>">
