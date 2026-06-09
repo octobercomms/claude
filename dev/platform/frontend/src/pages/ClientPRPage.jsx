@@ -32,8 +32,24 @@ export default function ClientPRPage() {
   const [editing, setEditing] = useState(null); // null | {id?, ...form}
   const [saving, setSaving] = useState(false);
   const [combinedResult, setCombinedResult] = useState(null);
+  const [showReports, setShowReports] = useState(false);
+  const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
+  const [savingReports, setSavingReports] = useState(false);
 
   useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
+  useEffect(() => { api.get(`/pr/clients/${id}/report-settings`).then(setReports).catch(() => {}); }, [id]);
+
+  async function saveReports() {
+    setSavingReports(true);
+    try { await api.patch(`/pr/clients/${id}/report-settings`, reports); toast('Report settings saved', 'success'); }
+    catch (e) { toast(e.message, 'error'); } finally { setSavingReports(false); }
+  }
+  async function sendReportNow() {
+    try {
+      const r = await api.post(`/pr/clients/${id}/send-report`, {});
+      toast(r.sent ? `Report sent (${r.count} items)` : (r.skipped ? 'Nothing new to report' : 'Done'), r.sent ? 'success' : 'info');
+    } catch (e) { toast(e.message, 'error'); }
+  }
 
   function loadData() {
     setLoading(true);
@@ -116,6 +132,7 @@ export default function ClientPRPage() {
         <h1 className="display">PR</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Client coverage link</button>
+          <button className="btn btn-secondary" onClick={() => setShowReports((s) => !s)}>✉ Reports</button>
           <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
           <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
           <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>
@@ -123,6 +140,19 @@ export default function ClientPRPage() {
           <button className="btn btn-secondary" disabled={importing} onClick={() => combinedRef.current && combinedRef.current.click()} title="Routes each row to the matching client by the CSV's Client column">↑ Import combined (all clients)</button>
         </div>
       </header>
+
+      {showReports && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h3 className="h3 mb-2">Automated reports &amp; alerts</h3>
+          <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Email the client a coverage digest on a schedule, and a "you've been featured" alert when a piece is marked published.</p>
+          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+            <label className="field" style={{ flex: 1, minWidth: 220 }}><span className="field-label">Report / alert email</span><input className="input" value={reports.alert_email || ''} onChange={(e) => setReports((r) => ({ ...r, alert_email: e.target.value }))} placeholder="client@example.com" /></label>
+            <label className="field"><span className="field-label">Cadence</span><select className="input" value={reports.report_cadence || 'off'} onChange={(e) => setReports((r) => ({ ...r, report_cadence: e.target.value }))}><option value="off">Off</option><option value="weekly">Weekly</option><option value="monthly">Monthly</option></select></label>
+            <button className="btn btn-primary" disabled={savingReports} onClick={saveReports}>{savingReports ? 'Saving…' : 'Save'}</button>
+            <button className="btn btn-secondary" onClick={sendReportNow}>Send report now</button>
+          </div>
+        </div>
+      )}
 
       {combinedResult && (
         <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: '3px solid var(--accent)' }}>

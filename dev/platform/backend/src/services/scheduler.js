@@ -35,6 +35,13 @@ cron.schedule('0 8 1 * *', async () => {
   await runScheduledReports('monthly');
 });
 
+// PR client coverage reports: daily at 09:00; sends each client their
+// weekly/monthly digest when due (cadence + last_report_at gate inside).
+cron.schedule('0 9 * * *', async () => {
+  console.log('[Scheduler] Running due PR coverage reports...');
+  try { await require('./prReports').runDueReports(); } catch (e) { console.error('[Scheduler] PR reports failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the

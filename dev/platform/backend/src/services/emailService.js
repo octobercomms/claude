@@ -734,4 +734,15 @@ function escapeHtmlLocal(str) {
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest };
+// Generic PR coverage email (weekly/monthly reports + "you've been featured").
+async function sendPrEmail({ to, subject, html }) {
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: Array.isArray(to) ? to.join(', ') : to,
+    subject,
+    html,
+    attachments: [logoAttachment()],
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail };
