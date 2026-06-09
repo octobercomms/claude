@@ -3,17 +3,25 @@ import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
+const STATUSES = [
+  ['pitched', 'Pitched'], ['pending', 'Pending'], ['no_response', 'No Response'],
+  ['confirmed', 'Confirmed'], ['interview_prep', 'Interview Prep'], ['download', 'Download'],
+  ['published', 'Published'], ['declined', 'Declined'],
+];
+const BLANK = { story_title: '', press_contact: '', publication: '', country: '', status: 'pitched', issue_date: '', story_url: '', notes_outcome: '' };
+
 function fmtDate(d) {
   if (!d) return '—';
   const t = new Date(d);
   return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+const dateInput = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 
-// Client-scoped PR coverage — native to the platform (no WordPress dependency).
 export default function ClientPRPage() {
   const { id } = useParams();
   const toast = useToast();
   const fileRef = useRef(null);
+  const combinedRef = useRef(null);
   const [client, setClient] = useState(null);
   const [tab, setTab] = useState('coverage');
   const [stats, setStats] = useState(null);
@@ -21,10 +29,11 @@ export default function ClientPRPage() {
   const [journalists, setJournalists] = useState([]);
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
+  const [editing, setEditing] = useState(null); // null | {id?, ...form}
+  const [saving, setSaving] = useState(false);
+  const [combinedResult, setCombinedResult] = useState(null);
 
-  useEffect(() => {
-    api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error'));
-  }, [id]);
+  useEffect(() => { api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error')); }, [id]);
 
   function loadData() {
     setLoading(true);
@@ -36,36 +45,101 @@ export default function ClientPRPage() {
   }
   useEffect(() => { loadData(); }, [id]);
 
-  async function handleImport(e) {
+  async function doImport(e, combined) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
     setImporting(true);
+    setCombinedResult(null);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const r = await api.postForm(`/pr/clients/${id}/import`, fd);
-      toast(`Imported ${r.imported} rows`, 'success');
+      if (combined) {
+        const r = await api.postForm('/pr/import', fd);
+        toast(`Imported ${r.imported} rows · ${r.skipped} skipped`, 'success');
+        if (r.unmatched && r.unmatched.length) setCombinedResult(r);
+      } else {
+        const r = await api.postForm(`/pr/clients/${id}/import`, fd);
+        toast(`Imported ${r.imported} rows`, 'success');
+      }
       loadData();
-    } catch (err) {
-      toast(err.message, 'error');
-    } finally {
+    } catch (err) { toast(err.message, 'error'); }
+    finally {
       setImporting(false);
       if (fileRef.current) fileRef.current.value = '';
+      if (combinedRef.current) combinedRef.current.value = '';
     }
   }
+
+  function startEdit(row) {
+    setEditing(row ? {
+      id: row.id, story_title: row.story_title || '', press_contact: row.journalist || '',
+      publication: row.outlet || '', country: row.country || '', status: row.status || 'pitched',
+      issue_date: dateInput(row.issue_date), story_url: row.story_url || '', notes_outcome: row.notes_outcome || '',
+    } : { ...BLANK });
+  }
+
+  async function saveEntry() {
+    setSaving(true);
+    try {
+      const body = { ...editing };
+      if (editing.id) await api.patch(`/pr/editorial-log/${editing.id}`, body);
+      else await api.post(`/pr/clients/${id}/editorial-log`, body);
+      toast('Saved', 'success');
+      setEditing(null);
+      loadData();
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setSaving(false); }
+  }
+
+  async function deleteEntry(row) {
+    if (!window.confirm('Delete this entry?')) return;
+    try { await api.delete(`/pr/editorial-log/${row.id}`); loadData(); }
+    catch (err) { toast(err.message, 'error'); }
+  }
+
+  const f = editing || {};
+  const setF = (k, v) => setEditing((e) => ({ ...e, [k]: v }));
 
   return (
     <div className="suite-client-pr">
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Press coverage &amp; journalists</span></div>
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
         <h1 className="display">PR</h1>
-        <div>
-          <input ref={fileRef} type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
-          <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>
-            {importing ? 'Importing…' : '↑ Import editorial log CSV'}
-          </button>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
+          <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
+          <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>
+          <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
+          <button className="btn btn-secondary" disabled={importing} onClick={() => combinedRef.current && combinedRef.current.click()} title="Routes each row to the matching client by the CSV's Client column">↑ Import combined (all clients)</button>
         </div>
       </header>
+
+      {combinedResult && (
+        <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: '3px solid var(--accent)' }}>
+          <strong>{combinedResult.skipped} rows skipped.</strong> Unmatched client names (no platform client with that name):
+          <div style={{ marginTop: 6, color: 'var(--text-subtle)', fontSize: 13 }}>{combinedResult.unmatched.join(', ')}</div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <h3 className="h3 mb-2">{editing.id ? 'Edit entry' : 'New entry'}</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+            <label className="field"><span className="field-label">Story title</span><input className="input" value={f.story_title} onChange={(e) => setF('story_title', e.target.value)} /></label>
+            <label className="field"><span className="field-label">Status</span><select className="input" value={f.status} onChange={(e) => setF('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+            <label className="field"><span className="field-label">Press contact</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
+            <label className="field"><span className="field-label">Publication</span><input className="input" value={f.publication} onChange={(e) => setF('publication', e.target.value)} /></label>
+            <label className="field"><span className="field-label">Country</span><input className="input" value={f.country} onChange={(e) => setF('country', e.target.value)} /></label>
+            <label className="field"><span className="field-label">Issue date</span><input className="input" type="date" value={f.issue_date} onChange={(e) => setF('issue_date', e.target.value)} /></label>
+            <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Story URL</span><input className="input" value={f.story_url} onChange={(e) => setF('story_url', e.target.value)} placeholder="https://…" /></label>
+            <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes / outcome (internal)</span><textarea className="input" rows={2} value={f.notes_outcome} onChange={(e) => setF('notes_outcome', e.target.value)} /></label>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button className="btn btn-primary" disabled={saving} onClick={saveEntry}>{saving ? 'Saving…' : 'Save'}</button>
+            <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
+          </div>
+        </div>
+      )}
 
       <div className="card" style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
         <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.published : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Published</div></div>
@@ -83,7 +157,7 @@ export default function ClientPRPage() {
           <p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p>
         ) : tab === 'coverage' ? (
           <table className="table">
-            <thead><tr><th>Publication</th><th>Journalist</th><th>Status</th><th>Date</th><th>Story</th></tr></thead>
+            <thead><tr><th>Publication</th><th>Journalist</th><th>Status</th><th>Date</th><th>Story</th><th></th></tr></thead>
             <tbody>
               {log.map((r) => (
                 <tr key={r.id}>
@@ -92,9 +166,13 @@ export default function ClientPRPage() {
                   <td><span className="chip">{r.status_label || r.status}</span></td>
                   <td>{fmtDate(r.issue_date)}</td>
                   <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
+                  <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
+                    <button className="btn btn-secondary btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
+                  </td>
                 </tr>
               ))}
-              {!log.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet. Import your editorial log CSV to get started.</td></tr>}
+              {!log.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet. Add an entry, or import your editorial log CSV.</td></tr>}
             </tbody>
           </table>
         ) : (

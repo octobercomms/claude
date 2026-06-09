@@ -162,9 +162,68 @@ async function importEditorialCsv(clientId, csvText) {
   return { imported };
 }
 
+/**
+ * Import a combined editorial-log CSV that spans many clients — routes each row
+ * to the matching platform client by the CSV's "Client" column (case-insensitive
+ * name match against the clients table). Rows whose client can't be matched are
+ * skipped and reported (never auto-create clients). Returns
+ * { imported, skipped, unmatched: [names] }.
+ */
+async function importEditorialCsvAllClients(csvText) {
+  const rows = parseCsv(csvText);
+  if (rows.length < 2) return { imported: 0, skipped: 0, unmatched: [] };
+  const headers = rows[0].map((h) => h.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const col = (key) => { const i = headers.indexOf(key); return i === -1 ? null : i; };
+  const idx = {
+    title: col('storytitle'), client: col('client'), country: col('country'),
+    interview: col('interviewdate'), issue: col('issuedate'), link: col('linktostory'),
+    notes: col('notesoutcome'), pitch: col('pitchrequest'), contact: col('presscontact'),
+    publication: col('publicationname'), request: col('requestdate'), status: col('status'),
+  };
+  const get = (r, k) => (idx[k] === null || idx[k] == null ? '' : String(r[idx[k]] || '').trim());
+
+  // client name (lowercased) -> id
+  const { rows: clients } = await db.query('SELECT id, name FROM clients');
+  const clientMap = new Map(clients.map((c) => [String(c.name || '').trim().toLowerCase(), c.id]));
+
+  let imported = 0, skipped = 0;
+  const unmatched = new Set();
+
+  for (let i = 1; i < rows.length; i++) {
+    const r = rows[i];
+    const clientName = stripNotionRef(get(r, 'client'));
+    const title = stripNotionRef(get(r, 'title'));
+    const publication = stripNotionRef(get(r, 'publication'));
+    const contact = stripNotionRef(get(r, 'contact'));
+    if (!clientName && !title && !publication && !contact) continue;
+
+    const clientId = clientName ? clientMap.get(clientName.toLowerCase()) : null;
+    if (!clientId) { if (clientName) unmatched.add(clientName); skipped++; continue; }
+
+    const outletId = publication ? await resolveOutlet(publication) : null;
+    const contactId = contact ? await resolveContact(contact, outletId) : null;
+    const statusKey = get(r, 'status').toLowerCase().replace(/[^a-z]/g, '');
+    const status = STATUS_FROM_CSV[statusKey] || 'pitched';
+
+    await db.query(
+      `INSERT INTO pr_editorial_log
+         (client_id, story_title, contact_id, outlet_id, country, status, pitch_request,
+          request_date, interview_date, issue_date, story_url, notes_outcome, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'csv-import')`,
+      [
+        clientId, title, contactId, outletId, get(r, 'country'), status, get(r, 'pitch'),
+        parseDate(get(r, 'request')), parseDate(get(r, 'interview')), parseDate(get(r, 'issue')),
+        stripNotionRef(get(r, 'link'), true) || get(r, 'link'), get(r, 'notes'),
+      ]
+    );
+    imported++;
+  }
+  return { imported, skipped, unmatched: [...unmatched] };
+}
+
 module.exports = {
   STATUS_LABELS, PUBLISHED, statusLabel,
   relationshipStrength, hitRate, isGoneQuiet,
   parseCsv, stripNotionRef, parseDate,
-  resolveOutlet, resolveContact, importEditorialCsv,
+  resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
 };
