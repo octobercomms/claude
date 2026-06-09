@@ -211,9 +211,12 @@ consistent score and the AM can trust the scorecard.
    Verified against good / drain / thin / empty fixtures (93 strong, 33 weak,
    86 low-confidence, null respectively). Self-contained, no Strategist
    changes.
-2. **Wire into the Strategist** (~2 days) — call the scorer, feed it into the
-   prompt, persist + surface the score. Keeps the existing thin-data
-   short-circuit and recommendation-parsing intact.
+2. ✅ **Wire into the Strategist** (**done** — shipped jointly with
+   marketingskills slice 2 as one "upgrade the Strategist" PR). `strategistReport.js`
+   now calls `adAudit.scoreSnapshot(current)`, renders the rubric as the spine
+   of the Summary Scorecard, leads the Executive Summary with the score, and
+   persists the audit in `data_snapshot`. Existing thin-data short-circuit and
+   recommendation-parsing left intact.
 
 ---
 
@@ -281,9 +284,10 @@ client, which is where the leverage is.
    attribution + a README. No service changes. (The full skills are already
    committed at `.claude/skills/` for editor use; these are the trimmed runtime
    fragments.)
-2. **Wire content + strategist** (~1 day) — inject playbooks into
-   `contentDraft.js` / `socialCaptions.js` / `strategistReport.js`. Eyeball
-   before/after on a real client.
+2. 🟡 **Wire content + strategist** (~1 day) — **strategist done**: the `ads`
+   playbook is injected into `strategistReport.js`'s system prompt (shipped with
+   claude-ads slice 2 above). **Still to do**: inject `copywriting` +
+   `content-strategy` into `contentDraft.js` / `socialCaptions.js`.
 3. **Wire remaining services** (~2 days) — CRO, SEO, outreach, brand voice rows.
 
 ---
