@@ -28,6 +28,7 @@ $outlets = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ) ) : $wpdb->
 <div class="oo-page-header">
     <h1 class="oo-page-title">Media Database</h1>
     <div class="oo-page-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="oo-btn oo-btn-secondary" onclick="var e=document.getElementById('oo-master-import');e.style.display=e.style.display==='none'?'block':'none'">↑ Import Master Lists</button>
         <button class="oo-btn oo-btn-primary" id="oo-dedup-scan">
             <span class="oo-btn-text">🔍 Find Duplicate Publications</span>
             <span class="oo-btn-loading" style="display:none">Scanning…</span>
@@ -36,6 +37,37 @@ $outlets = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ) ) : $wpdb->
 </div>
 
 <div id="oo-media-notice" class="oo-notice" style="display:none"></div>
+
+<?php if ( isset( $_GET['pub_imported'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval( $_GET['pub_imported'] ); ?> publications imported (duplicates auto-folded).</div><?php endif; ?>
+<?php if ( isset( $_GET['con_imported'] ) ) : ?><div class="oo-notice oo-notice-success"><?php echo intval( $_GET['con_imported'] ); ?> press contacts imported / enriched.</div><?php endif; ?>
+<?php if ( isset( $_GET['import_error'] ) ) : ?><div class="oo-notice oo-notice-warning">Import failed: <?php echo esc_html( $_GET['import_error'] ); ?>.</div><?php endif; ?>
+
+<div class="oo-card" id="oo-master-import" style="display:none;margin-bottom:16px">
+    <h2 class="oo-card-title">Import Master Lists</h2>
+    <p class="oo-muted" style="margin-bottom:14px">Import your Notion master databases. Names are matched against existing records (alias-aware), so re-importing won't create duplicates. Run "Find Duplicate Publications" afterwards to clean any remaining variants.</p>
+    <div class="oo-settings-grid">
+        <div class="oo-field" style="margin:0">
+            <label class="oo-label">Master Publications CSV</label>
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <?php wp_nonce_field( 'oo_import_publications' ); ?>
+                <input type="hidden" name="action" value="oo_import_publications">
+                <input type="file" name="csv_file" accept=".csv" required>
+                <button type="submit" class="oo-btn oo-btn-primary oo-btn-sm">Import Publications</button>
+            </form>
+            <p class="oo-hint">Single column: <code>Publication Name</code>.</p>
+        </div>
+        <div class="oo-field" style="margin:0">
+            <label class="oo-label">Master Press Contacts CSV</label>
+            <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <?php wp_nonce_field( 'oo_import_press_contacts' ); ?>
+                <input type="hidden" name="action" value="oo_import_press_contacts">
+                <input type="file" name="csv_file" accept=".csv" required>
+                <button type="submit" class="oo-btn oo-btn-primary oo-btn-sm">Import Contacts</button>
+            </form>
+            <p class="oo-hint"><code>Name, Bio Link, Email, Last Contacted, Location, Publication</code>.</p>
+        </div>
+    </div>
+</div>
 
 <p class="oo-muted" style="margin-bottom:16px">
     <strong><?php echo number_format( $total_live ); ?></strong> publications

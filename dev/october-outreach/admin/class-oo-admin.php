@@ -23,6 +23,8 @@ class OO_Admin {
         add_action( 'admin_post_oo_save_editorial_entry', array( $this, 'save_editorial_entry' ) );
         add_action( 'admin_post_oo_delete_editorial_entry', array( $this, 'delete_editorial_entry' ) );
         add_action( 'admin_post_oo_import_editorial_log', array( $this, 'import_editorial_log' ) );
+        add_action( 'admin_post_oo_import_publications', array( $this, 'import_publications' ) );
+        add_action( 'admin_post_oo_import_press_contacts', array( $this, 'import_press_contacts' ) );
     }
 
     public function app_body_class( $classes ) {
@@ -672,46 +674,125 @@ class OO_Admin {
     }
 
     /**
-     * Find a media contact by name (+ optional outlet); create if missing. Returns id or 0.
-     * Names without an email use a synthesised placeholder so the UNIQUE(email) holds.
+     * Import the Master Publications CSV (single "Publication Name" column).
+     * Each name runs through the alias-aware resolver, so it folds into the
+     * deduped set rather than re-creating known duplicates.
+     */
+    public function import_publications() {
+        check_admin_referer( 'oo_import_publications' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        if ( empty( $_FILES['csv_file']['tmp_name'] ) ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-media&import_error=no_file' ) );
+            exit;
+        }
+        $handle = fopen( $_FILES['csv_file']['tmp_name'], 'r' );
+        if ( ! $handle ) { wp_redirect( admin_url( 'admin.php?page=oo-media&import_error=unreadable' ) ); exit; }
+
+        $headers = fgetcsv( $handle );
+        // Find a "publication name" column; default to the first column.
+        $idx = 0;
+        foreach ( (array) $headers as $i => $h ) {
+            if ( strpos( preg_replace( '/[^a-z]/', '', strtolower( $h ) ), 'publication' ) !== false ) { $idx = $i; break; }
+        }
+
+        $imported = 0;
+        while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+            $name = trim( (string) ( $row[ $idx ] ?? '' ) );
+            if ( $name === '' ) continue;
+            if ( OO_Dedup::resolve_outlet( $name ) ) $imported++;
+        }
+        fclose( $handle );
+        wp_redirect( admin_url( 'admin.php?page=oo-media&pub_imported=' . $imported ) );
+        exit;
+    }
+
+    /**
+     * Import the Master Press Contact CSV:
+     * Name, Articles, Bio Link, Email, Last Contacted, Location, Publication.
+     * Publications resolve to outlets; contacts resolve by email then name
+     * (enriching log-import placeholders) via OO_Dedup.
+     */
+    public function import_press_contacts() {
+        check_admin_referer( 'oo_import_press_contacts' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        if ( empty( $_FILES['csv_file']['tmp_name'] ) ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-media&import_error=no_file' ) );
+            exit;
+        }
+        $handle = fopen( $_FILES['csv_file']['tmp_name'], 'r' );
+        if ( ! $handle ) { wp_redirect( admin_url( 'admin.php?page=oo-media&import_error=unreadable' ) ); exit; }
+
+        $raw = fgetcsv( $handle );
+        if ( ! $raw ) { fclose( $handle ); wp_redirect( admin_url( 'admin.php?page=oo-media&import_error=empty' ) ); exit; }
+        $norm = array();
+        foreach ( $raw as $i => $h ) $norm[ $i ] = preg_replace( '/[^a-z0-9]/', '', strtolower( $h ) );
+        $find = function( $k ) use ( $norm ) { $i = array_search( $k, $norm, true ); return $i === false ? null : $i; };
+        $col = array(
+            'name'        => $find( 'name' ),
+            'bio'         => $find( 'biolink' ),
+            'email'       => $find( 'email' ),
+            'last'        => $find( 'lastcontacted' ),
+            'location'    => $find( 'location' ),
+            'publication' => $find( 'publication' ),
+        );
+        $get = function( $row, $key ) use ( $col ) {
+            $i = $col[ $key ] ?? null;
+            return $i === null ? '' : trim( (string) ( $row[ $i ] ?? '' ) );
+        };
+
+        $imported = 0;
+        while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+            $name = $this->strip_notion_ref( $get( $row, 'name' ) );
+            if ( $name === '' ) continue;
+            $parts = preg_split( '/\s+/', $name, 2 );
+
+            $publication = $this->strip_notion_ref( $get( $row, 'publication' ) );
+            $outlet_id   = $publication ? OO_Dedup::resolve_outlet( $publication ) : 0;
+
+            OO_Dedup::resolve_contact( array(
+                'first_name'     => $parts[0] ?? '',
+                'last_name'      => $parts[1] ?? '',
+                'email'          => $get( $row, 'email' ),
+                'location'       => $get( $row, 'location' ),
+                'bio_link'       => $this->strip_notion_ref( $get( $row, 'bio' ), true ) ?: $get( $row, 'bio' ),
+                'last_contacted' => $this->parse_date( $get( $row, 'last' ) ),
+                'outlet_id'      => $outlet_id,
+                'company'        => $publication,
+                'source'         => 'Master Contacts import',
+            ) );
+            $imported++;
+        }
+        fclose( $handle );
+        wp_redirect( admin_url( 'admin.php?page=oo-media&con_imported=' . $imported ) );
+        exit;
+    }
+
+    /**
+     * Find/create a media contact by name (+ optional outlet). Delegates to the
+     * shared OO_Dedup resolver so the editorial-log and master-contact imports
+     * converge on one record per journalist instead of duplicating.
      */
     private function resolve_contact_by_name( $name, $outlet_id = 0 ) {
         $name = trim( $name );
         if ( $name === '' ) return 0;
-        global $wpdb;
-        $table = $wpdb->prefix . 'oo_contacts';
-
         $parts = preg_split( '/\s+/', $name, 2 );
-        $first = $parts[0] ?? '';
-        $last  = $parts[1] ?? '';
-
-        $id = (int) $wpdb->get_var( $wpdb->prepare(
-            "SELECT id FROM {$table} WHERE first_name = %s AND last_name = %s LIMIT 1",
-            $first, $last
-        ) );
-        if ( $id ) return $id;
 
         $company = '';
         if ( $outlet_id ) {
+            global $wpdb;
             $company = (string) $wpdb->get_var( $wpdb->prepare(
                 "SELECT name FROM {$wpdb->prefix}oo_outlets WHERE id = %d", $outlet_id
             ) );
         }
 
-        // Placeholder e-mail keeps the UNIQUE(email) constraint satisfied for
-        // imported contacts we don't yet have an address for.
-        $placeholder = 'noemail+' . md5( strtolower( $name ) . '|' . $outlet_id ) . '@import.local';
-
-        $wpdb->insert( $table, array(
-            'first_name' => sanitize_text_field( $first ),
-            'last_name'  => sanitize_text_field( $last ),
-            'email'      => $placeholder,
-            'company'    => sanitize_text_field( $company ),
-            'type'       => 'journalist',
-            'segment'    => 'media',
+        return OO_Dedup::resolve_contact( array(
+            'first_name' => $parts[0] ?? '',
+            'last_name'  => $parts[1] ?? '',
+            'outlet_id'  => $outlet_id,
+            'company'    => $company,
             'source'     => 'Editorial Log import',
-            'status'     => 'active',
         ) );
-        return (int) $wpdb->insert_id;
     }
 }

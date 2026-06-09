@@ -10,12 +10,17 @@ October Outreach plugin (the "October Marketing Intelligence" app).
 ### Build status
 - ✅ **Phase 0–1** (merged): `segment` split, gated PR menu, `oo_editorial_log`
   + `oo_outlets` tables, Editorial Log page + Notion-export CSV import.
-- ✅ **Phase 2b** (this branch): AI outlet deduplication — `OO_Dedup` engine
+- ✅ **Phase 2b** (merged): AI outlet deduplication — `OO_Dedup` engine
   (normalise → fuzzy cluster), Claude adjudication of fuzzy clusters, Media
   Database page with a "find duplicates" review/merge tool, alias-aware
   resolver wired into the importer so future imports don't re-duplicate.
-- ⬜ Next: Phase 2 (master DB import + Notion API), Phase 3 (analytics),
-  Phase 4 (client portal + reports), then 5–8.
+- ✅ **Phase 2 (CSV)** (this branch): master Publications + Press Contacts CSV
+  importers routed through the alias-aware resolvers; new contact fields
+  (`bio_link`, `last_contacted`, `outlet_id`); shared `OO_Dedup::resolve_contact`
+  (email-then-name) so log + master imports converge on one record per
+  journalist. Notion-API path still to come.
+- ⬜ Next: Phase 2 (Notion API sync), Phase 3 (analytics), Phase 4 (client
+  portal + reports), then 5–8.
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for
