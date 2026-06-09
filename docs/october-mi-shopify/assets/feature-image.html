@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<title>October Marketing Intelligence — feature image</title>
+<style>
+  /*
+   * Feature image for the Shopify App Store listing — 1600×900.
+   *
+   * To export:
+   *   1. open this file in Chrome
+   *   2. Cmd+Option+I → Cmd+Shift+M → set 1600 × 900
+   *   3. Three-dot menu (top right of devtools) → "Capture full size screenshot"
+   *
+   * Edit the headline / sub / brand / colours below to taste, then re-shoot.
+   */
+
+  :root {
+    --ink: #0a0a0a;
+    --accent: #FFD600;
+    --surface: #FAFAF7;
+    --muted: rgba(255, 255, 255, 0.55);
+    --hairline: rgba(255, 255, 255, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 1600px;
+    height: 900px;
+    overflow: hidden;
+    background: var(--ink);
+    color: var(--surface);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .canvas {
+    width: 1600px;
+    height: 900px;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(1200px 600px at 110% -10%, rgba(255, 214, 0, 0.14), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(255, 214, 0, 0.06), transparent 65%),
+      linear-gradient(180deg, #0a0a0a 0%, #111 100%);
+  }
+
+  /* subtle diagonal grid texture */
+  .canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(transparent 95%, var(--hairline) 95%),
+      linear-gradient(90deg, transparent 95%, var(--hairline) 95%);
+    background-size: 80px 80px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .frame {
+    position: absolute;
+    inset: 70px 90px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 60px;
+    align-items: center;
+  }
+
+  /* ── Left: brand + headline + sub ──────────────────────────────────────── */
+  .left { display: flex; flex-direction: column; gap: 28px; }
+
+  .kicker {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-size: 14px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--accent); font-weight: 600;
+  }
+  .kicker .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 16px rgba(255, 214, 0, 0.6);
+  }
+
+  h1 {
+    font-size: 76px;
+    line-height: 1.04;
+    font-weight: 700;
+    margin: 0;
+    letter-spacing: -0.02em;
+    color: var(--surface);
+  }
+  h1 .accent { color: var(--accent); }
+
+  .sub {
+    font-size: 22px;
+    line-height: 1.5;
+    color: var(--muted);
+    max-width: 600px;
+    margin: 0;
+  }
+
+  .badges {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+  }
+  .badge {
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    padding: 8px 16px;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    color: var(--surface);
+    background: rgba(255, 255, 255, 0.03);
+  }
+  .badge strong { color: var(--accent); font-weight: 600; }
+
+  /* ── Right: flow diagram (store → arrow → dashboard) ───────────────────── */
+  .right { position: relative; height: 100%; }
+
+  .card {
+    position: absolute;
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 18px;
+    padding: 22px 26px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    width: 320px;
+  }
+  .card .label {
+    font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #666; margin-bottom: 8px;
+  }
+  .card .title { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+  .card ul { padding-left: 16px; margin: 0; font-size: 13px; color: #333; line-height: 1.65; }
+
+  .card.store {
+    top: 80px; right: 280px;
+    border-top: 4px solid var(--accent);
+  }
+  .card.dash {
+    bottom: 80px; right: -30px;
+    border-top: 4px solid #1f7a3d;
+    width: 360px;
+  }
+  .card.dash .live {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; padding: 2px 8px;
+    background: #d8f1de; color: #1f7a3d;
+    border-radius: 999px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    margin-left: 8px;
+  }
+  .card.dash .live .pip {
+    width: 6px; height: 6px; border-radius: 50%; background: #1f7a3d;
+  }
+  .card.dash .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .card.dash .stat { background: #f3f3ee; border-radius: 10px; padding: 10px 12px; }
+  .card.dash .stat .k { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #666; }
+  .card.dash .stat .v { font-size: 18px; font-weight: 700; color: var(--ink); margin-top: 2px; }
+
+  /* arrow connecting the two cards */
+  .arrow {
+    position: absolute;
+    top: 50%;
+    left: 100px;
+    transform: translateY(-50%);
+    width: 240px;
+    height: 56px;
+  }
+  .arrow svg { width: 100%; height: 100%; display: block; }
+  .arrow .stroke { stroke: var(--accent); stroke-width: 4; fill: none; stroke-linecap: round; }
+  .arrow .head { fill: var(--accent); }
+
+  /* footer line — brand */
+  .brand-row {
+    position: absolute;
+    bottom: 50px; left: 90px;
+    display: flex; align-items: center; gap: 18px;
+    font-size: 14px; letter-spacing: 0.08em; color: var(--muted); text-transform: uppercase;
+  }
+  .brand-row .lockup {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-weight: 700; color: var(--surface); letter-spacing: 0.04em;
+  }
+  .brand-row .o-mark {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: var(--ink);
+    font-weight: 800; font-size: 18px; display: inline-flex;
+    align-items: center; justify-content: center;
+  }
+</style>
+</head>
+<body>
+  <div class="canvas">
+
+    <!-- LEFT side: brand + headline + sub -->
+    <div class="frame">
+      <div class="left">
+        <div class="kicker"><span class="dot"></span>October Marketing Intelligence</div>
+        <h1>Stream your store<br>to your <span class="accent">agency.</span></h1>
+        <p class="sub">
+          Orders, customers, products and inventory — sent to your marketing agency's
+          dashboard in real time. Read-only, free, GDPR-compliant.
+        </p>
+        <div class="badges">
+          <span class="badge"><strong>Read-only</strong> — never writes to your store</span>
+          <span class="badge"><strong>Free</strong> for merchants</span>
+          <span class="badge"><strong>UK</strong>-hosted</span>
+        </div>
+      </div>
+
+      <!-- RIGHT side: flow diagram -->
+      <div class="right">
+
+        <!-- Store card -->
+        <div class="card store">
+          <div class="label">Your Shopify store</div>
+          <div class="title">Real-time events</div>
+          <ul>
+            <li>Orders, refunds, fulfilments</li>
+            <li>Customer creates &amp; updates</li>
+            <li>Product &amp; inventory changes</li>
+            <li>Abandoned checkouts</li>
+          </ul>
+        </div>
+
+        <!-- Arrow -->
+        <div class="arrow">
+          <svg viewBox="0 0 240 56">
+            <path class="stroke" d="M 4 28 C 80 28, 100 28, 210 28" />
+            <polygon class="head" points="210,18 234,28 210,38" />
+          </svg>
+        </div>
+
+        <!-- Dashboard card -->
+        <div class="card dash">
+          <div class="label">October MI dashboard</div>
+          <div class="title">
+            Connected
+            <span class="live"><span class="pip"></span>Live</span>
+          </div>
+          <div class="stats">
+            <div class="stat">
+              <div class="k">Last sync</div>
+              <div class="v">just now</div>
+            </div>
+            <div class="stat">
+              <div class="k">Events / week</div>
+              <div class="v">12,847</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Brand lockup -->
+    <div class="brand-row">
+      <span class="lockup">
+        <span class="o-mark">O</span>
+        October Marketing Intelligence
+      </span>
+      <span>octobercomms.com</span>
+    </div>
+
+  </div>
+</body>
+</html>
