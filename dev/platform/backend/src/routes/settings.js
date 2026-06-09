@@ -37,6 +37,11 @@ const SETTINGS_KEYS = [
   // optional bearer token the sidecar is started with. Leave both blank to
   // keep scrapers on the axios-only path. Used by services/camofox.js.
   'CAMOFOX_URL', 'CAMOFOX_API_KEY',
+  // FlareSolverr stealth proxy — base URL (e.g. http://127.0.0.1:8191). Solves
+  // WAF challenges and returns rendered HTML; the render backend for the
+  // fetch-with-fallback scraper wrapper. Leave blank to keep scrapers on the
+  // axios-only path. Used by services/flaresolverr.js. No auth/token.
+  'FLARESOLVERR_URL',
   'AMAZON_CLIENT_ID', 'AMAZON_CLIENT_SECRET', 'AMAZON_REDIRECT_URI',
   'HUNTER_API_KEY', 'ICYPEAS_API_KEY', 'ICYPEAS_API_SECRET', 'ICYPEAS_USER_ID', 'SERPER_API_KEY',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
