@@ -24,7 +24,11 @@ if (host === "localhost") {
 
 export default defineConfig({
   server: {
-    allowedHosts: [host],
+    // host is derived from SHOPIFY_APP_URL; `shopify app dev` also spins
+    // up a Cloudflare tunnel whose subdomain changes every run, so we
+    // whitelist the parent domain as well. Vite supports leading-dot
+    // wildcards on allowedHosts.
+    allowedHosts: [host, ".trycloudflare.com"],
     cors: {
       preflightContinue: true,
     },
