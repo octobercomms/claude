@@ -68,7 +68,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
               o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-       LEFT JOIN pr_contacts c ON c.id = l.contact_id
+       LEFT JOIN outreach_contacts c ON c.id = l.contact_id
        WHERE l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST, l.created_at DESC
        LIMIT 500`,
@@ -96,7 +96,7 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
               COUNT(*) FILTER (WHERE l.status = 'pitched') AS pitched,
               COUNT(*) FILTER (WHERE l.status = 'declined') AS declined,
               MAX(CASE WHEN l.status IN ('published','download') THEN COALESCE(l.issue_date, l.request_date) END) AS last_featured
-       FROM pr_contacts c
+       FROM outreach_contacts c
        JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
        GROUP BY c.id, o.name
@@ -362,12 +362,12 @@ router.get('/outlets/:outletId', async (req, res) => {
               TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
        LEFT JOIN clients cl ON cl.id = l.client_id
-       LEFT JOIN pr_contacts c ON c.id = l.contact_id
+       LEFT JOIN outreach_contacts c ON c.id = l.contact_id
        WHERE l.outlet_id = $1 ORDER BY COALESCE(l.issue_date, l.request_date) DESC NULLS LAST LIMIT 200`,
       [req.params.outletId]
     );
     const journos = await db.query(
-      "SELECT id, TRIM(CONCAT(first_name,' ',last_name)) AS name FROM pr_contacts WHERE outlet_id = $1 ORDER BY last_name LIMIT 100",
+      "SELECT id, TRIM(CONCAT(first_name,' ',last_name)) AS name FROM outreach_contacts WHERE outlet_id = $1 AND kind IN ('media','industry') ORDER BY last_name LIMIT 100",
       [req.params.outletId]
     );
     res.json({ ...o.rows[0], coverage: coverage.rows, journalists: journos.rows });
@@ -398,7 +398,7 @@ router.post('/outlets/:outletId/summary', async (req, res) => {
 
 router.get('/contacts/:contactId', async (req, res) => {
   try {
-    const c = await db.query('SELECT * FROM pr_contacts WHERE id = $1', [req.params.contactId]);
+    const c = await db.query('SELECT * FROM outreach_contacts WHERE id = $1', [req.params.contactId]);
     if (!c.rows.length) return res.status(404).json({ error: 'Contact not found' });
     const outlet = c.rows[0].outlet_id ? (await db.query('SELECT name FROM pr_outlets WHERE id = $1', [c.rows[0].outlet_id])).rows[0]?.name : '';
     const coverage = await db.query(
@@ -423,14 +423,14 @@ router.patch('/contacts/:contactId', async (req, res) => {
     if (Array.isArray(b.beats)) set('beats', JSON.stringify(b.beats.map((t) => String(t).trim().toLowerCase()).filter(Boolean)));
     if (!sets.length) return res.json({ updated: 0 });
     vals.push(req.params.contactId);
-    await db.query(`UPDATE pr_contacts SET ${sets.join(', ')} WHERE id = $${n}`, vals);
+    await db.query(`UPDATE outreach_contacts SET ${sets.join(', ')} WHERE id = $${n}`, vals);
     res.json({ updated: 1 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
   try {
-    const c = (await db.query('SELECT first_name, last_name FROM pr_contacts WHERE id = $1', [req.params.contactId])).rows[0];
+    const c = (await db.query('SELECT first_name, last_name FROM outreach_contacts WHERE id = $1', [req.params.contactId])).rows[0];
     if (!c) return res.status(404).json({ error: 'Contact not found' });
     const titles = (await db.query("SELECT story_title FROM pr_editorial_log WHERE contact_id = $1 AND story_title <> '' LIMIT 40", [req.params.contactId])).rows.map((r) => r.story_title);
     res.json({ beats: await pr.suggestBeats(`${c.first_name} ${c.last_name}`.trim(), titles) });
@@ -445,7 +445,7 @@ router.get('/clients/:clientId/thank-opportunities', async (req, res) => {
       `SELECT l.id, l.story_title, l.story_url, l.issue_date, o.name AS outlet,
               TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
-       JOIN pr_contacts c ON c.id = l.contact_id
+       JOIN outreach_contacts c ON c.id = l.contact_id
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
        WHERE l.client_id = $1 AND l.status IN ('published','download')
          AND c.email <> '' AND c.email NOT LIKE '%@import.local'
@@ -467,7 +467,7 @@ router.post('/editorial-log/:id/thank-send', async (req, res) => {
   try {
     const row = (await db.query(
       `SELECT l.contact_id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email
-       FROM pr_editorial_log l JOIN pr_contacts c ON c.id = l.contact_id WHERE l.id = $1`, [req.params.id]
+       FROM pr_editorial_log l JOIN outreach_contacts c ON c.id = l.contact_id WHERE l.id = $1`, [req.params.id]
     )).rows[0];
     if (!row) return res.status(400).json({ error: 'No journalist linked.' });
     const to = row.email && !/@import\.local$/.test(row.email) ? row.email : '';

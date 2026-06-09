@@ -18,7 +18,7 @@ async function gatherPublished(clientId, sinceIso) {
                     TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
              FROM pr_editorial_log l
              LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-             LEFT JOIN pr_contacts c ON c.id = l.contact_id
+             LEFT JOIN outreach_contacts c ON c.id = l.contact_id
              WHERE l.client_id = $1 AND l.status IN ('published','download')`;
   if (sinceIso) { sql += ' AND COALESCE(l.issue_date, l.created_at) >= $2'; params.push(sinceIso); }
   sql += ' ORDER BY COALESCE(l.issue_date, l.created_at) DESC';

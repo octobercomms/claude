@@ -113,13 +113,16 @@ async function resolveContact(name, outletId) {
   const first = sp[0] || '';
   const last = sp.slice(1).join(' ');
   const found = await db.query(
-    'SELECT id FROM pr_contacts WHERE lower(first_name) = lower($1) AND lower(last_name) = lower($2) LIMIT 1',
+    `SELECT id FROM outreach_contacts
+     WHERE lower(first_name) = lower($1) AND lower(last_name) = lower($2)
+       AND kind IN ('media','industry') LIMIT 1`,
     [first, last]
   );
   if (found.rows.length) return found.rows[0].id;
   const ins = await db.query(
-    `INSERT INTO pr_contacts (first_name, last_name, outlet_id, segment) VALUES ($1, $2, $3, 'media') RETURNING id`,
-    [first, last, outletId || null]
+    `INSERT INTO outreach_contacts (first_name, last_name, name, outlet_id, kind)
+     VALUES ($1, $2, $3, $4, 'media') RETURNING id`,
+    [first, last, name, outletId || null]
   );
   return ins.rows[0].id;
 }
@@ -348,7 +351,7 @@ async function mergeOutlets(canonicalId, memberIds) {
     const m = await db.query('SELECT name, aliases FROM pr_outlets WHERE id = $1', [mid]);
     if (!m.rows.length) continue;
     await db.query('UPDATE pr_editorial_log SET outlet_id = $1 WHERE outlet_id = $2', [canonicalId, mid]);
-    await db.query('UPDATE pr_contacts SET outlet_id = $1 WHERE outlet_id = $2', [canonicalId, mid]);
+    await db.query('UPDATE outreach_contacts SET outlet_id = $1 WHERE outlet_id = $2', [canonicalId, mid]);
     aliases.push(m.rows[0].name);
     if (Array.isArray(m.rows[0].aliases)) aliases = aliases.concat(m.rows[0].aliases);
     await db.query("UPDATE pr_outlets SET status = 'merged', merged_into = $1 WHERE id = $2", [canonicalId, mid]);
@@ -407,7 +410,7 @@ async function getCoverageByToken(token) {
             o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
      FROM pr_editorial_log l
      LEFT JOIN pr_outlets o ON o.id = l.outlet_id
-     LEFT JOIN pr_contacts c ON c.id = l.contact_id
+     LEFT JOIN outreach_contacts c ON c.id = l.contact_id
      WHERE l.client_id = $1 AND l.status IN (${ph})
      ORDER BY (l.status IN ('published','download')) DESC, COALESCE(l.issue_date, l.request_date) DESC NULLS LAST`,
     [cs.rows[0].client_id, ...keys]
