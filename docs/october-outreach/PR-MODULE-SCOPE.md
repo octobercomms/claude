@@ -82,12 +82,28 @@ October Outreach plugin (the "October Marketing Intelligence" app).
 - ✅ **All plugin-side dev complete.**
 - ✅ **Phase 14 — nvelope front-end (read-first)** (merged): backend proxy
   (`/api/pr/*`, keeps the OMI key server-side) over the plugin's REST API.
-- ✅ **Phase 15 — PR as a per-client tab** (this branch): PR is **client-specific**,
-  so it's a tab inside a client (`/clients/:id/pr`, alongside Organic/Paid/Email),
-  not a top-level page. Shows that client's coverage, the journalists covering
-  them, and a link to their public coverage portal — all scoped to the client.
-- ⬜ Next (optional): nvelope **write** actions (log entries, run thank-yous)
-  layered on the read-first dashboards.
+- ✅ **Phase 15 — PR as a per-client tab** (merged): PR is a tab inside a client
+  (`/clients/:id/pr`).
+
+### Architecture change (June 2026): PR now runs **natively in the platform**
+
+The platform was depending on the WordPress plugin (proxying its REST API, with a
+manual API-key handoff) — awkward, and it meant the platform couldn't run PR on
+its own. **Decision: build PR natively in nvelope (Postgres + Node), keep the
+WordPress plugin running in parallel.** The platform becomes a second, independent
+system of record (linked to clients by FK, not a free-text name), and the
+OMI proxy/key are gone.
+
+- ✅ **Native Phase 1** (this branch): Postgres schema (`pr_outlets`,
+  `pr_contacts`, `pr_editorial_log` — migration `070`); native `/api/pr/clients/:id/*`
+  endpoints (stats, editorial-log, journalist analytics) with the platform's
+  auth/client-access middleware; CSV import of the editorial log (same parser
+  behaviour as the plugin, validated on the real 4,371-row export); the client
+  PR tab now reads native endpoints + has an import button. Removed the OMI
+  proxy and its Settings fields.
+- ⬜ Native next: AI dedup, profiles/notes/availability, client coverage portal,
+  reports/alerts, coverage monitor, thank-yous, press-release authoring — porting
+  the plugin's remaining phases into the platform incrementally.
 
 ### Architecture: dual-surface (plugin + nvelope) — confirmed direction
 

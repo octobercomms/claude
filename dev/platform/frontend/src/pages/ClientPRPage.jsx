@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
@@ -9,74 +9,68 @@ function fmtDate(d) {
   return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-// Client-scoped PR coverage — a tab within a client (like Organic / Paid / Email).
+// Client-scoped PR coverage — native to the platform (no WordPress dependency).
 export default function ClientPRPage() {
   const { id } = useParams();
   const toast = useToast();
+  const fileRef = useRef(null);
   const [client, setClient] = useState(null);
   const [tab, setTab] = useState('coverage');
+  const [stats, setStats] = useState(null);
   const [log, setLog] = useState([]);
   const [journalists, setJournalists] = useState([]);
-  const [portal, setPortal] = useState(null);
-  const [notConnected, setNotConnected] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     api.get(`/clients/${id}`).then(setClient).catch((e) => toast(e.message, 'error'));
   }, [id]);
 
-  useEffect(() => {
-    if (!client) return;
-    const name = client.name || '';
-    const q = `?client=${encodeURIComponent(name)}`;
+  function loadData() {
     setLoading(true);
     Promise.all([
-      api.get(`/pr/editorial-log${q}`).then((r) => setLog(r.items || [])),
-      api.get(`/pr/journalists${q}`).then((r) => setJournalists(r.items || [])),
-      api.get('/pr/clients').then((r) => {
-        const match = (r.items || []).find((c) => (c.name || '').toLowerCase() === name.toLowerCase());
-        setPortal(match || null);
-      }),
-    ])
-      .catch((e) => {
-        if (/not connected/i.test(e.message)) setNotConnected(true);
-        else toast(e.message, 'error');
-      })
-      .finally(() => setLoading(false));
-  }, [client]);
-
-  if (notConnected) {
-    return (
-      <div className="suite-client-pr">
-        <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Press coverage</span></div>
-        <header className="hero"><h1 className="display">PR</h1></header>
-        <div className="card" style={{ padding: 32 }}>
-          <h3>PR module not connected</h3>
-          <p style={{ color: 'var(--text-subtle)' }}>
-            Set <code>OMI_BASE</code> and <code>OMI_KEY</code> (the PR API key from October Outreach → Settings)
-            in the platform settings to surface this client's coverage here.
-          </p>
-        </div>
-      </div>
-    );
+      api.get(`/pr/clients/${id}/stats`).then(setStats),
+      api.get(`/pr/clients/${id}/editorial-log`).then((r) => setLog(r.items || [])),
+      api.get(`/pr/clients/${id}/journalists`).then((r) => setJournalists(r.items || [])),
+    ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
   }
+  useEffect(() => { loadData(); }, [id]);
 
-  const published = log.filter((r) => r.status === 'published' || r.status === 'download').length;
+  async function handleImport(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setImporting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.postForm(`/pr/clients/${id}/import`, fd);
+      toast(`Imported ${r.imported} rows`, 'success');
+      loadData();
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
 
   return (
     <div className="suite-client-pr">
       <div className="kicker"><span className="pip" /><span>{client?.name && <><span className="kicker-name">{client.name}</span> • </>}Press coverage &amp; journalists</span></div>
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
         <h1 className="display">PR</h1>
-        {portal && portal.portal_url && (
-          <a className="btn btn-secondary" href={portal.portal_url} target="_blank" rel="noreferrer">Open client coverage page →</a>
-        )}
+        <div>
+          <input ref={fileRef} type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} />
+          <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>
+            {importing ? 'Importing…' : '↑ Import editorial log CSV'}
+          </button>
+        </div>
       </header>
 
       <div className="card" style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{published}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Published</div></div>
-        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{log.length}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Tracked</div></div>
-        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{journalists.length}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Journalists</div></div>
+        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.published : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Published</div></div>
+        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.tracked : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Tracked</div></div>
+        <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.journalists : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Journalists</div></div>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--s4)' }}>
@@ -100,7 +94,7 @@ export default function ClientPRPage() {
                   <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
                 </tr>
               ))}
-              {!log.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage logged for {client?.name || 'this client'} yet. (Check the client name matches your editorial log.)</td></tr>}
+              {!log.length && <tr><td colSpan={5} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet. Import your editorial log CSV to get started.</td></tr>}
             </tbody>
           </table>
         ) : (
