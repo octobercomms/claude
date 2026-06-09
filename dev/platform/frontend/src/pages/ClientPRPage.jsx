@@ -91,6 +91,15 @@ export default function ClientPRPage() {
     finally { setSaving(false); }
   }
 
+  async function copyPortalLink() {
+    try {
+      const { token } = await api.get(`/pr/clients/${id}/portal`);
+      const url = `${window.location.origin}/coverage/${token}`;
+      try { await navigator.clipboard.writeText(url); toast('Client coverage link copied to clipboard', 'success'); }
+      catch { window.prompt('Client coverage link:', url); }
+    } catch (err) { toast(err.message, 'error'); }
+  }
+
   async function deleteEntry(row) {
     if (!window.confirm('Delete this entry?')) return;
     try { await api.delete(`/pr/editorial-log/${row.id}`); loadData(); }
@@ -106,6 +115,7 @@ export default function ClientPRPage() {
       <header className="hero" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
         <h1 className="display">PR</h1>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Client coverage link</button>
           <button className="btn btn-primary" onClick={() => startEdit(null)}>+ Add entry</button>
           <input ref={fileRef} type="file" accept=".csv" onChange={(e) => doImport(e, false)} style={{ display: 'none' }} />
           <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>

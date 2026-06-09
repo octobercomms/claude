@@ -185,6 +185,14 @@ router.delete('/editorial-log/:id', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Get (or create) the client's public coverage-portal token.
+router.get('/clients/:clientId/portal', async (req, res) => {
+  try {
+    const token = await pr.ensureClientToken(req.params.clientId);
+    res.json({ token });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Outlet deduplication (cross-client, admin) ───────────────────────────────
 function cleanestName(members) {
   return [...members].sort((a, b) => {
