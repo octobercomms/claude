@@ -3,6 +3,7 @@ import { api } from '../utils/api';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
+import IntegrationsPage from './IntegrationsPage';
 
 const KEY_GROUPS = [
   {
@@ -388,6 +389,7 @@ export default function SettingsPage() {
       <div className="tabs">
         {[
           { key: 'general', label: 'General' },
+          { key: 'integrations', label: 'Integrations' },
           { key: 'contacts', label: 'Contacts' },
           { key: 'tags', label: 'Tags' },
           { key: 'users', label: 'Users & access' },
@@ -399,10 +401,11 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
-      {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && (<>
+      {tab !== 'contacts' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && (<>
       <CostsPanel />
 
       <p style={{ fontSize: 12, color: 'var(--text-subtle)', margin: '0 0 12px' }}>
