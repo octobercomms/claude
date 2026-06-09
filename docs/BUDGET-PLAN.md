@@ -7,11 +7,11 @@
 
 nvelope.co has two distinct budget scenarios:
 
-### Model A — Platform Pays (nvelope runs ads on behalf of clients)
-nvelope funds ads, recoups cost via client subscription / per-lead fee
+### Model A — Platform Pays (OMI runs ads on behalf of clients)
+OMI funds ads, recoups cost via client subscription / per-lead fee
 
 ### Model B — Studio Pays (each studio funds their own campaign)
-Each studio pays for their own ad budget; nvelope manages the accounts
+Each studio pays for their own ad budget; OMI manages the accounts
 
 > Both models use the same campaign architecture. The difference is billing and reporting.
 
@@ -163,7 +163,7 @@ THEN roll back to prior budget level
 
 | Model | How It Works | Best For |
 |-------|-------------|----------|
-| Flat retainer | Studio pays $X/month; nvelope manages all ads | Predictable revenue |
+| Flat retainer | Studio pays $X/month; OMI manages all ads | Predictable revenue |
 | % of ad spend | Studio pays media cost + 15–20% management fee | Scales with studio ambition |
 | Per lead | Studio pays $X per qualified lead delivered | Risk-share; good for early trust |
 | Hybrid | Retainer + per-lead above threshold | Most common agency model |

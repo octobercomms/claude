@@ -92,8 +92,8 @@ Thanks!</div>
 
         <!-- PR REST API -->
         <div class="oo-card" style="grid-column:1/-1">
-            <h2 class="oo-card-title">PR API (for nvelope &amp; Gmail add-on)</h2>
-            <p class="oo-muted" style="margin-bottom:14px">External apps (the nvelope platform front-end, the Gmail add-on) read and write the PR data through this API. Send the key as an <code>X-OO-Key</code> header. Base URL: <code><?php echo esc_html( rest_url( 'oo/v1/' ) ); ?></code></p>
+            <h2 class="oo-card-title">PR API (for OMI &amp; Gmail add-on)</h2>
+            <p class="oo-muted" style="margin-bottom:14px">External apps (the OMI platform front-end, the Gmail add-on) read and write the PR data through this API. Send the key as an <code>X-OO-Key</code> header. Base URL: <code><?php echo esc_html( rest_url( 'oo/v1/' ) ); ?></code></p>
             <?php if ( isset( $_GET['apikey'] ) ) : ?><div class="oo-notice oo-notice-success" style="margin-bottom:10px">API key regenerated — update it in any connected app.</div><?php endif; ?>
             <div class="oo-field">
                 <label class="oo-label">API Key</label>

@@ -29,7 +29,7 @@ All four surfaces in this brief reduce the breakage rate, the onboarding time, o
 | 3 | **GTM container template** | `docs/october-mi-gtm/` (new, JSON + docs) | ~3 days | Packaged tracking onboarding artifact |
 | 4 | **Google dual-auth** (in-platform) | `dev/platform/backend/` (existing) | ~3 weeks, 5 mergeable slices | OAuth fragility — adds service-account / MCC-link path |
 
-All four are branded **October Marketing Intelligence**. The platform itself is still **nvelope** internally; these client-facing surfaces use the OMI brand.
+All four are branded **October Marketing Intelligence**. The platform itself is still **OMI** internally; these client-facing surfaces use the OMI brand.
 
 ---
 
@@ -40,7 +40,7 @@ This repo holds multiple apps under `dev/<app>/` and matching docs under `docs/<
 - New WP plugin: code in `dev/october-mi-wp/`, docs in `docs/october-mi-wp/`
 - New Shopify app: code in `dev/october-mi-shopify/`, docs in `docs/october-mi-shopify/`
 - GTM container template (JSON + install instructions): `docs/october-mi-gtm/`
-- Google dual-auth: modifies the existing `dev/platform/` codebase, docs updates go in `docs/nvelope/`
+- Google dual-auth: modifies the existing `dev/platform/` codebase, docs updates go in `docs/omi/`
 
 The Hillcroft Garden Designer plugin (`dev/hillcroft-gardens/`) is the existing reference pattern for a self-hosted WP plugin with versioned releases + auto-updater — mirror its structure.
 

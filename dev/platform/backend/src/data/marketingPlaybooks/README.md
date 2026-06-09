@@ -10,7 +10,7 @@ fragments.
 
 Loaded by `src/services/playbooks.js` (`getPlaybook(name)` /
 `getPlaybooks([names])`) and injected into the Claude-backed services' system
-prompts. See `docs/nvelope/external-integrations-plan.md` → Integration 3 for
+prompts. See `docs/omi/external-integrations-plan.md` → Integration 3 for
 the service → playbook mapping and which slice wires each one.
 
 ## Current fragments (first batch)

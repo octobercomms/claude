@@ -3,7 +3,7 @@
 // content, not a public reference.
 //
 // Sunset note: once Phase E is in production, delete this whole file
-// (and its mount in index.js). See docs/nvelope/dataforseo-july-2026.md §6
+// (and its mount in index.js). See docs/omi/dataforseo-july-2026.md §6
 // for the cleanup checklist.
 const express = require('express');
 const path = require('path');
@@ -13,9 +13,9 @@ const { authenticate } = require('../middleware/auth');
 const router = express.Router();
 router.use(authenticate);
 
-// Repo docs live at <repo-root>/docs/nvelope/. This file sits at
+// Repo docs live at <repo-root>/docs/omi/. This file sits at
 // dev/platform/backend/src/routes/, so five ../ reach the repo root.
-const DOC_ROOT = path.resolve(__dirname, '../../../../../docs/nvelope');
+const DOC_ROOT = path.resolve(__dirname, '../../../../../docs/omi');
 
 const ALLOWED = new Set(['dataforseo-july-2026.md']);
 

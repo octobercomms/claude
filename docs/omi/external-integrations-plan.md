@@ -196,7 +196,7 @@ a standalone Claude Code skill in this round.)
 ### Where it lives
 
 **The rubric (data + attribution):**
-- `docs/nvelope/ad-audit-rubric.md` — human-readable rubric: categories,
+- `docs/omi/ad-audit-rubric.md` — human-readable rubric: categories,
   checks, weights, benchmarks, with an MIT attribution header crediting
   AgriciDaniel/claude-ads.
 - `dev/platform/backend/src/data/adAuditRubric.json` — machine-readable form
@@ -236,7 +236,7 @@ consistent score and the AM can trust the scorecard.
 
 ### PR slices
 
-1. ✅ **Rubric data + scorer** (**done**) — `docs/nvelope/ad-audit-rubric.md`,
+1. ✅ **Rubric data + scorer** (**done**) — `docs/omi/ad-audit-rubric.md`,
    `src/data/adAuditRubric.json` (categories, weights, benchmarks + MIT
    attribution), `src/services/adAudit.js` with a pure `scoreSnapshot()`.
    Verified against good / drain / thin / empty fixtures (93 strong, 33 weak,

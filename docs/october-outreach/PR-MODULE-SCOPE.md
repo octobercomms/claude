@@ -49,7 +49,7 @@ October Outreach plugin (the "October Marketing Intelligence" app).
 - ✅ **Phase 8 — REST API** (this branch): `OO_REST` exposes the PR data on
   `oo/v1` (stats, editorial-log [GET+POST], journalists [+detail], outlets,
   clients), authed by a logged-in admin **or** an `X-OO-Key` header matching the
-  Settings key. The shared gateway for the nvelope front-end **and** the Gmail
+  Settings key. The shared gateway for the OMI front-end **and** the Gmail
   add-on. Settings card to view/regenerate the key.
 - ✅ **Phase 9 — press-release wizard (authoring + sign-off)** (this branch):
   Press Releases under the PR menu; brief → `OO_Claude::write_press_release_draft`
@@ -80,7 +80,7 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   REST endpoints `GET /lookup` + `POST /contacts`. Deploy docs in
   `docs/oo-gmail-addon`. (Plugin v3.19.0.)
 - ✅ **All plugin-side dev complete.**
-- ✅ **Phase 14 — nvelope front-end (read-first)** (merged): backend proxy
+- ✅ **Phase 14 — OMI front-end (read-first)** (merged): backend proxy
   (`/api/pr/*`, keeps the OMI key server-side) over the plugin's REST API.
 - ✅ **Phase 15 — PR as a per-client tab** (merged): PR is a tab inside a client
   (`/clients/:id/pr`).
@@ -89,7 +89,7 @@ October Outreach plugin (the "October Marketing Intelligence" app).
 
 The platform was depending on the WordPress plugin (proxying its REST API, with a
 manual API-key handoff) — awkward, and it meant the platform couldn't run PR on
-its own. **Decision: build PR natively in nvelope (Postgres + Node), keep the
+its own. **Decision: build PR natively in OMI (Postgres + Node), keep the
 WordPress plugin running in parallel.** The platform becomes a second, independent
 system of record (linked to clients by FK, not a free-text name), and the
 OMI proxy/key are gone.
@@ -124,20 +124,20 @@ OMI proxy/key are gone.
 - ⬜ Native next (optional): distribution hand-off (approved release → pitch
   campaign) and a Gmail add-on against the native API.
 
-### Architecture: dual-surface (plugin + nvelope) — confirmed direction
+### Architecture: dual-surface (plugin + OMI) — confirmed direction
 
 The PR module should be usable in **both** the WordPress plugin **and**
-platform.octobercomms.com (nvelope). To avoid duplicating business logic:
+platform.octobercomms.com (OMI). To avoid duplicating business logic:
 
 - **WordPress plugin = single source of truth + backend** (all data, dedup,
   analytics, portal, reports, monitor — already built here).
 - **Plugin exposes a REST API** (`/wp-json/oo/v1/…`, authenticated) — the same
   API the Gmail add-on needs.
-- **nvelope consumes that API** and renders the PR module inside the platform
+- **OMI consumes that API** and renders the PR module inside the platform
   UI. Same data, two front-ends, no logic duplication.
 
 Workstream order: keep completing backend features in the plugin → stand up the
-REST API → build the nvelope front-end against it. (New dedicated track.)
+REST API → build the OMI front-end against it. (New dedicated track.)
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for

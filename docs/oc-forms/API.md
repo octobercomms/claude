@@ -30,7 +30,7 @@ Sanity check the plugin and key.
 ```json
 {
   "ok": true,
-  "plugin": "nvelope-forms",
+  "plugin": "OMI-forms",
   "version": "1.1.0",
   "db_version": "1.1.0",
   "wp_version": "6.5",

@@ -45,6 +45,10 @@ The **Hillcroft Garden Designer** WordPress plugin lives in `dev/hillcroft-garde
 Releases are tagged `hgd-v<version>` and built by a GitHub Action into a release
 zip that the plugin's built-in self-updater installs.
 
-**nvelope.co** is the product name for the October Performance Marketing
-Platform; its code spans `dev/platform` (backend + frontend) and `dev/meta-ads`
-(Meta Ads API integration). Its strategy/marketing docs live in `docs/nvelope/`.
+**October Marketing Intelligence (OMI)** is the product name for the October
+Performance Marketing Platform; its code lives in `dev/platform` (backend +
+frontend) and its strategy/marketing docs live in `docs/omi/`. Do **not** brand
+the platform "nvelope" — that is a separate project. (`nvelope.co` is a distinct
+product/domain; its ad-integration code in `dev/meta-ads` and its own funnel
+plugins like `dev/oc-forms` / `dev/brevo-widgets` legitimately reference the
+`nvelope.co` domain and must keep their existing identifiers.)
