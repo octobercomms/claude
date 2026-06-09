@@ -1,0 +1,52 @@
+# nginx vhost for shopify-app.octobercomms.com
+#
+# Copy this file to:
+#   /etc/nginx/sites-available/shopify-app.octobercomms.com
+# Then link it:
+#   ln -s /etc/nginx/sites-available/shopify-app.octobercomms.com \
+#         /etc/nginx/sites-enabled/
+# Then issue a cert and reload:
+#   certbot --nginx -d shopify-app.octobercomms.com
+#   nginx -t && systemctl reload nginx
+#
+# certbot rewrites this file to add the TLS listener + redirect; the
+# version checked into the repo is the pre-certbot starting point.
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name shopify-app.octobercomms.com;
+
+    # Health-check / liveness without TLS — used by uptime monitors before
+    # certbot has run. Everything else redirects to HTTPS (certbot adds the
+    # redirect block automatically).
+    location /healthz {
+        proxy_pass http://127.0.0.1:3002/healthz;
+        proxy_set_header Host $host;
+        access_log off;
+    }
+
+    location / {
+        # The Remix server runs on port 3002 (see ecosystem.config.js).
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Shopify embedded apps load inside an iframe on admin.shopify.com.
+        # Remix sets the right CSP header itself via shopifyApp(); we just
+        # need to forward Upgrade for any websocket connections (App Bridge).
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Webhooks from Shopify can be larger than the nginx default 1MB.
+        client_max_body_size 10M;
+
+        # Generous timeouts — Shopify retries webhooks on 5xx so we want
+        # the slow ones to complete rather than time out at the proxy.
+        proxy_read_timeout 60s;
+        proxy_send_timeout 60s;
+    }
+}

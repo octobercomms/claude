@@ -42,6 +42,31 @@ echo "==> Restarting backend..."
 pm2 reload "$SOURCE_DIR/dev/platform/backend/ecosystem.config.js" --update-env \
   || pm2 restart october-platform --update-env
 
+# ─── Shopify app (October MI on shopify-app.octobercomms.com) ──────────────
+# Skipped if the app's .env is missing (host not yet provisioned). Keeps
+# this script safe to run on a partially-set-up box.
+SHOPIFY_APP_DIR="$SOURCE_DIR/dev/october-mi-shopify"
+if [ -f "$SHOPIFY_APP_DIR/.env" ]; then
+  echo "==> Installing Shopify app dependencies (full, for build)..."
+  cd "$SHOPIFY_APP_DIR"
+  npm install --silent
+
+  echo "==> Running Shopify app Prisma migrations..."
+  npx --yes prisma generate >/dev/null
+  npx --yes prisma migrate deploy
+
+  echo "==> Building Shopify app (Remix)..."
+  npm run build
+  # Prune dev deps after build to keep the runtime install small.
+  npm prune --omit=dev --silent
+
+  echo "==> Restarting Shopify app..."
+  pm2 reload "$SHOPIFY_APP_DIR/ecosystem.config.js" --update-env \
+    || pm2 restart october-mi-shopify --update-env
+else
+  echo "==> Skipping Shopify app deploy (no .env at $SHOPIFY_APP_DIR/.env)"
+fi
+
 echo ""
 echo "Done. $(date)"
-pm2 list --no-color | grep october-platform
+pm2 list --no-color | grep -E "october-platform|october-mi-shopify"
