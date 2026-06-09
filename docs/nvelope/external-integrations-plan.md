@@ -147,11 +147,15 @@ connector statuses rather than silently degrading scrapes.
    **seam** (returns `null` until the raw-HTML path is confirmed on a live
    instance, so the wrapper degrades to the axios result). 15-assertion fixture
    test in `challengeDetect.test.js` (run with `node`).
-3. ⏳ **Wire competitorPages + siteAudit** (**blocked on a live sidecar**) —
-   route both scrapers through `fetchRenderedHtml`, add the `waf_blocked` issue
-   category, preserve the SSRF guard. Gated on standing up the Camofox process
-   and confirming `renderHtml()`'s raw-HTML path; until then rerouting would
-   no-op (the seam returns null), so it's deferred rather than shipped half-wired.
+3. ✅ **Wire competitorPages + siteAudit** (**code-complete**) — both scrapers
+   now fetch via `fetchRenderedHtml` (`siteAudit.fetchPage`,
+   `competitorPages.scrapePage`), the SSRF guard + 2xx contract + audit
+   user-agent are preserved, and `siteAudit` gains the **`waf_blocked`** issue
+   category (medium severity) so bot-challenge / JS-shell pages stop being
+   mis-filed as high-severity `broken_link` — a real fix *today*, independent
+   of Camofox. The stealth-render benefit activates automatically once the
+   sidecar is live and `camofox.renderHtml()` is completed (the only remaining
+   step, gated on a running instance — see slice 2's seam).
 
 ---
 
