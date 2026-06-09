@@ -212,6 +212,21 @@ class OO_Database {
             KEY applied_at (applied_at)
         ) $charset;";
 
+        $clients = "CREATE TABLE {$wpdb->prefix}oo_clients (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            user_id bigint(20) NOT NULL DEFAULT 0,
+            name varchar(200) NOT NULL DEFAULT '',
+            token varchar(64) NOT NULL DEFAULT '',
+            alert_email varchar(200) NOT NULL DEFAULT '',
+            report_cadence varchar(20) NOT NULL DEFAULT 'off',
+            last_report_at datetime DEFAULT NULL,
+            created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY token (token),
+            KEY name (name)
+        ) $charset;";
+
         require_once ABSPATH . 'wp-admin/includes/upgrade.php';
         dbDelta( $contacts );
         dbDelta( $campaigns );
@@ -223,6 +238,7 @@ class OO_Database {
         dbDelta( $contact_audit );
         dbDelta( $outlets );
         dbDelta( $editorial_log );
+        dbDelta( $clients );
 
         update_option( 'oo_db_version', OO_VERSION );
     }
@@ -329,6 +345,21 @@ class OO_Database {
             'published'      => 'Published',
             'declined'       => 'Declined',
             'new'            => 'New (unconfirmed)',
+        );
+    }
+
+    /**
+     * Statuses safe to surface on a client's public portal — Published + the
+     * positive pipeline. Declined / no-response / internal states are hidden.
+     * Returns key => client-friendly label.
+     */
+    public static function get_client_visible_statuses() {
+        return array(
+            'published'      => 'Published',
+            'download'       => 'Published',
+            'confirmed'      => 'Confirmed',
+            'interview_prep' => 'In progress',
+            'pitched'        => 'Pitched',
         );
     }
 

@@ -25,6 +25,9 @@ class OO_Admin {
         add_action( 'admin_post_oo_import_editorial_log', array( $this, 'import_editorial_log' ) );
         add_action( 'admin_post_oo_import_publications', array( $this, 'import_publications' ) );
         add_action( 'admin_post_oo_import_press_contacts', array( $this, 'import_press_contacts' ) );
+        add_action( 'admin_post_oo_save_client', array( $this, 'save_client' ) );
+        add_action( 'admin_post_oo_delete_client', array( $this, 'delete_client' ) );
+        add_action( 'admin_post_oo_sync_clients', array( $this, 'sync_clients' ) );
     }
 
     public function app_body_class( $classes ) {
@@ -57,6 +60,7 @@ class OO_Admin {
             add_submenu_page( 'oo-pr', 'Editorial Log',  'Editorial Log',  'manage_options', 'oo-pr',           array( $this, 'page_editorial_log' ) );
             add_submenu_page( 'oo-pr', 'Journalists',    'Journalists',    'manage_options', 'oo-journalists',  array( $this, 'page_journalists' ) );
             add_submenu_page( 'oo-pr', 'Media Database', 'Media Database', 'manage_options', 'oo-media',        array( $this, 'page_media_database' ) );
+            add_submenu_page( 'oo-pr', 'Clients',        'Clients',        'manage_options', 'oo-clients',      array( $this, 'page_clients' ) );
         }
     }
 
@@ -120,6 +124,7 @@ class OO_Admin {
     public function page_editorial_log()  { $this->render( 'editorial-log',  'pr' ); }
     public function page_journalists()    { $this->render( 'journalists',    'pr' ); }
     public function page_media_database() { $this->render( 'media-database', 'pr' ); }
+    public function page_clients()        { $this->render( 'clients',        'pr' ); }
 
     public function page_campaigns() {
         $action = $_GET['action'] ?? 'list';
@@ -768,6 +773,83 @@ class OO_Admin {
         }
         fclose( $handle );
         wp_redirect( admin_url( 'admin.php?page=oo-media&con_imported=' . $imported ) );
+        exit;
+    }
+
+    // ── Clients (portal + reports) ─────────────────────────
+
+    /** Generate a unique unguessable portal token. */
+    private function unique_client_token() {
+        global $wpdb;
+        do {
+            $token = strtolower( wp_generate_password( 24, false, false ) );
+            $exists = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}oo_clients WHERE token = %s", $token
+            ) );
+        } while ( $exists );
+        return $token;
+    }
+
+    public function save_client() {
+        check_admin_referer( 'oo_save_client' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $cadences = array( 'off', 'weekly', 'monthly' );
+        $cadence  = sanitize_text_field( $_POST['report_cadence'] ?? 'off' );
+        if ( ! in_array( $cadence, $cadences, true ) ) $cadence = 'off';
+
+        $data = array(
+            'name'           => sanitize_text_field( $_POST['name'] ?? '' ),
+            'alert_email'    => sanitize_email( $_POST['alert_email'] ?? '' ),
+            'report_cadence' => $cadence,
+        );
+        if ( $data['name'] === '' ) {
+            wp_redirect( admin_url( 'admin.php?page=oo-clients&error=name' ) );
+            exit;
+        }
+
+        $id = intval( $_POST['client_id'] ?? 0 );
+        if ( $id ) {
+            $wpdb->update( $wpdb->prefix . 'oo_clients', $data, array( 'id' => $id ) );
+        } else {
+            $data['token'] = $this->unique_client_token();
+            $wpdb->insert( $wpdb->prefix . 'oo_clients', $data );
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-clients&saved=1' ) );
+        exit;
+    }
+
+    public function delete_client() {
+        check_admin_referer( 'oo_delete_client' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+        global $wpdb;
+        $id = intval( $_POST['client_id'] ?? 0 );
+        if ( $id ) $wpdb->delete( $wpdb->prefix . 'oo_clients', array( 'id' => $id ) );
+        wp_redirect( admin_url( 'admin.php?page=oo-clients&deleted=1' ) );
+        exit;
+    }
+
+    /** Create client records (with tokens) for every distinct client in the log. */
+    public function sync_clients() {
+        check_admin_referer( 'oo_sync_clients' );
+        if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Unauthorized' );
+
+        global $wpdb;
+        $names = $wpdb->get_col( "SELECT DISTINCT client FROM {$wpdb->prefix}oo_editorial_log WHERE client != ''" );
+        $created = 0;
+        foreach ( $names as $name ) {
+            $exists = $wpdb->get_var( $wpdb->prepare(
+                "SELECT id FROM {$wpdb->prefix}oo_clients WHERE name = %s", $name
+            ) );
+            if ( $exists ) continue;
+            $wpdb->insert( $wpdb->prefix . 'oo_clients', array(
+                'name'  => sanitize_text_field( $name ),
+                'token' => $this->unique_client_token(),
+            ) );
+            $created++;
+        }
+        wp_redirect( admin_url( 'admin.php?page=oo-clients&synced=' . $created ) );
         exit;
     }
 

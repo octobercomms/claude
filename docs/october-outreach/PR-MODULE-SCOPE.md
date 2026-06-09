@@ -25,7 +25,13 @@ October Outreach plugin (the "October Marketing Intelligence" app).
   history.
 - ❌ **Notion API sync — dropped.** October is retiring Notion for this; the
   one-time CSV import is the migration, OMI is the sole system of record.
-- ⬜ Next: Phase 4 (client portal + reports), then 5–8.
+- ✅ **Phase 4a** (this branch): `oo_clients` (name, unguessable token, alert
+  email, cadence) + Clients admin page; public **token portal** (`/?oo_pr=…`)
+  showing Published + positive pipeline, never internal notes, with CSV
+  download. Resolves the "clients vs brand" decision (dedicated `oo_clients`).
+- ⬜ Next: Phase 4b (automated weekly report emails + alerts), then 5–8
+  (fast-logging UX, coverage monitor + thank-you engine, press-release wizard,
+  profiles, Gmail add-on).
 
 > **This is an AI-powered *Smart PR system*, not a database.** A database is
 > something you maintain; a smart system does the work *for* you — it watches for
@@ -736,10 +742,10 @@ authoring and live monitoring (5–7) build on top once the log + media graph ex
 1. **Press page fate** — replace the orphaned `views/press.php` entirely with
    the new authoring wizard, or keep it as a simple list view that links into
    the wizard? (Recommend: keep as the list, wizard for create/edit.)
-2. **"Client" identity** — the log has **34 clients**, more than the 6-entry
-   `brand` list. So we likely need a dedicated lightweight **`clients`** concept
-   (name, token, report cadence, alert email) rather than reusing `brand`.
-   (Recommend: add `oo_clients`; it's also what the portal/token model needs.)
+2. **"Client" identity** — *Resolved:* added a dedicated lightweight
+   **`oo_clients`** table (name, unguessable token, alert email, cadence)
+   rather than reusing the 6-entry `brand` list — it's what the portal/token
+   model needs. (Phase 4a.)
 3. **Transition sync** — *Resolved:* none. Notion is being retired for this
    workflow; the one-time CSV import is the whole migration.
 4. **Report export format** — HTML email + PDF, or HTML only for v1?
