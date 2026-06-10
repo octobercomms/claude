@@ -4,6 +4,11 @@ import { useToast } from '../context/ToastContext';
 // Two-column edit modal — Contact Details on the left, More Info on the right,
 // matching the original WordPress plugin layout.
 const STATUS_OPTIONS = ['new', 'active', 'unsubscribed', 'bounced', 'do_not_contact'];
+const KIND_OPTIONS = [
+  ['media', 'Press · journalist'],
+  ['industry', 'Press · industry / blogger'],
+  ['prospect', 'Prospect / sales lead'],
+];
 
 export default function EditContactModal({ contact, onClose, onSaved }) {
   const toast = useToast();
@@ -11,7 +16,17 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
     first_name: contact.first_name || '',
     last_name: contact.last_name || '',
     email: contact.email || '',
-    company: contact.company || '',
+    // Pre-fill company from the linked outlet name when the freeform company
+    // field is empty. Press contacts imported from an editorial-log CSV live
+    // with the publication in outlet_id and company blank — the list now
+    // surfaces outlet_name in the column, and the modal mirrors the same
+    // behaviour so opening the contact doesn't look like the publication has
+    // vanished. Saving persists it into company so the two stay in sync.
+    company: contact.company || contact.outlet_name || '',
+    // kind is the canonical Press / Industry / Prospect classifier — what the
+    // library's filter buttons read. Default to 'media' when missing (most
+    // workspaces are predominantly press).
+    kind: contact.kind || 'media',
     contact_type: contact.contact_type || '',
     title: contact.title || contact.role || '',
     location: contact.location || '',
@@ -94,11 +109,17 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
             <Field label="Title">
               <input className="input" value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Editor, Principal Architect" />
             </Field>
-            <Field label="Contact Type">
+            <Field label="Kind">
+              <select className="input" value={form.kind} onChange={e => update('kind', e.target.value)}>
+                {KIND_OPTIONS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+            </Field>
+            <Field label="Role detail (optional)">
               <input className="input" list="contact-types" value={form.contact_type}
-                onChange={e => update('contact_type', e.target.value)} placeholder="architect / journalist / …" />
+                onChange={e => update('contact_type', e.target.value)}
+                placeholder="More specific than Kind — journalist, editor, architect, agency…" />
               <datalist id="contact-types">
-                {['architect', 'interior_designer', 'journalist', 'editor', 'developer', 'retailer', 'distributor', 'agency'].map(t => <option key={t} value={t} />)}
+                {['architect', 'interior_designer', 'journalist', 'editor', 'developer', 'retailer', 'distributor', 'agency', 'blogger', 'freelance'].map(t => <option key={t} value={t} />)}
               </datalist>
             </Field>
           </Section>
