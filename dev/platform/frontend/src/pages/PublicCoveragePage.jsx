@@ -146,7 +146,7 @@ export default function PublicCoveragePage() {
               <tbody>
                 {sorted.map((i, k) => (
                   <tr key={k}>
-                    <td style={{ ...td, fontWeight: 600 }}>{i.outlet || '—'}</td>
+                    <td style={{ ...td, fontWeight: 600 }}>{i.outlet || '—'}{i.story_title ? <div style={{ fontWeight: 400, color: '#6b7280', fontSize: 13 }}>{i.story_title}</div> : null}</td>
                     <td style={td}>{i.journalist || '—'}</td>
                     <td style={td}>{i.country || ''}</td>
                     <td style={td}><StatusPill status={i.status} label={i.status_label} /></td>
@@ -160,6 +160,11 @@ export default function PublicCoveragePage() {
                           <div style={{ fontSize: 11, color: subtle, marginTop: 2, wordBreak: 'break-all' }}>{i.story_url}</div>
                         </div>
                       ) : (i.story_title || '—')}
+                      {i.attachment_url ? (
+                        <div style={{ marginTop: 4 }}>
+                          <a href={i.attachment_url} target="_blank" rel="noreferrer" style={{ color: ink, fontSize: 12 }}>📎 {i.attachment_filename || 'PDF'}</a>
+                        </div>
+                      ) : null}
                     </td>
                   </tr>
                 ))}

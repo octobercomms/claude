@@ -107,7 +107,12 @@ app.use('/api/wp-connect', wpConnectLimiter, require('./routes/wpConnect'));
 const shopifyAppLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
 app.use('/api/shopify-app', shopifyAppLimiter, require('./routes/shopifyApp'));
 
-// Rate limiting on auth endpoint
+// Brute-force defence on the password-checking endpoints only. Scoped tight on
+// purpose: an earlier version covered the whole /api/auth/* tree, which meant
+// /api/auth/me (the bearer-validation ping every page load fires) counted toward
+// the budget — opening ~20 tabs in 15 minutes locked the user out. /me and
+// /refresh are token-gated so they aren't a brute-force surface; they sit under
+// the global limiter only.
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -140,7 +145,9 @@ app.use('/api/ses', require('./routes/sesWebhook'));
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));
 
-app.use('/api/auth', authLimiter, require('./routes/auth'));
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/change-password', authLimiter);
+app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/clients', require('./routes/clients'));
 app.use('/api/connectors', require('./routes/connectors'));
@@ -185,6 +192,13 @@ app.use((err, req, res, next) => {
 
 // Serve PDFs
 app.use('/pdfs', require('./middleware/auth').authenticate, express.static(path.join(__dirname, '../pdfs')));
+
+// Serve coverage attachments (PDFs the AM uploads against a coverage entry —
+// magazine scans, print cutouts, advance copies). Public, unguessable-UUID
+// filenames are the access control — same pattern as the public coverage
+// portal URL — so we can render these inside <iframe> previews on the
+// client-facing coverage report without forcing the client to log in.
+app.use('/coverage-attachments', express.static(path.join(__dirname, '../coverage-attachments')));
 
 // Health check
 app.get('/api/health', (req, res) => res.json({ status: 'ok', ts: new Date().toISOString() }));

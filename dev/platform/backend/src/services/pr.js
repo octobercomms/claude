@@ -418,6 +418,7 @@ async function getCoverageByToken(token) {
   const ph = keys.map((_, i) => `$${i + 2}`).join(',');
   const rows = (await db.query(
     `SELECT l.story_title, l.status, l.country, l.issue_date, l.story_url,
+            l.attachment_url, l.attachment_filename,
             o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
      FROM pr_editorial_log l
      LEFT JOIN pr_outlets o ON o.id = l.outlet_id
@@ -429,9 +430,11 @@ async function getCoverageByToken(token) {
   return {
     client_name: cs.rows[0].name,
     items: rows.map((r) => ({
+      story_title: r.story_title,
       outlet: r.outlet, journalist: (r.journalist || '').trim(), country: r.country,
       status: r.status, status_label: CLIENT_VISIBLE_STATUS[r.status] || r.status,
       issue_date: r.issue_date, story_url: r.story_url,
+      attachment_url: r.attachment_url, attachment_filename: r.attachment_filename,
       published: r.status === 'published' || r.status === 'download',
     })),
   };

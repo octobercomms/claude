@@ -34,7 +34,12 @@ function StatusPill({ status, label }) {
     </span>
   );
 }
-const BLANK = { story_title: '', press_contact: '', publication: '', country: '', status: 'pitched', issue_date: '', story_url: '', notes_outcome: '' };
+const BLANK = {
+  story_title: '', press_contact: '', publication: '', country: '',
+  status: 'pitched', issue_date: '', story_url: '', notes_outcome: '',
+  pitch_request: '', request_date: '', interview_date: '',
+  attachment_url: '', attachment_filename: '',
+};
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -290,6 +295,11 @@ export default function ClientPRPage() {
       id: row.id, story_title: row.story_title || '', press_contact: row.journalist || '',
       publication: row.outlet || '', country: row.country || '', status: row.status || 'pitched',
       issue_date: dateInput(row.issue_date), story_url: row.story_url || '', notes_outcome: row.notes_outcome || '',
+      pitch_request: row.pitch_request || '',
+      request_date: dateInput(row.request_date),
+      interview_date: dateInput(row.interview_date),
+      attachment_url: row.attachment_url || '',
+      attachment_filename: row.attachment_filename || '',
     } : { ...BLANK });
   }
 
@@ -304,6 +314,36 @@ export default function ClientPRPage() {
       loadData();
     } catch (err) { toast(err.message, 'error'); }
     finally { setSaving(false); }
+  }
+
+  const attachRef = useRef(null);
+  const [attaching, setAttaching] = useState(false);
+  async function uploadAttachment(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file || !editing?.id) return;
+    setAttaching(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const r = await api.postForm(`/pr/editorial-log/${editing.id}/attachment`, fd);
+      setEditing((cur) => ({ ...cur, attachment_url: r.attachment_url, attachment_filename: r.attachment_filename }));
+      toast('Attachment uploaded', 'success');
+      loadData();
+    } catch (err) { toast(err.message, 'error'); }
+    finally {
+      setAttaching(false);
+      if (attachRef.current) attachRef.current.value = '';
+    }
+  }
+  async function removeAttachment() {
+    if (!editing?.id) return;
+    if (!window.confirm('Remove the attached PDF?')) return;
+    try {
+      await api.delete(`/pr/editorial-log/${editing.id}/attachment`);
+      setEditing((cur) => ({ ...cur, attachment_url: '', attachment_filename: '' }));
+      toast('Attachment removed', 'success');
+      loadData();
+    } catch (err) { toast(err.message, 'error'); }
   }
 
   async function copyPortalLink() {
@@ -460,8 +500,32 @@ export default function ClientPRPage() {
                 <label className="field"><span className="field-label">Publication</span><input className="input" value={f.publication} onChange={(e) => setF('publication', e.target.value)} /></label>
                 <label className="field"><span className="field-label">Country</span><input className="input" value={f.country} onChange={(e) => setF('country', e.target.value)} /></label>
                 <label className="field"><span className="field-label">Issue date</span><input className="input" type="date" value={f.issue_date} onChange={(e) => setF('issue_date', e.target.value)} /></label>
+                <label className="field"><span className="field-label">Request date</span><input className="input" type="date" value={f.request_date} onChange={(e) => setF('request_date', e.target.value)} /></label>
+                <label className="field"><span className="field-label">Interview date</span><input className="input" type="date" value={f.interview_date} onChange={(e) => setF('interview_date', e.target.value)} /></label>
                 <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Story URL</span><input className="input" value={f.story_url} onChange={(e) => setF('story_url', e.target.value)} placeholder="https://…" /></label>
+                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Pitch / request</span><textarea className="input" rows={2} value={f.pitch_request} onChange={(e) => setF('pitch_request', e.target.value)} placeholder="What the journalist asked for, or your original pitch angle" /></label>
                 <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes / outcome (internal)</span><textarea className="input" rows={2} value={f.notes_outcome} onChange={(e) => setF('notes_outcome', e.target.value)} /></label>
+                <div className="field" style={{ gridColumn: '1/-1' }}>
+                  <span className="field-label">Attachment (PDF — magazine scan, cutout, advance copy)</span>
+                  {editing.id ? (
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {f.attachment_url ? (
+                        <>
+                          <a href={f.attachment_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📎 {f.attachment_filename || 'View PDF'}</a>
+                          <button className="btn btn-secondary btn-sm" type="button" onClick={removeAttachment}>Remove</button>
+                        </>
+                      ) : (
+                        <>
+                          <input ref={attachRef} type="file" accept="application/pdf,.pdf" onChange={uploadAttachment} style={{ display: 'none' }} />
+                          <button className="btn btn-secondary btn-sm" type="button" disabled={attaching} onClick={() => attachRef.current && attachRef.current.click()}>{attaching ? 'Uploading…' : '↑ Attach PDF'}</button>
+                          <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>For coverage that only exists in print.</span>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>Save the entry first, then re-open to attach a PDF.</span>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 <button className="btn btn-primary" disabled={saving} onClick={saveEntry}>{saving ? 'Saving…' : 'Save'}</button>
@@ -471,16 +535,11 @@ export default function ClientPRPage() {
           )}
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <table className="table" style={{ tableLayout: 'fixed' }}>
-              <colgroup>
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '13%' }} />
-                <col style={{ width: '11%' }} />
-                <col style={{ width: '8%' }} />
-                <col />{/* Story — flexes to fill */}
-                <col style={{ width: 140 }} />
-              </colgroup>
-              <thead><tr><th>Publication</th><th>Journalist</th><th>Status</th><th>Date</th><th>Story</th><th></th></tr></thead>
+            <table className="table">
+              <thead><tr>
+                <th>Publication</th><th>Country</th><th>Journalist</th><th>Status</th>
+                <th>Issue</th><th>Request</th><th>Interview</th><th>Story</th><th></th>
+              </tr></thead>
               <tbody>
                 {(() => {
                   const filtered = log.filter(r => coverageFilter === 'all' || r.status === coverageFilter);
@@ -491,20 +550,24 @@ export default function ClientPRPage() {
                     return new Date(b.issue_date || 0) - new Date(a.issue_date || 0);
                   });
                   if (!sorted.length) return (
-                    <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>
+                    <tr><td colSpan={9} style={{ color: 'var(--text-subtle)', padding: 24 }}>
                       {log.length ? `No coverage matches "${coverageFilter}".` : 'No coverage yet. Add an entry, or import your editorial log CSV.'}
                     </td></tr>
                   );
                   return sorted.map((r) => (
                     <tr key={r.id}>
-                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.outlet || ''}>{r.outlet || '—'}</td>
-                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.journalist || ''}>{r.journalist || '—'}</td>
-                      <td><StatusPill status={r.status} label={r.status_label || r.status} /></td>
+                      <td title={r.outlet || ''}>{r.outlet || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{r.country || '—'}</td>
+                      <td title={r.journalist || ''}>{r.journalist || '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}><StatusPill status={r.status} label={r.status_label || r.status} /></td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.issue_date)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.request_date)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.interview_date)}</td>
                       <td>
                         {r.story_url
                           ? <a href={r.story_url} target="_blank" rel="noreferrer" title={r.story_title || r.story_url}>{r.story_title || 'View'}</a>
                           : (r.story_title || '—')}
+                        {r.attachment_url ? <> · <a href={r.attachment_url} target="_blank" rel="noreferrer" title={r.attachment_filename || 'Attached PDF'}>📎 PDF</a></> : null}
                       </td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}

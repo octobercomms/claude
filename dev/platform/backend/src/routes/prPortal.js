@@ -42,8 +42,13 @@ router.get('/:token/download', async (req, res) => {
       const s = String(v == null ? '' : v);
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const rows = [['Publication', 'Journalist', 'Country', 'Status', 'Issue Date', 'Link']];
-    data.items.forEach((i) => rows.push([i.outlet, i.journalist, i.country, i.status_label, i.issue_date || '', i.story_url || '']));
+    const origin = `${req.protocol}://${req.get('host')}`;
+    const fullAttachment = (u) => (u ? (u.startsWith('http') ? u : `${origin}${u}`) : '');
+    const rows = [['Publication', 'Story', 'Journalist', 'Country', 'Status', 'Issue Date', 'Link', 'Attachment']];
+    data.items.forEach((i) => rows.push([
+      i.outlet, i.story_title || '', i.journalist, i.country,
+      i.status_label, i.issue_date || '', i.story_url || '', fullAttachment(i.attachment_url),
+    ]));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="coverage-${(data.client_name || 'client').replace(/\W+/g, '-').toLowerCase()}.csv"`);
     res.send(rows.map((r) => r.map(esc).join(',')).join('\n'));
