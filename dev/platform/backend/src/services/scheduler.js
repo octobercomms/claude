@@ -58,6 +58,18 @@ cron.schedule('0 10 * * *', async () => {
   catch (e) { console.error('[Scheduler] PR thank-you auto-send failed:', e.message); }
 });
 
+// PR story-URL liveness sweep: weekly, Sunday 04:00 (low-traffic window).
+// HEADs every story_url across every client and writes link_status back so
+// the Coverage table can flag dead links in red. Publications restructure
+// archives; without this the editorial log silently rots.
+cron.schedule('0 4 * * 0', async () => {
+  console.log('[Scheduler] Sweeping coverage link liveness...');
+  try {
+    const r = await require('./prLinkCheck').checkAllForClient(null);
+    console.log(`[Scheduler] Link sweep: ${r.checked} checked, ${r.broken} broken, ${r.uncertain} uncertain`);
+  } catch (e) { console.error('[Scheduler] PR link sweep failed:', e.message); }
+});
+
 // PR contacts enrichment + publication tier proposals: nightly at 03:00 (cheap,
 // Haiku, grounded in logged coverage, chunked). Heavy AI work runs overnight so
 // it never blocks a request. Re-enriches only new/stale rows.
