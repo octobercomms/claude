@@ -15,9 +15,9 @@ const FIELD_OPTIONS = [
   { value: 'first_name', label: 'First name' },
   { value: 'last_name', label: 'Last name' },
   { value: 'name', label: 'Full name' },
-  { value: 'company', label: 'Company / outlet' },
-  { value: 'kind', label: 'Type (Press / Industry / Prospect)' },
-  { value: 'contact_type', label: 'Beat / contact type' },
+  { value: 'company', label: 'Publication / company' },
+  { value: 'kind', label: 'Type — Press / Industry / Prospect' },
+  { value: 'contact_type', label: 'Role (e.g. Journalist, Editor)' },
   { value: 'title', label: 'Title / role' },
   { value: 'location', label: 'Location' },
   { value: 'linkedin_url', label: 'LinkedIn URL' },
@@ -64,7 +64,7 @@ export default function ImportWizard({
   const [headers, setHeaders] = useState([]);
   const [previewRows, setPreviewRows] = useState([]);
   const [mapping, setMapping] = useState({});
-  const [defaultKind, setDefaultKind] = useState('prospect'); // used when a row has no Type value
+  const [defaultKind, setDefaultKind] = useState(''); // required unless a Type column is mapped — no silent mis-categorisation
   const [tags, setTags] = useState(new Set());
   const [tagInput, setTagInput] = useState('');
   const [knownTags, setKnownTags] = useState([]);
@@ -186,6 +186,9 @@ export default function ImportWizard({
   if (!open) return null;
 
   const mappingHasEmail = Object.values(mapping).includes('email');
+  const kindColumnMapped = Object.values(mapping).includes('kind');
+  const kindReady = kindColumnMapped || !!defaultKind; // foolproof: never import on an unchosen default
+  const KIND_LABEL = { media: 'Press (journalists)', industry: 'Industry contacts', prospect: 'Prospects' };
 
   return (
     <div style={overlay} onClick={onClose}>
@@ -256,16 +259,19 @@ export default function ImportWizard({
 
             <div style={{ marginTop: 18 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-                Import these as
+                Import these as {kindColumnMapped ? '(fallback)' : <span style={{ color: 'var(--negative)' }}>— required</span>}
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
                 <select value={defaultKind} onChange={e => setDefaultKind(e.target.value)} style={select}>
-                  <option value="prospect">Prospects</option>
+                  <option value="">— choose —</option>
                   <option value="media">Press (journalists)</option>
                   <option value="industry">Industry contacts</option>
+                  <option value="prospect">Prospects</option>
                 </select>
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  Used for rows without a value in a column mapped to <strong>Type</strong>.
+                  {kindColumnMapped
+                    ? <>Used for rows with no value in your <strong>Type</strong> column.</>
+                    : <>You haven't mapped a <strong>Type</strong> column, so <strong>every</strong> contact will be imported as this. Pick carefully.</>}
                 </span>
               </div>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
@@ -320,12 +326,15 @@ export default function ImportWizard({
             <div style={footer}>
               <button onClick={() => setStep(1)} style={ghostBtn}>← Back</button>
               <div style={{ flex: 1 }} />
-              <button onClick={() => setStep(3)} disabled={!mappingHasEmail || !builtRows.length} style={btn}>
+              <button onClick={() => setStep(3)} disabled={!mappingHasEmail || !builtRows.length || !kindReady} style={btn}>
                 Continue →
               </button>
             </div>
             {!mappingHasEmail && (
               <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 6 }}>Map one column to Email to continue.</div>
+            )}
+            {mappingHasEmail && !kindReady && (
+              <div style={{ fontSize: 11, color: 'var(--negative)', marginTop: 6 }}>Choose what type these contacts are (Press / Industry / Prospects) to continue.</div>
             )}
           </div>
         )}
@@ -335,6 +344,7 @@ export default function ImportWizard({
             <p style={hint}>Here's what's about to be imported. Click Import to send it.</p>
             <div style={{ background: 'var(--surface-raised)', border: 'var(--border-w) solid var(--card-border)', borderRadius: 'var(--r-sm)', padding: 14, fontSize: 13, lineHeight: 1.8, marginTop: 10 }}>
               <div><strong>{builtRows.length}</strong> contacts with a valid email</div>
+              <div>Importing as: <strong>{kindColumnMapped ? `per your Type column (fallback ${KIND_LABEL[defaultKind] || '—'})` : KIND_LABEL[defaultKind] || '—'}</strong></div>
               <div>Library: <strong>add new or merge tags into existing</strong> (re-imports are safe)</div>
               {clientIdForAttach && <div>Attach to: <strong>this client</strong></div>}
               {allowClients && attachClients.size > 0 && (
