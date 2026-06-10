@@ -246,7 +246,13 @@ async function importEditorialCsvAllClients(csvText) {
 }
 
 // ── Outlet deduplication ────────────────────────────────────────────────────
-const TLDS = new Set(['com', 'co', 'uk', 'net', 'org', 'io', 'mx', 'de', 'fr', 'es', 'it', 'cn', 'ru', 'eu', 'us', 'au', 'nl', 'se', 'ch', 'at', 'be', 'ie', 'info', 'online', 'news', 'mag']);
+// Generic TLDs only. Country codes (uk, nl, us, de, fr, ie, etc.) are NOT in
+// this set because regional editions of the same brand are legitimately
+// different publications — Vogue vs Vogue.nl, Metro vs Metro.us, Independent
+// vs Independent.ie are NOT duplicates. Keep the country segment as part of
+// the dedup key so they cluster separately. Generic TLDs (.com / .net / .org
+// / .io) still strip so "Dezeen" and "Dezeen.com" continue to merge.
+const TLDS = new Set(['com', 'net', 'org', 'io', 'info', 'online', 'news', 'mag']);
 
 function foldDiacritics(s) { return s.normalize('NFD').replace(/[̀-ͯ]/g, ''); }
 
