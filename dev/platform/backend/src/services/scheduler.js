@@ -71,6 +71,15 @@ cron.schedule('0 3 * * *', async () => {
   } catch (e) { console.error('[Scheduler] PR enrichment failed:', e.message); }
 });
 
+// PR stale-contact archive sweep: weekly, Sunday 04:00. Web byline-checks a
+// batch of long-quiet press contacts; auto-archives the clearly-gone, flags the
+// ambiguous for review. Staggered + cheap (one Serper call each, no LLM).
+cron.schedule('0 4 * * 0', async () => {
+  console.log('[Scheduler] Running PR stale-contact archive sweep...');
+  try { const r = await require('./prArchive').runArchiveSweep({ limit: 120 }); console.log(`[Scheduler] archive sweep: checked ${r.checked || 0}, archived ${r.archived || 0}, suggested ${r.suggested || 0}`); }
+  catch (e) { console.error('[Scheduler] PR archive sweep failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the

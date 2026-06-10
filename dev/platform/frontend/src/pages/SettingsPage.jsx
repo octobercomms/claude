@@ -1015,6 +1015,13 @@ function ContactsLibrary() {
   const [tags, setTags] = useState([]);
   const [search, setSearch] = useState('');
   const [kindFilter, setKindFilter] = useState('all'); // all | press | prospect
+  const [archiveReview, setArchiveReview] = useState([]);
+
+  function loadArchiveReview() { api.get('/pr/archive-review').then((r) => setArchiveReview(r.items || [])).catch(() => {}); }
+  async function resolveArchive(cid, action) {
+    try { await api.post(`/pr/contacts/${cid}/${action}`, {}); setArchiveReview((list) => list.filter((c) => c.id !== cid)); }
+    catch (e) { setErr(e.message); }
+  }
   const [activeTags, setActiveTags] = useState(() => new Set());
   const [selected, setSelected] = useState(() => new Set());
   const [err, setErr] = useState(null);
@@ -1067,6 +1074,7 @@ function ContactsLibrary() {
       setClients(cs);
       setTags(ts);
     }).catch(e => setErr(e.message));
+    loadArchiveReview();
   }, []);
 
   // Refetch the list when filter changes, debounced.
@@ -1259,6 +1267,24 @@ function ContactsLibrary() {
             <button onClick={() => setImportOpen(true)} className="btn btn-primary btn-sm">↑ Import CSV</button>
           </div>
         </div>
+
+        {archiveReview.length > 0 && (
+          <div className="card" style={{ marginTop: 12, borderLeft: '3px solid var(--accent)' }}>
+            <div className="h3 mb-2">📉 {archiveReview.length} contact{archiveReview.length === 1 ? '' : 's'} look inactive — archive?</div>
+            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>No coverage in 12 months and no recent byline found online. People move on — archive the ones who've left (reversible), keep the rest.</p>
+            <div style={{ maxHeight: 220, overflow: 'auto' }}>
+              {archiveReview.slice(0, 50).map((c) => (
+                <div key={c.id} style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div style={{ fontSize: 13 }}><strong>{c.name || '—'}</strong>{c.outlet ? ` · ${c.outlet}` : ''}</div>
+                  <div style={{ whiteSpace: 'nowrap' }}>
+                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
+                    <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'unarchive')}>Keep</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ display: 'flex', gap: 6, marginTop: 12 }}>
           {[['all', 'All'], ['press', 'Press'], ['prospect', 'Prospects']].map(([v, l]) => (

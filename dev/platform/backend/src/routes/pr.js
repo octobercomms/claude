@@ -14,6 +14,7 @@ const prPress = require('../services/prPress');
 const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
 const prTarget = require('../services/prTarget');
+const prArchive = require('../services/prArchive');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -461,6 +462,29 @@ router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
 // coverage plus any extra context (e.g. pasted bylines) the caller supplies.
 router.post('/contacts/:contactId/enrich', async (req, res) => {
   try { res.json(await prEnrich.enrichContact(req.params.contactId, { extraContext: String((req.body || {}).context || '') })); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Stale-contact archive review (admin) — contacts the overnight sweep flagged.
+router.get('/archive-review', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, c.email, o.name AS outlet,
+              c.last_byline_check,
+              (SELECT MAX(COALESCE(l.issue_date, l.request_date)) FROM pr_editorial_log l WHERE l.contact_id = c.id) AS last_coverage
+         FROM outreach_contacts c LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+        WHERE c.archive_suggested = TRUE AND c.availability_status = 'active'
+        ORDER BY c.last_byline_check DESC NULLS LAST LIMIT 200`
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/contacts/:contactId/archive', async (req, res) => {
+  try { await db.query("UPDATE outreach_contacts SET availability_status = 'archived', archive_suggested = FALSE WHERE id = $1", [req.params.contactId]); res.json({ archived: 1 }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+router.post('/contacts/:contactId/unarchive', async (req, res) => {
+  try { await db.query("UPDATE outreach_contacts SET availability_status = 'active', archive_suggested = FALSE, last_byline_check = NOW() WHERE id = $1", [req.params.contactId]); res.json({ active: 1 }); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 
