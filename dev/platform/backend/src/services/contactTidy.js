@@ -7,10 +7,12 @@ const MODEL = 'claude-sonnet-4-6';
 // more API calls but cheaper to retry; larger = fewer calls but a
 // single timeout loses more work.
 const BATCH = 40;
-// Hard ceiling per analyse run so an "all contacts" sweep on a 21k
-// library can't accidentally bill ~$20+ in one click. The caller can
-// still filter narrower then re-run.
-const MAX_CONTACTS = 500;
+// Hard ceiling per analyse run. With the background-job runner the
+// request itself never blocks for more than a few hundred ms (we return a
+// run id and process in the background), so the cap is now governed by
+// AI cost not HTTP timeout. 25k covers the largest catalogue we know of
+// and still bounds an accidental click to ~$50.
+const MAX_CONTACTS = 25000;
 
 const TIDYABLE_FIELDS = ['name', 'first_name', 'last_name', 'email', 'company', 'title', 'role', 'contact_type', 'location', 'website', 'linkedin_url'];
 
@@ -238,4 +240,83 @@ async function loadContacts({ visibleClientIds, filterBody, limit }) {
   return rows;
 }
 
-module.exports = { analyseContacts, applyTidy, MAX_CONTACTS, TIDYABLE_FIELDS };
+// Background runner. Creates a contact_tidy_runs row, returns its id,
+// and processes batches asynchronously — each finished batch updates
+// processed + suggestions so a polling client can show progress as it
+// happens. Errors are caught at run level: a single bad batch reduces
+// the suggestion count rather than aborting the whole run.
+async function startTidyRun({ visibleClientIds, filterBody = {}, userId = null, limit = MAX_CONTACTS }) {
+  const apiKey = await getSetting('CLAUDE_API_KEY');
+  if (!apiKey) throw new Error('Claude API key not configured — add it in Settings.');
+
+  const contacts = await loadContacts({ visibleClientIds, filterBody, limit: Math.min(limit, MAX_CONTACTS) });
+  const { rows } = await pool.query(
+    `INSERT INTO contact_tidy_runs (user_id, filter_body, total, status)
+     VALUES ($1, $2::jsonb, $3, 'running') RETURNING id`,
+    [userId, JSON.stringify(filterBody || {}), contacts.length]
+  );
+  const runId = rows[0].id;
+
+  if (!contacts.length) {
+    await pool.query(`UPDATE contact_tidy_runs SET status='done', finished_at=NOW() WHERE id=$1`, [runId]);
+    return { runId, total: 0 };
+  }
+
+  // Kick off processing without awaiting. Wrapped in a try so an
+  // unexpected throw still marks the run failed instead of leaving it
+  // 'running' forever.
+  (async () => {
+    const anthropic = new Anthropic({ apiKey: apiKey.trim() });
+    const byId = new Map(contacts.map(c => [c.id, c]));
+    const all = [];
+    try {
+      for (let i = 0; i < contacts.length; i += BATCH) {
+        const batch = contacts.slice(i, i + BATCH);
+        let batchSugs = [];
+        try { batchSugs = await analyseBatch(anthropic, batch); }
+        catch (e) { console.error('[contactTidy] batch failed:', e.message); }
+        for (const s of batchSugs) {
+          const c = byId.get(s.id);
+          if (!c) continue;
+          const before = c[s.field] ?? null;
+          const after = String(s.new_value).trim();
+          if ((before ?? '') === after) continue;
+          all.push({
+            ...s,
+            new_value: after,
+            before,
+            contact_email: c.email || null,
+            contact_name: c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || null,
+          });
+        }
+        await pool.query(
+          `UPDATE contact_tidy_runs SET processed=$1, suggestions=$2::jsonb WHERE id=$3`,
+          [Math.min(i + BATCH, contacts.length), JSON.stringify(all), runId]
+        );
+      }
+      await pool.query(`UPDATE contact_tidy_runs SET status='done', finished_at=NOW() WHERE id=$1`, [runId]);
+    } catch (err) {
+      console.error('[contactTidy] run failed:', err.message);
+      await pool.query(
+        `UPDATE contact_tidy_runs SET status='failed', error=$2, finished_at=NOW() WHERE id=$1`,
+        [runId, err.message]
+      ).catch(() => {});
+    }
+  })();
+
+  return { runId, total: contacts.length };
+}
+
+async function getTidyRun(runId, userId) {
+  // Scoped to the requesting user — a different AM's run isn't visible
+  // through their session even though they share a workspace.
+  const { rows } = await pool.query(
+    `SELECT id, total, processed, suggestions, status, error, started_at, finished_at
+       FROM contact_tidy_runs
+      WHERE id = $1 AND (user_id IS NULL OR user_id = $2)`,
+    [runId, userId || null]
+  );
+  return rows[0] || null;
+}
+
+module.exports = { analyseContacts, applyTidy, startTidyRun, getTidyRun, MAX_CONTACTS, TIDYABLE_FIELDS };

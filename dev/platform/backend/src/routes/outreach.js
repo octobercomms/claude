@@ -491,12 +491,26 @@ function formatCell(v) {
 router.post('/contacts/analyze-tidy', async (req, res) => {
   try {
     const contactTidy = require('../services/contactTidy');
-    const result = await contactTidy.analyseContacts({
+    // Now creates a background run and returns immediately. The frontend
+    // polls /analyze-tidy/runs/:id for progress + suggestions.
+    const { runId, total } = await contactTidy.startTidyRun({
       visibleClientIds: req.visibleClientIds,
       filterBody: req.body || {},
+      userId: req.user?.id || null,
       limit: Number(req.body?.limit) || contactTidy.MAX_CONTACTS,
     });
-    res.json(result);
+    res.json({ runId, total });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/contacts/analyze-tidy/runs/:id', async (req, res) => {
+  try {
+    const contactTidy = require('../services/contactTidy');
+    const run = await contactTidy.getTidyRun(req.params.id, req.user?.id || null);
+    if (!run) return res.status(404).json({ error: 'Run not found' });
+    res.json(run);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

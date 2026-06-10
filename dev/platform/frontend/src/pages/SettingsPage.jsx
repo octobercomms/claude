@@ -1849,22 +1849,58 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
   const [selected, setSelected] = useState(new Set());
   const [err, setErr] = useState(null);
   const [appliedCount, setAppliedCount] = useState(0);
+  const [progress, setProgress] = useState({ processed: 0, total: 0, found: 0 });
+  const pollRef = React.useRef(null);
 
   useEffect(() => {
     if (!open) {
       setPhase('idle'); setResult(null); setSelected(new Set());
       setErr(null); setAppliedCount(0);
+      setProgress({ processed: 0, total: 0, found: 0 });
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
     }
   }, [open]);
 
+  // Kick off a background run, then poll every 2s until done. The run
+  // updates processed + suggestions incrementally so we can show a live
+  // progress bar even on a 17k-contact sweep. Closing the modal cancels
+  // polling but the run continues server-side; re-opening picks back up.
   async function runAnalyse() {
     setPhase('analysing'); setErr(null);
+    setProgress({ processed: 0, total: 0, found: 0 });
     try {
-      const r = await api.post('/outreach/contacts/analyze-tidy', { ...filterBody, limit: 500 });
-      setResult(r);
-      // Pre-tick everything Claude found — the AM unticks anything they disagree with.
-      setSelected(new Set((r.suggestions || []).map((_, i) => i)));
-      setPhase('review');
+      const r = await api.post('/outreach/contacts/analyze-tidy', { ...filterBody });
+      const runId = r.runId;
+      setProgress((p) => ({ ...p, total: r.total || 0 }));
+      // First poll happens immediately so the bar pops out of zero
+      // quickly on tiny runs.
+      const tick = async () => {
+        try {
+          const run = await api.get(`/outreach/contacts/analyze-tidy/runs/${runId}`);
+          setProgress({
+            processed: run.processed || 0,
+            total: run.total || 0,
+            found: (run.suggestions || []).length,
+          });
+          if (run.status === 'done') {
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            const finalResult = {
+              suggestions: run.suggestions || [],
+              analysed: run.total || 0,
+              capped: false,
+            };
+            setResult(finalResult);
+            setSelected(new Set((finalResult.suggestions || []).map((_, i) => i)));
+            setPhase('review');
+          } else if (run.status === 'failed') {
+            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+            setErr(run.error || 'Run failed');
+            setPhase('idle');
+          }
+        } catch (e) { /* transient — keep polling */ }
+      };
+      await tick();
+      pollRef.current = setInterval(tick, 2000);
     } catch (e) { setErr(e.message); setPhase('idle'); }
   }
 
@@ -1909,12 +1945,10 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
               later.
             </p>
             <div style={tidyStyles.summary}>
-              <div><strong>{Math.min(500, totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed (max 500 per run)</div>
-              {totalInFilter > 500 && (
-                <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
-                  Your filter matches {totalInFilter.toLocaleString()} — narrow the filter, run multiple times, or accept that this batch covers only the 500 most recent.
-                </div>
-              )}
+              <div><strong>{(totalInFilter || 0).toLocaleString()}</strong> contacts will be analysed</div>
+              <div style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 4 }}>
+                Runs in the background — you can close this modal and come back. Roughly ~$1 per 500 contacts in Claude API spend.
+              </div>
             </div>
             <div style={tidyStyles.footer}>
               <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
@@ -1926,8 +1960,20 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
 
         {phase === 'analysing' && (
           <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)' }}>
-            <div style={{ fontSize: 13, marginBottom: 8 }}>Claude is reading the contacts in batches of 40…</div>
-            <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>Can take 30–90 seconds for 500 contacts.</div>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>
+              Claude is reading the contacts in batches of 40 — {progress.processed.toLocaleString()} of {(progress.total || totalInFilter || 0).toLocaleString()} done.
+            </div>
+            <div style={{ background: 'var(--surface-raised)', borderRadius: 999, height: 8, overflow: 'hidden', margin: '8px auto 12px', maxWidth: 420 }}>
+              <div style={{
+                background: 'var(--accent)',
+                height: '100%',
+                width: progress.total ? `${Math.min(100, (progress.processed / progress.total) * 100)}%` : '4%',
+                transition: 'width 400ms ease',
+              }} />
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+              {progress.found.toLocaleString()} suggestion{progress.found === 1 ? '' : 's'} found so far · You can close this modal — the run continues in the background.
+            </div>
           </div>
         )}
 
@@ -2033,8 +2079,12 @@ function contactLabel(s) {
 }
 
 const tidyStyles = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
-  modal: { background: 'var(--accent-soft)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+  // Overlay was rgba(0,0,0,0.5) + modal on var(--accent-soft) (yellow tint).
+  // The yellow modal sat on a half-opaque black scrim against a light page,
+  // and from a distance the body copy looked greyed-out and unreadable.
+  // Solid white modal + a darker, blurred scrim gives proper contrast.
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(20,20,24,0.72)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 20px', zIndex: 1100, overflowY: 'auto' },
+  modal: { background: '#fff', color: 'var(--text)', borderRadius: 'var(--r-md)', width: '100%', maxWidth: 760, padding: 22, boxShadow: '0 20px 60px rgba(0,0,0,0.4)', border: '1px solid var(--card-border)' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
   eyebrow: { fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, fontWeight: 700, marginBottom: 3 },
   closeBtn: { background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: 'var(--text-subtle)', lineHeight: 1, padding: 4 },

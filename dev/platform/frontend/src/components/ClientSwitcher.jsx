@@ -21,6 +21,16 @@ export default function ClientSwitcher({ clientId }) {
     api.get('/clients').then(setClients).catch(() => {});
   }, []);
 
+  const current = clients.find(c => c.id === clientId);
+  // Active-only by default. The AM uses this dropdown to jump between live
+  // engagements — archived clients would clutter the list and they almost
+  // never want to switch INTO an archived view. If the current client is
+  // somehow archived, still surface it so they can navigate away from it.
+  const visible = clients.filter(c => c.active !== false || c.id === clientId);
+  const filtered = query
+    ? visible.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
+    : visible;
+
   // Close on outside click / Escape.
   useEffect(() => {
     if (!open) return;
@@ -43,11 +53,6 @@ export default function ClientSwitcher({ clientId }) {
   useEffect(() => {
     if (open && searchRef.current) searchRef.current.focus();
   }, [open]);
-
-  const current = clients.find(c => c.id === clientId);
-  const filtered = query
-    ? clients.filter(c => c.name.toLowerCase().includes(query.toLowerCase()))
-    : clients;
 
   function switchTo(newId) {
     if (newId === clientId) { setOpen(false); return; }
