@@ -1068,6 +1068,7 @@ function ContactsLibrary() {
   const [importOpen, setImportOpen] = useState(false);
   const [openContact, setOpenContact] = useState(null);
   const [tidyOpen, setTidyOpen] = useState(false);
+  const [dedupOpen, setDedupOpen] = useState(false);
   const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
   const [bulkTagInput, setBulkTagInput] = useState('');
   const [tagSearch, setTagSearch] = useState('');
@@ -1298,6 +1299,11 @@ function ContactsLibrary() {
         totalInFilter={total}
         onApplied={async () => { await reload(); }}
       />
+      <ContactDedupModal
+        open={dedupOpen}
+        onClose={() => setDedupOpen(false)}
+        onMerged={async () => { await reload(); }}
+      />
       <Card>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 280px', minWidth: 0 }}>
@@ -1312,6 +1318,10 @@ function ContactsLibrary() {
             <button onClick={() => setTidyOpen(true)} className="btn btn-secondary btn-sm"
               title="Ask Claude to spot fixes on the contacts matching the current filter">
               ✦ Tidy with Claude
+            </button>
+            <button onClick={() => setDedupOpen(true)} className="btn btn-secondary btn-sm"
+              title="Find duplicate contacts (same email, or same name at the same outlet) and merge them into one record.">
+              🔍 Find duplicates
             </button>
             <button
               onClick={async () => {
@@ -2052,6 +2062,182 @@ function ContactTidyModal({ open, onClose, filterBody, totalInFilter, onApplied 
               ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. The contact audit history records what changed, by whom, and why.
             </div>
             <div style={tidyStyles.footer}>
+              <div style={{ flex: 1 }} />
+              <button onClick={onClose} style={tidyStyles.btn}>Done</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Find-duplicate-contacts modal. Mirrors the outlet dedup UX in the
+// Publications panel — scan groups contacts that are almost certainly the
+// same person, AM picks a canonical per cluster, merge repoints every
+// reference to the canonical and soft-deletes the losers.
+function ContactDedupModal({ open, onClose, onMerged }) {
+  const [phase, setPhase] = useState('idle'); // idle | scanning | review | merging
+  const [clusters, setClusters] = useState([]);
+  const [chosen, setChosen] = useState({});
+  const [done, setDone] = useState({});
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    if (!open) {
+      setPhase('idle'); setClusters([]); setChosen({}); setDone({}); setErr(null);
+    }
+  }, [open]);
+
+  async function scan() {
+    setPhase('scanning'); setErr(null); setDone({});
+    try {
+      const r = await api.get('/outreach/contacts/dedup/scan');
+      setClusters(r.clusters || []);
+      // Pre-select the server's suggested canonical per cluster.
+      const pick = {};
+      (r.clusters || []).forEach((c, i) => { if (r.suggested?.[i]) pick[i] = r.suggested[i]; });
+      setChosen(pick);
+      setPhase('review');
+    } catch (e) { setErr(e.message); setPhase('idle'); }
+  }
+
+  async function mergeOne(ci) {
+    const cluster = clusters[ci];
+    const canon = chosen[ci];
+    if (!canon) { setErr('Pick which contact to keep.'); return; }
+    if (!confirm(`Merge ${cluster.members.length - 1} duplicate${cluster.members.length === 2 ? '' : 's'} into the selected contact? Cannot be undone.`)) return;
+    const memberIds = cluster.members.map((m) => m.id).filter((id) => id !== canon);
+    try {
+      const r = await api.post('/outreach/contacts/dedup/merge', { canonical_id: canon, member_ids: memberIds });
+      setDone((d) => ({ ...d, [ci]: r.merged }));
+      if (onMerged) onMerged();
+    } catch (e) { setErr(e.message); }
+  }
+
+  async function mergeAllExactEmail() {
+    if (!confirm('Auto-merge every "same email" cluster using the suggested canonical? Cannot be undone.')) return;
+    setPhase('merging'); setErr(null);
+    try {
+      let total = 0;
+      for (let i = 0; i < clusters.length; i++) {
+        if (clusters[i].method !== 'exact_email' || done[i]) continue;
+        const canon = chosen[i]; if (!canon) continue;
+        const ids = clusters[i].members.map((m) => m.id).filter((id) => id !== canon);
+        const r = await api.post('/outreach/contacts/dedup/merge', { canonical_id: canon, member_ids: ids });
+        total += r.merged || 0;
+        setDone((d) => ({ ...d, [i]: r.merged }));
+      }
+      if (onMerged) onMerged();
+      setErr(null);
+      // Re-scan so cleared clusters fall out and any newly-revealed groups appear.
+      await scan();
+      // scan flips back to 'review'; if there's nothing left it'll show that too.
+      // Tell the AM what just happened.
+      if (total) alert(`Merged ${total} duplicate contact${total === 1 ? '' : 's'}.`);
+    } catch (e) { setErr(e.message); setPhase('review'); }
+  }
+
+  if (!open) return null;
+
+  const remaining = clusters.filter((_, i) => !done[i]);
+  const exactCount = clusters.filter((c, i) => c.method === 'exact_email' && !done[i]).length;
+
+  function badge(method) {
+    if (method === 'exact_email') return <span className="chip" style={{ background: '#dcfce7', color: '#166534' }}>Same email · safe</span>;
+    return <span className="chip" style={{ background: '#fff1d6', color: '#8c5a00' }}>Same name + outlet · review</span>;
+  }
+
+  return (
+    <div style={tidyStyles.overlay} onClick={onClose}>
+      <div style={{ ...tidyStyles.modal, maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
+        <div style={tidyStyles.header}>
+          <div>
+            <div style={tidyStyles.eyebrow}>Find duplicates</div>
+            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Duplicate contacts</h2>
+          </div>
+          <button onClick={onClose} style={tidyStyles.closeBtn}>×</button>
+        </div>
+
+        {err && <div style={tidyStyles.err}>{err}</div>}
+
+        {phase === 'idle' && (
+          <div>
+            <p style={tidyStyles.hint}>
+              Scans every contact in your workspace and groups likely duplicates by two signals: <strong>same email</strong> (almost certainly the same person) and <strong>same name at the same outlet</strong>. Merging keeps one record and repoints every coverage entry, client membership, audit row and tag to it — the losers are soft-deleted, not destroyed, so nothing in your history disappears.
+            </p>
+            <div style={tidyStyles.footer}>
+              <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
+              <div style={{ flex: 1 }} />
+              <button onClick={scan} style={tidyStyles.btn}>Start scan</button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'scanning' && (
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Scanning the contact library…</div>
+        )}
+
+        {phase === 'merging' && (
+          <div style={{ padding: 30, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Merging…</div>
+        )}
+
+        {phase === 'review' && (
+          <div>
+            {!clusters.length ? (
+              <div style={{ padding: 24, background: 'var(--positive-soft)', border: '1px solid #b6dcc1', borderRadius: 'var(--r-md)', color: 'var(--positive)', fontSize: 13 }}>
+                ✓ No duplicates found. Your contact library is already deduped.
+              </div>
+            ) : (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                    {remaining.length} cluster{remaining.length === 1 ? '' : 's'} found
+                    {exactCount ? ` · ${exactCount} same-email (safe to auto-merge)` : ''}
+                  </span>
+                  <div style={{ flex: 1 }} />
+                  {exactCount > 0 && (
+                    <button onClick={mergeAllExactEmail} style={tidyStyles.btn}>Merge all same-email clusters</button>
+                  )}
+                </div>
+                <div style={{ maxHeight: 460, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {clusters.map((c, i) => done[i] ? null : (
+                    <div key={i} style={{ border: '1px solid var(--card-border)', borderRadius: 'var(--r-md)', padding: 12 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                        {badge(c.method)}
+                        <button onClick={() => mergeOne(i)} className="btn btn-secondary btn-sm">Merge {c.members.length - 1} into selected →</button>
+                      </div>
+                      <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+                            <th style={{ textAlign: 'left', width: 28 }}>Keep</th>
+                            <th style={{ textAlign: 'left' }}>Name</th>
+                            <th style={{ textAlign: 'left' }}>Email</th>
+                            <th style={{ textAlign: 'left' }}>Outlet</th>
+                            <th style={{ textAlign: 'right' }}>Coverage</th>
+                            <th style={{ textAlign: 'right' }}>Clients</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {c.members.map((m) => (
+                            <tr key={m.id} style={{ borderTop: '1px solid var(--card-border)' }}>
+                              <td><input type="radio" name={`dedup_${i}`} checked={chosen[i] === m.id} onChange={() => setChosen((s) => ({ ...s, [i]: m.id }))} /></td>
+                              <td style={{ padding: '6px 4px', fontWeight: 600 }}>{m.name || '—'}</td>
+                              <td style={{ padding: '6px 4px', color: 'var(--text-muted)' }}>{m.email || '—'}</td>
+                              <td style={{ padding: '6px 4px', color: 'var(--text-muted)' }}>{m.outlet || '—'}</td>
+                              <td style={{ padding: '6px 4px', textAlign: 'right', color: 'var(--text-muted)' }}>{m.coverage}</td>
+                              <td style={{ padding: '6px 4px', textAlign: 'right', color: 'var(--text-muted)' }}>{m.clients}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <div style={tidyStyles.footer}>
+              <button onClick={scan} style={tidyStyles.ghostBtn}>Re-scan</button>
               <div style={{ flex: 1 }} />
               <button onClick={onClose} style={tidyStyles.btn}>Done</button>
             </div>
