@@ -653,6 +653,27 @@ button { font-family: inherit; }
 }
 .table tr:last-child td { border-bottom: none; }
 .table td.num, .table th.num { text-align: right; }
+
+/* Contacts library list — same row-separator pattern as .table, but a denser
+   layout because the page renders hundreds of rows. The platform-wide .table
+   rule used 14px padding which made the list hard to scan vertically at 20k
+   entries; this trims padding to 10px and leaves the rows separated by a
+   thin border so the eye can track across columns without bolding the name. */
+.contacts-list-table th {
+  text-align: left; padding: 10px 12px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--text);
+}
+.contacts-list-table td {
+  padding: 10px 12px;
+  font-size: 13px; color: var(--text);
+  border-bottom: 1px solid var(--card-border);
+  vertical-align: middle;
+}
+.contacts-list-table tbody tr:hover td { background: var(--surface-raised); }
+.contacts-list-table tr:last-child td { border-bottom: none; }
 .table td.strong { color: var(--text); font-weight: 700; }
 
 /* ─── Empty state ────────────────────────────────────────────────── */

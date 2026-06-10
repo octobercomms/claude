@@ -1530,7 +1530,7 @@ function ContactsLibrary() {
               </div>
             )}
 
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="contacts-list-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
                   <th style={{ width: 28 }}>
@@ -1558,7 +1558,7 @@ function ContactsLibrary() {
                         <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleRow(r.id)} />
                       </td>
                       <td  onClick={() => setOpenContact(r)} title={totalsTip}>
-                        <strong style={{ color: 'var(--text)' }}>{r.name || '(unnamed)'}</strong>
+                        <span style={{ color: 'var(--text)', fontWeight: 500 }}>{r.name || '(unnamed)'}</span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
                         <span style={{ color: 'var(--text-muted)' }}>{r.email || '—'}</span>

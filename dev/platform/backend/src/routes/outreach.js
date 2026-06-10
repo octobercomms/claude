@@ -1082,13 +1082,17 @@ router.put('/contacts/:id', async (req, res) => {
     const c = cur[0];
     const b = req.body;
     const newTags = b.tags === undefined ? c.tags : normaliseTags(b.tags);
+    // kind is whitelisted to the three valid values so a bad client can't
+    // write 'foo' and break the Press/Prospects filter.
+    const VALID_KINDS = new Set(['media', 'industry', 'prospect']);
+    const newKind = (typeof b.kind === 'string' && VALID_KINDS.has(b.kind)) ? b.kind : c.kind;
     const { rows } = await pool.query(
       `UPDATE outreach_contacts SET
          name = $1, first_name = $2, last_name = $3, email = $4, company = $5,
          role = $6, title = $7, contact_type = $8, location = $9,
          linkedin_url = $10, source = $11, website = $12,
-         status = $13, notes = $14, tags = $15, updated_at = NOW()
-       WHERE id = $16 RETURNING *`,
+         status = $13, notes = $14, tags = $15, kind = $16, updated_at = NOW()
+       WHERE id = $17 RETURNING *`,
       [
         b.name ?? c.name,
         b.first_name ?? c.first_name,
@@ -1105,6 +1109,7 @@ router.put('/contacts/:id', async (req, res) => {
         b.status ?? c.status,
         b.notes ?? c.notes,
         newTags,
+        newKind,
         req.params.id,
       ]
     );
