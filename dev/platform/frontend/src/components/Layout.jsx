@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate, useMatch, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../utils/api';
+import ClientSwitcher from './ClientSwitcher';
 
 export default function Layout() {
   const { logout, user } = useAuth();
@@ -124,6 +125,7 @@ export default function Layout() {
         </div>
       </nav>
       <main className="app-main">
+        {clientId && <ClientSwitcher clientId={clientId} />}
         <Outlet />
       </main>
       {showPassword && <ChangePasswordModal onClose={() => setShowPassword(false)} />}
