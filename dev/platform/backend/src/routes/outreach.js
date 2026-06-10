@@ -545,6 +545,21 @@ router.post('/contacts/dedup/merge', async (req, res) => {
   }
 });
 
+// Coverage matchups — finds "thin" coverage-only contacts (no email, but
+// coverage history) where the library also holds a "rich" contact (email +
+// matching name) for the same person. Returns clusters in the same shape as
+// /dedup/scan so the Cleanup Centre's cluster card renders them as-is; the
+// merge route above is the apply step (canonical = rich contact id).
+router.get('/contacts/coverage-matchups/scan', async (req, res) => {
+  try {
+    const dedup = require('../services/contactDedup');
+    const clusters = await dedup.scanCoverageMatchups(req.visibleClientIds);
+    res.json({ clusters, suggested: clusters.map((c) => c.suggested || null) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Apply a set of accepted suggestions from /analyze-tidy. Writes an
 // audit row per field change so the AM has a paper trail.
 router.post('/contacts/apply-tidy', async (req, res) => {
