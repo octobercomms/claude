@@ -1022,6 +1022,34 @@ function ContactsLibrary() {
     try { await api.post(`/pr/contacts/${cid}/${action}`, {}); setArchiveReview((list) => list.filter((c) => c.id !== cid)); }
     catch (e) { setErr(e.message); }
   }
+
+  const [nudges, setNudges] = useState([]);
+  const [nudgeDraft, setNudgeDraft] = useState(null); // { id, name, to, subject, body }
+  const [nudgeBusy, setNudgeBusy] = useState(false);
+  function loadNudges() { api.get('/pr/engagement').then((r) => setNudges(r.items || [])).catch(() => {}); }
+  async function openNudge(n) {
+    setNudgeDraft({ id: n.id, name: n.name, loading: true });
+    try {
+      const d = await api.post(`/pr/engagement/${n.id}/draft`, {});
+      if (d.error) { setErr(d.error); setNudgeDraft(null); return; }
+      setNudgeDraft({ id: n.id, name: n.name, to: d.to || '', subject: d.subject || '', body: d.body || '' });
+    } catch (e) { setErr(e.message); setNudgeDraft(null); }
+  }
+  async function sendNudge() {
+    if (!nudgeDraft) return;
+    setNudgeBusy(true);
+    try {
+      const r = await api.post(`/pr/engagement/${nudgeDraft.id}/send`, { subject: nudgeDraft.subject, body: nudgeDraft.body });
+      if (r.error) { setErr(r.error); return; }
+      setNudges((list) => list.filter((n) => n.id !== nudgeDraft.id));
+      setNudgeDraft(null);
+    } catch (e) { setErr(e.message); }
+    finally { setNudgeBusy(false); }
+  }
+  async function dismissNudge(id) {
+    try { await api.post(`/pr/engagement/${id}/dismiss`, {}); setNudges((list) => list.filter((n) => n.id !== id)); if (nudgeDraft && nudgeDraft.id === id) setNudgeDraft(null); }
+    catch (e) { setErr(e.message); }
+  }
   const [activeTags, setActiveTags] = useState(() => new Set());
   const [selected, setSelected] = useState(() => new Set());
   const [err, setErr] = useState(null);
@@ -1075,6 +1103,7 @@ function ContactsLibrary() {
       setTags(ts);
     }).catch(e => setErr(e.message));
     loadArchiveReview();
+    loadNudges();
   }, []);
 
   // Refetch the list when filter changes, debounced.
@@ -1280,6 +1309,45 @@ function ContactsLibrary() {
                     <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'archive')}>Archive</button>{' '}
                     <button className="btn btn-secondary btn-sm" onClick={() => resolveArchive(c.id, 'unarchive')}>Keep</button>
                   </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {nudges.length > 0 && (
+          <div className="card" style={{ marginTop: 12, borderLeft: '3px solid var(--accent)' }}>
+            <div className="h3 mb-2">💬 Stay in touch — {nudges.length} fresh article{nudges.length === 1 ? '' : 's'} from your key journalists</div>
+            <p className="body-sm text-muted" style={{ marginBottom: 10 }}>Read it, then send a genuine note. Claude drafts one specific to the article — you approve and send. (Tier-1 / strong-relationship journalists only.)</p>
+            <div style={{ maxHeight: 320, overflow: 'auto' }}>
+              {nudges.slice(0, 50).map((n) => (
+                <div key={n.id} style={{ padding: '8px 0', borderTop: '1px solid var(--card-border, #eee)' }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+                    <div style={{ fontSize: 13, flex: 1, minWidth: 200 }}>
+                      <strong>{n.name || '—'}</strong>{n.outlet ? ` · ${n.outlet}` : ''}<br />
+                      <a href={n.article_url} target="_blank" rel="noreferrer">{(n.article_title || n.article_url).slice(0, 90)}</a>
+                      {n.article_date ? <span className="text-muted"> · {n.article_date}</span> : null}
+                    </div>
+                    <div style={{ whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-secondary btn-sm" onClick={() => openNudge(n)}>Draft note</button>{' '}
+                      <button className="btn btn-secondary btn-sm" onClick={() => dismissNudge(n.id)}>Dismiss</button>
+                    </div>
+                  </div>
+                  {nudgeDraft && nudgeDraft.id === n.id && (
+                    <div style={{ marginTop: 8, paddingLeft: 4 }}>
+                      {nudgeDraft.loading ? <p className="body-sm text-muted">Drafting…</p> : (
+                        <>
+                          {!nudgeDraft.to && <div className="body-sm" style={{ color: 'var(--negative)', marginBottom: 6 }}>No real email on file — can't send.</div>}
+                          <input className="input" style={{ marginBottom: 6 }} value={nudgeDraft.subject} onChange={(e) => setNudgeDraft((d) => ({ ...d, subject: e.target.value }))} placeholder="Subject" />
+                          <textarea className="input" rows={5} style={{ marginBottom: 6 }} value={nudgeDraft.body} onChange={(e) => setNudgeDraft((d) => ({ ...d, body: e.target.value }))} />
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button className="btn btn-primary btn-sm" disabled={nudgeBusy || !nudgeDraft.to || !nudgeDraft.subject || !nudgeDraft.body} onClick={sendNudge}>{nudgeBusy ? 'Sending…' : 'Send'}</button>
+                            <button className="btn btn-secondary btn-sm" onClick={() => setNudgeDraft(null)}>Cancel</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
