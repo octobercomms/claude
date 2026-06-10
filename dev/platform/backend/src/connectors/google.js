@@ -351,14 +351,20 @@ async function fetchGoogleAdsData(credentials, params) {
 
   // Use /search (not /searchStream) — simpler JSON response, easier error messages
   // metrics.conversion_value is not a valid GAQL field; use metrics.conversions_value
+  //
+  // Status filter removed: an earlier version filtered "AND campaign.status =
+  // ENABLED" on both queries, which made historical date ranges look empty
+  // when the campaigns from that period had since been paused or removed —
+  // breaking the Data Analyst's "show me July–Nov 2025" workflow. The Google
+  // Ads API still returns historical metrics for non-ENABLED campaigns, so
+  // selecting campaign.status keeps the row identifiable without hiding it.
   const campaignQuery = `
-    SELECT campaign.id, campaign.name,
+    SELECT campaign.id, campaign.name, campaign.status,
            metrics.clicks, metrics.impressions, metrics.ctr,
            metrics.average_cpc, metrics.conversions, metrics.conversions_value,
            metrics.cost_micros
     FROM campaign
     WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.status = ENABLED
     ORDER BY metrics.cost_micros DESC
   `;
   const keywordQuery = `
@@ -368,7 +374,6 @@ async function fetchGoogleAdsData(credentials, params) {
            metrics.conversions, metrics.conversions_value
     FROM keyword_view
     WHERE segments.date BETWEEN '${startDate}' AND '${endDate}'
-      AND campaign.status = ENABLED
     ORDER BY metrics.cost_micros DESC
     LIMIT 50
   `;
