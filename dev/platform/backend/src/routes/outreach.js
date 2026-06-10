@@ -367,6 +367,9 @@ router.get('/contacts/library', async (req, res) => {
               (SELECT COUNT(*)::int FROM outreach_clicks ck JOIN outreach_sends s ON s.id = ck.send_id WHERE s.contact_id = c.id) AS total_clicked,
               (SELECT MAX(s.sent_at) FROM outreach_sends s WHERE s.contact_id = c.id) AS last_sent_at`
       : '';
+    const pageSize = Math.min(1000, Math.max(1, parseInt(req.query.limit, 10) || 200));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+    const listParams = [...params, pageSize, offset];
     const { rows } = await pool.query(
       `SELECT c.*,
               ARRAY(
@@ -377,8 +380,8 @@ router.get('/contacts/library', async (req, res) => {
          FROM outreach_contacts c
          ${whereSql}
          ORDER BY c.created_at DESC
-         LIMIT 1000`,
-      params
+         LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
+      listParams
     );
     if (include_count === '1' || include_count === 'true') {
       const { rows: countRows } = await pool.query(

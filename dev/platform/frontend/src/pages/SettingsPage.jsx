@@ -1072,15 +1072,29 @@ function ContactsLibrary() {
   // honest about how much it's about to wipe.
   const [total, setTotal] = useState(0);
 
+  const PAGE = 200;
   function buildFilterParams() {
     const p = new URLSearchParams();
     p.set('include_totals', '1');
     p.set('include_count', '1');
+    p.set('limit', String(PAGE));
     if (search.trim()) p.set('search', search.trim());
     if (kindFilter === 'press') p.set('kind', 'media,industry');
     else if (kindFilter === 'prospect') p.set('kind', 'prospect');
     if (activeTags.size) p.set('tags_all', Array.from(activeTags).join(','));
     return p;
+  }
+  const [loadingMore, setLoadingMore] = useState(false);
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const p = buildFilterParams();
+      p.delete('include_count');
+      p.set('offset', String((rows || []).length));
+      const res = await api.get(`/outreach/contacts/library?${p.toString()}`);
+      setRows((prev) => [...(prev || []), ...(res.rows || [])]);
+    } catch (e) { setErr(e.message); }
+    finally { setLoadingMore(false); }
   }
 
   // Filter parts sent to the server for the by-filter delete — same
@@ -1361,11 +1375,11 @@ function ContactsLibrary() {
           ))}
         </div>
 
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 14, alignItems: 'center' }}>
+        <div style={{ marginTop: 14 }}>
           <input
             placeholder="Search by name, email or outlet…"
             value={search} onChange={e => setSearch(e.target.value)}
-            className="input" style={{ flex: '1 1 220px' }}
+            className="input" style={{ width: '100%' }}
           />
           {!!tags.length && (() => {
             // Filter by the tag-search input (substring, case-insensitive)
@@ -1373,19 +1387,19 @@ function ContactsLibrary() {
             // tags from the Tags tab — this strip is just for filtering.
             const q = tagSearch.trim().toLowerCase();
             const filtered = q ? tags.filter(t => t.tag.toLowerCase().includes(q)) : tags;
-            const COLLAPSED = 20;
+            const COLLAPSED = 24;
             const showAll = tagsExpanded || filtered.length <= COLLAPSED;
             const visible = showAll ? filtered : filtered.slice(0, COLLAPSED);
             const hiddenCount = filtered.length - visible.length;
             return (
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, flex: '1 1 100%', flexWrap: 'wrap' }}>
+              <div style={{ marginTop: 10 }}>
                 <input
                   placeholder={`Filter ${tags.length} tag${tags.length === 1 ? '' : 's'}…`}
                   value={tagSearch}
                   onChange={e => setTagSearch(e.target.value)}
-                  className="input" style={{ padding: '5px 9px', fontSize: 12, flex: '1 1 200px', minWidth: 0 }}
+                  className="input" style={{ padding: '5px 9px', fontSize: 12, maxWidth: 280, marginBottom: 8 }}
                 />
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, flex: 1 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, width: '100%' }}>
                   {visible.map(t => {
                     const on = activeTags.has(t.tag);
                     return (
@@ -1511,13 +1525,13 @@ function ContactsLibrary() {
                   <th style={{ width: 28 }}>
                     <input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleAll} />
                   </th>
-                  <th >Name</th>
-                  <th >Email</th>
-                  <th >Outlet / company</th>
-                  <th >Beat</th>
-                  <th >Tags</th>
-                  <th >Attached to</th>
-                  <th >Engagement</th>
+                  <th style={{ textAlign: 'left' }}>Name</th>
+                  <th style={{ textAlign: 'left' }}>Email</th>
+                  <th style={{ textAlign: 'left' }}>{kindFilter === 'press' ? 'Publication' : kindFilter === 'prospect' ? 'Company' : 'Publication / company'}</th>
+                  <th style={{ textAlign: 'left' }}>Beat</th>
+                  <th style={{ textAlign: 'left' }}>Tags</th>
+                  <th style={{ textAlign: 'left' }}>Attached to</th>
+                  <th style={{ textAlign: 'left' }}>Engagement</th>
                   <th style={{ width: 28  }}></th>
                 </tr>
               </thead>
@@ -1540,12 +1554,14 @@ function ContactsLibrary() {
                       </td>
                       <td  onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
                       <td  onClick={() => setOpenContact(r)}>
-                        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>{r.contact_type || '—'}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+                          {Array.isArray(r.beats) && r.beats.length ? r.beats.join(', ') : '—'}
+                        </span>
                       </td>
                       <td  onClick={() => setOpenContact(r)}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
                           {(r.tags || []).map(t => (
-                            <span key={t} className="chip chip-outline" style={{ cursor: 'default', padding: '1px 7px', fontSize: 10  }}>{t}</span>
+                            <span key={t} style={{ cursor: 'default', padding: '1px 7px', fontSize: 10, color: '#111', border: '1px solid #d1d5db', borderRadius: 20, background: 'transparent' }}>{t}</span>
                           ))}
                         </div>
                       </td>
@@ -1572,6 +1588,13 @@ function ContactsLibrary() {
                 })}
               </tbody>
             </table>
+            {filtered.length < total && (
+              <div style={{ textAlign: 'center', marginTop: 14 }}>
+                <button onClick={loadMore} disabled={loadingMore} className="btn btn-secondary btn-sm">
+                  {loadingMore ? 'Loading…' : `Load more (${(total - filtered.length).toLocaleString()} more)`}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Card>
