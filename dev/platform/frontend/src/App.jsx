@@ -25,6 +25,7 @@ import SettingsPage from './pages/SettingsPage';
 import ClientPRPage from './pages/ClientPRPage';
 import JournalistProfilePage from './pages/JournalistProfilePage';
 import OutletProfilePage from './pages/OutletProfilePage';
+import ContactCleanupPage from './pages/ContactCleanupPage';
 import PublicCoveragePage from './pages/PublicCoveragePage';
 import PressReviewPage from './pages/PressReviewPage';
 
@@ -72,6 +73,7 @@ export default function App() {
             <Route path="rankings" element={<RankingsPage />} />
             <Route path="guide" element={<GuidePage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="contacts/cleanup" element={<ContactCleanupPage />} />
             {/* Manage and Integrations were separate top-level pages; now both
                 live as Settings tabs. Keep the old URLs working so bookmarks
                 redirect cleanly. */}
