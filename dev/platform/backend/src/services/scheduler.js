@@ -92,6 +92,21 @@ cron.schedule('0 4 * * 0', async () => {
   catch (e) { console.error('[Scheduler] PR archive sweep failed:', e.message); }
 });
 
+// CRM Manager autopilot: weekly, Sunday 05:00 (after the archive sweep so the
+// dedup scan doesn't reconsider rows already being marked stale). Auto-merges
+// same-email duplicate clusters, auto-applies deterministic tidy fixes
+// (capitalisation, email-case, URL schemes), queues the fuzzier pile for the
+// AM to review in the Cleanup Centre. Honours the global on/off + per-action
+// toggles in crm_manager_settings.
+cron.schedule('0 5 * * 0', async () => {
+  console.log('[Scheduler] Running CRM Manager autopilot sweep...');
+  try {
+    const r = await require('./crmManager').runSweep({ trigger: 'cron' });
+    if (r.skipped) console.log(`[Scheduler] CRM Manager skipped (${r.skipped})`);
+    else console.log(`[Scheduler] CRM Manager: merged ${r.mergedCount}, tidied ${r.tidiedCount}, queued ${r.queuedDupes + r.queuedTidies} for review`);
+  } catch (e) { console.error('[Scheduler] CRM Manager sweep failed:', e.message); }
+});
+
 // PR engagement nudges: weekly, Monday 05:00. Surfaces a fresh byline from each
 // priority journalist (tier 1 / strong relationship) to warm up with a
 // (human-approved) note. One Serper call each, staggered, no LLM in discovery.

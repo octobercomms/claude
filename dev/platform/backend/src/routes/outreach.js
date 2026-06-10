@@ -560,6 +560,49 @@ router.get('/contacts/coverage-matchups/scan', async (req, res) => {
   }
 });
 
+// CRM Manager — autopilot status, settings + manual sweep / undo. Admin-only
+// because the autopilot acts workspace-wide; per-client users can't toggle it
+// or trigger it.
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  next();
+}
+router.get('/contacts/crm-manager/status', requireAdmin, async (_req, res) => {
+  try {
+    const crm = require('../services/crmManager');
+    const [settings, last, recent] = await Promise.all([
+      crm.getSettings(), crm.lastRun(), crm.recentRuns(5),
+    ]);
+    res.json({ settings, lastRun: last, recent });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/contacts/crm-manager/settings', requireAdmin, async (req, res) => {
+  try {
+    const crm = require('../services/crmManager');
+    const settings = await crm.updateSettings(req.body || {});
+    res.json({ settings });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/contacts/crm-manager/run', requireAdmin, async (_req, res) => {
+  try {
+    const crm = require('../services/crmManager');
+    // Kick off in the background — the sweep can take a couple of minutes
+    // depending on library size.
+    crm.runSweep({ trigger: 'manual' }).catch((e) => console.error('[crmManager] manual sweep failed:', e.message));
+    res.json({ started: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/contacts/crm-manager/runs/:id/undo', requireAdmin, async (req, res) => {
+  try {
+    const crm = require('../services/crmManager');
+    const r = await crm.undoRun(req.params.id);
+    res.json(r);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Apply a set of accepted suggestions from /analyze-tidy. Writes an
 // audit row per field change so the AM has a paper trail.
 router.post('/contacts/apply-tidy', async (req, res) => {

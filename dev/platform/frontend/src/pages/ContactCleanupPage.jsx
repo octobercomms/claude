@@ -160,6 +160,7 @@ export default function ContactCleanupPage() {
         { key: 'duplicates', label: `Duplicates${byTab.duplicates.clusters ? ` (${countRemaining(byTab.duplicates)})` : ''}`, active: tab === 'duplicates', onClick: () => setTab('duplicates') },
         { key: 'coverage', label: `Coverage matchups${byTab.coverage.clusters ? ` (${countRemaining(byTab.coverage)})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
         { key: 'tidy', label: 'Tidy fixes', active: tab === 'tidy', onClick: () => setTab('tidy') },
+        { key: 'autopilot', label: 'CRM Manager', active: tab === 'autopilot', onClick: () => setTab('autopilot') },
       ]} />
 
       {tab === 'duplicates' && (
@@ -239,6 +240,10 @@ export default function ContactCleanupPage() {
 
       {tab === 'tidy' && (
         <TidyFixesTab onChanged={() => scan(tab)} />
+      )}
+
+      {tab === 'autopilot' && (
+        <CrmManagerTab onChanged={() => { scan('duplicates'); scan('coverage'); }} />
       )}
     </div>
   );
@@ -448,6 +453,148 @@ function TidyFixesTab({ onChanged }) {
       {phase === 'done' && (
         <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
           ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. Every change wrote an audit row visible from the contact's Edit modal.
+        </div>
+      )}
+    </div>
+  );
+}
+
+// CRM Manager tab — the autopilot. Shows the on/off + per-action toggles,
+// the last run summary (merged / tidied / queued), a "Run now" button for
+// the AM to trigger a manual sweep, and an "Undo last run" for the recovery
+// case where a sweep did something the AM didn't want.
+function CrmManagerTab({ onChanged }) {
+  const toast = useToast();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  async function load() {
+    setLoading(true);
+    try { setData(await api.get('/outreach/contacts/crm-manager/status')); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => { load(); }, []);
+
+  async function toggle(field, value) {
+    setBusy(true);
+    try {
+      const r = await api.patch('/outreach/contacts/crm-manager/settings', { [field]: value });
+      setData((d) => ({ ...d, settings: r.settings }));
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function runNow() {
+    if (!confirm('Run the CRM Manager sweep now? Same effect as the weekly cron — auto-merges same-email duplicates and auto-applies safe field fixes.')) return;
+    setBusy(true);
+    try {
+      await api.post('/outreach/contacts/crm-manager/run', {});
+      toast('Sweep started — refresh this tab in a couple of minutes to see the result.', 'success');
+      setTimeout(load, 2000);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  async function undo(runId) {
+    if (!confirm('Undo this sweep? Restores merged contacts and rolls back tidied fields. Run a fresh scan after to re-decide.')) return;
+    setBusy(true);
+    try {
+      const r = await api.post(`/outreach/contacts/crm-manager/runs/${runId}/undo`, {});
+      toast(`Undone: ${r.unmerged} merge${r.unmerged === 1 ? '' : 's'} reversed, ${r.untidied} field${r.untidied === 1 ? '' : 's'} restored.`, 'success');
+      await load();
+      if (onChanged) onChanged();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  if (loading) return <div className="card" style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading…</div>;
+  if (!data) return null;
+  const { settings, lastRun, recent } = data;
+
+  function ago(ts) {
+    if (!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="card">
+        <h3 className="h3 mb-2">Autopilot</h3>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 14 }}>
+          Runs every Sunday at 05:00 (UK). Auto-merges same-email duplicate clusters and auto-applies deterministic field fixes (capitalisation, email-case, URL schemes). Anything fuzzier — name+outlet clusters, publication-in-name splits — stays queued for you to tick in the other tabs.
+        </p>
+        <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
+            <input type="checkbox" disabled={busy} checked={!!settings.enabled} onChange={(e) => toggle('enabled', e.target.checked)} />
+            Autopilot {settings.enabled ? 'ON' : 'OFF'}
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <input type="checkbox" disabled={busy || !settings.enabled} checked={!!settings.auto_merge} onChange={(e) => toggle('auto_merge', e.target.checked)} />
+            Auto-merge same-email duplicates
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+            <input type="checkbox" disabled={busy || !settings.enabled} checked={!!settings.auto_tidy} onChange={(e) => toggle('auto_tidy', e.target.checked)} />
+            Auto-apply safe tidy fixes
+          </label>
+          <div style={{ flex: 1 }} />
+          <button className="btn btn-primary btn-sm" onClick={runNow} disabled={busy || !settings.enabled}>Run sweep now</button>
+        </div>
+      </div>
+
+      {lastRun && (
+        <div className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+            <h3 className="h3" style={{ margin: 0 }}>Last sweep · {ago(lastRun.started_at)}</h3>
+            {lastRun.status === 'done' && (
+              <button className="btn btn-secondary btn-sm" onClick={() => undo(lastRun.id)} disabled={busy}>Undo last run</button>
+            )}
+          </div>
+          {lastRun.status === 'failed' ? (
+            <div style={{ background: 'var(--negative-soft)', padding: 10, borderRadius: 'var(--r-sm)', color: 'var(--negative)', fontSize: 13 }}>
+              Failed: {lastRun.error || 'unknown error'}
+            </div>
+          ) : lastRun.status === 'running' ? (
+            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Still running — refresh in a moment.</div>
+          ) : (
+            <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', fontSize: 13 }}>
+              <div><strong style={{ fontSize: 20 }}>{(lastRun.merged_count || 0).toLocaleString()}</strong> contacts merged</div>
+              <div><strong style={{ fontSize: 20 }}>{(lastRun.tidied_count || 0).toLocaleString()}</strong> fields tidied</div>
+              <div><strong style={{ fontSize: 20 }}>{((lastRun.queued_dupes || 0) + (lastRun.queued_tidies || 0)).toLocaleString()}</strong> queued for your review</div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {recent && recent.length > 1 && (
+        <div className="card">
+          <h3 className="h3 mb-2">Recent sweeps</h3>
+          <table className="table" style={{ fontSize: 13 }}>
+            <thead>
+              <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+                <th style={{ textAlign: 'left' }}>When</th>
+                <th style={{ textAlign: 'left' }}>Trigger</th>
+                <th style={{ textAlign: 'right' }}>Merged</th>
+                <th style={{ textAlign: 'right' }}>Tidied</th>
+                <th style={{ textAlign: 'right' }}>Queued</th>
+                <th style={{ textAlign: 'left' }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.slice(1).map((r) => (
+                <tr key={r.id}>
+                  <td>{ago(r.started_at)}</td>
+                  <td style={{ color: 'var(--text-muted)' }}>{r.trigger}</td>
+                  <td style={{ textAlign: 'right' }}>{r.merged_count}</td>
+                  <td style={{ textAlign: 'right' }}>{r.tidied_count}</td>
+                  <td style={{ textAlign: 'right' }}>{(r.queued_dupes || 0) + (r.queued_tidies || 0)}</td>
+                  <td><span className={`chip ${r.status === 'done' ? 'chip-success' : r.status === 'failed' ? 'chip-danger' : ''}`}>{r.status}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
