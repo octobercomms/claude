@@ -2145,6 +2145,7 @@ function ContactDedupModal({ open, onClose, onMerged }) {
 
   function badge(method) {
     if (method === 'exact_email') return <span className="chip" style={{ background: '#dcfce7', color: '#166534' }}>Same email · safe</span>;
+    if (method === 'name_and_domain') return <span className="chip" style={{ background: '#fff1d6', color: '#8c5a00' }}>Same name + email domain · review</span>;
     return <span className="chip" style={{ background: '#fff1d6', color: '#8c5a00' }}>Same name + outlet · review</span>;
   }
 
@@ -2164,7 +2165,7 @@ function ContactDedupModal({ open, onClose, onMerged }) {
         {phase === 'idle' && (
           <div>
             <p style={tidyStyles.hint}>
-              Scans every contact in your workspace and groups likely duplicates by two signals: <strong>same email</strong> (almost certainly the same person) and <strong>same name at the same outlet</strong>. Merging keeps one record and repoints every coverage entry, client membership, audit row and tag to it — the losers are soft-deleted, not destroyed, so nothing in your history disappears.
+              Scans every contact in your workspace and groups likely duplicates by three signals: <strong>same email</strong> (almost certainly the same person), <strong>same full name at the same outlet</strong>, or <strong>same full name and email domain</strong> when the outlet isn't set. Single-first-name matches are skipped — three different "Simons" aren't the same person. Merging keeps one record and repoints every coverage entry, client membership, audit row and tag to it; the losers are soft-deleted, not destroyed, so nothing in your history disappears.
             </p>
             <div style={tidyStyles.footer}>
               <button onClick={onClose} style={tidyStyles.ghostBtn}>Cancel</button>
