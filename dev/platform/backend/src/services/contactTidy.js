@@ -188,7 +188,17 @@ async function applyTidy({ user, visibleClientIds, suggestions }) {
     const sets = [];
     const params = [contactId];
     const audits = [];
+    // Dedupe by field: if Claude produced two suggestions for the same
+    // (contact, field) — e.g. one rule proposed a name split and another
+    // proposed capitalising the same field — the SQL would become
+    // "first_name = $2, first_name = $3" which Postgres rejects with
+    // "multiple assignments to same column". Last-wins because the AM's
+    // ticked-and-ordered list is typically what they'd expect to land.
+    const lastByField = new Map();
     for (const c of changes) {
+      lastByField.set(c.field, c);
+    }
+    for (const c of lastByField.values()) {
       const before = row[c.field] ?? null;
       const after = String(c.new_value).trim();
       if ((before ?? '') === after) continue;
