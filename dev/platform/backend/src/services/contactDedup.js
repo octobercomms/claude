@@ -6,15 +6,22 @@
  * Cluster signals (conservative on purpose — false positives mean losing real
  * data, false negatives mean the AM just sees fewer suggestions):
  *
- *   exact-safe: same lowercased email (non-empty) → almost always the same
- *               person across imports.
- *   safe:       same normalised full name + same outlet_id → "Jane Smith at
- *               Vogue" appears twice because two CSVs spelt her name slightly
- *               differently, or one came in with her email and one without.
+ *   exact_email:    same lowercased email (non-empty) → almost always the
+ *                   same person across imports.
+ *   name_and_outlet: same full name (≥2 word tokens) AND same outlet_id —
+ *                   "Jane Smith at Vogue" appears twice because two CSVs
+ *                   spelt her name slightly differently.
+ *   name_and_domain: same full name (≥2 tokens) AND same email domain on
+ *                   contacts with no outlet set — catches a freshly-imported
+ *                   "jane.smith@vogue.com" twice before either row got its
+ *                   outlet_id filled in.
  *
- * Cross-outlet name matches are NOT clustered — two journalists called "Sarah
- * Williams" at different publications are almost always different people, and
- * we don't want to invite an irreversible merge on a hunch.
+ * Deliberately NOT clustered:
+ *   - Single-token names ("Simon", "Scott"). Too weak as identity.
+ *   - Cross-outlet name matches. Two journalists called "Sarah Williams" at
+ *     different publications are almost always different people.
+ *   - Two rows both with NULL outlet AND no email domain in common. Without
+ *     either signal there's no tie strong enough to suggest a merge.
  */
 const db = require('../db');
 
@@ -73,20 +80,59 @@ async function scanContactDuplicates(visibleClientIds) {
 
   // Then by (normalised full name + outlet_id) — only over contacts not
   // already claimed by an email cluster, so we don't double-suggest the same
-  // people in two clusters.
+  // people in two clusters. Stricter than before to avoid the "every Simon
+  // with no outlet collapses into one bucket" problem:
+  //
+  //   - Skip single-token names. "Simon" / "Scott" / "James" on their own
+  //     are useless as identity — three different Simons at three different
+  //     domains were being clustered as the same person. Need ≥2 word tokens
+  //     (first + last) before we even consider the name a fingerprint.
+  //   - Skip rows with no outlet_id. NULL == NULL is not a match; an outlet
+  //     of "unknown" carries no identity signal. Two journalists with the
+  //     same full name but no outlet need a stronger tie (e.g. same email
+  //     domain) before we'd dare cluster them.
+  //
+  // The result is a much smaller, much higher-confidence pile of "review"
+  // suggestions. Real cross-import dupes (same person re-imported under a
+  // slightly different spelling at the same publication) still surface.
   const byNameOutlet = new Map();
   for (const r of rows) {
     if (claimed.has(r.id)) continue;
+    if (!r.outlet_id) continue;
     const name = normaliseName(r.name || `${r.first_name || ''} ${r.last_name || ''}`);
     if (!name) continue;
-    const outlet = r.outlet_id || 'none';
-    const key = `${name}::${outlet}`;
+    if (name.split(' ').length < 2) continue;
+    const key = `${name}::${r.outlet_id}`;
     if (!byNameOutlet.has(key)) byNameOutlet.set(key, []);
     byNameOutlet.get(key).push(r);
   }
   for (const [, members] of byNameOutlet) {
     if (members.length < 2) continue;
     clusters.push({ method: 'name_and_outlet', members: members.map(formatMember) });
+  }
+
+  // Last pass: contacts with no outlet but full-name + same email domain.
+  // Catches "jane.smith@vogue.com" appearing twice in different imports
+  // before either row got its outlet_id filled in. Still requires the
+  // 2-token name rule so "info@" collisions across companies don't cluster.
+  const byNameDomain = new Map();
+  for (const r of rows) {
+    if (claimed.has(r.id)) continue;
+    if (r.outlet_id) continue;
+    const email = (r.email || '').trim().toLowerCase();
+    const at = email.indexOf('@');
+    if (at < 0) continue;
+    const domain = email.slice(at + 1);
+    if (!domain) continue;
+    const name = normaliseName(r.name || `${r.first_name || ''} ${r.last_name || ''}`);
+    if (!name || name.split(' ').length < 2) continue;
+    const key = `${name}::${domain}`;
+    if (!byNameDomain.has(key)) byNameDomain.set(key, []);
+    byNameDomain.get(key).push(r);
+  }
+  for (const [, members] of byNameDomain) {
+    if (members.length < 2) continue;
+    clusters.push({ method: 'name_and_domain', members: members.map(formatMember) });
   }
 
   // Order: emails first (highest confidence), then most-impactful clusters
