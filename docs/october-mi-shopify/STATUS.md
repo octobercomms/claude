@@ -60,6 +60,9 @@
 - [ ] **Privacy policy URL** published and linked in the listing + app.
 - [ ] **App tested on a development store** end-to-end (install → pair → events
       flowing → uninstall cleanup).
+- [ ] **Test credentials for reviewer** (req. 4.5.4) — demo OMI login + starter
+      pairing token in the Partner dashboard testing instructions. See
+      `REVIEW.md`. (Single-use, 7-day tokens: a lone token is not enough.)
 - [ ] **Performance check** (Shopify's automated install/load checks).
 - [ ] **Contact / emergency developer details** in the Partner dashboard.
 - [ ] Confirm `client_id` set in `shopify.app.toml` and URLs point at
