@@ -15,6 +15,7 @@ const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
 const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
+const prEngage = require('../services/prEngage');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -485,6 +486,36 @@ router.post('/contacts/:contactId/archive', async (req, res) => {
 });
 router.post('/contacts/:contactId/unarchive', async (req, res) => {
   try { await db.query("UPDATE outreach_contacts SET availability_status = 'active', archive_suggested = FALSE, last_byline_check = NOW() WHERE id = $1", [req.params.contactId]); res.json({ active: 1 }); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Engagement nudges — fresh bylines from priority journalists to warm up.
+router.get('/engagement', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT e.id, e.article_url, e.article_title, e.article_date, e.created_at,
+              TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, o.name AS outlet
+         FROM pr_engagement e JOIN outreach_contacts c ON c.id = e.contact_id
+         LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+        WHERE e.status = 'new' ORDER BY e.created_at DESC LIMIT 100`
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/engagement/:nudgeId/draft', async (req, res) => {
+  try { res.json(await prEngage.draftNote(req.params.nudgeId)); }
+  catch (err) { res.status(400).json({ error: err.message }); }
+});
+router.post('/engagement/:nudgeId/send', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const out = await prEngage.send(req.params.nudgeId, { subject: b.subject, body: b.body });
+    if (out.error) return res.status(400).json(out);
+    res.json(out);
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+router.post('/engagement/:nudgeId/dismiss', async (req, res) => {
+  try { res.json(await prEngage.dismiss(req.params.nudgeId)); }
   catch (err) { res.status(400).json({ error: err.message }); }
 });
 

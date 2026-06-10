@@ -80,6 +80,15 @@ cron.schedule('0 4 * * 0', async () => {
   catch (e) { console.error('[Scheduler] PR archive sweep failed:', e.message); }
 });
 
+// PR engagement nudges: weekly, Monday 05:00. Surfaces a fresh byline from each
+// priority journalist (tier 1 / strong relationship) to warm up with a
+// (human-approved) note. One Serper call each, staggered, no LLM in discovery.
+cron.schedule('0 5 * * 1', async () => {
+  console.log('[Scheduler] Running PR engagement discovery...');
+  try { const r = await require('./prEngage').runDiscovery({ limit: 50 }); console.log(`[Scheduler] engagement: surfaced ${r.surfaced || 0} article(s)`); }
+  catch (e) { console.error('[Scheduler] PR engagement discovery failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the
