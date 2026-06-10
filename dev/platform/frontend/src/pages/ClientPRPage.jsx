@@ -332,11 +332,18 @@ export default function ClientPRPage() {
         <h1 className="display">PR</h1>
       </header>
 
+      {/* Tab labels show natural totals (coverage rows / journalist heads)
+          rather than workflow-queue counts — the previous "(N)" badges on
+          Coverage and Journalists were the number of items in the
+          auto-monitor queue and the unsent-thank-yous list respectively,
+          which read as "Journalists (2)" but meant "2 thank-yous pending"
+          and was confusing. Workflow nudges are surfaced on the Overview
+          page's "needs attention" rail instead. */}
       <SuiteTabs tabs={[
         { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
-        { key: 'coverage', label: `Coverage${queue.length ? ` (${queue.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
-        { key: 'journalists', label: `Journalists${thanks.length ? ` (${thanks.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
-        { key: 'press', label: 'Press releases', active: tab === 'press', onClick: () => setTab('press') },
+        { key: 'coverage', label: `Coverage${log.length ? ` (${log.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
+        { key: 'journalists', label: `Journalists${journalists.length ? ` (${journalists.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
+        { key: 'press', label: `Press releases${releases.length ? ` (${releases.length})` : ''}`, active: tab === 'press', onClick: () => setTab('press') },
         { key: 'reports', label: 'Reports', active: tab === 'reports', onClick: () => setTab('reports') },
       ]} />
 
