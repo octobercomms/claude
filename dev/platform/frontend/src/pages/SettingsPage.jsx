@@ -632,6 +632,14 @@ function PublicationsPanel() {
   const [chosen, setChosen] = useState({});
   const [done, setDone] = useState({});
   const [err, setErr] = useState(null);
+  const [outlets, setOutlets] = useState(null);
+  const [outletSearch, setOutletSearch] = useState('');
+
+  useEffect(() => { api.get('/pr/outlets').then((r) => setOutlets(r.items || [])).catch((e) => setErr(e.message)); }, []);
+  async function setTier(id, tier) {
+    setOutlets((list) => list.map((o) => (o.id === id ? { ...o, tier } : o)));
+    try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }
+  }
 
   function badge(method, confidence) {
     if (method === 'exact') return <span className="chip" style={{ background: '#dcfce7', color: '#166534' }}>Exact · safe</span>;
@@ -669,15 +677,48 @@ function PublicationsPanel() {
     }
   }
 
+  const TIERS = [['', '—'], ['1', 'T1 · premium'], ['2', 'T2 · broad'], ['3', 'T3 · blog']];
+  const visibleOutlets = (outlets || []).filter((o) => !outletSearch.trim() || (o.name || '').toLowerCase().includes(outletSearch.trim().toLowerCase()));
+
   return (
+    <>
+    <Card style={{ marginBottom: 16 }}>
+      <CardTitle>Publications</CardTitle>
+      <p className="body-sm text-muted">
+        The outlets behind your coverage, shared across all clients. Set a <strong>tier</strong> — T1 premium
+        titles, T2 broad, T3 blogs/microbloggers — to prioritise targeting and reporting. (Tier is the
+        publication's; a contact inherits it.)
+      </p>
+      <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: '10px 0' }} />
+      {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
+        <div style={{ maxHeight: 420, overflow: 'auto' }}>
+          <table className="table">
+            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th></tr></thead>
+            <tbody>
+              {visibleOutlets.slice(0, 500).map((o) => (
+                <tr key={o.id}>
+                  <td><a href={`/media/outlet/${o.id}`}>{o.name}</a></td>
+                  <td>{o.coverage}</td>
+                  <td>
+                    <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)}>
+                      {TIERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {!visibleOutlets.length && <tr><td colSpan={3} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Card>
     <Card>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
         <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-          <CardTitle>Publications</CardTitle>
+          <CardTitle>Merge duplicates</CardTitle>
           <p className="body-sm text-muted">
-            Publications are shared across all clients and linked to press contacts. Scanning finds
-            duplicates (e.g. <em>Dezeen</em> / <em>Dezeen.com</em>); exact matches are safe to merge,
-            fuzzy ones are confirmed by Claude. Merging keeps one record and repoints all coverage to it.
+            Scanning finds duplicates (e.g. <em>Dezeen</em> / <em>Dezeen.com</em>); exact matches are safe to
+            merge, fuzzy ones are confirmed by Claude. Merging keeps one record and repoints all coverage to it.
           </p>
         </div>
         <button className="btn btn-primary btn-sm" disabled={scanning} onClick={scan}>{scanning ? 'Scanning…' : '🔍 Find duplicates'}</button>
@@ -717,6 +758,7 @@ function PublicationsPanel() {
         </div>
       ))}
     </Card>
+    </>
   );
 }
 

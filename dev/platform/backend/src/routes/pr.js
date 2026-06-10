@@ -90,7 +90,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
 router.get('/clients/:clientId/journalists', async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, o.name AS outlet,
+      `SELECT c.id, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS name, o.name AS outlet, o.tier,
               COUNT(l.id) AS total,
               COUNT(*) FILTER (WHERE l.status IN ('published','download')) AS published,
               COUNT(*) FILTER (WHERE l.status = 'pitched') AS pitched,
@@ -99,7 +99,7 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
        FROM outreach_contacts c
        JOIN pr_editorial_log l ON l.contact_id = c.id AND l.client_id = $1 AND l.status NOT IN ('new','dismissed')
        LEFT JOIN pr_outlets o ON o.id = c.outlet_id
-       GROUP BY c.id, o.name
+       GROUP BY c.id, o.name, o.tier
        ORDER BY published DESC, total DESC
        LIMIT 200`,
       [req.params.clientId]
@@ -109,7 +109,7 @@ router.get('/clients/:clientId/journalists', async (req, res) => {
         const ts = r.last_featured ? new Date(r.last_featured).getTime() : null;
         const str = pr.relationshipStrength(r.published, ts);
         return {
-          id: r.id, name: r.name, outlet: r.outlet,
+          id: r.id, name: r.name, outlet: r.outlet, tier: r.tier || '',
           published: +r.published, pitched: +r.pitched,
           hit_rate: pr.hitRate(r.published, r.pitched, r.declined),
           last_featured: r.last_featured,
@@ -353,6 +353,24 @@ router.post('/dedup/outlets/merge', requireAdmin, async (req, res) => {
 });
 
 // ── Profiles (global media DB; :outletId/:contactId avoid the editorial-log :id hook) ──
+// Publications list (admin) — for the Settings → Publications tab. Tier + how
+// much coverage each has, most-covered first.
+router.get('/outlets', requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT o.id, o.name, o.tier, o.domain, o.region,
+              COUNT(l.id)::int AS coverage
+       FROM pr_outlets o
+       LEFT JOIN pr_editorial_log l ON l.outlet_id = o.id
+       WHERE o.merged_into IS NULL
+       GROUP BY o.id
+       ORDER BY coverage DESC, lower(o.name) ASC
+       LIMIT 2000`
+    );
+    res.json({ items: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/outlets/:outletId', async (req, res) => {
   try {
     const o = await db.query('SELECT * FROM pr_outlets WHERE id = $1', [req.params.outletId]);

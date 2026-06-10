@@ -458,19 +458,20 @@ export default function ClientPRPage() {
         <div>
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <table className="table">
-              <thead><tr><th>Journalist</th><th>Outlet</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
+              <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
               <tbody>
                 {journalists.map((j) => (
                   <tr key={j.id}>
                     <td><Link to={`/media/journalist/${j.id}`}>{j.name}</Link></td>
                     <td>{j.outlet || '—'}</td>
+                    <td>{j.tier ? <span className="chip">T{j.tier}</span> : '—'}</td>
                     <td>{j.published}</td>
                     <td>{j.hit_rate == null ? '—' : Math.round(j.hit_rate * 100) + '%'}</td>
                     <td>{fmtDate(j.last_featured)}</td>
                     <td><span className="chip chip-accent">{j.strength} · {j.strength_label}</span>{j.gone_quiet ? <span className="chip" style={{ marginLeft: 6 }}>quiet</span> : null}</td>
                   </tr>
                 ))}
-                {!journalists.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
+                {!journalists.length && <tr><td colSpan={7} style={{ color: 'var(--text-subtle)', padding: 24 }}>No journalists have covered {client?.name || 'this client'} yet.</td></tr>}
               </tbody>
             </table>
           </div>
