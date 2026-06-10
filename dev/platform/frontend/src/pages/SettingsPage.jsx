@@ -1403,8 +1403,8 @@ function ContactsLibrary() {
                   {visible.map(t => {
                     const on = activeTags.has(t.tag);
                     return (
-                      <span key={t.tag} className={`chip ${on ? "chip-accent" : "chip-outline"}`}
-                        onClick={() => toggleTag(t.tag)}>
+                      <span key={t.tag} className="chip" onClick={() => toggleTag(t.tag)}
+                        style={{ cursor: 'pointer', border: '1px solid #111', color: on ? '#fff' : '#111', background: on ? '#111' : 'transparent' }}>
                         {t.tag} <span style={{ opacity: 0.6 }}>· {t.count}</span>
                       </span>
                     );
