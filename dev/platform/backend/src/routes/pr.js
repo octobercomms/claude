@@ -444,15 +444,29 @@ router.post('/dedup/outlets/merge', requireAdmin, async (req, res) => {
 // much coverage each has, most-covered first.
 router.get('/outlets', requireAdmin, async (req, res) => {
   try {
+    // Optional ?q= server-side search. Without it, the LIMIT 2000 window
+    // ordered by coverage DESC hides every outlet with zero coverage — so
+    // recently-imported names that haven't been featured yet (Vogue.nl,
+    // Metro.us, etc.) silently fall out of the Publications panel even when
+    // you type their exact name in the client-side filter. With ?q=, ILIKE
+    // runs in SQL across name / canonical_name / domain.
+    const q = (req.query.q || '').toString().trim();
+    const params = [];
+    let where = 'o.merged_into IS NULL';
+    if (q) {
+      params.push(`%${q}%`);
+      where += ` AND (o.name ILIKE $${params.length} OR o.canonical_name ILIKE $${params.length} OR o.domain ILIKE $${params.length})`;
+    }
     const { rows } = await db.query(
       `SELECT o.id, o.name, o.tier, o.domain, o.region,
               COUNT(l.id)::int AS coverage
        FROM pr_outlets o
        LEFT JOIN pr_editorial_log l ON l.outlet_id = o.id
-       WHERE o.merged_into IS NULL
+       WHERE ${where}
        GROUP BY o.id
        ORDER BY coverage DESC, lower(o.name) ASC
-       LIMIT 2000`
+       LIMIT 2000`,
+      params
     );
     res.json({ items: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -485,6 +499,13 @@ router.patch('/outlets/:outletId', async (req, res) => {
     const sets = []; const vals = []; let n = 1;
     const set = (c, v) => { sets.push(`${c} = $${n++}`); vals.push(v); };
     ['summary', 'tier', 'region', 'notes', 'domain'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    if (typeof b.name === 'string' && b.name.trim()) {
+      // Keep canonical_name in lockstep with name — they were diverging when
+      // the dedup workflow merged outlets, and the AM kept seeing the old
+      // canonical_name in the chip while the live name was the new one.
+      set('name', b.name.trim());
+      set('canonical_name', b.name.trim());
+    }
     if (!sets.length) return res.json({ updated: 0 });
     vals.push(req.params.outletId);
     await db.query(`UPDATE pr_outlets SET ${sets.join(', ')} WHERE id = $${n}`, vals);

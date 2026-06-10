@@ -635,7 +635,17 @@ function PublicationsPanel() {
   const [outlets, setOutlets] = useState(null);
   const [outletSearch, setOutletSearch] = useState('');
 
-  useEffect(() => { api.get('/pr/outlets').then((r) => setOutlets(r.items || [])).catch((e) => setErr(e.message)); }, []);
+  // Reload on every search-term change. Server-side ILIKE means the user
+  // finds zero-coverage outlets (Vogue.nl etc.) that fall outside the
+  // top-2000-by-coverage window the unfiltered list returns. Debounce so
+  // we don't hit the API on every keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
+      api.get(path).then((r) => setOutlets(r.items || [])).catch((e) => setErr(e.message));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [outletSearch]);
   async function setTier(id, tier) {
     setOutlets((list) => list.map((o) => (o.id === id ? { ...o, tier } : o)));
     try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }

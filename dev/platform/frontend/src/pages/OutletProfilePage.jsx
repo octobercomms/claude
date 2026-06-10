@@ -17,7 +17,7 @@ export default function OutletProfilePage() {
   function load() {
     api.get(`/pr/outlets/${id}`).then((d) => {
       setO(d);
-      setForm({ summary: d.summary || '', tier: d.tier || '', region: d.region || '', notes: d.notes || '', domain: d.domain || '' });
+      setForm({ name: d.name || '', summary: d.summary || '', tier: d.tier || '', region: d.region || '', notes: d.notes || '', domain: d.domain || '' });
     }).catch((e) => toast(e.message, 'error'));
   }
   useEffect(() => { load(); }, [id]);
@@ -46,6 +46,7 @@ export default function OutletProfilePage() {
       </header>
 
       <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+        <label className="field"><span className="field-label">Publication name</span><input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} placeholder="e.g. Wallpaper*" /></label>
         <label className="field"><span className="field-label">About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={gen} onClick={generate}>{gen ? '…' : '✨ Generate'}</button></span><textarea className="input" rows={3} value={form.summary} onChange={(e) => set('summary', e.target.value)} placeholder="Who they are — Claude can draft this from your coverage." /></label>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
           <label className="field"><span className="field-label">Tier</span><input className="input" value={form.tier} onChange={(e) => set('tier', e.target.value)} placeholder="National, Trade…" /></label>
