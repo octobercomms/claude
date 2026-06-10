@@ -13,6 +13,7 @@ const prThanks = require('../services/prThanks');
 const prPress = require('../services/prPress');
 const pressRelease = require('../services/pressRelease');
 const prEnrich = require('../services/prEnrich');
+const prTarget = require('../services/prTarget');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -461,6 +462,16 @@ router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
 router.post('/contacts/:contactId/enrich', async (req, res) => {
   try { res.json(await prEnrich.enrichContact(req.params.contactId, { extraContext: String((req.body || {}).context || '') })); }
   catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Targeting: "who should I pitch this story to?" — paste a release URL or brief.
+router.post('/clients/:clientId/pitch-targets', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const out = await prTarget.findTargets({ clientId: req.params.clientId, url: b.url, brief: b.brief });
+    if (out.error) return res.status(400).json(out);
+    res.json(out);
+  } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── Thank-yous (assisted) ────────────────────────────────────────────────────
