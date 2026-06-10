@@ -9,10 +9,21 @@ export default function ClientsPage() {
   const [newClient, setNewClient] = useState({ name: '', slug: '' });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
+  // Filter — default to Active so the day-to-day list stays tidy. Inactive
+  // clients are historical records the AM keeps around for the editorial-log
+  // / publications history, not for active work.
+  const [filter, setFilter] = useState('active'); // 'active' | 'archived' | 'all'
 
   useEffect(() => {
     api.get('/clients').then(setClients).finally(() => setLoading(false));
   }, []);
+
+  const visible = clients.filter(c => {
+    if (filter === 'active') return c.active;
+    if (filter === 'archived') return !c.active;
+    return true;
+  });
+  const archivedCount = clients.filter(c => !c.active).length;
 
   function autoSlug(name) {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -43,8 +54,17 @@ export default function ClientsPage() {
         <div>
           <h1 className="display">Clients</h1>
         </div>
-        <div className="hero-actions">
-          <button onClick={() => setShowNew(true)} className="btn btn-primary btn-sm">+ New Client</button>
+        <div className="hero-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {['active', 'archived', 'all'].map(k => (
+            <button key={k} type="button"
+              onClick={() => setFilter(k)}
+              className={`btn btn-sm ${filter === k ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ textTransform: 'capitalize' }}>
+              {k}
+              {k === 'archived' && archivedCount ? ` (${archivedCount})` : ''}
+            </button>
+          ))}
+          <button onClick={() => setShowNew(true)} className="btn btn-primary btn-sm" style={{ marginLeft: 6 }}>+ New Client</button>
         </div>
       </header>
 
@@ -85,13 +105,13 @@ export default function ClientsPage() {
             </tr>
           </thead>
           <tbody>
-            {clients.map(c => (
-              <tr key={c.id}>
+            {visible.map(c => (
+              <tr key={c.id} style={{ opacity: c.active ? 1 : 0.7 }}>
                 <td ><strong>{c.name}</strong></td>
                 <td><code className="text-subtle" style={{ fontSize: 12 }}>{c.slug}</code></td>
                 <td>
                   <span className={c.active ? 'text-positive' : 'text-subtle'} style={{ fontSize: 12 }}>
-                    {c.active ? 'Active' : 'Inactive'}
+                    {c.active ? 'Active' : 'Archived'}
                   </span>
                 </td>
                 <td className="num">
@@ -99,6 +119,11 @@ export default function ClientsPage() {
                 </td>
               </tr>
             ))}
+            {!visible.length && (
+              <tr><td colSpan={4} style={{ padding: 24, color: 'var(--text-subtle)', textAlign: 'center' }}>
+                No {filter === 'archived' ? 'archived' : filter === 'active' ? 'active' : ''} clients.
+              </td></tr>
+            )}
           </tbody>
         </table>
       </div>

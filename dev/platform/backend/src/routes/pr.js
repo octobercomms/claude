@@ -134,6 +134,14 @@ router.post('/clients/:clientId/import', upload.single('file'), async (req, res)
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// One-shot cleanup for journalists + outlets whose names still contain the
+// raw "(notion-url)…" trail from older imports done before the stripNotionRef
+// fix. Idempotent. Admin-only because it touches every row in two tables.
+router.post('/repair-imported-names', requireAdmin, async (req, res) => {
+  try { res.json(await pr.repairImportedNames()); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Import a COMBINED CSV spanning many clients — routes each row to the matching
 // client by its "Client" column. Admin-only (cross-client).
 router.post('/import', requireAdmin, upload.single('file'), async (req, res) => {
@@ -441,6 +449,20 @@ router.patch('/contacts/:contactId', async (req, res) => {
     const sets = []; const vals = []; let n = 1;
     const set = (c, v) => { sets.push(`${c} = $${n++}`); vals.push(v); };
     ['notes', 'availability_status', 'photo_url', 'location', 'bio_link', 'email'].forEach((k) => { if (typeof b[k] === 'string') set(k, b[k]); });
+    // First/last name editing — strip stray Notion refs that broke earlier
+    // imports, and keep the `name` column in sync so the contacts library
+    // sees the corrected display string immediately.
+    let firstName = null, lastName = null;
+    if (typeof b.first_name === 'string') firstName = pr.stripNotionRef(b.first_name).trim();
+    if (typeof b.last_name === 'string') lastName = pr.stripNotionRef(b.last_name).trim();
+    if (firstName !== null) set('first_name', firstName);
+    if (lastName !== null) set('last_name', lastName);
+    if (firstName !== null || lastName !== null) {
+      const { rows: cur } = await db.query('SELECT first_name, last_name FROM outreach_contacts WHERE id = $1', [req.params.contactId]);
+      const f = firstName !== null ? firstName : (cur[0]?.first_name || '');
+      const l = lastName !== null ? lastName : (cur[0]?.last_name || '');
+      set('name', `${f} ${l}`.trim());
+    }
     if ('available_from' in b) set('available_from', pr.parseDate(b.available_from));
     if (Array.isArray(b.beats)) set('beats', JSON.stringify(b.beats.map((t) => String(t).trim().toLowerCase()).filter(Boolean)));
     if (!sets.length) return res.json({ updated: 0 });

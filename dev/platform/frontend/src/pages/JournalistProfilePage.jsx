@@ -23,6 +23,7 @@ export default function JournalistProfilePage() {
     api.get(`/pr/contacts/${id}`).then((d) => {
       setC(d);
       setForm({
+        first_name: d.first_name || '', last_name: d.last_name || '',
         notes: d.notes || '', availability_status: d.availability_status || 'active',
         available_from: dateInput(d.available_from), photo_url: d.photo_url || '',
         location: d.location || '', bio_link: d.bio_link || '', email: (d.email || '').includes('@import.local') ? '' : (d.email || ''),
@@ -68,6 +69,8 @@ export default function JournalistProfilePage() {
             : <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'var(--accent-soft,#eef2ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{((c.first_name || ' ')[0] + (c.last_name || ' ')[0]).toUpperCase()}</div>}
           <div style={{ flex: 1 }}><label className="field"><span className="field-label">Photo URL</span><input className="input" value={form.photo_url} onChange={(e) => set('photo_url', e.target.value)} placeholder="https://… headshot" /></label></div>
         </div>
+        <label className="field"><span className="field-label">First name</span><input className="input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} /></label>
+        <label className="field"><span className="field-label">Last name</span><input className="input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} /></label>
         <label className="field"><span className="field-label">Outlet</span><input className="input" value={c.outlet || '—'} disabled /></label>
         <label className="field"><span className="field-label">Email</span><input className="input" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="unknown" /></label>
         <label className="field"><span className="field-label">Availability</span><select className="input" value={form.availability_status} onChange={(e) => set('availability_status', e.target.value)}>{AVAIL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
