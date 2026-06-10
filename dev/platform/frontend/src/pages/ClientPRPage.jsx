@@ -10,6 +10,30 @@ const STATUSES = [
   ['confirmed', 'Confirmed'], ['interview_prep', 'Interview Prep'], ['download', 'Download'],
   ['published', 'Published'], ['declined', 'Declined'],
 ];
+
+// Colour map so the coverage rows are scannable at a glance. Everything that
+// isn't explicitly listed uses the default chip (black border, white fill).
+// Greens for "yes / shipped", oranges for "in motion", reds for "no".
+const STATUS_PILL = {
+  published:      { bg: '#e6f4ea', fg: '#1f7a3d', border: '#9bcfa8' },
+  download:       { bg: '#e6f4ea', fg: '#1f7a3d', border: '#9bcfa8' },
+  confirmed:      { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
+  pending:        { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
+  interview_prep: { bg: '#fff1d6', fg: '#8c5a00', border: '#f0c98a' },
+  declined:       { bg: '#fde7e7', fg: '#a32020', border: '#f0b3b3' },
+  no_response:    { bg: '#fde7e7', fg: '#a32020', border: '#f0b3b3' },
+};
+function StatusPill({ status, label }) {
+  const s = STATUS_PILL[status];
+  const style = s
+    ? { background: s.bg, color: s.fg, border: `1px solid ${s.border}`, fontWeight: 700 }
+    : { background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--text)', fontWeight: 600 };
+  return (
+    <span className="chip" style={{ ...style, padding: '2px 10px', fontSize: 11, letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
+      {label || status}
+    </span>
+  );
+}
 const BLANK = { story_title: '', press_contact: '', publication: '', country: '', status: 'pitched', issue_date: '', story_url: '', notes_outcome: '' };
 
 function fmtDate(d) {
@@ -35,6 +59,10 @@ export default function ClientPRPage() {
   const [editing, setEditing] = useState(null); // null | {id?, ...form}
   const [saving, setSaving] = useState(false);
   const [combinedResult, setCombinedResult] = useState(null);
+  // Coverage tab — status filter + sort. Defaults to "all" / newest first
+  // because the table is already sorted by issue/request date on the server.
+  const [coverageFilter, setCoverageFilter] = useState('all');
+  const [coverageSort, setCoverageSort] = useState('date_desc');
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
   const [savingReports, setSavingReports] = useState(false);
@@ -367,7 +395,7 @@ export default function ClientPRPage() {
                   <tr key={r.id}>
                     <td>{r.outlet || '—'}</td>
                     <td>{r.journalist || '—'}</td>
-                    <td><span className="chip">{r.status_label || r.status}</span></td>
+                    <td><StatusPill status={r.status} label={r.status_label || r.status} /></td>
                     <td>{fmtDate(r.issue_date)}</td>
                     <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 50)}</a> : (r.story_title || '—')}</td>
                   </tr>
@@ -387,6 +415,25 @@ export default function ClientPRPage() {
             <button className="btn btn-secondary" disabled={importing} onClick={() => fileRef.current && fileRef.current.click()}>{importing ? 'Importing…' : '↑ Import (this client)'}</button>
             <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
             <button className="btn btn-secondary" disabled={importing} onClick={() => combinedRef.current && combinedRef.current.click()} title="Routes each row to the matching client by the CSV's Client column">↑ Import combined (all clients)</button>
+            <button className="btn btn-secondary" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy client coverage link</button>
+          </div>
+
+          <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span className="caption" style={{ marginRight: 4 }}>Status</span>
+            {[['all', 'All'], ...STATUSES].map(([v, l]) => (
+              <button key={v} type="button" onClick={() => setCoverageFilter(v)}
+                className={`btn btn-sm ${coverageFilter === v ? 'btn-primary' : 'btn-secondary'}`}>
+                {l}{v !== 'all' ? ` (${log.filter(r => r.status === v).length})` : ''}
+              </button>
+            ))}
+            <div style={{ flex: 1 }} />
+            <span className="caption">Sort</span>
+            <select className="input" style={{ width: 'auto' }} value={coverageSort} onChange={(e) => setCoverageSort(e.target.value)}>
+              <option value="date_desc">Newest first</option>
+              <option value="date_asc">Oldest first</option>
+              <option value="outlet">Publication A→Z</option>
+              <option value="journalist">Journalist A→Z</option>
+            </select>
           </div>
 
           {combinedResult && (
@@ -417,23 +464,48 @@ export default function ClientPRPage() {
           )}
 
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-            <table className="table">
+            <table className="table" style={{ tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '13%' }} />
+                <col style={{ width: '11%' }} />
+                <col style={{ width: '8%' }} />
+                <col />{/* Story — flexes to fill */}
+                <col style={{ width: 140 }} />
+              </colgroup>
               <thead><tr><th>Publication</th><th>Journalist</th><th>Status</th><th>Date</th><th>Story</th><th></th></tr></thead>
               <tbody>
-                {log.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.outlet || '—'}</td>
-                    <td>{r.journalist || '—'}</td>
-                    <td><span className="chip">{r.status_label || r.status}</span></td>
-                    <td>{fmtDate(r.issue_date)}</td>
-                    <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
-                    <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                      <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
-                      <button className="btn btn-secondary btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-                {!log.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>No coverage yet. Add an entry, or import your editorial log CSV.</td></tr>}
+                {(() => {
+                  const filtered = log.filter(r => coverageFilter === 'all' || r.status === coverageFilter);
+                  const sorted = [...filtered].sort((a, b) => {
+                    if (coverageSort === 'date_asc') return new Date(a.issue_date || 0) - new Date(b.issue_date || 0);
+                    if (coverageSort === 'outlet') return (a.outlet || '').localeCompare(b.outlet || '');
+                    if (coverageSort === 'journalist') return (a.journalist || '').localeCompare(b.journalist || '');
+                    return new Date(b.issue_date || 0) - new Date(a.issue_date || 0);
+                  });
+                  if (!sorted.length) return (
+                    <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 24 }}>
+                      {log.length ? `No coverage matches "${coverageFilter}".` : 'No coverage yet. Add an entry, or import your editorial log CSV.'}
+                    </td></tr>
+                  );
+                  return sorted.map((r) => (
+                    <tr key={r.id}>
+                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.outlet || ''}>{r.outlet || '—'}</td>
+                      <td style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.journalist || ''}>{r.journalist || '—'}</td>
+                      <td><StatusPill status={r.status} label={r.status_label || r.status} /></td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.issue_date)}</td>
+                      <td>
+                        {r.story_url
+                          ? <a href={r.story_url} target="_blank" rel="noreferrer" title={r.story_title || r.story_url}>{r.story_title || 'View'}</a>
+                          : (r.story_title || '—')}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                        <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
+                        <button className="btn btn-secondary btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
+                      </td>
+                    </tr>
+                  ));
+                })()}
               </tbody>
             </table>
           </div>

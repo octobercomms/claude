@@ -86,7 +86,7 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
               <input className="input" value={form.last_name} onChange={e => update('last_name', e.target.value)} />
             </Field>
             <Field label="Email">
-              <input type="email" className="input" value={form.email} onChange={e => update('email', e.target.value)} required />
+              <input type="email" className="input" value={form.email} onChange={e => update('email', e.target.value)} placeholder="unknown — optional" />
             </Field>
             <Field label="Company / Practice">
               <input className="input" value={form.company} onChange={e => update('company', e.target.value)} />
