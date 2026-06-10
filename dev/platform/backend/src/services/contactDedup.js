@@ -282,4 +282,91 @@ async function safeRepointUnique(table, otherCol, loserId, canonicalId) {
   } catch (e) { /* table may not exist in older deployments */ }
 }
 
-module.exports = { scanContactDuplicates, mergeContacts, suggestCanonical, normaliseName };
+/**
+ * Coverage matchups — find pairs where one contact has coverage history but no
+ * email (a "thin" row created when an editorial-log CSV named a journalist we
+ * didn't yet have), and another contact in the library has the matching name +
+ * an email but little or no coverage (a "rich" row from a media-list CSV).
+ *
+ * These are the same person; the cleanup is a contactDedup merge with the rich
+ * row as canonical, which folds the thin row's coverage onto it.
+ *
+ * Returns clusters in the same shape as scanContactDuplicates so the Cleanup
+ * Centre's existing cluster card renders them with no extra UI plumbing.
+ */
+async function scanCoverageMatchups(visibleClientIds) {
+  const params = [];
+  let visibilityWhere = '';
+  if (visibleClientIds !== null) {
+    params.push(visibleClientIds);
+    visibilityWhere = `AND (
+      c.client_id = ANY($${params.length}::uuid[])
+      OR EXISTS (SELECT 1 FROM outreach_contact_clients m
+                  WHERE m.contact_id = c.id AND m.client_id = ANY($${params.length}::uuid[]))
+    )`;
+  }
+  const { rows } = await db.query(
+    `SELECT c.id, c.name, c.first_name, c.last_name, c.email, c.outlet_id, c.created_at,
+            o.name AS outlet,
+            (SELECT COUNT(*) FROM pr_editorial_log l WHERE l.contact_id = c.id) AS coverage_count,
+            (SELECT COUNT(*) FROM outreach_contact_clients m WHERE m.contact_id = c.id) AS client_count
+       FROM outreach_contacts c
+       LEFT JOIN pr_outlets o ON o.id = c.outlet_id
+      WHERE c.merged_into IS NULL ${visibilityWhere}`,
+    params
+  );
+
+  // Group by normalised full name (≥2 tokens — same identity threshold as the
+  // duplicate scan). For each group, look for a thin/rich split worth proposing.
+  const byName = new Map();
+  for (const r of rows) {
+    const name = normaliseName(r.name || `${r.first_name || ''} ${r.last_name || ''}`);
+    if (!name || name.split(' ').length < 2) continue;
+    if (!byName.has(name)) byName.set(name, []);
+    byName.get(name).push(r);
+  }
+
+  const clusters = [];
+  for (const [, members] of byName) {
+    if (members.length < 2) continue;
+    // A "matchup" needs at least one row with coverage but no email, AND at
+    // least one row with an email. Same-outlet preferred but not required —
+    // an email-list contact often has no outlet_id set.
+    const thin = members.filter((m) => Number(m.coverage_count) > 0 && !(m.email || '').trim());
+    const rich = members.filter((m) => (m.email || '').trim());
+    if (!thin.length || !rich.length) continue;
+
+    // Build the cluster from one thin + the best matching rich (preferring
+    // same outlet, then most coverage, then oldest). One pair per thin row,
+    // so a contact with three thin matchups becomes three suggestions —
+    // matches the existing per-cluster review flow.
+    for (const t of thin) {
+      const candidates = [...rich].sort((a, b) => {
+        const ao = a.outlet_id === t.outlet_id ? 0 : 1;
+        const bo = b.outlet_id === t.outlet_id ? 0 : 1;
+        if (ao !== bo) return ao - bo;
+        if (b.coverage_count !== a.coverage_count) return Number(b.coverage_count) - Number(a.coverage_count);
+        return new Date(a.created_at) - new Date(b.created_at);
+      });
+      const r = candidates[0];
+      if (!r) continue;
+      clusters.push({
+        method: 'coverage_matchup',
+        // Suggested canonical = the rich row (carries the email; we fold the
+        // thin row INTO it so the coverage repoints automatically).
+        suggested: r.id,
+        members: [r, t].map(formatMember),
+      });
+    }
+  }
+
+  // Sort: most-impactful (thin row with most coverage to fold) first.
+  clusters.sort((a, b) => {
+    const tA = a.members.find((m) => !m.email);
+    const tB = b.members.find((m) => !m.email);
+    return (tB?.coverage || 0) - (tA?.coverage || 0);
+  });
+  return clusters;
+}
+
+module.exports = { scanContactDuplicates, scanCoverageMatchups, mergeContacts, suggestCanonical, normaliseName };
