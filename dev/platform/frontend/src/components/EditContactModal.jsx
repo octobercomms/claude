@@ -88,11 +88,11 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
             <Field label="Email">
               <input type="email" className="input" value={form.email} onChange={e => update('email', e.target.value)} placeholder="unknown — optional" />
             </Field>
-            <Field label="Company / Practice">
-              <input className="input" value={form.company} onChange={e => update('company', e.target.value)} />
+            <Field label="Publication / company">
+              <input className="input" value={form.company} onChange={e => update('company', e.target.value)} placeholder="The outlet they write for, or the company they work at" />
             </Field>
             <Field label="Title">
-              <input className="input" value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Principal Architect" />
+              <input className="input" value={form.title} onChange={e => update('title', e.target.value)} placeholder="e.g. Editor, Principal Architect" />
             </Field>
             <Field label="Contact Type">
               <input className="input" list="contact-types" value={form.contact_type}

@@ -374,13 +374,19 @@ router.get('/contacts/library', async (req, res) => {
     const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
     const listParams = [...params, pageSize, offset];
     const { rows } = await pool.query(
+      // Outlet name is exposed alongside company so the library list can show
+      // a press contact's publication even when the freeform company field is
+      // empty (typical for journalists imported via the editorial-log path —
+      // the publication lives in outlet_id, not company).
       `SELECT c.*,
+              o.name AS outlet_name,
               ARRAY(
                 SELECT m.client_id FROM outreach_contact_clients m
                  WHERE m.contact_id = c.id
                  ORDER BY m.added_at
               ) AS client_ids${totalsCols}
          FROM outreach_contacts c
+         LEFT JOIN pr_outlets o ON o.id = c.outlet_id
          ${whereSql}
          ORDER BY c.created_at DESC
          LIMIT $${listParams.length - 1} OFFSET $${listParams.length}`,
