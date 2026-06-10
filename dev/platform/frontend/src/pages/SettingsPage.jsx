@@ -1303,6 +1303,19 @@ function ContactsLibrary() {
               title="Ask Claude to spot fixes on the contacts matching the current filter">
               ✦ Tidy with Claude
             </button>
+            <button
+              onClick={async () => {
+                if (!confirm('Strip leftover Notion-URL fragments from every contact + outlet name? Safe to run multiple times.')) return;
+                try {
+                  const r = await api.post('/pr/repair-imported-names', {});
+                  setInfo(`Repaired ${r.contacts} contact${r.contacts === 1 ? '' : 's'} and ${r.outlets} outlet${r.outlets === 1 ? '' : 's'}.`);
+                  load();
+                } catch (e) { setErr(e.message); }
+              }}
+              className="btn btn-secondary btn-sm"
+              title="Clean up journalists and outlets whose names still contain raw (https://app.notion.com/…) trails from earlier Notion-export imports.">
+              ✦ Repair imported names
+            </button>
             <button onClick={exportCsv} disabled={!total} className="btn btn-secondary btn-sm"
               title={total ? `Download ${total.toLocaleString()} contact${total === 1 ? '' : 's'} matching the current filter` : 'Nothing to export'}>
               ↓ Export CSV

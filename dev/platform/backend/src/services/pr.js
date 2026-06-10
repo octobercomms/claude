@@ -77,10 +77,21 @@ function parseCsv(text) {
 }
 
 /** Notion exports relations as "Label (https://…)". Return the label or the URL. */
+// Notion CSV exports of relation columns look like
+//   "Linda Clayton (https://app.notion.com/p/Linda-Clayton-…?pvs=21)"
+// and sometimes — when the same field had multiple values in Notion — like
+//   "Chiara Mattavelli (https://app.notion.com/p/…?pvs=21), Chiara Mattaveli"
+// (the second entry being an alternate spelling, with no Notion ref of its own).
+//
+// We want the *first* clean name only, regardless of what trails after the
+// closing paren. The original `^…$` regex required the close paren to be at the
+// end of the string, so the second-shape input slipped through untouched and got
+// stored as the journalist's full first/last name. Now we strip everything from
+// the first " (https://" onward, then return that prefix.
 function stripNotionRef(value, wantUrl = false) {
   value = String(value || '').trim();
   if (!value) return '';
-  const m = /^(.*?)\s*\((https?:\/\/[^)]+)\)\s*$/.exec(value);
+  const m = /^(.*?)\s*\((https?:\/\/[^)]+)\)/.exec(value);
   if (m) return wantUrl ? m[2].trim() : m[1].trim();
   if (wantUrl) return /^https?:\/\//.test(value) ? value : '';
   return value;
@@ -426,11 +437,57 @@ async function getCoverageByToken(token) {
   };
 }
 
+/**
+ * One-shot repair for contacts and outlets whose names still carry the trailing
+ * "(notion-url)…" junk from older imports done before the stripNotionRef fix.
+ * Idempotent — re-runs on already-clean rows produce zero updates. Returns the
+ * number of rows touched per table.
+ */
+async function repairImportedNames() {
+  let contacts = 0, outlets = 0;
+  // Contacts — recompute first/last/name when the stripped first or last differs.
+  const { rows: cs } = await db.query(
+    `SELECT id, first_name, last_name, name FROM outreach_contacts
+      WHERE first_name LIKE '%http%' OR last_name LIKE '%http%' OR name LIKE '%http%'`
+  );
+  for (const c of cs) {
+    const cleanFirst = stripNotionRef(c.first_name || '').trim();
+    // last_name absorbed everything after the first space in the broken case
+    // (e.g. "Mattavelli (https://…?pvs=21), Chiara Mattaveli"); strip + take the
+    // prefix up to any orphan trailing punctuation.
+    const cleanLast = stripNotionRef(c.last_name || '').trim().replace(/[,]\s.*$/, '').trim();
+    const cleanName = `${cleanFirst} ${cleanLast}`.trim();
+    if (cleanFirst === c.first_name && cleanLast === c.last_name && cleanName === c.name) continue;
+    await db.query(
+      'UPDATE outreach_contacts SET first_name = $1, last_name = $2, name = $3 WHERE id = $4',
+      [cleanFirst, cleanLast, cleanName, c.id]
+    );
+    contacts++;
+  }
+  // Outlets — same treatment on `name` + `canonical_name`.
+  const { rows: os } = await db.query(
+    `SELECT id, name, canonical_name FROM pr_outlets
+      WHERE name LIKE '%http%' OR canonical_name LIKE '%http%'`
+  );
+  for (const o of os) {
+    const cleanName = stripNotionRef(o.name || '').trim();
+    const cleanCanon = stripNotionRef(o.canonical_name || '').trim();
+    if (cleanName === o.name && cleanCanon === o.canonical_name) continue;
+    await db.query(
+      'UPDATE pr_outlets SET name = $1, canonical_name = $2 WHERE id = $3',
+      [cleanName, cleanCanon, o.id]
+    );
+    outlets++;
+  }
+  return { contacts, outlets };
+}
+
 module.exports = {
   STATUS_LABELS, PUBLISHED, statusLabel, CLIENT_VISIBLE_STATUS,
   relationshipStrength, hitRate, isGoneQuiet,
   parseCsv, stripNotionRef, parseDate,
   resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
+  repairImportedNames,
   normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates,
   adjudicateOutletClusters, mergeOutlets,
   suggestBeats, writeOutletSummary,
