@@ -69,6 +69,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
     const { rows } = await db.query(
       `SELECT l.id, l.story_title, l.status, l.country, l.issue_date, l.request_date,
               l.interview_date, l.story_url, l.notes_outcome, l.pitch_request,
+              l.attachment_url, l.attachment_filename,
               o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
@@ -84,6 +85,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
         country: r.country, issue_date: r.issue_date, request_date: r.request_date,
         interview_date: r.interview_date, story_url: r.story_url,
         notes_outcome: r.notes_outcome, pitch_request: r.pitch_request,
+        attachment_url: r.attachment_url, attachment_filename: r.attachment_filename,
         outlet: r.outlet, journalist: (r.journalist || '').trim(),
       })),
     });
@@ -221,8 +223,67 @@ router.patch('/editorial-log/:id', async (req, res) => {
 // Delete a log entry (access enforced by router.param('id')).
 router.delete('/editorial-log/:id', async (req, res) => {
   try {
+    // Best-effort sweep of any attached PDF before the row goes away.
+    try {
+      const cur = (await db.query('SELECT attachment_url FROM pr_editorial_log WHERE id = $1', [req.params.id])).rows[0];
+      if (cur && cur.attachment_url) {
+        const fs = require('fs'); const path = require('path');
+        const fname = String(cur.attachment_url).replace(/^.*\/coverage-attachments\//, '');
+        if (fname && !fname.includes('..') && !fname.includes('/')) {
+          fs.unlink(path.join(__dirname, '../../coverage-attachments', fname), () => {});
+        }
+      }
+    } catch { /* ignore */ }
     await db.query('DELETE FROM pr_editorial_log WHERE id = $1', [req.params.id]);
     res.json({ deleted: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Attach a PDF (or any small file) to a coverage entry. Stored unguessable
+// under /coverage-attachments and served publicly — the URL itself is the
+// access control, matching the public-coverage portal pattern. 25MB cap.
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+const attachmentsDir = path.join(__dirname, '../../coverage-attachments');
+try { fs.mkdirSync(attachmentsDir, { recursive: true }); } catch { /* ignore */ }
+
+router.post('/editorial-log/:id/attachment', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'File required' });
+    // Replace any existing attachment — cap at one PDF per entry to keep the
+    // UI simple. Most AMs want "the cutout" or "the PDF copy", not a gallery.
+    const cur = (await db.query('SELECT attachment_url FROM pr_editorial_log WHERE id = $1', [req.params.id])).rows[0];
+    if (cur && cur.attachment_url) {
+      const oldName = String(cur.attachment_url).replace(/^.*\/coverage-attachments\//, '');
+      if (oldName && !oldName.includes('..') && !oldName.includes('/')) {
+        fs.unlink(path.join(attachmentsDir, oldName), () => {});
+      }
+    }
+    const safeName = (req.file.originalname || 'attachment.pdf')
+      .replace(/[^\w.\-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60) || 'attachment.pdf';
+    const stored = `${crypto.randomBytes(12).toString('hex')}-${safeName}`;
+    fs.writeFileSync(path.join(attachmentsDir, stored), req.file.buffer);
+    const url = `/coverage-attachments/${stored}`;
+    await db.query(
+      'UPDATE pr_editorial_log SET attachment_url = $1, attachment_filename = $2 WHERE id = $3',
+      [url, req.file.originalname || safeName, req.params.id]
+    );
+    res.json({ attachment_url: url, attachment_filename: req.file.originalname || safeName });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+router.delete('/editorial-log/:id/attachment', async (req, res) => {
+  try {
+    const cur = (await db.query('SELECT attachment_url FROM pr_editorial_log WHERE id = $1', [req.params.id])).rows[0];
+    if (cur && cur.attachment_url) {
+      const oldName = String(cur.attachment_url).replace(/^.*\/coverage-attachments\//, '');
+      if (oldName && !oldName.includes('..') && !oldName.includes('/')) {
+        fs.unlink(path.join(attachmentsDir, oldName), () => {});
+      }
+    }
+    await db.query('UPDATE pr_editorial_log SET attachment_url = NULL, attachment_filename = NULL WHERE id = $1', [req.params.id]);
+    res.json({ removed: 1 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
