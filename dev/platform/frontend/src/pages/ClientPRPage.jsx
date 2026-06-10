@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+import SuiteTabs from '../components/SuiteTabs';
+import SuiteOverview from '../components/SuiteOverview';
 
 const STATUSES = [
   ['pitched', 'Pitched'], ['pending', 'Pending'], ['no_response', 'No Response'],
@@ -302,25 +304,49 @@ export default function ClientPRPage() {
         <h1 className="display">PR</h1>
       </header>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 'var(--s4)', flexWrap: 'wrap' }}>
-        {[['overview', 'Overview'], ['coverage', 'Coverage'], ['journalists', 'Journalists'], ['press', 'Press releases'], ['reports', 'Reports']].map(([v, l]) => (
-          <button key={v} onClick={() => setTab(v)} className={'btn ' + (tab === v ? 'btn-primary' : 'btn-secondary')}>
-            {l}{v === 'coverage' && queue.length ? ` (${queue.length})` : ''}{v === 'journalists' && thanks.length ? ` (${thanks.length})` : ''}
-          </button>
-        ))}
-      </div>
+      <SuiteTabs tabs={[
+        { key: 'overview', label: 'Overview', active: tab === 'overview', onClick: () => setTab('overview') },
+        { key: 'coverage', label: `Coverage${queue.length ? ` (${queue.length})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
+        { key: 'journalists', label: `Journalists${thanks.length ? ` (${thanks.length})` : ''}`, active: tab === 'journalists', onClick: () => setTab('journalists') },
+        { key: 'press', label: 'Press releases', active: tab === 'press', onClick: () => setTab('press') },
+        { key: 'reports', label: 'Reports', active: tab === 'reports', onClick: () => setTab('reports') },
+      ]} />
 
       {loading && <div className="card"><p style={{ color: 'var(--text-subtle)', padding: 24 }}>Loading…</p></div>}
 
       {!loading && tab === 'overview' && (
-        <div>
-          <div className="card" style={{ display: 'flex', gap: 'var(--s6)', flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-            <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.published : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Published</div></div>
-            <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.tracked : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Tracked</div></div>
-            <div><div style={{ fontSize: 28, fontWeight: 700 }}>{stats ? stats.journalists : '—'}</div><div style={{ color: 'var(--text-subtle)', fontSize: 13 }}>Journalists</div></div>
+        <div className="stack stack-lg">
+          <SuiteOverview
+            tagline="Earn the coverage — and make every pitch land."
+            description="Your media list, turned into a targeting engine. Track every hit and which journalists actually write about your clients, let Claude build the target list for a story and draft the follow-ups, auto-thank the writers who cover you, and keep your best relationships warm — so the list works as hard as you do."
+            ctaLabel="Find who to pitch"
+            onCta={() => setTab('journalists')}
+            status={[
+              { label: 'Published', value: stats ? String(stats.published) : '—', ok: !!(stats && stats.published) },
+              { label: 'Tracked', value: stats ? String(stats.tracked) : '—', ok: !!(stats && stats.tracked) },
+              { label: 'Journalists', value: stats ? String(stats.journalists) : '—', ok: !!(stats && stats.journalists) },
+            ]}
+            flow={[
+              { label: 'Monitor', detail: 'Google News + Alerts' },
+              { label: 'Log', detail: 'Coverage + journalists' },
+              { label: 'Target', detail: 'AI picks who to pitch' },
+              { label: 'Nurture', detail: 'Thanks + warm notes' },
+            ]}
+            capabilities={[
+              { tag: 'Coverage', title: 'Every hit, in one log', cta: 'Open coverage', onClick: () => setTab('coverage'), body: 'A living editorial log with a public, client-facing coverage page — plus an automatic monitor that finds new pieces for you to confirm.' },
+              { tag: 'Targeting', title: 'Who should I pitch this to?', cta: 'Open journalists', onClick: () => setTab('journalists'), body: 'Paste a release or brief and Claude mines your contacts’ beats and your relationship history to build a ranked, reasoned target list — no more pitching from memory.' },
+              { tag: 'Relationships', title: 'Never go cold', cta: 'Open journalists', onClick: () => setTab('journalists'), body: 'Relationship strength, hit-rate and tier per journalist; auto-thank-yous when you’re covered; and nudges to send a warm note on their latest article.' },
+              { tag: 'Press releases', title: 'Brief → draft → sign-off → pitch', cta: 'Open press releases', onClick: () => setTab('press'), body: 'Write from a brief, let Claude draft the release, get client sign-off on a token link, then spin it straight into a pitch campaign.' },
+              { tag: 'Reports', title: 'Show the value, automatically', cta: 'Open reports', onClick: () => setTab('reports'), body: 'Scheduled coverage digests and “you’ve been featured” alerts to the client, plus a shareable live coverage portal.' },
+            ]}
+          />
+
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
+            <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
           </div>
 
-          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <div className="card">
             <h3 className="h3 mb-2">Needs attention</h3>
             {(queue.length || thanks.length || awaitingSignoff || quietCount) ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
@@ -330,12 +356,6 @@ export default function ClientPRPage() {
                 {quietCount ? <button onClick={() => setTab('journalists')} style={linkRow}>📉 {quietCount} key journalist{quietCount === 1 ? '' : 's'} gone quiet</button> : null}
               </div>
             ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13, margin: 0 }}>All clear — nothing needs you right now.</p>}
-          </div>
-
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 'var(--s4)' }}>
-            <button className="btn btn-primary" onClick={() => { setTab('coverage'); startEdit(null); }}>+ Log coverage</button>
-            <button className="btn btn-secondary" onClick={() => { setTab('press'); newRelease(); }}>+ Press release</button>
-            <button className="btn btn-secondary" onClick={() => setTab('reports')}>✉ Reports &amp; portal</button>
           </div>
 
           <div className="card">
