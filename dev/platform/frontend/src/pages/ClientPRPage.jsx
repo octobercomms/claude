@@ -41,6 +41,24 @@ const BLANK = {
   attachment_url: '', attachment_filename: '',
 };
 
+// Liveness colour for a coverage story link. NULL = never checked, render as
+// a normal link. 'broken' = high-confidence dead (404/410/DNS) — red, so the
+// AM hunts for the new URL. 'uncertain' = anti-bot or transient (403/429/5xx)
+// — amber, to flag without crying wolf. 'ok' = 2xx, normal link.
+function linkStyleFor(status) {
+  if (status === 'broken') return { color: '#a32020', textDecoration: 'line-through' };
+  if (status === 'uncertain') return { color: '#8c5a00' };
+  return null;
+}
+function linkTitleFor(status, code, checkedAt, finalUrl) {
+  if (!status) return null;
+  const when = checkedAt ? new Date(checkedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+  const label = status === 'broken' ? 'Broken' : status === 'uncertain' ? 'Uncertain (may be anti-bot)' : 'OK';
+  const codeStr = code ? ` · HTTP ${code}` : '';
+  const finalStr = finalUrl ? ` · final: ${finalUrl}` : '';
+  return `${label}${codeStr} · checked ${when}${finalStr}`;
+}
+
 function fmtDate(d) {
   if (!d) return '—';
   const t = new Date(d);
@@ -68,6 +86,7 @@ export default function ClientPRPage() {
   // because the table is already sorted by issue/request date on the server.
   const [coverageFilter, setCoverageFilter] = useState('all');
   const [coverageSort, setCoverageSort] = useState('date_desc');
+  const [checkingLinks, setCheckingLinks] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
   const [savingReports, setSavingReports] = useState(false);
@@ -346,6 +365,19 @@ export default function ClientPRPage() {
     } catch (err) { toast(err.message, 'error'); }
   }
 
+  async function checkLinks() {
+    setCheckingLinks(true);
+    try {
+      const r = await api.post(`/pr/clients/${id}/check-links`, {});
+      const parts = [`Checked ${r.checked}`];
+      if (r.broken) parts.push(`${r.broken} broken`);
+      if (r.uncertain) parts.push(`${r.uncertain} uncertain`);
+      toast(parts.join(' · '), r.broken ? 'error' : 'success');
+      loadData();
+    } catch (err) { toast(err.message, 'error'); }
+    finally { setCheckingLinks(false); }
+  }
+
   async function copyPortalLink() {
     try {
       const { token } = await api.get(`/pr/clients/${id}/portal`);
@@ -463,6 +495,7 @@ export default function ClientPRPage() {
             <input ref={combinedRef} type="file" accept=".csv" onChange={(e) => doImport(e, true)} style={{ display: 'none' }} />
             <button className="btn btn-secondary" disabled={importing} onClick={() => combinedRef.current && combinedRef.current.click()} title="Routes each row to the matching client by the CSV's Client column">↑ Import combined (all clients)</button>
             <button className="btn btn-secondary" onClick={copyPortalLink} title="Copy the read-only public coverage URL for sharing with the client">🔗 Copy client coverage link</button>
+            <button className="btn btn-secondary" disabled={checkingLinks} onClick={checkLinks} title="HEAD every story URL — flags 404s and DNS failures so you can hunt for the new link">{checkingLinks ? 'Checking…' : '🔍 Check links'}</button>
           </div>
 
           <div className="card" style={{ marginBottom: 'var(--s4)', display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -565,7 +598,11 @@ export default function ClientPRPage() {
                       <td style={{ whiteSpace: 'nowrap' }}>{fmtDate(r.interview_date)}</td>
                       <td>
                         {r.story_url
-                          ? <a href={r.story_url} target="_blank" rel="noreferrer" title={r.story_title || r.story_url}>{r.story_title || 'View'}</a>
+                          ? <a
+                              href={r.story_url} target="_blank" rel="noreferrer"
+                              style={linkStyleFor(r.link_status) || undefined}
+                              title={linkTitleFor(r.link_status, r.link_status_code, r.link_checked_at, r.link_final_url) || r.story_title || r.story_url}
+                            >{r.story_title || 'View'}{r.link_status === 'broken' ? ' ⚠' : r.link_status === 'uncertain' ? ' ?' : ''}</a>
                           : (r.story_title || '—')}
                         {r.attachment_url ? <> · <a href={r.attachment_url} target="_blank" rel="noreferrer" title={r.attachment_filename || 'Attached PDF'}>📎 PDF</a></> : null}
                       </td>

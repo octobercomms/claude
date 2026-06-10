@@ -16,6 +16,7 @@ const prEnrich = require('../services/prEnrich');
 const prTarget = require('../services/prTarget');
 const prArchive = require('../services/prArchive');
 const prEngage = require('../services/prEngage');
+const prLinkCheck = require('../services/prLinkCheck');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -47,6 +48,16 @@ router.param('prId', async (req, res, next, id) => {
   } catch (err) { next(err); }
 });
 
+// Trigger an on-demand link-liveness check for all story URLs of a client.
+// Synchronous because clients usually have ~50 entries; for huge logs we'd
+// want to background it but that hasn't been the problem yet.
+router.post('/clients/:clientId/check-links', async (req, res) => {
+  try {
+    const summary = await prLinkCheck.checkAllForClient(req.params.clientId);
+    res.json(summary);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Stats for a client's PR coverage.
 router.get('/clients/:clientId/stats', async (req, res) => {
   try {
@@ -70,6 +81,7 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
       `SELECT l.id, l.story_title, l.status, l.country, l.issue_date, l.request_date,
               l.interview_date, l.story_url, l.notes_outcome, l.pitch_request,
               l.attachment_url, l.attachment_filename,
+              l.link_status, l.link_status_code, l.link_checked_at, l.link_final_url,
               o.name AS outlet, TRIM(CONCAT(c.first_name,' ',c.last_name)) AS journalist
        FROM pr_editorial_log l
        LEFT JOIN pr_outlets o ON o.id = l.outlet_id
@@ -86,6 +98,8 @@ router.get('/clients/:clientId/editorial-log', async (req, res) => {
         interview_date: r.interview_date, story_url: r.story_url,
         notes_outcome: r.notes_outcome, pitch_request: r.pitch_request,
         attachment_url: r.attachment_url, attachment_filename: r.attachment_filename,
+        link_status: r.link_status, link_status_code: r.link_status_code,
+        link_checked_at: r.link_checked_at, link_final_url: r.link_final_url,
         outlet: r.outlet, journalist: (r.journalist || '').trim(),
       })),
     });
