@@ -44,6 +44,20 @@ export default function ClientPRPage() {
   const [drafting, setDrafting] = useState(false);
   const [sendingThank, setSendingThank] = useState(false);
   const [thankSettings, setThankSettings] = useState(null); // { thank_stage, stages, record }
+  const [pitch, setPitch] = useState({ url: '', brief: '' });
+  const [pitchLoading, setPitchLoading] = useState(false);
+  const [pitchResult, setPitchResult] = useState(null);
+
+  async function findTargets() {
+    if (!pitch.url.trim() && !pitch.brief.trim()) { toast('Paste a press-release URL or a brief', 'error'); return; }
+    setPitchLoading(true); setPitchResult(null);
+    try {
+      const r = await api.post(`/pr/clients/${id}/pitch-targets`, { url: pitch.url.trim(), brief: pitch.brief.trim() });
+      if (r.error) { toast(r.error, 'error'); return; }
+      setPitchResult(r);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setPitchLoading(false); }
+  }
   const [releases, setReleases] = useState([]);
   const [pr, setPr] = useState(null); // null | release row being edited
   const [prDrafting, setPrDrafting] = useState(false);
@@ -456,6 +470,36 @@ export default function ClientPRPage() {
 
       {!loading && tab === 'journalists' && (
         <div>
+          <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+            <h3 className="h3 mb-2">✨ Who should I pitch this to?</h3>
+            <p style={{ color: 'var(--text-subtle)', fontSize: 13, marginBottom: 10 }}>Paste a press-release URL or a short brief — Claude mines your contacts' beats and your relationship history to build a targeted list.</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: 8 }}>
+              <label className="field" style={{ flex: 1, minWidth: 240 }}><span className="field-label">Press release URL</span><input className="input" value={pitch.url} onChange={(e) => setPitch((p) => ({ ...p, url: e.target.value }))} placeholder="https://…" /></label>
+              <button className="btn btn-primary" disabled={pitchLoading} onClick={findTargets}>{pitchLoading ? 'Finding…' : 'Find journalists'}</button>
+            </div>
+            <label className="field"><span className="field-label">…or paste a brief</span><textarea className="input" rows={2} value={pitch.brief} onChange={(e) => setPitch((p) => ({ ...p, brief: e.target.value }))} placeholder="What's the story?" /></label>
+            {pitchResult && (
+              <div style={{ marginTop: 12 }}>
+                {pitchResult.angle && <p style={{ fontSize: 13, marginBottom: 8 }}><strong>Angle:</strong> {pitchResult.angle}</p>}
+                {pitchResult.targets && pitchResult.targets.length ? (
+                  <table className="table">
+                    <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Why</th></tr></thead>
+                    <tbody>
+                      {pitchResult.targets.map((t) => (
+                        <tr key={t.id}>
+                          <td><Link to={`/media/journalist/${t.id}`}>{t.name}</Link>{t.strength_label ? <span className="chip" style={{ marginLeft: 6 }}>{t.strength_label}</span> : null}{t.has_email ? null : <span className="chip" style={{ marginLeft: 6 }}>no email</span>}</td>
+                          <td>{t.outlet || '—'}</td>
+                          <td>{t.tier ? `T${t.tier}` : '—'}</td>
+                          <td style={{ fontSize: 13 }}>{t.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{pitchResult.note || 'No strong matches found.'}</p>}
+              </div>
+            )}
+          </div>
+
           <div className="card" style={{ marginBottom: 'var(--s4)' }}>
             <table className="table">
               <thead><tr><th>Journalist</th><th>Outlet</th><th>Tier</th><th>Published</th><th>Hit rate</th><th>Last featured</th><th>Relationship</th></tr></thead>
