@@ -12,6 +12,7 @@ const prMonitor = require('../services/prMonitor');
 const prThanks = require('../services/prThanks');
 const prPress = require('../services/prPress');
 const pressRelease = require('../services/pressRelease');
+const prEnrich = require('../services/prEnrich');
 const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess, requireAdmin, assertClientAccess } = require('../middleware/clientAccess');
 
@@ -453,6 +454,13 @@ router.post('/contacts/:contactId/suggest-beats', async (req, res) => {
     const titles = (await db.query("SELECT story_title FROM pr_editorial_log WHERE contact_id = $1 AND story_title <> '' LIMIT 40", [req.params.contactId])).rows.map((r) => r.story_title);
     res.json({ beats: await pr.suggestBeats(`${c.first_name} ${c.last_name}`.trim(), titles) });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// On-demand enrichment (the long-tail / "enrich now" path) — grounds on logged
+// coverage plus any extra context (e.g. pasted bylines) the caller supplies.
+router.post('/contacts/:contactId/enrich', async (req, res) => {
+  try { res.json(await prEnrich.enrichContact(req.params.contactId, { extraContext: String((req.body || {}).context || '') })); }
+  catch (err) { res.status(400).json({ error: err.message }); }
 });
 
 // ── Thank-yous (assisted) ────────────────────────────────────────────────────

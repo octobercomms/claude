@@ -58,6 +58,19 @@ cron.schedule('0 10 * * *', async () => {
   catch (e) { console.error('[Scheduler] PR thank-you auto-send failed:', e.message); }
 });
 
+// PR contacts enrichment + publication tier proposals: nightly at 03:00 (cheap,
+// Haiku, grounded in logged coverage, chunked). Heavy AI work runs overnight so
+// it never blocks a request. Re-enriches only new/stale rows.
+cron.schedule('0 3 * * *', async () => {
+  console.log('[Scheduler] Running PR contacts enrichment...');
+  try {
+    const prEnrich = require('./prEnrich');
+    const e = await prEnrich.runEnrichmentBatch({ limit: 150 });
+    const t = await prEnrich.runTierProposalBatch({ limit: 100 });
+    console.log(`[Scheduler] enriched ${e.enriched || 0} contact(s), tiered ${t.set || 0} outlet(s)`);
+  } catch (e) { console.error('[Scheduler] PR enrichment failed:', e.message); }
+});
+
 // Daily SEO rank checks: 06:00 AM
 // SEO rank checks: every 4 days at 06:00. Daily was overkill and burned API
 // spend without meaningful detail; every-4-days surfaces movements in the
