@@ -264,6 +264,20 @@ async function mergeContacts(canonicalId, memberIds) {
       [canonicalId, mid]
     );
 
+    // After the merge, mirror the linked outlet's name into the company field
+    // if company is still empty. Press contacts live with the publication in
+    // outlet_id and the freeform company often blank — exports, the library
+    // list, and search all read company, so the publication was invisible to
+    // them. Same publication = same string in both places.
+    await db.query(
+      `UPDATE outreach_contacts c
+          SET company = o.name, updated_at = NOW()
+         FROM pr_outlets o
+        WHERE c.id = $1 AND c.outlet_id = o.id
+          AND (c.company IS NULL OR c.company = '')`,
+      [canonicalId]
+    );
+
     await db.query('UPDATE outreach_contacts SET merged_into = $1, updated_at = NOW() WHERE id = $2', [canonicalId, mid]);
     merged++;
   }

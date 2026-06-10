@@ -1563,7 +1563,7 @@ function ContactsLibrary() {
                       <td  onClick={() => setOpenContact(r)}>
                         <span style={{ color: 'var(--text-muted)' }}>{r.email || '—'}</span>
                       </td>
-                      <td  onClick={() => setOpenContact(r)}>{r.company || '—'}</td>
+                      <td  onClick={() => setOpenContact(r)}>{r.company || r.outlet_name || '—'}</td>
                       <td  onClick={() => setOpenContact(r)}>
                         <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
                           {Array.isArray(r.beats) && r.beats.length ? r.beats.join(', ') : '—'}
