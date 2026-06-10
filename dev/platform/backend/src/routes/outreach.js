@@ -300,7 +300,10 @@ router.get('/contacts', async (req, res) => {
 // the same set of querystring params so AMs can preview exactly what's
 // about to be deleted.
 function buildLibraryFilter(req, q) {
-  const where = [];
+  // Always exclude merged-away rows from the visible library — the canonical
+  // they merged into is still in the list, so showing the loser too would
+  // re-confuse the AM who just cleaned up.
+  const where = ['c.merged_into IS NULL'];
   const params = [];
   if (req.visibleClientIds !== null) {
     params.push(req.visibleClientIds);
@@ -511,6 +514,32 @@ router.get('/contacts/analyze-tidy/runs/:id', async (req, res) => {
     const run = await contactTidy.getTidyRun(req.params.id, req.user?.id || null);
     if (!run) return res.status(404).json({ error: 'Run not found' });
     res.json(run);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Contact deduplication. Scan groups likely duplicates into clusters; merge
+// repoints every FK and soft-deletes the losers. Mirrors the outlet dedup
+// flow in routes/pr.js so the AM has the same mental model on both objects.
+router.get('/contacts/dedup/scan', async (req, res) => {
+  try {
+    const dedup = require('../services/contactDedup');
+    const clusters = await dedup.scanContactDuplicates(req.visibleClientIds);
+    res.json({ clusters, suggested: clusters.map((c) => dedup.suggestCanonical(c)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/contacts/dedup/merge', async (req, res) => {
+  try {
+    const dedup = require('../services/contactDedup');
+    const canonId = req.body?.canonical_id;
+    const memberIds = Array.isArray(req.body?.member_ids) ? req.body.member_ids : [];
+    if (!canonId) return res.status(400).json({ error: 'canonical_id required' });
+    const merged = await dedup.mergeContacts(canonId, memberIds);
+    res.json({ merged });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -972,7 +1001,7 @@ router.post('/contacts/bulk', async (req, res) => {
       let row = null;
       if (emailLower) {
         const { rows: existing } = await pool.query(
-          'SELECT * FROM outreach_contacts WHERE LOWER(email) = $1 LIMIT 1',
+          'SELECT * FROM outreach_contacts WHERE LOWER(email) = $1 AND merged_into IS NULL LIMIT 1',
           [emailLower]
         );
         if (existing.length) {
@@ -1588,7 +1617,7 @@ router.post('/campaigns/:id/contacts/add', async (req, res) => {
       // just within this client. Attach the found contact to the campaign's
       // client if it isn't already.
       const { rows: existing } = await pool.query(
-        'SELECT id FROM outreach_contacts WHERE LOWER(email) = $1 LIMIT 1',
+        'SELECT id FROM outreach_contacts WHERE LOWER(email) = $1 AND merged_into IS NULL LIMIT 1',
         [lower]
       );
       let contactId;
