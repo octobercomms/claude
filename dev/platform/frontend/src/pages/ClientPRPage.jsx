@@ -277,6 +277,17 @@ export default function ClientPRPage() {
     ]).catch((e) => toast(e.message, 'error')).finally(() => setLoading(false));
   }
   useEffect(() => { loadData(); }, [id]);
+  // ESC closes whichever modal is open. Skip while a save is mid-flight so
+  // the AM can't accidentally cancel an in-progress request.
+  useEffect(() => {
+    function onKey(e) {
+      if (e.key !== 'Escape') return;
+      if (editing && !saving) setEditing(null);
+      else if (thankDraft && !sendingThank) setThankDraft(null);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing, saving, thankDraft, sendingThank]);
   // Load the secondary queues once on open so the Overview "needs attention"
   // badges are populated regardless of which tab is active.
   useEffect(() => { loadThanks(); loadMonitor(); loadReleases(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [id]);
@@ -520,50 +531,6 @@ export default function ClientPRPage() {
             <div className="card" style={{ marginBottom: 'var(--s4)', borderLeft: '3px solid var(--accent)' }}>
               <strong>{combinedResult.skipped} rows skipped.</strong> Unmatched client names (no platform client with that name):
               <div style={{ marginTop: 6, color: 'var(--text-subtle)', fontSize: 13 }}>{combinedResult.unmatched.join(', ')}</div>
-            </div>
-          )}
-
-          {editing && (
-            <div className="card" style={{ marginBottom: 'var(--s4)' }}>
-              <h3 className="h3 mb-2">{editing.id ? 'Edit entry' : 'New entry'}</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <label className="field"><span className="field-label">Story title</span><input className="input" value={f.story_title} onChange={(e) => setF('story_title', e.target.value)} /></label>
-                <label className="field"><span className="field-label">Status</span><select className="input" value={f.status} onChange={(e) => setF('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
-                <label className="field"><span className="field-label">Press contact</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
-                <label className="field"><span className="field-label">Publication</span><input className="input" value={f.publication} onChange={(e) => setF('publication', e.target.value)} /></label>
-                <label className="field"><span className="field-label">Country</span><input className="input" value={f.country} onChange={(e) => setF('country', e.target.value)} /></label>
-                <label className="field"><span className="field-label">Issue date</span><input className="input" type="date" value={f.issue_date} onChange={(e) => setF('issue_date', e.target.value)} /></label>
-                <label className="field"><span className="field-label">Request date</span><input className="input" type="date" value={f.request_date} onChange={(e) => setF('request_date', e.target.value)} /></label>
-                <label className="field"><span className="field-label">Interview date</span><input className="input" type="date" value={f.interview_date} onChange={(e) => setF('interview_date', e.target.value)} /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Story URL</span><input className="input" value={f.story_url} onChange={(e) => setF('story_url', e.target.value)} placeholder="https://…" /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Pitch / request</span><textarea className="input" rows={2} value={f.pitch_request} onChange={(e) => setF('pitch_request', e.target.value)} placeholder="What the journalist asked for, or your original pitch angle" /></label>
-                <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes / outcome (internal)</span><textarea className="input" rows={2} value={f.notes_outcome} onChange={(e) => setF('notes_outcome', e.target.value)} /></label>
-                <div className="field" style={{ gridColumn: '1/-1' }}>
-                  <span className="field-label">Attachment (PDF — magazine scan, cutout, advance copy)</span>
-                  {editing.id ? (
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {f.attachment_url ? (
-                        <>
-                          <a href={f.attachment_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📎 {f.attachment_filename || 'View PDF'}</a>
-                          <button className="btn btn-secondary btn-sm" type="button" onClick={removeAttachment}>Remove</button>
-                        </>
-                      ) : (
-                        <>
-                          <input ref={attachRef} type="file" accept="application/pdf,.pdf" onChange={uploadAttachment} style={{ display: 'none' }} />
-                          <button className="btn btn-secondary btn-sm" type="button" disabled={attaching} onClick={() => attachRef.current && attachRef.current.click()}>{attaching ? 'Uploading…' : '↑ Attach PDF'}</button>
-                          <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>For coverage that only exists in print.</span>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>Save the entry first, then re-open to attach a PDF.</span>
-                  )}
-                </div>
-              </div>
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                <button className="btn btn-primary" disabled={saving} onClick={saveEntry}>{saving ? 'Saving…' : 'Save'}</button>
-                <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
-              </div>
             </div>
           )}
 
@@ -839,6 +806,55 @@ export default function ClientPRPage() {
           <div style={{ marginTop: 16, borderTop: '1px solid var(--card-border, #e5e7eb)', paddingTop: 16 }}>
             <button className="btn btn-secondary" onClick={copyPortalLink}>🔗 Copy client coverage link</button>
             <p style={{ color: 'var(--text-subtle)', fontSize: 12, marginTop: 8, marginBottom: 0 }}>A public, read-only page of this client's published coverage — no login needed.</p>
+          </div>
+        </div>
+      )}
+
+      {editing && (
+        <div className="modal-backdrop" onClick={() => !saving && setEditing(null)}>
+          <div className="modal modal-wide" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-head">
+              <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{editing.id ? 'Edit entry' : 'New entry'}</h2>
+              <button type="button" onClick={() => setEditing(null)} className="modal-close" aria-label="Close">×</button>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <label className="field"><span className="field-label">Story title</span><input className="input" value={f.story_title} onChange={(e) => setF('story_title', e.target.value)} /></label>
+              <label className="field"><span className="field-label">Status</span><select className="input" value={f.status} onChange={(e) => setF('status', e.target.value)}>{STATUSES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
+              <label className="field"><span className="field-label">Press contact</span><input className="input" value={f.press_contact} onChange={(e) => setF('press_contact', e.target.value)} placeholder="Journalist name" /></label>
+              <label className="field"><span className="field-label">Publication</span><input className="input" value={f.publication} onChange={(e) => setF('publication', e.target.value)} /></label>
+              <label className="field"><span className="field-label">Country</span><input className="input" value={f.country} onChange={(e) => setF('country', e.target.value)} /></label>
+              <label className="field"><span className="field-label">Issue date</span><input className="input" type="date" value={f.issue_date} onChange={(e) => setF('issue_date', e.target.value)} /></label>
+              <label className="field"><span className="field-label">Request date</span><input className="input" type="date" value={f.request_date} onChange={(e) => setF('request_date', e.target.value)} /></label>
+              <label className="field"><span className="field-label">Interview date</span><input className="input" type="date" value={f.interview_date} onChange={(e) => setF('interview_date', e.target.value)} /></label>
+              <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Story URL</span><input className="input" value={f.story_url} onChange={(e) => setF('story_url', e.target.value)} placeholder="https://…" /></label>
+              <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Pitch / request</span><textarea className="input" rows={2} value={f.pitch_request} onChange={(e) => setF('pitch_request', e.target.value)} placeholder="What the journalist asked for, or your original pitch angle" /></label>
+              <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes / outcome (internal)</span><textarea className="input" rows={2} value={f.notes_outcome} onChange={(e) => setF('notes_outcome', e.target.value)} /></label>
+              <div className="field" style={{ gridColumn: '1/-1' }}>
+                <span className="field-label">Attachment (PDF — magazine scan, cutout, advance copy)</span>
+                {editing.id ? (
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                    {f.attachment_url ? (
+                      <>
+                        <a href={f.attachment_url} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm">📎 {f.attachment_filename || 'View PDF'}</a>
+                        <button className="btn btn-secondary btn-sm" type="button" onClick={removeAttachment}>Remove</button>
+                      </>
+                    ) : (
+                      <>
+                        <input ref={attachRef} type="file" accept="application/pdf,.pdf" onChange={uploadAttachment} style={{ display: 'none' }} />
+                        <button className="btn btn-secondary btn-sm" type="button" disabled={attaching} onClick={() => attachRef.current && attachRef.current.click()}>{attaching ? 'Uploading…' : '↑ Attach PDF'}</button>
+                        <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>For coverage that only exists in print.</span>
+                      </>
+                    )}
+                  </div>
+                ) : (
+                  <span style={{ color: 'var(--text-subtle)', fontSize: 12 }}>Save the entry first, then re-open to attach a PDF.</span>
+                )}
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginTop: 16, justifyContent: 'flex-end' }}>
+              <button className="btn btn-secondary" onClick={() => setEditing(null)}>Cancel</button>
+              <button className="btn btn-primary" disabled={saving} onClick={saveEntry}>{saving ? 'Saving…' : 'Save'}</button>
+            </div>
           </div>
         </div>
       )}

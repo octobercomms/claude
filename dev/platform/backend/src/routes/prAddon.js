@@ -11,6 +11,64 @@ const router = express.Router();
 const db = require('../db');
 const pr = require('../services/pr');
 const { getSetting } = require('../utils/settings');
+const Anthropic = require('@anthropic-ai/sdk');
+const costLog = require('../services/costLog');
+
+const EXTRACT_MODEL = 'claude-haiku-4-5-20251001';
+
+// Pull publication, issue date and the actual story being discussed out of a
+// journalist's email so the Gmail add-on logs a row that's actually useful —
+// not just the email subject (often "Re: …") and a blank everything else.
+//
+// The add-on already knows who sent the email and the thread subject; here we
+// read the body and try to spot the magazine the piece is for, the issue/date
+// the AM should expect to see it land, and the project being covered (which is
+// almost always more specific than the subject line). Anything we're not
+// confident about, we leave null and let the AM fill in via the Edit modal.
+async function extractFromEmail({ subject, body, senderName, senderEmail }) {
+  if (!body || !process.env.CLAUDE_API_KEY) return null;
+  const sdk = new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
+  const today = new Date().toISOString().slice(0, 10);
+  const system = `You read PR/journalist emails and extract structured coverage metadata.
+Today is ${today}. Always return ONLY a single JSON object — no prose, no markdown fence.
+Fields:
+  publication  — the magazine/outlet the piece is for (e.g. "Homes & Gardens"). null if not clearly named.
+  issue_date   — best-guess publication date as YYYY-MM-DD. If the email only mentions a month/issue ("September's issue"), pick the 1st of that month in the most plausible year (use today's date to choose). null if no date is implied.
+  story_title  — the actual project / subject of the piece (e.g. "House of Blue Lias"), NOT the email subject line. null if unclear.
+  country      — country name in English ("UK", "USA", "Australia") if implied by the outlet or sender. null if unsure.
+Only emit a value when you're reasonably confident. When in doubt, return null for that field.`;
+  const userMsg = `Sender: ${senderName || ''} <${senderEmail || ''}>
+Subject: ${subject || ''}
+
+Body:
+${String(body).slice(0, 8000)}`;
+  try {
+    const message = await sdk.messages.create({
+      model: EXTRACT_MODEL,
+      max_tokens: 400,
+      system,
+      messages: [{ role: 'user', content: userMsg }],
+    });
+    costLog.recordClaudeCost({ model: EXTRACT_MODEL, response: message, feature: 'gmail_addon_extract' });
+    const text = (message.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('').trim();
+    const jsonStart = text.indexOf('{');
+    const jsonEnd = text.lastIndexOf('}');
+    if (jsonStart < 0 || jsonEnd < 0) return null;
+    const parsed = JSON.parse(text.slice(jsonStart, jsonEnd + 1));
+    // Normalise: trim strings, drop empties, validate the date.
+    const out = {};
+    if (parsed.publication && String(parsed.publication).trim()) out.publication = String(parsed.publication).trim();
+    if (parsed.story_title && String(parsed.story_title).trim()) out.story_title = String(parsed.story_title).trim();
+    if (parsed.country && String(parsed.country).trim()) out.country = String(parsed.country).trim();
+    if (parsed.issue_date && /^\d{4}-\d{2}-\d{2}$/.test(parsed.issue_date)) out.issue_date = parsed.issue_date;
+    return out;
+  } catch (err) {
+    // Never block a manual log on a Claude hiccup — silently fall back to the
+    // raw subject/sender insert.
+    console.warn('[pr-addon] extractFromEmail failed:', err.message);
+    return null;
+  }
+}
 
 // Constant-time key check against the stored PR_ADDON_KEY.
 async function requireAddonKey(req, res, next) {
@@ -117,6 +175,11 @@ router.post('/contacts', async (req, res) => {
 });
 
 // Log a Gmail thread to a client's editorial log.
+//
+// When the add-on includes `email_body`, Claude reads the thread to fill in
+// publication, issue date and the actual story being discussed — so the row
+// lands with usable context instead of just the email subject. Add-on-supplied
+// fields always win over extracted ones, so an explicit override stays intact.
 router.post('/editorial-log', async (req, res) => {
   try {
     const b = req.body || {};
@@ -127,7 +190,20 @@ router.post('/editorial-log', async (req, res) => {
 
     const STATUSES = Object.keys(pr.STATUS_LABELS);
     const status = STATUSES.includes(b.status) ? b.status : 'pitched';
-    const outletId = b.publication ? await pr.resolveOutlet(b.publication) : null;
+
+    const extracted = await extractFromEmail({
+      subject: b.email_subject || b.story_title || '',
+      body: b.email_body || '',
+      senderName: b.press_contact || '',
+      senderEmail: b.email || '',
+    }) || {};
+
+    const publication = b.publication || extracted.publication || '';
+    const storyTitle = b.story_title_override || extracted.story_title || b.story_title || '';
+    const country = b.country || extracted.country || '';
+    const issueDate = b.issue_date || extracted.issue_date || null;
+
+    const outletId = publication ? await pr.resolveOutlet(publication) : null;
 
     // Resolve the contact by email first, then by name.
     let contactId = null;
@@ -139,11 +215,16 @@ router.post('/editorial-log', async (req, res) => {
     if (!contactId && b.press_contact) contactId = await pr.resolveContact(b.press_contact, outletId);
 
     const { rows } = await db.query(
-      `INSERT INTO pr_editorial_log (client_id, story_title, contact_id, outlet_id, status, story_url, notes_outcome, source)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,'gmail') RETURNING id`,
-      [clientId, b.story_title || '', contactId, outletId, status, b.story_url || '', b.notes_outcome || 'Logged from Gmail']
+      `INSERT INTO pr_editorial_log
+         (client_id, story_title, contact_id, outlet_id, country, status, issue_date, story_url, notes_outcome, source)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'gmail') RETURNING id`,
+      [clientId, storyTitle, contactId, outletId, country, status, issueDate, b.story_url || '', b.notes_outcome || 'Logged from Gmail']
     );
-    res.status(201).json({ id: rows[0].id, created: true });
+    res.status(201).json({
+      id: rows[0].id,
+      created: true,
+      extracted: Object.keys(extracted).length ? extracted : null,
+    });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
