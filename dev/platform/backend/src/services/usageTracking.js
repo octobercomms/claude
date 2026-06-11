@@ -120,12 +120,28 @@ const POLLERS = [
         if (!regularKey) return null;
         return { unit_label: 'tokens', raw: { note: 'Connected — add an Anthropic Admin key in Settings to track spend here.' } };
       }
+      // Anthropic publishes spend on /cost_report; /usage_report/messages
+      // returns only token counts (input/output/cache), with no cost field —
+      // reading row.cost_usd from there silently summed to $0 even when the
+      // organisation was being billed normally. The cost_report endpoint
+      // returns rows with { amount_usd, model, … } broken down by day.
       const { period_start, period_end } = monthBounds();
-      const { data } = await axios.get('https://api.anthropic.com/v1/organizations/usage_report/messages', {
+      const { data } = await axios.get('https://api.anthropic.com/v1/organizations/cost_report', {
         params: { starting_at: period_start, ending_at: period_end },
         headers: { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' },
       });
-      const totalCost = (data.data || []).reduce((s, row) => s + (row.cost_usd || 0), 0);
+      // The shape varies across organisations + plan tiers — be defensive and
+      // sum every numeric "amount" / "cost_usd" / "amount_usd" we find at the
+      // row level, plus the top-level total_cost_usd if present.
+      let totalCost = 0;
+      const rows = Array.isArray(data?.data) ? data.data
+        : Array.isArray(data?.cost_report) ? data.cost_report
+        : Array.isArray(data?.results) ? data.results : [];
+      for (const row of rows) {
+        const amount = Number(row?.amount_usd ?? row?.cost_usd ?? row?.amount ?? 0);
+        if (!Number.isNaN(amount)) totalCost += amount;
+      }
+      if (!totalCost && typeof data?.total_cost_usd === 'number') totalCost = data.total_cost_usd;
       return {
         cost_this_period: totalCost,
         currency: 'USD',
@@ -251,7 +267,25 @@ async function monthlySpend() {
       balances.push({ name: s.name, label: s.label, kind: 'quota', value: Number(snap.units_used), limit: snap.units_limit != null ? Number(snap.units_limit) : null, unit: snap.unit_label || '' });
     }
   }
-  return { totals, by_provider: byProvider, balances, ...bounds };
+  // Burn-rate flag for the dashboard banner. Pulls the last 7 days of
+  // per-call cost events (instrumented in costLog.js) — independent of the
+  // monthly poller, so it works even when Anthropic / DataForSEO snapshots
+  // are stale. Thresholds: <$5/day green, $5–15 amber, >$15 red.
+  let burn = null;
+  try {
+    const pool = require('../db');
+    const { rows } = await pool.query(
+      `SELECT date_trunc('day', ts) AS day, SUM(cost_usd)::float AS cost
+         FROM api_cost_events
+        WHERE ts >= NOW() - INTERVAL '7 days'
+        GROUP BY day`
+    );
+    const total = rows.reduce((s, r) => s + (r.cost || 0), 0);
+    const daily_avg = rows.length ? total / Math.min(7, rows.length) : 0;
+    const flag = daily_avg > 15 ? 'red' : daily_avg > 5 ? 'amber' : 'green';
+    burn = { daily_avg_usd: daily_avg, last_7_total_usd: total, flag };
+  } catch { /* table may not exist on a freshly-deployed instance */ }
+  return { totals, by_provider: byProvider, balances, burn, ...bounds };
 }
 
 module.exports = { runAllPollers, pollOne, currentSnapshots, monthlySpend, POLLERS };

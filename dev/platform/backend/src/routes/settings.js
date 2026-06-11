@@ -338,6 +338,43 @@ router.get('/usage/history', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Per-call API cost log — surfaces where credits are actually going.
+// Returns daily totals (for the dashboard burn-rate banner) plus a
+// feature-level breakdown for the settings panel.
+router.get('/usage/cost-log', async (req, res) => {
+  const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+  try {
+    const [byFeature, daily, recent] = await Promise.all([
+      db.query(
+        `SELECT provider, feature, SUM(cost_usd)::float AS cost_usd, COUNT(*)::int AS calls
+           FROM api_cost_events
+          WHERE ts >= NOW() - ($1::int || ' days')::interval
+          GROUP BY provider, feature
+          ORDER BY cost_usd DESC
+          LIMIT 50`, [days]
+      ),
+      db.query(
+        `SELECT date_trunc('day', ts) AS day, SUM(cost_usd)::float AS cost_usd, COUNT(*)::int AS calls
+           FROM api_cost_events
+          WHERE ts >= NOW() - ($1::int || ' days')::interval
+          GROUP BY day ORDER BY day ASC`, [days]
+      ),
+      db.query(
+        `SELECT id, ts, provider, feature, cost_usd::float AS cost_usd, meta
+           FROM api_cost_events
+          WHERE ts >= NOW() - INTERVAL '7 days'
+          ORDER BY ts DESC LIMIT 200`
+      ),
+    ]);
+    res.json({
+      window_days: days,
+      by_feature: byFeature.rows,
+      daily: daily.rows,
+      recent: recent.rows,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // DataForSEO recurring-spend estimate. Mirrors the scheduled jobs that
 // actually bill per active keyword, so the daily cap can be sized safely:
 //   - Rank checks: serp/google/organic/live/advanced at depth 50 (5 pages),
