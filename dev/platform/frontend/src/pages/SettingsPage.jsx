@@ -1187,13 +1187,25 @@ function ProviderCard({ entry }) {
         )}
         {s.cost_this_period == null && s.balance_remaining != null && (
           <>
-            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
-              {fmtCurrency(s.balance_remaining, s.currency)}
-              <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
-            </div>
-            {entry.spend_this_month > 0 && (
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                {fmtCurrency(entry.spend_this_month, s.currency)} spent this month
+            {entry.spend_this_month > 0 ? (
+              // Spend is the headline — the panel exists to answer "how much
+              // does this app cost me per month". Balance is the footnote.
+              <>
+                <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+                  {fmtCurrency(entry.spend_this_month, s.currency)}
+                  <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>this month</span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 2 }}>
+                  {fmtCurrency(s.balance_remaining, s.currency)} remaining in pool
+                </div>
+              </>
+            ) : (
+              // No diff yet (one snapshot in the window) — show the balance
+              // as the headline so the card isn't empty. Once a second
+              // snapshot lands, spend swaps in.
+              <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+                {fmtCurrency(s.balance_remaining, s.currency)}
+                <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
               </div>
             )}
           </>
