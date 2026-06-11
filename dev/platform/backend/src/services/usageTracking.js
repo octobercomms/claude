@@ -301,10 +301,31 @@ async function currentSnapshots() {
      ORDER BY provider, snapshot_at DESC`
   );
   const byProvider = Object.fromEntries(rows.map(r => [r.provider, r]));
+  // Compute inferred MTD spend per provider from snapshot diffs so the cards
+  // can show "$X spent this month" alongside the balance reading. Without
+  // this the panel only shows the raw balance (e.g. DataForSEO "US$8.83
+  // remaining"), and the dashboard banner total looks like it disagrees with
+  // the panel — when in fact the banner is summing the *spend* and the panel
+  // is showing the *balance*.
+  const bounds = monthBounds();
+  const diffs = await pool.query(
+    `SELECT provider,
+            (array_agg(balance_remaining::float ORDER BY snapshot_at ASC) FILTER (WHERE balance_remaining IS NOT NULL))[1] AS first_balance,
+            (array_agg(balance_remaining::float ORDER BY snapshot_at DESC) FILTER (WHERE balance_remaining IS NOT NULL))[1] AS last_balance
+       FROM usage_snapshots
+      WHERE snapshot_at >= $1::date
+      GROUP BY provider`,
+    [bounds.period_start]
+  );
+  const inferredByProvider = Object.fromEntries(
+    diffs.rows
+      .map(r => [r.provider, r.first_balance != null && r.last_balance != null && r.first_balance > r.last_balance ? r.first_balance - r.last_balance : 0])
+  );
   return POLLERS.map(p => ({
     name: p.name,
     label: p.label,
     snapshot: byProvider[p.name] || null,
+    spend_this_month: inferredByProvider[p.name] || null,
   }));
 }
 

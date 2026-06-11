@@ -1066,16 +1066,37 @@ function CostsPanel() {
     finally { setRefreshing(false); }
   }
 
+  // Total spent this month — sums every provider's spend (real cost_this_period
+  // for Anthropic-style providers, snapshot-diff for balance-only ones). Same
+  // computation as the dashboard banner so the two read the same.
+  const totalThisMonth = rows
+    ? rows.reduce((acc, r) => {
+        const s = r.snapshot;
+        if (!s) return acc;
+        if (s.cost_this_period != null && (s.currency || 'USD') === 'USD') return acc + Number(s.cost_this_period);
+        if (r.spend_this_month && (s.currency || 'USD') === 'USD') return acc + Number(r.spend_this_month);
+        return acc;
+      }, 0)
+    : 0;
+
   return (
     <div className="card" style={{ marginBottom: 16 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10, gap: 12, flexWrap: 'wrap' }}>
         <div>
           <h2 className="caption">Costs &amp; usage</h2>
           <p className="body-sm text-muted">Latest balance / usage reading from each pay-per-use provider. Auto-refreshes every night at 02:00.</p>
         </div>
-        <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
-          {refreshing ? 'Polling…' : 'Refresh now'}
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          {totalThisMonth > 0 && (
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total spent this month</div>
+              <div style={{ fontSize: 20, fontWeight: 800 }}>${totalThisMonth.toFixed(2)}</div>
+            </div>
+          )}
+          <button onClick={refresh} disabled={refreshing} className="btn btn-primary" style={{ padding: '6px 14px' }}>
+            {refreshing ? 'Polling…' : 'Refresh now'}
+          </button>
+        </div>
       </div>
       {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginBottom: 8 }}>{err}</div>}
       {!rows && <div style={{ color: 'var(--text-subtle)', fontSize: 13, padding: 10 }}>Loading…</div>}
@@ -1165,10 +1186,17 @@ function ProviderCard({ entry }) {
           </div>
         )}
         {s.cost_this_period == null && s.balance_remaining != null && (
-          <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
-            {fmtCurrency(s.balance_remaining, s.currency)}
-            <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
-          </div>
+          <>
+            <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)' }}>
+              {fmtCurrency(s.balance_remaining, s.currency)}
+              <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontWeight: 400, marginLeft: 4 }}>remaining</span>
+            </div>
+            {entry.spend_this_month > 0 && (
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                {fmtCurrency(entry.spend_this_month, s.currency)} spent this month
+              </div>
+            )}
+          </>
         )}
         {s.units_used != null && (
           <div style={{ fontSize: 13, color: 'var(--text)', marginTop: 2 }}>
