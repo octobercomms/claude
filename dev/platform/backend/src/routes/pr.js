@@ -468,9 +468,15 @@ router.get('/outlets', requireAdmin, async (req, res) => {
       params.push(`%${q}%`);
       where += ` AND (o.name ILIKE $${params.length} OR o.canonical_name ILIKE $${params.length} OR o.domain ILIKE $${params.length})`;
     }
+    // Contact count per publication — uses outreach_contacts.outlet_id, the
+    // same FK the contacts library reads from. Cheap correlated subquery
+    // rather than a second LEFT JOIN because it doesn't multiply the row
+    // count against the coverage join.
     const { rows } = await db.query(
       `SELECT o.id, o.name, o.tier, o.domain, o.region,
-              COUNT(l.id)::int AS coverage
+              COUNT(l.id)::int AS coverage,
+              (SELECT COUNT(*)::int FROM outreach_contacts c
+                WHERE c.outlet_id = o.id AND c.merged_into IS NULL) AS contacts
        FROM pr_outlets o
        LEFT JOIN pr_editorial_log l ON l.outlet_id = o.id
        WHERE ${where}
@@ -532,6 +538,20 @@ router.patch('/outlets/:outletId', async (req, res) => {
 router.delete('/outlets/:outletId', requireAdmin, async (req, res) => {
   try {
     const r = await db.query('DELETE FROM pr_outlets WHERE id = $1', [req.params.outletId]);
+    res.json({ deleted: r.rowCount || 0 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Bulk delete — used by the Publications panel "Delete selected / Delete all
+// matching" affordances. Cascade is ON DELETE SET NULL for both
+// pr_editorial_log.outlet_id and outreach_contacts.outlet_id, so coverage
+// entries and contacts pointing at the deleted outlets keep existing — they
+// just become outlet-less. The UI confirmation tells the AM that.
+router.post('/outlets/bulk-delete', requireAdmin, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter(Boolean) : [];
+    if (!ids.length) return res.status(400).json({ error: 'ids required' });
+    const r = await db.query('DELETE FROM pr_outlets WHERE id = ANY($1::uuid[])', [ids]);
     res.json({ deleted: r.rowCount || 0 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });

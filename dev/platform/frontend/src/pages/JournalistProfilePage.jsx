@@ -120,7 +120,7 @@ export default function JournalistProfilePage() {
         <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save profile'}</button>
           <div style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" onClick={deleteJournalist}
+          <button className="btn btn-danger btn-sm" onClick={deleteJournalist}
             title="Hard-delete this journalist. Coverage entries pointing at them stay (the byline becomes blank). Cannot be undone.">
             Delete journalist
           </button>

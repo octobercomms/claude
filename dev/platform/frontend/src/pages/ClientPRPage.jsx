@@ -608,7 +608,7 @@ export default function ClientPRPage() {
                       </td>
                       <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => startEdit(r)}>Edit</button>{' '}
-                        <button className="btn btn-secondary btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => deleteEntry(r)}>Delete</button>
                       </td>
                     </tr>
                   ));
@@ -636,7 +636,7 @@ export default function ClientPRPage() {
                     <td>{s.last_run_at ? fmtDate(s.last_run_at) : 'never'}</td>
                     <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                       <button className="btn btn-secondary btn-sm" onClick={() => runSearchNow(s.id)}>Run now</button>{' '}
-                      <button className="btn btn-secondary btn-sm" onClick={() => deleteSearch(s.id)}>Delete</button>
+                      <button className="btn btn-danger btn-sm" onClick={() => deleteSearch(s.id)}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -814,7 +814,7 @@ export default function ClientPRPage() {
                       <td>{fmtDate(r.created_at)}</td>
                       <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-secondary btn-sm" onClick={() => openRelease(r.id)}>Edit</button>{' '}
-                        <button className="btn btn-secondary btn-sm" onClick={() => deletePR(r)}>Delete</button>
+                        <button className="btn btn-danger btn-sm" onClick={() => deletePR(r)}>Delete</button>
                       </td>
                     </tr>
                   ))}

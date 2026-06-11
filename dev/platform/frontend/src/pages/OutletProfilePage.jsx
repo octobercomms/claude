@@ -71,7 +71,7 @@ export default function OutletProfilePage() {
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
           <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{published} published · {(o.coverage || []).length} tracked</span>
           <div style={{ flex: 1 }} />
-          <button className="btn btn-secondary btn-sm" onClick={deleteOutlet}
+          <button className="btn btn-danger btn-sm" onClick={deleteOutlet}
             title="Hard-delete this publication. Coverage and journalists pointing at it stay (they just become outlet-less). Cannot be undone — for merging duplicates, use Settings → Publications → Find duplicates instead.">
             Delete publication
           </button>
