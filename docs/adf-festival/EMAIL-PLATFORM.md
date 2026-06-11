@@ -19,6 +19,10 @@ management driven from the data the plugin already holds. Live chat moves to
   during transition; never rip Brevo out on day one.
 
 ## Why this is worth it (and the honest risk)
+Beyond the cost saving, the real prize is the **Claude co-pilot** (see below) — briefing
+an AI to draft a finished, editable campaign grounded in live festival data, which no
+off-the-shelf tool (Brevo, Mailchimp) offers.
+
 The savings are real. What Brevo actually sells you is **deliverability operations** —
 the invisible work that keeps mail out of spam. On SES we inherit that, so the build is
 **80% deliverability plumbing, 20% pretty builder.** Done right = cheap and reliable;
@@ -80,6 +84,57 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
   ensure public serving).
 - Save reusable templates; preview; send test; schedule; pick list/segment as audience.
 
+## AI campaign drafting (Claude co-pilot) — the differentiator
+
+The thing Brevo and Mailchimp **don't** do: brief an AI on what the email needs and have
+it draft the whole thing, structured and ready to edit. This is the main reason building
+our own is worth it.
+
+**How it works.** In the campaign wizard there's a **chat panel**. You brief Claude in
+plain language — purpose, audience, the sections to include, key info, tone. Claude
+returns a **fully-built draft as editable builder blocks** (not prose): subject line +
+preheader, headline, body sections, CTA buttons, and **image blocks as placeholders**
+(with suggested alt text, caption, and size). It loads straight into the GrapesJS/MJML
+canvas, where you swap in real images from the media library and drag/drop/edit. Then
+it's a **conversation** — "make section 2 punchier", "add a sponsor thank-you", "shorten
+the intro" — and each turn edits the draft in place.
+
+**Structured output, not a text dump.** Claude emits the builder's **block/MJML schema as
+JSON** (via tool-use / structured output), validated against the schema and auto-repaired
+if malformed, so the result is always draggable sections — never a wall of text to
+reformat.
+
+**Grounded in live festival data (the moat).** Because the plugin owns the data, Claude
+gets **tools** to pull real facts while drafting — `get_upcoming_events` (confirmed only),
+`get_ticket_link`, `get_recent_stories`, `get_sponsors`, `get_event_sessions`. So
+"draft this month's newsletter" auto-fills with the *actual* confirmed events, working
+ticket links, and this week's stories. This is exactly what the existing monthly-digest
+job assembles — the co-pilot turns that data into finished copy.
+
+**"Learns about the festival over time" — what that really means.** Not model training.
+It's a **growing, editable knowledge base + example library injected as context** on every
+request:
+- the **brand/voice guide** + example pieces we already built for the AI Stories connector
+  (reused here),
+- **festival facts** (dates, venues, ticket types, sponsors, recurring events),
+- a **library of past sent campaigns** as few-shot examples (every email you approve and
+  send adds to it).
+Over time that corpus grows, so drafts sound more like ADF and need less editing.
+**Prompt caching** keeps the cost of that large, stable context down.
+
+**Guardrails.**
+- AI drafts are **always editable and never auto-sent** — it produces a draft in the
+  builder, full stop.
+- It must **not invent facts**: anything it can't verify from the tools (a price, a date,
+  a venue) becomes a **visible `[TODO: confirm …]` placeholder**, not a hallucinated value.
+- It always includes the required **unsubscribe / footer / preheader** tokens so drafts
+  stay compliant and deliverable.
+- Links come from the tools (real ticket/event URLs), never fabricated.
+
+**Reuses what exists:** `ClaudeConnector` + the tone-of-voice training (system prompt +
+examples) from the AI Stories connector; this extends it with structured block output,
+data tools, and the campaign example library.
+
 ## SMS on AWS
 - **AWS End User Messaging (SMS)** for reminders (replaces the Brevo SMS we wired; keep
   Brevo SMS as fallback driver).
@@ -109,8 +164,10 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
    unsubscribe + List-Unsubscribe. (Gate before any bulk send.)
 4. **Campaign builder** (GrapesJS/MJML + WP media) + **bulk sender** (queue/throttle to
    SES rate limits) + **open/click analytics**.
-5. **SMS → AWS End User Messaging** (with 10DLC).
-6. **Chatwoot** widget injection (last).
+5. **Claude co-pilot** — structured block drafting + data tools + brand/example context
+   (layers onto the builder from phase 4).
+6. **SMS → AWS End User Messaging** (with 10DLC).
+7. **Chatwoot** widget injection (last).
 
 ## Human dependencies (can start in parallel; gate go-live)
 - Create the **ADF AWS account**; enable SES + End User Messaging.
@@ -133,6 +190,11 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
    the plugin.
 7. **Maintenance / bus factor.** *Fix:* pluggable drivers, boring tables, Brevo as a
    permanent escape hatch.
+8. **AI hallucinating facts (wrong dates/prices/links in a real send).** *Fix:* tool-
+   grounded data only; unverifiable values become visible `[TODO: confirm]` placeholders;
+   drafts are never auto-sent — a human reviews and sends.
+9. **AI output breaking the builder (malformed blocks).** *Fix:* validate Claude's JSON
+   against the block schema and auto-repair/reject; the canvas only ever loads valid blocks.
 
 ## Non-goals (for now)
 - No dedicated IP (shared pool until volume justifies it).
@@ -149,3 +211,5 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
 - Which transactional emails migrate first for warm-up.
 - Segment definitions Elayne/Daniel actually want (e.g. "lapsed 2024 buyers").
 - Chatwoot hosting size + who administers it.
+- Which Claude model for the co-pilot, and the initial brand-knowledge seed (facts +
+  a handful of past emails as examples) to load on day one.
