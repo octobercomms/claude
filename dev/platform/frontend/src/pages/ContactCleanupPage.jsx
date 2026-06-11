@@ -287,7 +287,7 @@ function ClusterCard({ cluster, ci, chosenId, onChoose, onMerge, onDelete, busy 
               <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{m.coverage}</td>
               <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{m.clients}</td>
               <td style={{ textAlign: 'right' }}>
-                <button className="btn btn-secondary btn-sm" onClick={() => onDelete(m.id, m.name)} disabled={busy} title="Delete this contact outright (not a merge)">Delete</button>
+                <button className="btn btn-danger btn-sm" onClick={() => onDelete(m.id, m.name)} disabled={busy} title="Delete this contact outright (not a merge)">Delete</button>
               </td>
             </tr>
           ))}

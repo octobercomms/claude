@@ -632,6 +632,8 @@ function PublicationsPanel() {
   const [err, setErr] = useState(null);
   const [outlets, setOutlets] = useState(null);
   const [outletSearch, setOutletSearch] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const [openOutlet, setOpenOutlet] = useState(null);
 
   // Reload on every search-term change. Server-side ILIKE means the user
   // finds zero-coverage outlets (Vogue.nl etc.) that fall outside the
@@ -640,7 +642,7 @@ function PublicationsPanel() {
   useEffect(() => {
     const t = setTimeout(() => {
       const path = outletSearch.trim() ? `/pr/outlets?q=${encodeURIComponent(outletSearch.trim())}` : '/pr/outlets';
-      api.get(path).then((r) => setOutlets(r.items || [])).catch((e) => setErr(e.message));
+      api.get(path).then((r) => { setOutlets(r.items || []); setSelected(new Set()); }).catch((e) => setErr(e.message));
     }, 250);
     return () => clearTimeout(t);
   }, [outletSearch]);
@@ -649,43 +651,77 @@ function PublicationsPanel() {
     try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }
   }
 
-  // Inline rename — click ✎, edit, Enter saves (or Esc cancels). One row at a
-  // time so the keyboard focus is unambiguous.
-  const [editingOutletId, setEditingOutletId] = useState(null);
-  const [editingOutletName, setEditingOutletName] = useState('');
-  async function saveOutletName(o) {
-    const next = editingOutletName.trim();
-    if (!next || next === o.name) { setEditingOutletId(null); return; }
-    try {
-      await api.patch(`/pr/outlets/${o.id}`, { name: next });
-      setOutlets((list) => list.map((x) => (x.id === o.id ? { ...x, name: next } : x)));
-      setEditingOutletId(null);
-    } catch (e) { setErr(e.message); }
-  }
   async function deleteOutlet(o) {
-    const tail = o.coverage
-      ? `${o.coverage} coverage entr${o.coverage === 1 ? 'y' : 'ies'} will be detached (kept, no longer linked).`
-      : 'No coverage attached.';
+    const tail = o.coverage || o.contacts
+      ? `${o.coverage || 0} coverage entr${o.coverage === 1 ? 'y' : 'ies'} and ${o.contacts || 0} contact${o.contacts === 1 ? '' : 's'} will be detached (kept, but their Publication field becomes blank).`
+      : 'No coverage or contacts attached.';
     if (!confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
     try {
       await api.delete(`/pr/outlets/${o.id}`);
       setOutlets((list) => list.filter((x) => x.id !== o.id));
+      setSelected((s) => { const n = new Set(s); n.delete(o.id); return n; });
     } catch (e) { setErr(e.message); }
   }
 
   const TIERS = [['', '—'], ['1', 'T1 · premium'], ['2', 'T2 · broad'], ['3', 'T3 · blog']];
   const visibleOutlets = (outlets || []).filter((o) => !outletSearch.trim() || (o.name || '').toLowerCase().includes(outletSearch.trim().toLowerCase()));
+  const totalCount = outlets ? outlets.length : 0;
+  const shownCount = Math.min(visibleOutlets.length, 500);
+
+  function toggleRow(id) {
+    setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  }
+  function toggleAllVisible() {
+    setSelected((s) => {
+      const ids = visibleOutlets.slice(0, 500).map((o) => o.id);
+      const allSelected = ids.every((id) => s.has(id));
+      const n = new Set(s);
+      if (allSelected) ids.forEach((id) => n.delete(id));
+      else ids.forEach((id) => n.add(id));
+      return n;
+    });
+  }
+
+  async function deleteSelected() {
+    if (!selected.size) return;
+    const total = Array.from(selected).reduce((acc, id) => {
+      const o = (outlets || []).find((x) => x.id === id);
+      return { coverage: acc.coverage + (o?.coverage || 0), contacts: acc.contacts + (o?.contacts || 0) };
+    }, { coverage: 0, contacts: 0 });
+    if (!confirm(`Delete ${selected.size} publication${selected.size === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} contacts will be detached (kept; their Publication becomes blank).\n\nCannot be undone.`)) return;
+    try {
+      await api.post('/pr/outlets/bulk-delete', { ids: Array.from(selected) });
+      setOutlets((list) => list.filter((x) => !selected.has(x.id)));
+      setSelected(new Set());
+    } catch (e) { setErr(e.message); }
+  }
+  async function deleteAllMatching() {
+    if (!visibleOutlets.length) return;
+    const total = visibleOutlets.reduce((acc, o) => ({
+      coverage: acc.coverage + (o.coverage || 0),
+      contacts: acc.contacts + (o.contacts || 0),
+    }), { coverage: 0, contacts: 0 });
+    if (!confirm(`Delete ALL ${visibleOutlets.length} matching publication${visibleOutlets.length === 1 ? '' : 's'}?\n\n${total.coverage} coverage entries and ${total.contacts} contacts will be detached.\n\nCannot be undone.`)) return;
+    try {
+      const ids = visibleOutlets.map((o) => o.id);
+      await api.post('/pr/outlets/bulk-delete', { ids });
+      setOutlets((list) => list.filter((x) => !ids.includes(x.id)));
+      setSelected(new Set());
+    } catch (e) { setErr(e.message); }
+  }
 
   function exportOutletsCsv() {
     if (!outlets || !outlets.length) return;
-    const header = ['Publication', 'Tier', 'Coverage', 'Region', 'Domain'];
-    const rows = outlets.map((o) => [o.name || '', o.tier || '', o.coverage || 0, o.region || '', o.domain || '']);
+    const header = ['Publication', 'Tier', 'Coverage', 'Contacts', 'Region', 'Domain'];
+    const rows = outlets.map((o) => [o.name || '', o.tier || '', o.coverage || 0, o.contacts || 0, o.region || '', o.domain || '']);
     const csv = [header, ...rows].map((r) => r.map((v) => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url; a.download = 'publications.csv'; a.click();
     URL.revokeObjectURL(url);
   }
+
+  const allVisibleSelected = visibleOutlets.length > 0 && visibleOutlets.slice(0, 500).every((o) => selected.has(o.id));
 
   return (
     <>
@@ -711,39 +747,54 @@ function PublicationsPanel() {
         </div>
       </div>
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: '10px 0' }} />
+
+      {outlets && (
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', margin: '8px 0 12px', fontSize: 12, color: 'var(--text-muted)' }}>
+          <span>{selected.size} selected · Showing {shownCount.toLocaleString()} of {totalCount.toLocaleString()} matching</span>
+          <div style={{ flex: 1 }} />
+          {selected.size > 0 && (
+            <button onClick={deleteSelected} className="btn btn-sm btn-danger" style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}>
+              Delete selected ({selected.size})
+            </button>
+          )}
+          {visibleOutlets.length > 0 && (
+            <button onClick={deleteAllMatching} className="btn btn-sm" style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}>
+              Delete all {visibleOutlets.length} matching
+            </button>
+          )}
+        </div>
+      )}
+
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
         <div style={{ maxHeight: 600, overflow: 'auto' }}>
           <table className="contacts-list-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th><th style={{ width: 70 }}></th></tr></thead>
+            <thead><tr>
+              <th style={{ width: 28 }}>
+                <input type="checkbox" checked={allVisibleSelected} onChange={toggleAllVisible} aria-label="Select all visible" />
+              </th>
+              <th>Publication</th>
+              <th style={{ textAlign: 'right' }}>Coverage</th>
+              <th style={{ textAlign: 'right' }}>Contacts</th>
+              <th style={{ width: 150 }}>Tier</th>
+              <th style={{ width: 28 }}></th>
+            </tr></thead>
             <tbody>
               {visibleOutlets.slice(0, 500).map((o) => (
                 <tr key={o.id}>
-                  <td>
-                    {editingOutletId === o.id ? (
-                      <input className="input" autoFocus value={editingOutletName}
-                        onChange={(e) => setEditingOutletName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') saveOutletName(o);
-                          if (e.key === 'Escape') setEditingOutletId(null);
-                        }}
-                        onBlur={() => saveOutletName(o)}
-                        style={{ height: 28, fontSize: 13 }} />
-                    ) : (
-                      <a href={`/media/outlet/${o.id}`}>{o.name}</a>
-                    )}
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selected.has(o.id)} onChange={() => toggleRow(o.id)} />
                   </td>
-                  <td>{o.coverage}</td>
-                  <td>
+                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer' }}>
+                    <span style={{ color: 'var(--text)', fontWeight: 500 }}>{o.name}</span>
+                  </td>
+                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
+                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
                     <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)}>
                       {TIERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
-                  <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
-                    <button onClick={() => { setEditingOutletId(o.id); setEditingOutletName(o.name || ''); }}
-                      title="Rename inline" aria-label="Edit name"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 6px' }}>
-                      ✎
-                    </button>
+                  <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
                       style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
                       ×
@@ -751,16 +802,197 @@ function PublicationsPanel() {
                   </td>
                 </tr>
               ))}
-              {!visibleOutlets.length && <tr><td colSpan={4} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
+              {!visibleOutlets.length && <tr><td colSpan={6} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
             </tbody>
           </table>
         </div>
       )}
       {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginTop: 8 }}>{err}</div>}
     </Card>
+    {openOutlet && (
+      <OutletEditModal
+        outletId={openOutlet.id}
+        onClose={() => setOpenOutlet(null)}
+        onSaved={(patched) => {
+          setOutlets((list) => list.map((x) => (x.id === patched.id ? { ...x, ...patched } : x)));
+        }}
+        onDeleted={(id) => {
+          setOutlets((list) => list.filter((x) => x.id !== id));
+          setSelected((s) => { const n = new Set(s); n.delete(id); return n; });
+          setOpenOutlet(null);
+        }}
+      />
+    )}
     </>
   );
 }
+
+// Full-profile publication modal. Same shape as EditContactModal so the AM
+// gets the same interaction model whether they click a contact or a
+// publication. Fetches everything fresh from /pr/outlets/:id (summary,
+// journalists, coverage history) rather than relying on the row data.
+function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
+  const [data, setData] = useState(null);
+  const [form, setForm] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState(null);
+  const [gen, setGen] = useState(false);
+
+  useEffect(() => {
+    api.get(`/pr/outlets/${outletId}`).then((d) => {
+      setData(d);
+      setForm({
+        name: d.name || '', summary: d.summary || '', tier: d.tier || '',
+        region: d.region || '', notes: d.notes || '', domain: d.domain || '',
+      });
+    }).catch((e) => setErr(e.message));
+  }, [outletId]);
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose(); }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!data || !form) {
+    return (
+      <div className="modal-backdrop" onClick={onClose}>
+        <div onClick={(e) => e.stopPropagation()} className="modal" style={{ padding: 24 }}>
+          {err ? <p style={{ color: 'var(--negative)' }}>{err}</p> : <p style={{ color: 'var(--text-subtle)' }}>Loading…</p>}
+        </div>
+      </div>
+    );
+  }
+
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  async function save() {
+    setSaving(true);
+    try {
+      await api.patch(`/pr/outlets/${outletId}`, form);
+      onSaved({ id: outletId, name: form.name, tier: form.tier });
+      onClose();
+    } catch (e) { setErr(e.message); }
+    finally { setSaving(false); }
+  }
+  async function generate() {
+    setGen(true);
+    try {
+      const r = await api.post(`/pr/outlets/${outletId}/summary`, {});
+      update('summary', r.summary || '');
+    } catch (e) { setErr(e.message); }
+    finally { setGen(false); }
+  }
+  async function deleteOutlet() {
+    const covered = (data.coverage || []).length;
+    const journos = (data.journalists || []).length;
+    const tail = (covered || journos)
+      ? `${covered} coverage entr${covered === 1 ? 'y' : 'ies'} and ${journos} journalist${journos === 1 ? '' : 's'} will be detached (kept; their Publication becomes blank).`
+      : 'No coverage or journalists attached.';
+    if (!confirm(`Delete "${data.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
+    try {
+      await api.delete(`/pr/outlets/${outletId}`);
+      onDeleted(outletId);
+    } catch (e) { setErr(e.message); }
+  }
+
+  const published = (data.coverage || []).filter((r) => r.status === 'published' || r.status === 'download').length;
+
+  return (
+    <div className="modal-backdrop" onClick={onClose}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(); }} className="modal" style={{ maxWidth: 900 }}>
+        <div className="modal-head">
+          <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{data.name || 'Publication'}</h2>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <Link to={`/media/outlet/${outletId}`} onClick={onClose}
+              className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}
+              title="Open the full profile page — full coverage history, all journalists">
+              View full profile →
+            </Link>
+            <button type="button" onClick={onClose} className="modal-close">×</button>
+          </div>
+        </div>
+
+        {err && <div style={{ color: 'var(--negative)', fontSize: 12, padding: '0 0 8px' }}>{err}</div>}
+
+        <div className="grid">
+          <MSection title="Publication">
+            <MField label="Name">
+              <input className="input" value={form.name} onChange={(e) => update('name', e.target.value)} />
+            </MField>
+            <MField label={<>About <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={gen} onClick={generate}>{gen ? '…' : '✨ Generate'}</button></>}>
+              <textarea className="input" rows={3} value={form.summary} onChange={(e) => update('summary', e.target.value)} placeholder="Who they are — Claude can draft this from your coverage." />
+            </MField>
+            <MField label="Tier">
+              <select className="input" value={form.tier} onChange={(e) => update('tier', e.target.value)}>
+                <option value="">—</option>
+                <option value="1">T1 · premium</option>
+                <option value="2">T2 · broad</option>
+                <option value="3">T3 · blog</option>
+              </select>
+            </MField>
+            <MField label="Region"><input className="input" value={form.region} onChange={(e) => update('region', e.target.value)} placeholder="UK" /></MField>
+            <MField label="Domain"><input className="input" value={form.domain} onChange={(e) => update('domain', e.target.value)} /></MField>
+            <MField label="Notes" full>
+              <textarea className="input" rows={2} value={form.notes} onChange={(e) => update('notes', e.target.value)} />
+            </MField>
+          </MSection>
+
+          <MSection title="Activity">
+            <div style={{ display: 'flex', gap: 18, marginBottom: 14 }}>
+              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 22, fontWeight: 800 }}>{published}</div></div>
+              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 22, fontWeight: 800 }}>{(data.coverage || []).length}</div></div>
+              <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Journalists</div><div style={{ fontSize: 22, fontWeight: 800 }}>{(data.journalists || []).length}</div></div>
+            </div>
+            {(data.journalists || []).length > 0 && (
+              <>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Journalists here</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                  {(data.journalists || []).slice(0, 20).map((j) => (
+                    <Link key={j.id} to={`/media/journalist/${j.id}`} onClick={onClose}
+                      className="chip" style={{ textDecoration: 'none', fontSize: 12 }}>{j.name}</Link>
+                  ))}
+                </div>
+              </>
+            )}
+            {(data.coverage || []).length > 0 && (
+              <>
+                <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Recent coverage</div>
+                <div style={{ maxHeight: 220, overflowY: 'auto', fontSize: 12 }}>
+                  {(data.coverage || []).slice(0, 12).map((r, i) => (
+                    <div key={i} style={{ padding: '4px 0', borderBottom: '1px solid var(--card-border)' }}>
+                      <span style={{ fontWeight: 600 }}>{r.client || '—'}</span>
+                      <span style={{ color: 'var(--text-muted)' }}> · {r.journalist || '—'} · </span>
+                      <span style={{ color: 'var(--text-subtle)' }}>{r.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </MSection>
+        </div>
+
+        <div className="row end" style={{ gap: 8 }}>
+          <button type="button" onClick={deleteOutlet}
+            className="btn btn-sm"
+            style={{ background: 'var(--negative)', color: '#fff', border: 'none' }}
+            title="Hard-delete this publication. Coverage and contacts pointing at it stay (their Publication becomes blank).">
+            Delete publication
+          </button>
+          <div style={{ flex: 1 }} />
+          <button type="button" onClick={onClose} className="btn btn-secondary">Cancel</button>
+          <button type="submit" disabled={saving} className="btn btn-primary">{saving ? 'Saving…' : 'Save'}</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// Local Section/Field for the outlet modal — same DOM shape as the contacts
+// modal but private to PublicationsPanel to avoid clashing with the page's
+// existing top-level `Field` (which is a one-arg form-field component used
+// by Costs/Keyword panels).
+function MSection({ title, children }) { return <div className="modal-section"><h3 className="caption">{title}</h3><div className="grid">{children}</div></div>; }
+function MField({ label, children, full }) { return <label className="field" style={full ? { gridColumn: '1/-1' } : undefined}><span className="field-label">{label}</span>{children}</label>; }
 
 // PR Gmail add-on — surfaces the API base URL + shared key to paste into the
 // Google Apps Script add-on's config, with a Regenerate (rotate) button.
