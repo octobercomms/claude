@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 // Two-column edit modal — Contact Details on the left, More Info on the right,
@@ -10,10 +9,11 @@ const KIND_OPTIONS = [
   ['industry', 'Press · industry / blogger'],
   ['prospect', 'Prospect / sales lead'],
 ];
+function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return isNaN(t) ? d : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }); }
 
 export default function EditContactModal({ contact, onClose, onSaved }) {
   const toast = useToast();
-  const navigate = useNavigate();
+  const isPress = (contact.kind || 'media') !== 'prospect';
   const [form, setForm] = useState(() => ({
     first_name: contact.first_name || '',
     last_name: contact.last_name || '',
@@ -41,6 +41,12 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
   const [tab, setTab] = useState('details');
   const [activity, setActivity] = useState(null);
   const [activityErr, setActivityErr] = useState(null);
+  // Coverage + journalist-profile data lives at /pr/contacts/:id. The old
+  // "View full profile →" path opened JournalistProfilePage to show this; the
+  // modal is now the full profile, so we fetch the same payload up front for
+  // press contacts and render coverage in its own tab.
+  const [pressProfile, setPressProfile] = useState(null);
+  const [pressErr, setPressErr] = useState(null);
 
   useEffect(() => {
     if (tab !== 'activity' || activity) return;
@@ -48,6 +54,13 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
       .then(setActivity)
       .catch(e => setActivityErr(e.message));
   }, [tab, contact.id, activity]);
+
+  useEffect(() => {
+    if (!isPress) return;
+    api.get(`/pr/contacts/${contact.id}`)
+      .then(setPressProfile)
+      .catch(e => setPressErr(e.message));
+  }, [contact.id, isPress]);
 
   function update(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
@@ -73,20 +86,10 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal">
+      <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal modal-wide">
         <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Doorway to the full journalist profile — coverage history, beats,
-                availability, photo. The modal stays as the quick-edit tool;
-                this link opens the full view for the "show me everything this
-                journalist has covered" path. */}
-            <button type="button"
-              onClick={() => { onClose(); navigate(`/media/journalist/${contact.id}`); }}
-              className="btn btn-secondary btn-sm"
-              title="Open the full profile — coverage history, beats, availability">
-              View full profile →
-            </button>
             <button type="button" onClick={onClose} className="modal-close">×</button>
           </div>
         </div>
@@ -94,11 +97,19 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
         <div className="tabs">
           <button type="button" onClick={() => setTab('details')}
             className={`tab ${tab === 'details' ? 'active' : ''}`}>Details</button>
+          {isPress && (
+            <button type="button" onClick={() => setTab('coverage')}
+              className={`tab ${tab === 'coverage' ? 'active' : ''}`}>
+              Coverage{pressProfile?.coverage ? ` (${pressProfile.coverage.length})` : ''}
+            </button>
+          )}
           <button type="button" onClick={() => setTab('activity')}
             className={`tab ${tab === 'activity' ? 'active' : ''}`}>Activity</button>
         </div>
 
-        {tab === 'activity' ? (
+        {tab === 'coverage' ? (
+          <CoveragePanel profile={pressProfile} err={pressErr} />
+        ) : tab === 'activity' ? (
           <ActivityPanel
             contact={contact}
             activity={activity}
@@ -333,3 +344,52 @@ function Field({ label, children, full }) {
   );
 }
 
+
+// Coverage panel for press contacts — folds in what the old
+// JournalistProfilePage used to show, so the modal is the full profile and
+// there's no separate page to navigate to. Loads from /pr/contacts/:id.
+function CoveragePanel({ profile, err }) {
+  if (err) return <div style={{ padding: 20, color: 'var(--negative)', fontSize: 13 }}>Couldn't load coverage: {err}</div>;
+  if (!profile) return <div style={{ padding: 20, color: 'var(--text-subtle)', fontSize: 13 }}>Loading…</div>;
+  const coverage = profile.coverage || [];
+  const published = coverage.filter(r => r.status === 'published' || r.status === 'download').length;
+  return (
+    <div style={{ padding: '12px 0' }}>
+      {profile.outlet && (
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+          Currently associated with <strong style={{ color: 'var(--text)' }}>{profile.outlet}</strong>.
+        </p>
+      )}
+      <div style={{ display: 'flex', gap: 24, marginBottom: 16, flexWrap: 'wrap' }}>
+        <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Published</div><div style={{ fontSize: 22, fontWeight: 800 }}>{published}</div></div>
+        <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Tracked</div><div style={{ fontSize: 22, fontWeight: 800 }}>{coverage.length}</div></div>
+        {Array.isArray(profile.beats) && profile.beats.length > 0 && (
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Beats</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {profile.beats.map(b => <span key={b} className="chip" style={{ fontSize: 11 }}>{b}</span>)}
+            </div>
+          </div>
+        )}
+      </div>
+      {coverage.length === 0 ? (
+        <p style={{ color: 'var(--text-subtle)', fontSize: 13 }}>No coverage logged for this contact yet.</p>
+      ) : (
+        <table className="table" style={{ width: '100%', fontSize: 13 }}>
+          <thead><tr><th>Client</th><th>Publication</th><th>Status</th><th>Date</th><th>Story</th></tr></thead>
+          <tbody>
+            {coverage.map((r, i) => (
+              <tr key={i}>
+                <td>{r.client || '—'}</td>
+                <td style={{ color: 'var(--text-muted)' }}>{r.outlet || '—'}</td>
+                <td><span className="chip" style={{ fontSize: 11 }}>{r.status}</span></td>
+                <td style={{ color: 'var(--text-muted)' }}>{fmtDate(r.issue_date)}</td>
+                <td>{r.story_url ? <a href={r.story_url} target="_blank" rel="noreferrer">{(r.story_title || 'View').slice(0, 60)}</a> : (r.story_title || '—')}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
