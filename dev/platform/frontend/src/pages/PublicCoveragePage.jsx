@@ -47,9 +47,14 @@ export default function PublicCoveragePage() {
       .catch(() => setData(null));
   }, [token]);
 
+  // Filter against the client-facing label rather than the raw status — the
+  // backend collapses `download` (magazine scan) and `published` (online URL)
+  // into a single "Published" label for clients, and the filter chips need to
+  // mirror that grouping. Picking either raw status would split one human-
+  // visible bucket into two identical-looking chips with different counts.
   const sorted = useMemo(() => {
     if (!data) return [];
-    const items = data.items.filter((i) => statusFilter === 'all' || i.status === statusFilter);
+    const items = data.items.filter((i) => statusFilter === 'all' || i.status_label === statusFilter);
     items.sort((a, b) => {
       if (sort === 'date_asc') return new Date(a.issue_date || 0) - new Date(b.issue_date || 0);
       if (sort === 'outlet') return (a.outlet || '').localeCompare(b.outlet || '');
@@ -79,10 +84,17 @@ export default function PublicCoveragePage() {
     background: active ? ink : '#fff', color: active ? '#fff' : ink, border: `1px solid ${active ? ink : cardBorder}`,
   });
 
-  // Status options available based on what's actually in the data (avoid showing
-  // chips that filter to zero — keeps the UI honest).
-  const presentStatuses = Array.from(new Set(data.items.map((i) => i.status)));
-  const labelFor = (s) => (data.items.find((i) => i.status === s)?.status_label) || s;
+  // Filter chips group by the client-facing label so a single "Published"
+  // chip covers both `published` (live URL) and `download` (magazine scan)
+  // — the client doesn't care about the internal distinction. Counts sum
+  // across every raw status that maps to the same label.
+  const presentLabels = [];
+  const labelCounts = {};
+  data.items.forEach((i) => {
+    const lbl = i.status_label || i.status;
+    if (!(lbl in labelCounts)) { presentLabels.push(lbl); labelCounts[lbl] = 0; }
+    labelCounts[lbl] += 1;
+  });
 
   return (
     <div style={{ background: surface, minHeight: '100vh' }}>
@@ -116,9 +128,9 @@ export default function PublicCoveragePage() {
           {/* Filter + sort row */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18, paddingBottom: 18, borderBottom: `1px solid ${cardBorder}` }}>
             <button type="button" style={chipBtn(statusFilter === 'all')} onClick={() => setStatusFilter('all')}>All ({data.items.length})</button>
-            {presentStatuses.map((s) => (
-              <button key={s} type="button" style={chipBtn(statusFilter === s)} onClick={() => setStatusFilter(s)}>
-                {labelFor(s)} ({data.items.filter((i) => i.status === s).length})
+            {presentLabels.map((lbl) => (
+              <button key={lbl} type="button" style={chipBtn(statusFilter === lbl)} onClick={() => setStatusFilter(lbl)}>
+                {lbl} ({labelCounts[lbl]})
               </button>
             ))}
             <div style={{ flex: 1 }} />
