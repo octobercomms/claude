@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 // Two-column edit modal — Contact Details on the left, More Info on the right,
@@ -12,6 +13,7 @@ const KIND_OPTIONS = [
 
 export default function EditContactModal({ contact, onClose, onSaved }) {
   const toast = useToast();
+  const navigate = useNavigate();
   const [form, setForm] = useState(() => ({
     first_name: contact.first_name || '',
     last_name: contact.last_name || '',
@@ -74,7 +76,19 @@ export default function EditContactModal({ contact, onClose, onSaved }) {
       <form onClick={e => e.stopPropagation()} onSubmit={save} className="modal">
         <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{contact.name || contact.email || 'Contact'}</h2>
-          <button type="button" onClick={onClose} className="modal-close">×</button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Doorway to the full journalist profile — coverage history, beats,
+                availability, photo. The modal stays as the quick-edit tool;
+                this link opens the full view for the "show me everything this
+                journalist has covered" path. */}
+            <button type="button"
+              onClick={() => { onClose(); navigate(`/media/journalist/${contact.id}`); }}
+              className="btn btn-secondary btn-sm"
+              title="Open the full profile — coverage history, beats, availability">
+              View full profile →
+            </button>
+            <button type="button" onClick={onClose} className="modal-close">×</button>
+          </div>
         </div>
 
         <div className="tabs">
