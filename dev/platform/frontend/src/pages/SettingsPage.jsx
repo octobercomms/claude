@@ -789,10 +789,14 @@ function PublicationsPanel() {
                   </td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.coverage}</td>
                   <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer', textAlign: 'right' }}>{o.contacts || 0}</td>
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)}>
-                      {TIERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
+                  <td onClick={() => setOpenOutlet(o)} style={{ cursor: 'pointer' }}>
+                    {/* Tier rendered flat (no inline select) so the row sits at
+                        the same height as the Contacts list. Editing happens in
+                        the modal — one click, one fix. */}
+                    {(() => {
+                      const label = (TIERS.find(([v]) => v === (o.tier || '')) || ['', '—'])[1];
+                      return <span style={{ color: o.tier ? 'var(--text)' : 'var(--text-subtle)', fontSize: 13 }}>{label}</span>;
+                    })()}
                   </td>
                   <td onClick={(e) => e.stopPropagation()} style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
                     <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
@@ -899,17 +903,10 @@ function OutletEditModal({ outletId, onClose, onSaved, onDeleted }) {
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(); }} className="modal" style={{ maxWidth: 900 }}>
+      <form onClick={(e) => e.stopPropagation()} onSubmit={(e) => { e.preventDefault(); save(); }} className="modal modal-wide">
         <div className="modal-head">
           <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>{data.name || 'Publication'}</h2>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <Link to={`/media/outlet/${outletId}`} onClick={onClose}
-              className="btn btn-secondary btn-sm" style={{ textDecoration: 'none' }}
-              title="Open the full profile page — full coverage history, all journalists">
-              View full profile →
-            </Link>
-            <button type="button" onClick={onClose} className="modal-close">×</button>
-          </div>
+          <button type="button" onClick={onClose} className="modal-close">×</button>
         </div>
 
         {err && <div style={{ color: 'var(--negative)', fontSize: 12, padding: '0 0 8px' }}>{err}</div>}
