@@ -336,10 +336,53 @@ function buildOutletClusters(records, threshold = 0.86) {
   return clusters;
 }
 
-/** Scan all live outlets for duplicate clusters. */
+/** Scan all live outlets for duplicate clusters. Drops any cluster that
+ * contains a dismissed pair so the AM doesn't see the same false-positive
+ * suggestion every scan. Dismissals are recorded via dismissOutletPair when
+ * the AM hits "Not duplicates" on a cluster.
+ */
 async function scanOutletDuplicates() {
   const { rows } = await db.query("SELECT id, name FROM pr_outlets WHERE status <> 'merged'");
-  return buildOutletClusters(rows);
+  const clusters = buildOutletClusters(rows);
+  const dismissals = await db.query('SELECT outlet_a, outlet_b FROM pr_outlet_dedup_dismissals');
+  if (!dismissals.rows.length) return clusters;
+  // Build a fast pair-key set ("a:b" with a < b) and drop any cluster that
+  // contains a dismissed pair. Conservative — once "not duplicates" was
+  // claimed for any pair in the cluster, we re-suggest nothing from it
+  // until the AM clears the dismissal.
+  const dismissed = new Set(dismissals.rows.map((r) => `${r.outlet_a}:${r.outlet_b}`));
+  return clusters.filter((c) => {
+    const ids = c.members.map((m) => m.id);
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const [a, b] = ids[i] < ids[j] ? [ids[i], ids[j]] : [ids[j], ids[i]];
+        if (dismissed.has(`${a}:${b}`)) return false;
+      }
+    }
+    return true;
+  });
+}
+
+/** Record that every pair of outletIds passed in is NOT a duplicate, so future
+ * scans skip the cluster. Inserts each pair in canonical (lower, higher) order
+ * to satisfy the unique constraint; ON CONFLICT DO NOTHING makes it idempotent.
+ */
+async function dismissOutletCluster(outletIds, userId) {
+  const ids = (outletIds || []).filter(Boolean);
+  if (ids.length < 2) return 0;
+  let added = 0;
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      const [a, b] = ids[i] < ids[j] ? [ids[i], ids[j]] : [ids[j], ids[i]];
+      const r = await db.query(
+        `INSERT INTO pr_outlet_dedup_dismissals (outlet_a, outlet_b, dismissed_by)
+         VALUES ($1, $2, $3) ON CONFLICT (outlet_a, outlet_b) DO NOTHING`,
+        [a, b, userId || null]
+      );
+      added += r.rowCount || 0;
+    }
+  }
+  return added;
 }
 
 /** Ask Claude to confirm/split fuzzy clusters. Returns [{canonical, members[], confidence}] or null. */
@@ -497,7 +540,7 @@ module.exports = {
   parseCsv, stripNotionRef, parseDate,
   resolveOutlet, resolveContact, importEditorialCsv, importEditorialCsvAllClients,
   repairImportedNames,
-  normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates,
+  normaliseOutlet, isDoNotUse, buildOutletClusters, scanOutletDuplicates, dismissOutletCluster,
   adjudicateOutletClusters, mergeOutlets,
   suggestBeats, writeOutletSummary,
   ensureClientToken, getCoverageByToken,
