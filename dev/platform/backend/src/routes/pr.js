@@ -513,6 +513,18 @@ router.patch('/outlets/:outletId', async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// Delete a publication. Cascade rules on referencing tables
+// (pr_editorial_log.outlet_id, outreach_contacts.outlet_id) are ON DELETE
+// SET NULL, so coverage entries and journalists pointing at the publication
+// keep existing — they just become outlet-less. The AM is warned about
+// stranded counts in the UI before they click.
+router.delete('/outlets/:outletId', requireAdmin, async (req, res) => {
+  try {
+    const r = await db.query('DELETE FROM pr_outlets WHERE id = $1', [req.params.outletId]);
+    res.json({ deleted: r.rowCount || 0 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 router.post('/outlets/:outletId/summary', async (req, res) => {
   try {
     const name = (await db.query('SELECT name FROM pr_outlets WHERE id = $1', [req.params.outletId])).rows[0]?.name;

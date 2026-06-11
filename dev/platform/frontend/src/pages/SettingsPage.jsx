@@ -704,7 +704,7 @@ function PublicationsPanel() {
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
         <div style={{ maxHeight: 420, overflow: 'auto' }}>
           <table className="table">
-            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th></tr></thead>
+            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th><th style={{ width: 28 }}></th></tr></thead>
             <tbody>
               {visibleOutlets.slice(0, 500).map((o) => (
                 <tr key={o.id}>
@@ -715,9 +715,24 @@ function PublicationsPanel() {
                       {TIERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
+                  <td>
+                    <button onClick={async () => {
+                      const tail = o.coverage
+                        ? `${o.coverage} coverage entr${o.coverage === 1 ? 'y' : 'ies'} will be detached (kept, no longer linked).`
+                        : 'No coverage attached.';
+                      if (!confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
+                      try {
+                        await api.delete(`/pr/outlets/${o.id}`);
+                        setOutlets((list) => list.filter((x) => x.id !== o.id));
+                      } catch (e) { setErr(e.message); }
+                    }} title="Delete this publication. For merging duplicates use Find duplicates below instead."
+                    style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                      ×
+                    </button>
+                  </td>
                 </tr>
               ))}
-              {!visibleOutlets.length && <tr><td colSpan={3} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
+              {!visibleOutlets.length && <tr><td colSpan={4} style={{ color: 'var(--text-subtle)', padding: 20 }}>No publications{outletSearch ? ' match that search' : ' yet'}.</td></tr>}
             </tbody>
           </table>
         </div>

@@ -31,6 +31,19 @@ export default function OutletProfilePage() {
     try { await api.patch(`/pr/outlets/${id}`, form); toast('Saved', 'success'); load(); }
     catch (e) { toast(e.message, 'error'); } finally { setSaving(false); }
   }
+  async function deleteOutlet() {
+    const covered = (o.coverage || []).length;
+    const journos = (o.journalists || []).length;
+    const tail = (covered || journos)
+      ? `${covered} coverage entr${covered === 1 ? 'y' : 'ies'} and ${journos} journalist${journos === 1 ? '' : 's'} will be detached from this publication (kept, but no longer linked to it).`
+      : 'No coverage or journalists are attached to this publication.';
+    if (!window.confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
+    try {
+      await api.delete(`/pr/outlets/${id}`);
+      toast('Publication deleted', 'success');
+      nav('/settings?tab=publications');
+    } catch (e) { toast(e.message, 'error'); }
+  }
   async function generate() {
     setGen(true);
     try { const r = await api.post(`/pr/outlets/${id}/summary`, {}); set('summary', r.summary || ''); toast('Summary drafted — review and Save', 'success'); }
@@ -57,6 +70,11 @@ export default function OutletProfilePage() {
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
           <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
           <span style={{ color: 'var(--text-subtle)', fontSize: 13 }}>{published} published · {(o.coverage || []).length} tracked</span>
+          <div style={{ flex: 1 }} />
+          <button className="btn btn-secondary btn-sm" onClick={deleteOutlet}
+            title="Hard-delete this publication. Coverage and journalists pointing at it stay (they just become outlet-less). Cannot be undone — for merging duplicates, use Settings → Publications → Find duplicates instead.">
+            Delete publication
+          </button>
         </div>
       </div>
 
