@@ -69,11 +69,17 @@ async function fetchData(credentials, params) {
   }
 
   const { startDate, endDate } = params;
-  // The connector's marketplace is saved on its own credentials. Reading it
-  // only from params meant every connector fell back to the UK marketplace +
-  // EU endpoint — so a US connector's North-America token hit the EU endpoint
-  // and returned a 403.
-  const marketplace = String(credentials.marketplace || params.marketplace || 'uk').trim().toLowerCase();
+  // Marketplace resolution — credentials.marketplace is the canonical home
+  // (set on the auth flow), but we also fall back to params.marketplace and
+  // params.storeLabel because legacy connectors authorised before the per-
+  // creds marketplace shipped may not have it saved. The dataCollector
+  // already passes storeLabel from the connectors table; without this
+  // fallback every legacy US connector hits the EU endpoint and returns
+  // empty data silently. Trim + lowercase so "US" / "us" / " US " all
+  // resolve to the same key.
+  const marketplace = String(
+    credentials.marketplace || params.marketplace || params.storeLabel || 'uk'
+  ).trim().toLowerCase();
 
   const marketplaceIds = {
     uk: 'A1F83G8C2ARO7P',
@@ -91,7 +97,16 @@ async function fetchData(credentials, params) {
     ? 'https://sellingpartnerapi-na.amazon.com'
     : 'https://sellingpartnerapi-eu.amazon.com';
 
-  const marketplaceId = marketplaceIds[marketplace] || marketplaceIds.uk;
+  const marketplaceId = marketplaceIds[marketplace];
+  if (!marketplaceId) {
+    // Loud failure beats silent UK fallback. The dataCollector catches the
+    // error, records it on the connector row, and surfaces it via the
+    // diagnose panel — the AM can see "unknown marketplace 'us-west'"
+    // instead of an empty report section.
+    throw new Error(`Amazon connector: unknown marketplace "${marketplace}". Known: ${Object.keys(marketplaceIds).join(', ')}.`);
+  }
+  // One-line breadcrumb so a misrouted connector is obvious in the logs.
+  console.log(`[Amazon] ${marketplace} → marketplaceId=${marketplaceId} endpoint=${['us','ca','mx','br'].includes(marketplace) ? 'NA' : 'EU'}`);
   let creds = credentials;
   if (!creds.access_token || (creds.expires_at && Date.now() > creds.expires_at - 60000)) {
     creds = await refreshToken(creds);
