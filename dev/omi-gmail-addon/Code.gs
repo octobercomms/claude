@@ -74,14 +74,22 @@ function onGmailMessageOpen(e) {
   var name = extractName(from);
   var subject = thread.getFirstMessageSubject();
   var threadId = thread.getId();
+  // Concatenate the plain-text bodies of every message in the thread so the
+  // backend's Claude extractor has the whole conversation to lift publication,
+  // issue date and the actual story being discussed out of. Capped at ~12k
+  // chars (the backend truncates again at 8k before sending to Claude) to
+  // keep the request small and the token cost negligible.
+  var body = thread.getMessages().map(function (m) {
+    return '--- ' + (m.getFrom() || '') + ' · ' + (m.getDate() || '') + ' ---\n' + (m.getPlainBody() || '');
+  }).join('\n\n').slice(0, 12000);
 
   var data = apiRequest('/lookup?email=' + encodeURIComponent(email), 'get');
   if (data && data._error) return errorCard(data._error).build();
   var clients = (data && data.clients) || [];
   if (data && data.matched) {
-    return profileCard(data, name, email, subject, threadId, clients).build();
+    return profileCard(data, name, email, subject, threadId, clients, body).build();
   }
-  return addContactCard(name, email, subject, threadId, clients).build();
+  return addContactCard(name, email, subject, threadId, clients, body).build();
 }
 
 // ── Cards ─────────────────────────────────────────────────────────────────
@@ -117,7 +125,7 @@ function saveConfig(e) {
   return notify('Connected.');
 }
 
-function profileCard(d, name, email, subject, threadId, clients) {
+function profileCard(d, name, email, subject, threadId, clients, body) {
   var header = CardService.newCardHeader().setTitle(d.name || name).setSubtitle((d.outlet || '') + (d.segment === 'media' ? ' · journalist' : ''));
   if (d.photo_url) header.setImageUrl(d.photo_url).setImageStyle(CardService.ImageStyle.CIRCLE);
 
@@ -138,11 +146,11 @@ function profileCard(d, name, email, subject, threadId, clients) {
 
   var card = CardService.newCardBuilder().setHeader(header).addSection(s);
   if (rec) card.addSection(rec);
-  card.addSection(logThreadSection(email, name, subject, threadId, clients));
+  card.addSection(logThreadSection(email, name, subject, threadId, clients, body));
   return card;
 }
 
-function addContactCard(name, email, subject, threadId, clients) {
+function addContactCard(name, email, subject, threadId, clients, body) {
   var s = CardService.newCardSection().setHeader('Not in your database')
     .addWidget(CardService.newTextParagraph().setText('Add <b>' + (name || email) + '</b> to the contacts database.'))
     .addWidget(CardService.newTextInput().setFieldName('name').setTitle('Name').setValue(name || ''))
@@ -156,10 +164,10 @@ function addContactCard(name, email, subject, threadId, clients) {
   return CardService.newCardBuilder()
     .setHeader(CardService.newCardHeader().setTitle(name || email))
     .addSection(s)
-    .addSection(logThreadSection(email, name, subject, threadId, clients));
+    .addSection(logThreadSection(email, name, subject, threadId, clients, body));
 }
 
-function logThreadSection(email, name, subject, threadId, clients) {
+function logThreadSection(email, name, subject, threadId, clients, body) {
   var section = CardService.newCardSection().setHeader('Log this thread');
   if (clients && clients.length) {
     var clientPicker = CardService.newSelectionInput().setType(CardService.SelectionInputType.DROPDOWN)
@@ -176,8 +184,12 @@ function logThreadSection(email, name, subject, threadId, clients) {
     .addItem('Published', 'published', false)
     .addItem('Declined', 'declined', false);
   section.addWidget(status);
+  // Stuffing the thread body into action parameters keeps the add-on stateless
+  // — Apps Script gives us no way to look the thread up again inside the
+  // action handler without another Gmail roundtrip, and we want this single
+  // POST to carry everything the backend's extractor needs.
   section.addWidget(CardService.newTextButton().setText('Add to editorial log')
-    .setOnClickAction(action('logThread', { email: email, name: name, subject: subject, threadId: threadId })));
+    .setOnClickAction(action('logThread', { email: email, name: name, subject: subject, threadId: threadId, body: body || '' })));
   return section;
 }
 
@@ -216,12 +228,22 @@ function logThread(e) {
   var res = apiRequest('/editorial-log', 'post', {
     client_id: clientId,
     story_title: p.subject,
+    email_subject: p.subject,
+    email_body: p.body || '',
     press_contact: p.name,
     email: p.email,
     status: formVal(e, 'status') || 'pitched',
     notes_outcome: 'Logged from Gmail'
   });
   if (!res || res._error) return notify('Could not log thread.');
+  // If the backend extracted publication/story/date, mention it in the toast
+  // so the AM knows the row landed with real context — not just the subject.
+  if (res.extracted) {
+    var parts = [];
+    if (res.extracted.publication) parts.push(res.extracted.publication);
+    if (res.extracted.story_title) parts.push('“' + res.extracted.story_title + '”');
+    if (parts.length) return notify('Logged · ' + parts.join(' · '));
+  }
   return notify('Thread logged to the editorial log.');
 }
 
