@@ -136,34 +136,73 @@ const POLLERS = [
       const starting_at = `${period_start}T00:00:00Z`;
       const ending_at = `${period_end}T23:59:59Z`;
       const headers = { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' };
+
+      // Track buckets by (starting_at, ending_at) and pages by cursor so a
+      // pagination loop that doesn't advance can't 20x our total. Previous
+      // version trusted has_more + next_page blindly — if Anthropic returns
+      // the same cursor or repeats buckets, we'd sum the same rows over and
+      // over (this is the most plausible cause of the $3,933 reading vs the
+      // ~$54 invoice).
       let totalCost = 0;
       let totalRows = 0;
+      const seenBuckets = new Set();
+      const seenPages = new Set();
+      const byCostType = {}; // breakdown so the diagnose panel can show where the money went
       let page = null;
-      let raw = null;
+      let firstPageRaw = null;
       let pageCount = 0;
+
       while (pageCount < 20) {
         pageCount++;
-        const params = page
-          ? { starting_at, ending_at, page }
-          : { starting_at, ending_at };
+        const params = page ? { starting_at, ending_at, page } : { starting_at, ending_at };
         const { data } = await axios.get('https://api.anthropic.com/v1/organizations/cost_report', { params, headers });
-        if (!raw) raw = data;
+        if (!firstPageRaw) firstPageRaw = data;
+
         for (const bucket of (data.data || [])) {
+          // Skip a bucket we've already counted on a previous page (defends
+          // against duplicate-data pagination).
+          const bk = `${bucket.starting_at}|${bucket.ending_at}`;
+          if (seenBuckets.has(bk)) continue;
+          seenBuckets.add(bk);
+
           for (const r of (bucket.results || [])) {
+            // Currency safety: don't sum non-USD amounts into a USD total.
+            // If a result lacks a currency field, assume USD (the endpoint's
+            // default).
+            if (r.currency && r.currency !== 'USD') continue;
             const amount = Number(r.amount ?? r.amount_usd ?? r.cost_usd ?? 0);
-            if (!Number.isNaN(amount)) totalCost += amount;
+            if (Number.isNaN(amount)) continue;
+            totalCost += amount;
             totalRows++;
+            const key = r.cost_type || r.token_type || 'other';
+            byCostType[key] = (byCostType[key] || 0) + amount;
           }
         }
-        if (data.has_more && data.next_page) { page = data.next_page; continue; }
-        break;
+
+        // Pagination dedup. If the next-page token matches one we already
+        // used (or matches the current one), bail.
+        const nextPage = data.next_page || data.next_page_token || data.next_cursor || null;
+        if (!data.has_more || !nextPage || seenPages.has(nextPage) || nextPage === page) break;
+        seenPages.add(nextPage);
+        page = nextPage;
       }
+
+      // One-line breadcrumb so a wrong reading is debuggable from pm2 logs
+      // without round-tripping through the diagnose panel.
+      console.log(`[Anthropic] cost_report ${period_start}→${period_end}: $${totalCost.toFixed(2)} across ${totalRows} rows, ${pageCount} page(s), ${seenBuckets.size} bucket(s)`);
+
       return {
         cost_this_period: totalCost,
         currency: 'USD',
         unit_label: 'tokens',
         period_start, period_end,
-        raw: { ...(raw || {}), _aggregated_rows: totalRows, _aggregated_pages: pageCount },
+        raw: {
+          ...(firstPageRaw || {}),
+          _aggregated_rows: totalRows,
+          _aggregated_pages: pageCount,
+          _aggregated_buckets: seenBuckets.size,
+          _by_cost_type: byCostType,
+        },
       };
     },
   },
