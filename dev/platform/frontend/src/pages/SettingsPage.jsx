@@ -1146,6 +1146,7 @@ function KeywordSpendPanel() {
 
 function ProviderCard({ entry }) {
   const s = entry.snapshot;
+  const [showDiag, setShowDiag] = useState(false);
   let body, statusColour = 'var(--text-subtle)';
   if (!s) {
     body = <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No data yet — click Refresh.</div>;
@@ -1187,20 +1188,69 @@ function ProviderCard({ entry }) {
     );
     statusColour = 'var(--positive)';
   }
-  // Same status-coloured-bento pattern as the Connectors tab — the
-  // whole tile turns green when balance / usage came back cleanly,
-  // red on error, amber on missing creds, default accent for "no
-  // data yet". The AM can spot a broken provider from across the
-  // page, not just by reading the inline label.
   const statusClass =
     !s ? '' :
     s.status === 'error' ? 'danger' :
     s.status === 'no_credentials' ? 'warning' :
     'success';
+  // Diagnostic — exposes the parsed breakdowns the Anthropic poll captures
+  // (_by_cost_type / _by_workspace / _top_5_amounts / _workspaces_seen) so
+  // a wrong total can be debugged inline without a DB query.
+  const diag = s?.raw;
+  const hasDiag = diag && (diag._by_model || diag._by_workspace || diag._top_5_amounts);
   return (
     <div className={`card ${statusClass}`} style={{ padding: 12 }}>
-      <div className="caption mb-2">{entry.label}</div>
+      <div className="caption mb-2" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <span>{entry.label}</span>
+        {hasDiag && (
+          <button type="button" onClick={() => setShowDiag((v) => !v)}
+            title="Show raw breakdown from the API response"
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-subtle)', padding: 0 }}>
+            {showDiag ? '× close' : 'diagnose'}
+          </button>
+        )}
+      </div>
       {body}
+      {showDiag && hasDiag && (
+        <div style={{ marginTop: 10, padding: 8, background: 'var(--surface-raised)', borderRadius: 'var(--r-sm)', fontSize: 11, color: 'var(--text-muted)' }}>
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Workspaces seen ({(diag._workspaces_seen || []).length})</div>
+          <div style={{ fontFamily: 'monospace', fontSize: 10, wordBreak: 'break-all', marginBottom: 8 }}>{(diag._workspaces_seen || []).join(', ') || '(none)'}</div>
+          {diag._by_cost_type && Object.keys(diag._by_cost_type).length > 0 && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>By cost type</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_cost_type, null, 2)}</pre>
+            </>
+          )}
+          {diag._by_model && Object.keys(diag._by_model).length > 0 && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>By model</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_model, null, 2)}</pre>
+            </>
+          )}
+          {diag._by_workspace && Object.keys(diag._by_workspace).length > 0 && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>By workspace</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._by_workspace, null, 2)}</pre>
+            </>
+          )}
+          {diag._top_5_amounts && diag._top_5_amounts.length > 0 && (
+            <>
+              <div style={{ fontWeight: 700, marginBottom: 4 }}>Top 5 individual amounts</div>
+              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, marginBottom: 8, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._top_5_amounts, null, 2)}</pre>
+            </>
+          )}
+          <div style={{ fontWeight: 700, marginBottom: 4 }}>Counters</div>
+          <div style={{ fontSize: 10, fontFamily: 'monospace' }}>
+            unique_lines={diag._aggregated_unique_lines} · buckets={diag._aggregated_buckets} · pages={diag._aggregated_pages}
+          </div>
+          {diag._bucket_samples && (
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 700 }}>First 2 buckets verbatim</summary>
+              <pre style={{ fontFamily: 'monospace', fontSize: 10, margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(diag._bucket_samples, null, 2)}</pre>
+            </details>
+          )}
+        </div>
+      )}
     </div>
   );
 }
