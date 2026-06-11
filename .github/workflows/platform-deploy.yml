@@ -1,0 +1,58 @@
+# Auto-deploy October Marketing Intelligence on every push to main.
+#
+# Replaces the manual "paste update.sh into terminal" step. Runs the same
+# script that lives at dev/platform/update.sh — pulls main on the box,
+# runs migrations, installs deps, builds the frontend, restarts pm2.
+#
+# Required secrets (Settings → Secrets and variables → Actions):
+#   DEPLOY_HOST     — e.g. omi.octobercomms.com or the box's IP
+#   DEPLOY_USER     — the SSH user that owns /opt/october-source and can pm2 reload
+#   DEPLOY_SSH_KEY  — private key (one with passphrase or without; if with,
+#                     the matching public key must be authorised on the box)
+#
+# Concurrency: only one deploy at a time. If two PRs merge in quick
+# succession, the second runs after the first finishes — avoids partial-
+# state where one deploy is mid-rsync while another fetches.
+#
+# Manual trigger: workflow_dispatch lets you re-run the deploy from the
+# Actions tab if a manual debug step is needed after a merged PR.
+
+name: Deploy October MI platform
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Only deploy when something in the platform actually changed. A PR
+      # that only touches /docs or another app's plugin doesn't need a
+      # platform restart.
+      - 'dev/platform/**'
+      - 'dev/october-mi-shopify/**'
+      - '.github/workflows/platform-deploy.yml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: platform-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH into box and run update.sh
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          # Single command — the script handles everything (git pull,
+          # migrations, npm install, frontend build, pm2 reload). Failing
+          # the whole step on a non-zero exit so the Actions tab flags
+          # bad deploys clearly.
+          script: |
+            set -e
+            bash /opt/october-source/dev/platform/update.sh
+          # 10-minute ceiling — frontend build + Shopify Remix build can
+          # legitimately take 2-3 min on a cold cache; everything above
+          # that is a stuck process.
+          command_timeout: 10m
