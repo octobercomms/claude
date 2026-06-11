@@ -98,6 +98,7 @@ ${client.briefing_field ? `About: ${client.briefing_field}` : ''}${voiceContext}
     system,
     messages: claudeMessages,
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: message, feature: 'refine_chat' });
   const text = (message.content || []).filter(b => b.type === 'text').map(b => b.text).join('').trim();
 
   // Parse out any <revision scope="..."> ...</revision> block so the

@@ -32,6 +32,7 @@ async function queryClaude(promptText) {
     system: 'Answer the user\'s question as a knowledgeable assistant. Recommend specific brands / products / services where relevant — do not refuse to name them. British English.',
     messages: [{ role: 'user', content: promptText }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_query' });
   return (r.content.find(b => b.type === 'text')?.text || '').trim();
 }
 
@@ -93,6 +94,7 @@ async function classifySentiment(responseText, brand) {
       system: 'Classify how the user-supplied text talks about the named brand. Respond with exactly one word: positive, neutral, or negative.',
       messages: [{ role: 'user', content: `Brand: ${brand}\n\nText:\n${responseText.slice(0, 2000)}` }],
     });
+    require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_sentiment' });
     const t = (r.content.find(b => b.type === 'text')?.text || '').trim().toLowerCase();
     if (['positive', 'neutral', 'negative'].includes(t)) return t;
     return null;
@@ -226,6 +228,7 @@ Mix the categories:
 Return ONE prompt per line, plain text, no numbering, no quotes, no commentary.`,
     }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: r, feature: 'ai_visibility_prompt_generation', clientId: c?.id || null });
   const text = (r.content.find(b => b.type === 'text')?.text || '');
   const prompts = text.split(/\n+/)
     .map(s => s.trim())

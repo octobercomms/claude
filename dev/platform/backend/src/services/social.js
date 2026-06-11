@@ -189,6 +189,7 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
     tool_choice: { type: 'tool', name: 'propose_posts' },
     messages: [{ role: 'user', content: userPrompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'social_strategy', clientId: clientId || null });
 
   const toolUse = response.content.find(b => b.type === 'tool_use' && b.name === 'propose_posts');
   if (!toolUse) throw new Error('Claude did not return a posts batch');

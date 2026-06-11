@@ -107,6 +107,7 @@ Produce exactly ${count} ad creative concepts. Vary the framework — don't retu
     tool_choice: { type: 'tool', name: 'propose_ad_creatives' },
     messages: [{ role: 'user', content: userPrompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'ad_creative', clientId: client?.id || null });
 
   const toolUse = response.content.find(b => b.type === 'tool_use' && b.name === 'propose_ad_creatives');
   if (!toolUse) throw new Error('Claude did not return creatives');

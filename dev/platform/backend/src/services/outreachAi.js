@@ -33,6 +33,7 @@ async function writeSequence(campaign, instructions = '') {
     system,
     messages: [{ role: 'user', content: prompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_write_sequence', clientId: campaign?.client_id || null });
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\[[\s\S]*\]/);
@@ -83,6 +84,7 @@ async function refineAudience({ campaign, audienceDescription, extraInstructions
     system,
     messages: [{ role: 'user', content: prompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_refine_audience', clientId: campaign?.client_id || null });
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
@@ -129,6 +131,7 @@ Respond as valid JSON only:
     system,
     messages: [{ role: 'user', content: prompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'outreach_classify_reply' });
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\{[\s\S]*\}/);
