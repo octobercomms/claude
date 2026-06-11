@@ -406,29 +406,63 @@ async function fetchGoogleAdsData(credentials, params) {
     WHERE campaign.status != 'REMOVED'
     ORDER BY campaign.start_date DESC
   `;
+  // Customer hierarchy probe — `customer_client` enumerates every account
+  // accessible from the current customer-id, including sub-accounts of an
+  // MCC. Surfaced in the response so the analyst can confirm which account
+  // is being queried and spot the case where new campaigns live in a sibling
+  // sub-account the connector wasn't pointing at.
+  const customerHierarchyQuery = `
+    SELECT customer_client.id, customer_client.descriptive_name,
+           customer_client.manager, customer_client.level
+    FROM customer_client
+  `;
   const fetchBoth = async (loginCustomerId) => {
-    const [metricsRes, listRes] = await Promise.all([
+    // allSettled rather than all — if either query fails on its own (auth
+    // quirk, transient, permission), the other still runs and we still
+    // return what we can. The previous Promise.all would reject the whole
+    // call and the route would fall through to MCC auto-discovery, which
+    // ran the same broken pair against every accessible login id —
+    // expensive and equally unhelpful.
+    const [metricsSettled, listSettled, hierSettled] = await Promise.allSettled([
       search(loginCustomerId, campaignQuery),
       search(loginCustomerId, campaignListQuery),
+      search(loginCustomerId, customerHierarchyQuery),
     ]);
-    const metricsById = new Map();
-    for (const row of (metricsRes.data.results || [])) {
-      const id = row.campaign?.id || row.campaign?.resourceName;
-      if (id) metricsById.set(String(id), row);
-    }
+    const metricsRes = metricsSettled.status === 'fulfilled' ? metricsSettled.value : null;
+    const listRes = listSettled.status === 'fulfilled' ? listSettled.value : null;
+    const hierRes = hierSettled.status === 'fulfilled' ? hierSettled.value : null;
+    if (metricsSettled.status === 'rejected') console.warn('[Google Ads] metrics query failed:', metricsSettled.reason?.response?.data?.error?.message || metricsSettled.reason?.message);
+    if (listSettled.status === 'rejected') console.warn('[Google Ads] campaign list query failed:', listSettled.reason?.response?.data?.error?.message || listSettled.reason?.message);
+    if (hierSettled.status === 'rejected') console.warn('[Google Ads] customer hierarchy query failed:', hierSettled.reason?.response?.data?.error?.message || hierSettled.reason?.message);
+    // Promote a hard error from the metrics query because everything
+    // downstream assumes at least metrics came back. List + hierarchy are
+    // best-effort.
+    if (!metricsRes) throw metricsSettled.reason;
+
+    const listRows = (listRes?.data?.results || []);
+    const hierRows = (hierRes?.data?.results || []).map((r) => ({
+      id: r.customerClient?.id || null,
+      name: r.customerClient?.descriptiveName || '',
+      manager: r.customerClient?.manager || false,
+      level: r.customerClient?.level || null,
+    }));
+    console.log(`[Google Ads] account ${cleanCustomerId} (login=${loginCustomerId || 'none'}): metrics=${(metricsRes.data.results || []).length}, list=${listRows.length}, hierarchy=${hierRows.length}`);
+
     // Merge: every campaign from the list appears, with metrics overlaid
-    // when we have them. Order metrics-bearing rows first (existing
-    // behaviour); list-only rows (new, not-yet-serving) appear after.
+    // when we have them. Match by id first, then by resourceName as a
+    // fallback — Google occasionally elides id for very freshly created
+    // campaigns while resourceName is always present.
     const merged = [];
     const seen = new Set();
+    const idKey = (row) => String(row.campaign?.id || row.campaign?.resourceName || '');
     for (const row of (metricsRes.data.results || [])) {
-      const id = row.campaign?.id || row.campaign?.resourceName;
-      if (id) seen.add(String(id));
+      const id = idKey(row);
+      if (id) seen.add(id);
       merged.push(row);
     }
-    for (const row of (listRes.data.results || [])) {
-      const id = row.campaign?.id || row.campaign?.resourceName;
-      if (!id || seen.has(String(id))) continue;
+    for (const row of listRows) {
+      const id = idKey(row);
+      if (!id || seen.has(id)) continue;
       merged.push({
         campaign: row.campaign,
         // Zero metrics — these campaigns exist but had no finalised data in
@@ -459,8 +493,24 @@ async function fetchGoogleAdsData(credentials, params) {
     }
     // fetched_at lets the analyst (and Data Analyst tool prompt) tell
     // freshness at a glance — if data looks suspicious, this is the wall
-    // clock for when we actually hit the API.
-    return { ...metricsRes.data, results: merged, keyword_view: keywords, currency, fetched_at: new Date().toISOString() };
+    // clock for when we actually hit the API. account_hierarchy + list
+    // diagnostics expose the sub-account picture so the analyst can spot
+    // the "new campaign lives in a sibling account" case.
+    return {
+      ...metricsRes.data,
+      results: merged,
+      keyword_view: keywords,
+      currency,
+      fetched_at: new Date().toISOString(),
+      account: { queried_id: cleanCustomerId, login_id: loginCustomerId || null },
+      account_hierarchy: hierRows,
+      diagnostics: {
+        metrics_rows: (metricsRes.data.results || []).length,
+        list_rows: listRows.length,
+        list_query_ok: !!listRes,
+        list_query_error: listSettled.status === 'rejected' ? (listSettled.reason?.response?.data?.error?.message || listSettled.reason?.message) : null,
+      },
+    };
   };
 
   // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
