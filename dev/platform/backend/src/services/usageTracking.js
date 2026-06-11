@@ -120,22 +120,24 @@ const POLLERS = [
         if (!regularKey) return null;
         return { unit_label: 'tokens', raw: { note: 'Connected — add an Anthropic Admin key in Settings to track spend here.' } };
       }
-      // Anthropic publishes spend at /v1/organizations/cost_report. Two
-      // gotchas the previous fix missed:
-      //   1. starting_at / ending_at require RFC3339 timestamps with a
-      //      timezone offset. A bare date string ("2026-06-01") silently
-      //      returns an empty bucket — the request succeeds (200) but
-      //      data.data is empty.
-      //   2. Response shape is nested: data[].results[].amount (a string).
-      //      The previous parser looked at data[].amount_usd which doesn't
-      //      exist on this endpoint, so the sum stayed at $0 even on a
-      //      well-billed organisation.
-      // Pagination: follow next_page when has_more is true; hard cap to
-      // stop a parser typo from looping forever.
+      // Switched away from /v1/organizations/cost_report — its rows for this
+      // account return everything (model / cost_type / token_type /
+      // workspace_id) as null, just a date + a single amount. That looked
+      // like consumption data but the amounts include billing transactions
+      // (credit grants, auto-recharges, internal adjustments) not pure
+      // consumption — one June day reported \$3,325 of "cost" on an account
+      // with a \$200 cap. Useless for "what did I spend?".
+      //
+      // /v1/organizations/usage_report/messages returns the underlying
+      // token counts, broken down by model. We compute the dollar amount
+      // ourselves from our pricing tables (services/costLog.js) — same
+      // tables we use for per-call cost logging, so the dashboard total
+      // and the per-call log are denominated identically.
       const { period_start, period_end } = monthBounds();
       const starting_at = `${period_start}T00:00:00Z`;
       const ending_at = `${period_end}T23:59:59Z`;
       const headers = { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' };
+      const { claudeCostFromUsage, CLAUDE_PRICES } = require('./costLog');
 
       // Track buckets by (starting_at, ending_at) and pages by cursor so a
       // pagination loop that doesn't advance can't 20x our total. Previous
@@ -144,23 +146,20 @@ const POLLERS = [
       // over (this is the most plausible cause of the $3,933 reading vs the
       // ~$54 invoice).
       let totalCost = 0;
-      let totalRows = 0;
+      let totalInTokens = 0;
+      let totalOutTokens = 0;
+      const byModel = {};
       const seenBuckets = new Set();
       const seenPages = new Set();
-      const seenLineKeys = new Set(); // composite key per (bucket, model, token_type, service_tier, workspace_id, context_window) to drop exact-duplicate lines the API sometimes returns when group_by spans multiple dimensions
-      const byCostType = {};
-      const byModel = {};
-      const byWorkspace = {};
       let page = null;
       let firstPageRaw = null;
       let pageCount = 0;
-      let amountSamples = []; // capture the 5 largest amounts so we can spot a single anomalous row
-      let bucketSamples = []; // first 2 buckets verbatim — for debugging via the diagnose panel
+      let bucketSamples = [];
 
       while (pageCount < 20) {
         pageCount++;
         const params = page ? { starting_at, ending_at, page } : { starting_at, ending_at };
-        const { data } = await axios.get('https://api.anthropic.com/v1/organizations/cost_report', { params, headers });
+        const { data } = await axios.get('https://api.anthropic.com/v1/organizations/usage_report/messages', { params, headers });
         if (!firstPageRaw) firstPageRaw = data;
 
         for (const bucket of (data.data || [])) {
@@ -170,39 +169,22 @@ const POLLERS = [
           if (bucketSamples.length < 2) bucketSamples.push(bucket);
 
           for (const r of (bucket.results || [])) {
-            if (r.currency && r.currency !== 'USD') continue;
-            // Composite uniqueness key — if Anthropic groups by multiple
-            // dimensions and emits the same line under different groupings,
-            // we don't want to count it twice. A line is "unique" only if its
-            // entire signature is novel within this bucket.
-            const lineKey = [
-              bk,
-              r.model || '',
-              r.token_type || '',
-              r.cost_type || '',
-              r.service_tier || '',
-              r.workspace_id || '',
-              r.context_window || '',
-              String(r.amount ?? ''),
-            ].join('|');
-            if (seenLineKeys.has(lineKey)) continue;
-            seenLineKeys.add(lineKey);
-
-            const amount = Number(r.amount ?? r.amount_usd ?? r.cost_usd ?? 0);
-            if (Number.isNaN(amount)) continue;
-            totalCost += amount;
-            totalRows++;
-            const ck = r.cost_type || r.token_type || 'other';
-            byCostType[ck] = (byCostType[ck] || 0) + amount;
-            if (r.model) byModel[r.model] = (byModel[r.model] || 0) + amount;
-            if (r.workspace_id) byWorkspace[r.workspace_id] = (byWorkspace[r.workspace_id] || 0) + amount;
-            // Keep the 5 largest amounts seen — useful for spotting whether
-            // one anomalous row is responsible for the total.
-            amountSamples.push({ amount, model: r.model, cost_type: r.cost_type, token_type: r.token_type, workspace_id: r.workspace_id, day: bucket.starting_at });
-            if (amountSamples.length > 50) {
-              amountSamples.sort((a, b) => b.amount - a.amount);
-              amountSamples = amountSamples.slice(0, 5);
-            }
+            // usage_report/messages returns token counts per (model,
+            // service_tier, token_type, …) breakdown. Compute the dollar
+            // value from our pricing tables — same logic the per-call cost
+            // log uses, so totals are denominated identically.
+            const usage = {
+              input_tokens: r.uncached_input_tokens ?? r.input_tokens ?? 0,
+              output_tokens: r.output_tokens ?? 0,
+              cache_creation_input_tokens: r.cache_creation_input_tokens ?? 0,
+              cache_read_input_tokens: r.cache_read_input_tokens ?? 0,
+            };
+            const model = r.model || 'claude-sonnet-4-6';
+            const cost = claudeCostFromUsage(model, usage);
+            totalCost += cost;
+            totalInTokens += Number(usage.input_tokens) + Number(usage.cache_creation_input_tokens) + Number(usage.cache_read_input_tokens);
+            totalOutTokens += Number(usage.output_tokens);
+            byModel[model] = (byModel[model] || 0) + cost;
           }
         }
 
@@ -212,10 +194,7 @@ const POLLERS = [
         page = nextPage;
       }
 
-      amountSamples.sort((a, b) => b.amount - a.amount);
-      amountSamples = amountSamples.slice(0, 5);
-
-      console.log(`[Anthropic] cost_report ${period_start}→${period_end}: $${totalCost.toFixed(2)} across ${totalRows} unique lines, ${pageCount} page(s), ${seenBuckets.size} bucket(s), ${Object.keys(byWorkspace).length} workspace(s)`);
+      console.log(`[Anthropic] usage_report/messages ${period_start}→${period_end}: $${totalCost.toFixed(2)} (computed from ${totalInTokens.toLocaleString()} in + ${totalOutTokens.toLocaleString()} out tokens across ${seenBuckets.size} bucket(s), ${pageCount} page(s))`);
 
       return {
         cost_this_period: totalCost,
@@ -223,19 +202,15 @@ const POLLERS = [
         unit_label: 'tokens',
         period_start, period_end,
         raw: {
-          // The full first-page response is preserved (under _first_page) so
-          // we can inspect the exact shape Anthropic returned without
-          // re-querying. The breakdowns below are the parsed view.
+          _source: 'usage_report/messages (token counts × local pricing)',
           _first_page: firstPageRaw,
           _bucket_samples: bucketSamples,
-          _aggregated_unique_lines: totalRows,
-          _aggregated_pages: pageCount,
           _aggregated_buckets: seenBuckets.size,
-          _workspaces_seen: Object.keys(byWorkspace),
-          _by_cost_type: byCostType,
+          _aggregated_pages: pageCount,
+          _total_input_tokens: totalInTokens,
+          _total_output_tokens: totalOutTokens,
           _by_model: byModel,
-          _by_workspace: byWorkspace,
-          _top_5_amounts: amountSamples,
+          _pricing_used: CLAUDE_PRICES,
         },
       };
     },
