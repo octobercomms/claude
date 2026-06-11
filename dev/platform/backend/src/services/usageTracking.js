@@ -147,10 +147,15 @@ const POLLERS = [
       let totalRows = 0;
       const seenBuckets = new Set();
       const seenPages = new Set();
-      const byCostType = {}; // breakdown so the diagnose panel can show where the money went
+      const seenLineKeys = new Set(); // composite key per (bucket, model, token_type, service_tier, workspace_id, context_window) to drop exact-duplicate lines the API sometimes returns when group_by spans multiple dimensions
+      const byCostType = {};
+      const byModel = {};
+      const byWorkspace = {};
       let page = null;
       let firstPageRaw = null;
       let pageCount = 0;
+      let amountSamples = []; // capture the 5 largest amounts so we can spot a single anomalous row
+      let bucketSamples = []; // first 2 buckets verbatim — for debugging via the diagnose panel
 
       while (pageCount < 20) {
         pageCount++;
@@ -159,37 +164,58 @@ const POLLERS = [
         if (!firstPageRaw) firstPageRaw = data;
 
         for (const bucket of (data.data || [])) {
-          // Skip a bucket we've already counted on a previous page (defends
-          // against duplicate-data pagination).
           const bk = `${bucket.starting_at}|${bucket.ending_at}`;
           if (seenBuckets.has(bk)) continue;
           seenBuckets.add(bk);
+          if (bucketSamples.length < 2) bucketSamples.push(bucket);
 
           for (const r of (bucket.results || [])) {
-            // Currency safety: don't sum non-USD amounts into a USD total.
-            // If a result lacks a currency field, assume USD (the endpoint's
-            // default).
             if (r.currency && r.currency !== 'USD') continue;
+            // Composite uniqueness key — if Anthropic groups by multiple
+            // dimensions and emits the same line under different groupings,
+            // we don't want to count it twice. A line is "unique" only if its
+            // entire signature is novel within this bucket.
+            const lineKey = [
+              bk,
+              r.model || '',
+              r.token_type || '',
+              r.cost_type || '',
+              r.service_tier || '',
+              r.workspace_id || '',
+              r.context_window || '',
+              String(r.amount ?? ''),
+            ].join('|');
+            if (seenLineKeys.has(lineKey)) continue;
+            seenLineKeys.add(lineKey);
+
             const amount = Number(r.amount ?? r.amount_usd ?? r.cost_usd ?? 0);
             if (Number.isNaN(amount)) continue;
             totalCost += amount;
             totalRows++;
-            const key = r.cost_type || r.token_type || 'other';
-            byCostType[key] = (byCostType[key] || 0) + amount;
+            const ck = r.cost_type || r.token_type || 'other';
+            byCostType[ck] = (byCostType[ck] || 0) + amount;
+            if (r.model) byModel[r.model] = (byModel[r.model] || 0) + amount;
+            if (r.workspace_id) byWorkspace[r.workspace_id] = (byWorkspace[r.workspace_id] || 0) + amount;
+            // Keep the 5 largest amounts seen — useful for spotting whether
+            // one anomalous row is responsible for the total.
+            amountSamples.push({ amount, model: r.model, cost_type: r.cost_type, token_type: r.token_type, workspace_id: r.workspace_id, day: bucket.starting_at });
+            if (amountSamples.length > 50) {
+              amountSamples.sort((a, b) => b.amount - a.amount);
+              amountSamples = amountSamples.slice(0, 5);
+            }
           }
         }
 
-        // Pagination dedup. If the next-page token matches one we already
-        // used (or matches the current one), bail.
         const nextPage = data.next_page || data.next_page_token || data.next_cursor || null;
         if (!data.has_more || !nextPage || seenPages.has(nextPage) || nextPage === page) break;
         seenPages.add(nextPage);
         page = nextPage;
       }
 
-      // One-line breadcrumb so a wrong reading is debuggable from pm2 logs
-      // without round-tripping through the diagnose panel.
-      console.log(`[Anthropic] cost_report ${period_start}→${period_end}: $${totalCost.toFixed(2)} across ${totalRows} rows, ${pageCount} page(s), ${seenBuckets.size} bucket(s)`);
+      amountSamples.sort((a, b) => b.amount - a.amount);
+      amountSamples = amountSamples.slice(0, 5);
+
+      console.log(`[Anthropic] cost_report ${period_start}→${period_end}: $${totalCost.toFixed(2)} across ${totalRows} unique lines, ${pageCount} page(s), ${seenBuckets.size} bucket(s), ${Object.keys(byWorkspace).length} workspace(s)`);
 
       return {
         cost_this_period: totalCost,
@@ -197,11 +223,19 @@ const POLLERS = [
         unit_label: 'tokens',
         period_start, period_end,
         raw: {
-          ...(firstPageRaw || {}),
-          _aggregated_rows: totalRows,
+          // The full first-page response is preserved (under _first_page) so
+          // we can inspect the exact shape Anthropic returned without
+          // re-querying. The breakdowns below are the parsed view.
+          _first_page: firstPageRaw,
+          _bucket_samples: bucketSamples,
+          _aggregated_unique_lines: totalRows,
           _aggregated_pages: pageCount,
           _aggregated_buckets: seenBuckets.size,
+          _workspaces_seen: Object.keys(byWorkspace),
           _by_cost_type: byCostType,
+          _by_model: byModel,
+          _by_workspace: byWorkspace,
+          _top_5_amounts: amountSamples,
         },
       };
     },
