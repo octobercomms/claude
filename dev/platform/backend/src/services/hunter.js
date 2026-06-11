@@ -32,6 +32,11 @@ async function domainSearch(domain, limit = 10) {
       source: 'hunter.io',
     }));
 
+  // Hunter pricing: 50 free / month then ~$0.49 per 100 (Starter plan, 5k
+  // credits / $49). Per-call rate ≈ $0.0098. Log so the Cost log shows
+  // how much each search costs.
+  require('./costLog').recordApiCost({ provider: 'hunter', feature: 'hunter_domain_search', costUsd: 0.0098, meta: { domain, limit } });
+
   return {
     domain,
     company: result.organization || '',
@@ -78,6 +83,8 @@ async function verifyEmail(email) {
     unknown: 'unknown',
   };
   const status = statusMap[hunterResult] || 'unknown';
+  // Email verification is also 1 credit ≈ $0.0098 on Starter plan.
+  require('./costLog').recordApiCost({ provider: 'hunter', feature: 'hunter_verify_email', costUsd: 0.0098, meta: { email } });
 
   return {
     status,
