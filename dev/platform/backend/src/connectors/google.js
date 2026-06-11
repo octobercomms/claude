@@ -390,8 +390,54 @@ async function fetchGoogleAdsData(credentials, params) {
 
   // Run the campaign query (required) plus the keyword query (best-effort) on a
   // login-customer-id already proven to work for this account.
+  //
+  // Two-step campaign fetch — the metrics query (FROM campaign WHERE
+  // segments.date BETWEEN x AND y) only returns rows for campaigns that have
+  // finalised metrics in the window. New campaigns that are live in the UI
+  // but whose data hasn't finalised yet (Google Ads Reporting API has a
+  // 3-24h finalisation delay vs. the live UI) return zero rows and look
+  // invisible to the analyst. We list every NON-REMOVED campaign first via
+  // a metrics-free query, then overlay metrics by id so newly-created
+  // campaigns appear immediately with zeros where data isn't ready.
+  const campaignListQuery = `
+    SELECT campaign.id, campaign.name, campaign.status,
+           campaign.start_date, campaign.advertising_channel_type
+    FROM campaign
+    WHERE campaign.status != 'REMOVED'
+    ORDER BY campaign.start_date DESC
+  `;
   const fetchBoth = async (loginCustomerId) => {
-    const { data } = await search(loginCustomerId, campaignQuery);
+    const [metricsRes, listRes] = await Promise.all([
+      search(loginCustomerId, campaignQuery),
+      search(loginCustomerId, campaignListQuery),
+    ]);
+    const metricsById = new Map();
+    for (const row of (metricsRes.data.results || [])) {
+      const id = row.campaign?.id || row.campaign?.resourceName;
+      if (id) metricsById.set(String(id), row);
+    }
+    // Merge: every campaign from the list appears, with metrics overlaid
+    // when we have them. Order metrics-bearing rows first (existing
+    // behaviour); list-only rows (new, not-yet-serving) appear after.
+    const merged = [];
+    const seen = new Set();
+    for (const row of (metricsRes.data.results || [])) {
+      const id = row.campaign?.id || row.campaign?.resourceName;
+      if (id) seen.add(String(id));
+      merged.push(row);
+    }
+    for (const row of (listRes.data.results || [])) {
+      const id = row.campaign?.id || row.campaign?.resourceName;
+      if (!id || seen.has(String(id))) continue;
+      merged.push({
+        campaign: row.campaign,
+        // Zero metrics — these campaigns exist but had no finalised data in
+        // the window. The analyst can tell from the zeros that data is still
+        // pending rather than the campaign being absent.
+        metrics: { clicks: '0', impressions: '0', ctr: 0, averageCpc: '0', conversions: 0, conversionsValue: 0, costMicros: '0' },
+      });
+    }
+
     let keywords = [];
     try {
       const kwRes = await search(loginCustomerId, keywordQuery);
@@ -411,7 +457,10 @@ async function fetchGoogleAdsData(credentials, params) {
     } catch (cuErr) {
       console.warn('[Google Ads] currency_code fetch failed:', cuErr.response?.data?.error?.message || cuErr.message);
     }
-    return { ...data, keyword_view: keywords, currency };
+    // fetched_at lets the analyst (and Data Analyst tool prompt) tell
+    // freshness at a glance — if data looks suspicious, this is the wall
+    // clock for when we actually hit the API.
+    return { ...metricsRes.data, results: merged, keyword_view: keywords, currency, fetched_at: new Date().toISOString() };
   };
 
   // Explicit MCC override takes priority — set GOOGLE_ADS_MCC_ID in Settings to skip auto-discovery
