@@ -196,14 +196,30 @@ function ApiSpendBanner({ spend }) {
       ? `${b.label} ${fmtMoney(b.value, b.currency)}`
       : `${b.label} ${Number(b.value).toLocaleString()}${b.limit != null ? `/${Number(b.limit).toLocaleString()}` : ''}${b.unit ? ' ' + b.unit : ''}`
   );
+  // Burn-rate flag drives the bar's left dot + accent colour. red = burning
+  // fast (>$15/day avg over the last 7 days), amber = warming up, green
+  // (default) = normal. The full daily breakdown is on Settings → Cost log.
+  const burn = spend.burn;
+  const flagColor = burn?.flag === 'red' ? 'bg-red-500'
+    : burn?.flag === 'amber' ? 'bg-yellow-400'
+    : 'bg-accent';
+  const ring = burn?.flag === 'red'
+    ? 'ring-2 ring-red-500/60 bg-red-900/40'
+    : burn?.flag === 'amber' ? 'ring-2 ring-yellow-400/40 bg-ink'
+    : 'bg-ink';
   return (
-    <div className="flex items-center gap-3 flex-wrap bg-ink rounded-md px-s5 py-s3 mb-s5">
-      <span className="w-2 h-2 rounded-pill bg-accent" />
+    <div className={`flex items-center gap-3 flex-wrap ${ring} rounded-md px-s5 py-s3 mb-s5`}>
+      <span className={`w-2 h-2 rounded-pill ${flagColor}`} />
       <span className="text-[13px] text-white">
         <strong>API spend this month:</strong>{' '}
         {hasSpend
           ? <span className="text-accent font-bold">{entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')}</span>
           : <span className="text-white/70">not reported yet</span>}
+        {burn && burn.daily_avg_usd > 0 && (
+          <span className={`ml-3 text-[12px] ${burn.flag === 'red' ? 'text-red-300 font-bold' : burn.flag === 'amber' ? 'text-yellow-200' : 'text-white/55'}`}>
+            · last 7 days avg ${burn.daily_avg_usd.toFixed(2)}/day{burn.flag === 'red' ? ' — burning fast' : ''}
+          </span>
+        )}
       </span>
       {balances.length > 0 && (
         <span className="text-[12px] text-white/55">Balances: {balances.join(' · ')}</span>

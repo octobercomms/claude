@@ -1,5 +1,6 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
+const { recordClaudeCost } = require('./costLog');
 
 const MODEL = 'claude-sonnet-4-6';
 
@@ -44,13 +45,17 @@ const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports f
 // Single-shot text call used by the template renderer for each narrative
 // section. Returns the concatenated text content (no tool use). Keep this
 // generic — section-specific framing lives in templateRenderer.js.
-async function callClaude({ max_tokens, system, user, model = MODEL }) {
+async function callClaude({ max_tokens, system, user, model = MODEL, feature = 'report_narrative', clientId = null }) {
   const message = await callWithRetry(() => getClient().messages.create({
     model,
     max_tokens,
     system: system || SYSTEM_PROMPT,
     messages: [{ role: 'user', content: user }],
   }));
+  // Record cost — fire-and-forget. The feature label defaults to
+  // 'report_narrative' (the original use site) but callers can override
+  // e.g. callClaude({ ..., feature: 'beat_suggestion', clientId }).
+  recordClaudeCost({ model, response: message, feature, clientId });
   const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
   return blocks.map(b => b.text).join('\n').trim();
 }
@@ -273,6 +278,7 @@ ${currentTemplate
     reply = `I didn't return a useful response (stop_reason: ${response.stop_reason || 'unknown'}). This sometimes happens with very large requests — try a smaller change first, e.g. "set up the SEO sections only" or "remove the paid traffic block".`;
     return { reply, proposed: null };
   }
+  recordClaudeCost({ model: MODEL, response, feature: 'chat_template_builder', clientId: client?.id || null });
   return { reply, proposed };
 }
 
@@ -304,6 +310,7 @@ ${seoContext ? `\nSEO ranking data:\n${seoContext}` : ''}${chatContext}
 Write an executive summary for this report. 300-400 words. Use the client's "About" line to set tone and vocabulary. Reference the monthly focus and any per-section instructions. Highlight the most significant movements in the data. Call out anything that needs attention. End with one forward-looking sentence about the coming month.`,
     }],
   });
+  recordClaudeCost({ model: MODEL, response: message, feature: 'executive_summary' });
   return message.content[0].text;
 }
 
@@ -339,6 +346,7 @@ Flat top-line metrics: ${JSON.stringify(metrics, null, 2)}${rankContext}${chatCo
 Write 2-3 sentences summarising this week's performance for the enabled sections only. Reference any notable movements, weight each section per its instruction, and pick up anything specific being tracked in the conversations. Be direct. British English.`,
     }],
   });
+  recordClaudeCost({ model: MODEL, response: message, feature: 'weekly_summary' });
   return message.content[0].text;
 }
 
@@ -395,6 +403,7 @@ Respond with just the briefing paragraph. No preamble, no list, no heading. Mini
   // LAST block returns whatever Claude wrote last — which can be a stray
   // sentence if the model finished with an addendum. The substantive
   // briefing is the longest block.
+  recordClaudeCost({ model: MODEL, response: message, feature: 'briefing_research' });
   const textBlocks = message.content.filter(b => b.type === 'text' && b.text?.trim());
   if (!textBlocks.length) return '';
   const longest = textBlocks.reduce((a, b) => (b.text.length > a.text.length ? b : a));
@@ -441,6 +450,7 @@ Write a focused 60-100 word paragraph describing what THIS month's report should
 Respond with just the paragraph. No preamble, no list, no heading.`,
     }],
   });
+  recordClaudeCost({ model: MODEL, response: message, feature: 'monthly_focus_suggestion', clientId: client?.id || null });
   const textBlocks = message.content.filter(b => b.type === 'text');
   return textBlocks.length ? textBlocks[textBlocks.length - 1].text.trim() : '';
 }

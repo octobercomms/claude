@@ -139,6 +139,9 @@ async function analyseBatch(client, contacts) {
     system,
     messages: [{ role: 'user', content: prompt }],
   });
+  // Tidy sweeps run per-40-contact batch — at 20k library that's ~500 calls.
+  // Logging each one means the AM can see exactly what a full sweep cost.
+  require('./costLog').recordClaudeCost({ model: MODEL, response: resp, feature: 'contact_tidy' });
 
   const text = resp.content.find(b => b.type === 'text')?.text || '';
   const match = text.match(/\{[\s\S]*\}/);

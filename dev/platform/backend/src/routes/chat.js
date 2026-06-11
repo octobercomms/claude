@@ -752,6 +752,10 @@ router.post('/:clientId', async (req, res) => {
         tools: TOOLS,
         messages,
       });
+      // Cost log per round — chat sessions can be tool-heavy and the multi-
+      // round shape means a single "what happened last week?" question
+      // easily fires 3-6 Claude calls.
+      require('../services/costLog').recordClaudeCost({ model: MODEL, response, feature: 'ai_data_analyst_chat', clientId });
 
       if (response.stop_reason === 'end_turn') {
         finalText = response.content.find(b => b.type === 'text')?.text || '';

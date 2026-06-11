@@ -437,6 +437,7 @@ export default function SettingsPage() {
       {tab === 'users' && <ManageUsersPage embedded />}
       {tab !== 'contacts' && tab !== 'publications' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && (<>
       <CostsPanel />
+      <CostLogPanel />
       <KeywordSpendPanel />
       <PrAddonPanel />
 
@@ -2084,3 +2085,91 @@ function OpSummary({ op }) {
   return <span>{op.type}</span>;
 }
 
+
+// Cost log — surfaces WHICH features are spending the credits.
+// Reads /settings/usage/cost-log which aggregates api_cost_events: every
+// paid API call records a row (provider, feature, $) so the AM can see
+// "report_narrative cost $14 this week, ai_data_analyst_chat $8" rather
+// than just a single combined total. Helps spot a runaway loop or a
+// feature that's quietly eating spend.
+function CostLogPanel() {
+  const [data, setData] = useState(null);
+  const [days, setDays] = useState(30);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    setData(null);
+    api.get(`/settings/usage/cost-log?days=${days}`).then(setData).catch((e) => setErr(e.message));
+  }, [days]);
+
+  const fmt = (n) => `$${Number(n || 0).toFixed(2)}`;
+  const totalUsd = data ? data.by_feature.reduce((s, r) => s + (r.cost_usd || 0), 0) : 0;
+  const dailyAvg = data && data.daily.length ? totalUsd / Math.min(days, data.daily.length) : 0;
+  const burnFlag = dailyAvg > 15 ? 'red' : dailyAvg > 5 ? 'amber' : 'green';
+  const flagColor = burnFlag === 'red' ? 'var(--negative)' : burnFlag === 'amber' ? 'var(--warning)' : 'var(--positive)';
+
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap', marginBottom: 10 }}>
+        <div>
+          <h2 className="caption">Cost log · where credits are going</h2>
+          <p className="body-sm text-muted">Per-call API spend grouped by feature. Captures Claude (chat, report narratives, contact tidy, briefings) and grows as more providers are instrumented.</p>
+        </div>
+        <select className="input" value={days} onChange={(e) => setDays(Number(e.target.value))} style={{ width: 'auto' }}>
+          <option value={7}>Last 7 days</option>
+          <option value={30}>Last 30 days</option>
+          <option value={90}>Last 90 days</option>
+        </select>
+      </div>
+
+      {err && <div style={{ color: 'var(--negative)', fontSize: 12 }}>{err}</div>}
+      {!data ? <p className="body-sm text-muted">Loading…</p> : (
+        <>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', marginBottom: 14 }}>
+            <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Total · last {days} days</div><div style={{ fontSize: 22, fontWeight: 800 }}>{fmt(totalUsd)}</div></div>
+            <div><div style={{ fontSize: 11, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 1 }}>Daily average</div><div style={{ fontSize: 22, fontWeight: 800, color: flagColor }}>{fmt(dailyAvg)}<span style={{ fontSize: 11, marginLeft: 8, color: flagColor }}>● {burnFlag}</span></div></div>
+          </div>
+
+          <h3 className="h3 mb-2">By feature</h3>
+          {data.by_feature.length === 0 ? (
+            <p className="body-sm text-muted">No cost events recorded yet in this window. Once features run (a report, a chat, a tidy sweep), they'll show up here with their spend.</p>
+          ) : (
+            <table className="table" style={{ marginBottom: 14 }}>
+              <thead><tr><th>Provider</th><th>Feature</th><th style={{ textAlign: 'right' }}>Calls</th><th style={{ textAlign: 'right' }}>Spend</th></tr></thead>
+              <tbody>
+                {data.by_feature.map((r) => (
+                  <tr key={`${r.provider}:${r.feature}`}>
+                    <td style={{ color: 'var(--text-muted)' }}>{r.provider}</td>
+                    <td style={{ fontWeight: 600 }}>{r.feature}</td>
+                    <td style={{ textAlign: 'right', color: 'var(--text-muted)' }}>{Number(r.calls).toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmt(r.cost_usd)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          {data.recent.length > 0 && (
+            <>
+              <h3 className="h3 mb-2">Most recent calls</h3>
+              <table className="table">
+                <thead><tr><th>When</th><th>Feature</th><th>Model</th><th style={{ textAlign: 'right' }}>Tokens (in / out)</th><th style={{ textAlign: 'right' }}>Spend</th></tr></thead>
+                <tbody>
+                  {data.recent.slice(0, 30).map((r) => (
+                    <tr key={r.id}>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{new Date(r.ts).toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                      <td style={{ fontWeight: 600 }}>{r.feature}</td>
+                      <td style={{ color: 'var(--text-muted)', fontSize: 12 }}>{r.meta?.model || r.provider}</td>
+                      <td style={{ textAlign: 'right', color: 'var(--text-muted)', fontSize: 12 }}>{Number(r.meta?.input_tokens || 0).toLocaleString()} / {Number(r.meta?.output_tokens || 0).toLocaleString()}</td>
+                      <td style={{ textAlign: 'right' }}>{fmt(r.cost_usd)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
