@@ -439,6 +439,17 @@ router.post('/dedup/outlets/merge', requireAdmin, async (req, res) => {
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
+// "Not duplicates" — the AM saw the suggested cluster and confirmed these are
+// different publications. Persist the dismissal so the next scan skips them.
+router.post('/dedup/outlets/dismiss', requireAdmin, async (req, res) => {
+  try {
+    const ids = Array.isArray(req.body?.outlet_ids) ? req.body.outlet_ids : [];
+    if (ids.length < 2) return res.status(400).json({ error: 'outlet_ids must contain at least 2 ids' });
+    const added = await pr.dismissOutletCluster(ids, req.user?.id || null);
+    res.json({ dismissed: added });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
 // ── Profiles (global media DB; :outletId/:contactId avoid the editorial-log :id hook) ──
 // Publications list (admin) — for the Settings → Publications tab. Tier + how
 // much coverage each has, most-covered first.

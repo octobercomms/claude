@@ -657,6 +657,30 @@ function PublicationsPanel() {
     if (method === 'ai') return <span className="chip chip-accent">AI confirmed · {Math.round(confidence * 100)}%</span>;
     return <span className="chip">Possible · review</span>;
   }
+
+  // Inline rename for the Publications table — click ✎, edit, Enter saves
+  // (or Esc cancels). One row at a time so the keyboard focus is unambiguous.
+  const [editingOutletId, setEditingOutletId] = useState(null);
+  const [editingOutletName, setEditingOutletName] = useState('');
+  async function saveOutletName(o) {
+    const next = editingOutletName.trim();
+    if (!next || next === o.name) { setEditingOutletId(null); return; }
+    try {
+      await api.patch(`/pr/outlets/${o.id}`, { name: next });
+      setOutlets((list) => list.map((x) => (x.id === o.id ? { ...x, name: next } : x)));
+      setEditingOutletId(null);
+    } catch (e) { setErr(e.message); }
+  }
+  async function deleteOutlet(o) {
+    const tail = o.coverage
+      ? `${o.coverage} coverage entr${o.coverage === 1 ? 'y' : 'ies'} will be detached (kept, no longer linked).`
+      : 'No coverage attached.';
+    if (!confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
+    try {
+      await api.delete(`/pr/outlets/${o.id}`);
+      setOutlets((list) => list.filter((x) => x.id !== o.id));
+    } catch (e) { setErr(e.message); }
+  }
   async function scan() {
     setScanning(true); setClusters(null); setDone({}); setErr(null);
     try {
@@ -687,6 +711,16 @@ function PublicationsPanel() {
       if (clusters[i].method === 'exact' && !done[i]) await merge(i);
     }
   }
+  async function dismiss(ci) {
+    const cluster = clusters[ci];
+    const ids = cluster.members.map((m) => m.id);
+    try {
+      await api.post('/pr/dedup/outlets/dismiss', { outlet_ids: ids });
+      // Mark as done in the local view — the scan will skip these pairs going
+      // forward, so a re-scan won't bring them back.
+      setDone((d) => ({ ...d, [ci]: 0 }));
+    } catch (e) { setErr(e.message); }
+  }
 
   const TIERS = [['', '—'], ['1', 'T1 · premium'], ['2', 'T2 · broad'], ['3', 'T3 · blog']];
   const visibleOutlets = (outlets || []).filter((o) => !outletSearch.trim() || (o.name || '').toLowerCase().includes(outletSearch.trim().toLowerCase()));
@@ -704,29 +738,38 @@ function PublicationsPanel() {
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
         <div style={{ maxHeight: 420, overflow: 'auto' }}>
           <table className="table">
-            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th><th style={{ width: 28 }}></th></tr></thead>
+            <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th><th style={{ width: 70 }}></th></tr></thead>
             <tbody>
               {visibleOutlets.slice(0, 500).map((o) => (
                 <tr key={o.id}>
-                  <td><a href={`/media/outlet/${o.id}`}>{o.name}</a></td>
+                  <td>
+                    {editingOutletId === o.id ? (
+                      <input className="input" autoFocus value={editingOutletName}
+                        onChange={(e) => setEditingOutletName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') saveOutletName(o);
+                          if (e.key === 'Escape') setEditingOutletId(null);
+                        }}
+                        onBlur={() => saveOutletName(o)}
+                        style={{ height: 28, fontSize: 13 }} />
+                    ) : (
+                      <a href={`/media/outlet/${o.id}`}>{o.name}</a>
+                    )}
+                  </td>
                   <td>{o.coverage}</td>
                   <td>
                     <select className="input" value={o.tier || ''} onChange={(e) => setTier(o.id, e.target.value)}>
                       {TIERS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                     </select>
                   </td>
-                  <td>
-                    <button onClick={async () => {
-                      const tail = o.coverage
-                        ? `${o.coverage} coverage entr${o.coverage === 1 ? 'y' : 'ies'} will be detached (kept, no longer linked).`
-                        : 'No coverage attached.';
-                      if (!confirm(`Delete "${o.name}"?\n\n${tail}\n\nCannot be undone.`)) return;
-                      try {
-                        await api.delete(`/pr/outlets/${o.id}`);
-                        setOutlets((list) => list.filter((x) => x.id !== o.id));
-                      } catch (e) { setErr(e.message); }
-                    }} title="Delete this publication. For merging duplicates use Find duplicates below instead."
-                    style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
+                  <td style={{ whiteSpace: 'nowrap', textAlign: 'right' }}>
+                    <button onClick={() => { setEditingOutletId(o.id); setEditingOutletName(o.name || ''); }}
+                      title="Rename inline" aria-label="Edit name"
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: '2px 6px' }}>
+                      ✎
+                    </button>
+                    <button onClick={() => deleteOutlet(o)} title="Delete publication" aria-label="Delete"
+                      style={{ background: 'none', border: 'none', color: 'var(--negative)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '2px 6px' }}>
                       ×
                     </button>
                   </td>
@@ -778,7 +821,13 @@ function PublicationsPanel() {
                   ))}
                 </tbody>
               </table>
-              <button className="btn btn-primary btn-sm" onClick={() => merge(ci)}>Merge into selected</button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => merge(ci)}>Merge into selected</button>
+                <button className="btn btn-secondary btn-sm" onClick={() => dismiss(ci)}
+                  title="These aren't the same publication — record it so future scans don't suggest this cluster again.">
+                  ✗ Not duplicates
+                </button>
+              </div>
             </>
           )}
         </div>
