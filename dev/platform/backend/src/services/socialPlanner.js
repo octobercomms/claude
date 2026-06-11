@@ -217,6 +217,7 @@ ${currentPlan
       // system prompt makes the contract: end on propose_plan or reply_only.
       messages,
     });
+    require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'social_planner', clientId: client?.id || null });
 
     const dataToolUses = response.content.filter(b => b.type === 'tool_use' && ['get_winners', 'get_trending_sounds', 'get_competitor_handles', 'get_framework_breakdown'].includes(b.name));
     const proposeUses = response.content.filter(b => b.type === 'tool_use' && b.name === 'propose_plan');

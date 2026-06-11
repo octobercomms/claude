@@ -72,6 +72,7 @@ Return only the caption.`;
     system: SYSTEM_PROMPT + playbooks.systemSuffix(['copywriting']),
     messages: [{ role: 'user', content: userPrompt }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'social_captions' });
   return (response.content.find(b => b.type === 'text')?.text || '').trim();
 }
 

@@ -184,46 +184,47 @@ function StatusBadge({ status }) {
   return <span className={`chip chip-${tone}`}>{status}</span>;
 }
 
-// Combined API spend this month — a dark feature bar so the total cost
-// across every pay-per-use provider is visible at a glance. Totals are
-// grouped by currency (no FX conversion), so it reads honestly even if
-// providers bill in different currencies.
+// Combined API spend this month — single dark bar, just the cost. Sums every
+// provider's cost_this_period in USD (most providers report in USD; non-USD
+// reads keep their own currency line). The daily figure is month-to-date
+// average, not a rolling 7-day window — matches how the AM thinks about the
+// monthly bill.
 function ApiSpendBanner({ spend }) {
   const entries = Object.entries(spend.totals || {});
+  const usdTotal = Number(spend.totals?.USD || 0);
   const hasSpend = entries.length > 0;
-  const balances = (spend.balances || []).map(b =>
-    b.kind === 'balance'
-      ? `${b.label} ${fmtMoney(b.value, b.currency)}`
-      : `${b.label} ${Number(b.value).toLocaleString()}${b.limit != null ? `/${Number(b.limit).toLocaleString()}` : ''}${b.unit ? ' ' + b.unit : ''}`
-  );
-  // Burn-rate flag drives the bar's left dot + accent colour. red = burning
-  // fast (>$15/day avg over the last 7 days), amber = warming up, green
-  // (default) = normal. The full daily breakdown is on Settings → Cost log.
-  const burn = spend.burn;
-  const flagColor = burn?.flag === 'red' ? 'bg-red-500'
-    : burn?.flag === 'amber' ? 'bg-yellow-400'
-    : 'bg-accent';
-  const ring = burn?.flag === 'red'
-    ? 'ring-2 ring-red-500/60 bg-red-900/40'
-    : burn?.flag === 'amber' ? 'ring-2 ring-yellow-400/40 bg-ink'
+
+  // Month-to-date daily average — total / days elapsed this month. Resets to
+  // a tiny denominator on the 1st (intentional: a high early-month rate
+  // should look high). Uses the same period_start the server returned so we
+  // don't have a clock-skew off-by-one.
+  const start = spend.period_start ? new Date(spend.period_start) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const today = new Date();
+  const elapsedDays = Math.max(1, Math.ceil((today - start) / 86400000));
+  const dailyAvg = usdTotal / elapsedDays;
+
+  // Burn-rate thresholds — month-to-date now, not 7-day. $5/day amber,
+  // $15/day red. Same dial as before; just measured against MTD.
+  const flag = dailyAvg > 15 ? 'red' : dailyAvg > 5 ? 'amber' : 'green';
+  const dotColor = flag === 'red' ? 'bg-red-500' : flag === 'amber' ? 'bg-yellow-400' : 'bg-accent';
+  const ring = flag === 'red' ? 'ring-2 ring-red-500/60 bg-red-900/40'
+    : flag === 'amber' ? 'ring-2 ring-yellow-400/40 bg-ink'
     : 'bg-ink';
+
   return (
     <div className={`flex items-center gap-3 flex-wrap ${ring} rounded-md px-s5 py-s3 mb-s5`}>
-      <span className={`w-2 h-2 rounded-pill ${flagColor}`} />
+      <span className={`w-2 h-2 rounded-pill ${dotColor}`} />
       <span className="text-[13px] text-white">
         <strong>API spend this month:</strong>{' '}
         {hasSpend
           ? <span className="text-accent font-bold">{entries.map(([cur, amt]) => fmtMoney(amt, cur)).join(' + ')}</span>
           : <span className="text-white/70">not reported yet</span>}
-        {burn && burn.daily_avg_usd > 0 && (
-          <span className={`ml-3 text-[12px] ${burn.flag === 'red' ? 'text-red-300 font-bold' : burn.flag === 'amber' ? 'text-yellow-200' : 'text-white/55'}`}>
-            · last 7 days avg ${burn.daily_avg_usd.toFixed(2)}/day{burn.flag === 'red' ? ' — burning fast' : ''}
+        {hasSpend && (
+          <span className={`ml-3 text-[12px] ${flag === 'red' ? 'text-red-300 font-bold' : flag === 'amber' ? 'text-yellow-200' : 'text-white/55'}`}>
+            · ${dailyAvg.toFixed(2)}/day average{flag === 'red' ? ' — burning fast' : ''}
           </span>
         )}
       </span>
-      {balances.length > 0 && (
-        <span className="text-[12px] text-white/55">Balances: {balances.join(' · ')}</span>
-      )}
       <Link to="/settings" className="ml-auto text-[12px] font-bold text-accent no-underline">Breakdown →</Link>
     </div>
   );

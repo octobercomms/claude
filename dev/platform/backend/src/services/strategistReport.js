@@ -219,6 +219,7 @@ async function callClaude({ system, user, max_tokens = 8000 }) {
     system,
     messages: [{ role: 'user', content: user }],
   });
+  require('./costLog').recordClaudeCost({ model: MODEL, response: message, feature: 'strategist_report' });
   const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
   return blocks.map(b => b.text).join('\n').trim();
 }
