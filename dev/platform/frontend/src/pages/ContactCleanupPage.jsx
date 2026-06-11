@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 import SuiteTabs from '../components/SuiteTabs';
@@ -43,7 +43,11 @@ function countRemaining(s) {
 
 export default function ContactCleanupPage() {
   const toast = useToast();
-  const [tab, setTab] = useState('duplicates');
+  // Open with the tab requested via ?tab=… so the Cleanup Centre link on the
+  // Publications panel lands the user directly on the Publications dupes tab.
+  const [params] = useSearchParams();
+  const initialTab = params.get('tab') || 'duplicates';
+  const [tab, setTab] = useState(initialTab);
   const [byTab, setByTab] = useState({ duplicates: emptyTabState(), coverage: emptyTabState() });
   const [busy, setBusy] = useState(false);
 
@@ -157,9 +161,12 @@ export default function ContactCleanupPage() {
       </header>
 
       <SuiteTabs tabs={[
+        { groupLabel: 'Contacts' },
         { key: 'duplicates', label: `Duplicates${byTab.duplicates.clusters ? ` (${countRemaining(byTab.duplicates)})` : ''}`, active: tab === 'duplicates', onClick: () => setTab('duplicates') },
         { key: 'coverage', label: `Coverage matchups${byTab.coverage.clusters ? ` (${countRemaining(byTab.coverage)})` : ''}`, active: tab === 'coverage', onClick: () => setTab('coverage') },
         { key: 'tidy', label: 'Tidy fixes', active: tab === 'tidy', onClick: () => setTab('tidy') },
+        { groupLabel: 'Publications' },
+        { key: 'pubdupes', label: 'Duplicates', active: tab === 'pubdupes', onClick: () => setTab('pubdupes') },
       ]} />
 
       {tab === 'duplicates' && (
@@ -239,6 +246,10 @@ export default function ContactCleanupPage() {
 
       {tab === 'tidy' && (
         <TidyFixesTab onChanged={() => scan(tab)} />
+      )}
+
+      {tab === 'pubdupes' && (
+        <PublicationDupesTab />
       )}
     </div>
   );
@@ -450,6 +461,143 @@ function TidyFixesTab({ onChanged }) {
           ✓ Applied {appliedCount.toLocaleString()} field change{appliedCount === 1 ? '' : 's'}. Every change wrote an audit row visible from the contact's Edit modal.
         </div>
       )}
+    </div>
+  );
+}
+
+// Publications duplicate workflow — mirrors the Contacts dedup UX but reads
+// from /pr/dedup/outlets/scan and posts /pr/dedup/outlets/merge or /dismiss.
+// Keeps Find Duplicates out of the Publications panel so all dedup work lives
+// in one place.
+function PublicationDupesTab() {
+  const toast = useToast();
+  const [clusters, setClusters] = useState(null);
+  const [scanning, setScanning] = useState(false);
+  const [chosen, setChosen] = useState({});
+  const [done, setDone] = useState({});
+  const [busy, setBusy] = useState(false);
+
+  async function scan() {
+    setScanning(true); setDone({});
+    try {
+      const r = await api.get('/pr/dedup/outlets/scan');
+      setClusters(r.clusters || []);
+      const pick = {};
+      (r.clusters || []).forEach((c, i) => {
+        const m = c.members.find((x) => x.name === c.suggested) || c.members[0];
+        if (m) pick[i] = m.id;
+      });
+      setChosen(pick);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setScanning(false); }
+  }
+  useEffect(() => { scan(); }, []);
+
+  async function merge(ci) {
+    const cluster = clusters[ci];
+    const canonId = chosen[ci];
+    if (!canonId) { toast('Pick which publication to keep', 'error'); return; }
+    const memberIds = cluster.members.map((m) => m.id).filter((id) => id !== canonId);
+    if (!confirm(`Merge ${memberIds.length} duplicate${memberIds.length === 1 ? '' : 's'} into the selected publication? Cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      const r = await api.post('/pr/dedup/outlets/merge', { canonical_id: canonId, member_ids: memberIds });
+      setDone((d) => ({ ...d, [ci]: r.merged }));
+      toast(`Merged ${r.merged} publication${r.merged === 1 ? '' : 's'}`, 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+  async function dismiss(ci) {
+    const cluster = clusters[ci];
+    const ids = cluster.members.map((m) => m.id);
+    setBusy(true);
+    try {
+      await api.post('/pr/dedup/outlets/dismiss', { outlet_ids: ids });
+      setDone((d) => ({ ...d, [ci]: 0 }));
+      toast('Marked as not duplicates — future scans will skip', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+  async function mergeAllExact() {
+    if (!clusters) return;
+    const targets = clusters.map((c, i) => ({ c, i })).filter(({ c, i }) => c.method === 'exact' && !done[i] && chosen[i]);
+    if (!targets.length) return;
+    if (!confirm(`Merge all ${targets.length} exact-match clusters? Cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      for (const { c, i } of targets) {
+        const memberIds = c.members.map((m) => m.id).filter((id) => id !== chosen[i]);
+        const r = await api.post('/pr/dedup/outlets/merge', { canonical_id: chosen[i], member_ids: memberIds });
+        setDone((d) => ({ ...d, [i]: r.merged }));
+      }
+      toast('Done', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+
+  const remaining = clusters ? clusters.filter((c, i) => done[i] == null) : [];
+  const exactCount = clusters ? clusters.filter((c, i) => c.method === 'exact' && done[i] == null).length : 0;
+
+  function pubBadge(method, confidence) {
+    if (method === 'exact') return { label: 'Exact · safe', cls: 'chip-success' };
+    if (method === 'ai') return { label: `AI confirmed · ${Math.round((confidence || 0) * 100)}%`, cls: 'chip-accent' };
+    return { label: 'Possible · review', cls: 'chip-warning' };
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', flex: 1, minWidth: 240 }}>
+          {scanning ? 'Scanning the publications list…' : clusters
+            ? `${remaining.length} cluster${remaining.length === 1 ? '' : 's'} to review${exactCount ? ` · ${exactCount} exact-safe` : ''}`
+            : 'Click Scan to look for duplicates.'}
+        </div>
+        <button className="btn btn-secondary btn-sm" onClick={scan} disabled={scanning || busy}>{scanning ? 'Scanning…' : 'Re-scan'}</button>
+        {exactCount > 0 && (
+          <button className="btn btn-primary btn-sm" onClick={mergeAllExact} disabled={busy}>Merge all {exactCount} exact-safe</button>
+        )}
+      </div>
+
+      {!scanning && clusters && remaining.length === 0 && (
+        <div className="card" style={{ background: 'var(--positive-soft)', border: '1px solid #b6dcc1', color: 'var(--positive)', fontSize: 13 }}>
+          ✓ No duplicate publications — the list is clean.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {(clusters || []).map((c, ci) => done[ci] != null ? null : (
+          <div key={ci} className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+              {(() => { const b = pubBadge(c.method, c.confidence); return <span className={`chip ${b.cls}`}>{b.label}</span>; })()}
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button className="btn btn-primary btn-sm" onClick={() => merge(ci)} disabled={busy || !chosen[ci]}>
+                  Merge {c.members.length - 1} into selected →
+                </button>
+                <button className="btn btn-secondary btn-sm" onClick={() => dismiss(ci)}
+                  title="These aren't the same publication — record it so future scans don't suggest this cluster again.">
+                  ✗ Not duplicates
+                </button>
+              </div>
+            </div>
+            <table className="table" style={{ width: '100%', fontSize: 13 }}>
+              <thead>
+                <tr style={{ color: 'var(--text-subtle)', fontSize: 11, textTransform: 'uppercase' }}>
+                  <th style={{ width: 36, textAlign: 'left' }}>Keep</th>
+                  <th style={{ textAlign: 'left' }}>Publication</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.members.map((m) => (
+                  <tr key={m.id}>
+                    <td><input type="radio" name={`pubdup_${ci}`} checked={chosen[ci] === m.id} onChange={() => setChosen((s) => ({ ...s, [ci]: m.id }))} disabled={busy} /></td>
+                    <td style={{ fontWeight: 600 }}>{m.name}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

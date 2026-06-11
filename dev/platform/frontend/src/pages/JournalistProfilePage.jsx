@@ -19,6 +19,12 @@ export default function JournalistProfilePage() {
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
 
+  // Outlet picker — fetch the full publications list once so we can offer it
+  // as a dropdown. Server-side ILIKE search is overkill at the typical scale
+  // (a few thousand publications); preload + client filter is snappier.
+  const [outlets, setOutlets] = useState([]);
+  const [outletQuery, setOutletQuery] = useState('');
+
   function load() {
     api.get(`/pr/contacts/${id}`).then((d) => {
       setC(d);
@@ -28,10 +34,12 @@ export default function JournalistProfilePage() {
         available_from: dateInput(d.available_from), photo_url: d.photo_url || '',
         location: d.location || '', bio_link: d.bio_link || '', email: (d.email || '').includes('@import.local') ? '' : (d.email || ''),
         beats: (Array.isArray(d.beats) ? d.beats : []).join(', '),
+        outlet_id: d.outlet_id || '',
       });
     }).catch((e) => toast(e.message, 'error'));
   }
   useEffect(() => { load(); }, [id]);
+  useEffect(() => { api.get('/pr/outlets').then((r) => setOutlets(r.items || [])).catch(() => {}); }, []);
 
   if (!c || !form) return <div className="suite-profile"><p style={{ padding: 24, color: 'var(--text-subtle)' }}>Loading…</p></div>;
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -39,9 +47,26 @@ export default function JournalistProfilePage() {
   async function save() {
     setSaving(true);
     try {
-      await api.patch(`/pr/contacts/${id}`, { ...form, beats: form.beats.split(',').map((s) => s.trim()).filter(Boolean) });
+      await api.patch(`/pr/contacts/${id}`, {
+        ...form,
+        outlet_id: form.outlet_id || null,
+        beats: form.beats.split(',').map((s) => s.trim()).filter(Boolean),
+      });
       toast('Saved', 'success'); load();
     } catch (e) { toast(e.message, 'error'); } finally { setSaving(false); }
+  }
+  async function deleteJournalist() {
+    const covered = (c.coverage || []).length;
+    const tail = covered
+      ? `${covered} coverage entr${covered === 1 ? 'y' : 'ies'} will lose their byline link (the stories stay, the journalist becomes blank).`
+      : 'No coverage attached.';
+    const fullName = `${c.first_name || ''} ${c.last_name || ''}`.trim() || 'this journalist';
+    if (!window.confirm(`Delete "${fullName}"?\n\n${tail}\n\nCannot be undone.`)) return;
+    try {
+      await api.delete(`/pr/contacts/${id}`);
+      toast('Journalist deleted', 'success');
+      nav('/settings?tab=contacts');
+    } catch (e) { toast(e.message, 'error'); }
   }
   async function suggestBeats() {
     setSuggesting(true);
@@ -71,7 +96,20 @@ export default function JournalistProfilePage() {
         </div>
         <label className="field"><span className="field-label">First name</span><input className="input" value={form.first_name} onChange={(e) => set('first_name', e.target.value)} /></label>
         <label className="field"><span className="field-label">Last name</span><input className="input" value={form.last_name} onChange={(e) => set('last_name', e.target.value)} /></label>
-        <label className="field"><span className="field-label">Outlet</span><input className="input" value={c.outlet || '—'} disabled /></label>
+        <label className="field"><span className="field-label">Publication</span>
+          <input className="input" list="outlet-options" value={outletQuery || (outlets.find((o) => o.id === form.outlet_id)?.name || '')}
+            onChange={(e) => {
+              const v = e.target.value;
+              setOutletQuery(v);
+              const match = outlets.find((o) => o.name.toLowerCase() === v.toLowerCase());
+              if (match) { set('outlet_id', match.id); setOutletQuery(''); }
+              else if (!v.trim()) { set('outlet_id', ''); }
+            }}
+            placeholder="Type to filter publications…" />
+          <datalist id="outlet-options">
+            {outlets.slice(0, 1000).map((o) => <option key={o.id} value={o.name} />)}
+          </datalist>
+        </label>
         <label className="field"><span className="field-label">Email</span><input className="input" value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="unknown" /></label>
         <label className="field"><span className="field-label">Availability</span><select className="input" value={form.availability_status} onChange={(e) => set('availability_status', e.target.value)}>{AVAIL.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select></label>
         {form.availability_status !== 'active' && <label className="field"><span className="field-label">Back / review on</span><input type="date" className="input" value={form.available_from} onChange={(e) => set('available_from', e.target.value)} /></label>}
@@ -79,7 +117,14 @@ export default function JournalistProfilePage() {
         <label className="field"><span className="field-label">Bio link</span><input className="input" value={form.bio_link} onChange={(e) => set('bio_link', e.target.value)} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Beats / topics <button type="button" className="btn btn-secondary btn-sm" style={{ float: 'right' }} disabled={suggesting} onClick={suggestBeats}>{suggesting ? '…' : '✨ Suggest from coverage'}</button></span><input className="input" value={form.beats} onChange={(e) => set('beats', e.target.value)} placeholder="architecture, interiors" /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span className="field-label">Notes</span><textarea className="input" rows={3} value={form.notes} onChange={(e) => set('notes', e.target.value)} /></label>
-        <div style={{ gridColumn: '1/-1' }}><button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save profile'}</button></div>
+        <div style={{ gridColumn: '1/-1', display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn btn-primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save profile'}</button>
+          <div style={{ flex: 1 }} />
+          <button className="btn btn-secondary btn-sm" onClick={deleteJournalist}
+            title="Hard-delete this journalist. Coverage entries pointing at them stay (the byline becomes blank). Cannot be undone.">
+            Delete journalist
+          </button>
+        </div>
       </div>
 
       <h3 className="h3 mb-2">Coverage history ({c.coverage?.length || 0})</h3>
