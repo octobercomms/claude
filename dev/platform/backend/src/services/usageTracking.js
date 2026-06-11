@@ -316,7 +316,43 @@ async function monthlySpend() {
   const snaps = await currentSnapshots();
   const totals = {};
   const byProvider = [];
-  const balances = [];   // providers that report a remaining balance / quota rather than spend
+  const balances = [];
+  // For each balance-only provider (DataForSEO / Hunter / etc.) work out
+  // month-to-date spend from the snapshot history: oldest balance recorded
+  // since the 1st of the month minus the latest balance. Quota providers
+  // get the same treatment from units_used. Without this the banner only
+  // showed Anthropic — every other API was invisible to the cost rollup.
+  const pool = require('../db');
+  async function inferMtdSpend(provider, kind, currency) {
+    try {
+      const { rows } = await pool.query(
+        `SELECT balance_remaining::float AS balance, units_used::float AS units, snapshot_at
+           FROM usage_snapshots
+          WHERE provider = $1 AND snapshot_at >= $2::date
+          ORDER BY snapshot_at ASC`,
+        [provider, bounds.period_start]
+      );
+      if (rows.length < 2) return null;
+      if (kind === 'balance') {
+        const first = rows.find(r => r.balance != null)?.balance;
+        const last = [...rows].reverse().find(r => r.balance != null)?.balance;
+        if (first == null || last == null || first <= last) return null;
+        return { amount: first - last, currency: currency || 'USD' };
+      }
+      if (kind === 'quota') {
+        const first = rows.find(r => r.units != null)?.units;
+        const last = [...rows].reverse().find(r => r.units != null)?.units;
+        if (first == null || last == null || last <= first) return null;
+        // No way to price quota-unit consumption without a known per-unit
+        // rate (Hunter: 50 free + $0.50 / extra; Serper / etc. vary), so
+        // we just record the units burned and let the banner show the
+        // count rather than make up a price.
+        return { units: last - first };
+      }
+    } catch { /* table may not exist yet */ }
+    return null;
+  }
+
   for (const s of snaps) {
     const snap = s.snapshot;
     if (!snap) continue;
@@ -327,6 +363,12 @@ async function monthlySpend() {
       byProvider.push({ name: s.name, label: s.label, cost: amount, currency });
     } else if (snap.balance_remaining != null) {
       balances.push({ name: s.name, label: s.label, kind: 'balance', value: Number(snap.balance_remaining), currency: snap.currency || 'USD' });
+      // Derived MTD spend from the balance-burn since the 1st.
+      const inferred = await inferMtdSpend(s.name, 'balance', snap.currency || 'USD');
+      if (inferred?.amount > 0) {
+        totals[inferred.currency] = (totals[inferred.currency] || 0) + inferred.amount;
+        byProvider.push({ name: s.name, label: s.label, cost: inferred.amount, currency: inferred.currency, inferred: true });
+      }
     } else if (snap.units_used != null) {
       balances.push({ name: s.name, label: s.label, kind: 'quota', value: Number(snap.units_used), limit: snap.units_limit != null ? Number(snap.units_limit) : null, unit: snap.unit_label || '' });
     }

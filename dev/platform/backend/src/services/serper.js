@@ -32,12 +32,18 @@ function isSkippable(domain) {
   );
 }
 
+// Per-search pricing on Serper's standard plan is $0.001 — small enough that
+// individual calls don't matter but a scheduled feature firing hundreds a day
+// can stack up quickly. recordApiCost lands a row per call so the Cost log
+// surfaces who's burning Serper credits.
+const SERPER_COST_PER_CALL = 0.001;
 async function search(apiKey, query, num = 10) {
   const { data } = await axios.post(
     'https://google.serper.dev/search',
     { q: query, num },
     { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 }
   );
+  require('./costLog').recordApiCost({ provider: 'serper', feature: 'serper_search', costUsd: SERPER_COST_PER_CALL, meta: { query, num } });
   return data.organic || [];
 }
 
@@ -87,6 +93,7 @@ async function searchNews(apiKey, query, num = 20) {
     { q: query, num },
     { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' }, timeout: 15000 }
   );
+  require('./costLog').recordApiCost({ provider: 'serper', feature: 'serper_news', costUsd: SERPER_COST_PER_CALL, meta: { query, num } });
   return (data.news || []).filter(n => n.link).map(n => ({
     title: n.title || '', link: n.link, source: n.source || '', date: n.date || '', snippet: n.snippet || '',
   }));
