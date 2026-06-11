@@ -623,15 +623,11 @@ function ScopesBlock({ scopes }) {
   );
 }
 
-// Publications — the shared outlet list behind press coverage. Today this is the
-// de-duplication tool (Dezeen / Dezeen.com), moved here from the old top-level
-// Press page so all contact/publication management lives in Settings.
+// Publications — the shared outlet list behind press coverage. The
+// duplicate-detection / merge flow now lives in the Cleanup Centre (same place
+// as the Contacts equivalent), so this panel is the live list + inline rename
+// + per-row delete only.
 function PublicationsPanel() {
-  const [clusters, setClusters] = useState(null);
-  const [scanning, setScanning] = useState(false);
-  const [ai, setAi] = useState(false);
-  const [chosen, setChosen] = useState({});
-  const [done, setDone] = useState({});
   const [err, setErr] = useState(null);
   const [outlets, setOutlets] = useState(null);
   const [outletSearch, setOutletSearch] = useState('');
@@ -652,14 +648,8 @@ function PublicationsPanel() {
     try { await api.patch(`/pr/outlets/${id}`, { tier }); } catch (e) { setErr(e.message); }
   }
 
-  function badge(method, confidence) {
-    if (method === 'exact') return <span className="chip" style={{ background: '#dcfce7', color: '#166534' }}>Exact · safe</span>;
-    if (method === 'ai') return <span className="chip chip-accent">AI confirmed · {Math.round(confidence * 100)}%</span>;
-    return <span className="chip">Possible · review</span>;
-  }
-
-  // Inline rename for the Publications table — click ✎, edit, Enter saves
-  // (or Esc cancels). One row at a time so the keyboard focus is unambiguous.
+  // Inline rename — click ✎, edit, Enter saves (or Esc cancels). One row at a
+  // time so the keyboard focus is unambiguous.
   const [editingOutletId, setEditingOutletId] = useState(null);
   const [editingOutletName, setEditingOutletName] = useState('');
   async function saveOutletName(o) {
@@ -681,63 +671,48 @@ function PublicationsPanel() {
       setOutlets((list) => list.filter((x) => x.id !== o.id));
     } catch (e) { setErr(e.message); }
   }
-  async function scan() {
-    setScanning(true); setClusters(null); setDone({}); setErr(null);
-    try {
-      const r = await api.get('/pr/dedup/outlets/scan');
-      setClusters(r.clusters || []);
-      setAi(!!r.ai);
-      const pick = {};
-      (r.clusters || []).forEach((c, i) => {
-        const m = c.members.find((x) => x.name === c.suggested) || c.members[0];
-        if (m) pick[i] = m.id;
-      });
-      setChosen(pick);
-    } catch (e) { setErr(e.message); }
-    finally { setScanning(false); }
-  }
-  async function merge(ci) {
-    const cluster = clusters[ci];
-    const canonId = chosen[ci];
-    if (!canonId) { setErr('Pick which publication to keep.'); return; }
-    const memberIds = cluster.members.map((m) => m.id).filter((x) => x !== canonId);
-    try {
-      const r = await api.post('/pr/dedup/outlets/merge', { canonical_id: canonId, member_ids: memberIds });
-      setDone((d) => ({ ...d, [ci]: r.merged }));
-    } catch (e) { setErr(e.message); }
-  }
-  async function mergeAllExact() {
-    for (let i = 0; i < clusters.length; i++) {
-      if (clusters[i].method === 'exact' && !done[i]) await merge(i);
-    }
-  }
-  async function dismiss(ci) {
-    const cluster = clusters[ci];
-    const ids = cluster.members.map((m) => m.id);
-    try {
-      await api.post('/pr/dedup/outlets/dismiss', { outlet_ids: ids });
-      // Mark as done in the local view — the scan will skip these pairs going
-      // forward, so a re-scan won't bring them back.
-      setDone((d) => ({ ...d, [ci]: 0 }));
-    } catch (e) { setErr(e.message); }
-  }
 
   const TIERS = [['', '—'], ['1', 'T1 · premium'], ['2', 'T2 · broad'], ['3', 'T3 · blog']];
   const visibleOutlets = (outlets || []).filter((o) => !outletSearch.trim() || (o.name || '').toLowerCase().includes(outletSearch.trim().toLowerCase()));
 
+  function exportOutletsCsv() {
+    if (!outlets || !outlets.length) return;
+    const header = ['Publication', 'Tier', 'Coverage', 'Region', 'Domain'];
+    const rows = outlets.map((o) => [o.name || '', o.tier || '', o.coverage || 0, o.region || '', o.domain || '']);
+    const csv = [header, ...rows].map((r) => r.map((v) => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'publications.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <>
     <Card style={{ marginBottom: 16 }}>
-      <CardTitle>Publications</CardTitle>
-      <p className="body-sm text-muted">
-        The outlets behind your coverage, shared across all clients. Set a <strong>tier</strong> — T1 premium
-        titles, T2 broad, T3 blogs/microbloggers — to prioritise targeting and reporting. (Tier is the
-        publication's; a contact inherits it.)
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+          <CardTitle>Publications</CardTitle>
+          <p className="body-sm text-muted">
+            The outlets behind your coverage, shared across all clients. Set a <strong>tier</strong> — T1 premium
+            titles, T2 broad, T3 blogs/microbloggers — to prioritise targeting and reporting. (Tier is the
+            publication's; a contact inherits it.)
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Link to="/contacts/cleanup?tab=pubdupes" className="btn btn-secondary btn-sm"
+            title="Find duplicate publications, merge them, dismiss false-positive suggestions — same Cleanup Centre as Contacts.">
+            🧹 Cleanup Centre
+          </Link>
+          <button onClick={exportOutletsCsv} disabled={!outlets?.length} className="btn btn-secondary btn-sm"
+            title={outlets?.length ? `Download ${outlets.length.toLocaleString()} publication${outlets.length === 1 ? '' : 's'}` : 'Nothing to export'}>
+            ↓ Export CSV
+          </button>
+        </div>
+      </div>
       <input className="input" placeholder="Search publications…" value={outletSearch} onChange={(e) => setOutletSearch(e.target.value)} style={{ maxWidth: 320, margin: '10px 0' }} />
       {!outlets ? <p className="body-sm text-muted">Loading…</p> : (
-        <div style={{ maxHeight: 420, overflow: 'auto' }}>
-          <table className="table">
+        <div style={{ maxHeight: 600, overflow: 'auto' }}>
+          <table className="contacts-list-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr><th>Publication</th><th>Coverage</th><th style={{ width: 150 }}>Tier</th><th style={{ width: 70 }}></th></tr></thead>
             <tbody>
               {visibleOutlets.slice(0, 500).map((o) => (
@@ -780,58 +755,7 @@ function PublicationsPanel() {
           </table>
         </div>
       )}
-    </Card>
-    <Card>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
-        <div style={{ flex: '1 1 280px', minWidth: 0 }}>
-          <CardTitle>Merge duplicates</CardTitle>
-          <p className="body-sm text-muted">
-            Scanning finds duplicates (e.g. <em>Dezeen</em> / <em>Dezeen.com</em>); exact matches are safe to
-            merge, fuzzy ones are confirmed by Claude. Merging keeps one record and repoints all coverage to it.
-          </p>
-        </div>
-        <button className="btn btn-primary btn-sm" disabled={scanning} onClick={scan}>{scanning ? 'Scanning…' : '🔍 Find duplicates'}</button>
-      </div>
       {err && <div style={{ color: 'var(--negative)', fontSize: 12, marginTop: 8 }}>{err}</div>}
-
-      {clusters && clusters.length > 0 && (
-        <div style={{ margin: '14px 0', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          {!ai && <span className="chip">Claude not available — fuzzy matches are heuristic; review carefully</span>}
-          {clusters.some((c) => c.method === 'exact') && <button className="btn btn-secondary btn-sm" onClick={mergeAllExact}>Merge all exact matches</button>}
-        </div>
-      )}
-      {clusters && clusters.length === 0 && (
-        <p style={{ color: 'var(--text-subtle)', marginTop: 14 }}>No duplicates found — your publications look clean.</p>
-      )}
-      {clusters && clusters.map((c, ci) => (
-        <div key={ci} className="card" style={{ marginTop: 12 }}>
-          <div style={{ marginBottom: 8 }}>{badge(c.method, c.confidence)}</div>
-          {done[ci] != null ? (
-            <p style={{ color: 'var(--text-subtle)' }}>✓ Merged {done[ci]} duplicate(s).</p>
-          ) : (
-            <>
-              <table className="table" style={{ marginBottom: 10 }}>
-                <thead><tr><th style={{ width: 70 }}>Keep</th><th>Publication</th></tr></thead>
-                <tbody>
-                  {c.members.map((m) => (
-                    <tr key={m.id}>
-                      <td><input type="radio" name={`canon-${ci}`} checked={chosen[ci] === m.id} onChange={() => setChosen((s) => ({ ...s, [ci]: m.id }))} /></td>
-                      <td>{m.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button className="btn btn-primary btn-sm" onClick={() => merge(ci)}>Merge into selected</button>
-                <button className="btn btn-secondary btn-sm" onClick={() => dismiss(ci)}
-                  title="These aren't the same publication — record it so future scans don't suggest this cluster again.">
-                  ✗ Not duplicates
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      ))}
     </Card>
     </>
   );

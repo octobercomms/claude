@@ -584,10 +584,24 @@ router.patch('/contacts/:contactId', async (req, res) => {
     }
     if ('available_from' in b) set('available_from', pr.parseDate(b.available_from));
     if (Array.isArray(b.beats)) set('beats', JSON.stringify(b.beats.map((t) => String(t).trim().toLowerCase()).filter(Boolean)));
+    // Allow re-pointing a journalist to a different publication right from the
+    // profile — passing outlet_id (or null to clear) updates the FK. The
+    // library list reads outlet via the outlet_id join, so the change shows up
+    // everywhere immediately.
+    if ('outlet_id' in b) set('outlet_id', b.outlet_id || null);
     if (!sets.length) return res.json({ updated: 0 });
     vals.push(req.params.contactId);
     await db.query(`UPDATE outreach_contacts SET ${sets.join(', ')} WHERE id = $${n}`, vals);
     res.json({ updated: 1 });
+  } catch (err) { res.status(400).json({ error: err.message }); }
+});
+
+// Hard-delete a journalist. Coverage entries pointing at them are detached
+// (FK ON DELETE SET NULL) — the stories stay, the byline becomes blank.
+router.delete('/contacts/:contactId', requireAdmin, async (req, res) => {
+  try {
+    const r = await db.query('DELETE FROM outreach_contacts WHERE id = $1', [req.params.contactId]);
+    res.json({ deleted: r.rowCount || 0 });
   } catch (err) { res.status(400).json({ error: err.message }); }
 });
 
