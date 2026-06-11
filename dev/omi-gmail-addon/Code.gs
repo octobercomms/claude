@@ -74,14 +74,13 @@ function onGmailMessageOpen(e) {
   var name = extractName(from);
   var subject = thread.getFirstMessageSubject();
   var threadId = thread.getId();
-  // Concatenate the plain-text bodies of every message in the thread so the
-  // backend's Claude extractor has the whole conversation to lift publication,
-  // issue date and the actual story being discussed out of. Capped at ~12k
-  // chars (the backend truncates again at 8k before sending to Claude) to
-  // keep the request small and the token cost negligible.
-  var body = thread.getMessages().map(function (m) {
-    return '--- ' + (m.getFrom() || '') + ' · ' + (m.getDate() || '') + ' ---\n' + (m.getPlainBody() || '');
-  }).join('\n\n').slice(0, 12000);
+  // Plain-text body of just the CURRENT message — that's all the
+  // gmail.addons.current.message.readonly scope allows. Walking the whole
+  // thread would need gmail.readonly, a much scarier permission to ask the AM
+  // to grant. The single-message body is enough context for the backend's
+  // Claude extractor to lift publication / issue date / story out of, since
+  // the journalist's pitch usually carries everything in one email.
+  var body = (msg.getPlainBody() || '').slice(0, 12000);
 
   var data = apiRequest('/lookup?email=' + encodeURIComponent(email), 'get');
   if (data && data._error) return errorCard(data._error).build();
