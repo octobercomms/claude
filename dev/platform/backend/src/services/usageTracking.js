@@ -120,34 +120,50 @@ const POLLERS = [
         if (!regularKey) return null;
         return { unit_label: 'tokens', raw: { note: 'Connected — add an Anthropic Admin key in Settings to track spend here.' } };
       }
-      // Anthropic publishes spend on /cost_report; /usage_report/messages
-      // returns only token counts (input/output/cache), with no cost field —
-      // reading row.cost_usd from there silently summed to $0 even when the
-      // organisation was being billed normally. The cost_report endpoint
-      // returns rows with { amount_usd, model, … } broken down by day.
+      // Anthropic publishes spend at /v1/organizations/cost_report. Two
+      // gotchas the previous fix missed:
+      //   1. starting_at / ending_at require RFC3339 timestamps with a
+      //      timezone offset. A bare date string ("2026-06-01") silently
+      //      returns an empty bucket — the request succeeds (200) but
+      //      data.data is empty.
+      //   2. Response shape is nested: data[].results[].amount (a string).
+      //      The previous parser looked at data[].amount_usd which doesn't
+      //      exist on this endpoint, so the sum stayed at $0 even on a
+      //      well-billed organisation.
+      // Pagination: follow next_page when has_more is true; hard cap to
+      // stop a parser typo from looping forever.
       const { period_start, period_end } = monthBounds();
-      const { data } = await axios.get('https://api.anthropic.com/v1/organizations/cost_report', {
-        params: { starting_at: period_start, ending_at: period_end },
-        headers: { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' },
-      });
-      // The shape varies across organisations + plan tiers — be defensive and
-      // sum every numeric "amount" / "cost_usd" / "amount_usd" we find at the
-      // row level, plus the top-level total_cost_usd if present.
+      const starting_at = `${period_start}T00:00:00Z`;
+      const ending_at = `${period_end}T23:59:59Z`;
+      const headers = { 'x-api-key': adminKey, 'anthropic-version': '2023-06-01' };
       let totalCost = 0;
-      const rows = Array.isArray(data?.data) ? data.data
-        : Array.isArray(data?.cost_report) ? data.cost_report
-        : Array.isArray(data?.results) ? data.results : [];
-      for (const row of rows) {
-        const amount = Number(row?.amount_usd ?? row?.cost_usd ?? row?.amount ?? 0);
-        if (!Number.isNaN(amount)) totalCost += amount;
+      let totalRows = 0;
+      let page = null;
+      let raw = null;
+      let pageCount = 0;
+      while (pageCount < 20) {
+        pageCount++;
+        const params = page
+          ? { starting_at, ending_at, page }
+          : { starting_at, ending_at };
+        const { data } = await axios.get('https://api.anthropic.com/v1/organizations/cost_report', { params, headers });
+        if (!raw) raw = data;
+        for (const bucket of (data.data || [])) {
+          for (const r of (bucket.results || [])) {
+            const amount = Number(r.amount ?? r.amount_usd ?? r.cost_usd ?? 0);
+            if (!Number.isNaN(amount)) totalCost += amount;
+            totalRows++;
+          }
+        }
+        if (data.has_more && data.next_page) { page = data.next_page; continue; }
+        break;
       }
-      if (!totalCost && typeof data?.total_cost_usd === 'number') totalCost = data.total_cost_usd;
       return {
         cost_this_period: totalCost,
         currency: 'USD',
         unit_label: 'tokens',
         period_start, period_end,
-        raw: data,
+        raw: { ...(raw || {}), _aggregated_rows: totalRows, _aggregated_pages: pageCount },
       };
     },
   },
