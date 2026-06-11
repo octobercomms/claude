@@ -46,6 +46,24 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
 - **Mailer/SMS are interfaces** with swappable drivers so we can A/B SES vs Brevo per
   message and fall back instantly.
 
+**Where it runs — engine in the plugin, UI in the platform.** Consistent with the
+"platform = front-end on WP, no sync" decision: the email **engine** (SES sending,
+contacts, campaigns, send queue, bounce/suppression, the Claude co-pilot) lives in the
+**plugin** on WordPress — that's where the data and connectors already are. The
+**campaign-builder UI** is rendered in **platform.atlantadesignfestival.net** (a simpler
+version can also live in wp-admin); it talks to the plugin's REST API. So it's "UI in the
+platform, engine in the plugin" — no second backend, no sync.
+
+**Media library — one library, surfaced via REST.** The platform has no media store of
+its own; it reads/writes the **same WordPress media library through the API** (core
+`GET/POST wp/v2/media`, or a plugin wrapper with our own permissions). The builder's image
+picker lists media from that endpoint and drops the image's **public uploads URL** into
+the block; uploads from the platform POST straight back into the WP media library — one
+place, no copying, no sync. WordPress serves uploads from public `https` URLs, which is
+exactly what email needs (image `src` must be publicly reachable). Caveat: platform users
+authenticate to WP (the magic-link/token), and uploads must stay publicly fetchable (no
+auth/CDN rule that blocks email clients).
+
 ## Data model (new tables, `adf_` prefixed)
 - `adf_contacts` — unified person record (email, name, phone, sms_opt_in, source,
   consent/optin timestamp, status) de-duped on email; back-filled from accounts/orders/
@@ -79,9 +97,10 @@ done lazily = cheap and in spam. The plan below front-loads the plumbing.
 
 ## Campaign builder
 - **GrapesJS** with the **MJML newsletter preset** → responsive email that survives
-  Outlook. Embedded in wp-admin (or the platform UI later).
-- **Images from the WordPress media library** via the existing media picker (store URLs;
-  ensure public serving).
+  Outlook. Rendered in the **platform UI** (engine stays in the plugin; see Architecture).
+- **Images from the WordPress media library** via the REST media endpoint (`wp/v2/media`
+  or a plugin wrapper) — picker lists media, block stores the public uploads URL; uploads
+  go back into the same library. No separate media store.
 - Save reusable templates; preview; send test; schedule; pick list/segment as audience.
 
 ## AI campaign drafting (Claude co-pilot) — the differentiator
