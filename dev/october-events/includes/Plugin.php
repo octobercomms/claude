@@ -82,6 +82,10 @@ final class Plugin {
             return;
         }
         wp_enqueue_style('oe-admin', OE_URL . 'assets/css/admin.css', [], OE_VERSION);
+        // Per-site accent (Settings → Branding) — falls back to brand yellow.
+        $accent    = (string) Settings::get('theme_accent', '') ?: '#E7CD41';
+        $accent_on = (string) Settings::get('theme_accent_on', '') ?: '#1a1a1a';
+        wp_add_inline_style('oe-admin', '.oe-admin{--oe-accent:' . esc_html($accent) . ';--oe-accent-on:' . esc_html($accent_on) . '}');
     }
 
     /**

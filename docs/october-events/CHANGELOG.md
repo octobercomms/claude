@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.18.0 — admin redesign (October design system)
+
+The wp-admin screens now match the platform's October "Marketing Intelligence"
+look (minus the sidebar — wp-admin has its own): self-hosted **Brockmann**,
+off-white canvas, white bento cards with 2px soft-grey borders, big display
+titles and brand-yellow pill buttons. Scoped to `.oe-admin`, so the rest of
+wp-admin is untouched; the accent follows **Settings → Branding** per site.
+
 ## 1.17.0 — SMS (AWS) + live chat (Chatwoot), ready to switch on
 
 The last "add it later" services are now built and wired — off until you paste
