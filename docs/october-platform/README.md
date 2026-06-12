@@ -9,15 +9,27 @@ database of its own, no sync. WordPress stays the single source of truth.
   on merge to `main` (`.github/workflows/october-platform-deploy.yml`)
 - **Backend:** the plugin's `oe/v1/planning/*` endpoints
 
-## Overview
+## Design system
 
-The default landing view (top-nav **Overview**) — an at-a-glance summary across
-all three boards, each panel clickable through to its full view:
+The platform uses the shared October **"Marketing Intelligence"** look so the
+products feel like one family: a dark left **sidebar** (logo + nav + signed-in /
+sign-out), a cream canvas, an overline + big bold page title with the date, a row
+of **stat cards** (the first highlighted dark), and white **section cards** with
+yellow pill accents and green/amber status dots. Display type is *Space Grotesk*
+(falls back to the system font). All layout/colour lives in `assets/styles.css`
+via CSS custom properties, so re-skinning is a token change.
 
-- **Events:** how many are confirmed & green vs in-progress / draft, with a meter.
-- **Tasks:** open count, plus blocked and done.
-- **Volunteers:** slots filled vs capacity, how many are still open, and how many
-  signups need a decision.
+## Dashboard (landing)
+
+The default view after sign-in:
+
+- **Stat cards** — Events ready (`green/total`), Open tasks, Volunteer slots
+  (`filled/capacity`), and Needs attention (blocked tasks + signups to review).
+- **Getting started** — a checklist that ticks itself off as you set things up
+  (confirm an event to green, add a task, set up a volunteer opportunity; email
+  sending shown as "soon"), each with a button through to the relevant view.
+- **Workspace cards** — Events / Tasks / Volunteers with quick counts, a status
+  dot, and "Open →".
 
 It reads the existing list endpoints in parallel and degrades gracefully if any
 one is unavailable.
@@ -106,7 +118,7 @@ Sign in against your real (or staging) WordPress site.
 dev/october-platform/
   index.html          app shell
   assets/
-    app.js            Overview + Events + Tasks + Volunteers (vanilla ES modules)
+    app.js            shell + Dashboard + Events + Tasks + Volunteers (vanilla ES modules)
     api.js            oe/v1 REST client (App-Password Basic auth)
     styles.css        October brand (cream / rust / near-black)
   _redirects          Cloudflare SPA fallback

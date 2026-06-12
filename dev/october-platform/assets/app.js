@@ -1,8 +1,9 @@
 /**
  * October Events — planning platform.
  *
- * A no-build vanilla SPA with four views:
- *  - Overview:   an at-a-glance summary across the three boards.
+ * A no-build vanilla SPA on the October "Marketing Intelligence" design system
+ * (dark sidebar, cream canvas, yellow accent). Views:
+ *  - Dashboard:  stat cards + Getting started + workspace cards.
  *  - Events:     the confirm→green readiness board (oe/v1/planning).
  *  - Tasks:      the shared department task board (oe/v1/tasks).
  *  - Volunteers: shift signups + decisions (oe/v1/volunteers).
@@ -51,30 +52,54 @@ function render() {
   return renderOverview();
 }
 
-/* Shared top bar + view nav. `active` is the current route key. */
-function topbar(active) {
-  const bar = el(`
-    <header class="oe-top">
-      <div class="oe-top-left">
-        <strong>October Events</strong>
+/* App shell: dark sidebar (logo + nav + account) and a main content area.
+   Returns the <main> element for the active view to fill. */
+function shell(active) {
+  app.innerHTML = '';
+  const user = (getCreds() || {}).user || '';
+  const link = (key, lbl) => `<button class="oe-navlink ${active === key ? 'on' : ''}" data-route="${key}">${lbl}</button>`;
+  const wrap = el(`
+    <div class="oe-shell">
+      <aside class="oe-side">
+        <div class="oe-brand">
+          <div class="oe-logo"><span></span><span></span><span></span></div>
+          <div class="oe-brand-name">October<br>Events</div>
+        </div>
         <nav class="oe-nav">
-          <button class="oe-navlink ${active === 'overview' ? 'on' : ''}" data-route="overview">Overview</button>
-          <button class="oe-navlink ${active === 'events' ? 'on' : ''}" data-route="events">Events</button>
-          <button class="oe-navlink ${active === 'tasks' ? 'on' : ''}" data-route="tasks">Tasks</button>
-          <button class="oe-navlink ${active === 'volunteers' ? 'on' : ''}" data-route="volunteers">Volunteers</button>
+          ${link('overview', 'Dashboard')}
+          ${link('events', 'Events')}
+          ${link('tasks', 'Tasks')}
+          ${link('volunteers', 'Volunteers')}
         </nav>
-      </div>
-      <div class="oe-top-actions">
-        <span class="muted small">${esc((getCreds() || {}).user || '')}</span>
-        <button id="b-refresh" class="btn btn-small">Refresh</button>
-        <button id="b-out" class="btn btn-small">Sign out</button>
-      </div>
-    </header>`);
-  bar.querySelectorAll('[data-route]').forEach((b) =>
+        <div class="oe-side-foot">
+          <div class="oe-side-user">Signed in as <strong>${esc(user)}</strong></div>
+          <button class="btn btn-ghost btn-block" id="b-refresh">Refresh</button>
+          <button class="btn btn-ghost btn-block" id="b-out">Sign out</button>
+        </div>
+      </aside>
+      <main class="oe-main"></main>
+    </div>`);
+  app.appendChild(wrap);
+  wrap.querySelectorAll('[data-route]').forEach((b) =>
     b.addEventListener('click', () => { route = b.getAttribute('data-route'); render(); }));
-  bar.querySelector('#b-refresh').addEventListener('click', render);
-  bar.querySelector('#b-out').addEventListener('click', () => { clearCreds(); renderLogin(); });
-  return bar;
+  wrap.querySelector('#b-refresh').addEventListener('click', render);
+  wrap.querySelector('#b-out').addEventListener('click', () => { clearCreds(); renderLogin(); });
+  return wrap.querySelector('.oe-main');
+}
+
+/* Page header: small-caps overline + big title + today's date. */
+function pageHeader(overline, title) {
+  return el(`
+    <header class="oe-head">
+      <div class="oe-overline">${esc(overline)}</div>
+      <div class="oe-head-row"><h1>${esc(title)}</h1><div class="oe-date">${esc(dateString())}</div></div>
+    </header>`);
+}
+
+function dateString() {
+  try {
+    return new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  } catch (e) { return ''; }
 }
 
 /* ---------------------------------------------------------------- */
@@ -86,6 +111,7 @@ function renderLogin(error) {
   const view = el(`
     <div class="oe-login">
       <div class="oe-login-card">
+        <div class="oe-logo oe-logo-ink"><span></span><span></span><span></span></div>
         <h1>October Events</h1>
         <p class="muted">Planning — sign in with your WordPress account.</p>
         ${error ? `<div class="oe-error">${esc(error)}</div>` : ''}
@@ -116,7 +142,8 @@ function renderLogin(error) {
 /* Board                                                            */
 /* ---------------------------------------------------------------- */
 async function renderBoard() {
-  app.innerHTML = '<div class="oe-loading">Loading events…</div>';
+  const main = shell('events');
+  main.appendChild(el('<div class="oe-loading">Loading events…</div>'));
   let events = [];
   try { events = await api.listEvents(); }
   catch (e) { return renderLogin('Session expired — sign in again.'); }
@@ -124,8 +151,9 @@ async function renderBoard() {
   const groups = { confirmed: [], in_progress: [], draft: [] };
   events.forEach((e) => { (groups[e.status] || groups.draft).push(e); });
 
-  app.innerHTML = '';
-  app.appendChild(topbar('events'));
+  const green = groups.confirmed.length;
+  main.innerHTML = '';
+  main.appendChild(pageHeader('PLANNING · ' + events.length + ' EVENTS · ' + green + ' GREEN', 'Events'));
 
   const board = el('<div class="oe-board"></div>');
   ['in_progress', 'draft', 'confirmed'].forEach((status) => {
@@ -137,9 +165,9 @@ async function renderBoard() {
     groups[status].forEach((e) => cards.appendChild(card(e)));
     board.appendChild(col);
   });
-  app.appendChild(board);
+  main.appendChild(board);
 
-  app.querySelectorAll('[data-open]').forEach((c) =>
+  main.querySelectorAll('[data-open]').forEach((c) =>
     c.addEventListener('click', () => openEditor(parseInt(c.getAttribute('data-open'), 10))));
 }
 
@@ -259,10 +287,8 @@ function label(k) {
 /* Tasks board                                                      */
 /* ---------------------------------------------------------------- */
 async function renderTasks() {
-  app.innerHTML = '';
-  app.appendChild(topbar('tasks'));
-  const wrap = el('<div class="oe-tasks-wrap"><div class="oe-loading">Loading tasks…</div></div>');
-  app.appendChild(wrap);
+  const main = shell('tasks');
+  main.appendChild(el('<div class="oe-loading">Loading tasks…</div>'));
 
   let tasks = [];
   try {
@@ -270,13 +296,15 @@ async function renderTasks() {
     tasks = await api.listTasks();
   } catch (e) {
     if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
-    wrap.innerHTML = '<div class="oe-error" style="margin:24px">Could not load tasks.</div>';
+    main.innerHTML = '<div class="oe-error" style="margin:24px 0">Could not load tasks.</div>';
     return;
   }
 
   const departments = (taskMeta && taskMeta.departments) || [];
-  wrap.innerHTML = '';
-  wrap.appendChild(taskAddForm(departments));
+  const open = tasks.filter((t) => t.status === 'todo' || t.status === 'doing').length;
+  main.innerHTML = '';
+  main.appendChild(pageHeader('TASKS · ' + tasks.length + ' TOTAL · ' + open + ' OPEN', 'Tasks'));
+  main.appendChild(taskAddForm(departments));
 
   const groups = {};
   TASK_ORDER.forEach((s) => { groups[s] = []; });
@@ -292,7 +320,7 @@ async function renderTasks() {
     groups[status].forEach((t) => cards.appendChild(taskCard(t, departments)));
     board.appendChild(col);
   });
-  wrap.appendChild(board);
+  main.appendChild(board);
 }
 
 function taskAddForm(departments) {
@@ -403,28 +431,39 @@ function openTaskEditor(t, departments) {
 /* Volunteers                                                       */
 /* ---------------------------------------------------------------- */
 async function renderVolunteers() {
-  app.innerHTML = '';
-  app.appendChild(topbar('volunteers'));
-  const wrap = el('<div class="oe-vols-wrap"><div class="oe-loading">Loading volunteer opportunities…</div></div>');
-  app.appendChild(wrap);
+  const main = shell('volunteers');
+  main.appendChild(el('<div class="oe-loading">Loading volunteer opportunities…</div>'));
 
   let opps = [];
   try { opps = await api.listOpportunities(); }
   catch (e) {
     if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
-    wrap.innerHTML = '<div class="oe-error" style="margin:24px">Could not load volunteers.</div>';
+    main.innerHTML = '<div class="oe-error" style="margin:24px 0">Could not load volunteers.</div>';
     return;
   }
 
-  wrap.innerHTML = '';
-  if (!opps.length) { wrap.appendChild(el('<p class="muted" style="padding:24px">No volunteer opportunities yet.</p>')); return; }
+  let capacity = 0; let filled = 0;
+  opps.forEach((o) => { capacity += o.capacity; filled += o.filled; });
+  main.innerHTML = '';
+  main.appendChild(pageHeader('VOLUNTEERS · ' + opps.length + ' OPPORTUNITIES · ' + filled + '/' + capacity + ' FILLED', 'Volunteers'));
+
+  if (!opps.length) {
+    main.appendChild(emptyState('No volunteer opportunities yet.',
+      'Create a volunteer opportunity in WordPress (Volunteer → Add new) and define its shifts — they\'ll appear here to manage signups.'));
+    return;
+  }
 
   const grid = el('<div class="oe-vol-grid"></div>');
   opps.forEach((o) => grid.appendChild(oppCard(o)));
-  wrap.appendChild(grid);
+  main.appendChild(grid);
 
   grid.querySelectorAll('[data-vopen]').forEach((c) =>
     c.addEventListener('click', () => openOpportunity(parseInt(c.getAttribute('data-vopen'), 10))));
+}
+
+/* Reusable empty-state card. */
+function emptyState(title, body) {
+  return el(`<div class="oe-empty"><div class="oe-empty-title">${esc(title)}</div><p class="muted">${esc(body)}</p></div>`);
 }
 
 function oppCard(o) {
@@ -555,10 +594,8 @@ function signupRow(su, replace) {
 /* Overview                                                         */
 /* ---------------------------------------------------------------- */
 async function renderOverview() {
-  app.innerHTML = '';
-  app.appendChild(topbar('overview'));
-  const wrap = el('<div class="oe-overview"><div class="oe-loading">Loading overview…</div></div>');
-  app.appendChild(wrap);
+  const main = shell('overview');
+  main.appendChild(el('<div class="oe-loading">Loading dashboard…</div>'));
 
   // Pull all three boards in parallel; tolerate any single one failing.
   const [events, tasks, opps] = await Promise.all([
@@ -566,77 +603,112 @@ async function renderOverview() {
     api.listTasks().catch(() => null),
     api.listOpportunities().catch(() => null),
   ]);
-
   if (events === null && tasks === null && opps === null) {
     return renderLogin('Session expired — sign in again.');
   }
 
-  wrap.innerHTML = '';
-  wrap.appendChild(overviewEvents(events));
-  wrap.appendChild(overviewTasks(tasks));
-  wrap.appendChild(overviewVolunteers(opps));
+  // Derive the numbers once.
+  const ev = events || [];
+  const tk = tasks || [];
+  const op = opps || [];
+  const total = ev.length;
+  const green = ev.filter((e) => e.status === 'confirmed').length;
+  const prog = ev.filter((e) => e.status === 'in_progress').length;
+  const openTasks = tk.filter((t) => t.status === 'todo' || t.status === 'doing').length;
+  const blocked = tk.filter((t) => t.status === 'blocked').length;
+  const doneTasks = tk.filter((t) => t.status === 'done').length;
+  let capacity = 0; let filled = 0; let pending = 0;
+  op.forEach((o) => { capacity += o.capacity; filled += o.filled; pending += o.pending; });
+  const shortfall = Math.max(0, capacity - filled);
+  const attention = blocked + pending;
 
-  wrap.querySelectorAll('[data-goto]').forEach((c) =>
+  main.innerHTML = '';
+  main.appendChild(pageHeader(
+    'OVERVIEW · ' + total + ' EVENTS · ' + (attention ? 'NEEDS ATTENTION' : 'ALL ON TRACK'),
+    'Dashboard'
+  ));
+
+  // Stat cards (first one highlighted dark, like OMI).
+  const stats = el('<div class="oe-stats"></div>');
+  stats.appendChild(statCard('Events ready', green + '/' + (total || 0), 'confirmed & green', true));
+  stats.appendChild(statCard('Open tasks', String(openTasks), blocked ? blocked + ' blocked' : 'none blocked', false, blocked ? 'amber' : ''));
+  stats.appendChild(statCard('Volunteer slots', filled + '/' + (capacity || 0),
+    capacity === 0 ? 'no shifts yet' : (shortfall ? shortfall + ' still open' : 'fully staffed'),
+    false, capacity === 0 ? '' : (shortfall ? 'amber' : 'green')));
+  stats.appendChild(statCard('Needs attention', String(attention), attention ? 'to action' : 'all clear', false, attention ? 'amber' : 'green'));
+  main.appendChild(stats);
+
+  // Getting started checklist.
+  main.appendChild(gettingStarted([
+    { label: 'Confirm your first event to green', done: green > 0, route: 'events', cta: 'Open Events' },
+    { label: 'Add a team task', done: tk.length > 0, route: 'tasks', cta: 'Open Tasks' },
+    { label: 'Set up a volunteer opportunity with shifts', done: capacity > 0, route: 'volunteers', cta: 'Open Volunteers' },
+    { label: 'Connect email sending (Amazon SES)', soon: true },
+  ]));
+
+  // Module cards (the three boards).
+  main.appendChild(el('<h2 class="oe-section-title">Workspaces</h2>'));
+  const mods = el('<div class="oe-mods"></div>');
+  mods.appendChild(moduleCard('events', 'Events', green > 0 ? 'green' : 'amber', events,
+    [[green + '/' + total, 'confirmed'], [prog, 'in progress']]));
+  mods.appendChild(moduleCard('tasks', 'Tasks', blocked ? 'amber' : 'green', tasks,
+    [[openTasks, 'open'], [doneTasks, 'done']]));
+  mods.appendChild(moduleCard('volunteers', 'Volunteers', shortfall ? 'amber' : 'green', opps,
+    [[filled + '/' + capacity, 'filled'], [pending, 'to review']]));
+  main.appendChild(mods);
+
+  main.querySelectorAll('[data-goto]').forEach((c) =>
     c.addEventListener('click', () => { route = c.getAttribute('data-goto'); render(); }));
 }
 
-function overviewCard(routeKey, title, bodyHtml) {
+function statCard(label, value, sub, dark, dot) {
   return el(`
-    <article class="ov-card" data-goto="${routeKey}">
-      <div class="ov-head"><h2>${esc(title)}</h2><span class="ov-go">Open →</span></div>
-      ${bodyHtml}
+    <div class="stat ${dark ? 'stat-dark' : ''}">
+      <div class="stat-k">${esc(label)}</div>
+      <div class="stat-v">${esc(value)}</div>
+      <div class="stat-s">${dot ? `<i class="dot dot-${dot}"></i>` : ''}${esc(sub)}</div>
+    </div>`);
+}
+
+function gettingStarted(steps) {
+  const done = steps.filter((s) => s.done).length;
+  const total = steps.filter((s) => !s.soon).length;
+  const box = el(`
+    <section class="gs">
+      <div class="gs-head">
+        <h2>Getting started</h2>
+        <span class="gs-prog">${done} of ${total} done</span>
+      </div>
+      <div class="gs-list"></div>
+    </section>`);
+  const list = box.querySelector('.gs-list');
+  steps.forEach((s) => {
+    const item = el(`
+      <div class="gs-item ${s.done ? 'is-done' : ''} ${s.soon ? 'is-soon' : ''}">
+        <span class="gs-check">${s.done ? '✓' : ''}</span>
+        <span class="gs-label">${esc(s.label)}</span>
+        ${s.soon ? '<span class="gs-soon">soon</span>'
+          : (s.done ? '' : `<button class="btn btn-small btn-primary" data-goto="${s.route}">${esc(s.cta)}</button>`)}
+      </div>`);
+    list.appendChild(item);
+  });
+  return box;
+}
+
+function moduleCard(routeKey, name, dot, data, rows) {
+  const unavailable = data === null;
+  const stats = unavailable
+    ? '<div class="mod-row"><span class="muted small">Couldn\'t load.</span></div>'
+    : rows.map((r) => `<div class="mod-row"><span class="mod-n">${esc(String(r[0]))}</span><span class="mod-l">${esc(r[1])}</span></div>`).join('');
+  return el(`
+    <article class="mod" data-goto="${routeKey}">
+      <div class="mod-head">
+        <h3>${esc(name)}</h3>
+        <i class="dot dot-${unavailable ? 'amber' : dot}"></i>
+      </div>
+      <div class="mod-body">${stats}</div>
+      <div class="mod-foot">Open <span class="mod-arrow">→</span></div>
     </article>`);
-}
-
-function ovStat(n, label, cls) {
-  return `<div class="ov-stat ${cls || ''}"><span class="ov-n">${n}</span><span class="ov-l">${esc(label)}</span></div>`;
-}
-
-function overviewEvents(events) {
-  if (!events) { return overviewCard('events', 'Events', '<p class="muted small">Couldn\'t load events.</p>'); }
-  const total = events.length;
-  const green = events.filter((e) => e.status === 'confirmed').length;
-  const prog = events.filter((e) => e.status === 'in_progress').length;
-  const draft = events.filter((e) => e.status === 'draft').length;
-  const pct = total ? Math.round((green / total) * 100) : 0;
-  const body = `
-    <div class="meter"><span style="width:${pct}%;background:${pct === 100 ? '#1a7f37' : '#d8531f'}"></span></div>
-    <p class="ov-lead">${green} of ${total} confirmed &amp; green</p>
-    <div class="ov-stats">
-      ${ovStat(prog, 'in progress')}
-      ${ovStat(draft, 'draft')}
-    </div>`;
-  return overviewCard('events', 'Events', body);
-}
-
-function overviewTasks(tasks) {
-  if (!tasks) { return overviewCard('tasks', 'Tasks', '<p class="muted small">Couldn\'t load tasks.</p>'); }
-  const open = tasks.filter((t) => t.status === 'todo' || t.status === 'doing').length;
-  const blocked = tasks.filter((t) => t.status === 'blocked').length;
-  const done = tasks.filter((t) => t.status === 'done').length;
-  const body = `
-    <p class="ov-lead">${open} open task${open === 1 ? '' : 's'}</p>
-    <div class="ov-stats">
-      ${ovStat(blocked, 'blocked', blocked ? 'bad' : '')}
-      ${ovStat(done, 'done', 'good')}
-    </div>`;
-  return overviewCard('tasks', 'Tasks', body);
-}
-
-function overviewVolunteers(opps) {
-  if (!opps) { return overviewCard('volunteers', 'Volunteers', '<p class="muted small">Couldn\'t load volunteers.</p>'); }
-  let capacity = 0; let filled = 0; let pending = 0;
-  opps.forEach((o) => { capacity += o.capacity; filled += o.filled; pending += o.pending; });
-  const shortfall = Math.max(0, capacity - filled);
-  const pct = capacity ? Math.round((filled / capacity) * 100) : 0;
-  const body = `
-    <div class="meter"><span style="width:${pct}%;background:${shortfall === 0 && capacity ? '#1a7f37' : '#d8531f'}"></span></div>
-    <p class="ov-lead">${filled} of ${capacity} slots filled</p>
-    <div class="ov-stats">
-      ${ovStat(shortfall, 'still open', shortfall ? 'bad' : 'good')}
-      ${ovStat(pending, 'to review', pending ? 'warn' : '')}
-    </div>`;
-  return overviewCard('volunteers', 'Volunteers', body);
 }
 
 boot();
