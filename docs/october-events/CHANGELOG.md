@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.8.2 — CORS: win against late header appenders (JetEngine)
+
+Follow-up to 1.8.1. On sites running **JetEngine**, every REST response gets a
+blanket `Access-Control-Allow-Origin: *` appended *after* core's CORS — so our
+1.8.1 handler (which ran at priority 20) cleaned up too early and the stray `*`
+came back, leaving two values and a blocked browser request.
+
+- `OE\Cors` now runs at **`PHP_INT_MAX`** on `rest_pre_serve_request`, so it's the
+  last code to touch the headers: it strips the duplicate `Access-Control-Allow-
+  Origin` (core's echo + JetEngine's `*`) and emits exactly one value for an
+  allowed origin. Only affects `oe/v1` routes; JetEngine's own CORS is untouched
+  elsewhere.
+
 ## 1.8.1 — CORS for the planning platform
 
 Lets the off-site planning platform SPA call the `oe/v1` REST API from the

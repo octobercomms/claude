@@ -25,8 +25,11 @@ final class Cors {
 
     public static function init(): void {
         // Run after core's rest_send_cors_headers (priority 10) so our header
-        // wins and we can clear duplicates.
-        add_filter('rest_pre_serve_request', [self::class, 'send_headers'], 20, 4);
+        // Run as late as possible on this filter so we are the LAST thing to
+        // touch the CORS headers — some plugins (e.g. JetEngine) append their
+        // own `Access-Control-Allow-Origin: *` after core, so running at the
+        // maximum priority lets us strip that duplicate and emit a single value.
+        add_filter('rest_pre_serve_request', [self::class, 'send_headers'], PHP_INT_MAX, 4);
 
         // Let core treat our platform origins as allowed (used in a few places).
         add_filter('allowed_http_origins', [self::class, 'allow_origins']);
