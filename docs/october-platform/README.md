@@ -32,6 +32,19 @@ board):
 - A quick **add-task** bar (title + department + due date) at the top, and an
   **edit drawer** (title, department, status, due date, assignee, notes, delete).
 
+## Volunteers board
+
+A third view (top-nav **Volunteers**) over the plugin's `oe/v1/volunteers` API
+(October Events 1.8.0) — Ashleigh's management surface for volunteer signups:
+
+- A grid of **opportunity cards**, each showing role/location, a **filled vs
+  capacity** meter across its shifts, whether signups are open, and a badge for
+  how many signups still need a decision.
+- Click a card for the **drawer**: every shift with its signups, a per-signup
+  **status** dropdown (Pending / Confirmed / Declined / No-show), a **check-in**
+  toggle, **remove**, and an **add-volunteer** form (name / email / phone) to
+  place someone on a shift manually.
+
 ## Auth (Phase 1)
 
 Sign in with a WordPress **Application Password** (the user does this once):
@@ -80,7 +93,7 @@ Sign in against your real (or staging) WordPress site.
 dev/october-platform/
   index.html          app shell
   assets/
-    app.js            Events + Tasks views + editors (vanilla ES modules)
+    app.js            Events + Tasks + Volunteers views (vanilla ES modules)
     api.js            oe/v1 REST client (App-Password Basic auth)
     styles.css        October brand (cream / rust / near-black)
   _redirects          Cloudflare SPA fallback
@@ -92,4 +105,4 @@ dev/october-platform/
 - **Federation:** read events from **both** sites (ADF + Architecture Tours) and the
   shared org layer from the ADF **hub** (per the platform scope).
 - **Magic-link** auth; role-scoped views (Elayne = events, Ashleigh = volunteers).
-- Volunteers view, sales dashboard, editorial log — as the plugin exposes them.
+- Sales dashboard, editorial log — as the plugin exposes them.
