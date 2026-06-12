@@ -6,6 +6,7 @@ $counts = Tasks::counts();
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tasks', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('tasks'); ?>
     <p class="description">
         <?php printf(esc_html__('%1$d open · %2$d blocked · %3$d done', 'october-events'), (int) $counts['open'], (int) $counts['blocked'], (int) $counts['done']); ?>
     </p>

@@ -4,6 +4,7 @@ defined('ABSPATH') || exit;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Accounts', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('accounts'); ?>
     <table class="widefat striped">
         <thead>
             <tr>

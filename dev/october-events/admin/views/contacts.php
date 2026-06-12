@@ -5,6 +5,7 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Contacts', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('contacts'); ?>
 
     <?php if (! empty($_GET['rebuilt'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Contacts rebuilt from accounts, ticket buyers and volunteers.', 'october-events'); ?></p></div>

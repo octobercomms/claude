@@ -16,6 +16,7 @@ function oe_vol_action_url(int $signup_id, string $status): string {
     <h1><?php esc_html_e('Volunteers', 'october-events'); ?>
         <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
     </h1>
+    <?php \OE\Admin\Admin::bento('volunteers'); ?>
     <p class="description"><?php esc_html_e('Each opportunity has time shifts with limited slots. Confirmed volunteers receive email + SMS reminders automatically.', 'october-events'); ?></p>
 
     <?php if (! $opportunities) : ?>

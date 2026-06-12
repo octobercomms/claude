@@ -4,6 +4,7 @@ defined('ABSPATH') || exit;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Event Planning', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('planning'); ?>
     <p class="description"><?php esc_html_e('An event goes green once it has the essentials: title, dates & times, price and location. Green = published live.', 'october-events'); ?></p>
 
     <table class="widefat striped">
