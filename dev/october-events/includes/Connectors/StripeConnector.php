@@ -84,6 +84,34 @@ final class StripeConnector {
     }
 
     /**
+     * Recent failed charges (for the assistant's "failed payments" answers).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public static function recent_failed(int $limit = 20): array {
+        if (! self::is_ready()) {
+            return [];
+        }
+        $limit = max(1, min(100, $limit));
+        $res = self::request('GET', '/charges?limit=' . $limit);
+        $out = [];
+        foreach (($res['data'] ?? []) as $ch) {
+            if (($ch['status'] ?? '') !== 'failed') {
+                continue;
+            }
+            $out[] = [
+                'id'              => $ch['id'] ?? '',
+                'amount'          => isset($ch['amount']) ? $ch['amount'] / 100 : 0,
+                'currency'        => strtoupper((string) ($ch['currency'] ?? '')),
+                'email'           => $ch['billing_details']['email'] ?? ($ch['receipt_email'] ?? ''),
+                'failure_message' => $ch['failure_message'] ?? '',
+                'created'         => isset($ch['created']) ? gmdate('Y-m-d H:i', (int) $ch['created']) : '',
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Full refund of a PaymentIntent (§4 — full refund only). Returns the
      * refund id, or '' on failure.
      */
