@@ -110,6 +110,7 @@ function render() {
   if (route === 'volunteers') { return renderVolunteers(); }
   if (route === 'events') { return renderBoard(); }
   if (route === 'email') { return renderEmail(); }
+  if (route === 'contacts') { return renderContacts(); }
   return renderOverview();
 }
 
@@ -132,6 +133,7 @@ function shell(active) {
           ${link('tasks', 'Tasks')}
           ${link('volunteers', 'Volunteers')}
           ${link('email', 'Email')}
+          ${link('contacts', 'Contacts')}
         </nav>
         <div class="oe-side-foot">
           <div class="oe-side-user">Signed in as <strong>${esc(user)}</strong></div>
@@ -1026,6 +1028,71 @@ function blocksToHtml(blocks, isPreview) {
   }).join('');
   const inner = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${isPreview ? '#f3f3f3' : '#faf9f5'};padding:${isPreview ? '0' : '20px'}"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px"><tr><td style="padding:24px">${inner}</td></tr></table></td></tr></table>`;
+}
+
+/* ---------------------------------------------------------------- */
+/* Contacts                                                         */
+/* ---------------------------------------------------------------- */
+const CONTACT_STATUS = { subscribed: 'Subscribed', unsubscribed: 'Unsubscribed' };
+
+async function renderContacts() {
+  const main = shell('contacts');
+  main.appendChild(el('<div class="oe-loading">Loading contacts…</div>'));
+  let counts = { total: 0, subscribed: 0, unsubscribed: 0, sms: 0 };
+  try { counts = await api.contactsMeta(); }
+  catch (e) {
+    if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+    main.innerHTML = '<div class="oe-error" style="margin:24px 0">Could not load contacts.</div>';
+    return;
+  }
+  main.innerHTML = '';
+  main.appendChild(pageHeader('CONTACTS · ' + counts.total + ' TOTAL · ' + counts.subscribed + ' SUBSCRIBED', 'Contacts'));
+
+  const stats = el('<div class="oe-stats" style="margin-bottom:24px"></div>');
+  stats.appendChild(statCard('Total', String(counts.total), 'contacts', true));
+  stats.appendChild(statCard('Subscribed', String(counts.subscribed), 'can receive email', false, 'green'));
+  stats.appendChild(statCard('Unsubscribed', String(counts.unsubscribed), 'opted out', false, counts.unsubscribed ? 'amber' : ''));
+  stats.appendChild(statCard('SMS opt-in', String(counts.sms), 'phone consented', false));
+  main.appendChild(stats);
+
+  const search = el('<input class="oe-contacts-search" type="search" placeholder="Search by name or email…">');
+  main.appendChild(search);
+  const wrap = el('<div class="oe-contacts-table"></div>');
+  main.appendChild(wrap);
+
+  let timer = null;
+  async function load(term) {
+    wrap.innerHTML = '<div class="oe-loading">Loading…</div>';
+    let rows = [];
+    try { rows = await api.listContacts(term || '', 0); } catch (e) { wrap.innerHTML = '<p class="oe-error">Could not load.</p>'; return; }
+    wrap.innerHTML = '';
+    if (!rows.length) { wrap.appendChild(el('<p class="muted" style="padding:16px 0">No contacts found.</p>')); return; }
+    const table = el(`<table class="oe-ctable"><thead><tr>
+      <th>Email</th><th>Name</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>`);
+    const tbody = table.querySelector('tbody');
+    rows.forEach((c) => tbody.appendChild(contactRow(c)));
+    wrap.appendChild(table);
+  }
+  function contactRow(c) {
+    const sub = c.status === 'subscribed';
+    const row = el(`<tr>
+      <td>${esc(c.email)}</td>
+      <td>${esc(c.name || '')}</td>
+      <td><span class="t-dept">${esc(c.source || '—')}</span></td>
+      <td><span class="${sub ? 'c-sub' : 'c-unsub'}">${esc(CONTACT_STATUS[c.status] || c.status)}</span></td>
+      <td><button class="btn btn-small">${sub ? 'Unsubscribe' : 'Re-subscribe'}</button></td>
+    </tr>`);
+    row.querySelector('button').addEventListener('click', async (ev) => {
+      ev.target.disabled = true;
+      try {
+        const updated = await api.updateContact(c.id, sub ? 'unsubscribed' : 'subscribed');
+        row.replaceWith(contactRow(updated));
+      } catch (e) { ev.target.disabled = false; alert(e.message || 'Could not update.'); }
+    });
+    return row;
+  }
+  search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 300); });
+  load('');
 }
 
 async function openMediaPicker(onPick) {
