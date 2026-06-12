@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.20.1 — design fixes
+
+- **Admin styles never loaded when the menu was renamed.** The admin CSS was
+  enqueued by matching the page *hook*, but WordPress builds that hook from the
+  (brand-named) parent menu — e.g. `festival_page_oe-queue` — so it never
+  matched and wp-admin stayed unstyled (no design, unstyled bento). Now matched
+  on the `page` query param (`october-events` / `oe-*`) + our CPT screens.
+- **Platform page-guide bento lost its background.** Its CSS referenced
+  `--side` / `--ink` / `--muted`, which aren't tokens in the design system —
+  fixed to `--text` / `--text-muted` so the dark bento renders correctly.
+
 ## 1.20.0 — "what you can do" guide on every screen
 
 Every admin screen now opens with a dark **intro bento** — a one-line "what you
