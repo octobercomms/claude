@@ -70,6 +70,15 @@ h1,h2,h3{margin:0}
 .oe-side-foot{padding:var(--s4) var(--s4) var(--s5);border-top:1px solid var(--sidebar-border)}
 .oe-side-user{font-size:11px;color:var(--sidebar-muted);margin-bottom:var(--s3);letter-spacing:.2px}
 .oe-side-user strong{color:var(--sidebar-fg)}
+.oe-site-switch{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;margin-bottom:10px;padding:8px 12px;background:#211e1a;border:1px solid var(--sidebar-border);border-radius:var(--r-sm);color:var(--sidebar-fg);font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.oe-site-switch:hover{border-color:var(--sidebar-muted)}
+.oe-site-caret{color:var(--accent)}
+.oe-switch-list{padding:8px 12px}
+.oe-switch-row{display:flex;align-items:center;gap:8px;padding:8px;border-radius:var(--r-sm)}
+.oe-switch-row.on{background:var(--accent-soft)}
+.oe-switch-pick{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;background:transparent;border:0;cursor:pointer;text-align:left;font:inherit}
+.oe-switch-name{font-weight:700}
+.oe-switch-del{color:var(--negative);border-color:var(--negative)}
 .oe-main{flex:1;min-width:0;padding:var(--s7) var(--s8) var(--s9);overflow:auto}
 
 /* ---------------- page header (kicker + display title) ---------------- */

@@ -79,6 +79,15 @@ A third view (top-nav **Volunteers**) over the plugin's `oe/v1/volunteers` API
   toggle, **remove**, and an **add-volunteer** form (name / email / phone) to
   place someone on a shift manually.
 
+## Multiple sites
+
+One platform deployment can connect to **several** October Events installs (e.g.
+Atlanta Design Festival and Architecture Tours). Each connection is a saved
+Application-Password login; the sidebar shows the active site with a **switcher**
+to change between them, **+ Add a site** to connect another, and per-site remove.
+The active site is themed by *its* `oe/v1/brand`, so switching re-skins the app.
+Everything is stored in the browser only.
+
 ## Auth (Phase 1)
 
 Sign in with a WordPress **Application Password** (the user does this once):
