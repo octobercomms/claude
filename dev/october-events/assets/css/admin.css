@@ -1,69 +1,92 @@
 /* =====================================================================
-   October Events — admin screens (§8). Scoped to .oe-admin so the rest of
-   wp-admin is untouched. Brand-matched: cream, near-black, rust accent,
-   pill buttons & chips — friendlier than stock WordPress.
+   October Events — admin screens. The October "Marketing Intelligence"
+   design system applied inside wp-admin (no sidebar — wp-admin has its own).
+   Scoped to .oe-admin so the rest of wp-admin is untouched. Brockmann,
+   off-white canvas, white bento cards with 2px soft-grey borders, brand-
+   yellow accent. Per-site accent injected via inline style.
    ===================================================================== */
 
-.oe-admin {
-    --oe-ink: #14110e;
-    --oe-muted: #6f6a60;
-    --oe-accent: #d8531f;
-    --oe-accent-dark: #b8420f;
-    --oe-paper: #ece8df;
-    --oe-line: #e3ded3;
+@font-face{font-family:'Brockmann';src:url('../fonts/brockmann-regular-webfont.woff2') format('woff2'),url('../fonts/brockmann-regular-webfont.woff') format('woff');font-weight:400;font-style:normal;font-display:swap}
+@font-face{font-family:'Brockmann';src:url('../fonts/brockmann-medium-webfont.woff2') format('woff2'),url('../fonts/brockmann-medium-webfont.woff') format('woff');font-weight:500;font-style:normal;font-display:swap}
+@font-face{font-family:'Brockmann';src:url('../fonts/brockmann-semibold-webfont.woff2') format('woff2'),url('../fonts/brockmann-semibold-webfont.woff') format('woff');font-weight:600;font-style:normal;font-display:swap}
+@font-face{font-family:'Brockmann';src:url('../fonts/brockmann-bold-webfont.woff2') format('woff2'),url('../fonts/brockmann-bold-webfont.woff') format('woff');font-weight:700;font-style:normal;font-display:swap}
+
+.oe-admin{
+  --oe-accent:#E7CD41; --oe-accent-on:#1a1a1a;
+  --oe-ink:#1a1a1a; --oe-muted:#555; --oe-subtle:#888;
+  --oe-page:#faf9f5; --oe-surface:#fff; --oe-line:#e3e2db; --oe-sunken:#f3f3f3;
+  --oe-green:#2e7d32; --oe-amber:#b86e00; --oe-red:#c62828;
+  --oe-font:'Brockmann',-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  font-family:var(--oe-font); color:var(--oe-ink);
+}
+/* Paint the whole content column with the canvas colour. */
+#wpcontent:has(.oe-admin), .oe-admin{ background:var(--oe-page); }
+.oe-admin{ margin-right:20px; padding-top:6px; }
+.oe-admin *{ box-sizing:border-box; }
+
+/* ---- Hero title (display + kicker) ---- */
+.oe-admin > h1:first-of-type{
+  font-family:var(--oe-font); font-weight:800; letter-spacing:-1px; font-size:40px; line-height:1;
+  color:var(--oe-ink); padding:0 0 18px; margin:10px 0 24px; border-bottom:2px solid var(--oe-ink);
+}
+.oe-admin h2{ font-family:var(--oe-font); font-weight:700; letter-spacing:-.3px; font-size:20px; color:var(--oe-ink); margin-top:28px; }
+.oe-admin h3{ font-family:var(--oe-font); font-weight:700; font-size:15px; }
+.oe-admin p.description, .oe-admin .description{ color:var(--oe-muted); }
+
+/* ---- Intro bento ("what you can do") ---- */
+.oe-bento{
+  background:var(--oe-ink); color:#fff; border-radius:14px; padding:26px 28px; margin:0 0 24px;
+}
+.oe-bento .oe-bento-kicker{ font-size:11px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:rgba(255,255,255,.55); margin-bottom:10px; }
+.oe-bento h2{ color:#fff; font-size:30px; font-weight:800; letter-spacing:-.6px; margin:0 0 8px; }
+.oe-bento p{ color:rgba(255,255,255,.8); font-size:14px; line-height:1.55; margin:0; max-width:760px; }
+.oe-bento-steps{ display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
+.oe-bento-step{ flex:1; min-width:150px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.12); border-radius:12px; padding:14px 16px; }
+.oe-bento-step .n{ display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; border-radius:999px; background:var(--oe-accent); color:var(--oe-accent-on); font-weight:800; font-size:12px; margin-bottom:8px; }
+.oe-bento-step .l{ display:block; font-weight:700; font-size:14px; color:#fff; }
+.oe-bento-step .d{ display:block; font-size:12px; color:rgba(255,255,255,.6); margin-top:3px; line-height:1.35; }
+
+/* ---- Cards / tables ---- */
+.oe-admin .widefat, .oe-admin .form-table, .oe-admin table.wp-list-table{
+  background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:14px; overflow:hidden; box-shadow:none;
+}
+.oe-admin .widefat thead th, .oe-admin .wp-list-table thead th{
+  background:var(--oe-sunken); text-transform:uppercase; letter-spacing:.06em; font-size:11px; font-weight:700; color:var(--oe-muted); border-bottom:1px solid var(--oe-line);
+}
+.oe-admin .widefat td, .oe-admin .widefat th{ border-color:var(--oe-line); }
+.oe-admin .striped > tbody > :nth-child(odd){ background:#fcfbf8; }
+
+/* ---- Form table ---- */
+.oe-admin .form-table{ padding:8px 16px; }
+.oe-admin .form-table th{ color:var(--oe-ink); font-weight:600; }
+.oe-admin input[type="text"],.oe-admin input[type="email"],.oe-admin input[type="url"],
+.oe-admin input[type="password"],.oe-admin input[type="number"],.oe-admin input[type="search"],
+.oe-admin select,.oe-admin textarea{
+  border:2px solid var(--oe-line); border-radius:8px; background:var(--oe-surface); color:var(--oe-ink);
+}
+.oe-admin input:focus,.oe-admin select:focus,.oe-admin textarea:focus{
+  border-color:var(--oe-accent); box-shadow:0 0 0 3px rgba(231,205,65,.25); outline:none;
 }
 
-/* Branded page heading */
-.oe-admin > h1:first-of-type {
-    font-weight: 800; letter-spacing: -0.01em; font-size: 25px;
-    padding: 0 0 14px; margin: 8px 0 20px; border-bottom: 3px solid var(--oe-accent);
+/* ---- Buttons (pills) ---- */
+.oe-admin .button,.oe-admin .page-title-action{
+  border-radius:999px; font-weight:700; border:2px solid var(--oe-ink); background:var(--oe-surface); color:var(--oe-ink);
+  padding:4px 16px; height:auto; line-height:2;
 }
-.oe-admin > h1:first-of-type::before {
-    content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 10px;
-    background: var(--oe-accent); border-radius: 50%; vertical-align: middle;
-}
-.oe-admin h2 { font-weight: 800; }
-.oe-admin h2 .description, .oe-admin h3 .description { font-weight: 400; color: var(--oe-muted); font-size: 13px; }
-.oe-admin p.description { color: var(--oe-muted); }
+.oe-admin .button:hover{ background:var(--oe-sunken); }
+.oe-admin .button-primary{ background:var(--oe-accent); border-color:var(--oe-accent); color:var(--oe-accent-on); text-shadow:none; }
+.oe-admin .button-primary:hover{ filter:brightness(.92); background:var(--oe-accent); border-color:var(--oe-accent); color:var(--oe-accent-on); }
 
-/* Cards / tables */
-.oe-admin .widefat {
-    border: 1px solid var(--oe-line); border-radius: 12px; overflow: hidden;
-    box-shadow: 0 1px 0 rgba(20,17,14,.03);
-}
-.oe-admin .widefat thead th {
-    background: var(--oe-paper); text-transform: uppercase; letter-spacing: .04em;
-    font-size: 11px; color: var(--oe-muted);
-}
+/* ---- Status & tier chips ---- */
+.oe-admin .oe-status,.oe-admin .oe-tier{ display:inline-block; padding:3px 10px; border-radius:999px; font-size:12px; font-weight:700; text-transform:capitalize; background:var(--oe-sunken); color:var(--oe-muted); border:1px solid var(--oe-line); }
+.oe-admin .oe-status-approved,.oe-admin .oe-status-confirmed{ background:rgba(46,125,50,.1); color:var(--oe-green); border-color:var(--oe-green); }
+.oe-admin .oe-status-rejected,.oe-admin .oe-status-declined,.oe-admin .oe-status-no_show{ background:rgba(198,40,40,.1); color:var(--oe-red); border-color:var(--oe-red); }
+.oe-admin .oe-status-pending_review,.oe-admin .oe-status-pending{ background:rgba(255,187,6,.16); color:var(--oe-amber); border-color:var(--oe-amber); }
+.oe-admin .oe-tier-featured{ background:rgba(255,187,6,.16); color:var(--oe-amber); border-color:var(--oe-amber); }
+.oe-admin .oe-tier-premium{ background:#efe6fb; color:#5a2da0; border-color:#cdb6ef; }
 
-/* Pill buttons */
-.oe-admin .button {
-    border-radius: 999px; font-weight: 600; border-color: var(--oe-line);
-}
-.oe-admin .button-primary {
-    background: var(--oe-accent); border-color: var(--oe-accent); color: #fff;
-}
-.oe-admin .button-primary:hover { background: var(--oe-accent-dark); border-color: var(--oe-accent-dark); }
-.oe-admin .page-title-action { border-radius: 999px; }
+/* ---- Notices keep WP shape but soften ---- */
+.oe-admin .notice{ border-radius:10px; border-width:1px; }
 
-/* Sub-filter row */
-.oe-admin .subsubsub { margin-bottom: 12px; }
-.oe-admin .subsubsub a.current { color: var(--oe-accent); }
-
-/* Status & tier chips */
-.oe-admin .oe-status, .oe-admin .oe-tier {
-    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px;
-    font-weight: 600; text-transform: capitalize; background: #eee; color: #444;
-}
-.oe-admin .oe-status-approved, .oe-admin .oe-status-confirmed { background: #e3f5e9; color: #1a7f37; }
-.oe-admin .oe-status-rejected, .oe-admin .oe-status-declined, .oe-admin .oe-status-no_show { background: #fde7e3; color: #b23218; }
-.oe-admin .oe-status-pending_review, .oe-admin .oe-status-pending { background: #fbe9d6; color: #9a5b00; }
-.oe-admin .oe-tier-featured { background: #fbe9d6; color: #9a5b00; }
-.oe-admin .oe-tier-premium { background: #efe6fb; color: #5a2da0; }
-
-/* Inputs focus */
-.oe-admin input[type="text"]:focus,
-.oe-admin input[type="number"]:focus,
-.oe-admin textarea:focus {
-    border-color: var(--oe-accent); box-shadow: 0 0 0 2px rgba(216,83,31,.15);
-}
+/* ---- Sub-filter row ---- */
+.oe-admin .subsubsub a.current{ color:var(--oe-ink); font-weight:700; }
