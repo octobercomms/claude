@@ -45,6 +45,7 @@ final class Plugin {
         \OE\Volunteers\Rest::init();
         \OE\Brand\Rest::init();
         \OE\Mail\Mailer::init();
+        \OE\Mail\SnsController::init();
         (new Cron())->init();
         MapsConnector::init();
 
@@ -85,6 +86,9 @@ final class Plugin {
      * listing/map pages are handled by Elementor/JetEngine (hybrid model).
      */
     public function handle_public_routes(): void {
+        // One-click unsubscribe (?oe_unsub=…&k=…) — exits if it handles the request.
+        \OE\Mail\Unsubscribe::handle();
+
         $ticket_token = isset($_GET['oe_ticket']) ? sanitize_text_field(wp_unslash($_GET['oe_ticket'])) : '';
         if ($ticket_token !== '') {
             $this->render_ticket($ticket_token);
