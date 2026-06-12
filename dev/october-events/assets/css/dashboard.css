@@ -1,0 +1,174 @@
+/* =====================================================================
+   October Events — frontend dashboard, volunteer widget & map (§2/§7)
+   Brand-matched to atlantadesignfestival.net: cream paper, near-black
+   bold display type, rust-orange accent, fully pill buttons & tabs.
+   ===================================================================== */
+
+.oe-dashboard,
+.oe-vol-signup,
+.oe-design-map {
+    --oe-paper: #ece8df;
+    --oe-card: #ffffff;
+    --oe-ink: #14110e;
+    --oe-muted: #6f6a60;
+    --oe-accent: #d8531f;
+    --oe-accent-dark: #b8420f;
+    --oe-line: #e3ded3;
+    --oe-radius: 14px;
+
+    color: var(--oe-ink);
+    font-family: inherit;
+    line-height: 1.5;
+}
+
+.oe-dashboard { max-width: 1000px; margin: 0 auto; }
+
+.oe-dashboard h2,
+.oe-dashboard h3 { font-weight: 800; letter-spacing: -0.01em; color: var(--oe-ink); }
+.oe-dashboard h2 { font-size: 26px; margin: 0 0 16px; }
+
+/* --- Tabs: pill row, active = orange ------------------------------- */
+.oe-tabs {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    background: var(--oe-paper); padding: 6px; border-radius: 999px;
+    margin-bottom: 28px;
+}
+.oe-tab {
+    background: none; border: 0; padding: 9px 18px; cursor: pointer;
+    font: inherit; font-weight: 600; color: var(--oe-muted);
+    border-radius: 999px; transition: background .15s, color .15s;
+}
+.oe-tab:hover { color: var(--oe-ink); }
+.oe-tab.is-active { background: var(--oe-accent); color: #fff; }
+
+.oe-panel { display: none; }
+.oe-panel.is-active { display: block; animation: oe-fade .2s ease; }
+@keyframes oe-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* --- Overview cards ------------------------------------------------- */
+.oe-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 18px; }
+.oe-card {
+    background: var(--oe-card); border: 1px solid var(--oe-line);
+    border-radius: var(--oe-radius); padding: 24px; text-align: center;
+    box-shadow: 0 1px 0 rgba(20, 17, 14, .03);
+}
+.oe-card-num { display: block; font-size: 40px; font-weight: 800; line-height: 1; color: var(--oe-accent); }
+.oe-card-label { display: block; color: var(--oe-muted); font-size: 13px; margin-top: 8px; text-transform: uppercase; letter-spacing: .04em; }
+
+/* --- Tables -------------------------------------------------------- */
+.oe-table { width: 100%; border-collapse: collapse; margin-top: 14px; background: var(--oe-card); border-radius: var(--oe-radius); overflow: hidden; }
+.oe-table thead th {
+    text-align: left; padding: 12px 14px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--oe-muted); background: var(--oe-paper);
+}
+.oe-table td { padding: 12px 14px; border-top: 1px solid var(--oe-line); }
+
+/* --- Status & tier chips ------------------------------------------- */
+.oe-status, .oe-tier {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    font-weight: 600; text-transform: capitalize; background: #eee; color: #444;
+}
+.oe-status-approved, .oe-status-confirmed, .oe-status-paid { background: #e3f5e9; color: #1a7f37; }
+.oe-status-rejected, .oe-status-declined, .oe-status-no_show { background: #fde7e3; color: #b23218; }
+.oe-status-pending_review, .oe-status-pending, .oe-status-pending_payment { background: #fbe9d6; color: #9a5b00; }
+.oe-status-refunded { background: #ecebfb; color: #4b3bb3; }
+.oe-tier-featured { background: #fbe9d6; color: #9a5b00; }
+.oe-tier-premium { background: #efe6fb; color: #5a2da0; }
+
+/* --- Sub-filters (pills) ------------------------------------------- */
+.oe-subtabs, #oe-listing-filter { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+.oe-subtabs button, #oe-listing-filter button {
+    background: var(--oe-card); border: 1px solid var(--oe-line); border-radius: 999px;
+    padding: 6px 16px; cursor: pointer; font: inherit; font-weight: 600; color: var(--oe-ink);
+}
+.oe-subtabs button.is-active, #oe-listing-filter button.is-active { background: var(--oe-ink); color: #fff; border-color: var(--oe-ink); }
+
+/* --- Forms --------------------------------------------------------- */
+.oe-form { display: grid; gap: 16px; max-width: 540px; }
+.oe-form label { display: grid; gap: 6px; font-weight: 600; font-size: 14px; }
+.oe-form input, .oe-form select, .oe-form textarea {
+    font: inherit; font-weight: 400; padding: 11px 14px; border: 1px solid var(--oe-line);
+    border-radius: 10px; background: var(--oe-card); color: var(--oe-ink);
+}
+.oe-form input:focus, .oe-form select:focus, .oe-form textarea:focus {
+    outline: none; border-color: var(--oe-accent); box-shadow: 0 0 0 3px rgba(216, 83, 31, .15);
+}
+.oe-form .oe-checkbox { display: flex; align-items: center; gap: 10px; font-weight: 400; }
+.oe-form .oe-checkbox input { width: auto; }
+
+/* --- Buttons: fully pill ------------------------------------------- */
+.oe-btn {
+    display: inline-block; background: var(--oe-paper); color: var(--oe-ink); border: 0;
+    border-radius: 999px; padding: 12px 26px; cursor: pointer; font: inherit; font-weight: 700;
+    text-decoration: none; text-align: center; transition: transform .05s, background .15s;
+}
+.oe-btn:hover { background: #e2dccf; }
+.oe-btn:active { transform: translateY(1px); }
+.oe-btn-primary { background: var(--oe-accent); color: #fff; }
+.oe-btn-primary:hover { background: var(--oe-accent-dark); }
+.oe-btn[disabled] { opacity: .5; cursor: default; }
+
+.oe-payment { border: 1px solid var(--oe-line); border-radius: var(--oe-radius); padding: 16px; background: var(--oe-paper); }
+#oe-card-errors { color: #b23218; font-size: 13px; margin-top: 8px; }
+.oe-result { font-size: 14px; min-height: 18px; color: var(--oe-muted); }
+
+.oe-list { list-style: none; padding: 0; display: grid; gap: 10px; }
+.oe-list li { padding: 14px 16px; background: var(--oe-card); border: 1px solid var(--oe-line); border-radius: var(--oe-radius); }
+.oe-loading { color: var(--oe-muted); }
+
+.oe-login-required { background: var(--oe-paper); border-radius: var(--oe-radius); padding: 28px; text-align: center; }
+
+/* --- Volunteer signup widget --------------------------------------- */
+.oe-vol-signup h3 { font-weight: 800; }
+.oe-vol-table .oe-vol-open { color: #1a7f37; font-weight: 700; }
+.oe-vol-table .oe-vol-full { color: #b23218; font-weight: 600; }
+.oe-vol-pick { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.oe-vol-signup form { margin-top: 18px; }
+
+/* --- Event checkout ------------------------------------------------ */
+.oe-checkout { max-width: 560px; margin: 0 auto; }
+.oe-co-step { margin-bottom: 20px; }
+.oe-co-type {
+    display: flex; align-items: center; gap: 12px; padding: 14px 16px; margin-bottom: 8px;
+    border: 1px solid var(--oe-line); border-radius: var(--oe-radius); background: var(--oe-card); cursor: pointer;
+}
+.oe-co-type:has(input:checked) { border-color: var(--oe-accent); box-shadow: 0 0 0 2px rgba(216,83,31,.15); }
+.oe-co-type.is-disabled { opacity: .55; cursor: not-allowed; }
+.oe-co-type-main { flex: 1; }
+.oe-co-type-price { font-weight: 700; text-align: right; white-space: nowrap; }
+.oe-co-desc { color: var(--oe-muted); font-size: 13px; }
+.oe-co-admits { display: inline-block; background: var(--oe-paper); border-radius: 999px; padding: 1px 8px; font-size: 11px; margin-left: 6px; }
+.oe-co-promo { display: inline-flex; gap: 8px; }
+.oe-co-summary { background: var(--oe-paper); border-radius: var(--oe-radius); padding: 14px 16px; margin-bottom: 18px; }
+.oe-co-line { display: flex; justify-content: space-between; padding: 4px 0; }
+.oe-co-total { border-top: 1px solid var(--oe-line); margin-top: 6px; padding-top: 10px; font-weight: 800; font-size: 18px; }
+.oe-co-success { text-align: center; }
+
+/* --- Check-in PWA -------------------------------------------------- */
+.oe-checkin { max-width: 480px; margin: 0 auto; }
+.oe-ci-step { display: none; }
+.oe-ci-step.is-active { display: block; }
+.oe-ci-event, .oe-ci-venue { display: block; width: 100%; margin-bottom: 8px; }
+.oe-ci-pin { font-size: 32px; letter-spacing: 12px; text-align: center; width: 100%; padding: 12px; border: 1px solid var(--oe-line); border-radius: 12px; margin-bottom: 12px; }
+.oe-ci-reader { width: 100%; min-height: 280px; background: #14110e; border-radius: var(--oe-radius); overflow: hidden; margin-bottom: 12px; }
+.oe-ci-counter { margin: 12px 0; font-weight: 700; }
+.oe-ci-stats { color: var(--oe-muted); font-size: 14px; margin-bottom: 12px; }
+.oe-ci-overlay { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; z-index: 9999; }
+.oe-ci-overlay-inner { text-align: center; padding: 24px; }
+.oe-ci-big { font-size: 40px; font-weight: 800; margin-bottom: 8px; }
+.oe-ci-ok { background: rgba(26,127,55,.96); }
+.oe-ci-warn { background: rgba(154,91,0,.96); }
+.oe-ci-bad { background: rgba(178,50,24,.96); }
+
+/* --- Map fallback (§7) --------------------------------------------- */
+.oe-design-map { display: grid; grid-template-columns: 220px 1fr; gap: 18px; }
+.oe-map-filters { display: grid; gap: 8px; font-size: 14px; background: var(--oe-paper); padding: 16px; border-radius: var(--oe-radius); height: max-content; }
+.oe-map-canvas iframe { border-radius: var(--oe-radius); }
+.oe-map-list { list-style: none; padding: 0; display: grid; gap: 8px; margin-top: 14px; }
+.oe-map-list li { padding: 10px 12px; background: var(--oe-card); border: 1px solid var(--oe-line); border-radius: 10px; }
+.oe-map-list li.is-featured { border-left: 4px solid var(--oe-accent); }
+
+@media (max-width: 680px) {
+    .oe-design-map { grid-template-columns: 1fr; }
+    .oe-tabs { border-radius: var(--oe-radius); }
+}
