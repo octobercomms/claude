@@ -39,8 +39,7 @@ final class PostTypes {
         'product'     => ['slug' => 'adf_product',     'external' => false, 'listing' => true,  'label' => 'Product'],
         'event'       => ['slug' => 'events',          'external' => true,  'listing' => true,  'label' => 'Event'],
         'story'       => ['slug' => 'adf_story',       'external' => false, 'listing' => true,  'label' => 'Story'],
-        // Ads are managed as campaigns/creatives in custom tables (see ADF\Ads),
-        // not as a listing CPT.
+        // Ads are handled by the standalone oc-ad-manager plugin, not here.
         // Supporting records (not public listings, not in the approval queue).
         // Tickets/orders are relational tables (see ADF\Ticketing), not a CPT.
         'account'     => ['slug' => 'adf_account',     'external' => false, 'listing' => false, 'label' => 'Account'],

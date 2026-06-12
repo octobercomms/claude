@@ -123,35 +123,6 @@ use ADF\Connectors\BrevoConnector;
         <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'adf-festival'); ?></label></p>
         <p><label><?php esc_html_e('Daily ticket sales report to', 'adf-festival'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'adf-festival'); ?></span></p>
 
-        <h2><?php esc_html_e('Ad booking packages', 'adf-festival'); ?></h2>
-        <p class="description"><?php esc_html_e('One per line: Name | impressions or clicks | quantity | price', 'adf-festival'); ?></p>
-        <p><textarea name="ad_packages" rows="4" class="large-text" placeholder="Homepage MPU — 1 month | impressions | 50000 | 299"><?php
-            $lines = [];
-            foreach ((array) ($cfg['ad_packages'] ?? []) as $p) { $lines[] = ($p['name'] ?? '') . ' | ' . ($p['type'] ?? 'impressions') . ' | ' . ($p['quantity'] ?? 0) . ' | ' . ($p['price'] ?? 0); }
-            echo esc_textarea(implode("\n", $lines));
-        ?></textarea></p>
-        <h2><?php esc_html_e('Ad promo codes', 'adf-festival'); ?></h2>
-        <p class="description"><?php esc_html_e('One per line: CODE | percent', 'adf-festival'); ?></p>
-        <p><textarea name="ad_promo_codes" rows="3" class="large-text" placeholder="LAUNCH | 20"><?php
-            $lines = [];
-            foreach ((array) ($cfg['ad_promo_codes'] ?? []) as $code => $pct) { $lines[] = $code . ' | ' . $pct; }
-            echo esc_textarea(implode("\n", $lines));
-        ?></textarea></p>
-
-        <h2 id="syndication"><?php esc_html_e('Ad syndication (hub / partner)', 'adf-festival'); ?></h2>
-        <?php $mode = (string) ($cfg['ad_site_mode'] ?? 'hub'); ?>
-        <p>
-            <label><input type="radio" name="ad_site_mode" value="hub" <?php checked($mode, 'hub'); ?>> <?php esc_html_e('Hub — this site owns the ads and can syndicate them to partner sites', 'adf-festival'); ?></label><br>
-            <label><input type="radio" name="ad_site_mode" value="partner" <?php checked($mode, 'partner'); ?>> <?php esc_html_e('Partner — this site pulls ads from a hub', 'adf-festival'); ?></label>
-        </p>
-        <p><strong><?php esc_html_e('Hub API key', 'adf-festival'); ?>:</strong> <code><?php echo esc_html((string) ($cfg['ad_api_key'] ?? '') ?: '—'); ?></code>
-            <span class="description"><?php esc_html_e('Partners present this key. Saved automatically in hub mode.', 'adf-festival'); ?></span></p>
-        <p><label><?php esc_html_e('Hub URL (partner mode)', 'adf-festival'); ?> <input type="url" name="ad_hub_url" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ad_hub_url'] ?? '')); ?>" placeholder="https://atlantadesignfestival.net"></label></p>
-        <p><label><?php esc_html_e('Hub API key (partner mode)', 'adf-festival'); ?> <input type="text" name="ad_hub_api_key" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ad_hub_api_key'] ?? '')); ?>"></label></p>
-        <?php $partners = (array) ($cfg['ad_known_partners'] ?? []); if ($partners) : ?>
-            <p class="description"><?php esc_html_e('Active partner sites:', 'adf-festival'); ?> <?php echo esc_html(implode(', ', $partners)); ?></p>
-        <?php endif; ?>
-
         <h2 id="updates"><?php esc_html_e('Updates (GitHub)', 'adf-festival'); ?></h2>
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged adf-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define ADF_GITHUB_TOKEN in wp-config.php).', 'adf-festival'); ?></p>
         <p><label><?php esc_html_e('Repository', 'adf-festival'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
@@ -184,14 +155,6 @@ use ADF\Connectors\BrevoConnector;
             <?php endif; ?>
         </div>
     <?php } ?>
-
-    <hr>
-    <h2><?php esc_html_e('Syndication key', 'adf-festival'); ?></h2>
-    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" onsubmit="return confirm('<?php echo esc_js(__('Regenerate the hub API key? Partner sites will need the new key.', 'adf-festival')); ?>')">
-        <input type="hidden" name="action" value="adf_regen_ad_key">
-        <?php wp_nonce_field('adf_regen_ad_key'); ?>
-        <?php submit_button(__('Regenerate hub API key', 'adf-festival'), 'secondary', 'submit', false); ?>
-    </form>
 
     <hr>
     <h2 id="update-test"><?php esc_html_e('Updates', 'adf-festival'); ?></h2>

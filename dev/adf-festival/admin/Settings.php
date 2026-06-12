@@ -29,18 +29,6 @@ final class Settings {
         add_action('admin_post_adf_save_settings', [$this, 'save']);
         add_action('admin_post_adf_test_updater', [$this, 'test_updater']);
         add_action('admin_post_adf_test_voice', [$this, 'test_voice']);
-        add_action('admin_post_adf_regen_ad_key', [$this, 'regen_ad_key']);
-    }
-
-    /** Generate a fresh hub API key. */
-    public function regen_ad_key(): void {
-        if (! current_user_can('manage_options')) {
-            wp_die('Forbidden', '', ['response' => 403]);
-        }
-        check_admin_referer('adf_regen_ad_key');
-        Config::update(['ad_api_key' => bin2hex(random_bytes(24))]);
-        wp_safe_redirect(admin_url('admin.php?page=adf-settings#syndication'));
-        exit;
     }
 
     /**
@@ -150,30 +138,6 @@ final class Settings {
             $brevo_lists[sanitize_key($list)] = (int) $id;
         }
 
-        // Ad packages: "Name | impressions|clicks | quantity | price" per line.
-        $ad_packages = [];
-        foreach (preg_split('/\r\n|\r|\n/', (string) ($in['ad_packages'] ?? '')) as $line) {
-            $p = array_map('trim', explode('|', $line));
-            if (count($p) < 4 || $p[0] === '') {
-                continue;
-            }
-            $ad_packages[] = [
-                'name'     => sanitize_text_field($p[0]),
-                'type'     => in_array($p[1], ['impressions', 'clicks'], true) ? $p[1] : 'impressions',
-                'quantity' => (int) $p[2],
-                'price'    => round((float) $p[3], 2),
-            ];
-        }
-        // Ad promo codes: "CODE | pct" per line.
-        $ad_promos = [];
-        foreach (preg_split('/\r\n|\r|\n/', (string) ($in['ad_promo_codes'] ?? '')) as $line) {
-            $p = array_map('trim', explode('|', $line));
-            if (count($p) < 2 || $p[0] === '') {
-                continue;
-            }
-            $ad_promos[strtoupper(sanitize_text_field($p[0]))] = max(0, min(100, (int) $p[1]));
-        }
-
         $offsets = [];
         foreach (['week', '48h', 'morning'] as $key) {
             if (! empty($in['reminder_offsets'][$key])) {
@@ -198,12 +162,6 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => \ADF\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
-            'ad_packages'      => $ad_packages,
-            'ad_promo_codes'   => $ad_promos,
-            'ad_site_mode'     => ($in['ad_site_mode'] ?? 'hub') === 'partner' ? 'partner' : 'hub',
-            'ad_api_key'       => ($in['ad_site_mode'] ?? 'hub') === 'hub' && (string) Config::get('ad_api_key', '') === '' ? bin2hex(random_bytes(24)) : (string) Config::get('ad_api_key', ''),
-            'ad_hub_url'       => esc_url_raw((string) ($in['ad_hub_url'] ?? '')),
-            'ad_hub_api_key'   => sanitize_text_field((string) ($in['ad_hub_api_key'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=adf-settings')));

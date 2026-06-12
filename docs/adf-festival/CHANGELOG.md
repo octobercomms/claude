@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `adf-v<version>`. Bump the
 `readme.txt`) and merge to `main`; the release workflow builds and publishes the
 release automatically.
 
+## 1.4.0 — separate the Ad Manager
+
+- **Removed the ad module from this plugin.** Ads are a cross-site ad network, not a
+  festival-specific feature, so they now live solely in the standalone **oc-ad-manager**
+  plugin (the festival site runs both). Bundling them in 1.0.0 was the wrong call; this
+  corrects it and slims the festival plugin (63 → 48 PHP files).
+- Removed: `ADF\Ads\*` (campaigns/creatives/tracking/bookings/serving/partner), the Ads
+  admin screens, the `[adf_ad]` / `[adf_ad_book]` shortcodes, the ad REST endpoints
+  (`/ad-render`, `/ad`, `/ad-promo`, `/ad-book-intent`) + the webhook `ad_booking` branch,
+  the `wp adf migrate-ads` command, and all ad/syndication settings.
+- No effect on tickets, listings, volunteers, email/SMS, or the self-updater.
+- **Note:** the `adf_ad_*` tables from 1.0.0–1.3.0 are left in place (harmless) rather than
+  dropped; remove them manually if you never used the bundled ad system.
+
 ## 1.3.0 — security hardening
 
 Addresses the findings from the security audit (IDs reference the audit report):

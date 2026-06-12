@@ -2,14 +2,14 @@
 Contributors: octobercomms
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPL-2.0-or-later
 
 Consolidated operations platform for the Atlanta Design Festival: accounts,
-listings (directory, destinations, products, events, stories, ads), submission
+listings (directory, destinations, products, events, stories), submission
 and approval, Stripe payments, Brevo email + SMS, ticketing, volunteer
 opportunities with shift signups and reminders, and an AI Stories editorial
-connector.
+connector. (Ads are handled by the standalone oc-ad-manager plugin.)
 
 Full documentation lives in the repository at docs/adf-festival/README.md.
 

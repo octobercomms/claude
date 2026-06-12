@@ -4,8 +4,9 @@ A single WordPress plugin consolidating all operational functions for the
 **Atlanta Design Festival** (atlantadesignfestival.net): accounts, listings,
 submission/approval, Stripe payments, Brevo email **and SMS**, ticketing,
 volunteer opportunities with shift signups and reminders, and an AI Stories
-editorial connector. It replaces the legacy **Ad Manager** and **Event Tickets**
-plugins.
+editorial connector. It replaces the legacy **Event Tickets** plugin. Ads are
+handled by the separate, standalone **oc-ad-manager** plugin (it serves across
+multiple sites), so they are intentionally **not** part of this plugin.
 
 - **Code:** `dev/adf-festival/`
 - **This doc + brief:** `docs/adf-festival/`
@@ -36,8 +37,8 @@ logic on top.
 
 All **other** types are registered fresh by the plugin with an `adf_` prefix so
 they can never collide with JetEngine:
-`adf_directory`, `adf_destination`, `adf_product`, `adf_story`, `adf_ad`, plus the
-supporting `adf_account` and `adf_ticket`.
+`adf_directory`, `adf_destination`, `adf_product`, `adf_story`, plus the
+supporting `adf_account` (tickets are relational tables, see Ticketing).
 
 The single source of truth for this mapping is `PostTypes::TYPES` in
 `includes/PostTypes.php` (each entry flags `external` for adopted CPTs).
@@ -189,8 +190,6 @@ the flags.
 | `[adf_volunteer_signup opportunity="ID"]` | Shift table + signup form on an opportunity page |
 | `[adf_event_checkout event_id="ID"]` | Public Stripe ticket checkout for an event |
 | `[adf_checkin]` | Door check-in PWA (events → PIN → venue → QR scan) |
-| `[adf_ad format="mpu|leaderboard|skyscraper"]` | An ad slot (served + tracked via REST) |
-| `[adf_ad_book]` | Self-serve ad booking form (Stripe) |
 | `[adf_design_map]` | Fallback Destinations map (Elementor/JetEngine preferred) |
 
 ## Ticketing (relational)
@@ -211,43 +210,32 @@ on the event. Sales are stored relationally in `adf_orders` / `adf_tickets` /
   camera QR scanning (html5-qrcode bundled locally) with valid/already/invalid
   overlays + manual token fallback; every scan logged.
 
-## Ads (`ADF\Ads`)
+## Ads
 
-Campaigns + per-format creatives, random in-date, cap-aware rotation, and
-impression/click tracking **with dedup** live in `adf_ad_campaigns` /
-`adf_ad_creatives` / `adf_ad_tracking` / `adf_ad_bookings`.
-
-- **Serving**: `[adf_ad]` renders an empty slot filled via `/ad-render` (survives
-  page caching); clicks redirect through a tracked URL.
-- **Self-serve booking** (`[adf_ad_book]`): creative uploads + package + promo +
-  Stripe → booking marked *paid* by the webhook → an admin **Activates** it
-  (payment ≠ auto-live, by design), which creates the live campaign.
-- **Admin**: campaign CRUD with a media-library creative picker (full manual
-  entry), Ad Bookings review (activate/decline), and a per-campaign report.
-- **Hub/partner syndication**: in hub mode this site exposes an API-key-gated
-  `/ad` endpoint; partner sites pull + serve ads (cached) with clicks/impressions
-  tracked back on the hub. Configured under Settings → Ad syndication.
+Ads are **not** part of this plugin. They are handled by the standalone
+**oc-ad-manager** plugin, which serves and tracks ads across multiple sites
+(hub/partner). The festival site simply runs both plugins side by side. (Ads were
+briefly bundled here in 1.0.0–1.3.0 and removed in 1.4.0 — see the changelog.)
 
 ---
 
 ## Migration (WP-CLI, §9)
 
 ```
-wp adf migrate-ads      [--prefix=wp_] [--dry-run]
 wp adf migrate-tickets  [--prefix=wp_] [--dry-run]
 ```
 
-Both read the legacy plugins' **custom tables** (`ocad_campaigns` / `ocad_ads` /
-`ocad_tracking` / `ocad_bookings`, and `oct_orders` / `oct_tickets` /
-`oct_checkins`) and are idempotent (records are marked once migrated). Run with
+Reads the legacy Event Tickets **custom tables** (`oct_orders` / `oct_tickets` /
+`oct_checkins`) and is idempotent (records are marked once migrated). Run with
 `--dry-run` first to preview. Because events live in the adopted `events` CPT,
 `migrate-tickets` imports **ticket** records — preserving each ticket's unique
 check-in `token` and linking it to its existing event + matching `adf_account` —
-and does not recreate event posts.
+and does not recreate event posts. (Ad data migration lives in the standalone
+oc-ad-manager plugin, not here.)
 
-> The legacy **Ad Manager** and **Event Tickets** plugins are left completely
-> untouched by this work. Keep them active until you've run the migrations and
-> verified the new plugin, then deactivate them (the brief's retire step).
+> The legacy **Event Tickets** plugin is left completely untouched by this work.
+> Keep it active until you've run the migration and verified the new plugin, then
+> deactivate it. The **Ad Manager** (oc-ad-manager) plugin stays in use as-is.
 
 ---
 

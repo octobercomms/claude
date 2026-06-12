@@ -2,8 +2,8 @@
 /**
  * Plugin Name: ADF Festival
  * Plugin URI:  https://atlantadesignfestival.net
- * Description: Consolidated operations platform for the Atlanta Design Festival — accounts, listings (directory, destinations, products, events, stories, ads), submission/approval, Stripe payments, Brevo email, ticketing, volunteers and the AI Stories editorial connector. Replaces the Ad Manager and Event Tickets plugins.
- * Version:     1.3.0
+ * Description: Consolidated operations platform for the Atlanta Design Festival — accounts, listings (directory, destinations, products, events, stories), submission/approval, Stripe payments, Brevo email, ticketing, volunteers and the AI Stories editorial connector. Replaces the Event Tickets plugin. (Ads are handled by the standalone oc-ad-manager plugin.)
+ * Version:     1.4.0
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
@@ -17,7 +17,7 @@
  *     CPTs with live data and Elementor listings. This plugin ADOPTS those two
  *     CPTs rather than re-registering or migrating them: it only layers the
  *     shared ADF meta, submission/approval, payment and email logic on top.
- *   - All other listing types (directory, destinations, products, stories, ads)
+ *   - All other listing types (directory, destinations, products, stories)
  *     plus the supporting `adf_account` and `adf_ticket` records are registered
  *     fresh by this plugin with an `adf_` slug prefix so they never collide with
  *     JetEngine.
@@ -31,7 +31,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('ADF_VERSION', '1.3.0');
+define('ADF_VERSION', '1.4.0');
 // Bump when the DB schema changes so tables auto-(re)build on upgrade without a
 // manual deactivate/reactivate. dbDelta makes the install routines idempotent.
 define('ADF_DB_VERSION', '2');
@@ -96,7 +96,7 @@ add_action('plugins_loaded', static function (): void {
 }, 20);
 
 /*
- * WP-CLI migration commands (`wp adf migrate-ads`, `wp adf migrate-tickets`).
+ * WP-CLI migration command (`wp adf migrate-tickets`).
  */
 if (defined('WP_CLI') && WP_CLI) {
     ADF\Migration\Cli::register();
