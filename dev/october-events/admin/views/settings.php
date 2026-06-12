@@ -19,6 +19,20 @@ use OE\Connectors\BrevoConnector;
         <p><label><?php esc_html_e('Brand / site name', 'october-events'); ?>
             <input type="text" name="brand_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Events')); ?>"></label></p>
 
+        <h2><?php esc_html_e('Event readiness', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('An event can only be confirmed (go green & publish) once these fields are filled.', 'october-events'); ?></p>
+        <?php
+        $req = (array) ($cfg['event_required_fields'] ?? ['name', 'start_datetime', 'price', 'location']);
+        $candidates = [
+            'name' => __('Event title', 'october-events'), 'start_datetime' => __('Dates & times', 'october-events'),
+            'end_datetime' => __('End date & time', 'october-events'), 'price' => __('Price', 'october-events'),
+            'location' => __('Location', 'october-events'), 'description' => __('Description', 'october-events'),
+            'organiser' => __('Organiser', 'october-events'), 'image' => __('Image', 'october-events'),
+        ];
+        foreach ($candidates as $k => $label) : ?>
+            <label style="display:inline-block;margin:0 16px 6px 0"><input type="checkbox" name="event_required_fields[]" value="<?php echo esc_attr($k); ?>" <?php checked(in_array($k, $req, true)); ?>> <?php echo esc_html($label); ?></label>
+        <?php endforeach; ?>
+
         <h2><?php esc_html_e('API keys', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are saved to the database.', 'october-events'); ?></p>
         <?php

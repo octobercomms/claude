@@ -35,6 +35,8 @@ final class Settings {
             // Per-site brand shown in the admin menu / UI (this plugin runs on
             // multiple sites — e.g. "Atlanta Design Festival", "Architecture Tours").
             'brand_name' => 'October Events',
+            // Which fields an event needs before it can be confirmed (go green).
+            'event_required_fields' => ['name', 'start_datetime', 'price', 'location'],
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

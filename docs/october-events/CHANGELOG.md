@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.6.0 — event planning + confirm→green (PM platform phase 1)
+
+The first slice of the project-management platform, in the plugin (usable in
+wp-admin now; the same data feeds the platform UI later via REST).
+
+- **Confirm→green gating engine** (`OE\Planning\Gating`): an event can only be
+  confirmed once the required fields are complete. Default required set = Elayne's
+  essentials — **title, dates & times, price, location** — configurable under
+  **Settings → Event readiness**.
+- **Event planning** (`OE\Planning\Events`): canonical event info + sessions +
+  internal notes stored as `_oe_plan_*` meta on the `events` CPT.
+- **Event readiness meta box** on each event: a live checklist, the planning
+  fields, a sessions list, and a **Confirm — go green** button that's disabled
+  until complete. Confirming **publishes** the event to the public site;
+  un-confirming returns it to in-progress.
+- **Event Planning** admin screen: every event with a completion meter, status,
+  and what it still needs.
+- **REST** (`oe/v1/planning/*`): list events, read/update one, and confirm — the
+  endpoints the platform's Events board will use (auth: can-edit-events).
+- No schema/table changes; status auto-drops from green if a confirmed event later
+  becomes incomplete.
+
 ## 1.5.0 — renamed to October Events (multi-site)
 
 The plugin is renamed from **ADF Festival** to **October Events** so one codebase

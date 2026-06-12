@@ -34,6 +34,7 @@ final class Admin {
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
+        PlanningAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -48,6 +49,7 @@ final class Admin {
         add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination'));
         add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product'));
         add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-events', fn() => $this->page_listing('event'));
+        add_submenu_page('october-events', 'Event Planning', 'Event Planning', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
         add_submenu_page('october-events', 'Registrations', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
         add_submenu_page('october-events', 'Promo Codes', 'Promo Codes', $cap, 'oe-promos', [TicketsAdmin::get_instance(), 'render_promos']);
         add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
