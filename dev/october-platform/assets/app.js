@@ -1,13 +1,21 @@
 /**
- * October Events — planning platform (Phase 1: Elayne's Events board).
+ * October Events — planning platform.
  *
- * A no-build vanilla SPA. Lists events from the plugin's oe/v1/planning API,
- * shows the confirm→green readiness, and lets you edit fields + confirm.
+ * A no-build vanilla SPA with two views:
+ *  - Events: the confirm→green readiness board (oe/v1/planning).
+ *  - Tasks:  the shared department task board (oe/v1/tasks).
  */
 import { api, getCreds, setCreds, clearCreds } from './api.js';
 
 const app = document.getElementById('app');
 const STATUS = { confirmed: 'Confirmed', in_progress: 'In progress', draft: 'Draft' };
+
+/* Task statuses, in board (column) order. Labels mirror the plugin. */
+const TASK_STATUS = { todo: 'To do', doing: 'In progress', blocked: 'Blocked', done: 'Done' };
+const TASK_ORDER = ['todo', 'doing', 'blocked', 'done'];
+
+let route = 'events';
+let taskMeta = null; // { departments, statuses, counts } — cached after first load
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
@@ -22,12 +30,41 @@ async function boot() {
   if (!getCreds()) { return renderLogin(); }
   try {
     await api.ping();
-    renderBoard();
+    render();
   } catch (e) {
     renderLogin(e.status === 401 || e.status === 403
       ? 'Those credentials were rejected. Check the username and application password.'
       : 'Could not reach the site. Check the URL.');
   }
+}
+
+function render() {
+  if (route === 'tasks') { return renderTasks(); }
+  return renderBoard();
+}
+
+/* Shared top bar + view nav. `active` is the current route key. */
+function topbar(active) {
+  const bar = el(`
+    <header class="oe-top">
+      <div class="oe-top-left">
+        <strong>October Events</strong>
+        <nav class="oe-nav">
+          <button class="oe-navlink ${active === 'events' ? 'on' : ''}" data-route="events">Events</button>
+          <button class="oe-navlink ${active === 'tasks' ? 'on' : ''}" data-route="tasks">Tasks</button>
+        </nav>
+      </div>
+      <div class="oe-top-actions">
+        <span class="muted small">${esc((getCreds() || {}).user || '')}</span>
+        <button id="b-refresh" class="btn btn-small">Refresh</button>
+        <button id="b-out" class="btn btn-small">Sign out</button>
+      </div>
+    </header>`);
+  bar.querySelectorAll('[data-route]').forEach((b) =>
+    b.addEventListener('click', () => { route = b.getAttribute('data-route'); render(); }));
+  bar.querySelector('#b-refresh').addEventListener('click', render);
+  bar.querySelector('#b-out').addEventListener('click', () => { clearCreds(); renderLogin(); });
+  return bar;
 }
 
 /* ---------------------------------------------------------------- */
@@ -78,15 +115,7 @@ async function renderBoard() {
   events.forEach((e) => { (groups[e.status] || groups.draft).push(e); });
 
   app.innerHTML = '';
-  app.appendChild(el(`
-    <header class="oe-top">
-      <div><strong>October Events</strong> · Planning</div>
-      <div class="oe-top-actions">
-        <span class="muted small">${esc((getCreds() || {}).user || '')}</span>
-        <button id="b-refresh" class="btn btn-small">Refresh</button>
-        <button id="b-out" class="btn btn-small">Sign out</button>
-      </div>
-    </header>`));
+  app.appendChild(topbar('events'));
 
   const board = el('<div class="oe-board"></div>');
   ['in_progress', 'draft', 'confirmed'].forEach((status) => {
@@ -100,8 +129,6 @@ async function renderBoard() {
   });
   app.appendChild(board);
 
-  app.querySelector('#b-refresh').addEventListener('click', renderBoard);
-  app.querySelector('#b-out').addEventListener('click', () => { clearCreds(); renderLogin(); });
   app.querySelectorAll('[data-open]').forEach((c) =>
     c.addEventListener('click', () => openEditor(parseInt(c.getAttribute('data-open'), 10))));
 }
@@ -216,6 +243,150 @@ function label(k) {
   return ({ name: 'Event title', start_datetime: 'Dates & times', end_datetime: 'End date & time',
     price: 'Price', location: 'Location', description: 'Description', organiser: 'Organiser', image: 'Image' }[k])
     || k.replace(/_/g, ' ');
+}
+
+/* ---------------------------------------------------------------- */
+/* Tasks board                                                      */
+/* ---------------------------------------------------------------- */
+async function renderTasks() {
+  app.innerHTML = '';
+  app.appendChild(topbar('tasks'));
+  const wrap = el('<div class="oe-tasks-wrap"><div class="oe-loading">Loading tasks…</div></div>');
+  app.appendChild(wrap);
+
+  let tasks = [];
+  try {
+    if (!taskMeta) { taskMeta = await api.tasksMeta(); }
+    tasks = await api.listTasks();
+  } catch (e) {
+    if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+    wrap.innerHTML = '<div class="oe-error" style="margin:24px">Could not load tasks.</div>';
+    return;
+  }
+
+  const departments = (taskMeta && taskMeta.departments) || [];
+  wrap.innerHTML = '';
+  wrap.appendChild(taskAddForm(departments));
+
+  const groups = {};
+  TASK_ORDER.forEach((s) => { groups[s] = []; });
+  tasks.forEach((t) => { (groups[t.status] || groups.todo).push(t); });
+
+  const board = el('<div class="oe-board oe-tasks-board"></div>');
+  TASK_ORDER.forEach((status) => {
+    const col = el(`<section class="oe-col oe-tcol-${status}">
+      <h2>${TASK_STATUS[status]} <span class="count">${groups[status].length}</span></h2>
+      <div class="oe-cards"></div></section>`);
+    const cards = col.querySelector('.oe-cards');
+    if (!groups[status].length) { cards.appendChild(el('<p class="muted small">None.</p>')); }
+    groups[status].forEach((t) => cards.appendChild(taskCard(t, departments)));
+    board.appendChild(col);
+  });
+  wrap.appendChild(board);
+}
+
+function taskAddForm(departments) {
+  const opts = departments.map((d) => `<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  const form = el(`
+    <form class="oe-task-add">
+      <input name="title" placeholder="Add a task…" required>
+      <select name="department">${opts}</select>
+      <input name="due_date" type="date" title="Due date">
+      <button class="btn btn-primary btn-small" type="submit">Add</button>
+      <span class="oe-result" id="t-add-msg"></span>
+    </form>`);
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const title = form.querySelector('[name="title"]').value.trim();
+    const msg = form.querySelector('#t-add-msg');
+    if (!title) { return; }
+    msg.textContent = 'Adding…';
+    try {
+      await api.createTask({
+        title,
+        department: form.querySelector('[name="department"]').value,
+        due_date: form.querySelector('[name="due_date"]').value,
+        status: 'todo',
+      });
+      renderTasks();
+    } catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+  return form;
+}
+
+function taskCard(t, departments) {
+  const due = t.due_date ? `<span class="t-due">${esc(t.due_date)}</span>` : '';
+  const who = t.assignee ? `<span class="t-who">${esc(t.assignee)}</span>` : '';
+  const statusOpts = TASK_ORDER.map((s) =>
+    `<option value="${s}" ${t.status === s ? 'selected' : ''}>${TASK_STATUS[s]}</option>`).join('');
+  const card = el(`
+    <article class="oe-card oe-task-card">
+      <div class="oe-card-title">${esc(t.title || '(untitled)')}</div>
+      <div class="t-chips">
+        <span class="t-dept">${esc(t.department || 'Uncategorized')}</span>
+        ${who}${due}
+      </div>
+      <div class="t-actions">
+        <select class="t-status">${statusOpts}</select>
+        <button class="btn btn-small t-edit">Edit</button>
+      </div>
+    </article>`);
+  card.querySelector('.t-status').addEventListener('change', async (ev) => {
+    try { await api.updateTask(t.id, { ...t, status: ev.target.value }); renderTasks(); }
+    catch (e) { alert(e.message || 'Could not update status.'); }
+  });
+  card.querySelector('.t-edit').addEventListener('click', () => openTaskEditor(t, departments));
+  return card;
+}
+
+function openTaskEditor(t, departments) {
+  const deptOpts = departments.map((d) =>
+    `<option value="${esc(d)}" ${t.department === d ? 'selected' : ''}>${esc(d)}</option>`).join('');
+  const statusOpts = TASK_ORDER.map((s) =>
+    `<option value="${s}" ${t.status === s ? 'selected' : ''}>${TASK_STATUS[s]}</option>`).join('');
+  const drawer = el(`
+    <div class="oe-drawer-wrap">
+      <div class="oe-drawer-bg"></div>
+      <aside class="oe-drawer">
+        <div class="oe-drawer-head">
+          <h2>Edit task</h2>
+          <button class="btn btn-small" data-close>Close</button>
+        </div>
+        <div class="oe-form">
+          <label>Title<input name="title" value="${esc(t.title || '')}"></label>
+          <label>Department<select name="department">${deptOpts}</select></label>
+          <label>Status<select name="status">${statusOpts}</select></label>
+          <label>Due date<input name="due_date" type="date" value="${esc((t.due_date || '').slice(0, 10))}"></label>
+          <label>Assignee<input name="assignee" value="${esc(t.assignee || '')}"></label>
+          <label>Notes<textarea name="notes" rows="3">${esc(t.notes || '')}</textarea></label>
+        </div>
+        <div class="oe-drawer-foot">
+          <button class="btn btn-primary" data-save>Save</button>
+          <button class="btn t-delete" data-delete>Delete</button>
+          <div id="t-msg" class="oe-result"></div>
+        </div>
+      </aside>
+    </div>`);
+  document.body.appendChild(drawer);
+
+  const close = () => { drawer.remove(); renderTasks(); };
+  drawer.querySelector('[data-close]').addEventListener('click', close);
+  drawer.querySelector('.oe-drawer-bg').addEventListener('click', close);
+
+  drawer.querySelector('[data-save]').addEventListener('click', async () => {
+    const msg = drawer.querySelector('#t-msg'); msg.textContent = 'Saving…';
+    const payload = {};
+    drawer.querySelectorAll('.oe-form [name]').forEach((inp) => { payload[inp.name] = inp.value; });
+    if (!payload.title.trim()) { msg.textContent = 'A title is required.'; return; }
+    try { await api.updateTask(t.id, payload); close(); }
+    catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+
+  drawer.querySelector('[data-delete]').addEventListener('click', async () => {
+    if (!confirm('Delete this task?')) { return; }
+    try { await api.deleteTask(t.id); close(); }
+    catch (e) { drawer.querySelector('#t-msg').textContent = e.message || 'Error'; }
+  });
 }
 
 boot();
