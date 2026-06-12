@@ -245,6 +245,14 @@ final class Volunteers {
             BrevoConnector::upsert_contact($email, ['FIRSTNAME' => $name], [(int) $lists['oe_volunteers']]);
         }
 
+        // Native contacts (the Brevo replacement).
+        \OE\Mail\Contacts::capture($email, [
+            'name'       => $name,
+            'phone'      => (string) ($person['phone'] ?? ''),
+            'sms_opt_in' => ! empty($person['sms_opt_in']) ? 1 : 0,
+            'source'     => 'volunteer',
+        ]);
+
         // "On signup" confirmation + schedule the rest (§reminders).
         Reminders::on_signup($id);
 

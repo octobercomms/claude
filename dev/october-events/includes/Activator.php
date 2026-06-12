@@ -40,6 +40,7 @@ final class Activator {
         \OE\Tasks\Schema::install();
         \OE\Mail\EmailLog::install();
         \OE\Mail\Suppression::install();
+        \OE\Mail\Contacts::install();
         update_option('oe_db_version', OE_DB_VERSION);
     }
 

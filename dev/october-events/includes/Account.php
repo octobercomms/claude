@@ -109,6 +109,8 @@ final class Account {
             'LASTNAME'  => $user->last_name,
         ], isset($lists['oe_all_subscribers']) ? [(int) $lists['oe_all_subscribers']] : []);
 
+        \OE\Mail\Contacts::capture($user->user_email, ['name' => $name, 'source' => 'account']);
+
         BrevoConnector::send('account_welcome', [
             'email' => $user->user_email,
             'name'  => $name,

@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.11.0 — native contacts (kills the manual import)
+
+Phase 2 of the email platform: a unified, de-duplicated contact list built from
+the data the plugin already owns, so contacts never have to be imported by hand
+again.
+
+- New `oe_contacts` table (auto-created on upgrade; DB version → 5): email
+  (unique), name, phone, sms_opt_in, source, status.
+- `OE\Mail\Contacts` — `capture()` (insert/merge, de-duped on email, fills blanks
+  only, never silently re-subscribes), `backfill()` from accounts, ticket buyers
+  and volunteers, plus search/counts/unsubscribe.
+- **Forward-fill**: every account creation, ticket order, volunteer signup and
+  listing submission now also captures a native contact (alongside the existing
+  Brevo upsert), so the list stays current.
+- **Contacts** admin screen: totals (subscribed / unsubscribed / SMS opt-in), a
+  recent list, and a one-click **Rebuild from existing data**.
+- Honours the suppression list — a suppressed email is captured as unsubscribed.
+
 ## 1.10.0 — email foundation: Amazon SES site mailer + log + suppression
 
 Phase 1 of the email platform (see docs/october-events/EMAIL-PLATFORM.md). October

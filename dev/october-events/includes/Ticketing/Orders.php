@@ -210,6 +210,7 @@ final class Orders {
         if (isset($lists['oe_event_attendees'])) {
             BrevoConnector::upsert_contact($order->email, [], [(int) $lists['oe_event_attendees']]);
         }
+        \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
         BrevoConnector::send('ticket_delivery', [
             'email' => $order->email,
             'name'  => $order->name,

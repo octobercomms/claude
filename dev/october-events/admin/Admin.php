@@ -31,6 +31,7 @@ final class Admin {
         add_action('admin_post_oe_reject', [$this, 'handle_reject']);
         add_action('admin_post_oe_volunteer_status', [$this, 'handle_volunteer_status']);
         add_action('admin_post_oe_send_digest', [$this, 'handle_send_digest']);
+        add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
@@ -57,6 +58,7 @@ final class Admin {
         add_submenu_page('october-events', 'Tasks', 'Tasks', $cap, 'oe-tasks', [TasksAdmin::get_instance(), 'render']);
         add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story'));
         add_submenu_page('october-events', 'Email', 'Email', $cap, 'oe-email', [$this, 'page_email']);
+        add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
     }
 
@@ -128,6 +130,22 @@ final class Admin {
 
     public function page_email(): void {
         require OE_DIR . 'admin/views/email.php';
+    }
+
+    public function page_contacts(): void {
+        $counts   = \OE\Mail\Contacts::counts();
+        $contacts = \OE\Mail\Contacts::search('', 50, 0);
+        require OE_DIR . 'admin/views/contacts.php';
+    }
+
+    public function handle_rebuild_contacts(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_rebuild_contacts');
+        \OE\Mail\Contacts::backfill();
+        wp_safe_redirect(add_query_arg('rebuilt', '1', admin_url('admin.php?page=oe-contacts')));
+        exit;
     }
 
     /* ----------------------------------------------------------------- *
