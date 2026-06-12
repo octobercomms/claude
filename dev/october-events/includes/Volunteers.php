@@ -285,6 +285,158 @@ final class Volunteers {
         return VolunteerSignups::for_account($account_id);
     }
 
+    public static function set_checked_in(int $signup_id, bool $checked_in): void {
+        VolunteerSignups::update($signup_id, ['checked_in' => $checked_in ? 1 : 0]);
+        if ($checked_in) {
+            AuditLog::record('volunteer_checked_in', $signup_id, 'volunteer');
+        }
+    }
+
+    public static function delete_signup(int $signup_id): void {
+        global $wpdb;
+        $wpdb->delete(VolunteerSignups::table(), ['id' => $signup_id]);
+        AuditLog::record('volunteer_signup_removed', $signup_id, 'volunteer');
+    }
+
+    /**
+     * Admin/manual add of a volunteer to a shift (the management surface). Unlike
+     * the public {@see signup()}, this bypasses the "signups open" gate and the
+     * capacity cap so staff can always place someone, but still de-dupes the
+     * person against the shift and fires the on-signup confirmation + reminders.
+     *
+     * @return int|\WP_Error signup id, or error
+     */
+    public static function admin_add(int $opportunity_id, string $shift_id, array $person, int $account_id = 0) {
+        if (get_post_type($opportunity_id) !== self::slug()) {
+            return new \WP_Error('oe_bad_opportunity', __('Unknown volunteer opportunity.', 'october-events'));
+        }
+        $shift = self::shift($opportunity_id, $shift_id);
+        if (! $shift) {
+            return new \WP_Error('oe_bad_shift', __('That shift no longer exists.', 'october-events'));
+        }
+        $name  = sanitize_text_field((string) ($person['name'] ?? ''));
+        $email = sanitize_email((string) ($person['email'] ?? ''));
+        if ($name === '' || ! is_email($email)) {
+            return new \WP_Error('oe_invalid_person', __('A name and valid email are required.', 'october-events'));
+        }
+        foreach (VolunteerSignups::for_shift($opportunity_id, $shift_id) as $existing) {
+            if (strcasecmp($existing->email, $email) === 0 && $existing->status !== VolunteerSignups::STATUS_DECLINED) {
+                return new \WP_Error('oe_already_booked', __('That person is already on this shift.', 'october-events'));
+            }
+        }
+
+        $id = VolunteerSignups::insert([
+            'opportunity_id' => $opportunity_id,
+            'shift_id'       => $shift_id,
+            'account_id'     => $account_id ?: null,
+            'name'           => $name,
+            'email'          => $email,
+            'phone'          => sanitize_text_field((string) ($person['phone'] ?? '')),
+            'sms_opt_in'     => ! empty($person['sms_opt_in']) ? 1 : 0,
+            // Staff-placed signups start confirmed (they're deliberate).
+            'status'         => VolunteerSignups::STATUS_CONFIRMED,
+            'shift_start'    => self::normalise_datetime((string) $shift['start']),
+            'reminders_sent' => '',
+        ]);
+
+        AuditLog::record('volunteer_signup_manual', $opportunity_id, 'volunteer', 'shift:' . $shift_id);
+        Reminders::on_signup($id);
+        return $id;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Read models for the management UI (admin + platform Volunteers view)
+     * ------------------------------------------------------------------ */
+
+    /** @return array<int,int> all opportunity post ids (newest first). */
+    public static function all_opportunity_ids(): array {
+        return array_map('intval', get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => ['publish', 'draft', 'pending', 'private'],
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]));
+    }
+
+    /**
+     * Lightweight card for the opportunities list: capacity vs filled across all
+     * shifts, plus how many signups still need a decision.
+     *
+     * @return array<string,mixed>
+     */
+    public static function opportunity_summary(int $id): array {
+        $shifts   = self::shifts($id);
+        $capacity = 0;
+        $filled   = 0;
+        foreach ($shifts as $s) {
+            $capacity += (int) $s['capacity'];
+            $filled   += VolunteerSignups::count_for_shift($id, $s['id']);
+        }
+        $pending = 0;
+        foreach (VolunteerSignups::for_opportunity($id) as $row) {
+            if ($row->status === VolunteerSignups::STATUS_PENDING) {
+                $pending++;
+            }
+        }
+        return [
+            'id'         => $id,
+            'title'      => get_the_title($id) ?: '(untitled)',
+            'role'       => (string) get_post_meta($id, '_oe_role', true),
+            'location'   => (string) get_post_meta($id, '_oe_location', true),
+            'open'       => get_post_meta($id, '_oe_signups_open', true) !== '0',
+            'shifts'     => count($shifts),
+            'capacity'   => $capacity,
+            'filled'     => $filled,
+            'pending'    => $pending,
+        ];
+    }
+
+    /**
+     * Full detail for one opportunity: each shift with its capacity/spots and the
+     * signups attached to it.
+     *
+     * @return array<string,mixed>
+     */
+    public static function opportunity_detail(int $id): array {
+        $summary  = self::opportunity_summary($id);
+        $by_shift = [];
+        foreach (VolunteerSignups::for_opportunity($id) as $row) {
+            $by_shift[$row->shift_id][] = self::signup_dto($row);
+        }
+        $shifts = [];
+        foreach (self::shifts($id) as $s) {
+            $shifts[] = [
+                'id'         => $s['id'],
+                'label'      => $s['label'],
+                'start'      => $s['start'],
+                'end'        => $s['end'],
+                'capacity'   => (int) $s['capacity'],
+                'spots_left' => self::spots_left($id, $s['id']),
+                'full'       => self::shift_full($id, $s['id']),
+                'signups'    => $by_shift[$s['id']] ?? [],
+            ];
+        }
+        $summary['shifts_detail'] = $shifts;
+        return $summary;
+    }
+
+    /** @return array<string,mixed> */
+    public static function signup_dto(object $s): array {
+        return [
+            'id'         => (int) $s->id,
+            'name'       => $s->name,
+            'email'      => $s->email,
+            'phone'      => $s->phone,
+            'sms_opt_in' => (bool) $s->sms_opt_in,
+            'status'     => $s->status,
+            'checked_in' => (bool) $s->checked_in,
+            'shift_id'   => $s->shift_id,
+            'created_at' => $s->created_at,
+        ];
+    }
+
     /* ------------------------------------------------------------------ *
      * Email/SMS params + front-end widget
      * ------------------------------------------------------------------ */
