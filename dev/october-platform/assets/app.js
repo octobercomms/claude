@@ -967,6 +967,38 @@ async function openCampaign(id) {
     catch (e) { msg.textContent = e.message || 'Error'; }
   });
 
+  // Claude co-pilot — brief it and it drafts the blocks, grounded in festival data.
+  const history = [];
+  const cop = el(`
+    <div class="oe-copilot">
+      <div class="oe-copilot-title">✦ AI co-pilot</div>
+      <textarea class="oe-copilot-brief" rows="2" placeholder="Brief the email — e.g. “September newsletter: lead with the opening party, include the confirmed tours, warm but plain tone.”"></textarea>
+      <div class="oe-copilot-row">
+        <button class="btn btn-primary btn-small" data-draft>Draft with AI</button>
+        <span class="oe-copilot-msg muted small"></span>
+      </div>
+      <p class="oe-copilot-hint muted small">It writes in your house voice and only uses real confirmed events &amp; links — anything unverified becomes a visible [TODO].</p>
+    </div>`);
+  cop.querySelector('[data-draft]').addEventListener('click', async () => {
+    const briefEl = cop.querySelector('.oe-copilot-brief');
+    const brief = briefEl.value.trim();
+    const msg = cop.querySelector('.oe-copilot-msg');
+    if (!brief) { return; }
+    msg.textContent = 'Drafting…';
+    try {
+      const r = await api.copilot({ brief, blocks, history });
+      if (!r.ok) { msg.textContent = r.reply || 'Could not draft.'; return; }
+      if (r.subject) { meta.querySelector('[name="subject"]').value = r.subject; }
+      if (r.preheader) { meta.querySelector('[name="preheader"]').value = r.preheader; }
+      if (Array.isArray(r.blocks)) { blocks = r.blocks; paintBlocks(); }
+      history.push({ role: 'user', content: brief });
+      history.push({ role: 'assistant', content: r.reply || '' });
+      msg.textContent = r.reply || 'Draft ready.';
+      briefEl.value = '';
+    } catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+  left.prepend(cop);
+
   paintBlocks();
 }
 

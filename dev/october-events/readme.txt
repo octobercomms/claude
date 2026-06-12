@@ -2,14 +2,15 @@
 Contributors: octobercomms
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.14.0
+Stable tag: 1.15.0
 License: GPL-2.0-or-later
 
 Consolidated operations platform for the Atlanta Design Festival: accounts,
 listings (directory, destinations, products, events, stories), submission
-and approval, Stripe payments, Brevo email + SMS, ticketing, volunteer
-opportunities with shift signups and reminders, and an AI Stories editorial
-connector. (Ads are handled by the standalone oc-ad-manager plugin.)
+and approval, Stripe payments, native email on Amazon SES (contacts,
+campaigns, a Claude co-pilot), ticketing, volunteer opportunities with shift
+signups and reminders, and an AI Stories editorial connector. (Ads are handled
+by the standalone oc-ad-manager plugin.)
 
 Full documentation lives in the repository at docs/october-events/README.md.
 
