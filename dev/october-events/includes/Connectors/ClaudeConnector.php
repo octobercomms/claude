@@ -128,6 +128,90 @@ final class ClaudeConnector {
     }
 
     /**
+     * Multi-turn tool-use conversation (for the AI assistant). Runs the
+     * Anthropic tool loop: ask → if the model wants a tool, run it via $exec and
+     * feed the result back → repeat until it answers (capped). Returns the final
+     * assistant text, or null on error.
+     *
+     * @param array<int,array<string,mixed>> $messages  conversation so far
+     * @param array<int,array<string,mixed>> $tools      Anthropic tool schemas
+     * @param callable                       $exec       fn(string $name, array $input): mixed
+     */
+    public static function converse(array $messages, array $tools, string $system, callable $exec, int $max_rounds = 6): ?string {
+        if (! self::is_ready()) {
+            return null;
+        }
+        $msgs = array_values($messages);
+        for ($round = 0; $round < $max_rounds; $round++) {
+            $data = self::raw_call($msgs, $tools, $system, 1500);
+            if ($data === null) {
+                return null;
+            }
+            $content = is_array($data['content'] ?? null) ? $data['content'] : [];
+            if (($data['stop_reason'] ?? '') === 'tool_use') {
+                $msgs[] = ['role' => 'assistant', 'content' => $content];
+                $results = [];
+                foreach ($content as $block) {
+                    if (($block['type'] ?? '') === 'tool_use') {
+                        $out = call_user_func($exec, (string) $block['name'], (array) ($block['input'] ?? []));
+                        $results[] = [
+                            'type'        => 'tool_result',
+                            'tool_use_id' => (string) $block['id'],
+                            'content'     => is_string($out) ? $out : (string) wp_json_encode($out),
+                        ];
+                    }
+                }
+                $msgs[] = ['role' => 'user', 'content' => $results];
+                continue;
+            }
+            $text = '';
+            foreach ($content as $b) {
+                if (($b['type'] ?? '') === 'text') {
+                    $text .= $b['text'];
+                }
+            }
+            return $text !== '' ? $text : null;
+        }
+        return null;
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $messages
+     * @param array<int,array<string,mixed>> $tools
+     * @return array<string,mixed>|null
+     */
+    private static function raw_call(array $messages, array $tools, string $system, int $max_tokens): ?array {
+        $payload = [
+            'model'      => (string) Settings::get('ai_model', 'claude-sonnet-4-20250514'),
+            'max_tokens' => $max_tokens,
+            'messages'   => $messages,
+        ];
+        if ($system !== '') { $payload['system'] = $system; }
+        if ($tools) { $payload['tools'] = $tools; }
+
+        $response = wp_remote_post(self::API_BASE, [
+            'timeout' => 60,
+            'headers' => [
+                'x-api-key'         => (string) Settings::get('claude_api_key', ''),
+                'anthropic-version' => self::API_VERSION,
+                'Content-Type'      => 'application/json',
+            ],
+            'body' => wp_json_encode($payload),
+        ]);
+        if (is_wp_error($response)) {
+            Logger::log('Claude assistant error', ['error' => $response->get_error_message()]);
+            return null;
+        }
+        $code = (int) wp_remote_retrieve_response_code($response);
+        $data = json_decode((string) wp_remote_retrieve_body($response), true);
+        if ($code < 200 || $code >= 300 || ! is_array($data)) {
+            Logger::log('Claude assistant non-2xx', ['code' => $code, 'body' => wp_remote_retrieve_body($response)]);
+            return null;
+        }
+        return $data;
+    }
+
+    /**
      * Pull a "Headline: ..." first line (or first line generally) off the body.
      *
      * @return array{headline:string,body:string}

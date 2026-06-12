@@ -48,6 +48,7 @@ final class Plugin {
         \OE\Mail\SnsController::init();
         \OE\Mail\CampaignsRest::init();
         \OE\Mail\ContactsRest::init();
+        \OE\AI\Rest::init();
         (new Cron())->init();
         MapsConnector::init();
         Chat::init();

@@ -5,6 +5,29 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.23.0 — staff AI assistant (live data, tool-use)
+
+A staff-only AI assistant that answers detailed operational questions instantly by
+looking things up in the live data — no dashboards to hunt through.
+
+- **`OE\AI\Assistant`** — Claude with tool-use over the festival's own data. Eight
+  tools: events overview, single-event readiness, ticket sales (today + all-time +
+  per event), order lookup (by email / order id / Stripe payment id), recent failed
+  card payments (from Stripe), contact search, volunteer coverage, and campaign
+  stats. The model is told to use tools and answer with real numbers, never guess.
+- **`ClaudeConnector::converse()`** — runs Anthropic's tool-use loop (ask → run the
+  requested tool → feed the result back → repeat, capped at 6 rounds).
+- **`StripeConnector::recent_failed()`** — recent failed charges with amount, email
+  and failure reason.
+- **REST** `POST oe/v1/assistant` (`current_user_can('edit_posts')`) — takes the
+  running conversation, returns the reply.
+- **Platform** gains an **Assistant** view: a chat with suggestion chips, a typing
+  indicator and lightweight markdown rendering. Read-only — it can see everything
+  but changes nothing.
+
+This is the staff engine; the public, per-order-scoped customer chat (verified by
+email + confirmation) reuses it and lands separately.
+
 ## 1.22.0 — richer email builder (columns, social, alignment)
 
 The campaign builder gains the blocks needed for proper newsletters (matching the

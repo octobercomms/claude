@@ -23,6 +23,7 @@ const VOL_ORDER = ['pending', 'confirmed', 'declined', 'no_show'];
 
 let route = 'overview';
 let taskMeta = null; // { departments, statuses, counts } — cached after first load
+let assistantThread = []; // staff AI chat history for this session: [{role, content}]
 
 /* ---------------------------------------------------------------- */
 /* Theme (per-site, overridable from the plugin: Settings → Branding) */
@@ -122,6 +123,7 @@ function render() {
   if (route === 'events') { return renderBoard(); }
   if (route === 'email') { return renderEmail(); }
   if (route === 'contacts') { return renderContacts(); }
+  if (route === 'assistant') { return renderAssistant(); }
   return renderOverview();
 }
 
@@ -148,6 +150,7 @@ function shell(active) {
           ${link('volunteers', 'Volunteers')}
           ${link('email', 'Email')}
           ${link('contacts', 'Contacts')}
+          ${link('assistant', 'Assistant')}
         </nav>
         <div class="oe-side-foot">
           ${sites.length > 1 ? `<button class="oe-site-switch" id="b-sites"><span>${esc(activeLabel)}</span><span class="oe-site-caret">⇆</span></button>` : ''}
@@ -214,6 +217,8 @@ const GUIDES = {
     steps: [['New campaign', 'Subject, preheader, audience'], ['Build it', 'Blocks + images, or “Draft with AI”'], ['Send a test', 'Preview in your inbox'], ['Schedule / send', 'Tracked, with unsubscribe']] },
   contacts: { title: 'Your audience, unified', text: 'Contacts build themselves from accounts, ticket buyers, volunteers and submitters — no imports.',
     steps: [['Search', 'Find anyone by name or email'], ['See the source', 'How each contact arrived'], ['Manage consent', 'Unsubscribe / re-subscribe'], ['Use in email', 'Audiences come from here']] },
+  assistant: { title: 'Ask anything about your festival', text: 'A staff assistant with live access to your data — events, ticket sales, individual orders, failed payments, contacts, volunteers and campaigns. It looks things up and answers with real numbers.',
+    steps: [['Ask in plain English', '“How many tickets sold today?”'], ['Chase a customer', '“Find the order for jane@…”'], ['Spot problems', '“Any failed payments this week?”'], ['Check readiness', '“What does the gala still need?”']] },
 };
 
 function pageGuide(key) {
@@ -1271,6 +1276,117 @@ async function renderContacts() {
   }
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 300); });
   load('');
+}
+
+/* ---------------------------------------------------------------- */
+/* AI assistant — staff chat with tool-access to live data          */
+/* ---------------------------------------------------------------- */
+const ASSISTANT_SUGGESTIONS = [
+  'How many tickets sold today, and all-time?',
+  'Which events still need work before they can go live?',
+  'Any failed card payments recently?',
+  'What’s our volunteer coverage looking like?',
+];
+
+/* Tiny, safe markdown: escapes first, then adds bold, inline code, bullets and breaks. */
+function assistantFormat(text) {
+  let s = esc(String(text || ''));
+  s = s.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  const lines = s.split(/\n/);
+  let out = '';
+  let inList = false;
+  lines.forEach((ln) => {
+    const m = ln.match(/^\s*[-*•]\s+(.*)$/);
+    if (m) {
+      if (!inList) { out += '<ul>'; inList = true; }
+      out += '<li>' + m[1] + '</li>';
+    } else {
+      if (inList) { out += '</ul>'; inList = false; }
+      out += ln.trim() === '' ? '' : '<p>' + ln + '</p>';
+    }
+  });
+  if (inList) { out += '</ul>'; }
+  return out || '<p></p>';
+}
+
+function renderAssistant() {
+  const main = shell('assistant');
+  main.appendChild(pageHeader('ASSISTANT · LIVE FESTIVAL DATA', 'Assistant'));
+  main.appendChild(pageGuide('assistant'));
+
+  const panel = el(`
+    <section class="oe-chat">
+      <div class="oe-chat-log" id="chat-log"></div>
+      <form class="oe-chat-bar" id="chat-form">
+        <input id="chat-input" type="text" autocomplete="off" placeholder="Ask about events, tickets, orders, payments, contacts, volunteers…">
+        <button class="btn btn-primary" type="submit" id="chat-send">Ask</button>
+      </form>
+      <p class="oe-chat-foot muted small">Staff only · the assistant reads live data but can’t change anything. Always double-check before acting on numbers.</p>
+    </section>`);
+  main.appendChild(panel);
+
+  const log = panel.querySelector('#chat-log');
+  const form = panel.querySelector('#chat-form');
+  const input = panel.querySelector('#chat-input');
+  const send = panel.querySelector('#chat-send');
+
+  function paint() {
+    log.innerHTML = '';
+    if (!assistantThread.length) {
+      const intro = el(`<div class="oe-chat-empty">
+        <h3>What can I help you find?</h3>
+        <p class="muted">I look things up in your live data and answer with real numbers.</p>
+        <div class="oe-chat-chips"></div>
+      </div>`);
+      const chips = intro.querySelector('.oe-chat-chips');
+      ASSISTANT_SUGGESTIONS.forEach((q) => {
+        const c = el(`<button class="oe-chip" type="button">${esc(q)}</button>`);
+        c.addEventListener('click', () => { input.value = q; submit(); });
+        chips.appendChild(c);
+      });
+      log.appendChild(intro);
+      return;
+    }
+    assistantThread.forEach((m) => {
+      const who = m.role === 'assistant' ? 'ai' : 'me';
+      const bubble = el(`<div class="oe-msg oe-msg-${who}"><div class="oe-msg-body"></div></div>`);
+      bubble.querySelector('.oe-msg-body').innerHTML =
+        m.role === 'assistant' ? assistantFormat(m.content) : '<p>' + esc(m.content) + '</p>';
+      log.appendChild(bubble);
+    });
+    log.scrollTop = log.scrollHeight;
+  }
+
+  let busy = false;
+  async function submit() {
+    if (busy) { return; }
+    const q = input.value.trim();
+    if (!q) { return; }
+    busy = true;
+    input.value = '';
+    send.disabled = true;
+    assistantThread.push({ role: 'user', content: q });
+    paint();
+    const thinking = el('<div class="oe-msg oe-msg-ai"><div class="oe-msg-body oe-typing"><span></span><span></span><span></span></div></div>');
+    log.appendChild(thinking);
+    log.scrollTop = log.scrollHeight;
+    try {
+      const r = await api.assistant(assistantThread);
+      assistantThread.push({ role: 'assistant', content: (r && r.reply) || 'Sorry — no answer came back.' });
+    } catch (e) {
+      if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+      assistantThread.push({ role: 'assistant', content: 'Sorry — I hit an error (' + esc(e.message || 'request failed') + ').' });
+    } finally {
+      busy = false;
+      send.disabled = false;
+      paint();
+      input.focus();
+    }
+  }
+  form.addEventListener('submit', (ev) => { ev.preventDefault(); submit(); });
+  paint();
+  input.focus();
 }
 
 async function openMediaPicker(onPick) {

@@ -118,6 +118,9 @@ export const api = {
   listContacts: (search, offset) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0)),
   updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
 
+  /* Staff AI assistant (oe/v1/assistant) — tool-use over live festival data. */
+  assistant: (messages) => request('/assistant', { method: 'POST', body: JSON.stringify({ messages }) }),
+
   /* WordPress media library (core REST) for the email image picker. */
   listMedia: () => requestWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
 };
