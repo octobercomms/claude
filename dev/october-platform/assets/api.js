@@ -49,4 +49,11 @@ export const api = {
   createTask: (payload) => request('/tasks', { method: 'POST', body: JSON.stringify(payload) }),
   updateTask: (id, payload) => request('/task/' + id, { method: 'POST', body: JSON.stringify(payload) }),
   deleteTask: (id) => request('/task/' + id, { method: 'DELETE' }),
+
+  /* Volunteer management (oe/v1/volunteers) — opportunities, shifts, signups. */
+  listOpportunities: () => request('/volunteers/opportunities'),
+  getOpportunity: (id) => request('/volunteers/opportunity/' + id),
+  addSignup: (id, payload) => request('/volunteers/opportunity/' + id + '/signup', { method: 'POST', body: JSON.stringify(payload) }),
+  updateSignup: (id, payload) => request('/volunteers/signup/' + id, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteSignup: (id) => request('/volunteers/signup/' + id, { method: 'DELETE' }),
 };

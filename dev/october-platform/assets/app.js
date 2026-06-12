@@ -1,9 +1,10 @@
 /**
  * October Events — planning platform.
  *
- * A no-build vanilla SPA with two views:
- *  - Events: the confirm→green readiness board (oe/v1/planning).
- *  - Tasks:  the shared department task board (oe/v1/tasks).
+ * A no-build vanilla SPA with three views:
+ *  - Events:     the confirm→green readiness board (oe/v1/planning).
+ *  - Tasks:      the shared department task board (oe/v1/tasks).
+ *  - Volunteers: shift signups + decisions (oe/v1/volunteers).
  */
 import { api, getCreds, setCreds, clearCreds } from './api.js';
 
@@ -13,6 +14,10 @@ const STATUS = { confirmed: 'Confirmed', in_progress: 'In progress', draft: 'Dra
 /* Task statuses, in board (column) order. Labels mirror the plugin. */
 const TASK_STATUS = { todo: 'To do', doing: 'In progress', blocked: 'Blocked', done: 'Done' };
 const TASK_ORDER = ['todo', 'doing', 'blocked', 'done'];
+
+/* Volunteer signup statuses. Labels mirror the plugin. */
+const VOL_STATUS = { pending: 'Pending', confirmed: 'Confirmed', declined: 'Declined', no_show: 'No-show' };
+const VOL_ORDER = ['pending', 'confirmed', 'declined', 'no_show'];
 
 let route = 'events';
 let taskMeta = null; // { departments, statuses, counts } — cached after first load
@@ -40,6 +45,7 @@ async function boot() {
 
 function render() {
   if (route === 'tasks') { return renderTasks(); }
+  if (route === 'volunteers') { return renderVolunteers(); }
   return renderBoard();
 }
 
@@ -52,6 +58,7 @@ function topbar(active) {
         <nav class="oe-nav">
           <button class="oe-navlink ${active === 'events' ? 'on' : ''}" data-route="events">Events</button>
           <button class="oe-navlink ${active === 'tasks' ? 'on' : ''}" data-route="tasks">Tasks</button>
+          <button class="oe-navlink ${active === 'volunteers' ? 'on' : ''}" data-route="volunteers">Volunteers</button>
         </nav>
       </div>
       <div class="oe-top-actions">
@@ -387,6 +394,158 @@ function openTaskEditor(t, departments) {
     try { await api.deleteTask(t.id); close(); }
     catch (e) { drawer.querySelector('#t-msg').textContent = e.message || 'Error'; }
   });
+}
+
+/* ---------------------------------------------------------------- */
+/* Volunteers                                                       */
+/* ---------------------------------------------------------------- */
+async function renderVolunteers() {
+  app.innerHTML = '';
+  app.appendChild(topbar('volunteers'));
+  const wrap = el('<div class="oe-vols-wrap"><div class="oe-loading">Loading volunteer opportunities…</div></div>');
+  app.appendChild(wrap);
+
+  let opps = [];
+  try { opps = await api.listOpportunities(); }
+  catch (e) {
+    if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+    wrap.innerHTML = '<div class="oe-error" style="margin:24px">Could not load volunteers.</div>';
+    return;
+  }
+
+  wrap.innerHTML = '';
+  if (!opps.length) { wrap.appendChild(el('<p class="muted" style="padding:24px">No volunteer opportunities yet.</p>')); return; }
+
+  const grid = el('<div class="oe-vol-grid"></div>');
+  opps.forEach((o) => grid.appendChild(oppCard(o)));
+  wrap.appendChild(grid);
+
+  grid.querySelectorAll('[data-vopen]').forEach((c) =>
+    c.addEventListener('click', () => openOpportunity(parseInt(c.getAttribute('data-vopen'), 10))));
+}
+
+function oppCard(o) {
+  const pct = o.capacity > 0 ? Math.min(100, Math.round((o.filled / o.capacity) * 100)) : 0;
+  const full = o.capacity > 0 && o.filled >= o.capacity;
+  const meta = [o.role, o.location].filter(Boolean).map(esc).join(' · ');
+  const pending = o.pending ? `<span class="v-pending">${o.pending} to review</span>` : '';
+  return el(`
+    <article class="oe-card oe-vol-card" data-vopen="${o.id}">
+      <div class="oe-card-title">${esc(o.title)}</div>
+      ${meta ? `<div class="muted small">${meta}</div>` : ''}
+      <div class="meter"><span style="width:${pct}%;background:${full ? '#1a7f37' : '#d8531f'}"></span></div>
+      <div class="oe-card-meta">
+        <span>${o.filled} / ${o.capacity} across ${o.shifts} shift${o.shifts === 1 ? '' : 's'}</span>
+        ${o.open ? '' : '<span class="v-closed">closed</span>'}
+      </div>
+      ${pending}
+    </article>`);
+}
+
+async function openOpportunity(id) {
+  let rec;
+  try { rec = await api.getOpportunity(id); } catch (e) { alert('Could not load that opportunity.'); return; }
+
+  const drawer = el(`
+    <div class="oe-drawer-wrap">
+      <div class="oe-drawer-bg"></div>
+      <aside class="oe-drawer oe-drawer-wide">
+        <div class="oe-drawer-head">
+          <h2>${esc(rec.title)}</h2>
+          <button class="btn btn-small" data-close>Close</button>
+        </div>
+        <div class="oe-vol-body"></div>
+      </aside>
+    </div>`);
+  document.body.appendChild(drawer);
+
+  const close = () => { drawer.remove(); renderVolunteers(); };
+  drawer.querySelector('[data-close]').addEventListener('click', close);
+  drawer.querySelector('.oe-drawer-bg').addEventListener('click', close);
+
+  const body = drawer.querySelector('.oe-vol-body');
+
+  function paint(detail) {
+    body.innerHTML = '';
+    const meta = [detail.role, detail.location].filter(Boolean).map(esc).join(' · ');
+    if (meta) { body.appendChild(el(`<p class="muted" style="margin:0 20px">${meta}</p>`)); }
+    if (!detail.shifts_detail.length) { body.appendChild(el('<p class="muted small" style="margin:16px 20px">No shifts defined yet.</p>')); }
+    detail.shifts_detail.forEach((s) => body.appendChild(shiftBlock(detail.id, s, replace)));
+  }
+  /* Re-render with a fresh detail payload returned by any mutation. */
+  function replace(detail) { paint(detail); }
+  paint(rec);
+}
+
+function shiftBlock(oppId, shift, replace) {
+  const when = [shift.start, shift.end].filter(Boolean).join(' → ');
+  const block = el(`
+    <section class="v-shift">
+      <div class="v-shift-head">
+        <strong>${esc(shift.label || '(shift)')}</strong>
+        <span class="muted small">${esc(when)} · ${shift.signups.filter((x) => x.status === 'pending' || x.status === 'confirmed').length}/${shift.capacity}${shift.full ? ' · full' : ''}</span>
+      </div>
+      <div class="v-signups"></div>
+      <form class="v-add">
+        <input name="name" placeholder="Name" required>
+        <input name="email" type="email" placeholder="Email" required>
+        <input name="phone" placeholder="Phone (optional)">
+        <button class="btn btn-small btn-primary" type="submit">Add</button>
+        <span class="oe-result v-add-msg"></span>
+      </form>
+    </section>`);
+
+  const list = block.querySelector('.v-signups');
+  if (!shift.signups.length) { list.appendChild(el('<p class="muted small">No signups yet.</p>')); }
+  shift.signups.forEach((su) => list.appendChild(signupRow(su, replace)));
+
+  const form = block.querySelector('.v-add');
+  form.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    const msg = form.querySelector('.v-add-msg');
+    const name = form.querySelector('[name="name"]').value.trim();
+    const email = form.querySelector('[name="email"]').value.trim();
+    if (!name || !email) { return; }
+    msg.textContent = 'Adding…';
+    try {
+      const detail = await api.addSignup(oppId, {
+        shift_id: shift.id, name, email,
+        phone: form.querySelector('[name="phone"]').value.trim(),
+      });
+      replace(detail);
+    } catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+  return block;
+}
+
+function signupRow(su, replace) {
+  const opts = VOL_ORDER.map((s) =>
+    `<option value="${s}" ${su.status === s ? 'selected' : ''}>${VOL_STATUS[s]}</option>`).join('');
+  const row = el(`
+    <div class="v-row">
+      <div class="v-who">
+        <span class="v-name">${esc(su.name)}</span>
+        <span class="muted small">${esc(su.email)}${su.phone ? ' · ' + esc(su.phone) : ''}</span>
+      </div>
+      <label class="v-checkin" title="Checked in"><input type="checkbox" ${su.checked_in ? 'checked' : ''}> in</label>
+      <select class="v-status">${opts}</select>
+      <button class="btn btn-small v-remove" title="Remove">✕</button>
+    </div>`);
+
+  row.querySelector('.v-status').addEventListener('change', async (ev) => {
+    try { replace(await api.updateSignup(su.id, { status: ev.target.value })); }
+    catch (e) { alert(e.message || 'Could not update.'); }
+  });
+  row.querySelector('.v-checkin input').addEventListener('change', async (ev) => {
+    try { replace(await api.updateSignup(su.id, { checked_in: ev.target.checked })); }
+    catch (e) { alert(e.message || 'Could not update check-in.'); }
+  });
+  row.querySelector('.v-remove').addEventListener('click', async () => {
+    if (!confirm('Remove ' + su.name + ' from this shift?')) { return; }
+    try { replace(await api.deleteSignup(su.id)); }
+    catch (e) { alert(e.message || 'Could not remove.'); }
+  });
+  return row;
 }
 
 boot();
