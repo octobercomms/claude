@@ -286,9 +286,15 @@ function renderLogin(error, addMode) {
     const msg = view.querySelector('#l-msg');
     if (!site || !user || !apppw) { msg.textContent = 'Fill in all three fields.'; return; }
     msg.textContent = 'Connecting…';
-    setCreds({ base: site + '/wp-json', user, apppw });
+    // Don't lose an already-saved site if this attempt fails transiently.
+    const base = site + '/wp-json';
+    const existed = getSites().some((s) => s.base === base && s.user === user);
+    setCreds({ base, user, apppw });
     try { await api.ping(); boot(); }
-    catch (e) { clearCreds(); renderLogin(e.status === 401 || e.status === 403 ? 'Credentials rejected.' : 'Could not connect to that site.'); }
+    catch (e) {
+      if (!existed) { clearCreds(); } // only drop a brand-new connection that didn't work
+      renderLogin(e.status === 401 || e.status === 403 ? 'Credentials rejected.' : 'Could not connect to that site.');
+    }
   });
 }
 
