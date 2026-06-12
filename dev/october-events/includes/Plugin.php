@@ -49,6 +49,7 @@ final class Plugin {
         \OE\Mail\CampaignsRest::init();
         \OE\Mail\ContactsRest::init();
         \OE\AI\Rest::init();
+        \OE\AI\PublicRest::init();
         (new Cron())->init();
         MapsConnector::init();
         Chat::init();
@@ -60,6 +61,7 @@ final class Plugin {
         Dashboard::get_instance()->init();
         \OE\Frontend\Checkout::get_instance()->init();
         \OE\Frontend\CheckInApp::get_instance()->init();
+        \OE\Frontend\SupportChat::get_instance()->init();
 
         // GitHub self-updater (offers releases in the WP Updates screen).
         (new Updater(OE_BASENAME, OE_VERSION, Updater::repo(), Updater::token()))->init();

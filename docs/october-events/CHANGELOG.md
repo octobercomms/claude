@@ -5,6 +5,33 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.24.0 — public AI support chat (customer-scoped)
+
+A floating "Need help?" chat on the public site that answers customers' detailed
+questions about **their own** orders and tickets instantly — without ever exposing
+anyone else's data.
+
+- **Verification first** (`OE\AI\SupportAuth`) — the visitor enters their email and
+  gets a 6-digit one-time code by email; the response is identical whether or not
+  that email has orders, so the endpoint can't be used to enumerate customers.
+  Codes are stored hashed, expire in 15 minutes, cap wrong attempts, and the whole
+  flow is rate-limited per IP. A verified code mints a short-lived HMAC-signed
+  session token scoped to that exact email.
+- **`OE\AI\PublicAssistant`** — Claude with tool-use, but every tool is hard-scoped
+  to the verified email (the scope is bound into the executor, never taken from the
+  model or the conversation). Tools: my orders, my tickets, one order's detail,
+  event info (only for events the customer holds tickets to), and resend-tickets
+  (to their own verified address only). The system prompt forbids discussing any
+  other customer's data and offers a human hand-off for anything out of scope.
+- **Public REST** `oe/v1/support/request-code`, `/support/verify`, `/support/chat`
+  — public endpoints that rate-limit and re-verify the token on every turn.
+- **Frontend widget** (`OE\Frontend\SupportChat`) — a self-contained, dependency-free
+  floating chat (or inline via the `[oe_support_chat]` shortcode), enabled with a
+  single **AI support chat** toggle in Settings. Only loads when a Claude key is set.
+
+Built on the same engine as the staff assistant (1.23.0), but locked to one
+customer. The optional Chatwoot human hand-off remains available alongside it.
+
 ## 1.23.0 — staff AI assistant (live data, tool-use)
 
 A staff-only AI assistant that answers detailed operational questions instantly by
