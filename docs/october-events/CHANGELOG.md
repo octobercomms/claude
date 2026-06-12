@@ -5,6 +5,29 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.15.0 — email co-pilot (Claude drafts campaigns)
+
+Phase 5 of the email platform — the differentiator. Brief Claude in plain
+language and it returns a finished campaign as editable builder blocks, in the
+trained house voice, grounded in live festival data.
+
+- New `OE\Mail\Copilot`: builds a draft from a brief (+ conversation + the
+  current blocks for edits), using the AI Stories voice guide + examples as the
+  system prompt and a compact **festival-data context** (confirmed upcoming
+  events with dates/price/location/link, recent stories) as the only source of
+  facts and links.
+- **Guardrails**: output is strict JSON validated against the builder's block
+  schema (heading / text / image / button / divider / spacer) and sanitised;
+  image blocks come back as placeholders (suggested alt, no URL — you pick the
+  real image); button links must be real URLs from the data; unverifiable facts
+  become visible `[TODO: confirm …]` placeholders; the model never adds the
+  unsubscribe/footer (the sender does).
+- **REST** `POST oe/v1/campaigns/copilot` → `{ reply, subject, preheader,
+  blocks }`. The platform's campaign editor gains an **AI co-pilot** panel:
+  brief it, it fills the subject/preheader and loads blocks onto the canvas;
+  follow-up briefs refine the draft in place.
+- Reuses the existing Claude connector + tone-of-voice training. No schema change.
+
 ## 1.14.0 — retire Brevo (native transactional email)
 
 Brevo is removed. Now that native contacts, SES sending, deliverability and

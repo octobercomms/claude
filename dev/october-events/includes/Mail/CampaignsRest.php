@@ -41,6 +41,21 @@ final class CampaignsRest {
         register_rest_route(self::NS, '/audiences', [
             'methods' => 'GET', 'callback' => [self::class, 'audiences'], 'permission_callback' => $auth,
         ]);
+        register_rest_route(self::NS, '/campaigns/copilot', [
+            'methods' => 'POST', 'callback' => [self::class, 'copilot'], 'permission_callback' => $auth,
+        ]);
+    }
+
+    public static function copilot(\WP_REST_Request $req): \WP_REST_Response {
+        $brief   = (string) $req->get_param('brief');
+        $blocks  = $req->get_param('blocks');
+        $history = $req->get_param('history');
+        $result  = Copilot::draft(
+            $brief,
+            is_array($blocks) ? $blocks : [],
+            is_array($history) ? $history : []
+        );
+        return new \WP_REST_Response($result, $result['ok'] ? 200 : 400);
     }
 
     public static function list_campaigns(\WP_REST_Request $req): \WP_REST_Response {

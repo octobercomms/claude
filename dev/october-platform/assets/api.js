@@ -70,6 +70,7 @@ export const api = {
   testCampaign: (id, email) => request('/campaigns/' + id + '/test', { method: 'POST', body: JSON.stringify({ email }) }),
   sendCampaign: (id) => request('/campaigns/' + id + '/send', { method: 'POST' }),
   audiences: () => request('/audiences'),
+  copilot: (payload) => request('/campaigns/copilot', { method: 'POST', body: JSON.stringify(payload) }),
 
   /* WordPress media library (core REST) for the email image picker. */
   listMedia: () => requestWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
