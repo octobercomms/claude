@@ -287,6 +287,7 @@ final class Submission {
         if ($target) {
             BrevoConnector::upsert_contact($email, [], $target);
         }
+        \OE\Mail\Contacts::capture($email, ['source' => 'submission']);
     }
 
     public static function find_by_intent(string $intent_id): int {
