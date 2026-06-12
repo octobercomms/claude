@@ -187,6 +187,15 @@ final class Settings {
             'ses_smtp_password' => \OE\Crypto::encrypt(trim((string) ($in['ses_smtp_password'] ?? ''))),
             'mail_from_email'   => sanitize_email((string) ($in['mail_from_email'] ?? '')),
             'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
+            'mail_footer_address' => sanitize_textarea_field((string) ($in['mail_footer_address'] ?? '')),
+            // SMS (AWS End User Messaging).
+            'aws_access_key_id'     => sanitize_text_field((string) ($in['aws_access_key_id'] ?? '')),
+            'aws_secret_access_key' => \OE\Crypto::encrypt(trim((string) ($in['aws_secret_access_key'] ?? ''))),
+            'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
+            'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
+            // Live chat (Chatwoot).
+            'chatwoot_base_url'     => esc_url_raw(trim((string) ($in['chatwoot_base_url'] ?? ''))),
+            'chatwoot_token'        => sanitize_text_field((string) ($in['chatwoot_token'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=oe-settings')));

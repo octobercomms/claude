@@ -28,6 +28,7 @@ final class Settings {
         'claude_api_key'         => 'OE_CLAUDE_API_KEY',
         'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
+        'aws_secret_access_key'  => 'OE_AWS_SECRET_ACCESS_KEY',
     ];
 
     public static function defaults(): array {
@@ -96,6 +97,14 @@ final class Settings {
             'mail_from_name'    => '',
             // Physical mailing address shown in campaign footers (CAN-SPAM).
             'mail_footer_address' => '',
+            // SMS via AWS End User Messaging (off until configured). 10DLC needed in the US.
+            'aws_access_key_id'     => '',
+            'aws_secret_access_key' => '', // secret (or OE_AWS_SECRET_ACCESS_KEY)
+            'sms_region'            => 'us-east-1',
+            'sms_origination'       => '', // phone number (E.164), sender ID, or pool ARN
+            // Live chat — paste a Chatwoot website token + base URL to inject the widget.
+            'chatwoot_base_url'     => '',
+            'chatwoot_token'        => '',
         ];
     }
 
