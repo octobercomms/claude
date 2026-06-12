@@ -113,22 +113,6 @@ final class RestApi {
             'methods' => 'GET', 'callback' => [$this, 'checkin_stats'], 'permission_callback' => '__return_true',
         ]);
 
-        // Ad serving + self-serve booking.
-        register_rest_route(self::NS, '/ad-render', [
-            'methods' => 'GET', 'callback' => [$this, 'ad_render'], 'permission_callback' => '__return_true',
-        ]);
-        // Hub syndication endpoint — partners pull ads from here (API-key gated).
-        register_rest_route(self::NS, '/ad', [
-            'methods' => 'GET', 'callback' => [$this, 'ad_syndicate'], 'permission_callback' => [$this, 'hub_api_key'],
-        ]);
-        register_rest_route(self::NS, '/ad-promo', [
-            'methods' => 'GET', 'callback' => [$this, 'ad_promo'], 'permission_callback' => '__return_true',
-        ]);
-        register_rest_route(self::NS, '/ad-book-intent', [
-            'methods' => 'POST', 'callback' => [$this, 'ad_book_intent'],
-            'permission_callback' => static fn(\WP_REST_Request $r) => (bool) wp_verify_nonce((string) $r->get_header('x_wp_nonce'), 'wp_rest'),
-        ]);
-
         // Public map feed for Elementor/JetEngine or the fallback shortcode.
         register_rest_route(self::NS, '/map', [
             'methods'             => 'GET',
@@ -506,146 +490,6 @@ final class RestApi {
         return new \WP_REST_Response(\ADF\Ticketing\CheckIn::stats($event_id), 200);
     }
 
-    /* ----------------------------------------------------------------- *
-     * Ads
-     * ----------------------------------------------------------------- */
-
-    public function ad_render(\WP_REST_Request $req): \WP_REST_Response {
-        $format = sanitize_key((string) $req->get_param('format'));
-        $source = esc_url_raw((string) $req->get_param('source'));
-        $html   = \ADF\Ads\Serving::render_html($format, $source);
-        $res    = new \WP_REST_Response(['html' => $html], 200);
-        $res->header('Cache-Control', 'no-store');
-        return $res;
-    }
-
-    /** Hub mode + matching API key. */
-    public function hub_api_key(\WP_REST_Request $req): bool {
-        if (\ADF\Settings::get('ad_site_mode', 'hub') !== 'hub') {
-            return false;
-        }
-        $key = (string) \ADF\Settings::get('ad_api_key', '');
-        $sent = (string) ($req->get_header('x_adf_api_key') ?: $req->get_param('api_key'));
-        return $key !== '' && hash_equals($key, $sent);
-    }
-
-    /**
-     * Hub: return the chosen ad as JSON for a partner site, log the impression
-     * on the hub, and register the partner domain.
-     */
-    public function ad_syndicate(\WP_REST_Request $req): \WP_REST_Response {
-        $format = sanitize_key((string) $req->get_param('format'));
-        $source = esc_url_raw((string) $req->get_param('source'));
-        $ad = \ADF\Ads\Campaigns::active_for_format($format);
-        if (! $ad) {
-            return new \WP_REST_Response([], 200);
-        }
-        \ADF\Ads\Tracking::log((int) $ad->id, (int) $ad->creative_id, 'impression', $source);
-        if ($source !== '') {
-            \ADF\Ads\Partner::register_partner($source);
-        }
-        $dim = \ADF\Ads\Formats::dimensions($format);
-        return new \WP_REST_Response([
-            'ad_id'       => (int) $ad->creative_id,
-            'campaign_id' => (int) $ad->id,
-            'format'      => $format,
-            'image_url'   => (string) $ad->image_url,
-            'alt_text'    => (string) $ad->alt_text,
-            'click_url'   => add_query_arg(['adf_ad_click' => (int) $ad->creative_id, 'c' => (int) $ad->id], home_url('/')),
-            'width'       => (int) $dim['w'],
-            'height'      => (int) $dim['h'],
-        ], 200);
-    }
-
-    public function ad_promo(\WP_REST_Request $req): \WP_REST_Response {
-        $pct = \ADF\Ads\Bookings::promo_pct((string) $req->get_param('code'));
-        return new \WP_REST_Response($pct > 0 ? ['valid' => true, 'pct' => $pct] : ['valid' => false], 200);
-    }
-
-    public function ad_book_intent(\WP_REST_Request $req): \WP_REST_Response {
-        // ADF-04: this endpoint is callable anonymously (nonce only) and uploads
-        // files — throttle it hard to prevent media-library/storage abuse.
-        if (! $this->rl('adbook', 5, 5 * MINUTE_IN_SECONDS)) {
-            return $this->too_many();
-        }
-        if (! \ADF\Connectors\StripeConnector::is_ready()) {
-            return new \WP_REST_Response(['error' => 'payments_unavailable'], 503);
-        }
-        $package = \ADF\Ads\Bookings::package((string) $req->get_param('package_name'));
-        if (! $package) {
-            return new \WP_REST_Response(['error' => 'invalid_package'], 400);
-        }
-        $email = sanitize_email((string) $req->get_param('email'));
-        $name  = sanitize_text_field((string) $req->get_param('campaign_name'));
-        $dest  = esc_url_raw((string) $req->get_param('destination_url'));
-        if ($name === '' || ! is_email($email) || $dest === '') {
-            return new \WP_REST_Response(['error' => 'missing_fields'], 400);
-        }
-
-        // Pricing (flat package price → cents) with optional promo %.
-        $pct      = \ADF\Ads\Bookings::promo_pct((string) $req->get_param('promo_code'));
-        $subtotal = (int) round(((float) ($package['price'] ?? 0)) * 100);
-        $discount = (int) round($subtotal * $pct / 100);
-        $total    = max(50, $subtotal - $discount);
-
-        // Uploaded creatives (at least one).
-        require_once ABSPATH . 'wp-admin/includes/file.php';
-        require_once ABSPATH . 'wp-admin/includes/media.php';
-        require_once ABSPATH . 'wp-admin/includes/image.php';
-        $atts = ['image_mpu' => 0, 'image_leaderboard' => 0, 'image_skyscraper' => 0];
-        $map = ['image_mpu' => 'image_mpu', 'image_leaderboard' => 'image_leaderboard', 'image_skyscraper' => 'image_skyscraper'];
-        $allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        $any = false;
-        foreach ($map as $field => $col) {
-            if (! empty($_FILES[$field]['name'])) {
-                // ADF-04: enforce size + type before handing to the media library.
-                if ((int) ($_FILES[$field]['size'] ?? 0) > 5 * MB_IN_BYTES) {
-                    return new \WP_REST_Response(['error' => 'file_too_large'], 400);
-                }
-                $check = wp_check_filetype_and_ext((string) $_FILES[$field]['tmp_name'], (string) $_FILES[$field]['name']);
-                if (empty($check['type']) || ! in_array($check['type'], $allowed, true)) {
-                    return new \WP_REST_Response(['error' => 'invalid_image'], 400);
-                }
-                $id = media_handle_upload($field, 0);
-                if (! is_wp_error($id)) {
-                    $atts[$col] = (int) $id;
-                    $any = true;
-                }
-            }
-        }
-        if (! $any) {
-            return new \WP_REST_Response(['error' => 'no_image'], 400);
-        }
-
-        $booking_id = \ADF\Ads\Bookings::create([
-            'campaign_name'    => $name,
-            'company'          => $req->get_param('company'),
-            'email'            => $email,
-            'destination_url'  => $dest,
-            'start_date'       => sanitize_text_field((string) $req->get_param('start_date')),
-            'end_date'         => sanitize_text_field((string) $req->get_param('end_date')),
-            'image_mpu'         => $atts['image_mpu'],
-            'image_leaderboard' => $atts['image_leaderboard'],
-            'image_skyscraper'  => $atts['image_skyscraper'],
-            'package_name'     => $package['name'],
-            'package_type'     => $package['type'] ?? 'impressions',
-            'package_quantity' => (int) ($package['quantity'] ?? 0),
-            'amount_cents'     => $total,
-            'promo_code'       => (string) $req->get_param('promo_code'),
-            'discount_pct'     => $pct,
-        ]);
-
-        $intent = \ADF\Connectors\StripeConnector::create_payment_intent($total, (string) \ADF\Settings::get('currency', 'usd'), '', [
-            'kind'       => 'ad_booking',
-            'booking_id' => $booking_id,
-        ]);
-        if (($intent['id'] ?? '') === '') {
-            \ADF\Ads\Bookings::delete($booking_id);
-            return new \WP_REST_Response(['error' => 'payment_init_failed'], 502);
-        }
-        \ADF\Ads\Bookings::set_payment_intent($booking_id, $intent['id']);
-        return new \WP_REST_Response(['client_secret' => $intent['client_secret'], 'amount' => $total], 200);
-    }
 
     public function map_pins(\WP_REST_Request $req): \WP_REST_Response {
         $cats = array_filter(array_map('sanitize_key', explode(',', (string) $req->get_param('categories'))));
@@ -669,8 +513,6 @@ final class RestApi {
                 // Backup ticket-order creation (idempotent on payment_id).
                 $paid = (int) ($object['amount_received'] ?? $object['amount'] ?? 0);
                 $this->create_ticket_order_from_meta((string) ($object['id'] ?? ''), $meta, $paid);
-            } elseif (($meta['kind'] ?? '') === 'ad_booking') {
-                \ADF\Ads\Bookings::mark_paid((string) ($object['id'] ?? ''));
             } else {
                 Submission::confirm_payment((string) ($object['id'] ?? ''));
             }

@@ -34,7 +34,6 @@ final class Admin {
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
-        AdsAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -52,9 +51,6 @@ final class Admin {
         add_submenu_page('adf-festival', 'Promo Codes', 'Promo Codes', $cap, 'adf-promos', [TicketsAdmin::get_instance(), 'render_promos']);
         add_submenu_page('adf-festival', 'Volunteers', 'Volunteers', $cap, 'adf-volunteers', [$this, 'page_volunteers']);
         add_submenu_page('adf-festival', 'Stories', 'Stories', $cap, 'adf-stories', fn() => $this->page_listing('story'));
-        add_submenu_page('adf-festival', 'Ad Campaigns', 'Ads', $cap, 'adf-ads', [AdsAdmin::get_instance(), 'render_campaigns']);
-        add_submenu_page('adf-festival', 'Ad Bookings', 'Ad Bookings', $cap, 'adf-ad-bookings', [AdsAdmin::get_instance(), 'render_bookings']);
-        add_submenu_page('adf-festival', 'Ad Report', 'Ad Report', $cap, 'adf-ad-report', [AdsAdmin::get_instance(), 'render_report']);
         add_submenu_page('adf-festival', 'Email', 'Email', $cap, 'adf-email', [$this, 'page_email']);
         add_submenu_page('adf-festival', 'Settings', 'Settings', $cap, 'adf-settings', [Settings::get_instance(), 'render']);
     }

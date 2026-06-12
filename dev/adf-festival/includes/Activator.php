@@ -34,7 +34,6 @@ final class Activator {
         AuditLog::install();
         VolunteerSignups::install();
         \ADF\Ticketing\Schema::install();
-        \ADF\Ads\Schema::install();
         update_option('adf_db_version', ADF_DB_VERSION);
     }
 
