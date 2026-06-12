@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.8.3 — CORS: take sole ownership on our routes (beats JetEngine for real)
+
+1.8.2 still lost: JetEngine's `rest_pre_serve_request` CORS callback runs *after*
+even a `PHP_INT_MAX` handler, so cleaning up afterwards couldn't win — the live
+preflight still returned two `Access-Control-Allow-Origin` values
+(`…pages.dev`/custom domain **and** `*`).
+
+- `OE\Cors` now hooks `rest_pre_dispatch` (which runs *before*
+  `rest_pre_serve_request`) and, for `/oe/v1` requests only, **removes every other
+  `rest_pre_serve_request` handler** — core's origin echo and JetEngine's blanket
+  `*` alike — so our handler is the single source of CORS on our routes. Entries
+  are unset directly, so closure-based callbacks are caught too. JetEngine's CORS
+  is untouched on its own routes.
+
 ## 1.8.2 — CORS: win against late header appenders (JetEngine)
 
 Follow-up to 1.8.1. On sites running **JetEngine**, every REST response gets a
