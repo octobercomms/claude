@@ -29,6 +29,37 @@ final class Settings {
         add_action('admin_post_oe_test_updater', [$this, 'test_updater']);
         add_action('admin_post_oe_test_voice', [$this, 'test_voice']);
         add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
+        // Allow brand font files (.woff2/.woff/.ttf/.otf) to be uploaded to the
+        // media library (WordPress blocks these MIME types by default).
+        add_filter('upload_mimes', [$this, 'allow_font_mimes']);
+        add_filter('wp_check_filetype_and_ext', [$this, 'fix_font_filetype'], 10, 4);
+    }
+
+    /** @param array<string,string> $mimes */
+    public function allow_font_mimes(array $mimes): array {
+        if (current_user_can('manage_options')) {
+            $mimes['woff']  = 'font/woff';
+            $mimes['woff2'] = 'font/woff2';
+            $mimes['ttf']   = 'font/ttf';
+            $mimes['otf']   = 'font/otf';
+        }
+        return $mimes;
+    }
+
+    /**
+     * @param array<string,mixed> $data
+     * @param array<string,string> $mimes
+     * @return array<string,mixed>
+     */
+    public function fix_font_filetype($data, $file, $filename, $mimes) {
+        if (empty($data['type'])) {
+            $check = wp_check_filetype($filename, ['woff' => 'font/woff', 'woff2' => 'font/woff2', 'ttf' => 'font/ttf', 'otf' => 'font/otf']);
+            if (! empty($check['ext'])) {
+                $data['ext']  = $check['ext'];
+                $data['type'] = $check['type'];
+            }
+        }
+        return $data;
     }
 
     /** Send a test email through the current transport (SES or site default). */
@@ -181,6 +212,7 @@ final class Settings {
             'theme_logo_dark'   => esc_url_raw(trim((string) ($in['theme_logo_dark'] ?? ''))),
             'theme_font_family' => sanitize_text_field((string) ($in['theme_font_family'] ?? '')),
             'theme_font_css'    => esc_url_raw(trim((string) ($in['theme_font_css'] ?? ''))),
+            'theme_font_url'    => esc_url_raw(trim((string) ($in['theme_font_url'] ?? ''))),
             'ses_enabled'       => ! empty($in['ses_enabled']),
             'ses_region'        => sanitize_text_field((string) ($in['ses_region'] ?? 'us-east-1')),
             'ses_smtp_user'     => sanitize_text_field((string) ($in['ses_smtp_user'] ?? '')),
