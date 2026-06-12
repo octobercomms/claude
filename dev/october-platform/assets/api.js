@@ -42,4 +42,11 @@ export const api = {
   getEvent: (id) => request('/planning/event/' + id),
   updateEvent: (id, payload) => request('/planning/event/' + id, { method: 'POST', body: JSON.stringify(payload) }),
   confirmEvent: (id) => request('/planning/event/' + id + '/confirm', { method: 'POST' }),
+
+  /* Shared tasks (oe/v1/tasks) — the team's department-grouped board. */
+  tasksMeta: () => request('/tasks/meta'),
+  listTasks: () => request('/tasks'),
+  createTask: (payload) => request('/tasks', { method: 'POST', body: JSON.stringify(payload) }),
+  updateTask: (id, payload) => request('/task/' + id, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteTask: (id) => request('/task/' + id, { method: 'DELETE' }),
 };
