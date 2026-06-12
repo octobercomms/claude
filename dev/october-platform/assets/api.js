@@ -17,13 +17,13 @@ function authHeader(c) {
   return 'Basic ' + btoa(c.user + ':' + c.apppw);
 }
 
-async function request(path, opts = {}) {
+async function call(ns, path, opts = {}) {
   const c = getCreds();
   if (!c) { throw new Error('not_connected'); }
   const headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
   headers.Authorization = authHeader(c);
   const base = c.base.replace(/\/+$/, '');
-  const res = await fetch(base + '/oe/v1' + path, { ...opts, headers });
+  const res = await fetch(base + ns + path, { ...opts, headers });
   let body = null;
   try { body = await res.json(); } catch (e) { /* may be empty */ }
   if (!res.ok) {
@@ -34,6 +34,8 @@ async function request(path, opts = {}) {
   }
   return body;
 }
+function request(path, opts) { return call('/oe/v1', path, opts); }   // plugin API
+function requestWP(path, opts) { return call('/wp/v2', path, opts); } // core WP API
 
 export const api = {
   /** Per-site branding/theme (public endpoint; safe to call once connected). */
@@ -58,4 +60,17 @@ export const api = {
   addSignup: (id, payload) => request('/volunteers/opportunity/' + id + '/signup', { method: 'POST', body: JSON.stringify(payload) }),
   updateSignup: (id, payload) => request('/volunteers/signup/' + id, { method: 'POST', body: JSON.stringify(payload) }),
   deleteSignup: (id) => request('/volunteers/signup/' + id, { method: 'DELETE' }),
+
+  /* Email campaigns (oe/v1/campaigns). */
+  listCampaigns: () => request('/campaigns'),
+  getCampaign: (id) => request('/campaigns/' + id),
+  createCampaign: (payload) => request('/campaigns', { method: 'POST', body: JSON.stringify(payload) }),
+  updateCampaign: (id, payload) => request('/campaigns/' + id, { method: 'POST', body: JSON.stringify(payload) }),
+  deleteCampaign: (id) => request('/campaigns/' + id, { method: 'DELETE' }),
+  testCampaign: (id, email) => request('/campaigns/' + id + '/test', { method: 'POST', body: JSON.stringify({ email }) }),
+  sendCampaign: (id) => request('/campaigns/' + id + '/send', { method: 'POST' }),
+  audiences: () => request('/audiences'),
+
+  /* WordPress media library (core REST) for the email image picker. */
+  listMedia: () => requestWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
 };

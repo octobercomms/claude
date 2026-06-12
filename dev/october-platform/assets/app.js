@@ -109,6 +109,7 @@ function render() {
   if (route === 'tasks') { return renderTasks(); }
   if (route === 'volunteers') { return renderVolunteers(); }
   if (route === 'events') { return renderBoard(); }
+  if (route === 'email') { return renderEmail(); }
   return renderOverview();
 }
 
@@ -130,6 +131,7 @@ function shell(active) {
           ${link('events', 'Events')}
           ${link('tasks', 'Tasks')}
           ${link('volunteers', 'Volunteers')}
+          ${link('email', 'Email')}
         </nav>
         <div class="oe-side-foot">
           <div class="oe-side-user">Signed in as <strong>${esc(user)}</strong></div>
@@ -769,6 +771,254 @@ function moduleCard(routeKey, name, dot, data, rows) {
       <div class="mod-body">${stats}</div>
       <div class="mod-foot">Open <span class="mod-arrow">→</span></div>
     </article>`);
+}
+
+/* ---------------------------------------------------------------- */
+/* Email — campaigns list + block builder                           */
+/* ---------------------------------------------------------------- */
+const CAMPAIGN_STATUS = { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', paused: 'Paused' };
+const BLOCK_DEFS = {
+  heading: { label: 'Heading', make: () => ({ type: 'heading', text: 'Your headline', level: 'h2' }) },
+  text:    { label: 'Text',    make: () => ({ type: 'text', text: 'Write something here…' }) },
+  image:   { label: 'Image',   make: () => ({ type: 'image', url: '', alt: '', href: '' }) },
+  button:  { label: 'Button',  make: () => ({ type: 'button', label: 'Read more', href: 'https://' }) },
+  divider: { label: 'Divider', make: () => ({ type: 'divider' }) },
+  spacer:  { label: 'Spacer',  make: () => ({ type: 'spacer' }) },
+};
+
+async function renderEmail() {
+  const main = shell('email');
+  main.appendChild(el('<div class="oe-loading">Loading campaigns…</div>'));
+  let campaigns = [];
+  try { campaigns = await api.listCampaigns(); }
+  catch (e) {
+    if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+    main.innerHTML = '<div class="oe-error" style="margin:24px 0">Could not load campaigns.</div>';
+    return;
+  }
+  main.innerHTML = '';
+  main.appendChild(pageHeader('EMAIL · ' + campaigns.length + ' CAMPAIGN' + (campaigns.length === 1 ? '' : 'S'), 'Email'));
+
+  const bar = el('<div style="margin-bottom:20px"><button class="btn btn-primary" id="c-new">+ New campaign</button></div>');
+  bar.querySelector('#c-new').addEventListener('click', () => openCampaign(null));
+  main.appendChild(bar);
+
+  if (!campaigns.length) {
+    main.appendChild(emptyState('No campaigns yet.', 'Create your first campaign — write it block by block, pick an audience, send a test, then schedule or send.'));
+    return;
+  }
+  const grid = el('<div class="oe-mods"></div>');
+  campaigns.forEach((c) => grid.appendChild(campaignCard(c)));
+  main.appendChild(grid);
+  grid.querySelectorAll('[data-copen]').forEach((c) =>
+    c.addEventListener('click', () => openCampaign(parseInt(c.getAttribute('data-copen'), 10))));
+}
+
+function campaignCard(c) {
+  const s = c.stats || {};
+  return el(`
+    <article class="mod" data-copen="${c.id}">
+      <div class="mod-head"><h3>${esc(c.name || '(untitled)')}</h3><span class="chip">${esc(CAMPAIGN_STATUS[c.status] || c.status)}</span></div>
+      <div class="muted small" style="margin-bottom:14px">${esc(c.subject || 'No subject')}</div>
+      <div class="mod-body">
+        <div class="mod-row"><span class="mod-n">${s.sent || 0}</span><span class="mod-l">sent</span></div>
+        <div class="mod-row"><span class="mod-n">${s.opened || 0}</span><span class="mod-l">opened</span></div>
+        <div class="mod-row"><span class="mod-n">${s.clicked || 0}</span><span class="mod-l">clicked</span></div>
+      </div>
+      <div class="mod-foot">Edit <span class="mod-arrow">→</span></div>
+    </article>`);
+}
+
+async function openCampaign(id) {
+  const main = shell('email');
+  main.appendChild(el('<div class="oe-loading">Loading…</div>'));
+  let rec = { id: 0, name: '', subject: '', preheader: '', audience: 'subscribed', body_json: '[]', status: 'draft', stats: {} };
+  let audiences = [{ key: 'subscribed', label: 'All subscribers', count: 0 }];
+  try {
+    if (id) { rec = await api.getCampaign(id); }
+    audiences = await api.audiences();
+  } catch (e) {
+    if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
+  }
+  let blocks = [];
+  try { blocks = JSON.parse(rec.body_json || '[]'); if (!Array.isArray(blocks)) { blocks = []; } } catch (e) { blocks = []; }
+
+  main.innerHTML = '';
+  main.appendChild(pageHeader('EMAIL · ' + (id ? 'EDIT CAMPAIGN' : 'NEW CAMPAIGN'), rec.name || 'Untitled campaign'));
+
+  const layout = el('<div class="oe-cmp"></div>');
+  const left = el('<div class="oe-cmp-edit"></div>');
+  const right = el('<div class="oe-cmp-side"></div>');
+  layout.appendChild(left); layout.appendChild(right);
+  main.appendChild(layout);
+
+  const audOpts = audiences.map((a) => `<option value="${esc(a.key)}" ${rec.audience === a.key ? 'selected' : ''}>${esc(a.label)} (${a.count})</option>`).join('');
+  const meta = el(`<div class="oe-form" style="padding:0;gap:14px">
+    <label>Campaign name<input name="name" value="${esc(rec.name || '')}"></label>
+    <label>Subject line<input name="subject" value="${esc(rec.subject || '')}"></label>
+    <label>Preheader <span class="muted small">preview text</span><input name="preheader" value="${esc(rec.preheader || '')}"></label>
+    <label>Audience<select name="audience">${audOpts}</select></label>
+  </div>`);
+  left.appendChild(meta);
+
+  left.appendChild(el('<div class="oe-cmp-label">Content blocks</div>'));
+  const toolbar = el('<div class="oe-blocktools"></div>');
+  Object.keys(BLOCK_DEFS).forEach((k) => {
+    const b = el(`<button class="btn btn-small">+ ${esc(BLOCK_DEFS[k].label)}</button>`);
+    b.addEventListener('click', () => { blocks.push(BLOCK_DEFS[k].make()); paintBlocks(); });
+    toolbar.appendChild(b);
+  });
+  left.appendChild(toolbar);
+  const blockList = el('<div class="oe-blocks"></div>');
+  left.appendChild(blockList);
+
+  const actions = el(`<div class="oe-cmp-actions">
+    <button class="btn" data-save>Save</button>
+    <button class="btn" data-test>Send test…</button>
+    <button class="btn btn-primary" data-send>Send / schedule…</button>
+    <div class="oe-result" id="c-msg"></div>
+    <a class="oe-cmp-back" data-back>← All campaigns</a>
+  </div>`);
+  right.appendChild(actions);
+  right.appendChild(el('<div class="oe-cmp-label">Preview</div>'));
+  const preview = el('<div class="oe-preview"></div>');
+  right.appendChild(preview);
+
+  function field(label, inner) { return el(`<label class="oe-bf">${label ? `<span>${esc(label)}</span>` : ''}${inner}</label>`); }
+
+  function blockEditor(b, i) {
+    const card = el(`<div class="oe-block">
+      <div class="oe-block-head"><span class="oe-block-type">${esc(b.type)}</span>
+        <span class="oe-block-ctrls"><button data-up title="Move up">↑</button><button data-down title="Move down">↓</button><button data-del title="Remove">✕</button></span></div>
+      <div class="oe-block-body"></div></div>`);
+    const body = card.querySelector('.oe-block-body');
+    if (b.type === 'heading') {
+      body.appendChild(field('Text', `<input value="${esc(b.text || '')}" data-f="text">`));
+      body.appendChild(field('Level', `<select data-f="level"><option value="h1" ${b.level === 'h1' ? 'selected' : ''}>H1</option><option value="h2" ${b.level !== 'h1' && b.level !== 'h3' ? 'selected' : ''}>H2</option><option value="h3" ${b.level === 'h3' ? 'selected' : ''}>H3</option></select>`));
+    } else if (b.type === 'text') {
+      body.appendChild(field('', `<textarea rows="3" data-f="text">${esc(b.text || '')}</textarea>`));
+    } else if (b.type === 'image') {
+      body.appendChild(field('Image URL', `<input value="${esc(b.url || '')}" data-f="url" placeholder="https://…">`));
+      const pick = el('<button class="btn btn-small">Choose from media library</button>');
+      pick.addEventListener('click', () => openMediaPicker((url) => { b.url = url; paintBlocks(); }));
+      body.appendChild(pick);
+      body.appendChild(field('Alt text', `<input value="${esc(b.alt || '')}" data-f="alt">`));
+      body.appendChild(field('Links to (optional)', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
+      if (b.url) { body.appendChild(el(`<img src="${esc(b.url)}" class="oe-block-thumb" alt="">`)); }
+    } else if (b.type === 'button') {
+      body.appendChild(field('Label', `<input value="${esc(b.label || '')}" data-f="label">`));
+      body.appendChild(field('Links to', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
+    } else {
+      body.appendChild(el('<p class="muted small" style="margin:0">No options.</p>'));
+    }
+    body.querySelectorAll('[data-f]').forEach((inp) => {
+      const upd = () => { b[inp.getAttribute('data-f')] = inp.value; paintPreview(); };
+      inp.addEventListener('input', upd); inp.addEventListener('change', upd);
+    });
+    card.querySelector('[data-up]').addEventListener('click', () => { if (i > 0) { const t = blocks[i - 1]; blocks[i - 1] = blocks[i]; blocks[i] = t; paintBlocks(); } });
+    card.querySelector('[data-down]').addEventListener('click', () => { if (i < blocks.length - 1) { const t = blocks[i + 1]; blocks[i + 1] = blocks[i]; blocks[i] = t; paintBlocks(); } });
+    card.querySelector('[data-del]').addEventListener('click', () => { blocks.splice(i, 1); paintBlocks(); });
+    return card;
+  }
+
+  function paintBlocks() {
+    blockList.innerHTML = '';
+    if (!blocks.length) { blockList.appendChild(el('<p class="muted small">No blocks yet — add one above.</p>')); }
+    blocks.forEach((b, i) => blockList.appendChild(blockEditor(b, i)));
+    paintPreview();
+  }
+  function paintPreview() { preview.innerHTML = blocksToHtml(blocks, true); }
+
+  function collect() {
+    return {
+      name: meta.querySelector('[name="name"]').value.trim(),
+      subject: meta.querySelector('[name="subject"]').value.trim(),
+      preheader: meta.querySelector('[name="preheader"]').value.trim(),
+      audience: meta.querySelector('[name="audience"]').value,
+      body_json: JSON.stringify(blocks),
+      body_html: blocksToHtml(blocks, false),
+    };
+  }
+  async function save() {
+    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Saving…';
+    try {
+      if (rec.id) { await api.updateCampaign(rec.id, collect()); }
+      else { const created = await api.createCampaign(collect()); rec.id = created.id; id = created.id; }
+      msg.textContent = 'Saved.'; return true;
+    } catch (e) { msg.textContent = e.message || 'Error'; return false; }
+  }
+
+  actions.querySelector('[data-save]').addEventListener('click', save);
+  actions.querySelector('[data-back]').addEventListener('click', () => { route = 'email'; render(); });
+  actions.querySelector('[data-test]').addEventListener('click', async () => {
+    if (!(await save())) { return; }
+    const email = prompt('Send a test to which email address?');
+    if (!email) { return; }
+    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Sending test…';
+    try { const r = await api.testCampaign(rec.id, email); msg.textContent = r.ok ? 'Test sent to ' + email + '.' : 'Test failed — is SES configured?'; }
+    catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+  actions.querySelector('[data-send]').addEventListener('click', async () => {
+    if (!(await save())) { return; }
+    const aud = audiences.find((a) => a.key === collect().audience);
+    if (!confirm('Send "' + (rec.name || 'this campaign') + '" to ' + (aud ? aud.count : 'the selected') + ' recipient(s)?')) { return; }
+    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Queuing…';
+    try { const r = await api.sendCampaign(rec.id); msg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => { route = 'email'; render(); }, 1400); }
+    catch (e) { msg.textContent = e.message || 'Error'; }
+  });
+
+  paintBlocks();
+}
+
+function blocksToHtml(blocks, isPreview) {
+  const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#E7CD41').trim();
+  const rows = blocks.map((b) => {
+    if (b.type === 'heading') {
+      const size = b.level === 'h1' ? '28px' : (b.level === 'h3' ? '18px' : '22px');
+      return `<tr><td style="padding:8px 0"><div style="font-family:Arial,Helvetica,sans-serif;font-size:${size};font-weight:bold;color:#1a1a1a;line-height:1.25">${esc(b.text || '')}</div></td></tr>`;
+    }
+    if (b.type === 'text') {
+      return `<tr><td style="padding:8px 0"><div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#333">${esc(b.text || '').replace(/\n/g, '<br>')}</div></td></tr>`;
+    }
+    if (b.type === 'image') {
+      if (!b.url) { return isPreview ? '<tr><td style="padding:8px 0"><div style="background:#f3f3f3;border:1px dashed #ccc;border-radius:8px;padding:34px;text-align:center;color:#999;font-family:Arial">Image — pick from the media library</div></td></tr>' : ''; }
+      const img = `<img src="${esc(b.url)}" alt="${esc(b.alt || '')}" style="max-width:100%;border-radius:8px;display:block">`;
+      return `<tr><td style="padding:8px 0">${b.href ? `<a href="${esc(b.href)}">${img}</a>` : img}</td></tr>`;
+    }
+    if (b.type === 'button') {
+      return `<tr><td style="padding:12px 0"><a href="${esc(b.href || '#')}" style="display:inline-block;background:${accent};color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:12px 24px;border-radius:999px">${esc(b.label || 'Button')}</a></td></tr>`;
+    }
+    if (b.type === 'divider') { return '<tr><td style="padding:12px 0"><hr style="border:none;border-top:1px solid #e3e2db"></td></tr>'; }
+    if (b.type === 'spacer') { return '<tr><td style="height:24px;line-height:24px">&nbsp;</td></tr>'; }
+    return '';
+  }).join('');
+  const inner = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${isPreview ? '#f3f3f3' : '#faf9f5'};padding:${isPreview ? '0' : '20px'}"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border-radius:12px"><tr><td style="padding:24px">${inner}</td></tr></table></td></tr></table>`;
+}
+
+async function openMediaPicker(onPick) {
+  const modal = el(`<div class="oe-drawer-wrap"><div class="oe-drawer-bg"></div>
+    <aside class="oe-drawer oe-drawer-wide"><div class="oe-drawer-head"><h2>Media library</h2><button class="btn btn-small" data-close>Close</button></div>
+    <div class="oe-media"><div class="oe-loading">Loading…</div></div></aside></div>`);
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('[data-close]').addEventListener('click', close);
+  modal.querySelector('.oe-drawer-bg').addEventListener('click', close);
+  const wrap = modal.querySelector('.oe-media');
+  try {
+    const items = await api.listMedia();
+    wrap.innerHTML = '';
+    if (!items || !items.length) { wrap.appendChild(el('<p class="muted">No images in the media library yet.</p>')); return; }
+    const grid = el('<div class="oe-media-grid"></div>');
+    items.forEach((m) => {
+      const cell = el(`<button class="oe-media-cell"><img src="${esc(m.source_url)}" alt="" loading="lazy"></button>`);
+      cell.addEventListener('click', () => { onPick(m.source_url); close(); });
+      grid.appendChild(cell);
+    });
+    wrap.appendChild(grid);
+  } catch (e) {
+    wrap.innerHTML = '<p class="oe-error">Could not load media — ' + esc(e.message || 'error') + '</p>';
+  }
 }
 
 boot();
