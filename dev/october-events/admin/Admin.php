@@ -35,6 +35,7 @@ final class Admin {
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
         PlanningAdmin::get_instance()->init();
+        TasksAdmin::get_instance()->init();
     }
 
     public function register_menu(): void {
@@ -53,6 +54,7 @@ final class Admin {
         add_submenu_page('october-events', 'Registrations', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
         add_submenu_page('october-events', 'Promo Codes', 'Promo Codes', $cap, 'oe-promos', [TicketsAdmin::get_instance(), 'render_promos']);
         add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
+        add_submenu_page('october-events', 'Tasks', 'Tasks', $cap, 'oe-tasks', [TasksAdmin::get_instance(), 'render']);
         add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story'));
         add_submenu_page('october-events', 'Email', 'Email', $cap, 'oe-email', [$this, 'page_email']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
