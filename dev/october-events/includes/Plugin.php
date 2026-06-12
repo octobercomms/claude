@@ -46,6 +46,7 @@ final class Plugin {
         \OE\Brand\Rest::init();
         \OE\Mail\Mailer::init();
         \OE\Mail\SnsController::init();
+        \OE\Mail\CampaignsRest::init();
         (new Cron())->init();
         MapsConnector::init();
 
@@ -88,6 +89,30 @@ final class Plugin {
     public function handle_public_routes(): void {
         // One-click unsubscribe (?oe_unsub=…&k=…) — exits if it handles the request.
         \OE\Mail\Unsubscribe::handle();
+
+        // Campaign open pixel.
+        $open = isset($_GET['oe_o']) ? sanitize_text_field(wp_unslash($_GET['oe_o'])) : '';
+        if ($open !== '') {
+            \OE\Mail\Campaigns::track_open($open);
+            nocache_headers();
+            header('Content-Type: image/gif');
+            echo base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'); // 1x1 transparent gif
+            exit;
+        }
+
+        // Campaign click redirect (URL is HMAC-signed to prevent open redirects).
+        $click = isset($_GET['oe_c']) ? sanitize_text_field(wp_unslash($_GET['oe_c'])) : '';
+        if ($click !== '') {
+            \OE\Mail\Campaigns::track_click($click);
+            $url = isset($_GET['u']) ? esc_url_raw(wp_unslash($_GET['u'])) : '';
+            $sig = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
+            if ($url !== '' && \OE\Mail\Campaigns::verify_link($url, $sig)) {
+                wp_redirect($url); // external (validated) — wp_safe_redirect would block off-site links
+            } else {
+                wp_safe_redirect(home_url('/'));
+            }
+            exit;
+        }
 
         $ticket_token = isset($_GET['oe_ticket']) ? sanitize_text_field(wp_unslash($_GET['oe_ticket'])) : '';
         if ($ticket_token !== '') {
