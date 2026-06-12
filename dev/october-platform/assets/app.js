@@ -24,6 +24,64 @@ const VOL_ORDER = ['pending', 'confirmed', 'declined', 'no_show'];
 let route = 'overview';
 let taskMeta = null; // { departments, statuses, counts } — cached after first load
 
+/* ---------------------------------------------------------------- */
+/* Theme (per-site, overridable from the plugin: Settings → Branding) */
+/* ---------------------------------------------------------------- */
+const THEME_KEY = 'oe_platform_theme';
+const THEME_DEFAULTS = {
+  brand_name: 'October Events',
+  accent: '#E7CD41',
+  accent_on: '#1a1a1a',
+  sidebar_bg: '#0b0b0c',
+  page_bg: '#faf9f5',
+  logo_light: './assets/logo-black.gif',   // for white surfaces (login card)
+  logo_dark: './assets/logo-yellow.gif',   // for the dark sidebar
+  font_family: '',                          // optional custom family
+  font_css: '',                             // optional @font-face / Google Fonts URL
+};
+let theme = loadTheme();
+
+function loadTheme() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(THEME_KEY) || 'null');
+    return Object.assign({}, THEME_DEFAULTS, saved || {});
+  } catch (e) { return Object.assign({}, THEME_DEFAULTS); }
+}
+
+function applyTheme(t) {
+  const r = document.documentElement.style;
+  if (t.accent) { r.setProperty('--accent', t.accent); }
+  if (t.accent_on) { r.setProperty('--accent-on', t.accent_on); }
+  if (t.sidebar_bg) { r.setProperty('--sidebar-bg', t.sidebar_bg); }
+  if (t.page_bg) { r.setProperty('--page-bg', t.page_bg); }
+  if (t.accent) { r.setProperty('--accent-soft', hexToSoft(t.accent)); }
+  if (t.font_family) { r.setProperty('--font', '"' + t.font_family + '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif'); }
+  if (t.font_css && !document.getElementById('oe-font-css')) {
+    const link = document.createElement('link');
+    link.id = 'oe-font-css'; link.rel = 'stylesheet'; link.href = t.font_css;
+    document.head.appendChild(link);
+  }
+}
+
+function hexToSoft(hex) {
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (!m) { return 'rgba(231,205,65,0.12)'; }
+  return 'rgba(' + parseInt(m[1], 16) + ',' + parseInt(m[2], 16) + ',' + parseInt(m[3], 16) + ',0.12)';
+}
+
+/* Pull the site's branding once connected; cache it so the login screen of a
+   returning user is already themed. Falls back silently to defaults. */
+async function refreshBrand() {
+  try {
+    const b = await api.getBrand();
+    if (b && typeof b === 'object') {
+      theme = Object.assign({}, THEME_DEFAULTS, b);
+      localStorage.setItem(THEME_KEY, JSON.stringify(theme));
+      applyTheme(theme);
+    }
+  } catch (e) { /* keep current theme */ }
+}
+
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -34,9 +92,11 @@ function el(html) { const d = document.createElement('div'); d.innerHTML = html.
 /* Boot                                                             */
 /* ---------------------------------------------------------------- */
 async function boot() {
+  applyTheme(theme);
   if (!getCreds()) { return renderLogin(); }
   try {
     await api.ping();
+    refreshBrand(); // non-blocking: theme the app from the connected site
     render();
   } catch (e) {
     renderLogin(e.status === 401 || e.status === 403
@@ -62,8 +122,8 @@ function shell(active) {
     <div class="oe-shell">
       <aside class="oe-side">
         <div class="oe-brand">
-          <div class="oe-logo"><span></span><span></span><span></span></div>
-          <div class="oe-brand-name">October<br>Events</div>
+          <img src="${esc(theme.logo_dark)}" alt="${esc(theme.brand_name)}">
+          <div class="oe-brand-name">${esc(theme.brand_name)}</div>
         </div>
         <nav class="oe-nav">
           ${link('overview', 'Dashboard')}
@@ -111,8 +171,8 @@ function renderLogin(error) {
   const view = el(`
     <div class="oe-login">
       <div class="oe-login-card">
-        <div class="oe-logo oe-logo-ink"><span></span><span></span><span></span></div>
-        <h1>October Events</h1>
+        <img class="oe-login-logo" src="${esc(theme.logo_light)}" alt="${esc(theme.brand_name)}">
+        <h1>${esc(theme.brand_name)}</h1>
         <p class="muted">Planning — sign in with your WordPress account.</p>
         ${error ? `<div class="oe-error">${esc(error)}</div>` : ''}
         <label>Site URL<input id="l-base" type="url" placeholder="https://atlantadesignfestival.net" value="${esc(prev.base ? prev.base.replace(/\/wp-json$/, '') : '')}"></label>

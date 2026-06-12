@@ -77,6 +77,17 @@ final class Settings {
                 'https://october-platform.pages.dev',
                 'https://platform.atlantadesignfestival.net',
             ],
+            // Per-site theming for the planning platform. Empty = use the
+            // platform's built-in October defaults (Brockmann + brand yellow).
+            // Exposed (read-only) via the public oe/v1/brand endpoint.
+            'theme_accent'      => '', // e.g. #E7CD41
+            'theme_accent_on'   => '', // text colour on the accent, e.g. #1a1a1a
+            'theme_sidebar_bg'  => '', // e.g. #0b0b0c
+            'theme_page_bg'     => '', // e.g. #faf9f5
+            'theme_logo_light'  => '', // logo URL for light surfaces (login)
+            'theme_logo_dark'   => '', // logo URL for the dark sidebar
+            'theme_font_family' => '', // optional custom font family name
+            'theme_font_css'    => '', // optional @font-face / Google Fonts URL
         ];
     }
 

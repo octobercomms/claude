@@ -11,13 +11,22 @@ database of its own, no sync. WordPress stays the single source of truth.
 
 ## Design system
 
-The platform uses the shared October **"Marketing Intelligence"** look so the
-products feel like one family: a dark left **sidebar** (logo + nav + signed-in /
-sign-out), a cream canvas, an overline + big bold page title with the date, a row
-of **stat cards** (the first highlighted dark), and white **section cards** with
-yellow pill accents and green/amber status dots. Display type is *Space Grotesk*
-(falls back to the system font). All layout/colour lives in `assets/styles.css`
-via CSS custom properties, so re-skinning is a token change.
+The platform uses the shared October **"Marketing Intelligence"** design system
+verbatim (ported from `dev/platform/frontend/src/index.css`): off-white page,
+white bentos with soft-grey 2px borders, a dark left **sidebar** (logo + nav +
+signed-in / sign-out), an overline + big bold display title with the date, a row
+of **stat cards** (the first inverted dark), and white **workspace cards** —
+brand-yellow accent, green/amber status dots. Type is **Brockmann**, self-hosted
+in `assets/fonts/` (no external font request). Full-width main column.
+
+### Per-site theming (overridable)
+
+Every colour, the logo and the font are CSS variables, so a site can re-skin the
+platform from the plugin: **Settings → Branding** writes the overrides, the
+public **`oe/v1/brand`** endpoint returns them, and the SPA applies them as CSS
+variables at runtime (caching the last theme so a returning user's sign-in screen
+is already branded). Blank fields fall back to the bundled October defaults
+(Brockmann + brand yellow + the October logos in `assets/`).
 
 ## Dashboard (landing)
 
@@ -118,8 +127,11 @@ Sign in against your real (or staging) WordPress site.
 dev/october-platform/
   index.html          app shell
   assets/
-    app.js            shell + Dashboard + Events + Tasks + Volunteers (vanilla ES modules)
+    app.js            shell + theme + Dashboard + Events + Tasks + Volunteers (vanilla ES modules)
     api.js            oe/v1 REST client (App-Password Basic auth)
+    fonts/            Brockmann (self-hosted woff2/woff)
+    logo-black.gif    October logo for light surfaces (login)
+    logo-yellow.gif   October logo for the dark sidebar
     styles.css        October brand (cream / rust / near-black)
   _redirects          Cloudflare SPA fallback
   package.json        metadata + `npm run check` (node --check the JS)

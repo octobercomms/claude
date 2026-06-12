@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.9.0 — platform branding (per-site theme)
+
+The planning platform now adopts the October "Marketing Intelligence" design
+system, and each site can override the look from here.
+
+- **Settings → Branding (platform theme)**: accent colour, text-on-accent,
+  sidebar colour, page background, light/dark **logo** URLs, and an optional
+  **custom font** (family + stylesheet URL). Blank = the built-in October
+  defaults (Brockmann + brand yellow).
+- New **public** REST endpoint `GET oe/v1/brand` (no auth — the platform's
+  sign-in screen themes before login) returns the brand name + any non-empty
+  overrides; the platform applies them as CSS variables at runtime.
+- No schema change.
+
 ## 1.8.3 — CORS: take sole ownership on our routes (beats JetEngine for real)
 
 1.8.2 still lost: JetEngine's `rest_pre_serve_request` CORS callback runs *after*
