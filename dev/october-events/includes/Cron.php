@@ -21,6 +21,7 @@ final class Cron {
     public const HOOK_DAILY    = 'oe_daily_cron';
     public const HOOK_DIGEST   = 'oe_monthly_digest';
     public const HOOK_HOURLY   = 'oe_hourly_cron';
+    public const HOOK_DISPATCH = 'oe_mail_dispatch'; // campaign send queue (per minute)
 
     public static function schedule(): void {
         if (! wp_next_scheduled(self::HOOK_DAILY)) {
@@ -32,7 +33,7 @@ final class Cron {
     }
 
     public static function unschedule(): void {
-        foreach ([self::HOOK_DAILY, self::HOOK_DIGEST, self::HOOK_HOURLY] as $hook) {
+        foreach ([self::HOOK_DAILY, self::HOOK_DIGEST, self::HOOK_HOURLY, self::HOOK_DISPATCH] as $hook) {
             $ts = wp_next_scheduled($hook);
             if ($ts) {
                 wp_unschedule_event($ts, $hook);
@@ -41,9 +42,30 @@ final class Cron {
     }
 
     public function init(): void {
+        add_filter('cron_schedules', [self::class, 'add_minute_schedule']);
         add_action(self::HOOK_DAILY, [$this, 'run_daily']);
         add_action(self::HOOK_DIGEST, [$this, 'run_digest']);
         add_action(self::HOOK_HOURLY, [$this, 'run_hourly']);
+        add_action(self::HOOK_DISPATCH, [$this, 'run_dispatch']);
+
+        // Self-heal the per-minute dispatch event (so it appears on upgrade too,
+        // not only on activation).
+        if (! wp_next_scheduled(self::HOOK_DISPATCH)) {
+            wp_schedule_event(time() + MINUTE_IN_SECONDS, 'oe_minute', self::HOOK_DISPATCH);
+        }
+    }
+
+    /** @param array<string,mixed> $schedules */
+    public static function add_minute_schedule(array $schedules): array {
+        if (! isset($schedules['oe_minute'])) {
+            $schedules['oe_minute'] = ['interval' => MINUTE_IN_SECONDS, 'display' => 'Every minute (October Events)'];
+        }
+        return $schedules;
+    }
+
+    /** Drain the campaign send queue (a batch per tick). */
+    public function run_dispatch(): void {
+        \OE\Mail\Campaigns::dispatch();
     }
 
     /**

@@ -98,6 +98,8 @@ final class Settings {
             'ses_smtp_password' => '', // secret (or OE_SES_SMTP_PASSWORD constant)
             'mail_from_email'   => '',
             'mail_from_name'    => '',
+            // Physical mailing address shown in campaign footers (CAN-SPAM).
+            'mail_footer_address' => '',
         ];
     }
 

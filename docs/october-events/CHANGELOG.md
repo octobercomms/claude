@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.13.0 — email campaigns: bulk sender + tracking (backend)
+
+Phase 4 (backend half) of the email platform — the campaign engine the platform's
+drag-and-drop builder will drive. (The builder UI lands next.)
+
+- New `oe_campaigns` + `oe_messages` tables (DB version → 6): a campaign holds the
+  builder block JSON + rendered HTML, an audience, schedule, status and stats;
+  one message row per recipient with a tracking token.
+- **Audiences** resolved from native contacts — *all subscribers*, *SMS opt-in*,
+  or *by source* (account / ticket / volunteer / submission), each with a live
+  count.
+- **Throttled bulk send**: queuing skips suppressed addresses; a new per-minute
+  cron tick (`oe_mail_dispatch`) drains the queue in batches of 100 through the
+  site Mailer (SES), so a blast never exceeds send limits. Scheduled campaigns
+  auto-start at their time.
+- **Compliance built into the send path**: every message gets the
+  `List-Unsubscribe` headers + an unsubscribe footer (with the configurable
+  physical address), an **open pixel**, and **click-tracking** links (HMAC-signed
+  so the redirect can't be abused as an open redirect).
+- **REST** `oe/v1/campaigns` (+ `/{id}`, `/{id}/test`, `/{id}/send`) and
+  `/audiences` for the builder. **Send test** delivers a no-tracking preview.
+
 ## 1.12.0 — deliverability spine (unsubscribe + SES bounce/complaint)
 
 Phase 3 of the email platform — the compliance + list-hygiene plumbing that has
