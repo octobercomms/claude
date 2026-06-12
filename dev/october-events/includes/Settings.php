@@ -107,6 +107,9 @@ final class Settings {
             'aws_secret_access_key' => '', // secret (or OE_AWS_SECRET_ACCESS_KEY)
             'sms_region'            => 'us-east-1',
             'sms_origination'       => '', // phone number (E.164), sender ID, or pool ARN
+            // Public AI support chat — a floating widget that answers customers'
+            // questions about their own (email-verified) orders and tickets.
+            'support_chat_enabled'  => '0',
             // Live chat — paste a Chatwoot website token + base URL to inject the widget.
             'chatwoot_base_url'     => '',
             'chatwoot_token'        => '',

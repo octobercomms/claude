@@ -236,6 +236,8 @@ final class Settings {
             'aws_secret_access_key' => \OE\Crypto::encrypt(trim((string) ($in['aws_secret_access_key'] ?? ''))),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
+            // Public AI support chat.
+            'support_chat_enabled'  => empty($in['support_chat_enabled']) ? '0' : '1',
             // Live chat (Chatwoot).
             'chatwoot_base_url'     => esc_url_raw(trim((string) ($in['chatwoot_base_url'] ?? ''))),
             'chatwoot_token'        => sanitize_text_field((string) ($in['chatwoot_token'] ?? '')),

@@ -218,6 +218,17 @@ use OE\PostTypes;
             </tr>
         </tbody></table>
 
+        <h2 id="support-chat"><?php esc_html_e('AI support chat (customers)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('A floating chat on your public site that answers customers’ questions about their own orders and tickets. Customers verify with a one-time code emailed to them, so they only ever see their own data. Requires a Claude API key (set above).', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable widget', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="support_chat_enabled" value="1" <?php checked((string) ($cfg['support_chat_enabled'] ?? '0'), '1'); ?>>
+                    <?php esc_html_e('Show the “Need help?” chat on every front-end page', 'october-events'); ?></label>
+                    <p class="description"><?php esc_html_e('You can also embed it inline anywhere with the [oe_support_chat] shortcode.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+
         <h2 id="chat"><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Leave blank for no chat.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
