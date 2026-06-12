@@ -880,13 +880,16 @@ function moduleCard(routeKey, name, dot, data, rows) {
 /* ---------------------------------------------------------------- */
 const CAMPAIGN_STATUS = { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', paused: 'Paused' };
 const BLOCK_DEFS = {
-  heading: { label: 'Heading', make: () => ({ type: 'heading', text: 'Your headline', level: 'h2' }) },
-  text:    { label: 'Text',    make: () => ({ type: 'text', text: 'Write something here…' }) },
-  image:   { label: 'Image',   make: () => ({ type: 'image', url: '', alt: '', href: '' }) },
-  button:  { label: 'Button',  make: () => ({ type: 'button', label: 'Read more', href: 'https://' }) },
+  heading: { label: 'Heading', make: () => ({ type: 'heading', text: 'Your headline', level: 'h2', align: 'left' }) },
+  text:    { label: 'Text',    make: () => ({ type: 'text', text: 'Write something here…', align: 'left' }) },
+  image:   { label: 'Image',   make: () => ({ type: 'image', url: '', alt: '', href: '', align: 'center' }) },
+  button:  { label: 'Button',  make: () => ({ type: 'button', label: 'Read more', href: 'https://', align: 'left' }) },
+  columns: { label: '2 columns', make: () => ({ type: 'columns', cols: [{ url: '', alt: '', text: '', href: '' }, { url: '', alt: '', text: '', href: '' }] }) },
+  social:  { label: 'Social',  make: () => ({ type: 'social', items: [{ label: 'Instagram', url: 'https://', icon: '' }, { label: 'Facebook', url: 'https://', icon: '' }] }) },
   divider: { label: 'Divider', make: () => ({ type: 'divider' }) },
   spacer:  { label: 'Spacer',  make: () => ({ type: 'spacer' }) },
 };
+const ALIGN_SELECT = (v) => `<select data-f="align"><option value="left" ${v === 'left' ? 'selected' : ''}>Left</option><option value="center" ${v === 'center' ? 'selected' : ''}>Center</option><option value="right" ${v === 'right' ? 'selected' : ''}>Right</option></select>`;
 
 async function renderEmail() {
   const main = shell('email');
@@ -998,8 +1001,10 @@ async function openCampaign(id) {
     if (b.type === 'heading') {
       body.appendChild(field('Text', `<input value="${esc(b.text || '')}" data-f="text">`));
       body.appendChild(field('Level', `<select data-f="level"><option value="h1" ${b.level === 'h1' ? 'selected' : ''}>H1</option><option value="h2" ${b.level !== 'h1' && b.level !== 'h3' ? 'selected' : ''}>H2</option><option value="h3" ${b.level === 'h3' ? 'selected' : ''}>H3</option></select>`));
+      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
     } else if (b.type === 'text') {
       body.appendChild(field('', `<textarea rows="3" data-f="text">${esc(b.text || '')}</textarea>`));
+      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
     } else if (b.type === 'image') {
       body.appendChild(field('Image URL', `<input value="${esc(b.url || '')}" data-f="url" placeholder="https://…">`));
       const pick = el('<button class="btn btn-small">Choose from media library</button>');
@@ -1007,10 +1012,16 @@ async function openCampaign(id) {
       body.appendChild(pick);
       body.appendChild(field('Alt text', `<input value="${esc(b.alt || '')}" data-f="alt">`));
       body.appendChild(field('Links to (optional)', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
+      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
       if (b.url) { body.appendChild(el(`<img src="${esc(b.url)}" class="oe-block-thumb" alt="">`)); }
     } else if (b.type === 'button') {
       body.appendChild(field('Label', `<input value="${esc(b.label || '')}" data-f="label">`));
       body.appendChild(field('Links to', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
+      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
+    } else if (b.type === 'columns') {
+      columnsEditor(b, body);
+    } else if (b.type === 'social') {
+      socialEditor(b, body);
     } else {
       body.appendChild(el('<p class="muted small" style="margin:0">No options.</p>'));
     }
@@ -1022,6 +1033,47 @@ async function openCampaign(id) {
     card.querySelector('[data-down]').addEventListener('click', () => { if (i < blocks.length - 1) { const t = blocks[i + 1]; blocks[i + 1] = blocks[i]; blocks[i] = t; paintBlocks(); } });
     card.querySelector('[data-del]').addEventListener('click', () => { blocks.splice(i, 1); paintBlocks(); });
     return card;
+  }
+
+  function columnsEditor(b, body) {
+    if (!Array.isArray(b.cols)) { b.cols = [{}, {}]; }
+    b.cols.forEach((c) => {
+      const panel = el(`<div class="oe-col-edit"><div class="oe-col-edit-h">Column</div></div>`);
+      panel.appendChild(field('Image URL', `<input value="${esc(c.url || '')}" data-cf="url" placeholder="https://…">`));
+      const pick = el('<button class="btn btn-small">Choose image</button>');
+      pick.addEventListener('click', () => openMediaPicker((url) => { c.url = url; paintBlocks(); }));
+      panel.appendChild(pick);
+      panel.appendChild(field('Text', `<textarea rows="2" data-cf="text">${esc(c.text || '')}</textarea>`));
+      panel.appendChild(field('Links to', `<input value="${esc(c.href || '')}" data-cf="href" placeholder="https://…">`));
+      panel.querySelectorAll('[data-cf]').forEach((inp) => {
+        const upd = () => { c[inp.getAttribute('data-cf')] = inp.value; paintPreview(); };
+        inp.addEventListener('input', upd); inp.addEventListener('change', upd);
+      });
+      body.appendChild(panel);
+    });
+  }
+
+  function socialEditor(b, body) {
+    if (!Array.isArray(b.items)) { b.items = []; }
+    const list = el('<div class="oe-social-edit"></div>');
+    b.items.forEach((s, si) => {
+      const row = el(`<div class="oe-social-row">
+        <input value="${esc(s.label || '')}" data-sf="label" placeholder="Label">
+        <input value="${esc(s.url || '')}" data-sf="url" placeholder="https://…">
+        <button class="btn btn-small" data-icon title="Icon">Icon</button>
+        <button class="btn btn-small" data-rm title="Remove">✕</button></div>`);
+      row.querySelectorAll('[data-sf]').forEach((inp) => {
+        const upd = () => { s[inp.getAttribute('data-sf')] = inp.value; paintPreview(); };
+        inp.addEventListener('input', upd); inp.addEventListener('change', upd);
+      });
+      row.querySelector('[data-icon]').addEventListener('click', () => openMediaPicker((url) => { s.icon = url; paintBlocks(); }));
+      row.querySelector('[data-rm]').addEventListener('click', () => { b.items.splice(si, 1); paintBlocks(); });
+      if (s.icon) { row.appendChild(el(`<img src="${esc(s.icon)}" style="width:22px;height:22px;border-radius:4px">`)); }
+      list.appendChild(row);
+    });
+    const add = el('<button class="btn btn-small">+ Add link</button>');
+    add.addEventListener('click', () => { b.items.push({ label: '', url: 'https://', icon: '' }); paintBlocks(); });
+    body.appendChild(list); body.appendChild(add);
   }
 
   function paintBlocks() {
@@ -1107,21 +1159,45 @@ async function openCampaign(id) {
 
 function blocksToHtml(blocks, isPreview) {
   const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#E7CD41').trim();
+  const al = (b) => (['left', 'center', 'right'].indexOf(b.align) >= 0 ? b.align : 'left');
   const rows = blocks.map((b) => {
     if (b.type === 'heading') {
       const size = b.level === 'h1' ? '28px' : (b.level === 'h3' ? '18px' : '22px');
-      return `<tr><td style="padding:8px 0"><div style="font-family:Arial,Helvetica,sans-serif;font-size:${size};font-weight:bold;color:#1a1a1a;line-height:1.25">${esc(b.text || '')}</div></td></tr>`;
+      return `<tr><td style="padding:8px 0;text-align:${al(b)}"><div style="font-family:Arial,Helvetica,sans-serif;font-size:${size};font-weight:bold;color:#1a1a1a;line-height:1.25">${esc(b.text || '')}</div></td></tr>`;
     }
     if (b.type === 'text') {
-      return `<tr><td style="padding:8px 0"><div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#333">${esc(b.text || '').replace(/\n/g, '<br>')}</div></td></tr>`;
+      return `<tr><td style="padding:8px 0;text-align:${al(b)}"><div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.6;color:#333">${esc(b.text || '').replace(/\n/g, '<br>')}</div></td></tr>`;
     }
     if (b.type === 'image') {
       if (!b.url) { return isPreview ? '<tr><td style="padding:8px 0"><div style="background:#f3f3f3;border:1px dashed #ccc;border-radius:8px;padding:34px;text-align:center;color:#999;font-family:Arial">Image — pick from the media library</div></td></tr>' : ''; }
-      const img = `<img src="${esc(b.url)}" alt="${esc(b.alt || '')}" style="max-width:100%;border-radius:8px;display:block">`;
-      return `<tr><td style="padding:8px 0">${b.href ? `<a href="${esc(b.href)}">${img}</a>` : img}</td></tr>`;
+      const img = `<img src="${esc(b.url)}" alt="${esc(b.alt || '')}" style="max-width:100%;border-radius:8px;display:inline-block">`;
+      return `<tr><td align="${al(b)}" style="padding:8px 0">${b.href ? `<a href="${esc(b.href)}">${img}</a>` : img}</td></tr>`;
     }
     if (b.type === 'button') {
-      return `<tr><td style="padding:12px 0"><a href="${esc(b.href || '#')}" style="display:inline-block;background:${accent};color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:12px 24px;border-radius:999px">${esc(b.label || 'Button')}</a></td></tr>`;
+      return `<tr><td style="padding:12px 0;text-align:${al(b)}"><a href="${esc(b.href || '#')}" style="display:inline-block;background:${accent};color:#1a1a1a;font-family:Arial,Helvetica,sans-serif;font-weight:bold;font-size:15px;text-decoration:none;padding:12px 24px;border-radius:999px">${esc(b.label || 'Button')}</a></td></tr>`;
+    }
+    if (b.type === 'columns') {
+      const cells = (Array.isArray(b.cols) ? b.cols : []).map((c) => {
+        let inner = '';
+        if (c.url) {
+          const img = `<img src="${esc(c.url)}" alt="${esc(c.alt || '')}" width="270" style="width:100%;max-width:270px;border-radius:8px;display:block">`;
+          inner += c.href ? `<a href="${esc(c.href)}">${img}</a>` : img;
+        } else if (isPreview) {
+          inner += '<div style="background:#f3f3f3;border:1px dashed #ccc;border-radius:8px;padding:24px;text-align:center;color:#999;font-family:Arial;font-size:12px">Image</div>';
+        }
+        if (c.text) { inner += `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.5;color:#333;margin-top:8px">${esc(c.text).replace(/\n/g, '<br>')}</div>`; }
+        return `<div style="display:inline-block;width:270px;max-width:46%;vertical-align:top;text-align:left;margin:0 6px 12px">${inner}</div>`;
+      }).join('');
+      return `<tr><td style="padding:8px 0"><div style="font-size:0;text-align:center">${cells}</div></td></tr>`;
+    }
+    if (b.type === 'social') {
+      const links = (Array.isArray(b.items) ? b.items : []).filter((s) => s.url).map((s) => {
+        const inner = s.icon
+          ? `<img src="${esc(s.icon)}" alt="${esc(s.label || '')}" width="28" height="28" style="display:inline-block;border:0">`
+          : `<span style="font-family:Arial,Helvetica,sans-serif;font-size:13px;color:#1a1a1a;text-decoration:underline">${esc(s.label || 'link')}</span>`;
+        return `<a href="${esc(s.url)}" style="display:inline-block;margin:0 7px;text-decoration:none">${inner}</a>`;
+      }).join('');
+      return `<tr><td align="center" style="padding:14px 0">${links}</td></tr>`;
     }
     if (b.type === 'divider') { return '<tr><td style="padding:12px 0"><hr style="border:none;border-top:1px solid #e3e2db"></td></tr>'; }
     if (b.type === 'spacer') { return '<tr><td style="height:24px;line-height:24px">&nbsp;</td></tr>'; }

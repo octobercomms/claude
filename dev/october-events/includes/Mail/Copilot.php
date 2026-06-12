@@ -79,11 +79,13 @@ You are drafting an HTML EMAIL CAMPAIGN for {$brand}. Reply with ONLY a single J
   "blocks": [ ...ordered content blocks... ]
 }
 
-Allowed block objects:
-- {"type":"heading","text":"...","level":"h1|h2|h3"}
-- {"type":"text","text":"... (plain text; use \\n for line breaks)"}
-- {"type":"image","url":"","alt":"suggested alt text","href":""}  // ALWAYS leave url empty — the user picks the real image from their media library
-- {"type":"button","label":"...","href":"https://real-url-from-the-data"}
+Allowed block objects (every block may also have "align":"left|center|right"):
+- {"type":"heading","text":"...","level":"h1|h2|h3","align":"left"}
+- {"type":"text","text":"... (plain text; use \\n for line breaks)","align":"left"}
+- {"type":"image","url":"","alt":"suggested alt text","href":"","align":"center"}  // ALWAYS leave url empty — the user picks the real image from their media library
+- {"type":"button","label":"...","href":"https://real-url-from-the-data","align":"left"}
+- {"type":"columns","cols":[{"url":"","alt":"...","text":"...","href":""},{"url":"","alt":"...","text":"...","href":""}]}  // two side-by-side cells; leave image url empty
+- {"type":"social","items":[{"label":"Instagram","url":"https://…","icon":""}]}  // follow links; leave icon empty (the user adds icons). Only use real URLs.
 - {"type":"divider"}
 - {"type":"spacer"}
 
@@ -198,6 +200,9 @@ TXT;
      * @return array<int,array<string,mixed>>
      */
     private static function sanitize_blocks(array $blocks): array {
+        $align = static function ($v) {
+            return in_array($v, ['left', 'center', 'right'], true) ? $v : 'left';
+        };
         $out = [];
         foreach ($blocks as $b) {
             if (! is_array($b)) { continue; }
@@ -205,17 +210,41 @@ TXT;
             switch ($type) {
                 case 'heading':
                     $level = in_array(($b['level'] ?? ''), ['h1', 'h2', 'h3'], true) ? $b['level'] : 'h2';
-                    $out[] = ['type' => 'heading', 'text' => sanitize_text_field((string) ($b['text'] ?? '')), 'level' => $level];
+                    $out[] = ['type' => 'heading', 'text' => sanitize_text_field((string) ($b['text'] ?? '')), 'level' => $level, 'align' => $align($b['align'] ?? 'left')];
                     break;
                 case 'text':
-                    $out[] = ['type' => 'text', 'text' => sanitize_textarea_field((string) ($b['text'] ?? ''))];
+                    $out[] = ['type' => 'text', 'text' => sanitize_textarea_field((string) ($b['text'] ?? '')), 'align' => $align($b['align'] ?? 'left')];
                     break;
                 case 'image':
-                    $out[] = ['type' => 'image', 'url' => esc_url_raw((string) ($b['url'] ?? '')), 'alt' => sanitize_text_field((string) ($b['alt'] ?? '')), 'href' => esc_url_raw((string) ($b['href'] ?? ''))];
+                    $out[] = ['type' => 'image', 'url' => esc_url_raw((string) ($b['url'] ?? '')), 'alt' => sanitize_text_field((string) ($b['alt'] ?? '')), 'href' => esc_url_raw((string) ($b['href'] ?? '')), 'align' => $align($b['align'] ?? 'center')];
                     break;
                 case 'button':
-                    $href = esc_url_raw((string) ($b['href'] ?? ''));
-                    $out[] = ['type' => 'button', 'label' => sanitize_text_field((string) ($b['label'] ?? 'Read more')), 'href' => $href];
+                    $out[] = ['type' => 'button', 'label' => sanitize_text_field((string) ($b['label'] ?? 'Read more')), 'href' => esc_url_raw((string) ($b['href'] ?? '')), 'align' => $align($b['align'] ?? 'left')];
+                    break;
+                case 'columns':
+                    $cols = [];
+                    foreach (array_slice(is_array($b['cols'] ?? null) ? $b['cols'] : [], 0, 2) as $c) {
+                        if (! is_array($c)) { continue; }
+                        $cols[] = [
+                            'url'  => esc_url_raw((string) ($c['url'] ?? '')),
+                            'alt'  => sanitize_text_field((string) ($c['alt'] ?? '')),
+                            'text' => sanitize_textarea_field((string) ($c['text'] ?? '')),
+                            'href' => esc_url_raw((string) ($c['href'] ?? '')),
+                        ];
+                    }
+                    if ($cols) { $out[] = ['type' => 'columns', 'cols' => $cols]; }
+                    break;
+                case 'social':
+                    $items = [];
+                    foreach (is_array($b['items'] ?? null) ? $b['items'] : [] as $s) {
+                        if (! is_array($s)) { continue; }
+                        $items[] = [
+                            'label' => sanitize_text_field((string) ($s['label'] ?? '')),
+                            'url'   => esc_url_raw((string) ($s['url'] ?? '')),
+                            'icon'  => esc_url_raw((string) ($s['icon'] ?? '')),
+                        ];
+                    }
+                    if ($items) { $out[] = ['type' => 'social', 'items' => $items]; }
                     break;
                 case 'divider':
                     $out[] = ['type' => 'divider'];
