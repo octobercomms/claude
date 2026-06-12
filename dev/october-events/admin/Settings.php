@@ -186,9 +186,20 @@ final class Settings {
         $req_candidates = ['name', 'start_datetime', 'end_datetime', 'price', 'location', 'description', 'organiser', 'image'];
         $event_required = array_values(array_intersect($req_candidates, array_map('sanitize_key', (array) ($in['event_required_fields'] ?? []))));
 
+        // Map of planning field => existing meta key to read as a fallback.
+        $event_field_map = [];
+        foreach ((array) ($in['event_field_map'] ?? []) as $field => $src) {
+            $field = sanitize_key((string) $field);
+            $src   = sanitize_text_field((string) $src);
+            if ($field !== '' && $src !== '') {
+                $event_field_map[$field] = $src;
+            }
+        }
+
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
             'event_required_fields' => $event_required ?: ['name', 'start_datetime', 'price', 'location'],
+            'event_field_map'  => $event_field_map,
             'pricing'          => $pricing,
             'currency'         => sanitize_text_field((string) ($in['currency'] ?? 'usd')),
             'rejection_copy'   => $rejection,

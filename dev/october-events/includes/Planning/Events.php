@@ -45,7 +45,63 @@ final class Events {
 
     public static function get(int $event_id, string $field, $default = '') {
         $v = get_post_meta($event_id, self::key($field), true);
-        return ($v === '' || $v === false) ? $default : $v;
+        if ($v === '' || $v === false) {
+            // Fall back to an existing (e.g. JetEngine) field if one is mapped in
+            // Settings → Event field mapping, so events that already hold their
+            // data elsewhere show their real readiness without re-keying.
+            $src = self::field_map()[$field] ?? '';
+            if ($src !== '') {
+                $ext = get_post_meta($event_id, $src, true);
+                if ($ext !== '' && $ext !== false) {
+                    return $ext;
+                }
+            }
+            return $default;
+        }
+        return $v;
+    }
+
+    /** @return array<string,string> planning field => source meta key */
+    public static function field_map(): array {
+        $m = \OE\Settings::get('event_field_map', []);
+        return is_array($m) ? array_filter(array_map('strval', $m)) : [];
+    }
+
+    /**
+     * Copy mapped existing-field values into the planning meta (so they become
+     * editable in the planner). Skips fields that already have a planning value.
+     * Returns the number of events touched.
+     */
+    public static function seed_from_existing(): int {
+        $map = self::field_map();
+        if (! $map) {
+            return 0;
+        }
+        $touched = 0;
+        foreach (self::all_event_ids() as $id) {
+            $did = false;
+            foreach ($map as $field => $src) {
+                if (! isset(self::FIELDS[$field]) || $src === '') {
+                    continue;
+                }
+                $existing = get_post_meta($id, self::key($field), true);
+                if ($existing !== '' && $existing !== false) {
+                    continue; // don't overwrite planner data
+                }
+                $ext = get_post_meta($id, $src, true);
+                if ($ext !== '' && $ext !== false) {
+                    update_post_meta($id, self::key($field), is_array($ext) ? $ext : sanitize_text_field((string) $ext));
+                    $did = true;
+                }
+            }
+            if ($did) {
+                if (self::status($id) === Gating::STATUS_DRAFT) {
+                    self::set_status($id, Gating::STATUS_IN_PROGRESS);
+                }
+                $touched++;
+            }
+        }
+        return $touched;
     }
 
     public static function status(int $event_id): string {

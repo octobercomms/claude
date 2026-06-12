@@ -38,6 +38,10 @@ final class Settings {
             'brand_name' => 'October Events',
             // Which fields an event needs before it can be confirmed (go green).
             'event_required_fields' => ['name', 'start_datetime', 'price', 'location'],
+            // Optional map: planning field => an existing (e.g. JetEngine) meta key
+            // to read when the planning field is empty (so existing events show
+            // their real readiness without re-keying).
+            'event_field_map' => [],
             // Per-listing-type, per-tier pricing in cents. Admin-editable (§4).
             'pricing' => [
                 'directory'   => ['featured' => 9900,  'premium' => 19900],

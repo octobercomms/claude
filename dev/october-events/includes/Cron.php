@@ -46,6 +46,8 @@ final class Cron {
         add_action(self::HOOK_DIGEST, [$this, 'run_digest']);
         add_action(self::HOOK_HOURLY, [$this, 'run_hourly']);
         add_action(self::HOOK_DISPATCH, [$this, 'run_dispatch']);
+        // Traffic-driven fallback so campaigns still send on a low-traffic site.
+        add_action('init', ['\OE\Mail\Campaigns', 'maybe_dispatch']);
 
         // Self-heal the per-minute dispatch event (so it appears on upgrade too,
         // not only on activation).

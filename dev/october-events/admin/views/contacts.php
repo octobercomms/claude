@@ -10,6 +10,9 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
     <?php if (! empty($_GET['rebuilt'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Contacts rebuilt from accounts, ticket buyers and volunteers.', 'october-events'); ?></p></div>
     <?php endif; ?>
+    <?php if (isset($_GET['imported'])) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php echo esc_html(sprintf(__('Imported %d contact(s) from the CSV.', 'october-events'), (int) $_GET['imported'])); ?></p></div>
+    <?php endif; ?>
 
     <p class="description">
         <?php esc_html_e('The unified, de-duplicated contact list — built automatically from accounts, ticket buyers, volunteers and listing submitters. This replaces manual Brevo imports; new signups are added going forward.', 'october-events'); ?>
@@ -22,7 +25,18 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
         <span><strong style="font-size:24px"><?php echo esc_html(number_format_i18n($counts['sms'])); ?></strong><br><?php esc_html_e('SMS opt-in', 'october-events'); ?></span>
     </p>
 
-    <p><a class="button button-primary" href="<?php echo esc_url($rebuild_url); ?>"><?php esc_html_e('Rebuild from existing data', 'october-events'); ?></a></p>
+    <p>
+        <a class="button button-primary" href="<?php echo esc_url($rebuild_url); ?>"><?php esc_html_e('Rebuild from existing data', 'october-events'); ?></a>
+    </p>
+
+    <h2><?php esc_html_e('Import a CSV', 'october-events'); ?></h2>
+    <p class="description"><?php esc_html_e('Bring in an existing list (e.g. a Brevo export). We detect an "email" column, plus optional name / first name / last name / phone.', 'october-events'); ?></p>
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" enctype="multipart/form-data">
+        <input type="hidden" name="action" value="oe_import_contacts">
+        <?php wp_nonce_field('oe_import_contacts'); ?>
+        <input type="file" name="oe_csv" accept=".csv,text/csv" required>
+        <?php submit_button(__('Import contacts', 'october-events'), 'secondary', 'submit', false); ?>
+    </form>
 
     <h2><?php esc_html_e('Recent contacts', 'october-events'); ?></h2>
     <table class="widefat striped">

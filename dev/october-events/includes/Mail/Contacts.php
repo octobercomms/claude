@@ -157,6 +157,60 @@ final class Contacts {
     }
 
     /**
+     * Import contacts from a CSV file (e.g. a Brevo export). Detects an `email`
+     * column (and optional `name`/`first name`/`last name`/`phone`) from the
+     * header row, falling back to the first column as the email. Returns the
+     * number of rows captured.
+     */
+    public static function import_csv(string $path): int {
+        if (! is_readable($path)) {
+            return 0;
+        }
+        $fh = fopen($path, 'r');
+        if (! $fh) {
+            return 0;
+        }
+        $header = fgetcsv($fh);
+        if (! is_array($header)) {
+            fclose($fh);
+            return 0;
+        }
+        $cols = array_map(static function ($h) { return strtolower(trim((string) $h)); }, $header);
+        $find = static function (array $names) use ($cols) {
+            foreach ($names as $n) {
+                $i = array_search($n, $cols, true);
+                if ($i !== false) { return (int) $i; }
+            }
+            return -1;
+        };
+        $i_email = $find(['email', 'email address', 'e-mail']);
+        $i_name  = $find(['name', 'full name', 'contact name']);
+        $i_first = $find(['first name', 'firstname', 'first']);
+        $i_last  = $find(['last name', 'lastname', 'last']);
+        $i_phone = $find(['phone', 'sms', 'mobile', 'phone number']);
+        if ($i_email < 0) { $i_email = 0; } // assume first column is the email
+
+        $added = 0;
+        while (($row = fgetcsv($fh)) !== false) {
+            $email = isset($row[$i_email]) ? trim((string) $row[$i_email]) : '';
+            if (! is_email($email)) {
+                continue;
+            }
+            $name = $i_name >= 0 ? trim((string) ($row[$i_name] ?? '')) : trim(
+                ($i_first >= 0 ? (string) ($row[$i_first] ?? '') : '') . ' ' . ($i_last >= 0 ? (string) ($row[$i_last] ?? '') : '')
+            );
+            self::capture($email, [
+                'name'   => $name,
+                'phone'  => $i_phone >= 0 ? (string) ($row[$i_phone] ?? '') : '',
+                'source' => 'import',
+            ]);
+            $added++;
+        }
+        fclose($fh);
+        return $added;
+    }
+
+    /**
      * Build/refresh contacts from the data the plugin already holds. Idempotent
      * (capture de-dupes on email). Returns the resulting counts.
      *
