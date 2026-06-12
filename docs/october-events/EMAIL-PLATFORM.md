@@ -15,6 +15,9 @@ management driven from the data the plugin already holds. Live chat moves to
 - **Scope:** full rebuild — native contacts/lists/segments + SES sending + drag-and-drop
   campaign builder + deliverability ops + analytics.
 - **Live chat:** self-hosted **Chatwoot**, injected as a widget — **last** on the list.
+- **Site mailer:** October Events becomes the site's `wp_mail` transport + email log, so a
+  cluster of single-purpose plugins (Gravity SMTP, Check & Log Email, the two Brevo
+  plugins) can be retired.
 - **Safety rail:** keep a **pluggable transport** with **Brevo as an instant fallback**
   during transition; never rip Brevo out on day one.
 
@@ -154,6 +157,28 @@ Over time that corpus grows, so drafts sound more like ADF and need less editing
 examples) from the AI Stories connector; this extends it with structured block output,
 data tools, and the campaign example library.
 
+## Site-wide mailer + email log (retire SMTP / log / Brevo plugins)
+
+October Events becomes **the site's outgoing mail transport**: it overrides WordPress
+`wp_mail()` to route *all* site email (not just our own) through SES via the same
+pluggable Mailer, and records every send in a built-in **email log** (status, to,
+subject, opens/bounces). This lets us retire a cluster of single-purpose plugins:
+
+| Plugin today | Replaced by |
+|---|---|
+| **Gravity SMTP** (outbound transport) | OE as the site `wp_mail` → SES transport |
+| **Check & Log Email** (test + log) | OE's built-in email log + "send test" |
+| **Brevo – Email/SMS/Chat** | OE sending + native contacts (+ Chatwoot for chat) |
+| **Add-on Brevo for Gravity Forms** | native contacts (form entries land in OE) |
+
+Notes:
+- Implemented as a small **`pre_wp_mail`/`wp_mail` override** behind a setting (so it can
+  be toggled off instantly, with the host's default mail as the ultimate fallback).
+- Honours the same suppression list, so site email also respects unsubscribes/bounces.
+- The two **Brevo** plugins and the **Gravity Forms → Brevo** add-on fall away once
+  native contacts land (phase 2); **Gravity SMTP** and **Check & Log Email** fall away as
+  soon as this mailer override ships.
+
 ## SMS on AWS
 - **AWS End User Messaging (SMS)** for reminders (replaces the Brevo SMS we wired; keep
   Brevo SMS as fallback driver).
@@ -177,8 +202,10 @@ data tools, and the campaign example library.
 
 ## Phasing (build order)
 1. **Mailer/SMS abstraction** + **SES transactional** behind a flag, Brevo fallback
-   (warm-up begins with engaged transactional).
-2. **Native contacts/lists/segments** from existing data — **kills the manual import**.
+   (warm-up begins with engaged transactional). Includes the **site-wide `wp_mail`
+   override + email log** → retires Gravity SMTP and Check & Log Email immediately.
+2. **Native contacts/lists/segments** from existing data — **kills the manual import**
+   and removes the two Brevo plugins + the Gravity-Forms→Brevo add-on.
 3. **Deliverability spine** — SNS bounce/complaint ingestion, suppression, one-click
    unsubscribe + List-Unsubscribe. (Gate before any bulk send.)
 4. **Campaign builder** (GrapesJS/MJML + WP media) + **bulk sender** (queue/throttle to
