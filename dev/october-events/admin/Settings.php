@@ -145,8 +145,12 @@ final class Settings {
             }
         }
 
+        $req_candidates = ['name', 'start_datetime', 'end_datetime', 'price', 'location', 'description', 'organiser', 'image'];
+        $event_required = array_values(array_intersect($req_candidates, array_map('sanitize_key', (array) ($in['event_required_fields'] ?? []))));
+
         Config::update([
             'brand_name'       => sanitize_text_field((string) ($in['brand_name'] ?? 'October Events')),
+            'event_required_fields' => $event_required ?: ['name', 'start_datetime', 'price', 'location'],
             'pricing'          => $pricing,
             'currency'         => sanitize_text_field((string) ($in['currency'] ?? 'usd')),
             'rejection_copy'   => $rejection,

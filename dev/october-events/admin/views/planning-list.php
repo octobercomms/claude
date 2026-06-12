@@ -1,0 +1,39 @@
+<?php
+/** @var array $events  list of Events::summary() */
+defined('ABSPATH') || exit;
+?>
+<div class="wrap oe-admin">
+    <h1><?php esc_html_e('Event Planning', 'october-events'); ?></h1>
+    <p class="description"><?php esc_html_e('An event goes green once it has the essentials: title, dates & times, price and location. Green = published live.', 'october-events'); ?></p>
+
+    <table class="widefat striped">
+        <thead><tr>
+            <th><?php esc_html_e('Event', 'october-events'); ?></th>
+            <th><?php esc_html_e('Ready', 'october-events'); ?></th>
+            <th><?php esc_html_e('Status', 'october-events'); ?></th>
+            <th><?php esc_html_e('Still needs', 'october-events'); ?></th>
+            <th><?php esc_html_e('Live', 'october-events'); ?></th>
+            <th></th>
+        </tr></thead>
+        <tbody>
+        <?php if (! $events) : ?>
+            <tr><td colspan="6"><?php esc_html_e('No events yet.', 'october-events'); ?></td></tr>
+        <?php endif; ?>
+        <?php foreach ($events as $e) : ?>
+            <tr>
+                <td><strong><a href="<?php echo esc_url($e['edit_url']); ?>"><?php echo esc_html($e['title'] ?: __('(untitled)', 'october-events')); ?></a></strong></td>
+                <td style="width:160px">
+                    <div style="background:#eee;border-radius:999px;height:8px;overflow:hidden">
+                        <div style="height:8px;width:<?php echo (int) $e['percent']; ?>%;background:<?php echo $e['percent'] >= 100 ? '#1a7f37' : '#d8531f'; ?>"></div>
+                    </div>
+                    <span class="description"><?php echo (int) $e['percent']; ?>%</span>
+                </td>
+                <td><span class="oe-status oe-status-<?php echo esc_attr($e['status']); ?>"><?php echo esc_html(ucwords(str_replace('_', ' ', $e['status']))); ?></span></td>
+                <td><?php echo $e['missing'] ? esc_html(implode(', ', $e['missing'])) : '—'; ?></td>
+                <td><?php echo $e['live'] ? '✓' : '—'; ?></td>
+                <td><a class="button button-small" href="<?php echo esc_url($e['edit_url']); ?>"><?php esc_html_e('Open', 'october-events'); ?></a></td>
+            </tr>
+        <?php endforeach; ?>
+        </tbody>
+    </table>
+</div>

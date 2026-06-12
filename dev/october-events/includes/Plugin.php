@@ -39,6 +39,7 @@ final class Plugin {
 
         // Services.
         RestApi::get_instance()->init();
+        \OE\Planning\Rest::init();
         (new Cron())->init();
         MapsConnector::init();
 
