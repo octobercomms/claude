@@ -5,7 +5,6 @@ namespace OE\Admin;
 
 use OE\Settings as Config;
 use OE\PostTypes;
-use OE\Connectors\BrevoConnector;
 
 defined('ABSPATH') || exit;
 
@@ -98,7 +97,6 @@ final class Settings {
             'stripe_secret_key'      => 'OE_STRIPE_SECRET_KEY',
             'stripe_publishable_key' => 'OE_STRIPE_PUBLISHABLE_KEY',
             'stripe_webhook_secret'  => 'OE_STRIPE_WEBHOOK_SECRET',
-            'brevo_api_key'          => 'OE_BREVO_API_KEY',
             'claude_api_key'         => 'OE_CLAUDE_API_KEY',
             'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         ];
@@ -147,15 +145,6 @@ final class Settings {
         // Voice examples: one per block, separated by a line of "---".
         $examples = array_filter(array_map('trim', preg_split('/^\s*---\s*$/m', (string) ($in['ai_examples'] ?? ''))));
 
-        $brevo_templates = [];
-        foreach (BrevoConnector::TRIGGERS as $trigger) {
-            $brevo_templates[$trigger] = (int) ($in['brevo_templates'][$trigger] ?? 0);
-        }
-        $brevo_lists = [];
-        foreach ((array) ($in['brevo_lists'] ?? []) as $list => $id) {
-            $brevo_lists[sanitize_key($list)] = (int) $id;
-        }
-
         $offsets = [];
         foreach (['week', '48h', 'morning'] as $key) {
             if (! empty($in['reminder_offsets'][$key])) {
@@ -176,8 +165,6 @@ final class Settings {
             'ai_model'         => sanitize_text_field((string) ($in['ai_model'] ?? 'claude-sonnet-4-20250514')),
             'ai_voice_guide'   => sanitize_textarea_field((string) ($in['ai_voice_guide'] ?? '')),
             'ai_examples'      => array_map('sanitize_textarea_field', array_values($examples)),
-            'brevo_templates'  => $brevo_templates,
-            'brevo_lists'      => $brevo_lists,
             'digest_enabled'   => ! empty($in['digest_enabled']),
             'report_email'     => sanitize_email((string) ($in['report_email'] ?? '')),
             'sms_enabled'      => ! empty($in['sms_enabled']),

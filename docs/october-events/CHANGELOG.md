@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.14.0 — retire Brevo (native transactional email)
+
+Brevo is removed. Now that native contacts, SES sending, deliverability and
+campaigns are in place, all email is owned by the plugin — no third-party
+service, no list-ID mapping.
+
+- New `OE\Mail\Transactional`: branded native HTML templates for every triggered
+  email (account welcome, payment confirmed, submission received/approved/
+  rejected, ticket delivery, volunteer confirmed/declined/reminder, daily sales
+  report), sent through the site Mailer (SES when configured, else the site's
+  default transport).
+- The **monthly digest** now sends as a native campaign to all subscribers —
+  reusing the throttled sender, open/click tracking and one-click unsubscribe.
+- **Removed**: the `BrevoConnector`, the Brevo API key, and the Brevo template-ID
+  / list-ID mappings in Settings. Contact capture stays (native contacts already
+  record every signup); audiences replace the old Brevo lists.
+- The **Email** admin screen now shows the transport status, native contact/
+  audience counts and the email log instead of Brevo lists.
+- **SMS** via Brevo is retired; volunteer-reminder SMS is a no-op until AWS End
+  User Messaging lands (email reminders are unaffected). No schema change.
+
 ## 1.13.0 — email campaigns: bulk sender + tracking (backend)
 
 Phase 4 (backend half) of the email platform — the campaign engine the platform's

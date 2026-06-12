@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OE;
 
-use OE\Connectors\BrevoConnector;
 
 defined('ABSPATH') || exit;
 
@@ -239,12 +238,6 @@ final class Volunteers {
 
         AuditLog::record('volunteer_signup', $opportunity_id, 'volunteer', 'shift:' . $shift_id);
 
-        // Subscribe to the volunteers list (§5).
-        $lists = (array) Settings::get('brevo_lists', []);
-        if (isset($lists['oe_volunteers'])) {
-            BrevoConnector::upsert_contact($email, ['FIRSTNAME' => $name], [(int) $lists['oe_volunteers']]);
-        }
-
         // Native contacts (the Brevo replacement).
         \OE\Mail\Contacts::capture($email, [
             'name'       => $name,
@@ -266,7 +259,7 @@ final class Volunteers {
             return;
         }
         AuditLog::record('volunteer_confirmed', (int) $s->opportunity_id, 'volunteer');
-        BrevoConnector::send('volunteer_confirmed', ['email' => $s->email, 'name' => $s->name], self::email_params($s));
+        \OE\Mail\Transactional::send('volunteer_confirmed', ['email' => $s->email, 'name' => $s->name], self::email_params($s));
     }
 
     public static function decline(int $signup_id): void {
@@ -276,7 +269,7 @@ final class Volunteers {
             return;
         }
         AuditLog::record('volunteer_declined', (int) $s->opportunity_id, 'volunteer');
-        BrevoConnector::send('volunteer_declined', ['email' => $s->email, 'name' => $s->name], self::email_params($s));
+        \OE\Mail\Transactional::send('volunteer_declined', ['email' => $s->email, 'name' => $s->name], self::email_params($s));
     }
 
     public static function mark_no_show(int $signup_id): void {

@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace OE\Ticketing;
 
 use OE\Connectors\StripeConnector;
-use OE\Connectors\BrevoConnector;
 use OE\Account;
 use OE\Settings;
 use OE\AuditLog;
@@ -206,12 +205,8 @@ final class Orders {
             return;
         }
         $tickets = self::tickets($order_id);
-        $lists = (array) Settings::get('brevo_lists', []);
-        if (isset($lists['oe_event_attendees'])) {
-            BrevoConnector::upsert_contact($order->email, [], [(int) $lists['oe_event_attendees']]);
-        }
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
-        BrevoConnector::send('ticket_delivery', [
+        \OE\Mail\Transactional::send('ticket_delivery', [
             'email' => $order->email,
             'name'  => $order->name,
         ], [
