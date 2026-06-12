@@ -157,6 +157,44 @@ use OE\Connectors\BrevoConnector;
         <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
         <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
 
+        <h2 id="branding"><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Override the planning platform\'s look for this site. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Accent colour', 'october-events'); ?></label></th>
+                <td><input type="text" name="theme_accent" value="<?php echo esc_attr((string) ($cfg['theme_accent'] ?? '')); ?>" placeholder="#E7CD41" class="regular-text">
+                    <p class="description"><?php esc_html_e('Buttons, active nav, highlights.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Text on accent', 'october-events'); ?></label></th>
+                <td><input type="text" name="theme_accent_on" value="<?php echo esc_attr((string) ($cfg['theme_accent_on'] ?? '')); ?>" placeholder="#1a1a1a" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Sidebar colour', 'october-events'); ?></label></th>
+                <td><input type="text" name="theme_sidebar_bg" value="<?php echo esc_attr((string) ($cfg['theme_sidebar_bg'] ?? '')); ?>" placeholder="#0b0b0c" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Page background', 'october-events'); ?></label></th>
+                <td><input type="text" name="theme_page_bg" value="<?php echo esc_attr((string) ($cfg['theme_page_bg'] ?? '')); ?>" placeholder="#faf9f5" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Logo — light surfaces', 'october-events'); ?></label></th>
+                <td><input type="url" name="theme_logo_light" value="<?php echo esc_attr((string) ($cfg['theme_logo_light'] ?? '')); ?>" placeholder="https://…/logo-dark.png" class="regular-text">
+                    <p class="description"><?php esc_html_e('Shown on the white login card. Paste a Media Library URL.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Logo — dark sidebar', 'october-events'); ?></label></th>
+                <td><input type="url" name="theme_logo_dark" value="<?php echo esc_attr((string) ($cfg['theme_logo_dark'] ?? '')); ?>" placeholder="https://…/logo-light.png" class="regular-text">
+                    <p class="description"><?php esc_html_e('Shown in the dark sidebar (use a light/white version).', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Custom font', 'october-events'); ?></label></th>
+                <td><input type="text" name="theme_font_family" value="<?php echo esc_attr((string) ($cfg['theme_font_family'] ?? '')); ?>" placeholder="Inter" class="regular-text">
+                    <input type="url" name="theme_font_css" value="<?php echo esc_attr((string) ($cfg['theme_font_css'] ?? '')); ?>" placeholder="https://fonts.googleapis.com/css2?family=Inter…" class="regular-text" style="margin-top:6px">
+                    <p class="description"><?php esc_html_e('Family name + a stylesheet URL that loads it (e.g. Google Fonts). Blank = Brockmann.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+
         <?php submit_button(); ?>
     </form>
 

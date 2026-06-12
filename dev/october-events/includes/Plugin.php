@@ -43,6 +43,7 @@ final class Plugin {
         \OE\Planning\Rest::init();
         \OE\Tasks\Rest::init();
         \OE\Volunteers\Rest::init();
+        \OE\Brand\Rest::init();
         (new Cron())->init();
         MapsConnector::init();
 

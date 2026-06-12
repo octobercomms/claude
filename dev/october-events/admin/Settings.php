@@ -168,6 +168,14 @@ final class Settings {
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => \OE\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
             'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
+            'theme_accent'      => self::clean_color((string) ($in['theme_accent'] ?? '')),
+            'theme_accent_on'   => self::clean_color((string) ($in['theme_accent_on'] ?? '')),
+            'theme_sidebar_bg'  => self::clean_color((string) ($in['theme_sidebar_bg'] ?? '')),
+            'theme_page_bg'     => self::clean_color((string) ($in['theme_page_bg'] ?? '')),
+            'theme_logo_light'  => esc_url_raw(trim((string) ($in['theme_logo_light'] ?? ''))),
+            'theme_logo_dark'   => esc_url_raw(trim((string) ($in['theme_logo_dark'] ?? ''))),
+            'theme_font_family' => sanitize_text_field((string) ($in['theme_font_family'] ?? '')),
+            'theme_font_css'    => esc_url_raw(trim((string) ($in['theme_font_css'] ?? ''))),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=oe-settings')));
@@ -180,6 +188,16 @@ final class Settings {
      *
      * @return array<int,string>
      */
+    /** Accept a #rrggbb hex colour, or '' to fall back to the platform default. */
+    private static function clean_color(string $raw): string {
+        $raw = trim($raw);
+        if ($raw === '') {
+            return '';
+        }
+        $hex = sanitize_hex_color($raw);
+        return is_string($hex) ? $hex : '';
+    }
+
     private static function parse_origins(string $raw): array {
         $out = [];
         foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $line) {

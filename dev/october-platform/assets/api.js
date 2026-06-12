@@ -36,6 +36,8 @@ async function request(path, opts = {}) {
 }
 
 export const api = {
+  /** Per-site branding/theme (public endpoint; safe to call once connected). */
+  getBrand: () => request('/brand'),
   /** Validate credentials by hitting a protected endpoint. */
   ping: () => request('/planning/events'),
   listEvents: () => request('/planning/events'),
