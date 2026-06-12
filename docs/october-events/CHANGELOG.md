@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.16.0 — contacts in the platform
+
+- **REST** `oe/v1/contacts` (list + search, paginated), `/contacts/meta` (counts)
+  and `POST /contact/{id}` (subscribe / unsubscribe) — auth: can-edit.
+- New `Contacts::get_by_id()` and `resubscribe()` (the latter also clears the
+  address from the suppression list).
+- The planning platform gains a **Contacts** view: totals, a search box, a table
+  of contacts (email / name / source / status) and a one-click
+  unsubscribe / re-subscribe toggle. No schema change.
+
 ## 1.15.0 — email co-pilot (Claude drafts campaigns)
 
 Phase 5 of the email platform — the differentiator. Brief Claude in plain

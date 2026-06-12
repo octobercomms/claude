@@ -72,6 +72,11 @@ export const api = {
   audiences: () => request('/audiences'),
   copilot: (payload) => request('/campaigns/copilot', { method: 'POST', body: JSON.stringify(payload) }),
 
+  /* Contacts (oe/v1/contacts). */
+  contactsMeta: () => request('/contacts/meta'),
+  listContacts: (search, offset) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0)),
+  updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
+
   /* WordPress media library (core REST) for the email image picker. */
   listMedia: () => requestWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
 };

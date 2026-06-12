@@ -54,6 +54,22 @@ final class Contacts {
         )) ?: null;
     }
 
+    public static function get_by_id(int $id): ?object {
+        global $wpdb;
+        return $wpdb->get_row($wpdb->prepare('SELECT * FROM ' . self::table() . ' WHERE id = %d', $id)) ?: null;
+    }
+
+    /** Re-subscribe a contact (also clears them from the suppression list). */
+    public static function resubscribe(string $email): void {
+        global $wpdb;
+        $wpdb->update(
+            self::table(),
+            ['status' => self::STATUS_SUBSCRIBED, 'updated_at' => current_time('mysql', true)],
+            ['email' => strtolower(trim($email))]
+        );
+        Suppression::remove($email);
+    }
+
     /**
      * Insert or merge a contact. Existing non-empty fields are preserved (we
      * only fill blanks), and an unsubscribed contact is never silently
