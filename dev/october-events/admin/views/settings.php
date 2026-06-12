@@ -167,6 +167,54 @@ use OE\PostTypes;
                 <th scope="row"><label><?php esc_html_e('From name', 'october-events'); ?></label></th>
                 <td><input type="text" name="mail_from_name" value="<?php echo esc_attr((string) ($cfg['mail_from_name'] ?? '')); ?>" placeholder="Atlanta Design Festival" class="regular-text"></td>
             </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Footer postal address', 'october-events'); ?></label></th>
+                <td><textarea name="mail_footer_address" rows="2" class="large-text" placeholder="Atlanta Design Festival, 123 Example St, Atlanta, GA 30303"><?php echo esc_textarea((string) ($cfg['mail_footer_address'] ?? '')); ?></textarea>
+                    <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM).', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+
+        <h2 id="sms"><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
+        <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_region" value="<?php echo esc_attr((string) ($cfg['sms_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS access key ID', 'october-events'); ?></label></th>
+                <td><input type="text" name="aws_access_key_id" value="<?php echo esc_attr((string) ($cfg['aws_access_key_id'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr($aws_pw_const ? '' : \OE\Crypto::decrypt((string) ($cfg['aws_secret_access_key'] ?? ''))); ?>" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : ''; ?>>
+                    <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Origination identity', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_origination" value="<?php echo esc_attr((string) ($cfg['sms_origination'] ?? '')); ?>" placeholder="+18005551234 / sender ID / pool ARN" class="regular-text">
+                    <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+
+        <h2 id="chat"><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Leave blank for no chat.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Chatwoot base URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="chatwoot_base_url" value="<?php echo esc_attr((string) ($cfg['chatwoot_base_url'] ?? '')); ?>" placeholder="https://chat.example.com" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Website token', 'october-events'); ?></label></th>
+                <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
         </tbody></table>
 
         <h2 id="branding"><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></h2>

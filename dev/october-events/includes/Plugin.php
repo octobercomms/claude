@@ -50,6 +50,7 @@ final class Plugin {
         \OE\Mail\ContactsRest::init();
         (new Cron())->init();
         MapsConnector::init();
+        Chat::init();
 
         // Interfaces.
         if (is_admin()) {

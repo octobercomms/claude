@@ -46,10 +46,9 @@ final class Transactional {
         return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8']);
     }
 
-    /** SMS placeholder — Brevo SMS retired; AWS End User Messaging lands later. */
+    /** SMS via AWS End User Messaging (no-op until configured in Settings). */
     public static function send_sms(string $to, string $content): bool {
-        \OE\Logger::log('SMS not sent — AWS End User Messaging not yet configured (Brevo retired)', ['to' => $to]);
-        return false;
+        return \OE\Connectors\SmsConnector::send($to, $content);
     }
 
     /* ------------------------------------------------------------------ *

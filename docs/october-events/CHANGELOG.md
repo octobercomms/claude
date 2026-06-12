@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.17.0 — SMS (AWS) + live chat (Chatwoot), ready to switch on
+
+The last "add it later" services are now built and wired — off until you paste
+credentials, so the plugin runs anywhere and these light up from Settings once
+your AWS / Chatwoot accounts exist.
+
+- **SMS via AWS End User Messaging** (`OE\Connectors\SmsConnector`): SigV4-signed
+  `SendTextMessage` (Pinpoint SMS Voice v2), no SDK. Volunteer-reminder texts now
+  route through it; it's a no-op until enabled with an access key / secret /
+  region / origination identity. **Settings → SMS** (secret also accepts the
+  `OE_AWS_SECRET_ACCESS_KEY` constant). US sending needs a 10DLC number.
+- **Live chat (Chatwoot)** (`OE\Chat`): injects the Chatwoot widget site-wide
+  when a base URL + website token are set in **Settings → Live chat**; nothing
+  loads otherwise.
+- **Campaign footer postal address** (CAN-SPAM) is now editable in
+  **Settings → Email**.
+- No schema change.
+
 ## 1.16.0 — contacts in the platform
 
 - **REST** `oe/v1/contacts` (list + search, paginated), `/contacts/meta` (counts)
