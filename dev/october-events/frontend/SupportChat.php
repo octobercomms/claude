@@ -43,9 +43,15 @@ final class SupportChat {
         }
         wp_enqueue_style('oe-support-chat');
         wp_enqueue_script('oe-support-chat');
+        $chatwoot = untrailingslashit((string) Settings::get('chatwoot_base_url', '')) !== ''
+            && (string) Settings::get('chatwoot_token', '') !== '';
         wp_localize_script('oe-support-chat', 'OE_SUPPORT', [
-            'restUrl' => esc_url_raw(rest_url('oe/v1')),
-            'brand'   => (string) Settings::get('brand_name', 'October Events'),
+            'restUrl'      => esc_url_raw(rest_url('oe/v1')),
+            'brand'        => (string) Settings::get('brand_name', 'October Events'),
+            // Human hand-off: open the (already site-wide) Chatwoot widget when set,
+            // otherwise fall back to a support email link.
+            'chatwoot'     => $chatwoot,
+            'supportEmail' => sanitize_email((string) (Settings::get('mail_from_email', '') ?: get_option('admin_email'))),
         ]);
     }
 

@@ -72,7 +72,9 @@ final class PublicAssistant {
             . "outside their own orders, tickets, or the events they hold tickets to, politely say it's outside "
             . "what you can help with here and offer to connect them with a person. "
             . "Be warm, concise and helpful. Use your tools to get real details — never guess order numbers, "
-            . "dates or prices. If a tool returns nothing, say so kindly.";
+            . "dates or prices. If a tool returns nothing, say so kindly. "
+            . "If the customer wants to speak to a person, or you can't help with their request, invite them to "
+            . "tap the “Talk to a person” button at the top of this chat to reach the team.";
     }
 
     /* ------------------------------------------------------------------ *
