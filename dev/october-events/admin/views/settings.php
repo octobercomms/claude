@@ -33,6 +33,19 @@ use OE\PostTypes;
             <label style="display:inline-block;margin:0 16px 6px 0"><input type="checkbox" name="event_required_fields[]" value="<?php echo esc_attr($k); ?>" <?php checked(in_array($k, $req, true)); ?>> <?php echo esc_html($label); ?></label>
         <?php endforeach; ?>
 
+        <h2><?php esc_html_e('Event field mapping', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Optional. If your events already store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here. The planner will read them when its own field is empty, so existing events show their real readiness without re-keying. Leave blank if unsure.', 'october-events'); ?></p>
+        <?php $fmap = (array) ($cfg['event_field_map'] ?? []); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <?php foreach (['start_datetime' => __('Dates & times', 'october-events'), 'end_datetime' => __('End date & time', 'october-events'), 'price' => __('Price', 'october-events'), 'location' => __('Location', 'october-events'), 'organiser' => __('Organiser', 'october-events'), 'description' => __('Description', 'october-events')] as $field => $label) : ?>
+                <tr>
+                    <th scope="row"><label><?php echo esc_html($label); ?></label></th>
+                    <td><input type="text" name="event_field_map[<?php echo esc_attr($field); ?>]" value="<?php echo esc_attr((string) ($fmap[$field] ?? '')); ?>" placeholder="<?php esc_attr_e('existing meta key, e.g. event-date', 'october-events'); ?>" class="regular-text"></td>
+                </tr>
+            <?php endforeach; ?>
+        </tbody></table>
+        <p class="description"><?php esc_html_e('After saving a mapping, use “Seed planning from existing fields” on the Event Planning screen to copy these into the planner as editable values.', 'october-events'); ?></p>
+
         <h2><?php esc_html_e('API keys', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are saved to the database.', 'october-events'); ?></p>
         <?php

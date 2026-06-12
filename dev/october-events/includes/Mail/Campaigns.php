@@ -222,7 +222,31 @@ final class Campaigns {
             'total'      => $queued,
             'updated_at' => $now,
         ], ['id' => $id]);
+        // Flag active work + kick an immediate run (the per-minute cron and the
+        // traffic-driven fallback drain the rest).
+        update_option('oe_campaigns_active', 1);
+        if (! $future) {
+            wp_schedule_single_event(time() + 1, \OE\Cron::HOOK_DISPATCH);
+            if (function_exists('spawn_cron')) { spawn_cron(); }
+        }
         return $queued;
+    }
+
+    /**
+     * Traffic-driven fallback (hooked on `init`): if there are campaigns to send
+     * and WP-cron hasn't drained them, do a batch now — throttled to once a
+     * minute so a quiet site still sends. Cheap when idle: the active flag is an
+     * autoloaded option.
+     */
+    public static function maybe_dispatch(): void {
+        if (! get_option('oe_campaigns_active')) {
+            return;
+        }
+        if (get_transient('oe_dispatch_lock')) {
+            return;
+        }
+        set_transient('oe_dispatch_lock', 1, 55);
+        self::dispatch();
     }
 
     /** Cron tick: promote due scheduled campaigns and drain a batch of the queue. */
@@ -253,6 +277,14 @@ final class Campaigns {
              WHERE c.status='sending'
                AND NOT EXISTS (SELECT 1 FROM " . self::messages_table() . " m WHERE m.campaign_id=c.id AND m.status='queued')"
         );
+
+        // Clear the active flag when nothing is left to send.
+        $pending = (int) $wpdb->get_var(
+            'SELECT COUNT(*) FROM ' . self::campaigns_table() . " WHERE status IN ('sending','scheduled')"
+        );
+        if ($pending === 0) {
+            update_option('oe_campaigns_active', 0);
+        }
     }
 
     private static function send_one(object $c, object $msg): void {

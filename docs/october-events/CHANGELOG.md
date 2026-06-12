@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.21.0 — go-live gaps (event mapping, CSV import, resilient sending)
+
+Closes the practical gaps before connector setup:
+
+- **Event field mapping** — Settings → Event field mapping lets you point the
+  planner at your existing (e.g. JetEngine) meta keys for dates/price/location/…
+  The confirm→green readiness then reads them when its own field is empty, so
+  existing events show real progress instead of 0%. A **Seed planning from
+  existing fields** button on Event Planning copies them in as editable values
+  (non-destructive).
+- **Contact CSV import** — Contacts screen now imports a CSV (e.g. a Brevo
+  export); detects email + optional name/first/last/phone columns. Closes the
+  last migration gap.
+- **Resilient campaign sending** — besides the per-minute cron, a throttled
+  traffic-driven fallback drains the send queue (and an immediate kick on send),
+  so campaigns still go out on a low-traffic site where WP-cron is unreliable.
+- No schema change.
+
 ## 1.20.1 — design fixes
 
 - **Admin styles never loaded when the menu was renamed.** The admin CSS was

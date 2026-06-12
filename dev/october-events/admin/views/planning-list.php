@@ -7,6 +7,14 @@ defined('ABSPATH') || exit;
     <?php \OE\Admin\Admin::bento('planning'); ?>
     <p class="description"><?php esc_html_e('An event goes green once it has the essentials: title, dates & times, price and location. Green = published live.', 'october-events'); ?></p>
 
+    <?php if (isset($_GET['seeded'])) : ?>
+        <div class="notice notice-success is-dismissible"><p><?php echo esc_html(sprintf(__('Seeded planning data into %d event(s) from your mapped fields.', 'october-events'), (int) $_GET['seeded'])); ?></p></div>
+    <?php endif; ?>
+    <?php if (\OE\Planning\Events::field_map()) : ?>
+        <p><a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_seed_planning'), 'oe_seed_planning')); ?>"><?php esc_html_e('Seed planning from existing fields', 'october-events'); ?></a>
+        <span class="description"><?php esc_html_e('Copies your mapped event fields into the planner (won\'t overwrite anything already entered).', 'october-events'); ?></span></p>
+    <?php endif; ?>
+
     <table class="widefat striped">
         <thead><tr>
             <th><?php esc_html_e('Event', 'october-events'); ?></th>
