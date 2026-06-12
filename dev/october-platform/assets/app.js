@@ -8,7 +8,7 @@
  *  - Tasks:      the shared department task board (oe/v1/tasks).
  *  - Volunteers: shift signups + decisions (oe/v1/volunteers).
  */
-import { api, getCreds, setCreds, clearCreds } from './api.js';
+import { api, getCreds, setCreds, clearCreds, getSites, setActiveSite, setSiteLabel, activeId } from './api.js';
 
 const app = document.getElementById('app');
 const STATUS = { confirmed: 'Confirmed', in_progress: 'In progress', draft: 'Draft' };
@@ -78,6 +78,7 @@ async function refreshBrand() {
       theme = Object.assign({}, THEME_DEFAULTS, b);
       localStorage.setItem(THEME_KEY, JSON.stringify(theme));
       applyTheme(theme);
+      if (b.brand_name) { setSiteLabel(activeId(), b.brand_name); }
     }
   } catch (e) { /* keep current theme */ }
 }
@@ -118,7 +119,10 @@ function render() {
    Returns the <main> element for the active view to fill. */
 function shell(active) {
   app.innerHTML = '';
-  const user = (getCreds() || {}).user || '';
+  const cur = getCreds() || {};
+  const user = cur.user || '';
+  const sites = getSites();
+  const activeLabel = (sites.find((s) => s.id === activeId()) || cur).label || theme.brand_name;
   const link = (key, lbl) => `<button class="oe-navlink ${active === key ? 'on' : ''}" data-route="${key}">${lbl}</button>`;
   const wrap = el(`
     <div class="oe-shell">
@@ -136,9 +140,11 @@ function shell(active) {
           ${link('contacts', 'Contacts')}
         </nav>
         <div class="oe-side-foot">
+          ${sites.length > 1 ? `<button class="oe-site-switch" id="b-sites"><span>${esc(activeLabel)}</span><span class="oe-site-caret">⇆</span></button>` : ''}
           <div class="oe-side-user">Signed in as <strong>${esc(user)}</strong></div>
+          <button class="btn btn-ghost btn-block" id="b-add">+ Add a site</button>
           <button class="btn btn-ghost btn-block" id="b-refresh">Refresh</button>
-          <button class="btn btn-ghost btn-block" id="b-out">Sign out</button>
+          <button class="btn btn-ghost btn-block" id="b-out">Sign out of this site</button>
         </div>
       </aside>
       <main class="oe-main"></main>
@@ -147,9 +153,42 @@ function shell(active) {
   wrap.querySelectorAll('[data-route]').forEach((b) =>
     b.addEventListener('click', () => { route = b.getAttribute('data-route'); render(); }));
   wrap.querySelector('#b-refresh').addEventListener('click', render);
-  wrap.querySelector('#b-out').addEventListener('click', () => { clearCreds(); renderLogin(); });
+  wrap.querySelector('#b-add').addEventListener('click', () => renderLogin(null, true));
+  wrap.querySelector('#b-out').addEventListener('click', () => {
+    clearCreds();
+    if (getCreds()) { boot(); } else { renderLogin(); }
+  });
+  const switchBtn = wrap.querySelector('#b-sites');
+  if (switchBtn) { switchBtn.addEventListener('click', () => openSiteSwitcher()); }
   return wrap.querySelector('.oe-main');
 }
+
+/* Multi-site switcher — pick another connected site, or remove one. */
+function openSiteSwitcher() {
+  const sites = getSites();
+  const modal = el(`<div class="oe-drawer-wrap"><div class="oe-drawer-bg"></div>
+    <aside class="oe-drawer"><div class="oe-drawer-head"><h2>Switch site</h2><button class="btn btn-small" data-close>Close</button></div>
+      <div class="oe-switch-list"></div>
+      <div style="padding:16px 20px"><button class="btn btn-primary btn-small" id="sw-add">+ Connect another site</button></div>
+    </aside></div>`);
+  document.body.appendChild(modal);
+  const close = () => modal.remove();
+  modal.querySelector('[data-close]').addEventListener('click', close);
+  modal.querySelector('.oe-drawer-bg').addEventListener('click', close);
+  const list = modal.querySelector('.oe-switch-list');
+  sites.forEach((s) => {
+    const row = el(`<div class="oe-switch-row ${s.id === activeId() ? 'on' : ''}">
+      <button class="oe-switch-pick"><span class="oe-switch-name">${esc(s.label || hostLabel(s.base))}</span><span class="muted small">${esc(s.user)}</span></button>
+      <button class="btn btn-small oe-switch-del" title="Remove">✕</button></div>`);
+    row.querySelector('.oe-switch-pick').addEventListener('click', () => { setActiveSite(s.id); close(); boot(); });
+    row.querySelector('.oe-switch-del').addEventListener('click', () => {
+      if (confirm('Remove ' + (s.label || s.base) + '?')) { clearCreds(s.id); close(); if (getCreds()) { boot(); } else { renderLogin(); } }
+    });
+    list.appendChild(row);
+  });
+  modal.querySelector('#sw-add').addEventListener('click', () => { close(); renderLogin(null, true); });
+}
+function hostLabel(base) { return String(base || '').replace(/^https?:\/\//, '').replace(/\/wp-json\/?$/, ''); }
 
 /* Page header: small-caps overline + big title + today's date. */
 function pageHeader(overline, title) {
@@ -169,8 +208,8 @@ function dateString() {
 /* ---------------------------------------------------------------- */
 /* Login                                                            */
 /* ---------------------------------------------------------------- */
-function renderLogin(error) {
-  const prev = getCreds() || {};
+function renderLogin(error, addMode) {
+  const prev = addMode ? {} : (getCreds() || {});
   app.innerHTML = '';
   const view = el(`
     <div class="oe-login">
@@ -183,11 +222,14 @@ function renderLogin(error) {
         <label>Username<input id="l-user" type="text" autocomplete="username" value="${esc(prev.user || '')}"></label>
         <label>Application password<input id="l-pw" type="password" autocomplete="current-password" placeholder="xxxx xxxx xxxx xxxx"></label>
         <p class="muted small">Create one in WordPress under <em>Users → Profile → Application Passwords</em>.</p>
-        <button id="l-go" class="btn btn-primary">Sign in</button>
+        <button id="l-go" class="btn btn-primary">${addMode ? 'Connect site' : 'Sign in'}</button>
+        ${addMode && getCreds() ? '<button id="l-cancel" class="btn btn-small" style="margin-top:8px">Cancel</button>' : ''}
         <div id="l-msg" class="oe-result"></div>
       </div>
     </div>`);
   app.appendChild(view);
+  const cancel = view.querySelector('#l-cancel');
+  if (cancel) { cancel.addEventListener('click', () => boot()); }
 
   view.querySelector('#l-go').addEventListener('click', async () => {
     const site = view.querySelector('#l-base').value.trim().replace(/\/+$/, '');

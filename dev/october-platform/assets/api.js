@@ -5,13 +5,54 @@
  * Passwords) sent as HTTP Basic auth — no cookies, works cross-origin. Stored
  * locally in the browser only.
  */
-const KEY = 'oe_platform_creds';
+const KEY = 'oe_platform_creds';      // legacy single connection (migrated)
+const SITES = 'oe_platform_sites';    // [{ id, base, user, apppw, label }]
+const ACTIVE = 'oe_platform_active';  // active site id
 
-export function getCreds() {
-  try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; }
+function hostOf(base) { return String(base || '').replace(/^https?:\/\//, '').replace(/\/wp-json\/?$/, '').replace(/\/+$/, ''); }
+function loadSites() { try { return JSON.parse(localStorage.getItem(SITES) || 'null') || []; } catch (e) { return []; } }
+function saveSites(list) { localStorage.setItem(SITES, JSON.stringify(list)); }
+
+/** All connected sites (migrating a legacy single connection on first read). */
+export function getSites() {
+  let list = loadSites();
+  if (!list.length) {
+    try {
+      const old = JSON.parse(localStorage.getItem(KEY) || 'null');
+      if (old && old.base) {
+        list = [{ id: 's' + Date.now(), base: old.base, user: old.user, apppw: old.apppw, label: hostOf(old.base) }];
+        saveSites(list); localStorage.setItem(ACTIVE, list[0].id); localStorage.removeItem(KEY);
+      }
+    } catch (e) { /* ignore */ }
+  }
+  return list;
 }
-export function setCreds(c) { localStorage.setItem(KEY, JSON.stringify(c)); }
-export function clearCreds() { localStorage.removeItem(KEY); }
+export function activeId() { return localStorage.getItem(ACTIVE) || ''; }
+export function getCreds() { const list = getSites(); return list.find((s) => s.id === activeId()) || list[0] || null; }
+export function setActiveSite(id) { localStorage.setItem(ACTIVE, id); }
+export function setSiteLabel(id, label) { const list = getSites(); const s = list.find((x) => x.id === id); if (s && label) { s.label = label; saveSites(list); } }
+
+/** Add or update a connection and make it active (used by the login form). */
+export function setCreds(c) {
+  const list = getSites();
+  const i = list.findIndex((s) => s.base === c.base && s.user === c.user);
+  if (i >= 0) {
+    list[i] = Object.assign(list[i], { apppw: c.apppw, label: c.label || list[i].label || hostOf(c.base) });
+    saveSites(list); setActiveSite(list[i].id);
+  } else {
+    const site = { id: 's' + Date.now(), base: c.base, user: c.user, apppw: c.apppw, label: c.label || hostOf(c.base) };
+    list.push(site); saveSites(list); setActiveSite(site.id);
+  }
+  return getCreds();
+}
+
+/** Remove a site (defaults to the active one — i.e. "sign out of this site"). */
+export function clearCreds(id) {
+  const target = id || activeId();
+  const list = getSites().filter((s) => s.id !== target);
+  saveSites(list);
+  if (activeId() === target) { setActiveSite(list[0] ? list[0].id : ''); }
+}
 
 function authHeader(c) {
   return 'Basic ' + btoa(c.user + ':' + c.apppw);
