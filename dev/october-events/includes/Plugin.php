@@ -44,6 +44,7 @@ final class Plugin {
         \OE\Tasks\Rest::init();
         \OE\Volunteers\Rest::init();
         \OE\Brand\Rest::init();
+        \OE\Mail\Mailer::init();
         (new Cron())->init();
         MapsConnector::init();
 

@@ -28,6 +28,7 @@ final class Settings {
         'brevo_api_key'          => 'OE_BREVO_API_KEY',
         'claude_api_key'         => 'OE_CLAUDE_API_KEY',
         'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
+        'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
     ];
 
     public static function defaults(): array {
@@ -88,6 +89,15 @@ final class Settings {
             'theme_logo_dark'   => '', // logo URL for the dark sidebar
             'theme_font_family' => '', // optional custom font family name
             'theme_font_css'    => '', // optional @font-face / Google Fonts URL
+            // Email — Amazon SES as the site's outgoing mail transport (phase 1
+            // of the email platform). Off by default: until enabled + configured
+            // the site keeps using its existing mail transport, unchanged.
+            'ses_enabled'       => false,
+            'ses_region'        => 'us-east-1',
+            'ses_smtp_user'     => '',
+            'ses_smtp_password' => '', // secret (or OE_SES_SMTP_PASSWORD constant)
+            'mail_from_email'   => '',
+            'mail_from_name'    => '',
         ];
     }
 
