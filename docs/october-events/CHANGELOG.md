@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.8.1 — CORS for the planning platform
+
+Lets the off-site planning platform SPA call the `oe/v1` REST API from the
+browser. WordPress core echoes the request Origin already, but many hosts /
+security plugins *also* add a blanket `Access-Control-Allow-Origin: *`, and a
+browser rejects a response that carries the header twice ("contains multiple
+values … but only one is allowed").
+
+- New `OE\Cors`: for `oe/v1` routes it takes ownership of the CORS headers —
+  strips whatever was set (core's echo + a stray `*`) and emits exactly one
+  valid `Access-Control-Allow-Origin` for an allowed origin, plus a clean
+  preflight (methods, `Authorization`/`Content-Type` headers).
+- **Settings → Planning platform (CORS)**: the allowed origins, one per line.
+  Defaults to `october-platform.pages.dev` and
+  `platform.atlantadesignfestival.net`, so it works out of the box.
+- Note: PHP can only override headers it set; if a duplicate `*` is added by the
+  web server itself (Apache `Header always set`, nginx `add_header`) it must be
+  removed there.
+
 ## 1.8.0 — volunteer management API
 
 A REST surface over the existing volunteer signups so the platform can give

@@ -69,6 +69,14 @@ final class Settings {
             // GitHub self-updater (token may also be a wp-config constant).
             'github_repo'      => 'octobercomms/claude',
             'github_token'     => '',
+            // Origins allowed to call the oe/v1 REST API cross-origin (the
+            // planning platform SPA). We send exactly one Access-Control-Allow-
+            // Origin for these, overriding any duplicate the host/other plugins
+            // add. One per line in Settings; scheme + host, no trailing slash.
+            'platform_origins' => [
+                'https://october-platform.pages.dev',
+                'https://platform.atlantadesignfestival.net',
+            ],
         ];
     }
 
