@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.22.0 — richer email builder (columns, social, alignment)
+
+The campaign builder gains the blocks needed for proper newsletters (matching the
+kind of email the team sends):
+
+- **2-column block** — image + text side by side, in a fluid-hybrid layout that
+  stacks on narrow screens without media queries.
+- **Social block** — a row of follow links, each with an optional icon picked from
+  the media library (falls back to a text link).
+- **Alignment** (left / center / right) on heading, text, image and button.
+- The **Claude co-pilot** can emit these too — its block schema + validator now
+  cover `columns`, `social` and `align`.
+
+(Platform builder UI + plugin co-pilot schema; no schema change.)
+
 ## 1.21.0 — go-live gaps (event mapping, CSV import, resilient sending)
 
 Closes the practical gaps before connector setup:
