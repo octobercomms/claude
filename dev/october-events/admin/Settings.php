@@ -29,6 +29,24 @@ final class Settings {
         add_action('admin_post_oe_save_settings', [$this, 'save']);
         add_action('admin_post_oe_test_updater', [$this, 'test_updater']);
         add_action('admin_post_oe_test_voice', [$this, 'test_voice']);
+        add_action('admin_post_oe_send_test_email', [$this, 'send_test_email']);
+    }
+
+    /** Send a test email through the current transport (SES or site default). */
+    public function send_test_email(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_send_test_email');
+        $to = sanitize_email((string) wp_unslash($_POST['oe_test_to'] ?? ''));
+        $to = $to ?: (string) get_option('admin_email');
+        $ok = \OE\Mail\Mailer::send_test($to);
+        set_transient('oe_mail_test', [
+            'ok' => $ok,
+            'to' => $to,
+        ], 120);
+        wp_safe_redirect(admin_url('admin.php?page=oe-email'));
+        exit;
     }
 
     /**
@@ -176,6 +194,12 @@ final class Settings {
             'theme_logo_dark'   => esc_url_raw(trim((string) ($in['theme_logo_dark'] ?? ''))),
             'theme_font_family' => sanitize_text_field((string) ($in['theme_font_family'] ?? '')),
             'theme_font_css'    => esc_url_raw(trim((string) ($in['theme_font_css'] ?? ''))),
+            'ses_enabled'       => ! empty($in['ses_enabled']),
+            'ses_region'        => sanitize_text_field((string) ($in['ses_region'] ?? 'us-east-1')),
+            'ses_smtp_user'     => sanitize_text_field((string) ($in['ses_smtp_user'] ?? '')),
+            'ses_smtp_password' => \OE\Crypto::encrypt(trim((string) ($in['ses_smtp_password'] ?? ''))),
+            'mail_from_email'   => sanitize_email((string) ($in['mail_from_email'] ?? '')),
+            'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=oe-settings')));

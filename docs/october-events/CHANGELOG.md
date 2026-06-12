@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.10.0 — email foundation: Amazon SES site mailer + log + suppression
+
+Phase 1 of the email platform (see docs/october-events/EMAIL-PLATFORM.md). October
+Events can become the site's outgoing-mail transport, so the SMTP/log plugins can
+be retired. **Off by default** — until SES is enabled and configured, the site's
+mail is untouched.
+
+- **Amazon SES transport**: when enabled, all `wp_mail()` routes through SES via
+  SMTP (configured on `phpmailer_init`), with a configurable From name/address.
+- **Email log** (`oe_email_log`): every send recorded (to, subject, status,
+  driver, error) — replaces "Check & Log Email". Visible under **Email**, with a
+  **send-test** button.
+- **Suppression list** (`oe_suppression`): unsubscribes/bounces are honoured on
+  every send — suppressed recipients are stripped, a fully-suppressed message is
+  skipped. (SES→SNS bounce ingestion comes in a later phase; the table + checks
+  exist now.)
+- **Settings → Email (Amazon SES)**: enable, region, SMTP user/password
+  (encrypted at rest, or `OE_SES_SMTP_PASSWORD`), From name/address.
+- New tables auto-create on upgrade (DB version → 4). Degrades gracefully: with
+  no SES config the mailer is a transparent logger.
+
 ## 1.9.0 — platform branding (per-site theme)
 
 The planning platform now adopts the October "Marketing Intelligence" design

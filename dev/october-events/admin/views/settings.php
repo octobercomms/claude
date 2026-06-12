@@ -157,6 +157,40 @@ use OE\Connectors\BrevoConnector;
         <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
         <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
 
+        <h2 id="email"><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
+        <?php $ses_pw_const = \OE\Settings::secret_is_constant('ses_smtp_password'); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable SES', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="ses_enabled" value="1" <?php checked((bool) ($cfg['ses_enabled'] ?? false)); ?>> <?php esc_html_e('Send all site email via Amazon SES', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
+                <td><input type="text" name="ses_region" value="<?php echo esc_attr((string) ($cfg['ses_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('SMTP username', 'october-events'); ?></label></th>
+                <td><input type="text" name="ses_smtp_user" value="<?php echo esc_attr((string) ($cfg['ses_smtp_user'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('SMTP password', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="ses_smtp_password" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['ses_smtp_password'] ?? ''))); ?>" <?php echo $ses_pw_const ? 'disabled placeholder="Set via OE_SES_SMTP_PASSWORD constant"' : ''; ?>>
+                    <?php if (! $ses_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('From address', 'october-events'); ?></label></th>
+                <td><input type="email" name="mail_from_email" value="<?php echo esc_attr((string) ($cfg['mail_from_email'] ?? '')); ?>" placeholder="hello@news.atlantadesignfestival.net" class="regular-text">
+                    <p class="description"><?php esc_html_e('Must be a verified SES sender/domain.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('From name', 'october-events'); ?></label></th>
+                <td><input type="text" name="mail_from_name" value="<?php echo esc_attr((string) ($cfg['mail_from_name'] ?? '')); ?>" placeholder="Atlanta Design Festival" class="regular-text"></td>
+            </tr>
+        </tbody></table>
+
         <h2 id="branding"><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Override the planning platform\'s look for this site. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
