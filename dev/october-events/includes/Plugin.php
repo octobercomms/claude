@@ -78,7 +78,13 @@ final class Plugin {
     }
 
     public function register_admin_assets(string $hook): void {
-        if (strpos($hook, 'october-events') === false && strpos($hook, 'oe_') === false) {
+        // The submenu page hook is derived from the (brand-named) parent menu
+        // title, so it can't be matched reliably. Match the page query param —
+        // our screens are page=october-events or page=oe-* — plus our CPT
+        // edit/list screens (hook contains oe_).
+        $page = isset($_GET['page']) ? sanitize_key((string) $_GET['page']) : '';
+        $is_oe_page = ($page === 'october-events' || strpos($page, 'oe-') === 0);
+        if (! $is_oe_page && strpos($hook, 'oe_') === false) {
             return;
         }
         wp_enqueue_style('oe-admin', OE_URL . 'assets/css/admin.css', [], OE_VERSION);
