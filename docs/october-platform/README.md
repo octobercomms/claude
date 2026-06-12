@@ -127,7 +127,7 @@ Sign in against your real (or staging) WordPress site.
 dev/october-platform/
   index.html          app shell
   assets/
-    app.js            shell + theme + Dashboard + Events + Tasks + Volunteers (vanilla ES modules)
+    app.js            shell + theme + Dashboard + Events + Tasks + Volunteers + Email (vanilla ES modules)
     api.js            oe/v1 REST client (App-Password Basic auth)
     fonts/            Brockmann (self-hosted woff2/woff)
     logo-black.gif    October logo for light surfaces (login)
