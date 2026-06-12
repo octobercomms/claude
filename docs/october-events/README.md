@@ -144,6 +144,22 @@ Classes autoload from the `ADF\` root namespace; the top-level sub-namespaces
 | `GET /map` | public | Approved, map-visible destination pins |
 | `POST /stripe-webhook` | public (signed) | `payment_intent.succeeded`, `charge.refunded` |
 
+### Platform management API (`oe/v1`)
+
+Staff-facing endpoints the [October Events platform](../october-platform/README.md)
+SPA reads and writes (auth: an authenticated user who can edit — Application
+Password over Basic auth):
+
+| Route | Purpose |
+|---|---|
+| `GET/POST /planning/event/{id}`, `/planning/events`, `/planning/event/{id}/confirm` | Confirm→green event readiness board |
+| `GET/POST /tasks`, `POST/DELETE /task/{id}`, `GET /tasks/meta` | Shared department task board |
+| `GET /volunteers/opportunities` | Opportunities with capacity vs filled + signups needing a decision |
+| `GET /volunteers/opportunity/{id}` | Shifts (capacity, spots left) with the signups on each |
+| `POST /volunteers/opportunity/{id}/signup` | Manually place a volunteer on a shift |
+| `POST /volunteers/signup/{id}` | Set status (confirm/decline/no-show/re-open) and/or toggle check-in |
+| `DELETE /volunteers/signup/{id}` | Remove a signup |
+
 ---
 
 ## Submission & approval pipeline

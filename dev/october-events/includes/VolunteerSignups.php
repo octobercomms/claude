@@ -80,6 +80,19 @@ final class VolunteerSignups {
     }
 
     /**
+     * All signups for an opportunity (any shift, any status) — management view.
+     *
+     * @return array<int,object>
+     */
+    public static function for_opportunity(int $opportunity_id): array {
+        global $wpdb;
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT * FROM " . self::table() . " WHERE opportunity_id = %d ORDER BY shift_id ASC, id ASC",
+            $opportunity_id
+        )) ?: [];
+    }
+
+    /**
      * @return array<int,object>
      */
     public static function for_account(int $account_id): array {

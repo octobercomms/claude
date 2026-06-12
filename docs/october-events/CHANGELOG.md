@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.8.0 — volunteer management API
+
+A REST surface over the existing volunteer signups so the platform can give
+Ashleigh a full management view (the same operations as the wp-admin Volunteers
+screen, friendlier). No schema change — it reads/writes the existing
+`oe_volunteer_signups` table.
+
+- **REST** `oe/v1/volunteers/*` (auth: can-edit):
+  - `GET /volunteers/opportunities` — every opportunity with capacity vs filled
+    across its shifts and how many signups still need a decision.
+  - `GET /volunteers/opportunity/{id}` — shifts (capacity, spots left, full) with
+    the signups attached to each.
+  - `POST /volunteers/opportunity/{id}/signup` — manually place a volunteer on a
+    shift (bypasses the open/capacity gate; staff-placed signups start confirmed
+    and still fire the confirmation + reminders).
+  - `POST /volunteers/signup/{id}` — set status (confirm / decline / no-show /
+    re-open) and/or toggle check-in.
+  - `DELETE /volunteers/signup/{id}` — remove a signup.
+- New read models on `OE\Volunteers` (`opportunity_summary`,
+  `opportunity_detail`, `signup_dto`) and a `for_opportunity` query.
+
 ## 1.7.0 — shared Tasks
 
 A shared, department-grouped task list for the whole team (replacing the
