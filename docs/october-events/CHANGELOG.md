@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.19.0 — upload your own brand font
+
+Branding now takes an **uploaded font file** as well as a stylesheet URL — for
+sites that self-host their type (no Google Fonts).
+
+- **Settings → Branding**: a family-name field + an **Upload / choose font**
+  button (media library) for `.woff2 / .woff / .ttf / .otf`. Font MIME types are
+  allowed for uploads (admins only).
+- The uploaded file is registered as `@font-face` and applied in **both** the
+  platform (via `oe/v1/brand` → `font_url`) and the wp-admin screens; blank falls
+  back to Brockmann. The old "stylesheet URL" option remains as an alternative.
+
 ## 1.18.0 — admin redesign (October design system)
 
 The wp-admin screens now match the platform's October "Marketing Intelligence"

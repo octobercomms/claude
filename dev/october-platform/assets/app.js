@@ -36,8 +36,9 @@ const THEME_DEFAULTS = {
   page_bg: '#faf9f5',
   logo_light: './assets/logo-black.gif',   // for white surfaces (login card)
   logo_dark: './assets/logo-yellow.gif',   // for the dark sidebar
-  font_family: '',                          // optional custom family
-  font_css: '',                             // optional @font-face / Google Fonts URL
+  font_family: '',                          // optional custom family name
+  font_css: '',                             // optional stylesheet URL that defines the font
+  font_url: '',                             // optional uploaded font FILE (woff2/woff/ttf/otf)
 };
 let theme = loadTheme();
 
@@ -55,7 +56,16 @@ function applyTheme(t) {
   if (t.sidebar_bg) { r.setProperty('--sidebar-bg', t.sidebar_bg); }
   if (t.page_bg) { r.setProperty('--page-bg', t.page_bg); }
   if (t.accent) { r.setProperty('--accent-soft', hexToSoft(t.accent)); }
-  if (t.font_family) { r.setProperty('--font', '"' + t.font_family + '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif'); }
+  // An uploaded font file → register it as @font-face under the family name.
+  const family = t.font_family || (t.font_url ? 'BrandFont' : '');
+  if (t.font_url && !document.getElementById('oe-font-face')) {
+    const fmt = /\.woff2($|\?)/i.test(t.font_url) ? 'woff2' : (/\.woff($|\?)/i.test(t.font_url) ? 'woff' : (/\.otf($|\?)/i.test(t.font_url) ? 'opentype' : 'truetype'));
+    const st = document.createElement('style');
+    st.id = 'oe-font-face';
+    st.textContent = '@font-face{font-family:"' + family + '";src:url("' + t.font_url + '") format("' + fmt + '");font-weight:400 800;font-display:swap}';
+    document.head.appendChild(st);
+  }
+  if (family) { r.setProperty('--font', '"' + family + '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif'); }
   if (t.font_css && !document.getElementById('oe-font-css')) {
     const link = document.createElement('link');
     link.id = 'oe-font-css'; link.rel = 'stylesheet'; link.href = t.font_css;

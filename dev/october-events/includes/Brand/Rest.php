@@ -30,6 +30,7 @@ final class Rest {
         'theme_logo_dark'   => 'logo_dark',
         'theme_font_family' => 'font_family',
         'theme_font_css'    => 'font_css',
+        'theme_font_url'    => 'font_url',
     ];
 
     public static function init(): void {

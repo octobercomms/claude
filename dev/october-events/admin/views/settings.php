@@ -248,12 +248,41 @@ use OE\PostTypes;
                     <p class="description"><?php esc_html_e('Shown in the dark sidebar (use a light/white version).', 'october-events'); ?></p></td>
             </tr>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Custom font', 'october-events'); ?></label></th>
-                <td><input type="text" name="theme_font_family" value="<?php echo esc_attr((string) ($cfg['theme_font_family'] ?? '')); ?>" placeholder="Inter" class="regular-text">
-                    <input type="url" name="theme_font_css" value="<?php echo esc_attr((string) ($cfg['theme_font_css'] ?? '')); ?>" placeholder="https://fonts.googleapis.com/css2?family=Inter…" class="regular-text" style="margin-top:6px">
-                    <p class="description"><?php esc_html_e('Family name + a stylesheet URL that loads it (e.g. Google Fonts). Blank = Brockmann.', 'october-events'); ?></p></td>
+                <th scope="row"><label><?php esc_html_e('Custom font — family name', 'october-events'); ?></label></th>
+                <td><input type="text" id="oe-font-family" name="theme_font_family" value="<?php echo esc_attr((string) ($cfg['theme_font_family'] ?? '')); ?>" placeholder="e.g. Söhne" class="regular-text">
+                    <p class="description"><?php esc_html_e('The name to reference the font by. Blank = Brockmann (the October default).', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Upload a font file', 'october-events'); ?></label></th>
+                <td>
+                    <input type="url" id="oe-font-url" name="theme_font_url" value="<?php echo esc_attr((string) ($cfg['theme_font_url'] ?? '')); ?>" placeholder="https://…/font.woff2" class="regular-text" style="vertical-align:middle">
+                    <button type="button" class="button" id="oe-upload-font"><?php esc_html_e('Upload / choose font', 'october-events'); ?></button>
+                    <button type="button" class="button" id="oe-clear-font"><?php esc_html_e('Clear', 'october-events'); ?></button>
+                    <p class="description"><?php esc_html_e('Upload your own .woff2 / .woff / .ttf / .otf (we self-host it — no Google Fonts needed). The platform loads it as @font-face under the family name above.', 'october-events'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('…or a stylesheet URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="theme_font_css" value="<?php echo esc_attr((string) ($cfg['theme_font_css'] ?? '')); ?>" placeholder="https://fonts.googleapis.com/css2?family=Inter…" class="regular-text">
+                    <p class="description"><?php esc_html_e('Alternative to uploading: a CSS URL that already defines the font (e.g. Google Fonts, Adobe Fonts).', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        <script>
+        jQuery(function ($) {
+            var frame;
+            $('#oe-upload-font').on('click', function (e) {
+                e.preventDefault();
+                if (frame) { frame.open(); return; }
+                frame = wp.media({ title: 'Choose a font file', library: {}, multiple: false, button: { text: 'Use this font' } });
+                frame.on('select', function () {
+                    var a = frame.state().get('selection').first().toJSON();
+                    $('#oe-font-url').val(a.url);
+                });
+                frame.open();
+            });
+            $('#oe-clear-font').on('click', function (e) { e.preventDefault(); $('#oe-font-url').val(''); });
+        });
+        </script>
 
         <?php submit_button(); ?>
     </form>

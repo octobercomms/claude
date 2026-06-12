@@ -86,6 +86,19 @@ final class Plugin {
         $accent    = (string) Settings::get('theme_accent', '') ?: '#E7CD41';
         $accent_on = (string) Settings::get('theme_accent_on', '') ?: '#1a1a1a';
         wp_add_inline_style('oe-admin', '.oe-admin{--oe-accent:' . esc_html($accent) . ';--oe-accent-on:' . esc_html($accent_on) . '}');
+        // An uploaded brand font applies in wp-admin too (else Brockmann).
+        $font_url = (string) Settings::get('theme_font_url', '');
+        if ($font_url !== '') {
+            $family = (string) Settings::get('theme_font_family', '') ?: 'BrandFont';
+            $fmt = preg_match('/\.woff2($|\?)/i', $font_url) ? 'woff2' : (preg_match('/\.woff($|\?)/i', $font_url) ? 'woff' : (preg_match('/\.otf($|\?)/i', $font_url) ? 'opentype' : 'truetype'));
+            wp_add_inline_style('oe-admin',
+                '@font-face{font-family:"' . esc_html($family) . '";src:url("' . esc_url($font_url) . '") format("' . $fmt . '");font-weight:400 800;font-display:swap}'
+                . '.oe-admin{--oe-font:"' . esc_html($family) . '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}');
+        }
+        // The Settings screen uses the media library to upload a brand font.
+        if (strpos($hook, 'oe-settings') !== false) {
+            wp_enqueue_media();
+        }
     }
 
     /**
