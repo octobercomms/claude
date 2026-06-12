@@ -37,6 +37,7 @@ final class Activator {
         AuditLog::install();
         VolunteerSignups::install();
         \OE\Ticketing\Schema::install();
+        \OE\Tasks\Schema::install();
         update_option('oe_db_version', OE_DB_VERSION);
     }
 

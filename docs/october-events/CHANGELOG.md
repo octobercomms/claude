@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.7.0 — shared Tasks
+
+A shared, department-grouped task list for the whole team (replacing the
+single-user Notion board) — org-wide, so it lives on the hub and is exposed to
+the platform.
+
+- New `oe_tasks` table (auto-created on upgrade; DB version → 3).
+- **Tasks** admin screen: add/edit, grouped by department, inline status change
+  (To do / In progress / Blocked / Done), due date, assignee, notes, delete.
+- **REST** `oe/v1/tasks` (+ `/task/{id}`, `/tasks/meta`) — list/create/update/
+  delete for the platform's Tasks board (auth: can-edit-events).
+- Departments default to the festival's existing groups (Admin, Advertising,
+  Content Marketing, Email, PR, Media Partners, Partners & Sponsors, Social,
+  Website Dev, Website Support, Uncategorized).
+
 ## 1.6.0 — event planning + confirm→green (PM platform phase 1)
 
 The first slice of the project-management platform, in the plugin (usable in
