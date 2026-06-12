@@ -9,6 +9,19 @@ database of its own, no sync. WordPress stays the single source of truth.
   on merge to `main` (`.github/workflows/october-platform-deploy.yml`)
 - **Backend:** the plugin's `oe/v1/planning/*` endpoints
 
+## Overview
+
+The default landing view (top-nav **Overview**) — an at-a-glance summary across
+all three boards, each panel clickable through to its full view:
+
+- **Events:** how many are confirmed & green vs in-progress / draft, with a meter.
+- **Tasks:** open count, plus blocked and done.
+- **Volunteers:** slots filled vs capacity, how many are still open, and how many
+  signups need a decision.
+
+It reads the existing list endpoints in parallel and degrades gracefully if any
+one is unavailable.
+
 ## Phase 1 — Elayne's Events board (this build)
 
 - A **board** grouping every event by status — *In progress / Draft / Confirmed* —
@@ -93,7 +106,7 @@ Sign in against your real (or staging) WordPress site.
 dev/october-platform/
   index.html          app shell
   assets/
-    app.js            Events + Tasks + Volunteers views (vanilla ES modules)
+    app.js            Overview + Events + Tasks + Volunteers (vanilla ES modules)
     api.js            oe/v1 REST client (App-Password Basic auth)
     styles.css        October brand (cream / rust / near-black)
   _redirects          Cloudflare SPA fallback

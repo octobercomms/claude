@@ -1,7 +1,8 @@
 /**
  * October Events — planning platform.
  *
- * A no-build vanilla SPA with three views:
+ * A no-build vanilla SPA with four views:
+ *  - Overview:   an at-a-glance summary across the three boards.
  *  - Events:     the confirm→green readiness board (oe/v1/planning).
  *  - Tasks:      the shared department task board (oe/v1/tasks).
  *  - Volunteers: shift signups + decisions (oe/v1/volunteers).
@@ -19,7 +20,7 @@ const TASK_ORDER = ['todo', 'doing', 'blocked', 'done'];
 const VOL_STATUS = { pending: 'Pending', confirmed: 'Confirmed', declined: 'Declined', no_show: 'No-show' };
 const VOL_ORDER = ['pending', 'confirmed', 'declined', 'no_show'];
 
-let route = 'events';
+let route = 'overview';
 let taskMeta = null; // { departments, statuses, counts } — cached after first load
 
 function esc(s) {
@@ -46,7 +47,8 @@ async function boot() {
 function render() {
   if (route === 'tasks') { return renderTasks(); }
   if (route === 'volunteers') { return renderVolunteers(); }
-  return renderBoard();
+  if (route === 'events') { return renderBoard(); }
+  return renderOverview();
 }
 
 /* Shared top bar + view nav. `active` is the current route key. */
@@ -56,6 +58,7 @@ function topbar(active) {
       <div class="oe-top-left">
         <strong>October Events</strong>
         <nav class="oe-nav">
+          <button class="oe-navlink ${active === 'overview' ? 'on' : ''}" data-route="overview">Overview</button>
           <button class="oe-navlink ${active === 'events' ? 'on' : ''}" data-route="events">Events</button>
           <button class="oe-navlink ${active === 'tasks' ? 'on' : ''}" data-route="tasks">Tasks</button>
           <button class="oe-navlink ${active === 'volunteers' ? 'on' : ''}" data-route="volunteers">Volunteers</button>
@@ -546,6 +549,94 @@ function signupRow(su, replace) {
     catch (e) { alert(e.message || 'Could not remove.'); }
   });
   return row;
+}
+
+/* ---------------------------------------------------------------- */
+/* Overview                                                         */
+/* ---------------------------------------------------------------- */
+async function renderOverview() {
+  app.innerHTML = '';
+  app.appendChild(topbar('overview'));
+  const wrap = el('<div class="oe-overview"><div class="oe-loading">Loading overview…</div></div>');
+  app.appendChild(wrap);
+
+  // Pull all three boards in parallel; tolerate any single one failing.
+  const [events, tasks, opps] = await Promise.all([
+    api.listEvents().catch(() => null),
+    api.listTasks().catch(() => null),
+    api.listOpportunities().catch(() => null),
+  ]);
+
+  if (events === null && tasks === null && opps === null) {
+    return renderLogin('Session expired — sign in again.');
+  }
+
+  wrap.innerHTML = '';
+  wrap.appendChild(overviewEvents(events));
+  wrap.appendChild(overviewTasks(tasks));
+  wrap.appendChild(overviewVolunteers(opps));
+
+  wrap.querySelectorAll('[data-goto]').forEach((c) =>
+    c.addEventListener('click', () => { route = c.getAttribute('data-goto'); render(); }));
+}
+
+function overviewCard(routeKey, title, bodyHtml) {
+  return el(`
+    <article class="ov-card" data-goto="${routeKey}">
+      <div class="ov-head"><h2>${esc(title)}</h2><span class="ov-go">Open →</span></div>
+      ${bodyHtml}
+    </article>`);
+}
+
+function ovStat(n, label, cls) {
+  return `<div class="ov-stat ${cls || ''}"><span class="ov-n">${n}</span><span class="ov-l">${esc(label)}</span></div>`;
+}
+
+function overviewEvents(events) {
+  if (!events) { return overviewCard('events', 'Events', '<p class="muted small">Couldn\'t load events.</p>'); }
+  const total = events.length;
+  const green = events.filter((e) => e.status === 'confirmed').length;
+  const prog = events.filter((e) => e.status === 'in_progress').length;
+  const draft = events.filter((e) => e.status === 'draft').length;
+  const pct = total ? Math.round((green / total) * 100) : 0;
+  const body = `
+    <div class="meter"><span style="width:${pct}%;background:${pct === 100 ? '#1a7f37' : '#d8531f'}"></span></div>
+    <p class="ov-lead">${green} of ${total} confirmed &amp; green</p>
+    <div class="ov-stats">
+      ${ovStat(prog, 'in progress')}
+      ${ovStat(draft, 'draft')}
+    </div>`;
+  return overviewCard('events', 'Events', body);
+}
+
+function overviewTasks(tasks) {
+  if (!tasks) { return overviewCard('tasks', 'Tasks', '<p class="muted small">Couldn\'t load tasks.</p>'); }
+  const open = tasks.filter((t) => t.status === 'todo' || t.status === 'doing').length;
+  const blocked = tasks.filter((t) => t.status === 'blocked').length;
+  const done = tasks.filter((t) => t.status === 'done').length;
+  const body = `
+    <p class="ov-lead">${open} open task${open === 1 ? '' : 's'}</p>
+    <div class="ov-stats">
+      ${ovStat(blocked, 'blocked', blocked ? 'bad' : '')}
+      ${ovStat(done, 'done', 'good')}
+    </div>`;
+  return overviewCard('tasks', 'Tasks', body);
+}
+
+function overviewVolunteers(opps) {
+  if (!opps) { return overviewCard('volunteers', 'Volunteers', '<p class="muted small">Couldn\'t load volunteers.</p>'); }
+  let capacity = 0; let filled = 0; let pending = 0;
+  opps.forEach((o) => { capacity += o.capacity; filled += o.filled; pending += o.pending; });
+  const shortfall = Math.max(0, capacity - filled);
+  const pct = capacity ? Math.round((filled / capacity) * 100) : 0;
+  const body = `
+    <div class="meter"><span style="width:${pct}%;background:${shortfall === 0 && capacity ? '#1a7f37' : '#d8531f'}"></span></div>
+    <p class="ov-lead">${filled} of ${capacity} slots filled</p>
+    <div class="ov-stats">
+      ${ovStat(shortfall, 'still open', shortfall ? 'bad' : 'good')}
+      ${ovStat(pending, 'to review', pending ? 'warn' : '')}
+    </div>`;
+  return overviewCard('volunteers', 'Volunteers', body);
 }
 
 boot();
