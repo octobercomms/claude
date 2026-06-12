@@ -15,6 +15,7 @@ $export = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=orders'), 
     <h1><?php esc_html_e('Registrations', 'october-events'); ?>
         <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
     </h1>
+    <?php \OE\Admin\Admin::bento('tickets'); ?>
 
     <?php if (! empty($_GET['oe_msg'])) :
         $m = sanitize_key((string) $_GET['oe_msg']); ?>

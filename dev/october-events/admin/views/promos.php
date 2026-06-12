@@ -9,6 +9,7 @@ defined('ABSPATH') || exit;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Promo Codes', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('promos'); ?>
 
     <h2><?php esc_html_e('Add a code', 'october-events'); ?></h2>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
