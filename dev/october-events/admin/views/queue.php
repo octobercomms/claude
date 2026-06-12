@@ -7,6 +7,7 @@ use OE\Account;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Approval Queue', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('queue'); ?>
 
     <ul class="subsubsub">
         <li><a href="<?php echo esc_url(admin_url('admin.php?page=oe-queue')); ?>" class="<?php echo $filter === '' ? 'current' : ''; ?>"><?php esc_html_e('All', 'october-events'); ?></a></li>

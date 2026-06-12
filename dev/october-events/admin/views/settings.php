@@ -5,6 +5,7 @@ use OE\PostTypes;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('October Events — Settings', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('settings'); ?>
     <?php if (! empty($_GET['updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Settings saved.', 'october-events'); ?></p></div>
     <?php endif; ?>

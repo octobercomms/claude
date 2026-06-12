@@ -5,6 +5,7 @@ use OE\PostTypes;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('October Events', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('dashboard'); ?>
     <p class="description"><?php esc_html_e('Operations overview across all listing types.', 'october-events'); ?></p>
 
     <table class="widefat striped">

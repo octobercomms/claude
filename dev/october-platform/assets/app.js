@@ -200,6 +200,44 @@ function openSiteSwitcher() {
 }
 function hostLabel(base) { return String(base || '').replace(/^https?:\/\//, '').replace(/\/wp-json\/?$/, ''); }
 
+/* Per-page "what you can do" guide bento (dismissible, remembered per page). */
+const GUIDES = {
+  overview: { title: 'Your festival, at a glance', text: 'Everything the team is working on, pulled live from the site — and a checklist to get set up.',
+    steps: [['Events', 'Confirmed & green vs still in planning'], ['Tasks', 'Open, blocked and done across departments'], ['Volunteers', 'Shift coverage and who needs a decision'], ['Getting started', 'Ticks itself off as you set things up']] },
+  events: { title: 'Get every event to green', text: 'Fill in each event’s essentials, then confirm to publish it live.',
+    steps: [['Open an event', 'Click any card to edit it'], ['Complete the essentials', 'Title, dates, price, location'], ['Confirm → go green', 'Publishes it to the public site'], ['Sessions & notes', 'Add a schedule + internal notes']] },
+  tasks: { title: 'Run the team’s work', text: 'A shared board across every department — add, assign and move tasks.',
+    steps: [['Add a task', 'Title + department, top of the board'], ['Move it across', 'To do → In progress → Blocked → Done'], ['Edit details', 'Due date, assignee, notes'], ['See it everywhere', 'Same board in the plugin']] },
+  volunteers: { title: 'Staff every shift', text: 'Manage signups for each opportunity and keep coverage on track.',
+    steps: [['Open an opportunity', 'See its shifts and signups'], ['Decide on signups', 'Confirm / decline / no-show'], ['Check people in', 'On the day'], ['Add manually', 'Place a volunteer on a shift']] },
+  email: { title: 'Send beautiful, on-brand email', text: 'Build a campaign block by block — or brief the AI co-pilot — then send to an audience.',
+    steps: [['New campaign', 'Subject, preheader, audience'], ['Build it', 'Blocks + images, or “Draft with AI”'], ['Send a test', 'Preview in your inbox'], ['Schedule / send', 'Tracked, with unsubscribe']] },
+  contacts: { title: 'Your audience, unified', text: 'Contacts build themselves from accounts, ticket buyers, volunteers and submitters — no imports.',
+    steps: [['Search', 'Find anyone by name or email'], ['See the source', 'How each contact arrived'], ['Manage consent', 'Unsubscribe / re-subscribe'], ['Use in email', 'Audiences come from here']] },
+};
+
+function pageGuide(key) {
+  const g = GUIDES[key];
+  if (!g) { return document.createComment('no-guide'); }
+  if (localStorage.getItem('oe_guide_' + key) === '1') {
+    const strip = el('<button class="oe-guide-show">ⓘ What you can do on this page</button>');
+    strip.addEventListener('click', () => { localStorage.removeItem('oe_guide_' + key); render(); });
+    return strip;
+  }
+  const steps = g.steps.map((s, i) =>
+    `<div class="oe-guide-step"><span class="n">${i + 1}</span><span class="l">${esc(s[0])}</span><span class="d">${esc(s[1])}</span></div>`).join('');
+  const node = el(`
+    <section class="oe-guide">
+      <button class="oe-guide-x" title="Hide">×</button>
+      <div class="oe-guide-kicker">What you can do here</div>
+      <h2>${esc(g.title)}</h2>
+      <p>${esc(g.text)}</p>
+      <div class="oe-guide-steps">${steps}</div>
+    </section>`);
+  node.querySelector('.oe-guide-x').addEventListener('click', () => { localStorage.setItem('oe_guide_' + key, '1'); render(); });
+  return node;
+}
+
 /* Page header: small-caps overline + big title + today's date. */
 function pageHeader(overline, title) {
   return el(`
@@ -270,6 +308,7 @@ async function renderBoard() {
   const green = groups.confirmed.length;
   main.innerHTML = '';
   main.appendChild(pageHeader('PLANNING · ' + events.length + ' EVENTS · ' + green + ' GREEN', 'Events'));
+  main.appendChild(pageGuide('events'));
 
   const board = el('<div class="oe-board"></div>');
   ['in_progress', 'draft', 'confirmed'].forEach((status) => {
@@ -420,6 +459,7 @@ async function renderTasks() {
   const open = tasks.filter((t) => t.status === 'todo' || t.status === 'doing').length;
   main.innerHTML = '';
   main.appendChild(pageHeader('TASKS · ' + tasks.length + ' TOTAL · ' + open + ' OPEN', 'Tasks'));
+  main.appendChild(pageGuide('tasks'));
   main.appendChild(taskAddForm(departments));
 
   const groups = {};
@@ -562,6 +602,7 @@ async function renderVolunteers() {
   opps.forEach((o) => { capacity += o.capacity; filled += o.filled; });
   main.innerHTML = '';
   main.appendChild(pageHeader('VOLUNTEERS · ' + opps.length + ' OPPORTUNITIES · ' + filled + '/' + capacity + ' FILLED', 'Volunteers'));
+  main.appendChild(pageGuide('volunteers'));
 
   if (!opps.length) {
     main.appendChild(emptyState('No volunteer opportunities yet.',
@@ -743,6 +784,7 @@ async function renderOverview() {
     'OVERVIEW · ' + total + ' EVENTS · ' + (attention ? 'NEEDS ATTENTION' : 'ALL ON TRACK'),
     'Dashboard'
   ));
+  main.appendChild(pageGuide('overview'));
 
   // Stat cards (first one highlighted dark, like OMI).
   const stats = el('<div class="oe-stats"></div>');
@@ -852,6 +894,7 @@ async function renderEmail() {
   }
   main.innerHTML = '';
   main.appendChild(pageHeader('EMAIL · ' + campaigns.length + ' CAMPAIGN' + (campaigns.length === 1 ? '' : 'S'), 'Email'));
+  main.appendChild(pageGuide('email'));
 
   const bar = el('<div style="margin-bottom:20px"><button class="btn btn-primary" id="c-new">+ New campaign</button></div>');
   bar.querySelector('#c-new').addEventListener('click', () => openCampaign(null));
@@ -1099,6 +1142,7 @@ async function renderContacts() {
   }
   main.innerHTML = '';
   main.appendChild(pageHeader('CONTACTS · ' + counts.total + ' TOTAL · ' + counts.subscribed + ' SUBSCRIBED', 'Contacts'));
+  main.appendChild(pageGuide('contacts'));
 
   const stats = el('<div class="oe-stats" style="margin-bottom:24px"></div>');
   stats.appendChild(statCard('Total', String(counts.total), 'contacts', true));

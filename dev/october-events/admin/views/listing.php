@@ -6,6 +6,7 @@ $is_destination = ($type === 'destination');
 ?>
 <div class="wrap oe-admin">
     <h1><?php echo esc_html($label); ?></h1>
+    <?php \OE\Admin\Admin::bento('listing'); ?>
     <table class="widefat striped">
         <thead>
             <tr>

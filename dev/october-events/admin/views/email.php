@@ -6,6 +6,7 @@ $audiences = \OE\Mail\Campaigns::audiences();
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Email', 'october-events'); ?></h1>
+    <?php \OE\Admin\Admin::bento('email'); ?>
 
     <h2><?php esc_html_e('Contacts & audiences', 'october-events'); ?></h2>
     <p class="description"><?php esc_html_e('Contacts are built automatically from accounts, ticket buyers, volunteers and submitters — no manual import. Campaign audiences are derived from them.', 'october-events'); ?></p>

@@ -63,6 +63,53 @@ final class Admin {
     }
 
     /* ----------------------------------------------------------------- *
+     * "What you can do" intro bento (rendered at the top of each screen)
+     * ----------------------------------------------------------------- */
+
+    /** @var array<string,array{title:string,text:string,steps:array<int,array{0:string,1:string}>}> */
+    private const BENTOS = [
+        'dashboard' => ['title' => 'Run the whole festival from here', 'text' => 'Accounts, listings, tickets, volunteers and email — one place. The planning platform is the friendlier front-end on the same data.',
+            'steps' => [['Review submissions', 'Approve or reject in the queue'], ['Manage tickets', 'Sales, comps, check-in'], ['Coordinate volunteers', 'Shifts and signups'], ['Send email', 'Contacts, campaigns, the digest']]],
+        'queue' => ['title' => 'Approve what people submit', 'text' => 'Every listing submitted across the site lands here for review.',
+            'steps' => [['Read it', 'Open the submission'], ['Approve', 'Publishes it live + emails them'], ['Reject', 'Refunds any payment + emails them'], ['Filter', 'By listing type']]],
+        'accounts' => ['title' => 'Everyone with an account', 'text' => 'Partners, exhibitors and submitters — and what they’re allowed to auto-publish.',
+            'steps' => [['Find an account', 'Search the list'], ['Auto-approve', 'Per listing type'], ['See their listings', 'What they’ve submitted'], ['Contact', 'Email on file']]],
+        'listing' => ['title' => 'Manage this listing type', 'text' => 'Add entries manually or edit what was submitted — same data the public site shows.',
+            'steps' => [['Add new', 'Create one by hand'], ['Edit', 'Update details + media'], ['Status', 'Draft / pending / published'], ['Feature', 'Flag for the email digest']]],
+        'planning' => ['title' => 'Get every event to green', 'text' => 'The confirm→green workflow: an event publishes only once its essentials are complete.',
+            'steps' => [['Open an event', 'See its readiness'], ['Fill essentials', 'Title, dates, price, location'], ['Confirm', 'Goes green + publishes'], ['Track', 'Completion across all events']]],
+        'tickets' => ['title' => 'Tickets & registrations', 'text' => 'Sales, manual/comp entry, refunds and the door check-in — all here.',
+            'steps' => [['Add an order', 'Comp or paid, by hand'], ['Refund / cancel', 'With Stripe refund'], ['Export', 'CSV of registrations'], ['Check-in', 'QR scanning at the door']]],
+        'promos' => ['title' => 'Promo codes', 'text' => 'Percentage or fixed discounts for ticket checkout, scoped and capped.',
+            'steps' => [['Create a code', 'Percent or fixed'], ['Scope it', 'To an event / window'], ['Cap uses', 'Max redemptions'], ['Track', 'How often it’s used']]],
+        'volunteers' => ['title' => 'Staff every shift', 'text' => 'Each opportunity carries shifts with capacity; manage who’s confirmed and check them in.',
+            'steps' => [['Pick an opportunity', 'See its shifts'], ['Decide on signups', 'Confirm / decline / no-show'], ['Remind', 'Email (SMS when on)'], ['Check in', 'On the day']]],
+        'tasks' => ['title' => 'The team’s shared task board', 'text' => 'Department-grouped work, the same board the platform shows.',
+            'steps' => [['Add a task', 'Title + department'], ['Set status', 'To do → done'], ['Assign', 'Owner + due date'], ['Group', 'By department']]],
+        'email' => ['title' => 'All your email in one place', 'text' => 'Native sending (SES), a unified contact list, campaigns and the monthly digest.',
+            'steps' => [['Check sending', 'SES status + test'], ['Grow contacts', 'Auto-built, no imports'], ['Build campaigns', 'In the platform'], ['Send the digest', 'Monthly, to subscribers']]],
+        'contacts' => ['title' => 'Your audience, unified', 'text' => 'Built automatically from accounts, ticket buyers, volunteers and submitters.',
+            'steps' => [['Rebuild', 'From existing data'], ['See counts', 'Subscribed / unsubscribed / SMS'], ['Browse', 'Recent contacts'], ['Use in email', 'Audiences come from here']]],
+        'settings' => ['title' => 'Configure everything', 'text' => 'Brand, API keys, pricing, the AI voice, email (SES), SMS, chat and the platform theme.',
+            'steps' => [['Brand & theme', 'Name, colours, logo, font'], ['Connect services', 'Stripe, SES, SMS, Chatwoot'], ['Train the AI', 'House voice + examples'], ['Updates', 'GitHub self-updater']]],
+    ];
+
+    public static function bento(string $key): void {
+        $b = self::BENTOS[$key] ?? null;
+        if (! $b) {
+            return;
+        }
+        echo '<section class="oe-bento"><div class="oe-bento-kicker">' . esc_html__('What you can do here', 'october-events') . '</div>';
+        echo '<h2>' . esc_html($b['title']) . '</h2><p>' . esc_html($b['text']) . '</p><div class="oe-bento-steps">';
+        $n = 0;
+        foreach ($b['steps'] as $step) {
+            $n++;
+            echo '<div class="oe-bento-step"><span class="n">' . (int) $n . '</span><span class="l">' . esc_html($step[0]) . '</span><span class="d">' . esc_html($step[1]) . '</span></div>';
+        }
+        echo '</div></section>';
+    }
+
+    /* ----------------------------------------------------------------- *
      * Pages
      * ----------------------------------------------------------------- */
 

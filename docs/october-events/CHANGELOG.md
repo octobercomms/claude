@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.20.0 — "what you can do" guide on every screen
+
+Every admin screen now opens with a dark **intro bento** — a one-line "what you
+can do here" + a numbered set of steps — matching the platform's hero style, so
+anyone landing on a page understands it at a glance. (The platform's pages get
+the same, dismissible, guide.)
+
 ## 1.19.0 — upload your own brand font
 
 Branding now takes an **uploaded font file** as well as a stylesheet URL — for
