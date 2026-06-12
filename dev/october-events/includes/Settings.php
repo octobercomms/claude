@@ -25,7 +25,6 @@ final class Settings {
         'stripe_secret_key'      => 'OE_STRIPE_SECRET_KEY',
         'stripe_publishable_key' => 'OE_STRIPE_PUBLISHABLE_KEY',
         'stripe_webhook_secret'  => 'OE_STRIPE_WEBHOOK_SECRET',
-        'brevo_api_key'          => 'OE_BREVO_API_KEY',
         'claude_api_key'         => 'OE_CLAUDE_API_KEY',
         'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
@@ -56,9 +55,6 @@ final class Settings {
             // Editable "tone of voice" training for the AI Stories layer.
             'ai_voice_guide'  => '',
             'ai_examples'     => [],
-            // Brevo transactional template IDs keyed by trigger name (§5).
-            'brevo_templates' => [],
-            'brevo_lists'     => [],
             // Digest: first Monday each month (§5).
             'digest_enabled'  => true,
             // Daily ticket sales report recipient (blank = site admin email).

@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OE;
 
-use OE\Connectors\BrevoConnector;
 use OE\Connectors\ClaudeConnector;
 
 defined('ABSPATH') || exit;
@@ -98,27 +97,53 @@ final class Cron {
      * ------------------------------------------------------------------- */
 
     public function run_digest(): void {
-        $lists       = (array) Settings::get('brevo_lists', []);
-        $digest_list = (int) ($lists['oe_monthly_digest'] ?? 0);
-
-        $stories = $this->recent_stories();
-        $events  = $this->upcoming_events();
+        $stories  = $this->recent_stories();
+        $events   = $this->upcoming_events();
         $featured = $this->featured_listings();
 
-        $params = [
-            'stories'  => array_map([$this, 'summarise_post'], $stories),
-            'events'   => array_map([$this, 'summarise_post'], $events),
-            'featured' => array_map([$this, 'summarise_post'], $featured),
-            'month'    => wp_date('F Y'),
-        ];
+        $html = $this->render_digest_html(
+            array_map([$this, 'summarise_post'], $stories),
+            array_map([$this, 'summarise_post'], $events),
+            array_map([$this, 'summarise_post'], $featured)
+        );
 
-        $sent = BrevoConnector::send_to_list('monthly_digest', $digest_list, $params);
-        AuditLog::record('monthly_digest_sent', 0, 'digest', $sent ? 'ok' : 'failed');
+        // Send as a native campaign to all subscribers — reuses the throttled
+        // sender, open/click tracking and one-click unsubscribe.
+        $id = \OE\Mail\Campaigns::save([
+            'name'      => 'Monthly digest — ' . wp_date('F Y'),
+            'subject'   => sprintf(__('%s — this month', 'october-events'), (string) Settings::get('brand_name', 'October Events')),
+            'body_html' => $html,
+            'audience'  => 'subscribed',
+        ]);
+        $queued = \OE\Mail\Campaigns::send($id);
+        AuditLog::record('monthly_digest_sent', 0, 'digest', (string) $queued);
 
         // Reset the featured-in-email flag on included listings (§5).
         foreach ($featured as $post) {
             Fields::set($post->ID, 'featured_in_email', false);
         }
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $stories
+     * @param array<int,array<string,mixed>> $events
+     * @param array<int,array<string,mixed>> $featured
+     */
+    private function render_digest_html(array $stories, array $events, array $featured): string {
+        $section = static function (string $title, array $items): string {
+            if (! $items) { return ''; }
+            $rows = '';
+            foreach ($items as $it) {
+                $img = ! empty($it['image']) ? '<img src="' . esc_url((string) $it['image']) . '" alt="" style="max-width:100%;border-radius:8px;margin-bottom:6px">' : '';
+                $rows .= '<div style="margin-bottom:18px">' . $img
+                    . '<div style="font-weight:bold;font-size:16px"><a href="' . esc_url((string) $it['url']) . '" style="color:#1a1a1a;text-decoration:none">' . esc_html((string) $it['title']) . '</a></div>'
+                    . '<div style="color:#555;font-size:14px">' . esc_html((string) ($it['excerpt'] ?? '')) . '</div></div>';
+            }
+            return '<h2 style="font-size:18px;margin:24px 0 10px">' . esc_html($title) . '</h2>' . $rows;
+        };
+        return $section(__('Upcoming events', 'october-events'), $events)
+            . $section(__('Featured', 'october-events'), $featured)
+            . $section(__('Latest stories', 'october-events'), $stories);
     }
 
     /** @return \WP_Post[] */
@@ -192,7 +217,7 @@ final class Cron {
             . '<p>' . sprintf(/* translators: 1: tickets 2: revenue */ esc_html__('All time: %1$d tickets, %2$s.', 'october-events'), $stats['tickets'], esc_html($currency . ' ' . number_format($stats['revenue'], 2))) . '</p>'
             . '<table border="1" cellpadding="6" cellspacing="0"><tr><th>Event</th><th>Tickets</th><th>Revenue</th></tr>' . $rows . '</table>';
 
-        BrevoConnector::send('monthly_digest', ['email' => $to], [], __('ADF daily ticket sales', 'october-events'), $html);
+        \OE\Mail\Transactional::send('sales_report', ['email' => $to], [], __('Daily ticket sales', 'october-events'), $html);
         AuditLog::record('sales_report_sent', 0, 'report', (string) $stats['today_tickets']);
     }
 

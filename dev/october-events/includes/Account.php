@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OE;
 
-use OE\Connectors\BrevoConnector;
 
 defined('ABSPATH') || exit;
 
@@ -102,16 +101,10 @@ final class Account {
 
         AuditLog::record('account_created', (int) $post_id, 'account');
 
-        // Welcome email + subscribe to the all-subscribers list (§5).
-        $lists = (array) Settings::get('brevo_lists', []);
-        BrevoConnector::upsert_contact($user->user_email, [
-            'FIRSTNAME' => $user->first_name,
-            'LASTNAME'  => $user->last_name,
-        ], isset($lists['oe_all_subscribers']) ? [(int) $lists['oe_all_subscribers']] : []);
-
+        // Capture the contact + send the native welcome email.
         \OE\Mail\Contacts::capture($user->user_email, ['name' => $name, 'source' => 'account']);
 
-        BrevoConnector::send('account_welcome', [
+        \OE\Mail\Transactional::send('account_welcome', [
             'email' => $user->user_email,
             'name'  => $name,
         ], ['contact_name' => $name]);

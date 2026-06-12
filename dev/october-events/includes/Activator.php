@@ -90,17 +90,6 @@ final class Activator {
             delete_option($old);
         }
 
-        // 2b. Brevo list-label keys inside settings carried the adf_ prefix.
-        $settings = get_option('oe_settings', []);
-        if (is_array($settings) && ! empty($settings['brevo_lists']) && is_array($settings['brevo_lists'])) {
-            $relabelled = [];
-            foreach ($settings['brevo_lists'] as $k => $v) {
-                $relabelled[strpos((string) $k, 'adf_') === 0 ? 'oe_' . substr((string) $k, 4) : $k] = $v;
-            }
-            $settings['brevo_lists'] = $relabelled;
-            update_option('oe_settings', $settings);
-        }
-
         // 3. Post meta keys: _adf_* → _oe_* (exact prefix via LEFT()).
         $wpdb->query("UPDATE {$wpdb->postmeta} SET meta_key = CONCAT('_oe_', SUBSTRING(meta_key, 6)) WHERE LEFT(meta_key, 5) = '_adf_'");
 

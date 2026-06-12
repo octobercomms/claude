@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OE;
 
-use OE\Connectors\BrevoConnector;
 
 defined('ABSPATH') || exit;
 
@@ -83,14 +82,14 @@ final class Reminders {
         $subject = $context === 'on_signup'
             ? __('You are signed up to volunteer', 'october-events')
             : __('Reminder: your volunteer shift is coming up', 'october-events');
-        BrevoConnector::send('volunteer_reminder', [
+        \OE\Mail\Transactional::send('volunteer_reminder', [
             'email' => $signup->email,
             'name'  => $signup->name,
         ], $params, $subject);
 
         // SMS (opt-in + enabled).
         if (! empty($signup->sms_opt_in) && (bool) Settings::get('sms_enabled', false) && ! empty($signup->phone)) {
-            BrevoConnector::send_sms(
+            \OE\Mail\Transactional::send_sms(
                 (string) $signup->phone,
                 Volunteers::sms_body($signup, $context)
             );

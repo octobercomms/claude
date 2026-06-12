@@ -2,7 +2,6 @@
 /** @var array $cfg @var array $secrets */
 defined('ABSPATH') || exit;
 use OE\PostTypes;
-use OE\Connectors\BrevoConnector;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('October Events — Settings', 'october-events'); ?></h1>
@@ -40,7 +39,6 @@ use OE\Connectors\BrevoConnector;
             'stripe_publishable_key' => __('Stripe publishable key', 'october-events'),
             'stripe_secret_key'      => __('Stripe secret key', 'october-events'),
             'stripe_webhook_secret'  => __('Stripe webhook secret', 'october-events'),
-            'brevo_api_key'          => __('Brevo API key', 'october-events'),
             'claude_api_key'         => __('Claude API key', 'october-events'),
             'google_maps_key'        => __('Google Maps key', 'october-events'),
         ];
@@ -97,26 +95,6 @@ use OE\Connectors\BrevoConnector;
         <p><label><strong><?php esc_html_e('Example pieces', 'october-events'); ?></strong> — <?php esc_html_e('paste 1–4 published pieces that exemplify the voice, separated by a line containing only ---', 'october-events'); ?><br>
             <textarea name="ai_examples" rows="12" class="large-text" placeholder="<?php esc_attr_e("Headline of a great ADF piece\nFull body text in the ADF voice…\n---\nAnother example headline\nIts body text…", 'october-events'); ?>"><?php echo esc_textarea(implode("\n---\n", (array) ($cfg['ai_examples'] ?? []))); ?></textarea></label></p>
         <p class="description"><?php echo esc_html(sprintf(/* translators: %d: count */ __('Currently %d example(s) saved.', 'october-events'), count((array) ($cfg['ai_examples'] ?? [])))); ?></p>
-
-        <h2><?php esc_html_e('Brevo template IDs', 'october-events'); ?></h2>
-        <table class="widefat striped" style="max-width:640px"><tbody>
-        <?php foreach (BrevoConnector::TRIGGERS as $trigger) : ?>
-            <tr>
-                <td><code><?php echo esc_html($trigger); ?></code></td>
-                <td><input type="number" name="brevo_templates[<?php echo esc_attr($trigger); ?>]" value="<?php echo esc_attr((string) ($cfg['brevo_templates'][$trigger] ?? 0)); ?>"></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody></table>
-
-        <h2><?php esc_html_e('Brevo list IDs', 'october-events'); ?></h2>
-        <table class="widefat striped" style="max-width:640px"><tbody>
-        <?php foreach (['oe_all_subscribers', 'oe_directory_listed', 'oe_event_attendees', 'oe_volunteers', 'oe_partners', 'oe_monthly_digest'] as $list) : ?>
-            <tr>
-                <td><code><?php echo esc_html($list); ?></code></td>
-                <td><input type="number" name="brevo_lists[<?php echo esc_attr($list); ?>]" value="<?php echo esc_attr((string) ($cfg['brevo_lists'][$list] ?? 0)); ?>"></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody></table>
 
         <h2><?php esc_html_e('Rejection email copy', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Optional per-type overrides. Variables: {listing_name}, {listing_type}, {refund_amount}. Leave blank to use the default copy.', 'october-events'); ?></p>

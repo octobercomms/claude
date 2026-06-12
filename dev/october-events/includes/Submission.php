@@ -4,7 +4,6 @@ declare(strict_types=1);
 namespace OE;
 
 use OE\Connectors\StripeConnector;
-use OE\Connectors\BrevoConnector;
 
 defined('ABSPATH') || exit;
 
@@ -136,7 +135,7 @@ final class Submission {
         AuditLog::record('payment_confirmed', $post_id, $type, $payment_intent_id);
         Invoice::create($post_id, $payment_intent_id);
 
-        BrevoConnector::send('payment_confirmed', [
+        \OE\Mail\Transactional::send('payment_confirmed', [
             'email' => Account::email($account_id),
             'name'  => Account::name($account_id),
         ], ['listing_name' => get_the_title($post_id)]);
@@ -156,7 +155,7 @@ final class Submission {
         Fields::set($post_id, 'status', Fields::STATUS_PENDING_REVIEW);
         AuditLog::record('queued_for_review', $post_id, $type);
 
-        BrevoConnector::send('submission_received', [
+        \OE\Mail\Transactional::send('submission_received', [
             'email' => Account::email($account_id),
             'name'  => Account::name($account_id),
         ], [
@@ -185,7 +184,7 @@ final class Submission {
         // Subscribe the account to the relevant Brevo segment (§5 lists).
         self::sync_list_membership($type, $account_id, $post_id);
 
-        BrevoConnector::send('submission_approved', [
+        \OE\Mail\Transactional::send('submission_approved', [
             'email' => Account::email($account_id),
             'name'  => Account::name($account_id),
         ], [
@@ -231,7 +230,7 @@ final class Submission {
             'refund_amount' => $refund_amount,
             'copy'          => self::rejection_copy($type, get_the_title($post_id), $refund_amount),
         ];
-        BrevoConnector::send(
+        \OE\Mail\Transactional::send(
             $with_refund ? 'submission_rejected_refund' : 'submission_rejected_free',
             ['email' => Account::email($account_id), 'name' => Account::name($account_id)],
             $params
@@ -272,20 +271,9 @@ final class Submission {
      * ------------------------------------------------------------------- */
 
     private static function sync_list_membership(string $type, int $account_id, int $post_id): void {
-        $lists = (array) Settings::get('brevo_lists', []);
         $email = Account::email($account_id);
         if ($email === '') {
             return;
-        }
-        $target = [];
-        if ($type === 'directory' && isset($lists['oe_directory_listed'])) {
-            $target[] = (int) $lists['oe_directory_listed'];
-        }
-        if (Fields::is_paid($post_id) && isset($lists['oe_partners'])) {
-            $target[] = (int) $lists['oe_partners'];
-        }
-        if ($target) {
-            BrevoConnector::upsert_contact($email, [], $target);
         }
         \OE\Mail\Contacts::capture($email, ['source' => 'submission']);
     }
