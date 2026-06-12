@@ -167,9 +167,36 @@ final class Settings {
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => \OE\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
+            'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
         ]);
 
         wp_safe_redirect(add_query_arg('updated', '1', admin_url('admin.php?page=oe-settings')));
         exit;
+    }
+
+    /**
+     * Parse the platform-origins textarea (one per line) into a clean list of
+     * scheme+host origins (no trailing slash, no path).
+     *
+     * @return array<int,string>
+     */
+    private static function parse_origins(string $raw): array {
+        $out = [];
+        foreach (preg_split('/[\r\n,]+/', $raw) ?: [] as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            $parts = wp_parse_url($line);
+            if (empty($parts['scheme']) || empty($parts['host'])) {
+                continue;
+            }
+            $origin = $parts['scheme'] . '://' . $parts['host'];
+            if (! empty($parts['port'])) {
+                $origin .= ':' . $parts['port'];
+            }
+            $out[] = $origin;
+        }
+        return array_values(array_unique($out));
     }
 }

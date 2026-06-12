@@ -152,6 +152,11 @@ use OE\Connectors\BrevoConnector;
                 <?php if (! $token_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
             </span></p>
 
+        <h2 id="platform"><?php esc_html_e('Planning platform (CORS)', 'october-events'); ?></h2>
+        <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash (e.g. https://october-platform.pages.dev and https://platform.atlantadesignfestival.net). Leave the defaults if unsure.', 'october-events'); ?></p>
+        <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
+        <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
+
         <?php submit_button(); ?>
     </form>
 
