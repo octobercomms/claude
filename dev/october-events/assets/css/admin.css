@@ -1,0 +1,69 @@
+/* =====================================================================
+   October Events — admin screens (§8). Scoped to .oe-admin so the rest of
+   wp-admin is untouched. Brand-matched: cream, near-black, rust accent,
+   pill buttons & chips — friendlier than stock WordPress.
+   ===================================================================== */
+
+.oe-admin {
+    --oe-ink: #14110e;
+    --oe-muted: #6f6a60;
+    --oe-accent: #d8531f;
+    --oe-accent-dark: #b8420f;
+    --oe-paper: #ece8df;
+    --oe-line: #e3ded3;
+}
+
+/* Branded page heading */
+.oe-admin > h1:first-of-type {
+    font-weight: 800; letter-spacing: -0.01em; font-size: 25px;
+    padding: 0 0 14px; margin: 8px 0 20px; border-bottom: 3px solid var(--oe-accent);
+}
+.oe-admin > h1:first-of-type::before {
+    content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 10px;
+    background: var(--oe-accent); border-radius: 50%; vertical-align: middle;
+}
+.oe-admin h2 { font-weight: 800; }
+.oe-admin h2 .description, .oe-admin h3 .description { font-weight: 400; color: var(--oe-muted); font-size: 13px; }
+.oe-admin p.description { color: var(--oe-muted); }
+
+/* Cards / tables */
+.oe-admin .widefat {
+    border: 1px solid var(--oe-line); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 0 rgba(20,17,14,.03);
+}
+.oe-admin .widefat thead th {
+    background: var(--oe-paper); text-transform: uppercase; letter-spacing: .04em;
+    font-size: 11px; color: var(--oe-muted);
+}
+
+/* Pill buttons */
+.oe-admin .button {
+    border-radius: 999px; font-weight: 600; border-color: var(--oe-line);
+}
+.oe-admin .button-primary {
+    background: var(--oe-accent); border-color: var(--oe-accent); color: #fff;
+}
+.oe-admin .button-primary:hover { background: var(--oe-accent-dark); border-color: var(--oe-accent-dark); }
+.oe-admin .page-title-action { border-radius: 999px; }
+
+/* Sub-filter row */
+.oe-admin .subsubsub { margin-bottom: 12px; }
+.oe-admin .subsubsub a.current { color: var(--oe-accent); }
+
+/* Status & tier chips */
+.oe-admin .oe-status, .oe-admin .oe-tier {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px;
+    font-weight: 600; text-transform: capitalize; background: #eee; color: #444;
+}
+.oe-admin .oe-status-approved, .oe-admin .oe-status-confirmed { background: #e3f5e9; color: #1a7f37; }
+.oe-admin .oe-status-rejected, .oe-admin .oe-status-declined, .oe-admin .oe-status-no_show { background: #fde7e3; color: #b23218; }
+.oe-admin .oe-status-pending_review, .oe-admin .oe-status-pending { background: #fbe9d6; color: #9a5b00; }
+.oe-admin .oe-tier-featured { background: #fbe9d6; color: #9a5b00; }
+.oe-admin .oe-tier-premium { background: #efe6fb; color: #5a2da0; }
+
+/* Inputs focus */
+.oe-admin input[type="text"]:focus,
+.oe-admin input[type="number"]:focus,
+.oe-admin textarea:focus {
+    border-color: var(--oe-accent); box-shadow: 0 0 0 2px rgba(216,83,31,.15);
+}
