@@ -5,6 +5,24 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.12.0 — deliverability spine (unsubscribe + SES bounce/complaint)
+
+Phase 3 of the email platform — the compliance + list-hygiene plumbing that has
+to exist before any bulk send.
+
+- **One-click unsubscribe** (`OE\Mail\Unsubscribe`): a signed, no-login link
+  (`?oe_unsub=…&k=…`) + the `List-Unsubscribe` / `List-Unsubscribe-Post` headers
+  email clients use for their built-in unsubscribe button (RFC 8058). Hitting it
+  adds the address to the suppression list and marks the contact unsubscribed; a
+  hosted confirmation page is shown for the GET link.
+- **SES bounce/complaint ingestion** (`OE\Mail\SnsController`): a public
+  `POST oe/v1/ses-sns` endpoint for the SNS topic SES publishes to. Permanent
+  bounces and complaints are auto-suppressed (and the contact unsubscribed),
+  keeping bounce/complaint rates low so AWS doesn't throttle. Every message's
+  **SNS signature is verified** against the AWS signing certificate first, and
+  subscription confirmations are auto-confirmed.
+- No schema change (uses the existing suppression + contacts tables).
+
 ## 1.11.0 — native contacts (kills the manual import)
 
 Phase 2 of the email platform: a unified, de-duplicated contact list built from
