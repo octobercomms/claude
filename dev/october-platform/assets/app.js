@@ -952,7 +952,13 @@ async function openCampaign(id) {
     if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
   }
   let blocks = [];
-  try { blocks = JSON.parse(rec.body_json || '[]'); if (!Array.isArray(blocks)) { blocks = []; } } catch (e) { blocks = []; }
+  let mode = 'simple';   // 'simple' = block builder · 'advanced' = GrapesJS HTML editor
+  let gjsData = null;    // saved GrapesJS project data, when a campaign was built in advanced mode
+  try {
+    const parsed = JSON.parse(rec.body_json || '[]');
+    if (Array.isArray(parsed)) { blocks = parsed; }
+    else if (parsed && parsed.__mode === 'advanced') { mode = 'advanced'; gjsData = parsed.gjs || null; }
+  } catch (e) { blocks = []; }
 
   main.innerHTML = '';
   main.appendChild(pageHeader('EMAIL · ' + (id ? 'EDIT CAMPAIGN' : 'NEW CAMPAIGN'), rec.name || 'Untitled campaign'));
@@ -972,7 +978,17 @@ async function openCampaign(id) {
   </div>`);
   left.appendChild(meta);
 
-  left.appendChild(el('<div class="oe-cmp-label">Content blocks</div>'));
+  // Editor mode: the simple block builder, or the advanced drag-and-drop HTML
+  // editor (GrapesJS + newsletter preset, lazy-loaded the first time it's used).
+  const modeBar = el(`<div class="oe-mode">
+    <button class="oe-mode-btn" type="button" data-mode="simple">Simple builder</button>
+    <button class="oe-mode-btn" type="button" data-mode="advanced">Advanced (drag &amp; drop)</button>
+    <span class="oe-mode-hint muted small"></span>
+  </div>`);
+  left.appendChild(modeBar);
+
+  const blocksLabel = el('<div class="oe-cmp-label">Content blocks</div>');
+  left.appendChild(blocksLabel);
   const toolbar = el('<div class="oe-blocktools"></div>');
   Object.keys(BLOCK_DEFS).forEach((k) => {
     const b = el(`<button class="btn btn-small">+ ${esc(BLOCK_DEFS[k].label)}</button>`);
@@ -983,6 +999,9 @@ async function openCampaign(id) {
   const blockList = el('<div class="oe-blocks"></div>');
   left.appendChild(blockList);
 
+  const gjsWrap = el('<div class="oe-gjs" style="display:none"><div class="oe-gjs-canvas"></div></div>');
+  left.appendChild(gjsWrap);
+
   const actions = el(`<div class="oe-cmp-actions">
     <button class="btn" data-save>Save</button>
     <button class="btn" data-test>Send test…</button>
@@ -991,7 +1010,8 @@ async function openCampaign(id) {
     <a class="oe-cmp-back" data-back>← All campaigns</a>
   </div>`);
   right.appendChild(actions);
-  right.appendChild(el('<div class="oe-cmp-label">Preview</div>'));
+  const previewLabel = el('<div class="oe-cmp-label">Preview</div>');
+  right.appendChild(previewLabel);
   const preview = el('<div class="oe-preview"></div>');
   right.appendChild(preview);
 
@@ -1090,14 +1110,23 @@ async function openCampaign(id) {
   function paintPreview() { preview.innerHTML = blocksToHtml(blocks, true); }
 
   function collect() {
-    return {
+    const base = {
       name: meta.querySelector('[name="name"]').value.trim(),
       subject: meta.querySelector('[name="subject"]').value.trim(),
       preheader: meta.querySelector('[name="preheader"]').value.trim(),
       audience: meta.querySelector('[name="audience"]').value,
-      body_json: JSON.stringify(blocks),
-      body_html: blocksToHtml(blocks, false),
     };
+    if (mode === 'advanced' && gjsEditor) {
+      let html = '';
+      try { html = gjsEditor.runCommand('gjs-get-inlined-html') || ''; }
+      catch (e) { html = gjsEditor.getHtml() + '<style>' + gjsEditor.getCss() + '</style>'; }
+      base.body_html = html;
+      base.body_json = JSON.stringify({ __mode: 'advanced', gjs: gjsEditor.getProjectData() });
+    } else {
+      base.body_json = JSON.stringify(blocks);
+      base.body_html = blocksToHtml(blocks, false);
+    }
+    return base;
   }
   async function save() {
     const msg = actions.querySelector('#c-msg'); msg.textContent = 'Saving…';
@@ -1159,7 +1188,88 @@ async function openCampaign(id) {
   });
   left.prepend(cop);
 
+  // --- Editor mode management: simple block builder vs GrapesJS advanced ---
+  let gjsEditor = null;
+  const modeHint = modeBar.querySelector('.oe-mode-hint');
+
+  async function ensureGjs() {
+    if (gjsEditor) { return gjsEditor; }
+    modeHint.textContent = 'Loading editor…';
+    let grapesjs;
+    try { grapesjs = await loadGrapes(); }
+    catch (e) { modeHint.textContent = 'Could not load the advanced editor.'; throw e; }
+    const preset = window['grapesjs-preset-newsletter'];
+    if (preset && grapesjs.plugins && grapesjs.plugins.get && !grapesjs.plugins.get('grapesjs-preset-newsletter')) {
+      grapesjs.plugins.add('grapesjs-preset-newsletter', preset);
+    }
+    gjsEditor = grapesjs.init({
+      container: gjsWrap.querySelector('.oe-gjs-canvas'),
+      height: '72vh',
+      fromElement: false,
+      storageManager: false,
+      plugins: preset ? ['grapesjs-preset-newsletter'] : [],
+      pluginsOpts: preset ? { 'grapesjs-preset-newsletter': {} } : {},
+    });
+    // Seed: a saved advanced project, otherwise the current simple blocks as HTML
+    // (so switching to advanced carries your work over instead of starting blank).
+    if (gjsData) {
+      try { gjsEditor.loadProjectData(gjsData); }
+      catch (e) { gjsEditor.setComponents(blocksToHtml(blocks, false)); }
+    } else {
+      gjsEditor.setComponents(blocksToHtml(blocks, false));
+    }
+    modeHint.textContent = '';
+    return gjsEditor;
+  }
+
+  function applyMode() {
+    const advanced = mode === 'advanced';
+    [blocksLabel, toolbar, blockList, cop, previewLabel, preview].forEach((node) => {
+      if (node) { node.style.display = advanced ? 'none' : ''; }
+    });
+    gjsWrap.style.display = advanced ? '' : 'none';
+    layout.classList.toggle('oe-cmp-adv', advanced);
+    modeBar.querySelectorAll('.oe-mode-btn').forEach((b) => b.classList.toggle('on', b.getAttribute('data-mode') === mode));
+    if (advanced) { ensureGjs().catch(() => {}); }
+  }
+  modeBar.querySelectorAll('.oe-mode-btn').forEach((b) =>
+    b.addEventListener('click', () => { mode = b.getAttribute('data-mode'); applyMode(); }));
+
   paintBlocks();
+  applyMode();
+}
+
+/* Lazily load the self-hosted GrapesJS bundle (UMD) only when the advanced
+   editor is first opened, so it never weighs on initial page load. */
+let _grapesPromise = null;
+function loadGrapes() {
+  if (_grapesPromise) { return _grapesPromise; }
+  _grapesPromise = new Promise((resolve, reject) => {
+    if (!document.getElementById('gjs-css')) {
+      const link = document.createElement('link');
+      link.id = 'gjs-css'; link.rel = 'stylesheet';
+      link.href = './assets/vendor/grapes.min.css';
+      document.head.appendChild(link);
+    }
+    loadScriptOnce('./assets/vendor/grapes.min.js')
+      .then(() => loadScriptOnce('./assets/vendor/preset-newsletter.min.js'))
+      .then(() => {
+        if (window.grapesjs) { resolve(window.grapesjs); }
+        else { reject(new Error('GrapesJS did not load')); }
+      })
+      .catch(reject);
+  });
+  return _grapesPromise;
+}
+function loadScriptOnce(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[data-src="' + src + '"]')) { return resolve(); }
+    const s = document.createElement('script');
+    s.src = src; s.setAttribute('data-src', src);
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
 }
 
 function blocksToHtml(blocks, isPreview) {

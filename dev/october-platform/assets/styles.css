@@ -243,7 +243,15 @@ h1,h2,h3{margin:0}
 /* ---------------- email builder ---------------- */
 .chip{display:inline-flex;align-items:center;padding:3px 10px;font-size:11px;font-weight:700;border-radius:var(--r-pill);border:var(--border-w) solid var(--card-border);background:var(--surface);color:var(--text)}
 .oe-cmp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--s6);align-items:start}
+.oe-cmp-adv{grid-template-columns:1fr}
 .oe-cmp-side{position:sticky;top:var(--s5)}
+/* Editor mode toggle (simple builder vs advanced GrapesJS) */
+.oe-mode{display:flex;align-items:center;gap:8px;margin:var(--s5) 0 var(--s3);flex-wrap:wrap}
+.oe-mode-btn{background:var(--surface);border:var(--border-w) solid var(--card-border);border-radius:var(--r-pill);padding:7px 15px;font:inherit;font-size:13px;font-weight:700;color:var(--text);cursor:pointer}
+.oe-mode-btn.on{background:var(--accent);color:var(--accent-on);border-color:var(--accent)}
+.oe-mode-hint{margin-left:4px}
+.oe-gjs{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);overflow:hidden;background:#fff}
+.oe-gjs .gjs-cv-canvas{background:#f4f5f7}
 .oe-cmp-label{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text-subtle);margin:var(--s6) 0 var(--s3)}
 .oe-copilot{background:var(--text);color:#fff;border-radius:var(--r-md);padding:16px 18px;margin-bottom:var(--s5)}
 .oe-copilot-title{font-weight:700;font-size:14px;color:var(--accent);margin-bottom:10px}
