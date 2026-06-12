@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.25.0 — human hand-off from the support chat
+
+The public support chat now has a clear escape hatch to a real person.
+
+- A **“Talk to a person”** button in the chat header. When Chatwoot is configured
+  (existing settings), it opens the site's Chatwoot widget pre-filled with the
+  customer's verified email and tags the conversation as coming from the bot — so
+  an agent picks up with full context. With no Chatwoot, it falls back to a
+  pre-filled support email (`mailto:` with the email + transcript).
+- The assistant's system prompt now invites the customer to use that button
+  whenever they want a human or it can't help.
+
+Closes the loop on the three-part chat plan: staff assistant (1.23.0) → public
+customer chat (1.24.0) → human hand-off (this release).
+
 ## 1.24.0 — public AI support chat (customer-scoped)
 
 A floating "Need help?" chat on the public site that answers customers' detailed

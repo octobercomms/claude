@@ -53,9 +53,13 @@
 
     var panel = document.createElement('div');
     panel.className = 'oe-sc-panel';
+    var canHandoff = CFG.chatwoot || CFG.supportEmail;
     panel.innerHTML =
       '<header class="oe-sc-head"><span class="oe-sc-title">' + esc(CFG.brand || 'Support') + '</span>' +
-      (floating ? '<button class="oe-sc-close" aria-label="Close">×</button>' : '') + '</header>' +
+      '<span class="oe-sc-head-actions">' +
+      (canHandoff ? '<button class="oe-sc-human" type="button">Talk to a person</button>' : '') +
+      (floating ? '<button class="oe-sc-close" aria-label="Close">×</button>' : '') +
+      '</span></header>' +
       '<div class="oe-sc-log"></div>' +
       '<form class="oe-sc-bar"><input class="oe-sc-input" autocomplete="off"><button class="oe-sc-send" type="submit">Send</button></form>';
     root.appendChild(panel);
@@ -66,6 +70,35 @@
     var input = panel.querySelector('.oe-sc-input');
     var closeBtn = panel.querySelector('.oe-sc-close');
     if (closeBtn) { closeBtn.addEventListener('click', function () { root.classList.remove('open'); }); }
+    var humanBtn = panel.querySelector('.oe-sc-human');
+    if (humanBtn) { humanBtn.addEventListener('click', handoff); }
+
+    /* Hand off to a human: open the site's Chatwoot widget (pre-filled with the
+       verified email + a short transcript), or fall back to a support email. */
+    function handoff() {
+      var transcript = thread.map(function (m) {
+        return (m.role === 'assistant' ? 'Assistant: ' : 'Customer: ') + m.content;
+      }).join('\n');
+      if (CFG.chatwoot && window.$chatwoot) {
+        try {
+          if (email) { window.$chatwoot.setUser(email, { email: email }); }
+          window.$chatwoot.setConversationCustomAttributes &&
+            window.$chatwoot.setConversationCustomAttributes({ from_support_bot: true });
+          window.$chatwoot.toggle('open');
+          if (floating) { root.classList.remove('open'); }
+          add('system', '<p>Connecting you with our team…</p>');
+          return;
+        } catch (e) { /* fall through to email */ }
+      }
+      if (CFG.supportEmail) {
+        var subj = encodeURIComponent('Support request' + (email ? ' (' + email + ')' : ''));
+        var body = encodeURIComponent((email ? 'My email: ' + email + '\n\n' : '') +
+          (transcript ? 'Chat so far:\n' + transcript : ''));
+        window.location.href = 'mailto:' + CFG.supportEmail + '?subject=' + subj + '&body=' + body;
+        return;
+      }
+      add('system', '<p>Please email us and we’ll be glad to help.</p>');
+    }
 
     function add(role, html) {
       var b = document.createElement('div');

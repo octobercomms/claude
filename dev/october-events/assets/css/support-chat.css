@@ -17,8 +17,11 @@
 .oe-sc-floating.open .oe-sc-panel{ display:flex; }
 .oe-sc-inline .oe-sc-panel{ display:flex; width:100%; max-width:640px; height:520px; }
 
-.oe-sc-head{ display:flex; align-items:center; justify-content:space-between; background:var(--sc-accent); color:var(--sc-on); padding:14px 16px; }
+.oe-sc-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; background:var(--sc-accent); color:var(--sc-on); padding:12px 14px 12px 16px; }
 .oe-sc-title{ font-weight:800; font-size:15px; }
+.oe-sc-head-actions{ display:flex; align-items:center; gap:6px; }
+.oe-sc-human{ background:rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.28); color:#fff; border-radius:999px; padding:5px 11px; font-size:12px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.oe-sc-human:hover{ background:rgba(255,255,255,.26); }
 .oe-sc-close{ background:transparent; border:0; color:rgba(255,255,255,.85); font-size:22px; line-height:1; cursor:pointer; }
 .oe-sc-close:hover{ color:#fff; }
 
