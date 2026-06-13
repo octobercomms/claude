@@ -109,6 +109,18 @@
 .oe-admin .oe-actionbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 22px; }
 .oe-admin .oe-actionbar .description{ margin:0 0 0 4px; }
 
+/* ---- Settings accordions ---- */
+.oe-admin details.oe-acc{ background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:12px; margin:0 0 12px; overflow:hidden; }
+.oe-admin details.oe-acc > summary{ cursor:pointer; list-style:none; padding:16px 20px; font-weight:700; font-size:16px; color:var(--oe-ink); display:flex; align-items:center; justify-content:space-between; gap:12px; }
+.oe-admin details.oe-acc > summary::-webkit-details-marker{ display:none; }
+.oe-admin details.oe-acc > summary::after{ content:"+"; font-weight:700; font-size:20px; line-height:1; color:var(--oe-subtle); }
+.oe-admin details.oe-acc[open] > summary::after{ content:"–"; }
+.oe-admin details.oe-acc[open] > summary{ border-bottom:1px solid var(--oe-line); }
+.oe-admin details.oe-acc > .oe-acc-body{ padding:18px 20px; }
+.oe-admin details.oe-acc > .oe-acc-body > h3:first-child,
+.oe-admin details.oe-acc > .oe-acc-body > p:first-child{ margin-top:0; }
+.oe-admin details.oe-acc .form-table{ border:0; border-radius:0; padding:0; }
+
 /* ---- Callout panel (e.g. "build in the platform") ---- */
 .oe-admin .oe-callout{ background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:14px; padding:22px 24px; margin:0 0 24px; }
 .oe-admin .oe-callout h3{ margin:0 0 6px; font-size:18px; }

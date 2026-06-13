@@ -14,12 +14,13 @@ use OE\PostTypes;
         <input type="hidden" name="action" value="oe_save_settings">
         <?php wp_nonce_field('oe_save_settings'); ?>
 
-        <h2><?php esc_html_e('Brand', 'october-events'); ?></h2>
+        <details class="oe-acc" id="brand" open><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Shown as this site\'s menu name and in the UI (this plugin runs on multiple sites).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Brand / site name', 'october-events'); ?>
             <input type="text" name="brand_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Events')); ?>"></label></p>
+        </div></details>
 
-        <h2><?php esc_html_e('Event readiness', 'october-events'); ?></h2>
+        <details class="oe-acc" id="readiness"><summary><?php esc_html_e('Event readiness', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('An event can only be confirmed (go green & publish) once these fields are filled.', 'october-events'); ?></p>
         <?php
         $req = (array) ($cfg['event_required_fields'] ?? ['name', 'start_datetime', 'price', 'location']);
@@ -32,8 +33,9 @@ use OE\PostTypes;
         foreach ($candidates as $k => $label) : ?>
             <label style="display:inline-block;margin:0 16px 6px 0"><input type="checkbox" name="event_required_fields[]" value="<?php echo esc_attr($k); ?>" <?php checked(in_array($k, $req, true)); ?>> <?php echo esc_html($label); ?></label>
         <?php endforeach; ?>
+        </div></details>
 
-        <h2><?php esc_html_e('Event field mapping', 'october-events'); ?></h2>
+        <details class="oe-acc" id="field-mapping"><summary><?php esc_html_e('Event field mapping', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. If your events already store their data in existing (e.g. JetEngine) custom fields, enter those meta keys here. The planner will read them when its own field is empty, so existing events show their real readiness without re-keying. Leave blank if unsure.', 'october-events'); ?></p>
         <?php $fmap = (array) ($cfg['event_field_map'] ?? []); ?>
         <table class="form-table" role="presentation"><tbody>
@@ -45,8 +47,9 @@ use OE\PostTypes;
             <?php endforeach; ?>
         </tbody></table>
         <p class="description"><?php esc_html_e('After saving a mapping, use “Seed planning from existing fields” on the Event Planning screen to copy these into the planner as editable values.', 'october-events'); ?></p>
+        </div></details>
 
-        <h2><?php esc_html_e('API keys', 'october-events'); ?></h2>
+        <details class="oe-acc" id="api-keys"><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are saved to the database.', 'october-events'); ?></p>
         <?php
         $labels = [
@@ -78,8 +81,9 @@ use OE\PostTypes;
                 </tr>
             <?php endforeach; ?>
         </table>
+        </div></details>
 
-        <h2><?php esc_html_e('Tier pricing', 'october-events'); ?></h2>
+        <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Amounts in your chosen currency. Leave 0 for free.', 'october-events'); ?></p>
         <table class="widefat striped" style="max-width:640px">
             <thead><tr><th><?php esc_html_e('Type', 'october-events'); ?></th><th><?php esc_html_e('Featured', 'october-events'); ?></th><th><?php esc_html_e('Premium', 'october-events'); ?></th></tr></thead>
@@ -96,8 +100,9 @@ use OE\PostTypes;
             </tbody>
         </table>
         <p><label><?php esc_html_e('Currency', 'october-events'); ?> <input type="text" name="currency" value="<?php echo esc_attr((string) ($cfg['currency'] ?? 'usd')); ?>" size="5"></label></p>
+        </div></details>
 
-        <h2 id="voice"><?php esc_html_e('AI Stories connector', 'october-events'); ?></h2>
+        <details class="oe-acc" id="voice"><summary><?php esc_html_e('AI Stories connector', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><?php esc_html_e('Model', 'october-events'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'october-events'); ?><br>
             <textarea name="ai_source_urls" rows="5" class="large-text"><?php echo esc_textarea(implode("\n", (array) ($cfg['ai_source_urls'] ?? []))); ?></textarea></label></p>
@@ -109,15 +114,17 @@ use OE\PostTypes;
         <p><label><strong><?php esc_html_e('Example pieces', 'october-events'); ?></strong> — <?php esc_html_e('paste 1–4 published pieces that exemplify the voice, separated by a line containing only ---', 'october-events'); ?><br>
             <textarea name="ai_examples" rows="12" class="large-text" placeholder="<?php esc_attr_e("Headline of a great ADF piece\nFull body text in the ADF voice…\n---\nAnother example headline\nIts body text…", 'october-events'); ?>"><?php echo esc_textarea(implode("\n---\n", (array) ($cfg['ai_examples'] ?? []))); ?></textarea></label></p>
         <p class="description"><?php echo esc_html(sprintf(/* translators: %d: count */ __('Currently %d example(s) saved.', 'october-events'), count((array) ($cfg['ai_examples'] ?? [])))); ?></p>
+        </div></details>
 
-        <h2><?php esc_html_e('Rejection email copy', 'october-events'); ?></h2>
+        <details class="oe-acc" id="rejection"><summary><?php esc_html_e('Rejection email copy', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional per-type overrides. Variables: {listing_name}, {listing_type}, {refund_amount}. Leave blank to use the default copy.', 'october-events'); ?></p>
         <?php foreach (PostTypes::listing_types() as $type) : ?>
             <p><label><strong><?php echo esc_html(PostTypes::TYPES[$type]['label']); ?></strong><br>
                 <textarea name="rejection_copy[<?php echo esc_attr($type); ?>]" rows="3" class="large-text"><?php echo esc_textarea((string) ($cfg['rejection_copy'][$type] ?? '')); ?></textarea></label></p>
         <?php endforeach; ?>
+        </div></details>
 
-        <h2><?php esc_html_e('Volunteer reminders', 'october-events'); ?></h2>
+        <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Email reminders always send via Brevo. SMS is optional (Brevo transactional SMS) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>
         <p><label><input type="checkbox" name="sms_enabled" value="1" <?php checked(! empty($cfg['sms_enabled'])); ?>> <?php esc_html_e('Enable SMS reminders (requires Brevo SMS credits)', 'october-events'); ?></label></p>
         <p><label><?php esc_html_e('SMS sender name', 'october-events'); ?> <input type="text" name="sms_sender" value="<?php echo esc_attr((string) ($cfg['sms_sender'] ?? 'ADF')); ?>" maxlength="11" size="12"></label> <span class="description"><?php esc_html_e('Max 11 characters, must be approved in Brevo.', 'october-events'); ?></span></p>
@@ -129,12 +136,14 @@ use OE\PostTypes;
             <label><input type="checkbox" name="reminder_offsets[morning]" value="1" <?php checked(in_array('morning', $offsets, true)); ?>> <?php esc_html_e('Morning of (≈3h before)', 'october-events'); ?></label>
         </p>
         <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'october-events'); ?></p>
+        </div></details>
 
-        <h2><?php esc_html_e('Digest & reports', 'october-events'); ?></h2>
+        <details class="oe-acc" id="digest"><summary><?php esc_html_e('Digest & reports', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label></p>
         <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
+        </div></details>
 
-        <h2 id="updates"><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="updates"><summary><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged oe-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define OE_GITHUB_TOKEN in wp-config.php).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Repository', 'october-events'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
         <?php $token_const = defined('OE_GITHUB_TOKEN') && OE_GITHUB_TOKEN; ?>
@@ -143,8 +152,9 @@ use OE\PostTypes;
                 <input type="password" name="github_token" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['github_token'] ?? ''))); ?>" <?php echo $token_const ? 'disabled placeholder="Set via OE_GITHUB_TOKEN constant"' : ''; ?>>
                 <?php if (! $token_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
             </span></p>
+        </div></details>
 
-        <h2 id="platform"><?php esc_html_e('Planning platform (CORS)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="platform"><summary><?php esc_html_e('Planning platform (CORS)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash (e.g. https://october-platform.pages.dev and https://platform.atlantadesignfestival.net). Leave the defaults if unsure.', 'october-events'); ?></p>
         <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
         <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
@@ -160,8 +170,9 @@ use OE\PostTypes;
                     <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        </div></details>
 
-        <h2 id="email"><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
         <?php $ses_pw_const = \OE\Settings::secret_is_constant('ses_smtp_password'); ?>
         <table class="form-table" role="presentation"><tbody>
@@ -199,8 +210,9 @@ use OE\PostTypes;
                     <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM).', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        </div></details>
 
-        <h2 id="sms"><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
         <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
         <table class="form-table" role="presentation"><tbody>
@@ -229,8 +241,9 @@ use OE\PostTypes;
                     <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        </div></details>
 
-        <h2 id="support-chat"><?php esc_html_e('AI support chat (customers)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="support-chat"><summary><?php esc_html_e('AI support chat (customers)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('A floating chat on your public site that answers customers’ questions about their own orders and tickets. Customers verify with a one-time code emailed to them, so they only ever see their own data. Requires a Claude API key (set above).', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -240,8 +253,9 @@ use OE\PostTypes;
                     <p class="description"><?php esc_html_e('You can also embed it inline anywhere with the [oe_support_chat] shortcode.', 'october-events'); ?></p></td>
             </tr>
         </tbody></table>
+        </div></details>
 
-        <h2 id="chat"><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="chat"><summary><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Leave blank for no chat.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -253,8 +267,9 @@ use OE\PostTypes;
                 <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
             </tr>
         </tbody></table>
+        </div></details>
 
-        <h2 id="branding"><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></h2>
+        <details class="oe-acc" id="branding"><summary><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Override the planning platform\'s look for this site. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -320,12 +335,12 @@ use OE\PostTypes;
             $('#oe-clear-font').on('click', function (e) { e.preventDefault(); $('#oe-font-url').val(''); });
         });
         </script>
+        </div></details>
 
         <?php submit_button(); ?>
     </form>
 
-    <hr>
-    <h2><?php esc_html_e('Test the voice', 'october-events'); ?></h2>
+    <details class="oe-acc" id="voice-test"><summary><?php esc_html_e('Test the voice', 'october-events'); ?></summary><div class="oe-acc-body">
     <p class="description"><?php esc_html_e('Paste a sample source article (or any text) and run it through the trained editorial prompt to preview how a generated story would read. Save your style guide above first.', 'october-events'); ?></p>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="oe_test_voice">
@@ -343,10 +358,10 @@ use OE\PostTypes;
             <?php endif; ?>
         </div>
     <?php } ?>
+    </div></details>
 
-    <hr>
-    <h2 id="update-test"><?php esc_html_e('Updates', 'october-events'); ?></h2>
-    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-top:-8px">
+    <details class="oe-acc" id="update-test"><summary><?php esc_html_e('Test update connection', 'october-events'); ?></summary><div class="oe-acc-body">
+    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="oe_test_updater">
         <?php wp_nonce_field('oe_test_updater'); ?>
         <?php submit_button(__('Test update connection', 'october-events'), 'secondary', 'submit', false); ?>
@@ -354,6 +369,7 @@ use OE\PostTypes;
     <?php $diag = get_transient('oe_updater_diag'); if (is_array($diag)) { delete_transient('oe_updater_diag'); ?>
         <div class="notice <?php echo $diag['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin-top:10px"><p><?php echo esc_html($diag['message']); ?></p></div>
     <?php } ?>
+    </div></details>
 
     <style>
         .oe-secret-wrap { display: inline-flex; align-items: center; gap: 4px; }
@@ -372,6 +388,14 @@ use OE\PostTypes;
                 if (icon) { icon.classList.toggle('dashicons-visibility', !show); icon.classList.toggle('dashicons-hidden', show); }
             });
         });
+        // Open (and scroll to) an accordion when linked via #anchor.
+        function openTarget() {
+            if (!location.hash) { return; }
+            var el = document.querySelector(location.hash);
+            if (el && el.tagName === 'DETAILS') { el.open = true; el.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+        }
+        window.addEventListener('hashchange', openTarget);
+        openTarget();
     })();
     </script>
 </div>
