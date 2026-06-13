@@ -75,7 +75,7 @@ final class Settings {
             'ok' => $ok,
             'to' => $to,
         ], 120);
-        wp_safe_redirect(admin_url('admin.php?page=oe-email'));
+        wp_safe_redirect(admin_url('admin.php?page=oe-settings#email-tools'));
         exit;
     }
 

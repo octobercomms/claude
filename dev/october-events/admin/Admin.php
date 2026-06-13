@@ -58,7 +58,6 @@ final class Admin {
         add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story'));
         add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']);
         add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
-        add_submenu_page('october-events', 'Email', 'Email', $cap, 'oe-email', [$this, 'page_email']);
         add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
         // Tasks moved to the platform (staff ops); its data + REST remain. The raw
@@ -262,9 +261,6 @@ final class Admin {
         require OE_DIR . 'admin/views/volunteers.php';
     }
 
-    public function page_email(): void {
-        require OE_DIR . 'admin/views/email.php';
-    }
 
     public function page_contacts(): void {
         $counts   = \OE\Mail\Contacts::counts();
@@ -340,7 +336,7 @@ final class Admin {
         }
         check_admin_referer('oe_send_digest');
         (new \OE\Cron())->run_digest();
-        wp_safe_redirect(add_query_arg('digest', 'sent', admin_url('admin.php?page=oe-email')));
+        wp_safe_redirect(add_query_arg('digest', 'sent', admin_url('admin.php?page=oe-settings#email-tools')));
         exit;
     }
 
