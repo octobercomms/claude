@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.30.0 — platform link + Volunteers create button
+
+- The **"Open the platform"** buttons now prefer your real custom domain over the
+  `*.pages.dev` build host when no explicit Platform URL is set (set one in
+  Settings to override). Fixes the button pointing at `october-platform.pages.dev`.
+- **Volunteers** gains a **+ New opportunity** button (Tasks, Promo Codes and
+  Tickets already had inline create forms).
+
 ## 1.29.0 — Settings as accordions
 
 The Settings screen is now a stack of collapsible **accordion** sections (Brand,
