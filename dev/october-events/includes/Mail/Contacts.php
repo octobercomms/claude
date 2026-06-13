@@ -253,6 +253,14 @@ final class Contacts {
             }
         }
 
+        // WordPress users (customers, staff — anyone with a login on the site).
+        $users = $wpdb->get_results(
+            "SELECT user_email AS email, display_name AS name FROM {$wpdb->users} WHERE user_email <> ''"
+        ) ?: [];
+        foreach ($users as $u) {
+            self::capture((string) $u->email, ['name' => (string) $u->name, 'source' => 'user']);
+        }
+
         return self::counts();
     }
 }

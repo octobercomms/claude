@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.28.0 — Email screen rethink + contacts pull in users
+
+- **Email** screen rebuilt into clear panels: a "design &amp; send in the platform"
+  callout with a button that **opens the platform email builder in a new tab**,
+  then SES transport status + test + log, audiences, the monthly digest, and —
+  at the bottom on the same page — **contact management** (count cards, rebuild,
+  recent list, manage link).
+- **Contacts now include all WordPress users** — `backfill()` pulls every user
+  (customers, staff) into the contact list (source `user`), alongside accounts,
+  ticket buyers, volunteers and submitters.
+
 ## 1.27.0 — admin redesign: dashboard + tables match the platform
 
 Making wp-admin feel like the planning platform.

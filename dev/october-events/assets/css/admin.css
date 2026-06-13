@@ -109,6 +109,12 @@
 .oe-admin .oe-actionbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 22px; }
 .oe-admin .oe-actionbar .description{ margin:0 0 0 4px; }
 
+/* ---- Callout panel (e.g. "build in the platform") ---- */
+.oe-admin .oe-callout{ background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:14px; padding:22px 24px; margin:0 0 24px; }
+.oe-admin .oe-callout h3{ margin:0 0 6px; font-size:18px; }
+.oe-admin .oe-callout p{ margin:0 0 14px; color:var(--oe-muted); max-width:700px; line-height:1.55; }
+.oe-admin .oe-callout .oe-actionbar{ margin:0; }
+
 /* ---- Section panel + cleaner "getting-started"-style rows on every table ---- */
 .oe-admin .oe-panel-label{ font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--oe-subtle); margin:26px 0 10px; }
 .oe-admin .widefat td{ padding:13px 16px; vertical-align:middle; }
