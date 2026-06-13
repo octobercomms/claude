@@ -47,7 +47,7 @@ final class Campaigns {
             preheader VARCHAR(255) NOT NULL DEFAULT '',
             body_html LONGTEXT NULL,
             body_json LONGTEXT NULL,
-            audience VARCHAR(60) NOT NULL DEFAULT 'subscribed',
+            audience VARCHAR(255) NOT NULL DEFAULT 'subscribed',
             status VARCHAR(20) NOT NULL DEFAULT 'draft',
             scheduled_at DATETIME NULL,
             sent_at DATETIME NULL,
@@ -153,7 +153,19 @@ final class Campaigns {
      * Audiences
      * ------------------------------------------------------------------ */
 
+    /** A campaign can target several audiences at once (comma-separated keys). */
     private static function clean_audience(string $a): string {
+        $clean = [];
+        foreach (array_map('trim', explode(',', $a)) as $key) {
+            $v = self::clean_audience_key($key);
+            if ($v !== '' && ! in_array($v, $clean, true)) {
+                $clean[] = $v;
+            }
+        }
+        return $clean ? implode(',', $clean) : 'subscribed';
+    }
+
+    private static function clean_audience_key(string $a): string {
         $a = sanitize_text_field($a);
         if ($a === 'subscribed' || $a === 'sms') {
             return $a;
@@ -164,7 +176,7 @@ final class Campaigns {
         if (strpos($a, 'list:') === 0) {
             return 'list:' . (int) substr($a, 5);
         }
-        return 'subscribed';
+        return '';
     }
 
     /** @return array<int,array{key:string,label:string,count:int}> */
@@ -188,8 +200,26 @@ final class Campaigns {
         return $out;
     }
 
-    /** @return array<int,object> resolved recipients (email, name) */
+    /** Resolve one or more comma-separated audiences, de-duplicated by email. */
     private static function resolve(string $audience): array {
+        $keys = array_filter(array_map('trim', explode(',', $audience)));
+        if (! $keys) {
+            $keys = ['subscribed'];
+        }
+        $by_email = [];
+        foreach ($keys as $key) {
+            foreach (self::resolve_one($key) as $r) {
+                $email = strtolower(trim((string) $r->email));
+                if ($email !== '' && ! isset($by_email[$email])) {
+                    $by_email[$email] = $r;
+                }
+            }
+        }
+        return array_values($by_email);
+    }
+
+    /** @return array<int,object> resolved recipients (email, name) for a single key */
+    private static function resolve_one(string $audience): array {
         global $wpdb;
         $t = Contacts::table();
         if ($audience === 'sms') {
