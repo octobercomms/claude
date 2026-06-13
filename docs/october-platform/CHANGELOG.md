@@ -3,6 +3,15 @@
 The platform is the vanilla, no-build ES-module SPA in `dev/october-platform/`,
 auto-deployed to Cloudflare Pages on merge to `main`.
 
+## Per-page URLs (hash routing)
+
+Each page now has its own URL — `…/#/events`, `…/#/contacts`, `…/#/assistant`, etc.
+So a **refresh lands back where you were**, links are shareable, and the browser
+back/forward buttons work. Nav clicks, dashboard shortcuts and the campaign
+"back" all update the URL; on load the page is restored from it (defaulting to the
+dashboard). No server config needed — it's hash-based, which works on static
+hosting. Deep-links like `…/#/email` also work (e.g. from the plugin).
+
 ## Advanced email editor (GrapesJS)
 
 The campaign builder now has two modes, switched at the top of the editor:
