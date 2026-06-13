@@ -66,8 +66,21 @@ final class Updater {
             "https://api.github.com/repos/{$this->repo}/releases?per_page=30",
             $this->request_args('application/vnd.github+json')
         );
-        if (is_wp_error($response) || 200 !== (int) wp_remote_retrieve_response_code($response)) {
+        if (is_wp_error($response)) {
             set_transient($this->cache_key, '', 10 * MINUTE_IN_SECONDS);
+            return null;
+        }
+        $code = (int) wp_remote_retrieve_response_code($response);
+        if (200 !== $code) {
+            // Back off hard when GitHub rate-limits the token, honouring the
+            // reset time, so we never keep hammering and making it worse.
+            $remaining = (int) wp_remote_retrieve_header($response, 'x-ratelimit-remaining');
+            $reset     = (int) wp_remote_retrieve_header($response, 'x-ratelimit-reset');
+            $backoff   = 10 * MINUTE_IN_SECONDS;
+            if ($code === 403 && $remaining === 0 && $reset > time()) {
+                $backoff = min(max($reset - time() + 30, 5 * MINUTE_IN_SECONDS), HOUR_IN_SECONDS);
+            }
+            set_transient($this->cache_key, '', $backoff);
             return null;
         }
 
@@ -105,11 +118,12 @@ final class Updater {
         }
 
         if ($best) {
-            // Short cache so freshly-published releases surface quickly (the WP
-            // Updates "Check again" / force-check path bypasses this anyway).
-            set_transient($this->cache_key, $best, 15 * MINUTE_IN_SECONDS);
+            // Balanced cache: responsive without hammering GitHub's API. The WP
+            // Updates "Check again" / force-check path and the Settings "Test
+            // update connection" button both bypass this for an instant check.
+            set_transient($this->cache_key, $best, HOUR_IN_SECONDS);
         } else {
-            set_transient($this->cache_key, '', 5 * MINUTE_IN_SECONDS);
+            set_transient($this->cache_key, '', 15 * MINUTE_IN_SECONDS);
         }
         return $best;
     }
