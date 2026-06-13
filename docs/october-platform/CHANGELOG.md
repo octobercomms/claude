@@ -3,6 +3,14 @@
 The platform is the vanilla, no-build ES-module SPA in `dev/october-platform/`,
 auto-deployed to Cloudflare Pages on merge to `main`.
 
+## Fix: contacts list rendered no rows
+
+The contacts table showed its header but no rows (even with contacts present). The
+row builder created a `<tr>` via a `<div>` wrapper, and browsers strip `<tr>` tags
+outside a `<table>`, so every row came back empty and was skipped. Rows are now
+built as HTML inside the real `<tbody>` (with delegated consent-toggle handlers),
+so the full list shows.
+
 ## Per-page URLs (hash routing)
 
 Each page now has its own URL — `…/#/events`, `…/#/contacts`, `…/#/assistant`, etc.
