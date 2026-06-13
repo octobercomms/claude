@@ -117,6 +117,9 @@ export const api = {
   contactsMeta: () => request('/contacts/meta'),
   listContacts: (search, offset, list) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0) + (list ? '&list=' + list : '')),
   updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
+  editContact: (id, fields) => request('/contact/' + id, { method: 'POST', body: JSON.stringify(fields) }),
+  deleteContact: (id) => request('/contact/' + id, { method: 'DELETE' }),
+  contactActivity: (id) => request('/contact/' + id + '/activity'),
 
   /* Lists (oe/v1/lists). */
   listLists: () => request('/lists'),

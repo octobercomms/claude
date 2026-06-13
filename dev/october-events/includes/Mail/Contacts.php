@@ -127,6 +127,30 @@ final class Contacts {
         Suppression::add($email, 'unsubscribe');
     }
 
+    /** Update editable profile fields (name, company, tags, phone). */
+    public static function update_fields(int $id, array $fields): void {
+        global $wpdb;
+        $allowed = ['name', 'company', 'tags', 'phone'];
+        $update  = [];
+        foreach ($allowed as $k) {
+            if (array_key_exists($k, $fields)) {
+                $update[$k] = sanitize_text_field((string) $fields[$k]);
+            }
+        }
+        if (! $update) {
+            return;
+        }
+        $update['updated_at'] = current_time('mysql', true);
+        $wpdb->update(self::table(), $update, ['id' => $id]);
+    }
+
+    /** Hard-delete a contact and its list memberships. */
+    public static function delete(int $id): void {
+        global $wpdb;
+        $wpdb->delete(Lists::members_table(), ['contact_id' => $id]);
+        $wpdb->delete(self::table(), ['id' => $id]);
+    }
+
     /**
      * @return array<int,object>
      */

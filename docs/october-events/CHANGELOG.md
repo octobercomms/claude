@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.40.0 — contact edit, delete & activity report
+
+Staff can now fully manage a contact from the platform (Contacts → Details):
+
+- **Edit** name, company, tags and phone.
+- **Delete** a contact (removes them from all lists).
+- **Activity report** — join date, source, status, the lists they're in, and email
+  engagement (campaigns received / opened / clicked, with a recent-campaigns table).
+- New REST: `DELETE /contact/{id}`, profile-field edits on `POST /contact/{id}`, and
+  `GET /contact/{id}/activity`.
+
 ## 1.39.0 — send to multiple audiences
 
 Campaigns can now target **several audiences at once** (e.g. two lists + a source).

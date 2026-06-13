@@ -30,7 +30,11 @@ final class ContactsRest {
             'methods' => 'GET', 'callback' => [self::class, 'meta'], 'permission_callback' => $auth,
         ]);
         register_rest_route(self::NS, '/contact/(?P<id>\d+)', [
-            'methods' => 'POST', 'callback' => [self::class, 'update'], 'permission_callback' => $auth,
+            ['methods' => 'POST',   'callback' => [self::class, 'update'], 'permission_callback' => $auth],
+            ['methods' => 'DELETE', 'callback' => [self::class, 'remove'], 'permission_callback' => $auth],
+        ]);
+        register_rest_route(self::NS, '/contact/(?P<id>\d+)/activity', [
+            'methods' => 'GET', 'callback' => [self::class, 'activity'], 'permission_callback' => $auth,
         ]);
         // Lists.
         register_rest_route(self::NS, '/lists', [
@@ -129,9 +133,20 @@ final class ContactsRest {
     }
 
     public static function update(\WP_REST_Request $req): \WP_REST_Response {
-        $row = Contacts::get_by_id((int) $req['id']);
+        $id  = (int) $req['id'];
+        $row = Contacts::get_by_id($id);
         if (! $row) {
             return new \WP_REST_Response(['error' => 'not_found'], 404);
+        }
+        // Editable profile fields (only those actually supplied).
+        $fields = [];
+        foreach (['name', 'company', 'tags', 'phone'] as $k) {
+            if ($req->get_param($k) !== null) {
+                $fields[$k] = (string) $req->get_param($k);
+            }
+        }
+        if ($fields) {
+            Contacts::update_fields($id, $fields);
         }
         $status = sanitize_key((string) $req->get_param('status'));
         if ($status === Contacts::STATUS_UNSUBSCRIBED) {
@@ -139,7 +154,51 @@ final class ContactsRest {
         } elseif ($status === Contacts::STATUS_SUBSCRIBED) {
             Contacts::resubscribe((string) $row->email);
         }
-        return new \WP_REST_Response(self::dto(Contacts::get_by_id((int) $req['id'])), 200);
+        return new \WP_REST_Response(self::dto(Contacts::get_by_id($id)), 200);
+    }
+
+    public static function remove(\WP_REST_Request $req): \WP_REST_Response {
+        Contacts::delete((int) $req['id']);
+        return new \WP_REST_Response(['ok' => true], 200);
+    }
+
+    /** Per-contact CRM activity: lists, source, join date and email engagement. */
+    public static function activity(\WP_REST_Request $req): \WP_REST_Response {
+        $c = Contacts::get_by_id((int) $req['id']);
+        if (! $c) {
+            return new \WP_REST_Response(['error' => 'not_found'], 404);
+        }
+        global $wpdb;
+        $lists = $wpdb->get_col($wpdb->prepare(
+            'SELECT l.name FROM ' . Lists::members_table() . ' m JOIN ' . Lists::lists_table() . ' l ON l.id = m.list_id WHERE m.contact_id = %d ORDER BY l.name',
+            (int) $c->id
+        )) ?: [];
+        $msgs = $wpdb->get_results($wpdb->prepare(
+            'SELECT m.opened, m.clicked, m.status, m.sent_at, c.name AS campaign FROM ' . Campaigns::messages_table() . ' m '
+            . 'JOIN ' . Campaigns::campaigns_table() . ' c ON c.id = m.campaign_id WHERE m.email = %s ORDER BY m.id DESC LIMIT 50',
+            (string) $c->email
+        )) ?: [];
+        $received = 0; $opened = 0; $clicked = 0; $campaigns = [];
+        foreach ($msgs as $m) {
+            if ($m->sent_at) { $received++; }
+            if ((int) $m->opened) { $opened++; }
+            if ((int) $m->clicked) { $clicked++; }
+            $campaigns[] = [
+                'campaign' => $m->campaign,
+                'sent_at'  => $m->sent_at,
+                'opened'   => (bool) $m->opened,
+                'clicked'  => (bool) $m->clicked,
+                'status'   => $m->status,
+            ];
+        }
+        return new \WP_REST_Response([
+            'joined'     => $c->created_at,
+            'source'     => $c->source,
+            'status'     => $c->status,
+            'lists'      => array_values($lists),
+            'engagement' => ['received' => $received, 'opened' => $opened, 'clicked' => $clicked],
+            'campaigns'  => $campaigns,
+        ], 200);
     }
 
     /** @return array<string,mixed> */
