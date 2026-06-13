@@ -212,14 +212,14 @@ final class TicketsAdmin {
             'expires_at'     => $_POST['expires_at'] ?? '',
             'active'         => ! empty($_POST['active']),
         ], absint($_POST['id'] ?? 0));
-        wp_safe_redirect(admin_url('admin.php?page=oe-promos'));
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=promos'));
         exit;
     }
 
     public function handle_delete_promo(): void {
         $this->guard('oe_delete_promo');
         Promo::delete(absint($_REQUEST['id'] ?? 0));
-        wp_safe_redirect(admin_url('admin.php?page=oe-promos'));
+        wp_safe_redirect(admin_url('admin.php?page=oe-tickets&tab=promos'));
         exit;
     }
 
