@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.36.0 — two brand-font weights; admin polish
+
+- **Two font uploads** in Settings → Branding: a **Body font (regular)** and a
+  **Heading font (bold)**. Both register as `@font-face` under the same family — the
+  regular covers body weights, the bold covers headings — so type is easier to read.
+  Exposed via `oe/v1/brand` (`font_url`, `font_url_bold`) and applied in both the
+  plugin admin and the platform. Leave bold blank to use the regular for everything.
+- **Removed the heavy underline** beneath admin page titles (the bento sits right
+  below, so the rule was redundant).
+- **Platform Contacts**: the full list renders below the search and is hardened so a
+  single malformed record can't blank the table.
+
 ## 1.35.0 — approval queue fully on the Dashboard; Contacts tidied
 
 - **Approval queue** now lives **only on the Dashboard** — the standalone Approval

@@ -96,13 +96,24 @@ final class Plugin {
         $accent    = (string) Settings::get('theme_accent', '') ?: '#E7CD41';
         $accent_on = (string) Settings::get('theme_accent_on', '') ?: '#1a1a1a';
         wp_add_inline_style('oe-admin', '.oe-admin{--oe-accent:' . esc_html($accent) . ';--oe-accent-on:' . esc_html($accent_on) . '}');
-        // An uploaded brand font applies in wp-admin too (else Brockmann).
-        $font_url = (string) Settings::get('theme_font_url', '');
-        if ($font_url !== '') {
+        // Uploaded brand font(s) apply in wp-admin too (else Brockmann). Two
+        // weights supported: regular for body, bold for headings.
+        $font_url  = (string) Settings::get('theme_font_url', '');
+        $font_bold = (string) Settings::get('theme_font_url_bold', '');
+        if ($font_url !== '' || $font_bold !== '') {
             $family = (string) Settings::get('theme_font_family', '') ?: 'BrandFont';
-            $fmt = preg_match('/\.woff2($|\?)/i', $font_url) ? 'woff2' : (preg_match('/\.woff($|\?)/i', $font_url) ? 'woff' : (preg_match('/\.otf($|\?)/i', $font_url) ? 'opentype' : 'truetype'));
+            $fmt = static function (string $u): string {
+                return preg_match('/\.woff2($|\?)/i', $u) ? 'woff2' : (preg_match('/\.woff($|\?)/i', $u) ? 'woff' : (preg_match('/\.otf($|\?)/i', $u) ? 'opentype' : 'truetype'));
+            };
+            $faces = '';
+            if ($font_url !== '') {
+                $faces .= '@font-face{font-family:"' . esc_html($family) . '";src:url("' . esc_url($font_url) . '") format("' . $fmt($font_url) . '");font-weight:' . ($font_bold !== '' ? '100 500' : '400 800') . ';font-style:normal;font-display:swap}';
+            }
+            if ($font_bold !== '') {
+                $faces .= '@font-face{font-family:"' . esc_html($family) . '";src:url("' . esc_url($font_bold) . '") format("' . $fmt($font_bold) . '");font-weight:600 900;font-style:normal;font-display:swap}';
+            }
             wp_add_inline_style('oe-admin',
-                '@font-face{font-family:"' . esc_html($family) . '";src:url("' . esc_url($font_url) . '") format("' . $fmt . '");font-weight:400 800;font-display:swap}'
+                $faces
                 . '.oe-admin{--oe-font:"' . esc_html($family) . '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}');
         }
         // The Settings screen uses the media library to upload a brand font.

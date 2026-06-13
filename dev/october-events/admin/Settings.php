@@ -225,6 +225,7 @@ final class Settings {
             'theme_font_family' => sanitize_text_field((string) ($in['theme_font_family'] ?? '')),
             'theme_font_css'    => esc_url_raw(trim((string) ($in['theme_font_css'] ?? ''))),
             'theme_font_url'    => esc_url_raw(trim((string) ($in['theme_font_url'] ?? ''))),
+            'theme_font_url_bold' => esc_url_raw(trim((string) ($in['theme_font_url_bold'] ?? ''))),
             'ses_enabled'       => ! empty($in['ses_enabled']),
             'ses_region'        => sanitize_text_field((string) ($in['ses_region'] ?? 'us-east-1')),
             'ses_smtp_user'     => sanitize_text_field((string) ($in['ses_smtp_user'] ?? '')),

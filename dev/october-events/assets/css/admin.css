@@ -27,7 +27,7 @@
 /* ---- Hero title (display + kicker) ---- */
 .oe-admin > h1:first-of-type{
   font-family:var(--oe-font); font-weight:800; letter-spacing:-1px; font-size:40px; line-height:1;
-  color:var(--oe-ink); padding:0 0 18px; margin:10px 0 24px; border-bottom:2px solid var(--oe-ink);
+  color:var(--oe-ink); padding:0; margin:10px 0 22px;
 }
 .oe-admin h2{ font-family:var(--oe-font); font-weight:700; letter-spacing:-.3px; font-size:20px; color:var(--oe-ink); margin-top:28px; }
 .oe-admin h3{ font-family:var(--oe-font); font-weight:700; font-size:15px; }
