@@ -148,6 +148,18 @@ use OE\PostTypes;
         <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash (e.g. https://october-platform.pages.dev and https://platform.atlantadesignfestival.net). Leave the defaults if unsure.', 'october-events'); ?></p>
         <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
         <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Platform URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="platform_url" value="<?php echo esc_attr((string) ($cfg['platform_url'] ?? '')); ?>" placeholder="https://platform.atlantadesignfestival.net" class="regular-text">
+                    <p class="description"><?php esc_html_e('Used for the “Open in the platform” buttons in wp-admin. Blank = the first origin above.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Check-in scanner page', 'october-events'); ?></label></th>
+                <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">
+                    <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
 
         <h2 id="email"><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></h2>
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>

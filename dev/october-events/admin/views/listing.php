@@ -2,11 +2,18 @@
 /** @var \WP_Post[] $items @var string $type @var string $label */
 defined('ABSPATH') || exit;
 use OE\Fields;
+use OE\PostTypes;
 $is_destination = ($type === 'destination');
 ?>
 <div class="wrap oe-admin">
     <h1><?php echo esc_html($label); ?></h1>
     <?php \OE\Admin\Admin::bento('listing'); ?>
+
+    <div class="oe-actionbar">
+        <a class="button button-primary" href="<?php echo esc_url(admin_url('post-new.php?post_type=' . PostTypes::slug($type))); ?>"><?php /* translators: %s: listing type, e.g. Event */ echo esc_html(sprintf(__('+ New %s', 'october-events'), rtrim($label, 's'))); ?></a>
+        <span class="description"><?php echo esc_html(sprintf(_n('%s record', '%s records', count($items), 'october-events'), number_format_i18n(count($items)))); ?></span>
+    </div>
+
     <table class="widefat striped">
         <thead>
             <tr>

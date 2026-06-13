@@ -236,6 +236,9 @@ final class Settings {
             'aws_secret_access_key' => \OE\Crypto::encrypt(trim((string) ($in['aws_secret_access_key'] ?? ''))),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
+            // Platform + check-in links surfaced in wp-admin.
+            'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
+            'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             // Public AI support chat.
             'support_chat_enabled'  => empty($in['support_chat_enabled']) ? '0' : '1',
             // Live chat (Chatwoot).

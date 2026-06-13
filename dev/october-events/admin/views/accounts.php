@@ -1,10 +1,23 @@
 <?php
 /** @var \WP_Post[] $accounts */
 defined('ABSPATH') || exit;
+use OE\PostTypes;
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Accounts', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('accounts'); ?>
+
+    <div class="oe-actionbar">
+        <a class="button button-primary" href="<?php echo esc_url(admin_url('post-new.php?post_type=' . PostTypes::slug('account'))); ?>"><?php esc_html_e('+ Add account', 'october-events'); ?></a>
+        <span class="description"><?php echo esc_html(sprintf(_n('%s account', '%s accounts', count($accounts), 'october-events'), number_format_i18n(count($accounts)))); ?></span>
+    </div>
+
+    <?php if (! $accounts) : ?>
+        <table class="widefat"><tbody><tr><td style="padding:28px 16px">
+            <strong><?php esc_html_e('No accounts yet.', 'october-events'); ?></strong><br>
+            <span class="description"><?php esc_html_e('Accounts are created when someone submits a listing, or add one by hand with “+ Add account”.', 'october-events'); ?></span>
+        </td></tr></tbody></table>
+    <?php else : ?>
     <table class="widefat striped">
         <thead>
             <tr>
@@ -31,4 +44,5 @@ defined('ABSPATH') || exit;
         </tbody>
     </table>
     <p class="description"><?php esc_html_e('Auto-approve flags are set on the account record. An empty type list means auto-approve applies to every listing type.', 'october-events'); ?></p>
+    <?php endif; ?>
 </div>

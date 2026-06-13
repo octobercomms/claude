@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.27.0 — admin redesign: dashboard + tables match the platform
+
+Making wp-admin feel like the planning platform.
+
+- **Dashboard** is retitled "Dashboard", leads with the same **4 headline KPI
+  cards** as the platform (tickets + revenue this year, subscribers, events
+  confirmed), and gains an action bar: **+ New event**, Review submissions, Email,
+  plus **Scan tickets ↗** and **Open the platform ↗** buttons when configured.
+- **Unified tables** — every admin table now uses the calmer, padded,
+  card-style "getting-started" look (no harsh zebra), with hover and chip statuses.
+- **Create affordances** — primary **+ New / + Add** buttons on the Dashboard,
+  Accounts and every listing screen, plus friendly empty states.
+- **New settings** — *Platform URL* (for the "open in the platform" buttons) and
+  *Check-in scanner page* (where `[oe_checkin]` lives, so a Scan tickets button can
+  link straight to it).
+
 ## 1.26.0 — headline KPI feed for the dashboards
 
 - New staff endpoint **`GET oe/v1/stats`** returns the festival's headline numbers:
