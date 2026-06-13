@@ -319,7 +319,16 @@ h1,h2,h3{margin:0}
 .oe-media-cell:hover{border-color:var(--accent)}
 .oe-media-cell img{width:100%;height:100%;object-fit:cover;display:block}
 
-/* ---------------- contacts ---------------- */
+/* ---------------- contacts + lists ---------------- */
+.oe-subtabs{display:flex;gap:4px;border-bottom:var(--border-w) solid var(--card-border);margin:0 0 var(--s5)}
+.oe-subtab{border:0;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--text-muted);cursor:pointer;padding:10px 16px;border-bottom:2px solid transparent;margin-bottom:-1px}
+.oe-subtab:hover{color:var(--text)}
+.oe-subtab.on{color:var(--text);border-bottom-color:var(--accent)}
+.oe-listbar{display:flex;justify-content:flex-end;margin-bottom:var(--s4)}
+.oe-rowacts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.oe-drawer-body{padding:var(--s5);display:flex;flex-direction:column;gap:var(--s4)}
+.oe-listmem{overflow:auto}
+
 .oe-contacts-search{width:100%;max-width:420px;padding:10px 14px;border:var(--border-w) solid var(--card-border);border-radius:var(--r-sm);font:inherit;background:var(--surface);color:var(--text);margin-bottom:16px}
 .oe-contacts-search:focus{outline:none;border-color:var(--accent)}
 .oe-ctable{width:100%;border-collapse:collapse;background:var(--surface);border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);overflow:hidden}

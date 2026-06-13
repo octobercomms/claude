@@ -1383,10 +1383,31 @@ async function renderContacts() {
   stats.appendChild(statCard('SMS opt-in', String(counts.sms), 'phone consented', false));
   main.appendChild(stats);
 
+  // Sub-tabs: the contact table, and list management (both read/write for staff).
+  let tab = 'contacts';
+  const tabBar = el('<div class="oe-subtabs"></div>');
+  const body = el('<div class="oe-subtab-body"></div>');
+  [['contacts', 'Contacts'], ['lists', 'Lists']].forEach(([key, label]) => {
+    const b = el(`<button class="oe-subtab" data-tab="${key}">${label}</button>`);
+    b.addEventListener('click', () => showTab(key));
+    tabBar.appendChild(b);
+  });
+  main.appendChild(tabBar);
+  main.appendChild(body);
+  function showTab(t) {
+    tab = t;
+    tabBar.querySelectorAll('.oe-subtab').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === t));
+    body.innerHTML = '';
+    if (t === 'lists') { renderListsTab(body); } else { renderContactsTab(body); }
+  }
+  showTab('contacts');
+}
+
+function renderContactsTab(container) {
   const search = el('<input class="oe-contacts-search" type="search" placeholder="Search by name or email…">');
-  main.appendChild(search);
+  container.appendChild(search);
   const wrap = el('<div class="oe-contacts-table"></div>');
-  main.appendChild(wrap);
+  container.appendChild(wrap);
 
   let timer = null;
   async function load(term) {
@@ -1424,6 +1445,111 @@ async function renderContacts() {
   }
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 300); });
   load('');
+}
+
+async function renderListsTab(container) {
+  container.innerHTML = '<div class="oe-loading">Loading lists…</div>';
+  let lists = [];
+  try { lists = await api.listLists(); } catch (e) { container.innerHTML = '<p class="oe-error">Could not load lists.</p>'; return; }
+  container.innerHTML = '';
+  const bar = el('<div class="oe-listbar"><button class="btn btn-primary" data-new>+ New list</button></div>');
+  bar.querySelector('[data-new]').addEventListener('click', async () => {
+    const name = prompt('Name the new list:');
+    if (!name || !name.trim()) { return; }
+    try { await api.createList(name.trim(), ''); renderListsTab(container); }
+    catch (e) { alert(e.message || 'Could not create the list.'); }
+  });
+  container.appendChild(bar);
+
+  if (!Array.isArray(lists) || !lists.length) {
+    container.appendChild(el('<p class="muted" style="padding:16px 0">No lists yet — create one, or import a Brevo export from the plugin.</p>'));
+    return;
+  }
+  const table = el('<table class="oe-ctable"><thead><tr><th>List</th><th>Type</th><th>Members</th><th></th></tr></thead><tbody></tbody></table>');
+  const tbody = table.querySelector('tbody');
+  lists.forEach((l) => {
+    const tr = el('<tr>'
+      + '<td><strong>' + esc(l.name) + '</strong>' + (l.description ? '<div class="muted small">' + esc(l.description) + '</div>' : '') + '</td>'
+      + '<td><span class="t-dept">' + (l.type === 'dynamic' ? 'segment' : 'list') + '</span></td>'
+      + '<td>' + (l.member_count || 0) + '</td>'
+      + '<td class="oe-rowacts"><button class="btn btn-small" data-view>View contacts</button>'
+      + '<button class="btn btn-small" data-rename>Rename</button>'
+      + '<button class="btn btn-small btn-link-danger" data-del>Delete</button></td></tr>');
+    tr.querySelector('[data-view]').addEventListener('click', () => openListMembers(l, () => renderListsTab(container)));
+    tr.querySelector('[data-rename]').addEventListener('click', async () => {
+      const name = prompt('Rename list:', l.name);
+      if (!name || !name.trim() || name.trim() === l.name) { return; }
+      try { await api.updateList(l.id, name.trim(), l.description || ''); renderListsTab(container); }
+      catch (e) { alert(e.message || 'Could not rename.'); }
+    });
+    tr.querySelector('[data-del]').addEventListener('click', async () => {
+      if (!confirm('Delete list "' + l.name + '"? The contacts stay — only the list and its memberships are removed.')) { return; }
+      try { await api.deleteList(l.id); renderListsTab(container); }
+      catch (e) { alert(e.message || 'Could not delete.'); }
+    });
+    tbody.appendChild(tr);
+  });
+  container.appendChild(table);
+}
+
+// Drawer to view/manage the contacts in a single list. Empty search shows the
+// current members; typing searches all contacts so you can add them.
+function openListMembers(list, onClose) {
+  const modal = el('<div class="oe-drawer-wrap"><div class="oe-drawer-bg"></div>'
+    + '<aside class="oe-drawer oe-drawer-wide"><div class="oe-drawer-head"><h2>' + esc(list.name) + ' — contacts</h2>'
+    + '<button class="btn btn-small" data-close>Close</button></div>'
+    + '<div class="oe-drawer-body"><input class="oe-contacts-search" type="search" placeholder="Search to add a contact, or browse members below…">'
+    + '<div class="oe-listmem"></div></div></aside></div>');
+  document.body.appendChild(modal);
+  const close = () => { modal.remove(); if (onClose) { onClose(); } };
+  modal.querySelector('[data-close]').addEventListener('click', close);
+  modal.querySelector('.oe-drawer-bg').addEventListener('click', close);
+  const memWrap = modal.querySelector('.oe-listmem');
+  const searchEl = modal.querySelector('input');
+
+  function memberTable(rows, mode) {
+    const table = el('<table class="oe-ctable"><thead><tr><th>Email</th><th>Name</th><th></th></tr></thead><tbody></tbody></table>');
+    const tbody = table.querySelector('tbody');
+    rows.forEach((c) => {
+      const inList = Array.isArray(c.lists) && c.lists.indexOf(list.id) !== -1;
+      const tr = el('<tr><td>' + esc(c.email) + '</td><td>' + esc(c.name || '') + '</td><td></td></tr>');
+      const cell = tr.querySelector('td:last-child');
+      if (mode === 'members') {
+        const rm = el('<button class="btn btn-small btn-link-danger">Remove</button>');
+        rm.addEventListener('click', async () => { rm.disabled = true; try { await api.listMember(list.id, c.id, 'remove'); loadMembers(); } catch (e) { rm.disabled = false; alert(e.message || 'Error'); } });
+        cell.appendChild(rm);
+      } else {
+        const add = el('<button class="btn btn-small"' + (inList ? ' disabled' : '') + '>' + (inList ? 'In list' : 'Add') + '</button>');
+        if (!inList) { add.addEventListener('click', async () => { add.disabled = true; try { await api.listMember(list.id, c.id, 'add'); add.textContent = 'Added'; } catch (e) { add.disabled = false; alert(e.message || 'Error'); } }); }
+        cell.appendChild(add);
+      }
+      tbody.appendChild(tr);
+    });
+    return table;
+  }
+  async function loadMembers() {
+    memWrap.innerHTML = '<div class="oe-loading">Loading…</div>';
+    let rows = [];
+    try { rows = await api.listContacts('', 0, list.id); } catch (e) { memWrap.innerHTML = '<p class="oe-error">Could not load.</p>'; return; }
+    memWrap.innerHTML = '';
+    if (!rows.length) { memWrap.appendChild(el('<p class="muted" style="padding:12px 0">No contacts in this list yet — search above to add some.</p>')); return; }
+    memWrap.appendChild(memberTable(rows, 'members'));
+  }
+  async function doSearch(term) {
+    memWrap.innerHTML = '<div class="oe-loading">Searching…</div>';
+    let rows = [];
+    try { rows = await api.listContacts(term, 0); } catch (e) { memWrap.innerHTML = '<p class="oe-error">Could not search.</p>'; return; }
+    memWrap.innerHTML = '';
+    if (!rows.length) { memWrap.appendChild(el('<p class="muted" style="padding:12px 0">No contacts match that.</p>')); return; }
+    memWrap.appendChild(memberTable(rows, 'add'));
+  }
+  let timer = null;
+  searchEl.addEventListener('input', () => {
+    clearTimeout(timer);
+    const term = searchEl.value.trim();
+    timer = setTimeout(() => { if (term) { doSearch(term); } else { loadMembers(); } }, 300);
+  });
+  loadMembers();
 }
 
 /* ---------------------------------------------------------------- */
