@@ -2,9 +2,11 @@
 /** @var array $cfg @var array $secrets */
 defined('ABSPATH') || exit;
 use OE\PostTypes;
+
+$webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 ?>
 <div class="wrap oe-admin">
-    <h1><?php esc_html_e('October Events — Settings', 'october-events'); ?></h1>
+    <h1><?php esc_html_e('Settings', 'october-events'); ?></h1>
     <?php \OE\Admin\Admin::bento('settings'); ?>
     <?php if (! empty($_GET['updated'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Settings saved.', 'october-events'); ?></p></div>
@@ -13,6 +15,10 @@ use OE\PostTypes;
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="oe_save_settings">
         <?php wp_nonce_field('oe_save_settings'); ?>
+
+        <div class="oe-settings-cols">
+        <div class="oe-col">
+        <p class="oe-col-head"><?php esc_html_e('This site & content', 'october-events'); ?></p>
 
         <details class="oe-acc" id="brand" open><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Shown as this site\'s menu name and in the UI (this plugin runs on multiple sites).', 'october-events'); ?></p>
@@ -46,41 +52,7 @@ use OE\PostTypes;
                 </tr>
             <?php endforeach; ?>
         </tbody></table>
-        <p class="description"><?php esc_html_e('After saving a mapping, use “Seed planning from existing fields” on the Event Planning screen to copy these into the planner as editable values.', 'october-events'); ?></p>
-        </div></details>
-
-        <details class="oe-acc" id="api-keys"><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are saved to the database.', 'october-events'); ?></p>
-        <?php
-        $labels = [
-            'stripe_publishable_key' => __('Stripe publishable key', 'october-events'),
-            'stripe_secret_key'      => __('Stripe secret key', 'october-events'),
-            'stripe_webhook_secret'  => __('Stripe webhook secret', 'october-events'),
-            'claude_api_key'         => __('Claude API key', 'october-events'),
-            'google_maps_key'        => __('Google Maps key', 'october-events'),
-        ];
-        ?>
-        <table class="form-table" style="max-width:720px">
-            <?php foreach ($secrets as $key => $const) :
-                $is_const = \OE\Settings::secret_is_constant($key);
-                $value    = $is_const ? '' : (string) \OE\Settings::get($key, '');
-                ?>
-                <tr>
-                    <th scope="row"><label for="oe-sec-<?php echo esc_attr($key); ?>"><?php echo esc_html($labels[$key] ?? $key); ?></label></th>
-                    <td>
-                        <?php if ($is_const) : ?>
-                            <input type="text" class="regular-text" value="••••••••••" disabled>
-                            <p class="description"><?php printf(/* translators: %s: constant */ esc_html__('Locked — defined by the %s constant in wp-config.php.', 'october-events'), '<code>' . esc_html($const) . '</code>'); ?></p>
-                        <?php else : ?>
-                            <span class="oe-secret-wrap">
-                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($value); ?>" autocomplete="off" spellcheck="false">
-                                <button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>" title="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button>
-                            </span>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        </table>
+        <p class="description"><?php esc_html_e('After saving a mapping, use “Seed planning from existing fields” on the Events screen to copy these into the planner as editable values.', 'october-events'); ?></p>
         </div></details>
 
         <details class="oe-acc" id="pricing"><summary><?php esc_html_e('Tier pricing', 'october-events'); ?></summary><div class="oe-acc-body">
@@ -102,6 +74,14 @@ use OE\PostTypes;
         <p><label><?php esc_html_e('Currency', 'october-events'); ?> <input type="text" name="currency" value="<?php echo esc_attr((string) ($cfg['currency'] ?? 'usd')); ?>" size="5"></label></p>
         </div></details>
 
+        <details class="oe-acc" id="rejection"><summary><?php esc_html_e('Rejection email copy', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Optional per-type overrides. Variables: {listing_name}, {listing_type}, {refund_amount}. Leave blank to use the default copy.', 'october-events'); ?></p>
+        <?php foreach (PostTypes::listing_types() as $type) : ?>
+            <p><label><strong><?php echo esc_html(PostTypes::TYPES[$type]['label']); ?></strong><br>
+                <textarea name="rejection_copy[<?php echo esc_attr($type); ?>]" rows="3" class="large-text"><?php echo esc_textarea((string) ($cfg['rejection_copy'][$type] ?? '')); ?></textarea></label></p>
+        <?php endforeach; ?>
+        </div></details>
+
         <details class="oe-acc" id="voice"><summary><?php esc_html_e('AI Stories connector', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><?php esc_html_e('Model', 'october-events'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'october-events'); ?><br>
@@ -116,155 +96,14 @@ use OE\PostTypes;
         <p class="description"><?php echo esc_html(sprintf(/* translators: %d: count */ __('Currently %d example(s) saved.', 'october-events'), count((array) ($cfg['ai_examples'] ?? [])))); ?></p>
         </div></details>
 
-        <details class="oe-acc" id="rejection"><summary><?php esc_html_e('Rejection email copy', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional per-type overrides. Variables: {listing_name}, {listing_type}, {refund_amount}. Leave blank to use the default copy.', 'october-events'); ?></p>
-        <?php foreach (PostTypes::listing_types() as $type) : ?>
-            <p><label><strong><?php echo esc_html(PostTypes::TYPES[$type]['label']); ?></strong><br>
-                <textarea name="rejection_copy[<?php echo esc_attr($type); ?>]" rows="3" class="large-text"><?php echo esc_textarea((string) ($cfg['rejection_copy'][$type] ?? '')); ?></textarea></label></p>
-        <?php endforeach; ?>
-        </div></details>
-
-        <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Email reminders always send via Brevo. SMS is optional (Brevo transactional SMS) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>
-        <p><label><input type="checkbox" name="sms_enabled" value="1" <?php checked(! empty($cfg['sms_enabled'])); ?>> <?php esc_html_e('Enable SMS reminders (requires Brevo SMS credits)', 'october-events'); ?></label></p>
-        <p><label><?php esc_html_e('SMS sender name', 'october-events'); ?> <input type="text" name="sms_sender" value="<?php echo esc_attr((string) ($cfg['sms_sender'] ?? 'ADF')); ?>" maxlength="11" size="12"></label> <span class="description"><?php esc_html_e('Max 11 characters, must be approved in Brevo.', 'october-events'); ?></span></p>
-        <p><strong><?php esc_html_e('Send reminders:', 'october-events'); ?></strong></p>
-        <?php $offsets = (array) ($cfg['reminder_offsets'] ?? []); ?>
-        <p>
-            <label><input type="checkbox" name="reminder_offsets[week]" value="1" <?php checked(in_array('week', $offsets, true)); ?>> <?php esc_html_e('1 week before', 'october-events'); ?></label><br>
-            <label><input type="checkbox" name="reminder_offsets[48h]" value="1" <?php checked(in_array('48h', $offsets, true)); ?>> <?php esc_html_e('48 hours before', 'october-events'); ?></label><br>
-            <label><input type="checkbox" name="reminder_offsets[morning]" value="1" <?php checked(in_array('morning', $offsets, true)); ?>> <?php esc_html_e('Morning of (≈3h before)', 'october-events'); ?></label>
-        </p>
-        <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'october-events'); ?></p>
-        </div></details>
-
-        <details class="oe-acc" id="digest"><summary><?php esc_html_e('Digest & reports', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label></p>
-        <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
-        </div></details>
-
-        <details class="oe-acc" id="updates"><summary><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged oe-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define OE_GITHUB_TOKEN in wp-config.php).', 'october-events'); ?></p>
-        <p><label><?php esc_html_e('Repository', 'october-events'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
-        <?php $token_const = defined('OE_GITHUB_TOKEN') && OE_GITHUB_TOKEN; ?>
-        <p><label><?php esc_html_e('GitHub token', 'october-events'); ?></label><br>
-            <span class="oe-secret-wrap">
-                <input type="password" name="github_token" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['github_token'] ?? ''))); ?>" <?php echo $token_const ? 'disabled placeholder="Set via OE_GITHUB_TOKEN constant"' : ''; ?>>
-                <?php if (! $token_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-            </span></p>
-        </div></details>
-
-        <details class="oe-acc" id="platform"><summary><?php esc_html_e('Planning platform (CORS)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash (e.g. https://october-platform.pages.dev and https://platform.atlantadesignfestival.net). Leave the defaults if unsure.', 'october-events'); ?></p>
-        <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
-        <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Platform URL', 'october-events'); ?></label></th>
-                <td><input type="url" name="platform_url" value="<?php echo esc_attr((string) ($cfg['platform_url'] ?? '')); ?>" placeholder="https://platform.atlantadesignfestival.net" class="regular-text">
-                    <p class="description"><?php esc_html_e('Used for the “Open in the platform” buttons in wp-admin. Blank = the first origin above.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Check-in scanner page', 'october-events'); ?></label></th>
-                <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">
-                    <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
-        <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
-        <?php $ses_pw_const = \OE\Settings::secret_is_constant('ses_smtp_password'); ?>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><?php esc_html_e('Enable SES', 'october-events'); ?></th>
-                <td><label><input type="checkbox" name="ses_enabled" value="1" <?php checked((bool) ($cfg['ses_enabled'] ?? false)); ?>> <?php esc_html_e('Send all site email via Amazon SES', 'october-events'); ?></label></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
-                <td><input type="text" name="ses_region" value="<?php echo esc_attr((string) ($cfg['ses_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('SMTP username', 'october-events'); ?></label></th>
-                <td><input type="text" name="ses_smtp_user" value="<?php echo esc_attr((string) ($cfg['ses_smtp_user'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('SMTP password', 'october-events'); ?></label></th>
-                <td><span class="oe-secret-wrap">
-                    <input type="password" name="ses_smtp_password" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['ses_smtp_password'] ?? ''))); ?>" <?php echo $ses_pw_const ? 'disabled placeholder="Set via OE_SES_SMTP_PASSWORD constant"' : ''; ?>>
-                    <?php if (! $ses_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-                </span></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('From address', 'october-events'); ?></label></th>
-                <td><input type="email" name="mail_from_email" value="<?php echo esc_attr((string) ($cfg['mail_from_email'] ?? '')); ?>" placeholder="hello@news.atlantadesignfestival.net" class="regular-text">
-                    <p class="description"><?php esc_html_e('Must be a verified SES sender/domain.', 'october-events'); ?></p></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('From name', 'october-events'); ?></label></th>
-                <td><input type="text" name="mail_from_name" value="<?php echo esc_attr((string) ($cfg['mail_from_name'] ?? '')); ?>" placeholder="Atlanta Design Festival" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Footer postal address', 'october-events'); ?></label></th>
-                <td><textarea name="mail_footer_address" rows="2" class="large-text" placeholder="Atlanta Design Festival, 123 Example St, Atlanta, GA 30303"><?php echo esc_textarea((string) ($cfg['mail_footer_address'] ?? '')); ?></textarea>
-                    <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM).', 'october-events'); ?></p></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
-        <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
-        <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
-                <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
-                <td><input type="text" name="sms_region" value="<?php echo esc_attr((string) ($cfg['sms_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS access key ID', 'october-events'); ?></label></th>
-                <td><input type="text" name="aws_access_key_id" value="<?php echo esc_attr((string) ($cfg['aws_access_key_id'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
-                <td><span class="oe-secret-wrap">
-                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr($aws_pw_const ? '' : \OE\Crypto::decrypt((string) ($cfg['aws_secret_access_key'] ?? ''))); ?>" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : ''; ?>>
-                    <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
-                </span></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Origination identity', 'october-events'); ?></label></th>
-                <td><input type="text" name="sms_origination" value="<?php echo esc_attr((string) ($cfg['sms_origination'] ?? '')); ?>" placeholder="+18005551234 / sender ID / pool ARN" class="regular-text">
-                    <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
         <details class="oe-acc" id="support-chat"><summary><?php esc_html_e('AI support chat (customers)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('A floating chat on your public site that answers customers’ questions about their own orders and tickets. Customers verify with a one-time code emailed to them, so they only ever see their own data. Requires a Claude API key (set above).', 'october-events'); ?></p>
+        <p class="description"><?php esc_html_e('A floating chat on your public site that answers customers’ questions about their own orders and tickets. Customers verify with a one-time code emailed to them, so they only ever see their own data. Requires a Claude API key.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
             <tr>
                 <th scope="row"><?php esc_html_e('Enable widget', 'october-events'); ?></th>
                 <td><label><input type="checkbox" name="support_chat_enabled" value="1" <?php checked((string) ($cfg['support_chat_enabled'] ?? '0'), '1'); ?>>
                     <?php esc_html_e('Show the “Need help?” chat on every front-end page', 'october-events'); ?></label>
                     <p class="description"><?php esc_html_e('You can also embed it inline anywhere with the [oe_support_chat] shortcode.', 'october-events'); ?></p></td>
-            </tr>
-        </tbody></table>
-        </div></details>
-
-        <details class="oe-acc" id="chat"><summary><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></summary><div class="oe-acc-body">
-        <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Leave blank for no chat.', 'october-events'); ?></p>
-        <table class="form-table" role="presentation"><tbody>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Chatwoot base URL', 'october-events'); ?></label></th>
-                <td><input type="url" name="chatwoot_base_url" value="<?php echo esc_attr((string) ($cfg['chatwoot_base_url'] ?? '')); ?>" placeholder="https://chat.example.com" class="regular-text"></td>
-            </tr>
-            <tr>
-                <th scope="row"><label><?php esc_html_e('Website token', 'october-events'); ?></label></th>
-                <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
             </tr>
         </tbody></table>
         </div></details>
@@ -337,9 +176,200 @@ use OE\PostTypes;
         </script>
         </div></details>
 
+        </div><!-- /.oe-col -->
+        <div class="oe-col">
+        <p class="oe-col-head"><?php esc_html_e('Connections & system', 'october-events'); ?></p>
+
+        <details class="oe-acc" id="api-keys" open><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are encrypted in the database.', 'october-events'); ?></p>
+        <?php
+        $labels = [
+            'stripe_publishable_key' => __('Stripe publishable key', 'october-events'),
+            'stripe_secret_key'      => __('Stripe secret key', 'october-events'),
+            'stripe_webhook_secret'  => __('Stripe webhook secret', 'october-events'),
+            'claude_api_key'         => __('Claude API key', 'october-events'),
+            'google_maps_key'        => __('Google Maps key', 'october-events'),
+        ];
+        // Where to get each key + what to paste. The webhook hint shows this site's
+        // live endpoint URL and the exact events to send.
+        $hints = [
+            'stripe_publishable_key' => __('Stripe → Developers → API keys → “Publishable key” (starts pk_). Safe to expose; used by the checkout form.', 'october-events'),
+            'stripe_secret_key'      => __('Stripe → Developers → API keys → “Secret key” (starts sk_). Keep private; used server-side for charges & refunds.', 'october-events'),
+            'stripe_webhook_secret'  => sprintf(
+                /* translators: 1: endpoint URL, 2: events */
+                __('Stripe → Developers → Webhooks → Add endpoint. URL: %1$s — send these events: %2$s. Then copy the endpoint’s “Signing secret” (starts whsec_) here. Without it, ticket webhooks are rejected.', 'october-events'),
+                '<code>' . esc_html($webhook_url) . '</code>',
+                '<code>payment_intent.succeeded</code>, <code>charge.refunded</code>'
+            ),
+            'claude_api_key'         => __('console.anthropic.com → API keys (starts sk-ant-). Powers the staff assistant, the email co-pilot and the customer support chat.', 'october-events'),
+            'google_maps_key'        => __('Google Cloud Console → APIs & Services → Credentials → API key, with “Maps JavaScript API” enabled. Used by the [oe_design_map] shortcode.', 'october-events'),
+        ];
+        ?>
+        <table class="form-table" style="max-width:720px">
+            <?php foreach ($secrets as $key => $const) :
+                $is_const = \OE\Settings::secret_is_constant($key);
+                $value    = $is_const ? '' : (string) \OE\Settings::get($key, '');
+                ?>
+                <tr>
+                    <th scope="row"><label for="oe-sec-<?php echo esc_attr($key); ?>"><?php echo esc_html($labels[$key] ?? $key); ?></label></th>
+                    <td>
+                        <?php if ($is_const) : ?>
+                            <input type="text" class="regular-text" value="••••••••••" disabled>
+                            <p class="description"><?php printf(/* translators: %s: constant */ esc_html__('Locked — defined by the %s constant in wp-config.php.', 'october-events'), '<code>' . esc_html($const) . '</code>'); ?></p>
+                        <?php else : ?>
+                            <span class="oe-secret-wrap">
+                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($value); ?>" autocomplete="off" spellcheck="false">
+                                <button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>" title="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button>
+                            </span>
+                        <?php endif; ?>
+                        <?php if (! empty($hints[$key])) : ?>
+                            <p class="description oe-keyhint"><?php echo wp_kses($hints[$key], ['code' => []]); ?></p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+        </table>
+        </div></details>
+
+        <details class="oe-acc" id="platform"><summary><?php esc_html_e('Planning platform', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Origins allowed to call this site\'s oe/v1 REST API from the browser — i.e. the planning platform SPA. One per line, scheme + host with no trailing slash. Leave the defaults if unsure.', 'october-events'); ?></p>
+        <?php $origins = (array) ($cfg['platform_origins'] ?? []); ?>
+        <p><textarea name="platform_origins" rows="3" class="large-text code" placeholder="https://october-platform.pages.dev"><?php echo esc_textarea(implode("\n", $origins)); ?></textarea></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Platform URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="platform_url" value="<?php echo esc_attr((string) ($cfg['platform_url'] ?? '')); ?>" placeholder="https://platform.atlantadesignfestival.net" class="regular-text">
+                    <p class="description"><?php esc_html_e('Used for the “Open in the platform” buttons in wp-admin. Blank = the first non-pages.dev origin above.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Check-in scanner page', 'october-events'); ?></label></th>
+                <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">
+                    <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
+        <?php $ses_pw_const = \OE\Settings::secret_is_constant('ses_smtp_password'); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable SES', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="ses_enabled" value="1" <?php checked((bool) ($cfg['ses_enabled'] ?? false)); ?>> <?php esc_html_e('Send all site email via Amazon SES', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
+                <td><input type="text" name="ses_region" value="<?php echo esc_attr((string) ($cfg['ses_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('SMTP username', 'october-events'); ?></label></th>
+                <td><input type="text" name="ses_smtp_user" value="<?php echo esc_attr((string) ($cfg['ses_smtp_user'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('SMTP password', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="ses_smtp_password" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['ses_smtp_password'] ?? ''))); ?>" <?php echo $ses_pw_const ? 'disabled placeholder="Set via OE_SES_SMTP_PASSWORD constant"' : ''; ?>>
+                    <?php if (! $ses_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('From address', 'october-events'); ?></label></th>
+                <td><input type="email" name="mail_from_email" value="<?php echo esc_attr((string) ($cfg['mail_from_email'] ?? '')); ?>" placeholder="hello@news.atlantadesignfestival.net" class="regular-text">
+                    <p class="description"><?php esc_html_e('Must be a verified SES sender/domain.', 'october-events'); ?></p></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('From name', 'october-events'); ?></label></th>
+                <td><input type="text" name="mail_from_name" value="<?php echo esc_attr((string) ($cfg['mail_from_name'] ?? '')); ?>" placeholder="Atlanta Design Festival" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Footer postal address', 'october-events'); ?></label></th>
+                <td><textarea name="mail_footer_address" rows="2" class="large-text" placeholder="Atlanta Design Festival, 123 Example St, Atlanta, GA 30303"><?php echo esc_textarea((string) ($cfg['mail_footer_address'] ?? '')); ?></textarea>
+                    <p class="description"><?php esc_html_e('Shown in campaign footers (required by CAN-SPAM).', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="digest"><summary><?php esc_html_e('Digest & reports', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p><label><input type="checkbox" name="digest_enabled" value="1" <?php checked(! empty($cfg['digest_enabled'])); ?>> <?php esc_html_e('Send the monthly digest automatically (first Monday).', 'october-events'); ?></label></p>
+        <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
+        </div></details>
+
+        <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Email reminders always send. SMS is optional (see the SMS section) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>
+        <p><strong><?php esc_html_e('Send reminders:', 'october-events'); ?></strong></p>
+        <?php $offsets = (array) ($cfg['reminder_offsets'] ?? []); ?>
+        <p>
+            <label><input type="checkbox" name="reminder_offsets[week]" value="1" <?php checked(in_array('week', $offsets, true)); ?>> <?php esc_html_e('1 week before', 'october-events'); ?></label><br>
+            <label><input type="checkbox" name="reminder_offsets[48h]" value="1" <?php checked(in_array('48h', $offsets, true)); ?>> <?php esc_html_e('48 hours before', 'october-events'); ?></label><br>
+            <label><input type="checkbox" name="reminder_offsets[morning]" value="1" <?php checked(in_array('morning', $offsets, true)); ?>> <?php esc_html_e('Morning of (≈3h before)', 'october-events'); ?></label>
+        </p>
+        <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'october-events'); ?></p>
+        </div></details>
+
+        <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
+        <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><?php esc_html_e('Enable SMS', 'october-events'); ?></th>
+                <td><label><input type="checkbox" name="sms_enabled" value="1" <?php checked((bool) ($cfg['sms_enabled'] ?? false)); ?>> <?php esc_html_e('Send volunteer reminders by SMS', 'october-events'); ?></label></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS region', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_region" value="<?php echo esc_attr((string) ($cfg['sms_region'] ?? 'us-east-1')); ?>" placeholder="us-east-1" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS access key ID', 'october-events'); ?></label></th>
+                <td><input type="text" name="aws_access_key_id" value="<?php echo esc_attr((string) ($cfg['aws_access_key_id'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
+                <td><span class="oe-secret-wrap">
+                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr($aws_pw_const ? '' : \OE\Crypto::decrypt((string) ($cfg['aws_secret_access_key'] ?? ''))); ?>" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : ''; ?>>
+                    <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+                </span></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Origination identity', 'october-events'); ?></label></th>
+                <td><input type="text" name="sms_origination" value="<?php echo esc_attr((string) ($cfg['sms_origination'] ?? '')); ?>" placeholder="+18005551234 / sender ID / pool ARN" class="regular-text">
+                    <p class="description"><?php esc_html_e('Your registered phone number (E.164), sender ID, or pool ARN.', 'october-events'); ?></p></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="chat"><summary><?php esc_html_e('Live chat (Chatwoot)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Optional. Paste your self-hosted Chatwoot base URL and website token to inject the chat widget site-wide. Also used as the “Talk to a person” hand-off from the AI support chat. Leave blank for no live chat.', 'october-events'); ?></p>
+        <table class="form-table" role="presentation"><tbody>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Chatwoot base URL', 'october-events'); ?></label></th>
+                <td><input type="url" name="chatwoot_base_url" value="<?php echo esc_attr((string) ($cfg['chatwoot_base_url'] ?? '')); ?>" placeholder="https://chat.example.com" class="regular-text"></td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Website token', 'october-events'); ?></label></th>
+                <td><input type="text" name="chatwoot_token" value="<?php echo esc_attr((string) ($cfg['chatwoot_token'] ?? '')); ?>" autocomplete="off" class="regular-text"></td>
+            </tr>
+        </tbody></table>
+        </div></details>
+
+        <details class="oe-acc" id="updates"><summary><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged oe-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define OE_GITHUB_TOKEN in wp-config.php).', 'october-events'); ?></p>
+        <p><label><?php esc_html_e('Repository', 'october-events'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
+        <?php $token_const = defined('OE_GITHUB_TOKEN') && OE_GITHUB_TOKEN; ?>
+        <p><label><?php esc_html_e('GitHub token', 'october-events'); ?></label><br>
+            <span class="oe-secret-wrap">
+                <input type="password" name="github_token" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['github_token'] ?? ''))); ?>" <?php echo $token_const ? 'disabled placeholder="Set via OE_GITHUB_TOKEN constant"' : ''; ?>>
+                <?php if (! $token_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
+            </span></p>
+        </div></details>
+
+        </div><!-- /.oe-col -->
+        </div><!-- /.oe-settings-cols -->
+
         <?php submit_button(); ?>
     </form>
 
+    <div class="oe-settings-cols">
+    <div class="oe-col">
     <details class="oe-acc" id="voice-test"><summary><?php esc_html_e('Test the voice', 'october-events'); ?></summary><div class="oe-acc-body">
     <p class="description"><?php esc_html_e('Paste a sample source article (or any text) and run it through the trained editorial prompt to preview how a generated story would read. Save your style guide above first.', 'october-events'); ?></p>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -359,7 +389,8 @@ use OE\PostTypes;
         </div>
     <?php } ?>
     </div></details>
-
+    </div>
+    <div class="oe-col">
     <details class="oe-acc" id="update-test"><summary><?php esc_html_e('Test update connection', 'october-events'); ?></summary><div class="oe-acc-body">
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
         <input type="hidden" name="action" value="oe_test_updater">
@@ -370,6 +401,8 @@ use OE\PostTypes;
         <div class="notice <?php echo $diag['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin-top:10px"><p><?php echo esc_html($diag['message']); ?></p></div>
     <?php } ?>
     </div></details>
+    </div>
+    </div>
 
     <style>
         .oe-secret-wrap { display: inline-flex; align-items: center; gap: 4px; }

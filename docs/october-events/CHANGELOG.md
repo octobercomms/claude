@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.33.0 — Settings: two columns, grouped, with per-key help
+
+- Settings now lays out in **two columns** — **This site & content** (brand, theme,
+  event readiness/mapping, pricing, rejection copy, AI Stories, support chat) and
+  **Connections & system** (API keys, platform/CORS, SES, digest, reminders, SMS,
+  Chatwoot, updates) — to cut the scroll. Stacks to one column on narrow screens.
+- **Per-API-key help** under each field: where to get it and what to paste. The
+  **Stripe webhook** hint shows this site's live endpoint URL
+  (`…/wp-json/oe/v1/stripe-webhook`) and the exact events to send
+  (`payment_intent.succeeded`, `charge.refunded`).
+- Tidy-up: removed a stale duplicate SMS sender/enable control from the reminders
+  section (the real toggle lives in the SMS section); retitled the page "Settings".
+
 ## 1.32.0 — approvals on the Dashboard
 
 The Dashboard now shows a **"Needs your approval"** panel listing pending

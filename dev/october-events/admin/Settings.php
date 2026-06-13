@@ -210,7 +210,8 @@ final class Settings {
             'digest_enabled'   => ! empty($in['digest_enabled']),
             'report_email'     => sanitize_email((string) ($in['report_email'] ?? '')),
             'sms_enabled'      => ! empty($in['sms_enabled']),
-            'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? 'ADF')),
+            // Legacy sender name (no longer shown in the UI) — preserve what's stored.
+            'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? (Config::all()['sms_sender'] ?? 'ADF'))),
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
             'github_token'     => \OE\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
