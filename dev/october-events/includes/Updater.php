@@ -105,9 +105,11 @@ final class Updater {
         }
 
         if ($best) {
-            set_transient($this->cache_key, $best, 3 * HOUR_IN_SECONDS);
+            // Short cache so freshly-published releases surface quickly (the WP
+            // Updates "Check again" / force-check path bypasses this anyway).
+            set_transient($this->cache_key, $best, 15 * MINUTE_IN_SECONDS);
         } else {
-            set_transient($this->cache_key, '', 15 * MINUTE_IN_SECONDS);
+            set_transient($this->cache_key, '', 5 * MINUTE_IN_SECONDS);
         }
         return $best;
     }

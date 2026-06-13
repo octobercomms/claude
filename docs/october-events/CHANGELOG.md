@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.36.1 — faster update detection
+
+The self-updater cached the GitHub release lookup for 3 hours, so freshly-published
+releases lagged. Cut to 15 minutes (5 minutes for a failed lookup). The Updates
+"Check again" / force-check path still bypasses the cache entirely, and the
+Settings → Updates "Test update connection" button clears it on demand.
+
 ## 1.36.0 — two brand-font weights; admin polish
 
 - **Two font uploads** in Settings → Branding: a **Body font (regular)** and a
