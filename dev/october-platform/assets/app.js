@@ -1178,16 +1178,12 @@ async function openCampaign(id) {
     if (preset && grapesjs.plugins && grapesjs.plugins.get && !grapesjs.plugins.get('grapesjs-preset-newsletter')) {
       grapesjs.plugins.add('grapesjs-preset-newsletter', preset);
     }
-    // Surface the WP media library inside the editor's image picker.
-    let assets = [];
-    try { assets = (await api.listMedia() || []).map((m) => m.source_url).filter(Boolean); }
-    catch (e) { assets = []; }
     gjsEditor = grapesjs.init({
       container: gjsWrap.querySelector('.oe-gjs-canvas'),
       height: '68vh',
       fromElement: false,
       storageManager: false,
-      assetManager: { assets, upload: false },
+      assetManager: { upload: false },
       plugins: preset ? ['grapesjs-preset-newsletter'] : [],
       pluginsOpts: preset ? { 'grapesjs-preset-newsletter': {} } : {},
     });
@@ -1199,6 +1195,14 @@ async function openCampaign(id) {
       gjsEditor.setComponents(blocksToHtml(blocks, false));
     }
     refineMsg.textContent = '';
+    // Surface the WP media library in the editor's image picker — fetched in the
+    // background so a slow/large library never blocks the editor from loading.
+    api.listMedia().then((items) => {
+      const assets = (items || []).map((m) => m.source_url).filter(Boolean);
+      if (assets.length && gjsEditor && gjsEditor.AssetManager) {
+        try { gjsEditor.AssetManager.add(assets); } catch (e) { /* noop */ }
+      }
+    }).catch(() => { /* media is optional */ });
     return gjsEditor;
   }
 
