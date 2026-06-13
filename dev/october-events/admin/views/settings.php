@@ -20,7 +20,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <div class="oe-col">
         <p class="oe-col-head"><?php esc_html_e('This site & content', 'october-events'); ?></p>
 
-        <details class="oe-acc" id="brand" open><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
+        <details class="oe-acc" id="brand"><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Shown as this site\'s menu name and in the UI (this plugin runs on multiple sites).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Brand / site name', 'october-events'); ?>
             <input type="text" name="brand_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Events')); ?>"></label></p>
@@ -180,7 +180,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <div class="oe-col">
         <p class="oe-col-head"><?php esc_html_e('Connections & system', 'october-events'); ?></p>
 
-        <details class="oe-acc" id="api-keys" open><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
+        <details class="oe-acc" id="api-keys"><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are encrypted in the database.', 'october-events'); ?></p>
         <?php
         $labels = [
