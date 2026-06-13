@@ -74,6 +74,8 @@ final class Cron {
      */
     public function run_hourly(): void {
         Reminders::run_due();
+        // Chip away at contact CleanUp (names + company) for any new contacts.
+        \OE\Mail\Enrich::backfill(1000);
     }
 
     public function run_daily(): void {

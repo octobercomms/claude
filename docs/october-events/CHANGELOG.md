@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.38.0 — contact CleanUp (names + company from email)
+
+The first half of AI list-building: a deterministic enrichment pass (no API cost).
+
+- **`OE\Mail\Enrich`** derives each contact's **company from their email domain**
+  (`jane@perkinswill.com` → *Perkinswill*; skips Gmail/Outlook/etc.) and **tidies
+  names** (ALL-CAPS / all-lowercase → Title Case, keeping deliberate casing like
+  "DeLeo", handling hyphens, apostrophes and the "Mc" prefix).
+- Runs as a **background backfill** (hourly cron) plus a **"Run cleanup"** button on
+  Contacts that shows how many remain and processes them in chunks.
+- New contact columns `company`, `tags`, `enriched` (DB → v8); exposed in the
+  REST DTO and shown as a **Company** column in both the plugin and platform
+  contact tables.
+
+Sets up the next step: Claude classifies people (architect / designer / press / …)
+into lists using these signals.
+
 ## 1.37.0 — contact lists (foundation) + Brevo import
 
 - **Lists** — new `oe_lists` + `oe_list_members` tables and `OE\Mail\Lists` model

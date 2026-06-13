@@ -35,6 +35,7 @@ final class Admin {
         add_action('admin_post_oe_seed_planning', [$this, 'handle_seed_planning']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
         add_action('admin_post_oe_import_brevo', [$this, 'handle_import_brevo']);
+        add_action('admin_post_oe_cleanup_contacts', [$this, 'handle_cleanup_contacts']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
@@ -299,6 +300,26 @@ final class Admin {
             $res = \OE\Mail\Lists::import_brevo((string) $_FILES['oe_brevo_csv']['tmp_name']);
         }
         set_transient('oe_brevo_import', $res, 120);
+        wp_safe_redirect(admin_url('admin.php?page=oe-contacts'));
+        exit;
+    }
+
+    public function handle_cleanup_contacts(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_cleanup_contacts');
+        @set_time_limit(0);
+        $done = 0;
+        // Process in chunks until caught up (capped so a runaway can't loop forever).
+        for ($i = 0; $i < 60; $i++) {
+            $n = \OE\Mail\Enrich::backfill(1000);
+            $done += $n;
+            if ($n < 1000) {
+                break;
+            }
+        }
+        set_transient('oe_cleanup_done', $done, 120);
         wp_safe_redirect(admin_url('admin.php?page=oe-contacts'));
         exit;
     }
