@@ -41,7 +41,7 @@ final class TicketsAdmin {
      * ------------------------------------------------------------------ */
 
     public function add_meta_boxes(): void {
-        add_meta_box('oe_ticket_types', __('ADF — Tickets', 'october-events'), [$this, 'render_event_meta_box'], PostTypes::slug('event'), 'normal', 'high');
+        add_meta_box('oe_ticket_types', __('Tickets & check-in', 'october-events'), [$this, 'render_event_meta_box'], PostTypes::slug('event'), 'normal', 'high');
     }
 
     public function render_event_meta_box(\WP_Post $post): void {
