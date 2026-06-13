@@ -919,20 +919,9 @@ function moduleCard(routeKey, name, dot, data, rows) {
 }
 
 /* ---------------------------------------------------------------- */
-/* Email — campaigns list + block builder                           */
+/* Email — campaigns list + 4-step wizard (Brief → Draft → Refine → Send) */
 /* ---------------------------------------------------------------- */
 const CAMPAIGN_STATUS = { draft: 'Draft', scheduled: 'Scheduled', sending: 'Sending', sent: 'Sent', paused: 'Paused' };
-const BLOCK_DEFS = {
-  heading: { label: 'Heading', make: () => ({ type: 'heading', text: 'Your headline', level: 'h2', align: 'left' }) },
-  text:    { label: 'Text',    make: () => ({ type: 'text', text: 'Write something here…', align: 'left' }) },
-  image:   { label: 'Image',   make: () => ({ type: 'image', url: '', alt: '', href: '', align: 'center' }) },
-  button:  { label: 'Button',  make: () => ({ type: 'button', label: 'Read more', href: 'https://', align: 'left' }) },
-  columns: { label: '2 columns', make: () => ({ type: 'columns', cols: [{ url: '', alt: '', text: '', href: '' }, { url: '', alt: '', text: '', href: '' }] }) },
-  social:  { label: 'Social',  make: () => ({ type: 'social', items: [{ label: 'Instagram', url: 'https://', icon: '' }, { label: 'Facebook', url: 'https://', icon: '' }] }) },
-  divider: { label: 'Divider', make: () => ({ type: 'divider' }) },
-  spacer:  { label: 'Spacer',  make: () => ({ type: 'spacer' }) },
-};
-const ALIGN_SELECT = (v) => `<select data-f="align"><option value="left" ${v === 'left' ? 'selected' : ''}>Left</option><option value="center" ${v === 'center' ? 'selected' : ''}>Center</option><option value="right" ${v === 'right' ? 'selected' : ''}>Right</option></select>`;
 
 async function renderEmail() {
   const main = shell('email');
@@ -1002,173 +991,42 @@ async function openCampaign(id) {
   } catch (e) {
     if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
   }
+  // Content model: AI / simple drafts are an array of blocks; a hand-refined
+  // email is stored as a GrapesJS project. The wizard converts blocks → canvas
+  // one-way (Refine), so there's never a confusing two-way toggle.
   let blocks = [];
-  let mode = 'simple';   // 'simple' = block builder · 'advanced' = GrapesJS HTML editor
-  let gjsData = null;    // saved GrapesJS project data, when a campaign was built in advanced mode
+  let gjsData = null;    // saved GrapesJS project data, when refined by hand
   try {
     const parsed = JSON.parse(rec.body_json || '[]');
     if (Array.isArray(parsed)) { blocks = parsed; }
-    else if (parsed && parsed.__mode === 'advanced') { mode = 'advanced'; gjsData = parsed.gjs || null; }
+    else if (parsed && parsed.__mode === 'advanced') { gjsData = parsed.gjs || null; }
   } catch (e) { blocks = []; }
 
   main.innerHTML = '';
   main.appendChild(pageHeader('EMAIL · ' + (id ? 'EDIT CAMPAIGN' : 'NEW CAMPAIGN'), rec.name || 'Untitled campaign'));
 
-  const layout = el('<div class="oe-cmp"></div>');
-  const left = el('<div class="oe-cmp-edit"></div>');
-  const right = el('<div class="oe-cmp-side"></div>');
-  layout.appendChild(left); layout.appendChild(right);
-  main.appendChild(layout);
-
-  const audOpts = audiences.map((a) => `<option value="${esc(a.key)}" ${rec.audience === a.key ? 'selected' : ''}>${esc(a.label)} (${a.count})</option>`).join('');
-  const meta = el(`<div class="oe-form" style="padding:0;gap:14px">
-    <label>Campaign name<input name="name" value="${esc(rec.name || '')}"></label>
-    <label>Subject line<input name="subject" value="${esc(rec.subject || '')}"></label>
-    <label>Preheader <span class="muted small">preview text</span><input name="preheader" value="${esc(rec.preheader || '')}"></label>
-    <label>Audience<select name="audience">${audOpts}</select></label>
-  </div>`);
-  left.appendChild(meta);
-
-  // Editor mode: the simple block builder, or the advanced drag-and-drop HTML
-  // editor (GrapesJS + newsletter preset, lazy-loaded the first time it's used).
-  const modeBar = el(`<div class="oe-mode">
-    <button class="oe-mode-btn" type="button" data-mode="simple">Simple builder</button>
-    <button class="oe-mode-btn" type="button" data-mode="advanced">Advanced (drag &amp; drop)</button>
-    <span class="oe-mode-hint muted small"></span>
-  </div>`);
-  left.appendChild(modeBar);
-
-  const blocksLabel = el('<div class="oe-cmp-label">Content blocks</div>');
-  left.appendChild(blocksLabel);
-  const toolbar = el('<div class="oe-blocktools"></div>');
-  Object.keys(BLOCK_DEFS).forEach((k) => {
-    const b = el(`<button class="btn btn-small">+ ${esc(BLOCK_DEFS[k].label)}</button>`);
-    b.addEventListener('click', () => { blocks.push(BLOCK_DEFS[k].make()); paintBlocks(); });
-    toolbar.appendChild(b);
-  });
-  left.appendChild(toolbar);
-  const blockList = el('<div class="oe-blocks"></div>');
-  left.appendChild(blockList);
-
-  const gjsWrap = el('<div class="oe-gjs" style="display:none"><div class="oe-gjs-canvas"></div></div>');
-  left.appendChild(gjsWrap);
-
-  const actions = el(`<div class="oe-cmp-actions">
-    <button class="btn" data-save>Save</button>
-    <button class="btn" data-test>Send test…</button>
-    <button class="btn btn-primary" data-send>Send / schedule…</button>
-    <div class="oe-result" id="c-msg"></div>
-    ${id ? '<button class="btn btn-link-danger" data-del>Delete campaign</button>' : ''}
-    <a class="oe-cmp-back" data-back>← All campaigns</a>
-  </div>`);
-  right.appendChild(actions);
-  const previewLabel = el('<div class="oe-cmp-label">Preview</div>');
-  right.appendChild(previewLabel);
-  const preview = el('<div class="oe-preview"></div>');
-  right.appendChild(preview);
-
-  function field(label, inner) { return el(`<label class="oe-bf">${label ? `<span>${esc(label)}</span>` : ''}${inner}</label>`); }
-
-  function blockEditor(b, i) {
-    const card = el(`<div class="oe-block">
-      <div class="oe-block-head"><span class="oe-block-type">${esc(b.type)}</span>
-        <span class="oe-block-ctrls"><button data-up title="Move up">↑</button><button data-down title="Move down">↓</button><button data-del title="Remove">✕</button></span></div>
-      <div class="oe-block-body"></div></div>`);
-    const body = card.querySelector('.oe-block-body');
-    if (b.type === 'heading') {
-      body.appendChild(field('Text', `<input value="${esc(b.text || '')}" data-f="text">`));
-      body.appendChild(field('Level', `<select data-f="level"><option value="h1" ${b.level === 'h1' ? 'selected' : ''}>H1</option><option value="h2" ${b.level !== 'h1' && b.level !== 'h3' ? 'selected' : ''}>H2</option><option value="h3" ${b.level === 'h3' ? 'selected' : ''}>H3</option></select>`));
-      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
-    } else if (b.type === 'text') {
-      body.appendChild(field('', `<textarea rows="3" data-f="text">${esc(b.text || '')}</textarea>`));
-      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
-    } else if (b.type === 'image') {
-      body.appendChild(field('Image URL', `<input value="${esc(b.url || '')}" data-f="url" placeholder="https://…">`));
-      const pick = el('<button class="btn btn-small">Choose from media library</button>');
-      pick.addEventListener('click', () => openMediaPicker((url) => { b.url = url; paintBlocks(); }));
-      body.appendChild(pick);
-      body.appendChild(field('Alt text', `<input value="${esc(b.alt || '')}" data-f="alt">`));
-      body.appendChild(field('Links to (optional)', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
-      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
-      if (b.url) { body.appendChild(el(`<img src="${esc(b.url)}" class="oe-block-thumb" alt="">`)); }
-    } else if (b.type === 'button') {
-      body.appendChild(field('Label', `<input value="${esc(b.label || '')}" data-f="label">`));
-      body.appendChild(field('Links to', `<input value="${esc(b.href || '')}" data-f="href" placeholder="https://…">`));
-      body.appendChild(field('Align', ALIGN_SELECT(b.align)));
-    } else if (b.type === 'columns') {
-      columnsEditor(b, body);
-    } else if (b.type === 'social') {
-      socialEditor(b, body);
-    } else {
-      body.appendChild(el('<p class="muted small" style="margin:0">No options.</p>'));
-    }
-    body.querySelectorAll('[data-f]').forEach((inp) => {
-      const upd = () => { b[inp.getAttribute('data-f')] = inp.value; paintPreview(); };
-      inp.addEventListener('input', upd); inp.addEventListener('change', upd);
-    });
-    card.querySelector('[data-up]').addEventListener('click', () => { if (i > 0) { const t = blocks[i - 1]; blocks[i - 1] = blocks[i]; blocks[i] = t; paintBlocks(); } });
-    card.querySelector('[data-down]').addEventListener('click', () => { if (i < blocks.length - 1) { const t = blocks[i + 1]; blocks[i + 1] = blocks[i]; blocks[i] = t; paintBlocks(); } });
-    card.querySelector('[data-del]').addEventListener('click', () => { blocks.splice(i, 1); paintBlocks(); });
-    return card;
+  // Single source of truth for the campaign fields; per-step inputs bind to it.
+  const draft = {
+    name: rec.name || '', subject: rec.subject || '',
+    preheader: rec.preheader || '', audience: rec.audience || 'subscribed',
+  };
+  const audOpts = audiences.map((a) => `<option value="${esc(a.key)}">${esc(a.label)} (${a.count})</option>`).join('');
+  const bound = [];
+  function bindInput(node, key) { node.value = draft[key]; node.addEventListener('input', () => { draft[key] = node.value; }); bound.push({ node, key }); return node; }
+  function bindSelect(node, key, onChange) {
+    node.value = draft[key];
+    node.addEventListener('change', () => { draft[key] = node.value; if (onChange) { onChange(); } });
+    bound.push({ node, key }); return node;
   }
+  function syncInputs() { bound.forEach(({ node, key }) => { if (node.value !== draft[key]) { node.value = draft[key]; } }); }
+  function recipients() { const a = audiences.find((x) => x.key === draft.audience); return a ? a.count : 0; }
 
-  function columnsEditor(b, body) {
-    if (!Array.isArray(b.cols)) { b.cols = [{}, {}]; }
-    b.cols.forEach((c) => {
-      const panel = el(`<div class="oe-col-edit"><div class="oe-col-edit-h">Column</div></div>`);
-      panel.appendChild(field('Image URL', `<input value="${esc(c.url || '')}" data-cf="url" placeholder="https://…">`));
-      const pick = el('<button class="btn btn-small">Choose image</button>');
-      pick.addEventListener('click', () => openMediaPicker((url) => { c.url = url; paintBlocks(); }));
-      panel.appendChild(pick);
-      panel.appendChild(field('Text', `<textarea rows="2" data-cf="text">${esc(c.text || '')}</textarea>`));
-      panel.appendChild(field('Links to', `<input value="${esc(c.href || '')}" data-cf="href" placeholder="https://…">`));
-      panel.querySelectorAll('[data-cf]').forEach((inp) => {
-        const upd = () => { c[inp.getAttribute('data-cf')] = inp.value; paintPreview(); };
-        inp.addEventListener('input', upd); inp.addEventListener('change', upd);
-      });
-      body.appendChild(panel);
-    });
-  }
-
-  function socialEditor(b, body) {
-    if (!Array.isArray(b.items)) { b.items = []; }
-    const list = el('<div class="oe-social-edit"></div>');
-    b.items.forEach((s, si) => {
-      const row = el(`<div class="oe-social-row">
-        <input value="${esc(s.label || '')}" data-sf="label" placeholder="Label">
-        <input value="${esc(s.url || '')}" data-sf="url" placeholder="https://…">
-        <button class="btn btn-small" data-icon title="Icon">Icon</button>
-        <button class="btn btn-small" data-rm title="Remove">✕</button></div>`);
-      row.querySelectorAll('[data-sf]').forEach((inp) => {
-        const upd = () => { s[inp.getAttribute('data-sf')] = inp.value; paintPreview(); };
-        inp.addEventListener('input', upd); inp.addEventListener('change', upd);
-      });
-      row.querySelector('[data-icon]').addEventListener('click', () => openMediaPicker((url) => { s.icon = url; paintBlocks(); }));
-      row.querySelector('[data-rm]').addEventListener('click', () => { b.items.splice(si, 1); paintBlocks(); });
-      if (s.icon) { row.appendChild(el(`<img src="${esc(s.icon)}" style="width:22px;height:22px;border-radius:4px">`)); }
-      list.appendChild(row);
-    });
-    const add = el('<button class="btn btn-small">+ Add link</button>');
-    add.addEventListener('click', () => { b.items.push({ label: '', url: 'https://', icon: '' }); paintBlocks(); });
-    body.appendChild(list); body.appendChild(add);
-  }
-
-  function paintBlocks() {
-    blockList.innerHTML = '';
-    if (!blocks.length) { blockList.appendChild(el('<p class="muted small">No blocks yet — add one above.</p>')); }
-    blocks.forEach((b, i) => blockList.appendChild(blockEditor(b, i)));
-    paintPreview();
-  }
-  function paintPreview() { preview.innerHTML = blocksToHtml(blocks, true); }
+  let gjsEditor = null;
+  const history = [];
 
   function collect() {
-    const base = {
-      name: meta.querySelector('[name="name"]').value.trim(),
-      subject: meta.querySelector('[name="subject"]').value.trim(),
-      preheader: meta.querySelector('[name="preheader"]').value.trim(),
-      audience: meta.querySelector('[name="audience"]').value,
-    };
-    if (mode === 'advanced' && gjsEditor) {
+    const base = { name: draft.name.trim(), subject: draft.subject.trim(), preheader: draft.preheader.trim(), audience: draft.audience };
+    if (gjsEditor) {
       let html = '';
       try { html = gjsEditor.runCommand('gjs-get-inlined-html') || ''; }
       catch (e) { html = gjsEditor.getHtml() + '<style>' + gjsEditor.getCss() + '</style>'; }
@@ -1180,126 +1038,240 @@ async function openCampaign(id) {
     }
     return base;
   }
-  async function save() {
-    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Saving…';
+  async function save(noteEl) {
+    if (noteEl) { noteEl.textContent = 'Saving…'; }
     try {
       if (rec.id) { await api.updateCampaign(rec.id, collect()); }
       else { const created = await api.createCampaign(collect()); rec.id = created.id; id = created.id; }
-      msg.textContent = 'Saved.'; return true;
-    } catch (e) { msg.textContent = e.message || 'Error'; return false; }
+      if (noteEl) { noteEl.textContent = 'Saved.'; }
+      return true;
+    } catch (e) { if (noteEl) { noteEl.textContent = e.message || 'Could not save.'; } return false; }
   }
 
-  actions.querySelector('[data-save]').addEventListener('click', save);
-  actions.querySelector('[data-back]').addEventListener('click', () => navigate('email'));
-  const delBtn = actions.querySelector('[data-del]');
-  if (delBtn) {
-    delBtn.addEventListener('click', async () => {
-      if (!confirm('Delete "' + (rec.name || 'this campaign') + '"? This cannot be undone.')) { return; }
-      const msg = actions.querySelector('#c-msg'); msg.textContent = 'Deleting…';
-      try { await api.deleteCampaign(rec.id); navigate('email'); }
-      catch (e) { msg.textContent = e.message || 'Could not delete.'; }
-    });
-  }
-  actions.querySelector('[data-test]').addEventListener('click', async () => {
-    if (!(await save())) { return; }
-    const email = prompt('Send a test to which email address?');
-    if (!email) { return; }
-    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Sending test…';
-    try { const r = await api.testCampaign(rec.id, email); msg.textContent = r.ok ? 'Test sent to ' + email + '.' : 'Test failed — is SES configured?'; }
-    catch (e) { msg.textContent = e.message || 'Error'; }
-  });
-  actions.querySelector('[data-send]').addEventListener('click', async () => {
-    if (!(await save())) { return; }
-    const aud = audiences.find((a) => a.key === collect().audience);
-    if (!confirm('Send "' + (rec.name || 'this campaign') + '" to ' + (aud ? aud.count : 'the selected') + ' recipient(s)?')) { return; }
-    const msg = actions.querySelector('#c-msg'); msg.textContent = 'Queuing…';
-    try { const r = await api.sendCampaign(rec.id); msg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => navigate('email'), 1400); }
-    catch (e) { msg.textContent = e.message || 'Error'; }
-  });
+  // --- Step progress ---------------------------------------------------------
+  const STEPS = [['brief', 'Brief'], ['draft', 'Draft'], ['refine', 'Refine'], ['send', 'Send']];
+  let step = id ? 'refine' : 'brief';
+  const visited = new Set([step, 'brief']); // Brief stays reachable so you can always re-draft with AI.
+  if (id) { visited.add('send'); }
 
-  // Claude co-pilot — brief it and it drafts the blocks, grounded in festival data.
-  const history = [];
-  const cop = el(`
-    <div class="oe-copilot">
-      <div class="oe-copilot-title">✦ AI co-pilot</div>
-      <textarea class="oe-copilot-brief" rows="2" placeholder="Brief the email — e.g. “September newsletter: lead with the opening party, include the confirmed tours, warm but plain tone.”"></textarea>
-      <div class="oe-copilot-row">
-        <button class="btn btn-primary btn-small" data-draft>Draft with AI</button>
-        <span class="oe-copilot-msg muted small"></span>
-      </div>
-      <p class="oe-copilot-hint muted small">It writes in your house voice and only uses real confirmed events &amp; links — anything unverified becomes a visible [TODO].</p>
-    </div>`);
-  cop.querySelector('[data-draft]').addEventListener('click', async () => {
-    const briefEl = cop.querySelector('.oe-copilot-brief');
-    const brief = briefEl.value.trim();
-    const msg = cop.querySelector('.oe-copilot-msg');
-    if (!brief) { return; }
-    msg.textContent = 'Drafting…';
+  const prog = el('<div class="oe-wsteps"></div>');
+  STEPS.forEach(([key, label], i) => {
+    const chip = el(`<button class="oe-wstep" data-step="${key}"><span class="oe-wstep-n">${i + 1}</span>${esc(label)}</button>`);
+    chip.addEventListener('click', () => { if (visited.has(key)) { showStep(key); } });
+    prog.appendChild(chip);
+  });
+  main.appendChild(prog);
+
+  const wrap = el('<div class="oe-wiz"></div>');
+  main.appendChild(wrap);
+  const backLink = el('<a class="oe-cmp-back" style="display:inline-block;margin-top:20px">← All campaigns</a>');
+  backLink.addEventListener('click', () => navigate('email'));
+  main.appendChild(backLink);
+
+  /* ── Step 1 · Brief ─────────────────────────────────────────────────────── */
+  const pBrief = el(`<section class="oe-wpanel">
+    <h2 class="oe-wtitle">What's this email?</h2>
+    <p class="oe-wsub">Choose who it's going to, then brief the co-pilot in a sentence — it drafts the whole email from your real, confirmed events. Or start from a blank canvas.</p></section>`);
+  const briefAud = el('<label class="oe-wfield"><span>Audience</span></label>');
+  briefAud.appendChild(bindSelect(el(`<select>${audOpts}</select>`), 'audience'));
+  pBrief.appendChild(briefAud);
+  const briefField = el(`<label class="oe-wfield"><span>Brief the co-pilot ✦</span>
+    <textarea class="oe-wbrief" rows="3" placeholder="e.g. September newsletter: lead with the opening party, include the confirmed tours, warm but plain tone."></textarea></label>`);
+  pBrief.appendChild(briefField);
+  pBrief.appendChild(el('<p class="oe-copilot-hint muted small">It writes in your house voice and only uses real confirmed events &amp; links — anything unverified becomes a visible [TODO].</p>'));
+  const briefNav = el('<div class="oe-wnav"></div>');
+  const draftBtn = el('<button class="btn btn-primary" data-draft>Draft with AI →</button>');
+  const blankBtn = el('<button class="btn btn-ghost" data-blank>Start from blank →</button>');
+  const briefMsg = el('<div class="oe-result"></div>');
+  briefNav.appendChild(draftBtn); briefNav.appendChild(blankBtn); briefNav.appendChild(briefMsg);
+  pBrief.appendChild(briefNav);
+  wrap.appendChild(pBrief);
+
+  async function runDraft(briefText, msgEl, btn) {
+    if (!briefText) { msgEl.textContent = 'Tell the co-pilot what the email should say.'; return false; }
+    if (btn) { btn.disabled = true; }
+    msgEl.textContent = 'Drafting…';
     try {
-      const r = await api.copilot({ brief, blocks, history });
-      if (!r.ok) { msg.textContent = r.reply || 'Could not draft.'; return; }
-      const nameEl = meta.querySelector('[name="name"]');
-      if (r.name && !nameEl.value.trim()) { nameEl.value = r.name; }
-      if (r.subject) { meta.querySelector('[name="subject"]').value = r.subject; }
-      if (r.preheader) { meta.querySelector('[name="preheader"]').value = r.preheader; }
-      if (Array.isArray(r.blocks)) { blocks = r.blocks; paintBlocks(); }
-      history.push({ role: 'user', content: brief });
+      const r = await api.copilot({ brief: briefText, blocks, history });
+      if (!r.ok) { msgEl.textContent = r.reply || 'Could not draft.'; return false; }
+      if (r.name && !draft.name.trim()) { draft.name = r.name; }
+      if (r.subject) { draft.subject = r.subject; }
+      if (r.preheader) { draft.preheader = r.preheader; }
+      if (Array.isArray(r.blocks)) { blocks = r.blocks; }
+      history.push({ role: 'user', content: briefText });
       history.push({ role: 'assistant', content: r.reply || '' });
-      msg.textContent = r.reply || 'Draft ready.';
-      briefEl.value = '';
-    } catch (e) { msg.textContent = e.message || 'Error'; }
+      // A fresh draft supersedes any canvas built earlier.
+      gjsData = null;
+      if (gjsEditor) { try { gjsEditor.setComponents(blocksToHtml(blocks, false)); } catch (e) { /* noop */ } }
+      syncInputs();
+      msgEl.textContent = r.reply || 'Draft ready.';
+      return true;
+    } catch (e) { msgEl.textContent = e.message || 'Error'; return false; }
+    finally { if (btn) { btn.disabled = false; } }
+  }
+  draftBtn.addEventListener('click', async () => {
+    const ok = await runDraft(briefField.querySelector('textarea').value.trim(), briefMsg, draftBtn);
+    if (ok) { showStep('draft'); }
   });
-  left.prepend(cop);
+  blankBtn.addEventListener('click', () => showStep('refine'));
 
-  // --- Editor mode management: simple block builder vs GrapesJS advanced ---
-  let gjsEditor = null;
-  const modeHint = modeBar.querySelector('.oe-mode-hint');
+  /* ── Step 2 · Draft ─────────────────────────────────────────────────────── */
+  const pDraft = el(`<section class="oe-wpanel">
+    <h2 class="oe-wtitle">Here's your draft</h2>
+    <p class="oe-wsub">The co-pilot wrote the name, subject and email below. Tweak the details, ask it to revise, or open it in the editor to refine by hand.</p></section>`);
+  const dGrid = el('<div class="oe-wgrid"></div>');
+  const fName = el('<label class="oe-wfield"><span>Campaign name</span></label>'); fName.appendChild(bindInput(el('<input placeholder="e.g. September Newsletter">'), 'name'));
+  const fSubj = el('<label class="oe-wfield"><span>Subject line</span></label>'); fSubj.appendChild(bindInput(el('<input placeholder="The subject readers see">'), 'subject'));
+  const fPre = el('<label class="oe-wfield"><span>Preheader <em class="muted small">inbox preview</em></span></label>'); fPre.appendChild(bindInput(el('<input placeholder="Preview text after the subject">'), 'preheader'));
+  dGrid.appendChild(fName); dGrid.appendChild(fSubj); dGrid.appendChild(fPre);
+  pDraft.appendChild(dGrid);
+  pDraft.appendChild(el('<div class="oe-cmp-label">Preview</div>'));
+  const draftPreview = el('<div class="oe-preview"></div>');
+  pDraft.appendChild(draftPreview);
+  const reField = el(`<label class="oe-wfield" style="margin-top:18px"><span>Ask for a revision ✦</span>
+    <textarea class="oe-wbrief" rows="2" placeholder="e.g. shorten the intro, add the volunteer call-out, friendlier sign-off."></textarea></label>`);
+  pDraft.appendChild(reField);
+  const draftNav = el('<div class="oe-wnav"></div>');
+  const dBack = el('<button class="btn btn-ghost" data-back>← Brief</button>');
+  const reBtn = el('<button class="btn" data-rebrief>Revise ✦</button>');
+  const toRefineBtn = el('<button class="btn btn-primary" data-refine>Edit this email →</button>');
+  const draftMsg = el('<div class="oe-result"></div>');
+  draftNav.appendChild(dBack); draftNav.appendChild(reBtn); draftNav.appendChild(toRefineBtn); draftNav.appendChild(draftMsg);
+  pDraft.appendChild(draftNav);
+  wrap.appendChild(pDraft);
+
+  function paintDraftPreview() { draftPreview.innerHTML = blocksToHtml(blocks, true); }
+  dBack.addEventListener('click', () => showStep('brief'));
+  reBtn.addEventListener('click', async () => {
+    const ta = reField.querySelector('textarea');
+    const ok = await runDraft(ta.value.trim(), draftMsg, reBtn);
+    if (ok) { ta.value = ''; paintDraftPreview(); }
+  });
+  toRefineBtn.addEventListener('click', () => showStep('refine'));
+
+  /* ── Step 3 · Refine (drag & drop) ──────────────────────────────────────── */
+  const pRefine = el(`<section class="oe-wpanel oe-wpanel-wide">
+    <h2 class="oe-wtitle">Refine your email</h2>
+    <p class="oe-wsub">Drag, edit and style by hand — you're in full control here, the co-pilot steps out. (You can always polish the copy later, even with Claude on the web.)</p></section>`);
+  const gjsWrap = el('<div class="oe-gjs"><div class="oe-gjs-canvas"></div></div>');
+  pRefine.appendChild(gjsWrap);
+  const refineNav = el('<div class="oe-wnav"></div>');
+  const rBack = el('<button class="btn btn-ghost" data-back>← Back</button>');
+  const rSave = el('<button class="btn" data-save>Save draft</button>');
+  const toSendBtn = el('<button class="btn btn-primary" data-send>Continue to send →</button>');
+  const refineMsg = el('<div class="oe-result"></div>');
+  refineNav.appendChild(rBack); refineNav.appendChild(rSave); refineNav.appendChild(toSendBtn); refineNav.appendChild(refineMsg);
+  pRefine.appendChild(refineNav);
+  wrap.appendChild(pRefine);
+
+  rBack.addEventListener('click', () => showStep(visited.has('draft') ? 'draft' : 'brief'));
+  rSave.addEventListener('click', () => save(refineMsg));
+  toSendBtn.addEventListener('click', async () => { if (await save(refineMsg)) { refineMsg.textContent = ''; showStep('send'); } });
 
   async function ensureGjs() {
     if (gjsEditor) { return gjsEditor; }
-    modeHint.textContent = 'Loading editor…';
+    refineMsg.textContent = 'Loading editor…';
     let grapesjs;
     try { grapesjs = await loadGrapes(); }
-    catch (e) { modeHint.textContent = 'Could not load the advanced editor.'; throw e; }
+    catch (e) { refineMsg.textContent = 'Could not load the editor.'; throw e; }
     const preset = window['grapesjs-preset-newsletter'];
     if (preset && grapesjs.plugins && grapesjs.plugins.get && !grapesjs.plugins.get('grapesjs-preset-newsletter')) {
       grapesjs.plugins.add('grapesjs-preset-newsletter', preset);
     }
+    // Surface the WP media library inside the editor's image picker.
+    let assets = [];
+    try { assets = (await api.listMedia() || []).map((m) => m.source_url).filter(Boolean); }
+    catch (e) { assets = []; }
     gjsEditor = grapesjs.init({
       container: gjsWrap.querySelector('.oe-gjs-canvas'),
-      height: '72vh',
+      height: '68vh',
       fromElement: false,
       storageManager: false,
+      assetManager: { assets, upload: false },
       plugins: preset ? ['grapesjs-preset-newsletter'] : [],
       pluginsOpts: preset ? { 'grapesjs-preset-newsletter': {} } : {},
     });
-    // Seed: a saved advanced project, otherwise the current simple blocks as HTML
-    // (so switching to advanced carries your work over instead of starting blank).
+    // Seed from a saved canvas, otherwise convert the AI / simple blocks to HTML.
     if (gjsData) {
       try { gjsEditor.loadProjectData(gjsData); }
       catch (e) { gjsEditor.setComponents(blocksToHtml(blocks, false)); }
     } else {
       gjsEditor.setComponents(blocksToHtml(blocks, false));
     }
-    modeHint.textContent = '';
+    refineMsg.textContent = '';
     return gjsEditor;
   }
 
-  function applyMode() {
-    const advanced = mode === 'advanced';
-    [blocksLabel, toolbar, blockList, cop, previewLabel, preview].forEach((node) => {
-      if (node) { node.style.display = advanced ? 'none' : ''; }
+  /* ── Step 4 · Send ──────────────────────────────────────────────────────── */
+  const pSend = el(`<section class="oe-wpanel">
+    <h2 class="oe-wtitle">Review &amp; send</h2>
+    <p class="oe-wsub">A last check. Send yourself a test, then send to the audience or come back later — it stays a draft until you do.</p></section>`);
+  const sGrid = el('<div class="oe-wgrid"></div>');
+  const sSubj = el('<label class="oe-wfield"><span>Subject line</span></label>'); sSubj.appendChild(bindInput(el('<input placeholder="The subject readers see">'), 'subject'));
+  const sName = el('<label class="oe-wfield"><span>Campaign name <em class="muted small">internal</em></span></label>'); sName.appendChild(bindInput(el('<input placeholder="e.g. September Newsletter">'), 'name'));
+  const sPre = el('<label class="oe-wfield"><span>Preheader</span></label>'); sPre.appendChild(bindInput(el('<input placeholder="Inbox preview text">'), 'preheader'));
+  const sAud = el('<label class="oe-wfield"><span>Audience</span></label>'); sAud.appendChild(bindSelect(el(`<select>${audOpts}</select>`), 'audience', () => paintSend()));
+  sGrid.appendChild(sSubj); sGrid.appendChild(sName); sGrid.appendChild(sPre); sGrid.appendChild(sAud);
+  pSend.appendChild(sGrid);
+  const sendCount = el('<div class="oe-wcount"></div>');
+  pSend.appendChild(sendCount);
+  const sendNav = el('<div class="oe-wnav"></div>');
+  const sBack = el('<button class="btn btn-ghost" data-back>← Edit</button>');
+  const testBtn = el('<button class="btn" data-test>Send test…</button>');
+  const sendBtn = el('<button class="btn btn-primary" data-send>Send now</button>');
+  const sendMsg = el('<div class="oe-result"></div>');
+  sendNav.appendChild(sBack); sendNav.appendChild(testBtn); sendNav.appendChild(sendBtn); sendNav.appendChild(sendMsg);
+  pSend.appendChild(sendNav);
+  if (id) {
+    const del = el('<button class="btn btn-link-danger" data-del style="margin-top:18px">Delete this campaign</button>');
+    del.addEventListener('click', async () => {
+      if (!confirm('Delete "' + (draft.name || 'this campaign') + '"? This cannot be undone.')) { return; }
+      sendMsg.textContent = 'Deleting…';
+      try { await api.deleteCampaign(rec.id); navigate('email'); }
+      catch (e) { sendMsg.textContent = e.message || 'Could not delete.'; }
     });
-    gjsWrap.style.display = advanced ? '' : 'none';
-    layout.classList.toggle('oe-cmp-adv', advanced);
-    modeBar.querySelectorAll('.oe-mode-btn').forEach((b) => b.classList.toggle('on', b.getAttribute('data-mode') === mode));
-    if (advanced) { ensureGjs().catch(() => {}); }
+    pSend.appendChild(del);
   }
-  modeBar.querySelectorAll('.oe-mode-btn').forEach((b) =>
-    b.addEventListener('click', () => { mode = b.getAttribute('data-mode'); applyMode(); }));
+  wrap.appendChild(pSend);
 
-  paintBlocks();
-  applyMode();
+  function paintSend() { sendCount.innerHTML = 'Sending to <strong>' + recipients() + '</strong> recipient' + (recipients() === 1 ? '' : 's') + '.'; }
+  sBack.addEventListener('click', () => showStep('refine'));
+  testBtn.addEventListener('click', async () => {
+    if (!(await save(sendMsg))) { return; }
+    const email = prompt('Send a test to which email address?');
+    if (!email) { return; }
+    sendMsg.textContent = 'Sending test…';
+    try { const r = await api.testCampaign(rec.id, email); sendMsg.textContent = r.ok ? 'Test sent to ' + email + '.' : 'Test failed — is SES configured?'; }
+    catch (e) { sendMsg.textContent = e.message || 'Error'; }
+  });
+  sendBtn.addEventListener('click', async () => {
+    if (!draft.subject.trim()) { sendMsg.textContent = 'Add a subject line first.'; return; }
+    if (!(await save(sendMsg))) { return; }
+    if (!confirm('Send "' + (draft.name || 'this campaign') + '" to ' + recipients() + ' recipient(s)?')) { return; }
+    sendMsg.textContent = 'Queuing…';
+    try { const r = await api.sendCampaign(rec.id); sendMsg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => navigate('email'), 1400); }
+    catch (e) { sendMsg.textContent = e.message || 'Error'; }
+  });
+
+  /* ── Step controller ────────────────────────────────────────────────────── */
+  const panels = { brief: pBrief, draft: pDraft, refine: pRefine, send: pSend };
+  function showStep(s) {
+    step = s; visited.add(s);
+    Object.keys(panels).forEach((k) => { panels[k].style.display = k === s ? '' : 'none'; });
+    prog.querySelectorAll('.oe-wstep').forEach((c) => {
+      const k = c.getAttribute('data-step');
+      c.classList.toggle('on', k === s);
+      c.classList.toggle('done', visited.has(k) && k !== s);
+      c.classList.toggle('avail', visited.has(k));
+    });
+    syncInputs();
+    wrap.classList.toggle('oe-wiz-wide', s === 'refine');
+    if (s === 'draft') { paintDraftPreview(); }
+    if (s === 'refine') { ensureGjs().catch(() => {}); }
+    if (s === 'send') { paintSend(); }
+    if (window.scrollTo) { window.scrollTo(0, 0); }
+  }
+  showStep(step);
 }
 
 /* Lazily load the self-hosted GrapesJS bundle (UMD) only when the advanced
@@ -1563,31 +1535,6 @@ function renderAssistant() {
   form.addEventListener('submit', (ev) => { ev.preventDefault(); submit(); });
   paint();
   input.focus();
-}
-
-async function openMediaPicker(onPick) {
-  const modal = el(`<div class="oe-drawer-wrap"><div class="oe-drawer-bg"></div>
-    <aside class="oe-drawer oe-drawer-wide"><div class="oe-drawer-head"><h2>Media library</h2><button class="btn btn-small" data-close>Close</button></div>
-    <div class="oe-media"><div class="oe-loading">Loading…</div></div></aside></div>`);
-  document.body.appendChild(modal);
-  const close = () => modal.remove();
-  modal.querySelector('[data-close]').addEventListener('click', close);
-  modal.querySelector('.oe-drawer-bg').addEventListener('click', close);
-  const wrap = modal.querySelector('.oe-media');
-  try {
-    const items = await api.listMedia();
-    wrap.innerHTML = '';
-    if (!items || !items.length) { wrap.appendChild(el('<p class="muted">No images in the media library yet.</p>')); return; }
-    const grid = el('<div class="oe-media-grid"></div>');
-    items.forEach((m) => {
-      const cell = el(`<button class="oe-media-cell"><img src="${esc(m.source_url)}" alt="" loading="lazy"></button>`);
-      cell.addEventListener('click', () => { onPick(m.source_url); close(); });
-      grid.appendChild(cell);
-    });
-    wrap.appendChild(grid);
-  } catch (e) {
-    wrap.innerHTML = '<p class="oe-error">Could not load media — ' + esc(e.message || 'error') + '</p>';
-  }
 }
 
 boot();

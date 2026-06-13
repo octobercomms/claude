@@ -290,6 +290,29 @@ h1,h2,h3{margin:0}
 .btn-link-danger{border:0;background:none;color:#c0392b;cursor:pointer;font-size:13px;font-weight:600;padding:6px 8px;border-radius:6px}
 .btn-link-danger:hover{background:#fde8e8}
 .oe-preview{border:var(--border-w) solid var(--card-border);border-radius:var(--r-md);overflow:auto;max-height:70vh;background:#f3f3f3}
+
+/* ---------------- email wizard ---------------- */
+.oe-wsteps{display:flex;gap:8px;flex-wrap:wrap;margin:var(--s5) 0 var(--s6)}
+.oe-wstep{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border:var(--border-w) solid var(--card-border);background:var(--surface);border-radius:999px;font:inherit;font-size:13px;font-weight:600;color:var(--text-muted);cursor:default}
+.oe-wstep.avail{cursor:pointer}
+.oe-wstep.avail:hover{border-color:var(--text-muted)}
+.oe-wstep-n{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--card-border);color:var(--text);font-size:12px;font-weight:700}
+.oe-wstep.done .oe-wstep-n{background:var(--text);color:#fff}
+.oe-wstep.on{color:var(--text);border-color:var(--text)}
+.oe-wstep.on .oe-wstep-n{background:var(--accent);color:var(--text)}
+.oe-wiz{max-width:720px}
+.oe-wiz.oe-wiz-wide{max-width:none}
+.oe-wtitle{font-size:24px;font-weight:700;letter-spacing:-.4px;margin:0 0 6px}
+.oe-wsub{color:var(--text-muted);font-size:14px;line-height:1.5;margin:0 0 var(--s5);max-width:64ch}
+.oe-wfield{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:14px;margin-bottom:var(--s4)}
+.oe-wfield>span em{font-weight:400}
+.oe-wfield input,.oe-wfield select,.oe-wbrief{padding:10px 12px;border:var(--border-w) solid var(--card-border);border-radius:var(--r-sm);font:inherit;font-weight:400;background:var(--surface);color:var(--text)}
+.oe-wfield input:focus,.oe-wfield select:focus,.oe-wbrief:focus{outline:none;border-color:var(--accent)}
+.oe-wgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.oe-wgrid .oe-wfield:first-child{grid-column:1 / -1}
+.oe-wnav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:var(--s5)}
+.oe-wnav [data-back]{margin-right:auto}
+.oe-wcount{margin:var(--s4) 0 0;font-size:15px;color:var(--text)}
 .oe-media{padding:16px 20px}
 .oe-media-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .oe-media-cell{padding:0;border:var(--border-w) solid var(--card-border);border-radius:var(--r-sm);overflow:hidden;cursor:pointer;background:var(--surface);aspect-ratio:1}
