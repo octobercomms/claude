@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.26.0 — headline KPI feed for the dashboards
+
+- New staff endpoint **`GET oe/v1/stats`** returns the festival's headline numbers:
+  tickets sold and revenue **this year**, total email subscribers, and event
+  readiness (confirmed / total), plus all-time totals and currency.
+- `Orders::stats()` gains **this-year** ticket + revenue figures.
+- Powers the redesigned dashboards (platform + plugin admin) so both show the same
+  key data.
+
 ## 1.25.0 — human hand-off from the support chat
 
 The public support chat now has a clear escape hatch to a real person.

@@ -118,6 +118,9 @@ export const api = {
   listContacts: (search, offset) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0)),
   updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
 
+  /* Headline KPIs for the dashboard (oe/v1/stats). */
+  stats: () => request('/stats'),
+
   /* Staff AI assistant (oe/v1/assistant) — tool-use over live festival data. */
   assistant: (messages) => request('/assistant', { method: 'POST', body: JSON.stringify({ messages }) }),
 

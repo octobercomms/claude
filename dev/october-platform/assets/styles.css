@@ -60,8 +60,7 @@ h1,h2,h3{margin:0}
   border-right:var(--border-w) solid var(--sidebar-border);display:flex;flex-direction:column;
   position:sticky;top:0;height:100vh;overflow-y:auto}
 .oe-brand{display:flex;align-items:center;gap:14px;padding:var(--s6) var(--s5) var(--s5);border-bottom:1px solid var(--sidebar-border)}
-.oe-brand img{height:30px;width:auto;display:block}
-.oe-brand-name{font-weight:600;font-size:18px;line-height:1.05;color:var(--sidebar-fg)}
+.oe-brand img{height:38px;width:auto;max-width:100%;display:block}
 .oe-nav{display:flex;flex-direction:column;gap:2px;flex:1;padding:var(--s4) var(--s3)}
 .oe-navlink{text-align:left;border:0;background:transparent;color:var(--sidebar-muted);font:inherit;font-weight:600;
   font-size:14px;padding:10px 14px;border-radius:var(--r-sm);cursor:pointer}

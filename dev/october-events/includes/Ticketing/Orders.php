@@ -267,6 +267,7 @@ final class Orders {
         $o = Schema::orders();
         $t = Schema::tickets();
         $today = current_time('Y-m-d');
+        $year  = current_time('Y');
 
         $tickets = (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active'");
         $revenue = (float) $wpdb->get_var("SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid'");
@@ -278,7 +279,19 @@ final class Orders {
             "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND DATE(created_at)=%s",
             $today
         ));
-        return compact('tickets', 'revenue') + ['today_tickets' => $today_tickets, 'today_revenue' => $today_revenue];
+        $year_tickets = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id WHERE o.status='paid' AND ti.status='active' AND YEAR(o.created_at)=%d",
+            $year
+        ));
+        $year_revenue = (float) $wpdb->get_var($wpdb->prepare(
+            "SELECT COALESCE(SUM(total),0) FROM {$o} WHERE status='paid' AND YEAR(created_at)=%d",
+            $year
+        ));
+        return compact('tickets', 'revenue') + [
+            'today_tickets' => $today_tickets, 'today_revenue' => $today_revenue,
+            'year_tickets'  => $year_tickets,  'year_revenue'  => $year_revenue,
+            'year'          => (int) $year,
+        ];
     }
 
     /**

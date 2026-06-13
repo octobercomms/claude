@@ -50,6 +50,7 @@ final class Plugin {
         \OE\Mail\ContactsRest::init();
         \OE\AI\Rest::init();
         \OE\AI\PublicRest::init();
+        \OE\Reports\Rest::init();
         (new Cron())->init();
         MapsConnector::init();
         Chat::init();
