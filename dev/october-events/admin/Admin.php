@@ -51,7 +51,6 @@ final class Admin {
         add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
         // Tickets: registrations + promo codes live here as tabs.
         add_submenu_page('october-events', 'Tickets', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
-        add_submenu_page('october-events', 'Approval Queue', 'Approval Queue', $cap, 'oe-queue', [$this, 'page_queue']);
         add_submenu_page('october-events', 'Directory', 'Directory', $cap, 'oe-directory', fn() => $this->page_listing('directory'));
         add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination'));
         add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product'));
@@ -172,31 +171,17 @@ final class Admin {
         foreach (PostTypes::listing_types() as $type) {
             $counts[$type] = $this->count_by_status(PostTypes::slug($type));
         }
-        // Pending submissions, surfaced for inline approve/reject right here.
+        // Pending submissions, surfaced for inline approve/reject right here
+        // (the approval queue lives on the dashboard now — no separate page).
         $pending = get_posts([
             'post_type'      => PostTypes::listing_slugs(),
             'post_status'    => 'any',
-            'posts_per_page' => 10,
+            'posts_per_page' => 50,
             'meta_query'     => [['key' => Fields::key('status'), 'value' => Fields::STATUS_PENDING_REVIEW]],
             'orderby'        => 'date',
             'order'          => 'ASC',
         ]);
         require OE_DIR . 'admin/views/dashboard.php';
-    }
-
-    public function page_queue(): void {
-        $filter = isset($_GET['type']) ? sanitize_key((string) $_GET['type']) : '';
-        $slugs  = ($filter && PostTypes::slug($filter)) ? [PostTypes::slug($filter)] : PostTypes::listing_slugs();
-
-        $items = get_posts([
-            'post_type'      => $slugs,
-            'post_status'    => 'any',
-            'posts_per_page' => 100,
-            'meta_query'     => [['key' => Fields::key('status'), 'value' => Fields::STATUS_PENDING_REVIEW]],
-            'orderby'        => 'date',
-            'order'          => 'ASC',
-        ]);
-        require OE_DIR . 'admin/views/queue.php';
     }
 
     public function page_accounts(): void {
@@ -350,7 +335,7 @@ final class Admin {
     }
 
     private function redirect_back(): void {
-        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-queue');
+        $back = wp_get_referer() ?: admin_url('admin.php?page=october-events');
         wp_safe_redirect($back);
         exit;
     }

@@ -18,7 +18,7 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
 
     <div class="oe-actionbar">
         <a class="button button-primary" href="<?php echo esc_url($event_new); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-queue')); ?>"><?php esc_html_e('Review submissions', 'october-events'); ?></a>
+        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-tickets')); ?>"><?php esc_html_e('Tickets', 'october-events'); ?></a>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
         <?php if ($checkin !== '') : ?>
             <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
@@ -28,8 +28,10 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
         <?php endif; ?>
     </div>
 
-    <?php if (! empty($pending)) : ?>
-        <div class="oe-panel-label"><?php echo esc_html(sprintf(_n('Needs your approval (%d)', 'Needs your approval (%d)', count($pending), 'october-events'), number_format_i18n(count($pending)))); ?></div>
+    <div class="oe-panel-label"><?php echo esc_html(sprintf(__('Approval queue (%d)', 'october-events'), number_format_i18n(count($pending)))); ?></div>
+    <?php if (empty($pending)) : ?>
+        <table class="widefat"><tbody><tr><td style="padding:24px 16px"><strong><?php esc_html_e('Nothing awaiting review.', 'october-events'); ?> 🎉</strong> <span class="description"><?php esc_html_e('New submissions will appear here to approve or reject.', 'october-events'); ?></span></td></tr></tbody></table>
+    <?php else : ?>
         <table class="widefat striped">
             <thead><tr>
                 <th><?php esc_html_e('Listing', 'october-events'); ?></th>
@@ -55,7 +57,6 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
             <?php endforeach; ?>
             </tbody>
         </table>
-        <p class="description"><a href="<?php echo esc_url(admin_url('admin.php?page=oe-queue')); ?>"><?php esc_html_e('Open the full approval queue →', 'october-events'); ?></a></p>
     <?php endif; ?>
 
     <div class="oe-panel-label"><?php esc_html_e('By listing type', 'october-events'); ?></div>
@@ -70,14 +71,17 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
             </tr>
         </thead>
         <tbody>
-        <?php foreach ($counts as $type => $by_status) :
-            $pending = (int) ($by_status['pending_review'] ?? 0); ?>
+        <?php
+        $type_pages = ['directory' => 'oe-directory', 'destination' => 'oe-destinations', 'product' => 'oe-products', 'event' => 'oe-planning', 'story' => 'oe-stories'];
+        foreach ($counts as $type => $by_status) :
+            $type_pending = (int) ($by_status['pending_review'] ?? 0);
+            $manage = admin_url('admin.php?page=' . ($type_pages[$type] ?? 'october-events')); ?>
             <tr>
                 <td><strong><?php echo esc_html(PostTypes::TYPES[$type]['label'] ?? $type); ?></strong></td>
-                <td><?php echo $pending ? '<span class="oe-status oe-status-pending_review">' . (int) $pending . '</span>' : '0'; ?></td>
+                <td><?php echo $type_pending ? '<span class="oe-status oe-status-pending_review">' . (int) $type_pending . '</span>' : '0'; ?></td>
                 <td><?php echo (int) ($by_status['approved'] ?? 0); ?></td>
                 <td><?php echo (int) ($by_status['rejected'] ?? 0); ?></td>
-                <td><a class="oe-rowlink" href="<?php echo esc_url(admin_url('admin.php?page=oe-queue&type=' . $type)); ?>"><?php esc_html_e('Review →', 'october-events'); ?></a></td>
+                <td><a class="oe-rowlink" href="<?php echo esc_url($manage); ?>"><?php esc_html_e('Manage →', 'october-events'); ?></a></td>
             </tr>
         <?php endforeach; ?>
         </tbody>

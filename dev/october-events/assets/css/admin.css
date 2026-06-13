@@ -134,6 +134,17 @@
 .oe-admin .oe-callout p{ margin:0 0 14px; color:var(--oe-muted); max-width:700px; line-height:1.55; }
 .oe-admin .oe-callout .oe-actionbar{ margin:0; }
 
+/* ---- White panel + column layout (e.g. Contacts management) ---- */
+.oe-admin .oe-panel{ background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:14px; padding:22px 24px; margin:0 0 24px; }
+.oe-admin .oe-cols{ display:grid; grid-template-columns:repeat(3,1fr); gap:28px; align-items:start; }
+@media (max-width:1100px){ .oe-admin .oe-cols{ grid-template-columns:1fr; gap:22px; } }
+.oe-admin .oe-cols h3{ margin:0 0 6px; font-size:13px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:var(--oe-ink); }
+.oe-admin .oe-cols .description{ margin:0 0 12px; }
+.oe-admin .oe-mini-stats{ display:flex; gap:18px; flex-wrap:wrap; }
+.oe-admin .oe-mini-stats .v{ font-size:26px; font-weight:800; line-height:1.05; display:block; }
+.oe-admin .oe-mini-stats .v.green{ color:var(--oe-green); }
+.oe-admin .oe-mini-stats .l{ font-size:12px; color:var(--oe-muted); }
+
 /* ---- Section panel + cleaner "getting-started"-style rows on every table ---- */
 .oe-admin .oe-panel-label{ font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--oe-subtle); margin:26px 0 10px; }
 .oe-admin .widefat td{ padding:13px 16px; vertical-align:middle; }

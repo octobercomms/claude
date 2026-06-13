@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.35.0 — approval queue fully on the Dashboard; Contacts tidied
+
+- **Approval queue** now lives **only on the Dashboard** — the standalone Approval
+  Queue menu item and page are removed. The Dashboard's "Approval queue" panel is
+  always shown (with a friendly empty state when nothing's pending) and lists up to
+  50 items with inline Approve/Reject. The "By listing type" rows now link to that
+  type's manage screen.
+- **Contacts** redesigned: the management controls sit in a white bordered panel
+  split into three columns with sub-headings — **Your list** (counts), **Rebuild**,
+  and a smaller **Import a CSV** — with the full contact list below.
+- **Settings** accordions now all start **collapsed**.
+
 ## 1.34.0 — Email moves to the platform; tools fold into Settings
 
 Completing the "campaigns live in the platform" split.
