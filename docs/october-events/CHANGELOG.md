@@ -12,6 +12,8 @@ automatically.
   Settings to override). Fixes the button pointing at `october-platform.pages.dev`.
 - **Volunteers** gains a **+ New opportunity** button (Tasks, Promo Codes and
   Tickets already had inline create forms).
+- De-branded the event ticket meta box title ("ADF — Tickets" → "Tickets &
+  check-in") where the ticket types, venues and the **check-in PIN** are set.
 
 ## 1.29.0 — Settings as accordions
 
