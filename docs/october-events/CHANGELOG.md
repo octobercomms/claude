@@ -5,6 +5,12 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.38.1 — Contacts screen split into tabs
+
+The Contacts screen is now tabbed: **Overview** (your list at a glance as KPI cards),
+**Lists** (your lists + member counts), **Contacts** (the table), and **Import & clean**
+(Brevo import, rebuild, cleanup, plain-CSV — tools last). Less wall, easier to find.
+
 ## 1.38.0 — contact CleanUp (names + company from email)
 
 The first half of AI list-building: a deterministic enrichment pass (no API cost).
