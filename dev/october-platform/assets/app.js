@@ -22,6 +22,26 @@ const VOL_STATUS = { pending: 'Pending', confirmed: 'Confirmed', declined: 'Decl
 const VOL_ORDER = ['pending', 'confirmed', 'declined', 'no_show'];
 
 let route = 'overview';
+
+/* Hash routing: each page has a URL like …/#/events, so a refresh (or a shared
+   link) lands on the same place. No server rewrites needed — works on static
+   hosting. */
+const ROUTES = ['overview', 'events', 'tasks', 'volunteers', 'email', 'contacts', 'assistant'];
+function routeFromHash() {
+  const h = (location.hash || '').replace(/^#\/?/, '');
+  return ROUTES.indexOf(h) >= 0 ? h : 'overview';
+}
+function navigate(r) {
+  route = ROUTES.indexOf(r) >= 0 ? r : 'overview';
+  const want = '#/' + route;
+  if (location.hash !== want) { location.hash = want; } // fires hashchange → no double render
+  render();
+}
+window.addEventListener('hashchange', () => {
+  if (!getCreds()) { return; }            // ignore while on the login screen
+  const r = routeFromHash();
+  if (r !== route) { route = r; render(); }
+});
 let taskMeta = null; // { departments, statuses, counts } — cached after first load
 let assistantThread = []; // staff AI chat history for this session: [{role, content}]
 
@@ -123,6 +143,7 @@ async function boot() {
   try {
     await api.ping();
     refreshBrand(); // non-blocking: theme the app from the connected site
+    route = routeFromHash(); // restore the page from the URL on load/refresh
     render();
   } catch (e) {
     renderLogin(e.status === 401 || e.status === 403
@@ -177,7 +198,7 @@ function shell(active) {
     </div>`);
   app.appendChild(wrap);
   wrap.querySelectorAll('[data-route]').forEach((b) =>
-    b.addEventListener('click', () => { route = b.getAttribute('data-route'); render(); }));
+    b.addEventListener('click', () => navigate(b.getAttribute('data-route'))));
   wrap.querySelector('#b-refresh').addEventListener('click', render);
   wrap.querySelector('#b-add').addEventListener('click', () => renderLogin(null, true));
   wrap.querySelector('#b-out').addEventListener('click', () => {
@@ -844,7 +865,7 @@ async function renderOverview() {
   main.appendChild(mods);
 
   main.querySelectorAll('[data-goto]').forEach((c) =>
-    c.addEventListener('click', () => { route = c.getAttribute('data-goto'); render(); }));
+    c.addEventListener('click', () => navigate(c.getAttribute('data-goto'))));
 }
 
 function statCard(label, value, sub, dark, dot) {
@@ -1155,7 +1176,7 @@ async function openCampaign(id) {
   }
 
   actions.querySelector('[data-save]').addEventListener('click', save);
-  actions.querySelector('[data-back]').addEventListener('click', () => { route = 'email'; render(); });
+  actions.querySelector('[data-back]').addEventListener('click', () => navigate('email'));
   actions.querySelector('[data-test]').addEventListener('click', async () => {
     if (!(await save())) { return; }
     const email = prompt('Send a test to which email address?');
@@ -1169,7 +1190,7 @@ async function openCampaign(id) {
     const aud = audiences.find((a) => a.key === collect().audience);
     if (!confirm('Send "' + (rec.name || 'this campaign') + '" to ' + (aud ? aud.count : 'the selected') + ' recipient(s)?')) { return; }
     const msg = actions.querySelector('#c-msg'); msg.textContent = 'Queuing…';
-    try { const r = await api.sendCampaign(rec.id); msg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => { route = 'email'; render(); }, 1400); }
+    try { const r = await api.sendCampaign(rec.id); msg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => navigate('email'), 1400); }
     catch (e) { msg.textContent = e.message || 'Error'; }
   });
 
