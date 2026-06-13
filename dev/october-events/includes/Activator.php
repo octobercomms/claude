@@ -41,6 +41,7 @@ final class Activator {
         \OE\Mail\EmailLog::install();
         \OE\Mail\Suppression::install();
         \OE\Mail\Contacts::install();
+        \OE\Mail\Lists::install();
         \OE\Mail\Campaigns::install();
         update_option('oe_db_version', OE_DB_VERSION);
     }

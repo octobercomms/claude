@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.37.0 — contact lists (foundation) + Brevo import
+
+- **Lists** — new `oe_lists` + `oe_list_members` tables and `OE\Mail\Lists` model
+  (manual lists now; a `type`/`rules` column is in place for dynamic segments next).
+  REST under `oe/v1/lists` (CRUD, add/remove members, import-CSV-to-a-list), and
+  the contacts list endpoint can filter by `?list=ID`.
+- **Campaigns can target a list** — lists appear as audiences (`list:<id>`) in the
+  builder and resolve to their subscribed members on send.
+- **One-shot Brevo import** — upload your Brevo export (the CSV with `_listIds`) on
+  the Contacts screen; it captures every contact (name, phone), respects
+  email/SMS consent, and **auto-creates &amp; assigns all your lists** (Subscribers,
+  Event — Tours, Volunteers, …) by their Brevo IDs. Idempotent — safe to re-run.
+- Plugin Contacts screen now shows your lists + member counts. DB schema → v7.
+
 ## 1.36.1 — updater: rate-limit back-off + balanced cache
 
 - The self-updater now **backs off when GitHub rate-limits the token** — it reads

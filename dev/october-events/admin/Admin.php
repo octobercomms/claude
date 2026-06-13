@@ -34,6 +34,7 @@ final class Admin {
         add_action('admin_post_oe_rebuild_contacts', [$this, 'handle_rebuild_contacts']);
         add_action('admin_post_oe_seed_planning', [$this, 'handle_seed_planning']);
         add_action('admin_post_oe_import_contacts', [$this, 'handle_import_contacts']);
+        add_action('admin_post_oe_import_brevo', [$this, 'handle_import_brevo']);
         add_action('admin_init', [$this, 'maybe_export_csv']);
         Settings::get_instance()->init();
         TicketsAdmin::get_instance()->init();
@@ -250,6 +251,7 @@ final class Admin {
     public function page_contacts(): void {
         $counts   = \OE\Mail\Contacts::counts();
         $contacts = \OE\Mail\Contacts::search('', 50, 0);
+        $lists    = \OE\Mail\Lists::all();
         require OE_DIR . 'admin/views/contacts.php';
     }
 
@@ -283,6 +285,21 @@ final class Admin {
             $added = \OE\Mail\Contacts::import_csv((string) $_FILES['oe_csv']['tmp_name']);
         }
         wp_safe_redirect(add_query_arg('imported', (string) $added, admin_url('admin.php?page=oe-contacts')));
+        exit;
+    }
+
+    public function handle_import_brevo(): void {
+        if (! current_user_can('manage_options')) {
+            wp_die('Forbidden', '', ['response' => 403]);
+        }
+        check_admin_referer('oe_import_brevo');
+        @set_time_limit(0); // large one-shot import
+        $res = ['ok' => false];
+        if (! empty($_FILES['oe_brevo_csv']['tmp_name']) && is_uploaded_file($_FILES['oe_brevo_csv']['tmp_name'])) {
+            $res = \OE\Mail\Lists::import_brevo((string) $_FILES['oe_brevo_csv']['tmp_name']);
+        }
+        set_transient('oe_brevo_import', $res, 120);
+        wp_safe_redirect(admin_url('admin.php?page=oe-contacts'));
         exit;
     }
 
