@@ -79,6 +79,12 @@ final class Settings {
                 'https://october-platform.pages.dev',
                 'https://platform.atlantadesignfestival.net',
             ],
+            // The planning platform's URL, for "open in the platform" buttons in
+            // wp-admin. Blank = use the first allowed origin above.
+            'platform_url' => '',
+            // The front-end page where the [oe_checkin] scanner shortcode lives,
+            // so staff can jump to it from the dashboard. Blank = no button.
+            'checkin_page_url' => '',
             // Per-site theming for the planning platform. Empty = use the
             // platform's built-in October defaults (Brockmann + brand yellow).
             // Exposed (read-only) via the public oe/v1/brand endpoint.

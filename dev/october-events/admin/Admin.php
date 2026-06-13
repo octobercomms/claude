@@ -96,6 +96,49 @@ final class Admin {
             'steps' => [['Brand & theme', 'Name, colours, logo, font'], ['Connect services', 'Stripe, SES, SMS, Chatwoot'], ['Train the AI', 'House voice + examples'], ['Updates', 'GitHub self-updater']]],
     ];
 
+    /**
+     * Headline KPI cards — the festival's key numbers, identical to the platform
+     * Dashboard (same `oe/v1/stats` data source). Renders a 4-card row.
+     */
+    public static function kpis(): void {
+        $d   = \OE\Reports\Rest::data();
+        $cur = (string) $d['currency'];
+        $sym = ['USD' => '$', 'GBP' => '£', 'EUR' => '€'][$cur] ?? ($cur . ' ');
+        $money = static function ($n) use ($sym): string {
+            return $sym . number_format((float) $n, 0);
+        };
+        $conf  = (int) $d['events_confirmed'];
+        $tot   = (int) $d['events_total'];
+        $evDot = ($tot && $conf === $tot) ? 'green' : ($conf ? '' : 'amber');
+        $evSub = $tot ? (($tot - $conf) . ' still in planning') : 'no events yet';
+
+        $cards = [
+            ['Tickets sold',     number_format_i18n((int) $d['tickets_year']), $d['year'] . ' to date', true,  ''],
+            ['Revenue',          $money($d['revenue_year']),                   $d['year'] . ' to date', false, ''],
+            ['Subscribers',      number_format_i18n((int) $d['subscribers']),  'on the email list',     false, ''],
+            ['Events confirmed', $conf . '/' . $tot,                           $evSub,                  false, $evDot],
+        ];
+        echo '<div class="oe-kpis">';
+        foreach ($cards as [$label, $value, $sub, $dark, $dot]) {
+            echo '<div class="oe-kpi' . ($dark ? ' dark' : '') . '">'
+                . '<div class="k">' . esc_html($label) . '</div>'
+                . '<div class="v">' . esc_html((string) $value) . '</div>'
+                . '<div class="s">' . ($dot ? '<i class="dot ' . esc_attr($dot) . '"></i>' : '') . esc_html($sub) . '</div>'
+                . '</div>';
+        }
+        echo '</div>';
+    }
+
+    /** The platform SPA URL (Settings → platform_url, else first allowed origin). */
+    public static function platform_url(): string {
+        $url = trim((string) \OE\Settings::get('platform_url', ''));
+        if ($url === '') {
+            $origins = (array) \OE\Settings::get('platform_origins', []);
+            $url = (string) ($origins[0] ?? '');
+        }
+        return $url !== '' ? untrailingslashit($url) : '';
+    }
+
     public static function bento(string $key): void {
         $b = self::BENTOS[$key] ?? null;
         if (! $b) {
