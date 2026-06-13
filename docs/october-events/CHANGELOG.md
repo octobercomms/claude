@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.32.0 — approvals on the Dashboard
+
+The Dashboard now shows a **"Needs your approval"** panel listing pending
+submissions with inline **Approve / Reject** (the same actions as the queue, and
+they return you to the Dashboard). The full Approval Queue page stays for
+filtering. One less click for the most common daily action.
+
 ## 1.31.0 — admin menu consolidation (phase 1)
 
 Streamlining the plugin admin toward "setup & data here, staff ops in the platform".

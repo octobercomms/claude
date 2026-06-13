@@ -1,8 +1,10 @@
 <?php
-/** @var array $counts  type => [status => count] */
+/** @var array $counts  type => [status => count] @var \WP_Post[] $pending */
 defined('ABSPATH') || exit;
 use OE\PostTypes;
 use OE\Admin\Admin;
+use OE\Fields;
+use OE\Account;
 
 $platform  = Admin::platform_url();
 $checkin   = (string) \OE\Settings::get('checkin_page_url', '');
@@ -25,6 +27,36 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
             <a class="button" href="<?php echo esc_url($platform); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open the platform ↗', 'october-events'); ?></a>
         <?php endif; ?>
     </div>
+
+    <?php if (! empty($pending)) : ?>
+        <div class="oe-panel-label"><?php echo esc_html(sprintf(_n('Needs your approval (%d)', 'Needs your approval (%d)', count($pending), 'october-events'), number_format_i18n(count($pending)))); ?></div>
+        <table class="widefat striped">
+            <thead><tr>
+                <th><?php esc_html_e('Listing', 'october-events'); ?></th>
+                <th><?php esc_html_e('Type', 'october-events'); ?></th>
+                <th><?php esc_html_e('Account', 'october-events'); ?></th>
+                <th><?php esc_html_e('Submitted', 'october-events'); ?></th>
+                <th></th>
+            </tr></thead>
+            <tbody>
+            <?php foreach ($pending as $p) :
+                $ptype = (string) Fields::get($p->ID, 'listing_type');
+                $acct  = (int) Fields::get($p->ID, 'submitter_account_id'); ?>
+                <tr>
+                    <td><strong><a href="<?php echo esc_url((string) get_edit_post_link($p->ID)); ?>"><?php echo esc_html(get_the_title($p)); ?></a></strong></td>
+                    <td><?php echo esc_html(PostTypes::TYPES[$ptype]['label'] ?? $ptype); ?></td>
+                    <td><?php echo esc_html($acct ? Account::name($acct) : '—'); ?></td>
+                    <td><?php echo esc_html((string) Fields::get($p->ID, 'submission_date')); ?></td>
+                    <td>
+                        <a class="button button-primary" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_approve&id=' . $p->ID), 'oe_approve_' . $p->ID)); ?>"><?php esc_html_e('Approve', 'october-events'); ?></a>
+                        <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_reject&id=' . $p->ID), 'oe_reject_' . $p->ID)); ?>" onclick="return confirm('<?php echo esc_js(__('Reject and refund (if paid)?', 'october-events')); ?>');"><?php esc_html_e('Reject', 'october-events'); ?></a>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+        <p class="description"><a href="<?php echo esc_url(admin_url('admin.php?page=oe-queue')); ?>"><?php esc_html_e('Open the full approval queue →', 'october-events'); ?></a></p>
+    <?php endif; ?>
 
     <div class="oe-panel-label"><?php esc_html_e('By listing type', 'october-events'); ?></div>
     <table class="widefat striped">

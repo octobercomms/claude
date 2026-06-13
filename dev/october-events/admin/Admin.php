@@ -173,6 +173,15 @@ final class Admin {
         foreach (PostTypes::listing_types() as $type) {
             $counts[$type] = $this->count_by_status(PostTypes::slug($type));
         }
+        // Pending submissions, surfaced for inline approve/reject right here.
+        $pending = get_posts([
+            'post_type'      => PostTypes::listing_slugs(),
+            'post_status'    => 'any',
+            'posts_per_page' => 10,
+            'meta_query'     => [['key' => Fields::key('status'), 'value' => Fields::STATUS_PENDING_REVIEW]],
+            'orderby'        => 'date',
+            'order'          => 'ASC',
+        ]);
         require OE_DIR . 'admin/views/dashboard.php';
     }
 
