@@ -3,9 +3,11 @@
 defined('ABSPATH') || exit;
 ?>
 <div class="wrap oe-admin">
-    <h1><?php esc_html_e('Event Planning', 'october-events'); ?></h1>
+    <h1><?php esc_html_e('Events', 'october-events'); ?>
+        <a href="<?php echo esc_url(admin_url('post-new.php?post_type=' . \OE\Planning\Events::slug())); ?>" class="page-title-action"><?php esc_html_e('Add new', 'october-events'); ?></a>
+    </h1>
     <?php \OE\Admin\Admin::bento('planning'); ?>
-    <p class="description"><?php esc_html_e('An event goes green once it has the essentials: title, dates & times, price and location. Green = published live.', 'october-events'); ?></p>
+    <p class="description"><?php esc_html_e('Every event and its readiness. An event goes green once it has the essentials: title, dates & times, price and location. Green = published live.', 'october-events'); ?></p>
 
     <?php if (isset($_GET['seeded'])) : ?>
         <div class="notice notice-success is-dismissible"><p><?php echo esc_html(sprintf(__('Seeded planning data into %d event(s) from your mapped fields.', 'october-events'), (int) $_GET['seeded'])); ?></p></div>

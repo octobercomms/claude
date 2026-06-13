@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.31.0 — admin menu consolidation (phase 1)
+
+Streamlining the plugin admin toward "setup & data here, staff ops in the platform".
+
+- **Events** — the readiness board is now the single Events screen; the redundant
+  raw Events list is removed from the menu (events still editable via their rows).
+- **Tickets** — Promo codes are now a **tab** inside Tickets (Registrations |
+  Promo codes); the standalone Promo Codes menu item is gone.
+- **Tasks** removed from the plugin menu (it's a platform/staff tool; its data +
+  REST stay so the platform is unaffected).
+
+Still to come: surfacing the approval queue on the Dashboard, moving Email's
+deliverability tools into Settings (then dropping the Email menu item), a platform
+"create opportunity" action so Volunteers can leave the plugin menu too, and the
+Settings reorg (grouped by page, two columns).
+
 ## 1.30.0 — platform link + Volunteers create button
 
 - The **"Open the platform"** buttons now prefer your real custom domain over the

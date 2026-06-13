@@ -12,10 +12,11 @@ use OE\Ticketing\Orders;
 $export = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=orders'), 'oe_export');
 ?>
 <div class="wrap oe-admin">
-    <h1><?php esc_html_e('Registrations', 'october-events'); ?>
+    <h1><?php esc_html_e('Tickets', 'october-events'); ?>
         <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
     </h1>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
+    <?php \OE\Admin\Admin::tickets_tabs('orders'); ?>
 
     <?php if (! empty($_GET['oe_msg'])) :
         $m = sanitize_key((string) $_GET['oe_msg']); ?>

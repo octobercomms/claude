@@ -47,21 +47,22 @@ final class Admin {
         $brand = (string) \OE\Settings::get('brand_name', 'October Events');
         add_menu_page($brand, $brand, $cap, 'october-events', [$this, 'page_dashboard'], 'dashicons-art', 28);
         add_submenu_page('october-events', 'Dashboard', 'Dashboard', $cap, 'october-events', [$this, 'page_dashboard']);
-        add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']);
+        // Events: the readiness board IS the events screen (raw CPT list merged in).
+        add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
+        // Tickets: registrations + promo codes live here as tabs.
+        add_submenu_page('october-events', 'Tickets', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
         add_submenu_page('october-events', 'Approval Queue', 'Approval Queue', $cap, 'oe-queue', [$this, 'page_queue']);
         add_submenu_page('october-events', 'Directory', 'Directory', $cap, 'oe-directory', fn() => $this->page_listing('directory'));
         add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination'));
         add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product'));
-        add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-events', fn() => $this->page_listing('event'));
-        add_submenu_page('october-events', 'Event Planning', 'Event Planning', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
-        add_submenu_page('october-events', 'Registrations', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
-        add_submenu_page('october-events', 'Promo Codes', 'Promo Codes', $cap, 'oe-promos', [TicketsAdmin::get_instance(), 'render_promos']);
-        add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
-        add_submenu_page('october-events', 'Tasks', 'Tasks', $cap, 'oe-tasks', [TasksAdmin::get_instance(), 'render']);
         add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story'));
+        add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']);
+        add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
         add_submenu_page('october-events', 'Email', 'Email', $cap, 'oe-email', [$this, 'page_email']);
         add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']);
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
+        // Tasks moved to the platform (staff ops); its data + REST remain. The raw
+        // Events list and the standalone Promo Codes screen are merged above.
     }
 
     /* ----------------------------------------------------------------- *
@@ -213,7 +214,30 @@ final class Admin {
     }
 
     public function page_tickets(): void {
-        TicketsAdmin::get_instance()->render_registrations();
+        $tab = (isset($_GET['tab']) && $_GET['tab'] === 'promos') ? 'promos' : 'orders';
+        if ($tab === 'promos') {
+            TicketsAdmin::get_instance()->render_promos();
+        } else {
+            TicketsAdmin::get_instance()->render_registrations();
+        }
+    }
+
+    /** Tab nav shared by the Tickets sub-screens (Registrations / Promo codes). */
+    public static function tickets_tabs(string $active): void {
+        $tabs = [
+            'orders' => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
+            'promos' => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
+        ];
+        echo '<h2 class="nav-tab-wrapper">';
+        foreach ($tabs as $key => $t) {
+            printf(
+                '<a href="%s" class="nav-tab%s">%s</a>',
+                esc_url($t[1]),
+                $active === $key ? ' nav-tab-active' : '',
+                esc_html($t[0])
+            );
+        }
+        echo '</h2>';
     }
 
     public function page_volunteers(): void {
