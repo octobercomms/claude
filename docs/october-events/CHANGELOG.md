@@ -5,6 +5,17 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.38.2 — delete campaigns + co-pilot names the campaign
+
+Groundwork for the new email flow.
+
+- **Delete a campaign** — a ✕ on each campaign card (hover) and a "Delete campaign"
+  action in the editor, both with confirmation. (The backend DELETE route already
+  existed; this surfaces it.)
+- **Co-pilot now names the campaign** too — its draft fills the internal campaign
+  name (when blank) alongside the subject and preheader, so a one-line brief
+  produces a fully-labelled draft.
+
 ## 1.38.1 — Contacts screen split into tabs
 
 The Contacts screen is now tabbed: **Overview** (your list at a glance as KPI cards),
