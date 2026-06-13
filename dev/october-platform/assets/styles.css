@@ -333,6 +333,11 @@ h1,h2,h3{margin:0}
 .oe-subtab.on{color:var(--text);border-bottom-color:var(--accent)}
 .oe-listbar{display:flex;justify-content:flex-end;margin-bottom:var(--s4)}
 .oe-rowacts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.oe-bars{display:flex;align-items:flex-end;gap:10px;height:240px;padding:12px 4px;border-bottom:var(--border-w) solid var(--card-border);overflow-x:auto}
+.oe-bar-col{flex:1;min-width:34px;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:6px}
+.oe-bar-v{font-size:12px;font-weight:700;color:var(--text-muted)}
+.oe-bar{width:100%;max-width:48px;background:var(--accent);border-radius:6px 6px 0 0;min-height:2px;transition:height .2s}
+.oe-bar-x{font-size:11px;font-weight:600;color:var(--text-subtle);white-space:nowrap}
 .oe-drawer-body{padding:var(--s5);display:flex;flex-direction:column;gap:var(--s4)}
 .oe-listmem{overflow:auto}
 .oe-cmeta div{font-weight:600}

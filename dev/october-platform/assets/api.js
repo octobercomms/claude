@@ -115,6 +115,7 @@ export const api = {
 
   /* Contacts (oe/v1/contacts). */
   contactsMeta: () => request('/contacts/meta'),
+  contactsGrowth: () => request('/contacts/growth'),
   listContacts: (search, offset, list) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0) + (list ? '&list=' + list : '')),
   updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
   editContact: (id, fields) => request('/contact/' + id, { method: 'POST', body: JSON.stringify(fields) }),

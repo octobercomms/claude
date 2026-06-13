@@ -1427,7 +1427,7 @@ async function renderContacts() {
   let tab = 'contacts';
   const tabBar = el('<div class="oe-subtabs"></div>');
   const body = el('<div class="oe-subtab-body"></div>');
-  [['contacts', 'Contacts'], ['lists', 'Lists']].forEach(([key, label]) => {
+  [['contacts', 'Contacts'], ['lists', 'Lists'], ['growth', 'Growth']].forEach(([key, label]) => {
     const b = el(`<button class="oe-subtab" data-tab="${key}">${label}</button>`);
     b.addEventListener('click', () => showTab(key));
     tabBar.appendChild(b);
@@ -1438,9 +1438,44 @@ async function renderContacts() {
     tab = t;
     tabBar.querySelectorAll('.oe-subtab').forEach((b) => b.classList.toggle('on', b.getAttribute('data-tab') === t));
     body.innerHTML = '';
-    if (t === 'lists') { renderListsTab(body); } else { renderContactsTab(body); }
+    if (t === 'lists') { renderListsTab(body); }
+    else if (t === 'growth') { renderGrowthTab(body); }
+    else { renderContactsTab(body); }
   }
   showTab('contacts');
+}
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthLabel(m) {
+  const parts = String(m || '').split('-');
+  if (parts.length !== 2) { return m; }
+  return MONTH_NAMES[parseInt(parts[1], 10) - 1] + " '" + parts[0].slice(2);
+}
+
+async function renderGrowthTab(container) {
+  container.innerHTML = '<div class="oe-loading">Loading…</div>';
+  let data = [];
+  try { data = await api.contactsGrowth(); } catch (e) { container.innerHTML = '<p class="oe-error">Could not load growth.</p>'; return; }
+  if (!Array.isArray(data)) { data = []; }
+  container.innerHTML = '';
+  container.appendChild(el('<p class="muted small" style="margin:0 0 18px;max-width:64ch">New contacts by the month we first recorded them — excluding the one-time Brevo/CSV imports. Growth from here is the signal to watch.</p>'));
+  if (!data.length) {
+    container.appendChild(el('<p class="muted" style="padding:16px 0">No subscriber activity recorded yet.</p>'));
+    return;
+  }
+  const total = data.reduce((n, d) => n + (d.count || 0), 0);
+  const max = Math.max(1, ...data.map((d) => d.count || 0));
+  const chart = el('<div class="oe-bars"></div>');
+  data.forEach((d) => {
+    const h = Math.max(2, Math.round(((d.count || 0) / max) * 100));
+    const col = el('<div class="oe-bar-col"></div>');
+    col.innerHTML = '<div class="oe-bar-v">' + (d.count || 0) + '</div>'
+      + '<div class="oe-bar" style="height:' + h + '%"></div>'
+      + '<div class="oe-bar-x">' + esc(monthLabel(d.month)) + '</div>';
+    chart.appendChild(col);
+  });
+  container.appendChild(chart);
+  container.appendChild(el('<p class="muted small" style="margin-top:14px">' + total + ' contacts added across ' + data.length + ' month' + (data.length === 1 ? '' : 's') + '.</p>'));
 }
 
 function renderContactsTab(container) {
