@@ -115,8 +115,15 @@ export const api = {
 
   /* Contacts (oe/v1/contacts). */
   contactsMeta: () => request('/contacts/meta'),
-  listContacts: (search, offset) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0)),
+  listContacts: (search, offset, list) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0) + (list ? '&list=' + list : '')),
   updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
+
+  /* Lists (oe/v1/lists). */
+  listLists: () => request('/lists'),
+  createList: (name, description) => request('/lists', { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }),
+  updateList: (id, name, description) => request('/lists/' + id, { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }),
+  deleteList: (id) => request('/lists/' + id, { method: 'DELETE' }),
+  listMember: (id, contactId, action) => request('/lists/' + id + '/members', { method: 'POST', body: JSON.stringify({ contact_id: contactId, action }) }),
 
   /* Headline KPIs for the dashboard (oe/v1/stats). */
   stats: () => request('/stats'),
