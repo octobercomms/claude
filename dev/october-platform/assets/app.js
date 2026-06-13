@@ -99,6 +99,11 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 function el(html) { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; }
+function money(n, cur) {
+  const v = Number(n || 0);
+  try { return new Intl.NumberFormat(undefined, { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 0 }).format(v); }
+  catch (e) { return (cur ? cur + ' ' : '') + Math.round(v).toLocaleString(); }
+}
 
 /* ---------------------------------------------------------------- */
 /* Boot                                                             */
@@ -141,7 +146,6 @@ function shell(active) {
       <aside class="oe-side">
         <div class="oe-brand">
           <img src="${esc(theme.logo_dark)}" alt="${esc(theme.brand_name)}">
-          <div class="oe-brand-name">${esc(theme.brand_name)}</div>
         </div>
         <nav class="oe-nav">
           ${link('overview', 'Dashboard')}
@@ -766,10 +770,11 @@ async function renderOverview() {
   main.appendChild(el('<div class="oe-loading">Loading dashboard…</div>'));
 
   // Pull all three boards in parallel; tolerate any single one failing.
-  const [events, tasks, opps] = await Promise.all([
+  const [events, tasks, opps, kpis] = await Promise.all([
     api.listEvents().catch(() => null),
     api.listTasks().catch(() => null),
     api.listOpportunities().catch(() => null),
+    api.stats().catch(() => null),
   ]);
   if (events === null && tasks === null && opps === null) {
     return renderLogin('Session expired — sign in again.');
@@ -797,14 +802,17 @@ async function renderOverview() {
   ));
   main.appendChild(pageGuide('overview'));
 
-  // Stat cards (first one highlighted dark, like OMI).
+  // Headline KPI cards — the festival's key numbers (first one highlighted, like OMI).
+  const k = kpis || {};
+  const cur = k.currency || '';
+  const yr = k.year ? String(k.year) : '';
   const stats = el('<div class="oe-stats"></div>');
-  stats.appendChild(statCard('Events ready', green + '/' + (total || 0), 'confirmed & green', true));
-  stats.appendChild(statCard('Open tasks', String(openTasks), blocked ? blocked + ' blocked' : 'none blocked', false, blocked ? 'amber' : ''));
-  stats.appendChild(statCard('Volunteer slots', filled + '/' + (capacity || 0),
-    capacity === 0 ? 'no shifts yet' : (shortfall ? shortfall + ' still open' : 'fully staffed'),
-    false, capacity === 0 ? '' : (shortfall ? 'amber' : 'green')));
-  stats.appendChild(statCard('Needs attention', String(attention), attention ? 'to action' : 'all clear', false, attention ? 'amber' : 'green'));
+  stats.appendChild(statCard('Tickets sold', kpis ? String(k.tickets_year) : '—', yr ? yr + ' to date' : 'this year', true));
+  stats.appendChild(statCard('Revenue', kpis ? money(k.revenue_year, cur) : '—', yr ? yr + ' to date' : 'this year', false));
+  stats.appendChild(statCard('Subscribers', kpis ? String(k.subscribers) : '—', 'on the email list', false));
+  stats.appendChild(statCard('Events confirmed', green + '/' + (total || 0),
+    prog ? prog + ' still in planning' : (attention ? attention + ' need attention' : 'all on track'),
+    false, (total && green === total) ? 'green' : (green ? '' : 'amber')));
   main.appendChild(stats);
 
   // Getting started checklist.
