@@ -1400,7 +1400,7 @@ async function renderContacts() {
     if (!rows.length) { wrap.innerHTML = '<p class="muted" style="padding:16px 0">' + (term ? 'No contacts match that.' : 'No contacts yet.') + '</p>'; return; }
     // Build rows as HTML inside a real <tbody> — a <tr> created via a <div>
     // wrapper gets stripped by the parser, so insert into table context instead.
-    const table = el('<table class="oe-ctable"><thead><tr><th>Email</th><th>Name</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>');
+    const table = el('<table class="oe-ctable"><thead><tr><th>Email</th><th>Name</th><th>Company</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>');
     const tbody = table.querySelector('tbody');
     tbody.innerHTML = rows.map(contactRowHtml).join('');
     wrap.innerHTML = '';
@@ -1419,6 +1419,7 @@ async function renderContacts() {
     return '<tr>'
       + '<td>' + esc(c.email) + '</td>'
       + '<td>' + esc(c.name || '') + '</td>'
+      + '<td>' + esc(c.company || '') + '</td>'
       + '<td><span class="t-dept">' + esc(c.source || '—') + '</span></td>'
       + '<td><span class="' + (sub ? 'c-sub' : 'c-unsub') + '">' + esc(CONTACT_STATUS[c.status] || c.status) + '</span></td>'
       + '<td><button class="btn btn-small" data-id="' + esc(c.id) + '" data-to="' + (sub ? 'unsubscribed' : 'subscribed') + '">' + (sub ? 'Unsubscribe' : 'Re-subscribe') + '</button></td>'

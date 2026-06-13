@@ -152,6 +152,8 @@ final class ContactsRest {
             'sms_opt_in' => (bool) $c->sms_opt_in,
             'source'     => $c->source,
             'status'     => $c->status,
+            'company'    => $c->company ?? '',
+            'tags'       => $c->tags ?? '',
             'lists'      => Lists::for_contact((int) $c->id),
         ];
     }

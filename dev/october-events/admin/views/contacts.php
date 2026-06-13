@@ -2,6 +2,8 @@
 defined('ABSPATH') || exit;
 /** @var array $counts @var array $contacts @var array $lists */
 $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts'), 'oe_rebuild_contacts');
+$cleanup_url = wp_nonce_url(admin_url('admin-post.php?action=oe_cleanup_contacts'), 'oe_cleanup_contacts');
+$to_clean    = \OE\Mail\Enrich::remaining();
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Contacts', 'october-events'); ?></h1>
@@ -19,6 +21,9 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
                 ? esc_html(sprintf(__('Brevo import complete: %1$d contacts, %2$d lists created, %3$d list memberships.', 'october-events'), (int) ($brevo['contacts'] ?? 0), (int) ($brevo['lists_created'] ?? 0), (int) ($brevo['members'] ?? 0)))
                 : esc_html__('Brevo import failed — check the file is the Brevo export CSV.', 'october-events'); ?>
         </p></div>
+    <?php } ?>
+    <?php $cleaned = get_transient('oe_cleanup_done'); if ($cleaned !== false) { delete_transient('oe_cleanup_done'); ?>
+        <div class="notice notice-success is-dismissible"><p><?php echo esc_html(sprintf(__('Cleaned up %d contact(s) — tidied names and derived companies from email.', 'october-events'), (int) $cleaned)); ?></p></div>
     <?php } ?>
 
     <div class="oe-panel">
@@ -38,6 +43,13 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
                 <h3><?php esc_html_e('Rebuild', 'october-events'); ?></h3>
                 <p class="description"><?php esc_html_e('Re-scan accounts, ticket buyers, volunteers, submitters and WordPress users, de-duplicated by email.', 'october-events'); ?></p>
                 <a class="button button-primary" href="<?php echo esc_url($rebuild_url); ?>"><?php esc_html_e('Rebuild from existing data', 'october-events'); ?></a>
+            </div>
+
+            <div>
+                <h3><?php esc_html_e('Clean up', 'october-events'); ?></h3>
+                <p class="description"><?php esc_html_e('Tidy names and derive each contact’s company from their email domain.', 'october-events'); ?>
+                    <?php if ($to_clean > 0) { echo ' <strong>' . esc_html(sprintf(__('%s to do.', 'october-events'), number_format_i18n($to_clean))) . '</strong>'; } ?></p>
+                <a class="button" href="<?php echo esc_url($cleanup_url); ?>"><?php echo $to_clean > 0 ? esc_html(sprintf(__('Run cleanup (%s)', 'october-events'), number_format_i18n($to_clean))) : esc_html__('Run cleanup', 'october-events'); ?></a>
             </div>
 
             <div>
@@ -83,7 +95,7 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
         <thead><tr>
             <th><?php esc_html_e('Email', 'october-events'); ?></th>
             <th><?php esc_html_e('Name', 'october-events'); ?></th>
-            <th><?php esc_html_e('Phone', 'october-events'); ?></th>
+            <th><?php esc_html_e('Company', 'october-events'); ?></th>
             <th><?php esc_html_e('Source', 'october-events'); ?></th>
             <th><?php esc_html_e('Status', 'october-events'); ?></th>
         </tr></thead>
@@ -94,7 +106,7 @@ $rebuild_url = wp_nonce_url(admin_url('admin-post.php?action=oe_rebuild_contacts
             <tr>
                 <td><?php echo esc_html($c->email); ?></td>
                 <td><?php echo esc_html($c->name); ?></td>
-                <td><?php echo esc_html($c->phone); ?></td>
+                <td><?php echo esc_html((string) ($c->company ?? '') ?: '—'); ?></td>
                 <td><span class="oe-status"><?php echo esc_html($c->source ?: '—'); ?></span></td>
                 <td><span class="oe-status oe-status-<?php echo $c->status === 'subscribed' ? 'approved' : 'rejected'; ?>"><?php echo esc_html($c->status); ?></span></td>
             </tr>

@@ -37,12 +37,16 @@ final class Contacts {
             sms_opt_in TINYINT(1) NOT NULL DEFAULT 0,
             source VARCHAR(40) NOT NULL DEFAULT '',
             status VARCHAR(20) NOT NULL DEFAULT 'subscribed',
+            company VARCHAR(190) NOT NULL DEFAULT '',
+            tags VARCHAR(255) NOT NULL DEFAULT '',
+            enriched TINYINT(1) NOT NULL DEFAULT 0,
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             UNIQUE KEY email (email),
             KEY status (status),
-            KEY source (source)
+            KEY source (source),
+            KEY enriched (enriched)
         ) {$charset};");
     }
 
