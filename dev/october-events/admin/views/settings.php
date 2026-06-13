@@ -251,6 +251,11 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
+        <?php $ses_active = \OE\Mail\Mailer::ses_active(); $mc = \OE\Mail\EmailLog::counts(); ?>
+        <p style="margin:0 0 10px"><?php esc_html_e('Current transport:', 'october-events'); ?>
+            <strong style="color:<?php echo $ses_active ? '#1a7f37' : '#8a6d3b'; ?>"><?php echo $ses_active ? esc_html(sprintf(__('Amazon SES (%s)', 'october-events'), \OE\Mail\Mailer::smtp_host())) : esc_html__('Site default', 'october-events'); ?></strong>
+            &nbsp;·&nbsp; <?php echo esc_html(sprintf(__('%1$d sent / %2$d failed / %3$d suppressed', 'october-events'), $mc['sent'], $mc['failed'], $mc['suppressed'])); ?>
+            &nbsp;·&nbsp; <a href="#email-tools"><?php esc_html_e('Email tools (test, digest, log)', 'october-events'); ?></a></p>
         <?php $ses_pw_const = \OE\Settings::secret_is_constant('ses_smtp_password'); ?>
         <table class="form-table" role="presentation"><tbody>
             <tr>
@@ -367,6 +372,58 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
 
         <?php submit_button(); ?>
     </form>
+
+    <details class="oe-acc" id="email-tools"><summary><?php esc_html_e('Email tools — test, digest & log', 'october-events'); ?></summary><div class="oe-acc-body">
+        <?php $test = get_transient('oe_mail_test'); if (is_array($test)) { delete_transient('oe_mail_test'); ?>
+            <div class="notice <?php echo $test['ok'] ? 'notice-success' : 'notice-error'; ?>" style="margin:0 0 12px;padding:10px 12px">
+                <?php echo $test['ok']
+                    ? esc_html(sprintf(__('Test email sent to %s.', 'october-events'), $test['to']))
+                    : esc_html(sprintf(__('Could not send the test email to %s — check the log below and your SES config.', 'october-events'), $test['to'])); ?>
+            </div>
+        <?php } ?>
+        <?php if (! empty($_GET['digest']) && $_GET['digest'] === 'sent') : ?>
+            <div class="notice notice-success" style="margin:0 0 12px;padding:10px 12px"><?php esc_html_e('Monthly digest queued.', 'october-events'); ?></div>
+        <?php endif; ?>
+
+        <h3><?php esc_html_e('Send a test email', 'october-events'); ?></h3>
+        <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="margin-bottom:14px">
+            <input type="hidden" name="action" value="oe_send_test_email">
+            <?php wp_nonce_field('oe_send_test_email'); ?>
+            <input type="email" name="oe_test_to" class="regular-text" placeholder="<?php echo esc_attr((string) get_option('admin_email')); ?>">
+            <?php submit_button(__('Send test email', 'october-events'), 'secondary', 'submit', false); ?>
+        </form>
+
+        <h3><?php esc_html_e('Monthly digest', 'october-events'); ?></h3>
+        <p><?php esc_html_e('Runs automatically on the first Monday of each month. Send it now:', 'october-events'); ?>
+            <a class="button" href="<?php echo esc_url(wp_nonce_url(admin_url('admin-post.php?action=oe_send_digest'), 'oe_send_digest')); ?>"><?php esc_html_e('Send digest now', 'october-events'); ?></a></p>
+
+        <h3><?php esc_html_e('Recent email log', 'october-events'); ?></h3>
+        <?php $log = \OE\Mail\EmailLog::recent(15); if (! $log) : ?>
+            <p class="description"><?php esc_html_e('No email logged yet.', 'october-events'); ?></p>
+        <?php else : ?>
+            <table class="widefat striped">
+                <thead><tr>
+                    <th><?php esc_html_e('When', 'october-events'); ?></th>
+                    <th><?php esc_html_e('To', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Subject', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Status', 'october-events'); ?></th>
+                    <th><?php esc_html_e('Via', 'october-events'); ?></th>
+                </tr></thead>
+                <tbody>
+                <?php foreach ($log as $row) : ?>
+                    <tr>
+                        <td><?php echo esc_html(get_date_from_gmt((string) $row->created_at, 'M j, H:i')); ?></td>
+                        <td><?php echo esc_html((string) $row->recipients); ?></td>
+                        <td><?php echo esc_html((string) $row->subject); ?></td>
+                        <td><strong style="color:<?php echo $row->status === 'sent' ? '#1a7f37' : ($row->status === 'failed' ? '#b32d2e' : '#8a6d3b'); ?>"><?php echo esc_html((string) $row->status); ?></strong>
+                            <?php if ($row->error) : ?><br><span class="description"><?php echo esc_html(mb_substr((string) $row->error, 0, 120)); ?></span><?php endif; ?></td>
+                        <td><?php echo esc_html((string) $row->driver); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+    </div></details>
 
     <div class="oe-settings-cols">
     <div class="oe-col">

@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.34.0 — Email moves to the platform; tools fold into Settings
+
+Completing the "campaigns live in the platform" split.
+
+- The standalone **Email** admin screen is removed from the menu. Its setup tools
+  move into **Settings**: SES transport status + **send-a-test** + **recent log** +
+  **send digest now** are now under Settings → *Email tools — test, digest & log*
+  (and the SES config stays in Settings → Email sending). Campaign building was
+  already in the platform; the Dashboard's "Open the platform" button is the way in.
+- Contact management stays on its own **Contacts** screen; the Dashboard action bar
+  now links there.
+
 ## 1.33.0 — Settings: two columns, grouped, with per-key help
 
 - Settings now lays out in **two columns** — **This site & content** (brand, theme,

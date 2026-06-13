@@ -19,7 +19,7 @@ $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
     <div class="oe-actionbar">
         <a class="button button-primary" href="<?php echo esc_url($event_new); ?>"><?php esc_html_e('+ New event', 'october-events'); ?></a>
         <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-queue')); ?>"><?php esc_html_e('Review submissions', 'october-events'); ?></a>
-        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-email')); ?>"><?php esc_html_e('Email', 'october-events'); ?></a>
+        <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oe-contacts')); ?>"><?php esc_html_e('Contacts', 'october-events'); ?></a>
         <?php if ($checkin !== '') : ?>
             <a class="button" href="<?php echo esc_url($checkin); ?>" target="_blank" rel="noopener"><?php esc_html_e('Scan tickets ↗', 'october-events'); ?></a>
         <?php endif; ?>
