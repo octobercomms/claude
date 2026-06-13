@@ -961,13 +961,26 @@ async function renderEmail() {
   main.appendChild(grid);
   grid.querySelectorAll('[data-copen]').forEach((c) =>
     c.addEventListener('click', () => openCampaign(parseInt(c.getAttribute('data-copen'), 10))));
+  grid.querySelectorAll('[data-cdel]').forEach((b) =>
+    b.addEventListener('click', async (ev) => {
+      ev.stopPropagation();
+      const id = parseInt(b.getAttribute('data-cdel'), 10);
+      const card = b.closest('[data-copen]');
+      const name = card ? card.querySelector('h3').textContent : 'this campaign';
+      if (!confirm('Delete "' + name + '"? This cannot be undone.')) { return; }
+      b.disabled = true;
+      try { await api.deleteCampaign(id); renderEmail(); }
+      catch (e) { b.disabled = false; alert(e.message || 'Could not delete the campaign.'); }
+    }));
 }
 
 function campaignCard(c) {
   const s = c.stats || {};
   return el(`
     <article class="mod" data-copen="${c.id}">
-      <div class="mod-head"><h3>${esc(c.name || '(untitled)')}</h3><span class="chip">${esc(CAMPAIGN_STATUS[c.status] || c.status)}</span></div>
+      <div class="mod-head"><h3>${esc(c.name || '(untitled)')}</h3>
+        <span class="mod-head-r"><span class="chip">${esc(CAMPAIGN_STATUS[c.status] || c.status)}</span>
+        <button class="mod-del" data-cdel="${c.id}" title="Delete campaign" aria-label="Delete campaign">✕</button></span></div>
       <div class="muted small" style="margin-bottom:14px">${esc(c.subject || 'No subject')}</div>
       <div class="mod-body">
         <div class="mod-row"><span class="mod-n">${s.sent || 0}</span><span class="mod-l">sent</span></div>
@@ -1045,6 +1058,7 @@ async function openCampaign(id) {
     <button class="btn" data-test>Send test…</button>
     <button class="btn btn-primary" data-send>Send / schedule…</button>
     <div class="oe-result" id="c-msg"></div>
+    ${id ? '<button class="btn btn-link-danger" data-del>Delete campaign</button>' : ''}
     <a class="oe-cmp-back" data-back>← All campaigns</a>
   </div>`);
   right.appendChild(actions);
@@ -1177,6 +1191,15 @@ async function openCampaign(id) {
 
   actions.querySelector('[data-save]').addEventListener('click', save);
   actions.querySelector('[data-back]').addEventListener('click', () => navigate('email'));
+  const delBtn = actions.querySelector('[data-del]');
+  if (delBtn) {
+    delBtn.addEventListener('click', async () => {
+      if (!confirm('Delete "' + (rec.name || 'this campaign') + '"? This cannot be undone.')) { return; }
+      const msg = actions.querySelector('#c-msg'); msg.textContent = 'Deleting…';
+      try { await api.deleteCampaign(rec.id); navigate('email'); }
+      catch (e) { msg.textContent = e.message || 'Could not delete.'; }
+    });
+  }
   actions.querySelector('[data-test]').addEventListener('click', async () => {
     if (!(await save())) { return; }
     const email = prompt('Send a test to which email address?');
@@ -1215,6 +1238,8 @@ async function openCampaign(id) {
     try {
       const r = await api.copilot({ brief, blocks, history });
       if (!r.ok) { msg.textContent = r.reply || 'Could not draft.'; return; }
+      const nameEl = meta.querySelector('[name="name"]');
+      if (r.name && !nameEl.value.trim()) { nameEl.value = r.name; }
       if (r.subject) { meta.querySelector('[name="subject"]').value = r.subject; }
       if (r.preheader) { meta.querySelector('[name="preheader"]').value = r.preheader; }
       if (Array.isArray(r.blocks)) { blocks = r.blocks; paintBlocks(); }

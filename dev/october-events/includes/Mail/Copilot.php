@@ -29,7 +29,7 @@ final class Copilot {
     /**
      * @param array<int,array<string,mixed>> $current_blocks
      * @param array<int,array{role:string,content:string}> $history
-     * @return array{ok:bool,reply:string,subject?:string,preheader?:string,blocks?:array}
+     * @return array{ok:bool,reply:string,name?:string,subject?:string,preheader?:string,blocks?:array}
      */
     public static function draft(string $brief, array $current_blocks = [], array $history = []): array {
         if (! self::is_ready()) {
@@ -55,6 +55,7 @@ final class Copilot {
         return [
             'ok'        => true,
             'reply'     => sanitize_text_field((string) ($parsed['reply'] ?? __('Here\'s a draft.', 'october-events'))),
+            'name'      => sanitize_text_field((string) ($parsed['name'] ?? '')),
             'subject'   => sanitize_text_field((string) ($parsed['subject'] ?? '')),
             'preheader' => sanitize_text_field((string) ($parsed['preheader'] ?? '')),
             'blocks'    => self::sanitize_blocks($parsed['blocks']),
@@ -74,6 +75,7 @@ final class Copilot {
 You are drafting an HTML EMAIL CAMPAIGN for {$brand}. Reply with ONLY a single JSON object (no markdown, no commentary) of exactly this shape:
 {
   "reply": "one short sentence to the user about what you drafted or changed",
+  "name": "a short internal campaign name for staff, e.g. \"September Newsletter\" or \"Opening Party Invite\" (<= 60 chars)",
   "subject": "the email subject line",
   "preheader": "the inbox preview text (<= 110 chars)",
   "blocks": [ ...ordered content blocks... ]
