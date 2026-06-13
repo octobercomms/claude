@@ -161,6 +161,9 @@ final class Campaigns {
         if (strpos($a, 'source:') === 0) {
             return 'source:' . sanitize_key(substr($a, 7));
         }
+        if (strpos($a, 'list:') === 0) {
+            return 'list:' . (int) substr($a, 5);
+        }
         return 'subscribed';
     }
 
@@ -172,6 +175,12 @@ final class Campaigns {
             ['key' => 'subscribed', 'label' => 'All subscribers', 'count' => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} WHERE status='subscribed'")],
             ['key' => 'sms', 'label' => 'SMS opt-in', 'count' => (int) $wpdb->get_var("SELECT COUNT(*) FROM {$t} WHERE status='subscribed' AND sms_opt_in=1")],
         ];
+        // Lists (only those with at least one member).
+        foreach (Lists::all() as $l) {
+            if ((int) $l->member_count > 0) {
+                $out[] = ['key' => 'list:' . (int) $l->id, 'label' => 'List: ' . $l->name, 'count' => (int) $l->member_count];
+            }
+        }
         $sources = $wpdb->get_results("SELECT source, COUNT(*) AS n FROM {$t} WHERE status='subscribed' AND source<>'' GROUP BY source") ?: [];
         foreach ($sources as $s) {
             $out[] = ['key' => 'source:' . $s->source, 'label' => 'Source: ' . ucfirst((string) $s->source), 'count' => (int) $s->n];
@@ -188,6 +197,9 @@ final class Campaigns {
         }
         if (strpos($audience, 'source:') === 0) {
             return $wpdb->get_results($wpdb->prepare("SELECT email, name FROM {$t} WHERE status='subscribed' AND source=%s", substr($audience, 7))) ?: [];
+        }
+        if (strpos($audience, 'list:') === 0) {
+            return Lists::member_recipients((int) substr($audience, 5));
         }
         return $wpdb->get_results("SELECT email, name FROM {$t} WHERE status='subscribed'") ?: [];
     }
