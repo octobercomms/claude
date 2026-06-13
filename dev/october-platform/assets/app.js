@@ -1460,6 +1460,8 @@ function renderContactsTab(container) {
     // wrapper gets stripped by the parser, so insert into table context instead.
     const table = el('<table class="oe-ctable"><thead><tr><th>Email</th><th>Name</th><th>Company</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>');
     const tbody = table.querySelector('tbody');
+    const byId = {};
+    rows.forEach((r) => { byId[r.id] = r; });
     tbody.innerHTML = rows.map(contactRowHtml).join('');
     wrap.innerHTML = '';
     wrap.appendChild(table);
@@ -1471,6 +1473,9 @@ function renderContactsTab(container) {
         catch (e) { btn.disabled = false; alert(e.message || 'Could not update.'); }
       });
     });
+    tbody.querySelectorAll('button[data-view]').forEach((btn) => {
+      btn.addEventListener('click', () => openContactDrawer(byId[btn.getAttribute('data-view')], () => load(search.value.trim())));
+    });
   }
   function contactRowHtml(c) {
     const sub = c.status === 'subscribed';
@@ -1480,11 +1485,99 @@ function renderContactsTab(container) {
       + '<td>' + esc(c.company || '') + '</td>'
       + '<td><span class="t-dept">' + esc(c.source || '—') + '</span></td>'
       + '<td><span class="' + (sub ? 'c-sub' : 'c-unsub') + '">' + esc(CONTACT_STATUS[c.status] || c.status) + '</span></td>'
-      + '<td><button class="btn btn-small" data-id="' + esc(c.id) + '" data-to="' + (sub ? 'unsubscribed' : 'subscribed') + '">' + (sub ? 'Unsubscribe' : 'Re-subscribe') + '</button></td>'
+      + '<td class="oe-rowacts"><button class="btn btn-small" data-view="' + esc(c.id) + '">Details</button>'
+      + '<button class="btn btn-small" data-id="' + esc(c.id) + '" data-to="' + (sub ? 'unsubscribed' : 'subscribed') + '">' + (sub ? 'Unsubscribe' : 'Re-subscribe') + '</button></td>'
       + '</tr>';
   }
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 300); });
   load('');
+}
+
+// Per-contact drawer: edit profile fields, toggle consent, see CRM activity
+// (lists, source, join date, email engagement), and delete.
+function openContactDrawer(c, onClose) {
+  if (!c) { return; }
+  const modal = el('<div class="oe-drawer-wrap"><div class="oe-drawer-bg"></div>'
+    + '<aside class="oe-drawer oe-drawer-wide"><div class="oe-drawer-head"><h2>' + esc(c.name || c.email) + '</h2>'
+    + '<button class="btn btn-small" data-close>Close</button></div>'
+    + '<div class="oe-drawer-body"></div></aside></div>');
+  document.body.appendChild(modal);
+  let changed = false;
+  const close = () => { modal.remove(); if (onClose && changed) { onClose(); } };
+  modal.querySelector('[data-close]').addEventListener('click', close);
+  modal.querySelector('.oe-drawer-bg').addEventListener('click', close);
+  const bodyEl = modal.querySelector('.oe-drawer-body');
+
+  bodyEl.appendChild(el('<div class="oe-cmeta"><span class="muted small">Email</span><div>' + esc(c.email) + '</div></div>'));
+
+  // Editable profile fields.
+  const grid = el('<div class="oe-wgrid"></div>');
+  const inputs = {};
+  [['name', 'Name'], ['company', 'Company'], ['tags', 'Tags'], ['phone', 'Phone']].forEach(([key, label]) => {
+    const w = el('<label class="oe-wfield"><span>' + esc(label) + '</span></label>');
+    const i = el('<input>'); i.value = c[key] || ''; w.appendChild(i); inputs[key] = i; grid.appendChild(w);
+  });
+  bodyEl.appendChild(grid);
+
+  const sub = c.status === 'subscribed';
+  const actions = el('<div class="oe-wnav"></div>');
+  const saveBtn = el('<button class="btn btn-primary">Save changes</button>');
+  const statusBtn = el('<button class="btn">' + (sub ? 'Unsubscribe' : 'Re-subscribe') + '</button>');
+  const msg = el('<div class="oe-result"></div>');
+  actions.appendChild(saveBtn); actions.appendChild(statusBtn); actions.appendChild(msg);
+  bodyEl.appendChild(actions);
+
+  saveBtn.addEventListener('click', async () => {
+    msg.textContent = 'Saving…';
+    const fields = { name: inputs.name.value, company: inputs.company.value, tags: inputs.tags.value, phone: inputs.phone.value };
+    try { await api.editContact(c.id, fields); Object.assign(c, fields); changed = true; msg.textContent = 'Saved.'; }
+    catch (e) { msg.textContent = e.message || 'Could not save.'; }
+  });
+  statusBtn.addEventListener('click', async () => {
+    const to = c.status === 'subscribed' ? 'unsubscribed' : 'subscribed';
+    statusBtn.disabled = true; msg.textContent = 'Updating…';
+    try { await api.updateContact(c.id, to); c.status = to; changed = true; statusBtn.textContent = to === 'subscribed' ? 'Unsubscribe' : 'Re-subscribe'; statusBtn.disabled = false; msg.textContent = 'Updated.'; }
+    catch (e) { statusBtn.disabled = false; msg.textContent = e.message || 'Error'; }
+  });
+
+  // Activity report.
+  bodyEl.appendChild(el('<div class="oe-cmp-label">Activity</div>'));
+  const act = el('<div class="oe-activity"><div class="oe-loading">Loading activity…</div></div>');
+  bodyEl.appendChild(act);
+  api.contactActivity(c.id).then((a) => {
+    act.innerHTML = '';
+    const eng = a.engagement || { received: 0, opened: 0, clicked: 0 };
+    const meta = el('<div class="oe-act-meta"></div>');
+    meta.innerHTML = '<div><span class="muted small">Joined</span><div>' + esc((a.joined || '').slice(0, 10) || '—') + '</div></div>'
+      + '<div><span class="muted small">Source</span><div>' + esc(a.source || '—') + '</div></div>'
+      + '<div><span class="muted small">Status</span><div>' + esc(a.status || '—') + '</div></div>';
+    act.appendChild(meta);
+    const lists = Array.isArray(a.lists) ? a.lists : [];
+    const chips = el('<div class="oe-chips"></div>');
+    chips.innerHTML = lists.length ? lists.map((n) => '<span class="oe-chip">' + esc(n) + '</span>').join('') : '<span class="muted small">In no lists.</span>';
+    act.appendChild(el('<div class="oe-act-sub muted small">Lists</div>'));
+    act.appendChild(chips);
+    act.appendChild(el('<div class="oe-act-sub muted small">Email engagement</div>'));
+    act.appendChild(el('<div class="oe-act-eng">Received <strong>' + eng.received + '</strong> · Opened <strong>' + eng.opened + '</strong> · Clicked <strong>' + eng.clicked + '</strong></div>'));
+    const camps = Array.isArray(a.campaigns) ? a.campaigns : [];
+    if (camps.length) {
+      const t = el('<table class="oe-ctable" style="margin-top:10px"><thead><tr><th>Campaign</th><th>Sent</th><th>Open</th><th>Click</th></tr></thead><tbody></tbody></table>');
+      t.querySelector('tbody').innerHTML = camps.map((m) => '<tr><td>' + esc(m.campaign || '—') + '</td>'
+        + '<td>' + esc((m.sent_at || '').slice(0, 10) || '—') + '</td>'
+        + '<td>' + (m.opened ? '✓' : '·') + '</td><td>' + (m.clicked ? '✓' : '·') + '</td></tr>').join('');
+      act.appendChild(t);
+    }
+  }).catch(() => { act.innerHTML = '<p class="muted small">Could not load activity.</p>'; });
+
+  // Delete.
+  const del = el('<button class="btn btn-link-danger" style="margin-top:18px">Delete this contact</button>');
+  del.addEventListener('click', async () => {
+    if (!confirm('Delete ' + (c.name || c.email) + '? This removes them from all lists and cannot be undone.')) { return; }
+    msg.textContent = 'Deleting…';
+    try { await api.deleteContact(c.id); changed = true; close(); }
+    catch (e) { msg.textContent = e.message || 'Could not delete.'; }
+  });
+  bodyEl.appendChild(del);
 }
 
 async function renderListsTab(container) {
