@@ -1397,32 +1397,32 @@ async function renderContacts() {
     let rows = [];
     try { rows = await api.listContacts(term || '', 0); } catch (e) { wrap.innerHTML = '<p class="oe-error">Could not load.</p>'; return; }
     if (!Array.isArray(rows)) { rows = []; }
-    wrap.innerHTML = '';
-    if (!rows.length) { wrap.appendChild(el('<p class="muted" style="padding:16px 0">' + (term ? 'No contacts match that.' : 'No contacts yet.') + '</p>')); return; }
-    const table = el(`<table class="oe-ctable"><thead><tr>
-      <th>Email</th><th>Name</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>`);
+    if (!rows.length) { wrap.innerHTML = '<p class="muted" style="padding:16px 0">' + (term ? 'No contacts match that.' : 'No contacts yet.') + '</p>'; return; }
+    // Build rows as HTML inside a real <tbody> — a <tr> created via a <div>
+    // wrapper gets stripped by the parser, so insert into table context instead.
+    const table = el('<table class="oe-ctable"><thead><tr><th>Email</th><th>Name</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>');
     const tbody = table.querySelector('tbody');
-    // Guard each row so one malformed record can't blank the whole list.
-    rows.forEach((c) => { try { tbody.appendChild(contactRow(c)); } catch (e) { /* skip bad row */ } });
+    tbody.innerHTML = rows.map(contactRowHtml).join('');
+    wrap.innerHTML = '';
     wrap.appendChild(table);
-  }
-  function contactRow(c) {
-    const sub = c.status === 'subscribed';
-    const row = el(`<tr>
-      <td>${esc(c.email)}</td>
-      <td>${esc(c.name || '')}</td>
-      <td><span class="t-dept">${esc(c.source || '—')}</span></td>
-      <td><span class="${sub ? 'c-sub' : 'c-unsub'}">${esc(CONTACT_STATUS[c.status] || c.status)}</span></td>
-      <td><button class="btn btn-small">${sub ? 'Unsubscribe' : 'Re-subscribe'}</button></td>
-    </tr>`);
-    row.querySelector('button').addEventListener('click', async (ev) => {
-      ev.target.disabled = true;
-      try {
-        const updated = await api.updateContact(c.id, sub ? 'unsubscribed' : 'subscribed');
-        row.replaceWith(contactRow(updated));
-      } catch (e) { ev.target.disabled = false; alert(e.message || 'Could not update.'); }
+    // Consent toggle (delegated by data attributes).
+    tbody.querySelectorAll('button[data-id]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        try { await api.updateContact(btn.getAttribute('data-id'), btn.getAttribute('data-to')); load(search.value.trim()); }
+        catch (e) { btn.disabled = false; alert(e.message || 'Could not update.'); }
+      });
     });
-    return row;
+  }
+  function contactRowHtml(c) {
+    const sub = c.status === 'subscribed';
+    return '<tr>'
+      + '<td>' + esc(c.email) + '</td>'
+      + '<td>' + esc(c.name || '') + '</td>'
+      + '<td><span class="t-dept">' + esc(c.source || '—') + '</span></td>'
+      + '<td><span class="' + (sub ? 'c-sub' : 'c-unsub') + '">' + esc(CONTACT_STATUS[c.status] || c.status) + '</span></td>'
+      + '<td><button class="btn btn-small" data-id="' + esc(c.id) + '" data-to="' + (sub ? 'unsubscribed' : 'subscribed') + '">' + (sub ? 'Unsubscribe' : 'Re-subscribe') + '</button></td>'
+      + '</tr>';
   }
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 300); });
   load('');
