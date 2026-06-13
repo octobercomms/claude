@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.29.0 — Settings as accordions
+
+The Settings screen is now a stack of collapsible **accordion** sections (Brand,
+Event readiness, Field mapping, API keys, Pricing, AI Stories, … Branding, plus
+Test the voice and Test update connection) instead of one very long page. Brand
+opens by default; deep-links like `…/oe-settings#platform` auto-open and scroll to
+their section. All field names are unchanged — saving works exactly as before.
+
 ## 1.28.0 — Email screen rethink + contacts pull in users
 
 - **Email** screen rebuilt into clear panels: a "design &amp; send in the platform"
