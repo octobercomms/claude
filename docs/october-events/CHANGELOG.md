@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.41.0 — subscriber growth graph
+
+A **Growth** tab on the platform Contacts screen charts **new contacts per month**
+(by the date we first recorded them). It **excludes the one-time Brevo/CSV imports**,
+so it reflects genuine growth from launch onward rather than an import-day spike —
+the way to learn *when* subscribers actually join. New endpoint:
+`GET /contacts/growth`.
+
 ## 1.40.0 — contact edit, delete & activity report
 
 Staff can now fully manage a contact from the platform (Contacts → Details):

@@ -29,6 +29,9 @@ final class ContactsRest {
         register_rest_route(self::NS, '/contacts/meta', [
             'methods' => 'GET', 'callback' => [self::class, 'meta'], 'permission_callback' => $auth,
         ]);
+        register_rest_route(self::NS, '/contacts/growth', [
+            'methods' => 'GET', 'callback' => [self::class, 'growth'], 'permission_callback' => $auth,
+        ]);
         register_rest_route(self::NS, '/contact/(?P<id>\d+)', [
             ['methods' => 'POST',   'callback' => [self::class, 'update'], 'permission_callback' => $auth],
             ['methods' => 'DELETE', 'callback' => [self::class, 'remove'], 'permission_callback' => $auth],
@@ -122,6 +125,24 @@ final class ContactsRest {
 
     public static function meta(\WP_REST_Request $req): \WP_REST_Response {
         return new \WP_REST_Response(Contacts::counts(), 200);
+    }
+
+    /**
+     * New contacts per month, by the date we first recorded them. Excludes the
+     * one-time bulk imports (Brevo / CSV) so the graph reflects genuine growth
+     * from launch onward rather than a single import-day spike.
+     */
+    public static function growth(\WP_REST_Request $req): \WP_REST_Response {
+        global $wpdb;
+        $t    = Contacts::table();
+        $rows = $wpdb->get_results(
+            "SELECT DATE_FORMAT(created_at, '%Y-%m') AS month, COUNT(*) AS n
+             FROM {$t} WHERE source NOT IN ('brevo', 'import') GROUP BY month ORDER BY month"
+        ) ?: [];
+        $out = array_map(static function ($r) {
+            return ['month' => (string) $r->month, 'count' => (int) $r->n];
+        }, $rows);
+        return new \WP_REST_Response($out, 200);
     }
 
     public static function list_contacts(\WP_REST_Request $req): \WP_REST_Response {
