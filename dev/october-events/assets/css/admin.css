@@ -109,6 +109,13 @@
 .oe-admin .oe-actionbar{ display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin:0 0 22px; }
 .oe-admin .oe-actionbar .description{ margin:0 0 0 4px; }
 
+/* ---- Settings two-column layout ---- */
+.oe-admin .oe-settings-cols{ display:grid; grid-template-columns:1fr 1fr; gap:18px; align-items:start; }
+@media (max-width:1200px){ .oe-admin .oe-settings-cols{ grid-template-columns:1fr; } }
+.oe-admin .oe-col-head{ font-size:12px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:var(--oe-subtle); margin:2px 2px 10px; }
+.oe-admin .oe-keyhint{ margin:4px 0 0; }
+.oe-admin .oe-keyhint code{ font-size:11px; background:var(--oe-sunken); padding:1px 5px; border-radius:4px; word-break:break-all; }
+
 /* ---- Settings accordions ---- */
 .oe-admin details.oe-acc{ background:var(--oe-surface); border:2px solid var(--oe-line); border-radius:12px; margin:0 0 12px; overflow:hidden; }
 .oe-admin details.oe-acc > summary{ cursor:pointer; list-style:none; padding:16px 20px; font-weight:700; font-size:16px; color:var(--oe-ink); display:flex; align-items:center; justify-content:space-between; gap:12px; }
