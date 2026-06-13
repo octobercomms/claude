@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.39.0 — send to multiple audiences
+
+Campaigns can now target **several audiences at once** (e.g. two lists + a source).
+The `audience` field stores comma-separated keys; the send resolver unions them and
+**de-duplicates by email**, so nobody gets two copies. Widened the `audience` column
+(DB → v9). The platform's email wizard exposes this as **checkboxes** (Brief and Send
+steps), and the wizard now runs full-width with a larger co-pilot brief field.
+
 ## 1.38.2 — delete campaigns + co-pilot names the campaign
 
 Groundwork for the new email flow.

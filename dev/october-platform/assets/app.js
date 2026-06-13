@@ -1010,16 +1010,46 @@ async function openCampaign(id) {
     name: rec.name || '', subject: rec.subject || '',
     preheader: rec.preheader || '', audience: rec.audience || 'subscribed',
   };
-  const audOpts = audiences.map((a) => `<option value="${esc(a.key)}">${esc(a.label)} (${a.count})</option>`).join('');
   const bound = [];
   function bindInput(node, key) { node.value = draft[key]; node.addEventListener('input', () => { draft[key] = node.value; }); bound.push({ node, key }); return node; }
-  function bindSelect(node, key, onChange) {
-    node.value = draft[key];
-    node.addEventListener('change', () => { draft[key] = node.value; if (onChange) { onChange(); } });
-    bound.push({ node, key }); return node;
-  }
   function syncInputs() { bound.forEach(({ node, key }) => { if (node.value !== draft[key]) { node.value = draft[key]; } }); }
-  function recipients() { const a = audiences.find((x) => x.key === draft.audience); return a ? a.count : 0; }
+
+  // Audience is multi-select: draft.audience is a comma-separated list of keys
+  // ("subscribed", "list:3", "source:brevo"). A campaign can target several.
+  const audienceBoxes = [];
+  function audienceKeys() { return draft.audience ? draft.audience.split(',').map((s) => s.trim()).filter(Boolean) : []; }
+  function syncAudience(except) {
+    const keys = audienceKeys();
+    audienceBoxes.forEach((box) => {
+      if (box === except) { return; }
+      box.querySelectorAll('input[type=checkbox]').forEach((cb) => { cb.checked = keys.indexOf(cb.value) !== -1; });
+    });
+  }
+  function buildAudience(onChange) {
+    const box = el('<div class="oe-audience"></div>');
+    const keys = audienceKeys();
+    audiences.forEach((a) => {
+      const row = el('<label class="oe-aud"><input type="checkbox"><span class="oe-aud-l"></span><span class="oe-aud-n"></span></label>');
+      const cb = row.querySelector('input');
+      cb.value = a.key; cb.checked = keys.indexOf(a.key) !== -1;
+      row.querySelector('.oe-aud-l').textContent = a.label;
+      row.querySelector('.oe-aud-n').textContent = a.count;
+      box.appendChild(row);
+    });
+    box.addEventListener('change', () => {
+      const picked = [];
+      box.querySelectorAll('input[type=checkbox]').forEach((cb) => { if (cb.checked) { picked.push(cb.value); } });
+      draft.audience = picked.join(',');
+      syncAudience(box);
+      if (onChange) { onChange(); }
+    });
+    audienceBoxes.push(box);
+    return box;
+  }
+  function selectedAudienceCount() {
+    const keys = audienceKeys();
+    return audiences.reduce((n, a) => (keys.indexOf(a.key) !== -1 ? n + (a.count || 0) : n), 0);
+  }
 
   let gjsEditor = null;
   const history = [];
@@ -1072,8 +1102,8 @@ async function openCampaign(id) {
   const pBrief = el(`<section class="oe-wpanel">
     <h2 class="oe-wtitle">What's this email?</h2>
     <p class="oe-wsub">Choose who it's going to, then brief the co-pilot in a sentence — it drafts the whole email from your real, confirmed events. Or start from a blank canvas.</p></section>`);
-  const briefAud = el('<label class="oe-wfield"><span>Audience</span></label>');
-  briefAud.appendChild(bindSelect(el(`<select>${audOpts}</select>`), 'audience'));
+  const briefAud = el('<div class="oe-wfield"><span>Audience <em class="muted small">choose one or more</em></span></div>');
+  briefAud.appendChild(buildAudience());
   pBrief.appendChild(briefAud);
   const briefField = el(`<label class="oe-wfield"><span>Brief the co-pilot ✦</span>
     <textarea class="oe-wbrief" rows="3" placeholder="e.g. September newsletter: lead with the opening party, include the confirmed tours, warm but plain tone."></textarea></label>`);
@@ -1081,7 +1111,7 @@ async function openCampaign(id) {
   pBrief.appendChild(el('<p class="oe-copilot-hint muted small">It writes in your house voice and only uses real confirmed events &amp; links — anything unverified becomes a visible [TODO].</p>'));
   const briefNav = el('<div class="oe-wnav"></div>');
   const draftBtn = el('<button class="btn btn-primary" data-draft>Draft with AI →</button>');
-  const blankBtn = el('<button class="btn btn-ghost" data-blank>Start from blank →</button>');
+  const blankBtn = el('<button class="btn" data-blank>Start from blank →</button>');
   const briefMsg = el('<div class="oe-result"></div>');
   briefNav.appendChild(draftBtn); briefNav.appendChild(blankBtn); briefNav.appendChild(briefMsg);
   pBrief.appendChild(briefNav);
@@ -1132,7 +1162,7 @@ async function openCampaign(id) {
     <textarea class="oe-wbrief" rows="2" placeholder="e.g. shorten the intro, add the volunteer call-out, friendlier sign-off."></textarea></label>`);
   pDraft.appendChild(reField);
   const draftNav = el('<div class="oe-wnav"></div>');
-  const dBack = el('<button class="btn btn-ghost" data-back>← Brief</button>');
+  const dBack = el('<button class="btn" data-back>← Brief</button>');
   const reBtn = el('<button class="btn" data-rebrief>Revise ✦</button>');
   const toRefineBtn = el('<button class="btn btn-primary" data-refine>Edit this email →</button>');
   const draftMsg = el('<div class="oe-result"></div>');
@@ -1156,7 +1186,7 @@ async function openCampaign(id) {
   const gjsWrap = el('<div class="oe-gjs"><div class="oe-gjs-canvas"></div></div>');
   pRefine.appendChild(gjsWrap);
   const refineNav = el('<div class="oe-wnav"></div>');
-  const rBack = el('<button class="btn btn-ghost" data-back>← Back</button>');
+  const rBack = el('<button class="btn" data-back>← Back</button>');
   const rSave = el('<button class="btn" data-save>Save draft</button>');
   const toSendBtn = el('<button class="btn btn-primary" data-send>Continue to send →</button>');
   const refineMsg = el('<div class="oe-result"></div>');
@@ -1210,13 +1240,13 @@ async function openCampaign(id) {
   const sSubj = el('<label class="oe-wfield"><span>Subject line</span></label>'); sSubj.appendChild(bindInput(el('<input placeholder="The subject readers see">'), 'subject'));
   const sName = el('<label class="oe-wfield"><span>Campaign name <em class="muted small">internal</em></span></label>'); sName.appendChild(bindInput(el('<input placeholder="e.g. September Newsletter">'), 'name'));
   const sPre = el('<label class="oe-wfield"><span>Preheader</span></label>'); sPre.appendChild(bindInput(el('<input placeholder="Inbox preview text">'), 'preheader'));
-  const sAud = el('<label class="oe-wfield"><span>Audience</span></label>'); sAud.appendChild(bindSelect(el(`<select>${audOpts}</select>`), 'audience', () => paintSend()));
+  const sAud = el('<div class="oe-wfield oe-wfield-full"><span>Audience <em class="muted small">choose one or more</em></span></div>'); sAud.appendChild(buildAudience(() => paintSend()));
   sGrid.appendChild(sSubj); sGrid.appendChild(sName); sGrid.appendChild(sPre); sGrid.appendChild(sAud);
   pSend.appendChild(sGrid);
   const sendCount = el('<div class="oe-wcount"></div>');
   pSend.appendChild(sendCount);
   const sendNav = el('<div class="oe-wnav"></div>');
-  const sBack = el('<button class="btn btn-ghost" data-back>← Edit</button>');
+  const sBack = el('<button class="btn" data-back>← Edit</button>');
   const testBtn = el('<button class="btn" data-test>Send test…</button>');
   const sendBtn = el('<button class="btn btn-primary" data-send>Send now</button>');
   const sendMsg = el('<div class="oe-result"></div>');
@@ -1234,7 +1264,12 @@ async function openCampaign(id) {
   }
   wrap.appendChild(pSend);
 
-  function paintSend() { sendCount.innerHTML = 'Sending to <strong>' + recipients() + '</strong> recipient' + (recipients() === 1 ? '' : 's') + '.'; }
+  function paintSend() {
+    const n = selectedAudienceCount();
+    sendCount.innerHTML = audienceKeys().length
+      ? 'Sending to up to <strong>' + n + '</strong> recipient' + (n === 1 ? '' : 's') + '. <span class="muted small">Overlaps and unsubscribes are removed automatically.</span>'
+      : '<span class="muted">Choose at least one audience above.</span>';
+  }
   sBack.addEventListener('click', () => showStep('refine'));
   testBtn.addEventListener('click', async () => {
     if (!(await save(sendMsg))) { return; }
@@ -1246,8 +1281,9 @@ async function openCampaign(id) {
   });
   sendBtn.addEventListener('click', async () => {
     if (!draft.subject.trim()) { sendMsg.textContent = 'Add a subject line first.'; return; }
+    if (!audienceKeys().length) { sendMsg.textContent = 'Choose at least one audience.'; return; }
     if (!(await save(sendMsg))) { return; }
-    if (!confirm('Send "' + (draft.name || 'this campaign') + '" to ' + recipients() + ' recipient(s)?')) { return; }
+    if (!confirm('Send "' + (draft.name || 'this campaign') + '" to up to ' + selectedAudienceCount() + ' recipient(s)?')) { return; }
     sendMsg.textContent = 'Queuing…';
     try { const r = await api.sendCampaign(rec.id); sendMsg.textContent = 'Queued ' + r.queued + ' — sending in the background.'; setTimeout(() => navigate('email'), 1400); }
     catch (e) { sendMsg.textContent = e.message || 'Error'; }
@@ -1265,7 +1301,7 @@ async function openCampaign(id) {
       c.classList.toggle('avail', visited.has(k));
     });
     syncInputs();
-    wrap.classList.toggle('oe-wiz-wide', s === 'refine');
+    syncAudience();
     if (s === 'draft') { paintDraftPreview(); }
     if (s === 'refine') { ensureGjs().catch(() => {}); }
     if (s === 'send') { paintSend(); }
