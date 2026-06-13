@@ -144,12 +144,21 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p class="description"><?php esc_html_e('The name to reference the font by. Blank = Brockmann (the October default).', 'october-events'); ?></p></td>
             </tr>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Upload a font file', 'october-events'); ?></label></th>
+                <th scope="row"><label><?php esc_html_e('Body font file (regular)', 'october-events'); ?></label></th>
                 <td>
-                    <input type="url" id="oe-font-url" name="theme_font_url" value="<?php echo esc_attr((string) ($cfg['theme_font_url'] ?? '')); ?>" placeholder="https://…/font.woff2" class="regular-text" style="vertical-align:middle">
-                    <button type="button" class="button" id="oe-upload-font"><?php esc_html_e('Upload / choose font', 'october-events'); ?></button>
-                    <button type="button" class="button" id="oe-clear-font"><?php esc_html_e('Clear', 'october-events'); ?></button>
-                    <p class="description"><?php esc_html_e('Upload your own .woff2 / .woff / .ttf / .otf (we self-host it — no Google Fonts needed). The platform loads it as @font-face under the family name above.', 'october-events'); ?></p>
+                    <input type="url" id="oe-font-url" name="theme_font_url" value="<?php echo esc_attr((string) ($cfg['theme_font_url'] ?? '')); ?>" placeholder="https://…/font-regular.woff2" class="regular-text" style="vertical-align:middle">
+                    <button type="button" class="button oe-font-pick" data-target="oe-font-url"><?php esc_html_e('Upload / choose', 'october-events'); ?></button>
+                    <button type="button" class="button oe-font-clear" data-target="oe-font-url"><?php esc_html_e('Clear', 'october-events'); ?></button>
+                    <p class="description"><?php esc_html_e('The regular weight, used for body text. .woff2 / .woff / .ttf / .otf — self-hosted, no Google Fonts needed.', 'october-events'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><label><?php esc_html_e('Heading font file (bold)', 'october-events'); ?></label></th>
+                <td>
+                    <input type="url" id="oe-font-url-bold" name="theme_font_url_bold" value="<?php echo esc_attr((string) ($cfg['theme_font_url_bold'] ?? '')); ?>" placeholder="https://…/font-bold.woff2" class="regular-text" style="vertical-align:middle">
+                    <button type="button" class="button oe-font-pick" data-target="oe-font-url-bold"><?php esc_html_e('Upload / choose', 'october-events'); ?></button>
+                    <button type="button" class="button oe-font-clear" data-target="oe-font-url-bold"><?php esc_html_e('Clear', 'october-events'); ?></button>
+                    <p class="description"><?php esc_html_e('The bold weight, used for headings — easier to read. Leave blank to use the regular file for everything.', 'october-events'); ?></p>
                 </td>
             </tr>
             <tr>
@@ -161,17 +170,17 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <script>
         jQuery(function ($) {
             var frame;
-            $('#oe-upload-font').on('click', function (e) {
+            $('.oe-font-pick').on('click', function (e) {
                 e.preventDefault();
-                if (frame) { frame.open(); return; }
+                var target = $(this).data('target');
                 frame = wp.media({ title: 'Choose a font file', library: {}, multiple: false, button: { text: 'Use this font' } });
                 frame.on('select', function () {
                     var a = frame.state().get('selection').first().toJSON();
-                    $('#oe-font-url').val(a.url);
+                    $('#' + target).val(a.url);
                 });
                 frame.open();
             });
-            $('#oe-clear-font').on('click', function (e) { e.preventDefault(); $('#oe-font-url').val(''); });
+            $('.oe-font-clear').on('click', function (e) { e.preventDefault(); $('#' + $(this).data('target')).val(''); });
         });
         </script>
         </div></details>

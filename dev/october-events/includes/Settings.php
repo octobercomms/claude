@@ -96,7 +96,8 @@ final class Settings {
             'theme_logo_dark'   => '', // logo URL for the dark sidebar
             'theme_font_family' => '', // optional custom font family name
             'theme_font_css'    => '', // optional @font-face / Google Fonts URL
-            'theme_font_url'    => '', // optional uploaded font FILE (woff2/woff/ttf/otf)
+            'theme_font_url'    => '', // optional uploaded REGULAR-weight font file (woff2/woff/ttf/otf)
+            'theme_font_url_bold' => '', // optional uploaded BOLD-weight font file (for headings)
             // Email — Amazon SES as the site's outgoing mail transport (phase 1
             // of the email platform). Off by default: until enabled + configured
             // the site keeps using its existing mail transport, unchanged.

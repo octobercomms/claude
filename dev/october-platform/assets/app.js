@@ -39,7 +39,8 @@ const THEME_DEFAULTS = {
   logo_dark: './assets/logo-yellow.gif',   // for the dark sidebar
   font_family: '',                          // optional custom family name
   font_css: '',                             // optional stylesheet URL that defines the font
-  font_url: '',                             // optional uploaded font FILE (woff2/woff/ttf/otf)
+  font_url: '',                             // optional uploaded REGULAR-weight font file (woff2/woff/ttf/otf)
+  font_url_bold: '',                        // optional uploaded BOLD-weight font file
 };
 let theme = loadTheme();
 
@@ -57,13 +58,21 @@ function applyTheme(t) {
   if (t.sidebar_bg) { r.setProperty('--sidebar-bg', t.sidebar_bg); }
   if (t.page_bg) { r.setProperty('--page-bg', t.page_bg); }
   if (t.accent) { r.setProperty('--accent-soft', hexToSoft(t.accent)); }
-  // An uploaded font file → register it as @font-face under the family name.
-  const family = t.font_family || (t.font_url ? 'BrandFont' : '');
-  if (t.font_url && !document.getElementById('oe-font-face')) {
-    const fmt = /\.woff2($|\?)/i.test(t.font_url) ? 'woff2' : (/\.woff($|\?)/i.test(t.font_url) ? 'woff' : (/\.otf($|\?)/i.test(t.font_url) ? 'opentype' : 'truetype'));
+  // Uploaded font file(s) → register as @font-face under the family name. Two
+  // weights are supported: a regular for body and a bold for headings.
+  const family = t.font_family || ((t.font_url || t.font_url_bold) ? 'BrandFont' : '');
+  if ((t.font_url || t.font_url_bold) && !document.getElementById('oe-font-face')) {
+    const fmt = (u) => (/\.woff2($|\?)/i.test(u) ? 'woff2' : (/\.woff($|\?)/i.test(u) ? 'woff' : (/\.otf($|\?)/i.test(u) ? 'opentype' : 'truetype')));
+    let css = '';
+    if (t.font_url) {
+      css += '@font-face{font-family:"' + family + '";src:url("' + t.font_url + '") format("' + fmt(t.font_url) + '");font-weight:' + (t.font_url_bold ? '100 500' : '400 800') + ';font-style:normal;font-display:swap}';
+    }
+    if (t.font_url_bold) {
+      css += '@font-face{font-family:"' + family + '";src:url("' + t.font_url_bold + '") format("' + fmt(t.font_url_bold) + '");font-weight:600 900;font-style:normal;font-display:swap}';
+    }
     const st = document.createElement('style');
     st.id = 'oe-font-face';
-    st.textContent = '@font-face{font-family:"' + family + '";src:url("' + t.font_url + '") format("' + fmt + '");font-weight:400 800;font-display:swap}';
+    st.textContent = css;
     document.head.appendChild(st);
   }
   if (family) { r.setProperty('--font', '"' + family + '",-apple-system,BlinkMacSystemFont,system-ui,sans-serif'); }
@@ -1366,12 +1375,14 @@ async function renderContacts() {
     wrap.innerHTML = '<div class="oe-loading">Loading…</div>';
     let rows = [];
     try { rows = await api.listContacts(term || '', 0); } catch (e) { wrap.innerHTML = '<p class="oe-error">Could not load.</p>'; return; }
+    if (!Array.isArray(rows)) { rows = []; }
     wrap.innerHTML = '';
-    if (!rows.length) { wrap.appendChild(el('<p class="muted" style="padding:16px 0">No contacts found.</p>')); return; }
+    if (!rows.length) { wrap.appendChild(el('<p class="muted" style="padding:16px 0">' + (term ? 'No contacts match that.' : 'No contacts yet.') + '</p>')); return; }
     const table = el(`<table class="oe-ctable"><thead><tr>
       <th>Email</th><th>Name</th><th>Source</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>`);
     const tbody = table.querySelector('tbody');
-    rows.forEach((c) => tbody.appendChild(contactRow(c)));
+    // Guard each row so one malformed record can't blank the whole list.
+    rows.forEach((c) => { try { tbody.appendChild(contactRow(c)); } catch (e) { /* skip bad row */ } });
     wrap.appendChild(table);
   }
   function contactRow(c) {

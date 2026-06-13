@@ -31,6 +31,7 @@ final class Rest {
         'theme_font_family' => 'font_family',
         'theme_font_css'    => 'font_css',
         'theme_font_url'    => 'font_url',
+        'theme_font_url_bold' => 'font_url_bold',
     ];
 
     public static function init(): void {
