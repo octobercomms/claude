@@ -266,6 +266,93 @@
 	font-size: 14px;
 }
 
+/* Image column */
+.wbe-col-image {
+	width: 60px;
+	min-width: 60px;
+	text-align: center;
+	padding: 4px 6px !important;
+}
+
+.wbe-img-wrap {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border-radius: 4px;
+	cursor: pointer;
+	position: relative;
+	transition: box-shadow 0.15s;
+}
+
+.wbe-img-wrap:hover {
+	box-shadow: 0 0 0 2px #7f54b3;
+}
+
+.wbe-img-wrap.is-dirty {
+	box-shadow: 0 0 0 2px #f0ad00;
+}
+
+.wbe-img-wrap.is-drag-over {
+	box-shadow: 0 0 0 2px #5b9bd5;
+	background: #edf4fd;
+}
+
+.wbe-img-wrap.is-uploading {
+	cursor: wait;
+}
+
+.wbe-img-thumb {
+	width: 48px;
+	height: 48px;
+	object-fit: cover;
+	border-radius: 3px;
+	display: block;
+}
+
+.wbe-img-placeholder {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 48px;
+	height: 48px;
+	border: 2px dashed #ccc;
+	border-radius: 4px;
+	color: #bbb;
+	font-size: 18px;
+	transition: border-color 0.15s, color 0.15s;
+}
+
+.wbe-img-wrap:hover .wbe-img-placeholder {
+	border-color: #7f54b3;
+	color: #7f54b3;
+}
+
+.wbe-img-spinner {
+	position: absolute;
+	inset: 0;
+	background: rgba(255,255,255,0.8);
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wbe-img-spinner::after {
+	content: '';
+	width: 16px;
+	height: 16px;
+	border: 2px solid #ccc;
+	border-top-color: #7f54b3;
+	border-radius: 50%;
+	animation: wbe-spin 0.6s linear infinite;
+}
+
+@keyframes wbe-spin {
+	to { transform: rotate(360deg); }
+}
+
 /* Price currency prefix */
 .wbe-col-price {
 	min-width: 120px;

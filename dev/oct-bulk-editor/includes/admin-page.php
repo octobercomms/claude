@@ -3,8 +3,8 @@
 <div class="wrap wbe-wrap">
 
 	<h1 class="wbe-header">
-		<?php esc_html_e( 'WooCommerce Bulk Editor', 'woo-bulk-editor' ); ?>
-		<span class="wbe-badge"><?php esc_html_e( 'Spreadsheet Mode', 'woo-bulk-editor' ); ?></span>
+		<?php esc_html_e( 'WooCommerce Bulk Editor', 'oct-bulk-editor' ); ?>
+		<span class="wbe-badge"><?php esc_html_e( 'Spreadsheet Mode', 'oct-bulk-editor' ); ?></span>
 	</h1>
 
 	<!-- Toolbar -->
@@ -14,11 +14,11 @@
 				type="search"
 				id="wbe-search"
 				class="wbe-input"
-				placeholder="<?php esc_attr_e( 'Search products…', 'woo-bulk-editor' ); ?>"
+				placeholder="<?php esc_attr_e( 'Search products…', 'oct-bulk-editor' ); ?>"
 			/>
 
 			<select id="wbe-category" class="wbe-input">
-				<option value="0"><?php esc_html_e( 'All categories', 'woo-bulk-editor' ); ?></option>
+				<option value="0"><?php esc_html_e( 'All categories', 'oct-bulk-editor' ); ?></option>
 				<?php
 				$categories = get_terms( [
 					'taxonomy'   => 'product_cat',
@@ -37,17 +37,17 @@
 			</select>
 
 			<button id="wbe-load" class="button button-secondary">
-				<?php esc_html_e( 'Load Products', 'woo-bulk-editor' ); ?>
+				<?php esc_html_e( 'Load Products', 'oct-bulk-editor' ); ?>
 			</button>
 		</div>
 
 		<div class="wbe-actions">
 			<span id="wbe-change-count" class="wbe-change-badge" style="display:none"></span>
 			<button id="wbe-discard" class="button button-secondary" style="display:none">
-				<?php esc_html_e( 'Discard Changes', 'woo-bulk-editor' ); ?>
+				<?php esc_html_e( 'Discard Changes', 'oct-bulk-editor' ); ?>
 			</button>
 			<button id="wbe-save" class="button button-primary" disabled>
-				<?php esc_html_e( 'Save All Changes', 'woo-bulk-editor' ); ?>
+				<?php esc_html_e( 'Save All Changes', 'oct-bulk-editor' ); ?>
 			</button>
 		</div>
 	</div>
@@ -57,15 +57,16 @@
 
 	<!-- Column visibility -->
 	<div class="wbe-col-toggle">
-		<strong><?php esc_html_e( 'Columns:', 'woo-bulk-editor' ); ?></strong>
+		<strong><?php esc_html_e( 'Columns:', 'oct-bulk-editor' ); ?></strong>
 		<?php
 		$columns = [
-			'sku'          => __( 'SKU', 'woo-bulk-editor' ),
-			'regular_price'=> __( 'Regular Price', 'woo-bulk-editor' ),
-			'sale_price'   => __( 'Sale Price', 'woo-bulk-editor' ),
-			'stock_qty'    => __( 'Stock Qty', 'woo-bulk-editor' ),
-			'stock_status' => __( 'Stock Status', 'woo-bulk-editor' ),
-			'status'       => __( 'Publish Status', 'woo-bulk-editor' ),
+			'image'        => __( 'Image', 'oct-bulk-editor' ),
+			'sku'          => __( 'SKU', 'oct-bulk-editor' ),
+			'regular_price'=> __( 'Regular Price', 'oct-bulk-editor' ),
+			'sale_price'   => __( 'Sale Price', 'oct-bulk-editor' ),
+			'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
+			'stock_status' => __( 'Stock Status', 'oct-bulk-editor' ),
+			'status'       => __( 'Publish Status', 'oct-bulk-editor' ),
 		];
 		foreach ( $columns as $key => $label ) :
 		?>
@@ -81,20 +82,21 @@
 		<table id="wbe-table" class="wbe-table widefat">
 			<thead>
 				<tr>
-					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-sku" data-col="sku"><?php esc_html_e( 'SKU', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-price" data-col="regular_price"><?php esc_html_e( 'Regular Price', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-price" data-col="sale_price"><?php esc_html_e( 'Sale Price', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-stock" data-col="stock_qty"><?php esc_html_e( 'Stock Qty', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-status" data-col="stock_status"><?php esc_html_e( 'Stock Status', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-status" data-col="status"><?php esc_html_e( 'Publish Status', 'woo-bulk-editor' ); ?></th>
-					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'woo-bulk-editor' ); ?></th>
+					<th class="wbe-col-image" data-col="image"><?php esc_html_e( 'Image', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-sku" data-col="sku"><?php esc_html_e( 'SKU', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-stock" data-col="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-status" data-col="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-status" data-col="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'oct-bulk-editor' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="8">
-						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'woo-bulk-editor' ); ?>
+					<td colspan="9">
+						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>
 			</tbody>
@@ -103,9 +105,9 @@
 
 	<!-- Pagination -->
 	<div id="wbe-pagination" class="wbe-pagination" style="display:none">
-		<button id="wbe-prev" class="button" disabled><?php esc_html_e( '&larr; Previous', 'woo-bulk-editor' ); ?></button>
+		<button id="wbe-prev" class="button" disabled><?php esc_html_e( '&larr; Previous', 'oct-bulk-editor' ); ?></button>
 		<span id="wbe-page-info"></span>
-		<button id="wbe-next" class="button"><?php esc_html_e( 'Next &rarr;', 'woo-bulk-editor' ); ?></button>
+		<button id="wbe-next" class="button"><?php esc_html_e( 'Next &rarr;', 'oct-bulk-editor' ); ?></button>
 	</div>
 
 </div><!-- .wrap -->

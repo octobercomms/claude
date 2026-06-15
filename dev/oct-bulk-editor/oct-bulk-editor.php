@@ -24,6 +24,7 @@ class OctBulkEditor {
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
 		add_action( 'wp_ajax_octwbe_get_products', [ $this, 'ajax_get_products' ] );
 		add_action( 'wp_ajax_octwbe_save_changes', [ $this, 'ajax_save_changes' ] );
+		add_action( 'wp_ajax_octwbe_upload_image', [ $this, 'ajax_upload_image' ] );
 	}
 
 	public function register_menu(): void {
@@ -42,6 +43,8 @@ class OctBulkEditor {
 			return;
 		}
 
+		wp_enqueue_media();
+
 		wp_enqueue_style(
 			'wbe-styles',
 			OCTWBE_PLUGIN_URL . 'assets/css/bulk-editor.css',
@@ -58,15 +61,20 @@ class OctBulkEditor {
 		);
 
 		wp_localize_script( 'wbe-script', 'octwbe', [
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce'   => wp_create_nonce( 'octwbe_nonce' ),
-			'i18n'    => [
+			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'nonce'        => wp_create_nonce( 'octwbe_nonce' ),
+			'uploadNonce'  => wp_create_nonce( 'octwbe_upload_image' ),
+			'i18n'         => [
 				'saving'        => __( 'Saving…', 'oct-bulk-editor' ),
 				'saved'         => __( 'All changes saved!', 'oct-bulk-editor' ),
 				'saveError'     => __( 'Save failed. Please try again.', 'oct-bulk-editor' ),
 				'noChanges'     => __( 'No changes to save.', 'oct-bulk-editor' ),
 				'confirmDiscard'=> __( 'Discard all unsaved changes?', 'oct-bulk-editor' ),
 				'loading'       => __( 'Loading products…', 'oct-bulk-editor' ),
+				'selectImage'   => __( 'Select image', 'oct-bulk-editor' ),
+				'useImage'      => __( 'Use this image', 'oct-bulk-editor' ),
+				'uploading'     => __( 'Uploading…', 'oct-bulk-editor' ),
+				'uploadError'   => __( 'Upload failed.', 'oct-bulk-editor' ),
 			],
 		] );
 	}
@@ -148,6 +156,17 @@ class OctBulkEditor {
 		] );
 	}
 
+	private function get_image_data( int $attachment_id ): array {
+		if ( ! $attachment_id ) {
+			return [ 'image_id' => '', 'image_thumb' => '' ];
+		}
+		$thumb = wp_get_attachment_image_url( $attachment_id, [ 50, 50 ] );
+		return [
+			'image_id'    => $attachment_id,
+			'image_thumb' => $thumb ?: '',
+		];
+	}
+
 	private function format_parent_row( WC_Product $p ): array {
 		return [
 			'id'           => $p->get_id(),
@@ -159,12 +178,14 @@ class OctBulkEditor {
 			'stock_qty'    => '',
 			'stock_status' => '',
 			'status'       => $p->get_status(),
+			'image_id'     => '',
+			'image_thumb'  => '',
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
 		];
 	}
 
 	private function format_simple_row( WC_Product $p ): array {
-		return [
+		return array_merge( [
 			'id'           => $p->get_id(),
 			'type'         => 'simple',
 			'name'         => $p->get_name(),
@@ -175,7 +196,7 @@ class OctBulkEditor {
 			'stock_status' => $p->get_stock_status(),
 			'status'       => $p->get_status(),
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		];
+		], $this->get_image_data( (int) $p->get_image_id() ) );
 	}
 
 	private function format_variation_row( WC_Product_Variation $v, WC_Product $parent ): array {
@@ -186,7 +207,13 @@ class OctBulkEditor {
 			$attrs[] = $label . ': ' . ( $val ?: __( 'Any', 'oct-bulk-editor' ) );
 		}
 
-		return [
+		// Variation image falls back to parent image if not set
+		$image_id = (int) $v->get_image_id();
+		if ( ! $image_id ) {
+			$image_id = (int) $parent->get_image_id();
+		}
+
+		return array_merge( [
 			'id'            => $v->get_id(),
 			'parent_id'     => $parent->get_id(),
 			'type'          => 'variation',
@@ -198,7 +225,7 @@ class OctBulkEditor {
 			'stock_status'  => $v->get_stock_status(),
 			'status'        => $v->get_status(),
 			'edit_url'      => get_edit_post_link( $parent->get_id(), '' ),
-		];
+		], $this->get_image_data( $image_id ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -236,7 +263,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -309,11 +336,52 @@ class OctBulkEditor {
 				}
 				$product->set_status( $value );
 				break;
+
+			case 'image':
+				$attachment_id = absint( $value );
+				if ( $value !== '' && ( ! $attachment_id || get_post_type( $attachment_id ) !== 'attachment' ) ) {
+					return new WP_Error( 'invalid', "Invalid image attachment ID for product {$product->get_id()}." );
+				}
+				$product->set_image_id( $attachment_id ?: '' );
+				break;
 		}
 
 		$product->save();
 
 		return true;
+	}
+
+	// -------------------------------------------------------------------------
+	// AJAX: Upload image from drag-and-drop
+	// -------------------------------------------------------------------------
+
+	public function ajax_upload_image(): void {
+		check_ajax_referer( 'octwbe_upload_image', 'nonce' );
+
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( 'Forbidden', 403 );
+		}
+
+		if ( empty( $_FILES['file'] ) ) {
+			wp_send_json_error( 'No file received.' );
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$attachment_id = media_handle_upload( 'file', 0 );
+
+		if ( is_wp_error( $attachment_id ) ) {
+			wp_send_json_error( $attachment_id->get_error_message() );
+		}
+
+		$thumb = wp_get_attachment_image_url( $attachment_id, [ 50, 50 ] );
+
+		wp_send_json_success( [
+			'attachment_id' => $attachment_id,
+			'thumb_url'     => $thumb ?: '',
+		] );
 	}
 }
 

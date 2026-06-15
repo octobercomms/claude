@@ -66,6 +66,134 @@
 	}
 
 	// -------------------------------------------------------------------------
+	// Image cell – click to pick from media library, drag-and-drop to upload
+	// -------------------------------------------------------------------------
+	function buildImageCell(id, imageId, thumbUrl) {
+		const $td = $('<td>').addClass('wbe-col-image').attr('data-col', 'image');
+
+		const $wrap = $('<div>')
+			.addClass('wbe-img-wrap')
+			.attr({
+				'data-id':       id,
+				'data-field':    'image',
+				'data-original': String(imageId || ''),
+				title:           'Click to choose image, or drag & drop a file',
+			});
+
+		if (thumbUrl) {
+			$wrap.append($('<img>').addClass('wbe-img-thumb').attr('src', thumbUrl).attr('alt', ''));
+		} else {
+			$wrap.append($('<span>').addClass('wbe-img-placeholder').html('<span class="dashicons dashicons-camera-alt"></span>'));
+		}
+
+		// Uploading spinner (hidden by default)
+		$wrap.append($('<span>').addClass('wbe-img-spinner').hide());
+
+		$td.append($wrap);
+		return $td;
+	}
+
+	// Open WP media library on click
+	$tbody.on('click', '.wbe-img-wrap', function (e) {
+		if ($(this).hasClass('is-uploading')) return;
+		const $wrap = $(this);
+
+		const frame = wp.media({
+			title:    octwbe.i18n.selectImage,
+			button:   { text: octwbe.i18n.useImage },
+			multiple: false,
+			library:  { type: 'image' },
+		});
+
+		frame.on('select', function () {
+			const attachment = frame.state().get('selection').first().toJSON();
+			applyImageToCell($wrap, attachment.id, attachment.sizes?.thumbnail?.url || attachment.url);
+		});
+
+		frame.open();
+	});
+
+	// Drag-and-drop image upload
+	$tbody.on('dragover dragenter', '.wbe-img-wrap', function (e) {
+		e.preventDefault();
+		$(this).addClass('is-drag-over');
+	});
+
+	$tbody.on('dragleave drop', '.wbe-img-wrap', function (e) {
+		e.preventDefault();
+		$(this).removeClass('is-drag-over');
+
+		if (e.type !== 'drop') return;
+
+		const file = e.originalEvent.dataTransfer.files[0];
+		if (!file || !file.type.startsWith('image/')) return;
+
+		uploadImageFile($(this), file);
+	});
+
+	function uploadImageFile($wrap, file) {
+		if ($wrap.hasClass('is-uploading')) return;
+
+		$wrap.addClass('is-uploading');
+		$wrap.find('.wbe-img-spinner').show();
+		showStatus(octwbe.i18n.uploading, 'info');
+
+		const formData = new FormData();
+		formData.append('action', 'octwbe_upload_image');
+		formData.append('nonce', octwbe.uploadNonce);
+		formData.append('file', file, file.name);
+
+		$.ajax({
+			url:         octwbe.ajaxUrl,
+			type:        'POST',
+			data:        formData,
+			processData: false,
+			contentType: false,
+		}).done(function (response) {
+			if (response.success) {
+				applyImageToCell($wrap, response.data.attachment_id, response.data.thumb_url);
+				hideStatus();
+			} else {
+				showStatus(response.data || octwbe.i18n.uploadError, 'error');
+			}
+		}).fail(function () {
+			showStatus(octwbe.i18n.uploadError, 'error');
+		}).always(function () {
+			$wrap.removeClass('is-uploading');
+			$wrap.find('.wbe-img-spinner').hide();
+		});
+	}
+
+	function applyImageToCell($wrap, attachmentId, thumbUrl) {
+		const id    = $wrap.data('id');
+		const field = 'image';
+		const orig  = String($wrap.data('original') ?? '');
+		const value = String(attachmentId);
+		const key   = changeKey(id, field);
+
+		// Update displayed image
+		$wrap.find('.wbe-img-placeholder').remove();
+		let $img = $wrap.find('.wbe-img-thumb');
+		if (!$img.length) {
+			$img = $('<img>').addClass('wbe-img-thumb').attr('alt', '');
+			$wrap.prepend($img);
+		}
+		$img.attr('src', thumbUrl);
+
+		// Track change
+		if (value !== orig) {
+			state.changes[key] = { id, field, value, originalValue: orig, originalThumb: $wrap.data('current-thumb') || '' };
+			$wrap.addClass('is-dirty');
+		} else {
+			delete state.changes[key];
+			$wrap.removeClass('is-dirty');
+		}
+
+		$wrap.attr('data-current-thumb', thumbUrl);
+		updateToolbar();
+	}
+
+	// -------------------------------------------------------------------------
 	// Build table rows from server data
 	// -------------------------------------------------------------------------
 	function buildRow(row) {
@@ -77,6 +205,13 @@
 
 		const $tr = $('<tr>').addClass(rowClass).attr('data-id', row.id);
 
+		// Image cell (parent gets empty non-editable cell)
+		if (isParent) {
+			$tr.append('<td class="wbe-col-image" data-col="image"></td>');
+		} else {
+			$tr.append(buildImageCell(row.id, row.image_id, row.image_thumb));
+		}
+
 		// Name cell
 		const nameContent = isParent
 			? `<strong>${esc(row.name)}</strong> <span style="color:#999;font-size:11px;font-weight:400">(variable product)</span>`
@@ -85,7 +220,6 @@
 		$tr.append(`<td class="wbe-col-name">${nameContent}</td>`);
 
 		if (isParent) {
-			// Parent rows span the editable columns but are not editable
 			$tr.append('<td colspan="6" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
@@ -192,7 +326,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="8">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="9">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -228,7 +362,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="8">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="9">No products found.</td></tr>');
 			return;
 		}
 
@@ -388,6 +522,11 @@
 					$tbody.find(`.wbe-cell-select[data-id="${c.id}"][data-field="${c.field}"]`)
 						.attr('data-original', c.value)
 						.removeClass('is-dirty');
+					if (c.field === 'image') {
+						$tbody.find(`.wbe-img-wrap[data-id="${c.id}"]`)
+							.attr('data-original', c.value)
+							.removeClass('is-dirty');
+					}
 				}
 			});
 
@@ -414,6 +553,18 @@
 			const $sel = $tbody.find(`.wbe-cell-select[data-id="${c.id}"][data-field="${c.field}"]`);
 			if ($sel.length) {
 				$sel.val(c.originalValue).removeClass('is-dirty');
+			}
+			// Image cells
+			if (c.field === 'image') {
+				const $wrap = $tbody.find(`.wbe-img-wrap[data-id="${c.id}"]`);
+				$wrap.removeClass('is-dirty');
+				$wrap.find('.wbe-img-thumb').remove();
+				if (c.originalThumb) {
+					$wrap.prepend($('<img>').addClass('wbe-img-thumb').attr('src', c.originalThumb).attr('alt', ''));
+					$wrap.find('.wbe-img-placeholder').remove();
+				} else if (!$wrap.find('.wbe-img-placeholder').length) {
+					$wrap.prepend($('<span>').addClass('wbe-img-placeholder').html('<span class="dashicons dashicons-camera-alt"></span>'));
+				}
 			}
 		});
 
