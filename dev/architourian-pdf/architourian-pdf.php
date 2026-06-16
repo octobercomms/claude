@@ -18,31 +18,31 @@ define( 'AIPDF_PATH', plugin_dir_path( __FILE__ ) );
 define( 'AIPDF_URL', plugin_dir_url( __FILE__ ) );
 define( 'AIPDF_VENDOR', AIPDF_PATH . 'vendor/autoload.php' );
 
-// Public GitHub repo that publishes plugin Releases. WordPress checks this for
-// updates — keep it pointed at the PUBLIC mirror (no token needed on the site).
-define( 'AIPDF_UPDATE_REPO', 'https://github.com/octobercomms/architourian-pdf/' );
+// The plugin is developed and released from the public October monorepo
+// (octobercomms/claude), which publishes a GitHub Release per version tagged
+// "aipdf-v<version>". WordPress checks that repo for updates — it's public, so
+// no token is needed on the site.
+define( 'AIPDF_UPDATE_REPO', 'octobercomms/claude' );
+define( 'AIPDF_UPDATE_TAG_PREFIX', 'aipdf-v' );
 
 require_once AIPDF_PATH . 'includes/class-settings.php';
 require_once AIPDF_PATH . 'includes/class-pdf-generator.php';
 
 /**
- * Self-update from GitHub Releases.
+ * Self-update from the monorepo's GitHub Releases.
  *
- * Shows "Update available" on the Plugins screen whenever a newer Release is
- * published on the public repo above. enableReleaseAssets() makes WordPress
- * install the exact built zip attached to the Release (mPDF bundled) rather
- * than a bare source zipball.
+ * Surfaces "Update available" on the Plugins screen whenever a newer aipdf-v*
+ * Release is published, and installs the built zip attached to that Release
+ * (mPDF bundled) rather than a bare source zipball.
  */
-$aipdf_puc = AIPDF_PATH . 'lib/plugin-update-checker/plugin-update-checker.php';
-if ( is_admin() && file_exists( $aipdf_puc ) ) {
-	require_once $aipdf_puc;
-	$aipdf_update_checker = \YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
+if ( is_admin() ) {
+	require_once AIPDF_PATH . 'includes/class-aipdf-updater.php';
+	new AIPDF_Updater(
+		plugin_basename( __FILE__ ),
+		AIPDF_VERSION,
 		AIPDF_UPDATE_REPO,
-		__FILE__,
-		'architourian-pdf'
+		AIPDF_UPDATE_TAG_PREFIX
 	);
-	// Use the zip attached to each Release (built via build.sh), not the source zipball.
-	$aipdf_update_checker->getVcsApi()->enableReleaseAssets();
 }
 
 /**
