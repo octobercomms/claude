@@ -38,6 +38,7 @@ export default function PublicCoveragePage() {
   const [data, setData] = useState(undefined); // undefined = loading, null = not found
   const [statusFilter, setStatusFilter] = useState('all');
   const [sort, setSort] = useState('date_desc');
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     document.title = 'Press coverage';
@@ -54,7 +55,13 @@ export default function PublicCoveragePage() {
   // visible bucket into two identical-looking chips with different counts.
   const sorted = useMemo(() => {
     if (!data) return [];
-    const items = data.items.filter((i) => statusFilter === 'all' || i.status_label === statusFilter);
+    const q = query.trim().toLowerCase();
+    const items = data.items.filter((i) => {
+      if (statusFilter !== 'all' && i.status_label !== statusFilter) return false;
+      if (!q) return true;
+      return [i.outlet, i.journalist, i.story_title, i.story_url, i.country]
+        .some((v) => v && String(v).toLowerCase().includes(q));
+    });
     items.sort((a, b) => {
       if (sort === 'date_asc') return new Date(a.issue_date || 0) - new Date(b.issue_date || 0);
       if (sort === 'outlet') return (a.outlet || '').localeCompare(b.outlet || '');
@@ -62,7 +69,7 @@ export default function PublicCoveragePage() {
       return new Date(b.issue_date || 0) - new Date(a.issue_date || 0);
     });
     return items;
-  }, [data, statusFilter, sort]);
+  }, [data, statusFilter, sort, query]);
 
   // Brand palette — matches index.css design tokens.
   const ink = '#0a0a0a';
@@ -134,6 +141,14 @@ export default function PublicCoveragePage() {
               </button>
             ))}
             <div style={{ flex: 1 }} />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search coverage…"
+              aria-label="Search coverage"
+              style={{ padding: '5px 12px', fontSize: 12, border: `1px solid ${cardBorder}`, borderRadius: 999, background: '#fff', color: ink, minWidth: 180 }}
+            />
             <label style={{ fontSize: 12, color: subtle }}>Sort
               <select value={sort} onChange={(e) => setSort(e.target.value)}
                 style={{ marginLeft: 6, padding: '4px 8px', fontSize: 12, border: `1px solid ${cardBorder}`, borderRadius: 6, background: '#fff', color: ink }}>
@@ -183,7 +198,7 @@ export default function PublicCoveragePage() {
               </tbody>
             </table>
           ) : <p style={{ color: subtle }}>
-            {data.items.length ? 'No coverage matches that filter.' : 'No coverage to show yet — check back soon.'}
+            {data.items.length ? (query.trim() ? `No coverage matches “${query.trim()}”.` : 'No coverage matches that filter.') : 'No coverage to show yet — check back soon.'}
           </p>}
         </div>
 
