@@ -78,7 +78,7 @@ export default function PublicCoveragePage() {
   const cardBorder = '#e5e3dc';
   const subtle = '#6b7280';
 
-  const wrap = { maxWidth: 1100, margin: '0 auto', padding: '40px 24px', fontFamily: '-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Helvetica,Arial,sans-serif', color: ink };
+  const wrap = { maxWidth: 1100, margin: '0 auto', padding: '40px 24px', fontFamily: "'Brockmann', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif", color: ink };
   if (data === undefined) return <div style={{ background: surface, minHeight: '100vh' }}><div style={wrap}><p style={{ color: subtle }}>Loading…</p></div></div>;
   if (data === null) return <div style={{ background: surface, minHeight: '100vh' }}><div style={wrap}><h1>Not found</h1><p style={{ color: subtle }}>This coverage link is invalid or has expired.</p></div></div>;
 
