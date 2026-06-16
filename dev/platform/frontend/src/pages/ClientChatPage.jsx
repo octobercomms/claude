@@ -72,6 +72,9 @@ export default function ClientChatPage() {
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
   const [attachedFiles, setAttachedFiles] = useState([]);
+  const [rangePreset, setRangePreset] = useState('auto');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
   const [tab, setTab] = useTabParam('overview', ['overview', 'chat']);
   const fileInputRef = useRef(null);
   const bottomRef = useRef(null);
@@ -118,6 +121,24 @@ export default function ClientChatPage() {
     }
   }
 
+  // Resolve the selected preset (or custom dates) to a concrete {start,end}.
+  // 'auto' returns null — no window is sent, so the analyst picks its own.
+  function resolveRange() {
+    const fmt = (d) => d.toISOString().slice(0, 10);
+    if (rangePreset === 'auto') return null;
+    if (rangePreset === 'custom') return (customStart && customEnd) ? { start: customStart, end: customEnd } : null;
+    const end = new Date();
+    const start = new Date();
+    if (rangePreset === '7d') start.setDate(end.getDate() - 7);
+    else if (rangePreset === '30d') start.setDate(end.getDate() - 30);
+    else if (rangePreset === '90d') start.setDate(end.getDate() - 90);
+    else if (rangePreset === '6m') start.setMonth(end.getMonth() - 6);
+    else if (rangePreset === '12m') start.setFullYear(end.getFullYear() - 1);
+    else if (rangePreset === 'mtd') start.setDate(1);
+    else if (rangePreset === 'ytd') { start.setMonth(0); start.setDate(1); }
+    return { start: fmt(start), end: fmt(end) };
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     const text = input.trim();
@@ -145,7 +166,12 @@ export default function ClientChatPage() {
         });
         setAttachedFiles([]);
       }
-      const reply = await api.post(`/chat/${id}`, { message: text, image: imageData });
+      const range = resolveRange();
+      const reply = await api.post(`/chat/${id}`, {
+        message: text,
+        image: imageData,
+        ...(range ? { start_date: range.start, end_date: range.end } : {}),
+      });
       setMessages(prev => [...prev, reply]);
       api.get(`/chat/${id}/context`).then(setContextLog).catch(() => {});
     } catch (err) {
@@ -344,6 +370,35 @@ export default function ClientChatPage() {
           {/^\/report(\s|$)/i.test(input) && (
             <div className="body-xs text-subtle mt-2" style={{ paddingLeft: 4 }}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
           )}
+          {/* Data window — pins the date range the analyst pulls data for.
+              "Auto" sends no range so the analyst chooses per question. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 4 }}>
+            <span className="caption" style={{ color: 'var(--text-subtle)' }}>📅 Data window</span>
+            <select className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+              value={rangePreset} onChange={e => setRangePreset(e.target.value)} disabled={sending}>
+              <option value="auto">Auto (analyst decides)</option>
+              <option value="7d">Last 7 days</option>
+              <option value="30d">Last 30 days</option>
+              <option value="90d">Last 90 days</option>
+              <option value="6m">Last 6 months</option>
+              <option value="12m">Last 12 months</option>
+              <option value="mtd">This month</option>
+              <option value="ytd">This year</option>
+              <option value="custom">Custom…</option>
+            </select>
+            {rangePreset === 'custom' && (
+              <>
+                <input type="date" className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                  value={customStart} max={customEnd || undefined} onChange={e => setCustomStart(e.target.value)} disabled={sending} />
+                <span className="caption" style={{ color: 'var(--text-subtle)' }}>to</span>
+                <input type="date" className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+                  value={customEnd} min={customStart || undefined} onChange={e => setCustomEnd(e.target.value)} disabled={sending} />
+              </>
+            )}
+            {rangePreset !== 'auto' && rangePreset !== 'custom' && (
+              <span className="caption" style={{ color: 'var(--text-subtle)' }}>· applied to every data pull</span>
+            )}
+          </div>
           <div style={{ display: 'flex', gap: 8 }}>
             <textarea
               value={input}
