@@ -108,10 +108,7 @@ export default function PublicCoveragePage() {
       <div style={wrap}>
         {/* Brand header */}
         <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ width: 28, height: 28, borderRadius: '50%', background: accent, color: ink, fontWeight: 800, fontSize: 16, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>O</span>
-            <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: ink }}>October Marketing Intelligence</span>
-          </div>
+          <img src="/coverage-logo.gif" alt="October" style={{ height: 46, width: 'auto', display: 'block' }} />
           <span style={{ fontSize: 12, color: subtle }}>Press coverage report</span>
         </header>
 
