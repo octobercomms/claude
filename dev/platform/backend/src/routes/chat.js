@@ -686,8 +686,17 @@ router.get('/:clientId', async (req, res) => {
 });
 
 router.post('/:clientId', async (req, res) => {
-  const { message, image } = req.body;
+  const { message, image, start_date, end_date } = req.body;
   if (!message?.trim() && !image) return res.status(400).json({ error: 'message required' });
+
+  // Optional analysis window selected in the chat box. When both dates are
+  // present we instruct the analyst to use exactly this range for every data
+  // pull — replacing its own default window. Dates are normalised to
+  // YYYY-MM-DD; anything malformed is ignored (analyst picks its own window).
+  const dateRe = /^\d{4}-\d{2}-\d{2}/;
+  const win = (typeof start_date === 'string' && dateRe.test(start_date) && typeof end_date === 'string' && dateRe.test(end_date))
+    ? { start: start_date.slice(0, 10), end: end_date.slice(0, 10) }
+    : null;
 
   const clientId = req.params.clientId;
   try {
@@ -744,11 +753,22 @@ router.post('/:clientId', async (req, res) => {
       ? '\n\nThis turn is a /report request. Format your reply as a self-contained short report ready to be exported as a PDF / Word document:\n- Start with a Markdown H1 title that names what the report covers.\n- A short Executive Summary paragraph (2-4 sentences) directly under the title.\n- 2-5 H2 sections with the analysis and supporting data.\n- Use GFM tables for data — they render cleanly in both PDF and Word.\n- No chat preamble like "Here you go" or "Let me know if you need anything else". The reply IS the report body.'
       : '';
 
+    // Per-turn window directive: when the AM has pinned a date range in the
+    // chat box, the analyst must use it for every data pull rather than its
+    // own default window.
+    const windowSuffix = win
+      ? `\n\nAnalysis window selected by the account manager: ${win.start} to ${win.end}. When you call get_connector_data, always pass start_date="${win.start}" and end_date="${win.end}" so every figure covers exactly this period — unless this message explicitly asks about a different timeframe.`
+      : '';
+
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const response = await getClaude().messages.create({
         model: MODEL,
-        max_tokens: reportRequested ? 4096 : 2048,
-        system: buildSystemPrompt(client, connectorsRes.rows) + reportSuffix,
+        // Generous output budget so long analyses and multi-section /report
+        // replies aren't truncated. You're billed per token generated, so a
+        // high cap only bites when the answer genuinely needs the room; both
+        // values sit well within the model's output limit.
+        max_tokens: reportRequested ? 32000 : 16000,
+        system: buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix,
         tools: TOOLS,
         messages,
       });
