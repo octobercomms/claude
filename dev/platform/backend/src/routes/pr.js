@@ -278,7 +278,10 @@ router.post('/editorial-log/:id/attachment', upload.single('file'), async (req, 
       .replace(/[^\w.\-]+/g, '-').replace(/^-+|-+$/g, '').slice(-60) || 'attachment.pdf';
     const stored = `${crypto.randomBytes(12).toString('hex')}-${safeName}`;
     fs.writeFileSync(path.join(attachmentsDir, stored), req.file.buffer);
-    const url = `/coverage-attachments/${stored}`;
+    // Served under /api so it rides the reliable API proxy (see index.js). The
+    // filename-extraction regexes below match `/coverage-attachments/` as a
+    // substring, so they keep working for this longer prefix too.
+    const url = `/api/coverage-attachments/${stored}`;
     await db.query(
       'UPDATE pr_editorial_log SET attachment_url = $1, attachment_filename = $2 WHERE id = $3',
       [url, req.file.originalname || safeName, req.params.id]

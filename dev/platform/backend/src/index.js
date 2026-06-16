@@ -145,6 +145,17 @@ app.use('/api/ses', require('./routes/sesWebhook'));
 // auth so a plain download link works.
 app.use('/api/integrations', require('./routes/integrations'));
 
+// Coverage-entry attachments (PDF scans/cutouts), served under /api so they
+// ride the same nginx proxy as every other API call. The bare
+// /coverage-attachments path (mounted below) depends on its own nginx location
+// block, which proved unreliable in production — a request that misses it falls
+// through to the SPA and renders a blank screen. /api/* is always proxied to
+// the backend, so this path is the durable one; the public coverage page +
+// links now point here. Public + unguessable filename = the access control,
+// same as the token-gated portal. Mounted before auth so the client (not
+// logged in) and the PDF/CSV export can read it.
+app.use('/api/coverage-attachments', express.static(path.join(__dirname, '../coverage-attachments')));
+
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/change-password', authLimiter);
 app.use('/api/auth', require('./routes/auth'));
