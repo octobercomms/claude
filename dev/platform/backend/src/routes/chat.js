@@ -247,12 +247,28 @@ function summariseConnectorData(type, raw, days) {
       return result;
     }
     if (type === 'google_search_console') {
-      const rows = raw.rows || [];
-      const clicks = rows.reduce((s, r) => s + (r.clicks || 0), 0);
-      const imps = rows.reduce((s, r) => s + (r.impressions || 0), 0);
-      const avgPos = rows.length ? rows.reduce((s, r) => s + (r.position || 0), 0) / rows.length : null;
-      const top = rows.sort((a, b) => b.clicks - a.clicks).slice(0, 10).map(r => ({ query: r.keys?.[0], clicks: r.clicks, position: r.position?.toFixed(1) }));
-      return { period_days: days, total_clicks: clicks, total_impressions: imps, avg_position: avgPos?.toFixed(1), top_queries: top };
+      // fetchSearchConsoleData returns { totals, topQueries, topPages } — the
+      // undimensioned `totals` row is the period's true clicks/impressions.
+      // (This previously read raw.rows, which no longer exists after the
+      // connector was refactored, so every figure came back as zero.)
+      const totals = raw.totals || {};
+      const topQueries = raw.topQueries || [];
+      const topPages = raw.topPages || [];
+      const top = topQueries.slice(0, 10).map(r => ({
+        query: r.keys?.[0],
+        clicks: r.clicks,
+        impressions: r.impressions,
+        position: r.position?.toFixed(1),
+      }));
+      return {
+        period_days: days,
+        total_clicks: Math.round(totals.clicks || 0),
+        total_impressions: Math.round(totals.impressions || 0),
+        avg_ctr: totals.ctr != null ? `${(totals.ctr * 100).toFixed(2)}%` : null,
+        avg_position: totals.position ? totals.position.toFixed(1) : null,
+        top_queries: top,
+        top_pages: topPages.slice(0, 10).map(r => ({ page: r.keys?.[0], clicks: r.clicks, impressions: r.impressions })),
+      };
     }
     if (type === 'google_ads') {
       // /search returns {results:[...]}; /searchStream returned [{results:[...]},...]
