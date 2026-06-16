@@ -58,9 +58,27 @@ class AIPDF_PDF_Generator {
 	public static function handle_ajax() {
 		check_ajax_referer( 'aipdf_generate', 'nonce' );
 
+		// SEC-004: Rate limit — max 5 PDF requests per IP per 60 seconds.
+		$ip       = sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ?? '' ) );
+		$rate_key = 'aipdf_rl_' . md5( $ip );
+		$count    = (int) get_transient( $rate_key );
+		if ( $count >= 5 ) {
+			wp_send_json_error( 'Too many requests. Please try again shortly.' );
+		}
+		set_transient( $rate_key, $count + 1, 60 );
+
 		$post_id = isset( $_POST['post_id'] ) ? intval( $_POST['post_id'] ) : 0;
-		if ( ! $post_id || ! get_post( $post_id ) ) {
+		if ( ! $post_id ) {
 			wp_send_json_error( 'Invalid post ID.' );
+		}
+
+		// SEC-001: Only serve published posts; honour password protection.
+		$post = get_post( $post_id );
+		if ( ! $post || $post->post_status !== 'publish' ) {
+			wp_send_json_error( 'Post not found or not published.' );
+		}
+		if ( post_password_required( $post ) ) {
+			wp_send_json_error( 'This post is password protected.' );
 		}
 
 		if ( ! file_exists( AIPDF_VENDOR ) ) {
@@ -70,15 +88,16 @@ class AIPDF_PDF_Generator {
 		try {
 			require_once AIPDF_VENDOR;
 		} catch ( \Throwable $e ) {
-			wp_send_json_error( 'Vendor load failed: ' . $e->getMessage() );
+			error_log( 'Architourian PDF vendor load error: ' . $e->getMessage() );
+			wp_send_json_error( 'PDF generation failed. Please contact the site administrator.' );
 		}
 
 		try {
 			self::generate( $post_id );
 		} catch ( \Throwable $e ) {
-			$msg = $e->getMessage() . ' — ' . basename( $e->getFile() ) . ':' . $e->getLine();
-			error_log( 'Architourian PDF error: ' . $msg );
-			wp_send_json_error( $msg );
+			// SEC-002: Log detail server-side; return only a generic message to the browser.
+			error_log( 'Architourian PDF error: ' . $e->getMessage() . ' — ' . basename( $e->getFile() ) . ':' . $e->getLine() );
+			wp_send_json_error( 'PDF generation failed. Please contact the site administrator.' );
 		}
 		exit;
 	}
@@ -97,7 +116,6 @@ class AIPDF_PDF_Generator {
 			'vendor_exists'  => file_exists( AIPDF_VENDOR ),
 			'plugin_version' => AIPDF_VERSION,
 			'file_mtime'     => date( 'Y-m-d H:i:s', filemtime( __FILE__ ) ),
-			'class_methods'  => get_class_methods( __CLASS__ ),
 		];
 		$post_id = isset( $_REQUEST['post_id'] ) ? intval( $_REQUEST['post_id'] ) : 0;
 		if ( $post_id ) {
@@ -263,15 +281,15 @@ class AIPDF_PDF_Generator {
 
 	private static function parse_price_field( $value ) {
 		if ( empty( $value ) ) return '';
-		$processed = do_shortcode( $value );
-		if ( $processed !== $value ) return wp_strip_all_tags( $processed );
+		// SEC-003: Never call do_shortcode() on untrusted post meta — it executes all
+		// registered shortcode callbacks, including those from third-party plugins.
 		preg_match_all( '/price="(\d+)"/', $value, $matches );
 		if ( ! empty( $matches[1] ) ) {
 			return implode( ' – ', array_map( function( $p ) {
 				return '£' . number_format( (int) $p );
 			}, $matches[1] ) );
 		}
-		return $value;
+		return sanitize_text_field( $value );
 	}
 
 	private static function get_days( $post_id ) {
@@ -323,7 +341,13 @@ class AIPDF_PDF_Generator {
 	 */
 	private static function format_body( $text ) {
 		if ( empty( $text ) ) return '';
-		if ( strip_tags( $text ) !== $text ) return wp_kses_post( $text );
+		if ( strip_tags( $text ) !== $text ) {
+			// SEC-005: Remove <img> from the allowlist — mPDF fetches remote image URLs,
+			// which would allow SSRF via post meta containing crafted img tags.
+			$allowed = wp_kses_allowed_html( 'post' );
+			unset( $allowed['img'] );
+			return wp_kses( $text, $allowed );
+		}
 
 		$lines   = explode( "\n", trim( $text ) );
 		$output  = '';
@@ -385,7 +409,7 @@ class AIPDF_PDF_Generator {
 		// Weight each element by its estimated rendered height in lines, since
 		// every wrapped line is a fixed height. ~38 chars per line for a ~54mm
 		// column at 6pt monospace (deliberately conservative to avoid overflow).
-		$cpl     = 28;
+		$cpl     = 30;
 		$weights = array_map( function( $el ) use ( $cpl ) {
 			$lines = max( 1, (int) ceil( strlen( strip_tags( $el ) ) / $cpl ) );
 			if ( strpos( $el, '<h3' ) !== false ) $lines += 2; // top margin + taller face
@@ -452,11 +476,11 @@ class AIPDF_PDF_Generator {
 		.day-body p   { font-size: 10.5pt; line-height: 1.5; margin: 0 0 2.5mm 0; }
 
 		/* ── Terms & Conditions — class selectors beat global * and h3!important ── */
-		h3.tc-h3 { font-size: 9pt !important; font-weight: bold !important;
-		           margin: 3mm 0 1mm 0 !important; padding: 0 !important;
+		h3.tc-h3 { font-size: 8.5pt !important; font-weight: bold !important;
+		           margin: 2.5mm 0 0.8mm 0 !important; padding: 0 !important;
 		           font-family: ttnooks, "TT Nooks", Georgia, serif !important; }
-		p.tc-p        { font-size: 8pt !important; line-height: 1.35 !important; margin: 0 0 0.8mm 0 !important; }
-		p.tc-p-bullet { font-size: 8pt !important; line-height: 1.35 !important; margin: 0 0 0.5mm 0 !important; padding-left: 2mm !important; }
+		p.tc-p        { font-size: 7.5pt !important; line-height: 1.3 !important; margin: 0 0 0.6mm 0 !important; }
+		p.tc-p-bullet { font-size: 7.5pt !important; line-height: 1.3 !important; margin: 0 0 0.4mm 0 !important; padding-left: 2mm !important; }
 		</style>';
 	}
 
@@ -655,7 +679,7 @@ class AIPDF_PDF_Generator {
 <?php echo self::inner_header( $brand_html, $subtitle_lines, 'Terms &amp; Conditions' ); ?>
 
 <?php for ( $i = 0; $i < 3; $i++ ) : ?>
-<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; overflow:hidden; font-size:8pt; line-height:1.35; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
+<div style="position:absolute; top:50mm; left:<?php echo $col_lefts[$i]; ?>mm; width:<?php echo $col_widths[$i]; ?>mm; height:230mm; overflow:hidden; font-size:7.5pt; line-height:1.3; font-family:ballingermono,'Ballinger Mono','Courier New',monospace;">
 	<?php echo $cols[ $i ]; ?>
 </div>
 <?php endfor; ?>
@@ -729,7 +753,7 @@ class AIPDF_PDF_Generator {
 				</table>
 			</td>
 			<td width="34%" style="vertical-align:top; padding:0; font-size:10.5pt;">
-				<?php echo $section_label; ?>
+				<?php echo esc_html( $section_label ); ?>
 			</td>
 		</tr>
 	</table>
