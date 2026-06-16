@@ -1158,4 +1158,39 @@ router.post('/clients/:clientId/refine-chat', async (req, res) => {
   }
 });
 
+// ─── LOCAL SEO TOOLKIT ─────────────────────────────────────────────────────
+// Five on-demand Claude tools (competition gap, schema audit, buyer-intent
+// keywords, competitor X-ray, GBP posts). One generic table backs all five;
+// the :tool segment selects the runner + history scope.
+const localSeo = require('../services/localSeo');
+
+router.get('/clients/:clientId/local-seo/:tool', async (req, res) => {
+  if (!localSeo.isTool(req.params.tool)) return res.status(404).json({ error: 'Unknown tool' });
+  try {
+    const runs = await localSeo.listRuns(req.params.clientId, req.params.tool);
+    res.json({ runs });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/local-seo/:tool', async (req, res) => {
+  if (!localSeo.isTool(req.params.tool)) return res.status(404).json({ error: 'Unknown tool' });
+  try {
+    const run = await localSeo.run(req.params.tool, req.params.clientId, req.body || {});
+    res.status(201).json({ run });
+  } catch (err) {
+    console.error(`[seoSuite] local-seo ${req.params.tool} failed:`, err.message);
+    // Bad input (missing field, blocked URL) is the AM's to fix → 400;
+    // a malformed-JSON / model failure is upstream → 502.
+    const status = /required|Add at least|Could not read|Set the client|blocked|Refusing|DNS lookup|malformed URL|too long/i.test(err.message) ? 400 : 502;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+router.delete('/clients/:clientId/local-seo/:tool/:runId', async (req, res) => {
+  try {
+    await localSeo.deleteRun(req.params.clientId, req.params.runId);
+    res.status(204).end();
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 module.exports = router;
