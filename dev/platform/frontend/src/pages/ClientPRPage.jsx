@@ -86,6 +86,7 @@ export default function ClientPRPage() {
   // because the table is already sorted by issue/request date on the server.
   const [coverageFilter, setCoverageFilter] = useState('all');
   const [coverageSort, setCoverageSort] = useState('date_desc');
+  const [coverageQuery, setCoverageQuery] = useState('');
   const [checkingLinks, setCheckingLinks] = useState(false);
   const [showReports, setShowReports] = useState(false);
   const [reports, setReports] = useState({ alert_email: '', report_cadence: 'off' });
@@ -518,6 +519,14 @@ export default function ClientPRPage() {
               </button>
             ))}
             <div style={{ flex: 1 }} />
+            <input
+              className="input"
+              style={{ width: 'auto', minWidth: 200 }}
+              value={coverageQuery}
+              onChange={(e) => setCoverageQuery(e.target.value)}
+              placeholder="Search coverage…"
+              aria-label="Search coverage"
+            />
             <span className="caption">Sort</span>
             <select className="input" style={{ width: 'auto' }} value={coverageSort} onChange={(e) => setCoverageSort(e.target.value)}>
               <option value="date_desc">Newest first</option>
@@ -542,7 +551,13 @@ export default function ClientPRPage() {
               </tr></thead>
               <tbody>
                 {(() => {
-                  const filtered = log.filter(r => coverageFilter === 'all' || r.status === coverageFilter);
+                  const q = coverageQuery.trim().toLowerCase();
+                  const filtered = log.filter(r => {
+                    if (coverageFilter !== 'all' && r.status !== coverageFilter) return false;
+                    if (!q) return true;
+                    return [r.outlet, r.journalist, r.story_title, r.story_url, r.country, r.notes_outcome, r.status_label]
+                      .some(v => v && String(v).toLowerCase().includes(q));
+                  });
                   const sorted = [...filtered].sort((a, b) => {
                     if (coverageSort === 'date_asc') return new Date(a.issue_date || 0) - new Date(b.issue_date || 0);
                     if (coverageSort === 'outlet') return (a.outlet || '').localeCompare(b.outlet || '');
@@ -551,7 +566,7 @@ export default function ClientPRPage() {
                   });
                   if (!sorted.length) return (
                     <tr><td colSpan={9} style={{ color: 'var(--text-subtle)', padding: 24 }}>
-                      {log.length ? `No coverage matches "${coverageFilter}".` : 'No coverage yet. Add an entry, or import your editorial log CSV.'}
+                      {log.length ? (q ? `No coverage matches “${coverageQuery.trim()}”.` : `No coverage matches "${coverageFilter}".`) : 'No coverage yet. Add an entry, or import your editorial log CSV.'}
                     </td></tr>
                   );
                   return sorted.map((r) => (
