@@ -66,7 +66,7 @@ router.get('/:token/download', async (req, res) => {
       i.status_label, i.issue_date || '', i.story_url || '', fullAttachment(i.attachment_url),
     ]));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="coverage-${(data.client_name || 'client').replace(/\W+/g, '-').toLowerCase()}.csv"`);
+    res.setHeader('Content-Disposition', coverageDisposition(data.client_name, 'csv'));
     res.send(rows.map((r) => r.map(esc).join(',')).join('\n'));
   } catch (err) { res.status(500).send('Error'); }
 });
@@ -83,7 +83,7 @@ router.get('/:token/pdf', async (req, res) => {
     const html = renderCoveragePdfHtml(data);
     const buf = await pdfService.generatePDFBuffer(html, { printFooter: false });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="coverage-${(data.client_name || 'client').replace(/\W+/g, '-').toLowerCase()}.pdf"`);
+    res.setHeader('Content-Disposition', coverageDisposition(data.client_name, 'pdf'));
     res.send(buf);
   } catch (err) { res.status(500).send('Error generating PDF: ' + err.message); }
 });
@@ -95,6 +95,16 @@ function fmtDate(d) {
   if (!d) return '';
   const t = new Date(d);
   return isNaN(t) ? String(d) : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+// Build the Content-Disposition value for a coverage export. Filename is
+// "October Communications Coverage Report - <client> - <date>.<ext>". Strips
+// characters that break filenames, and sends both an ASCII fallback and an
+// RFC 5987 filename* so non-ASCII client names survive across browsers.
+function coverageDisposition(clientName, ext) {
+  const safeClient = String(clientName || 'Client').replace(/[\/\\:*?"<>|]+/g, '').trim() || 'Client';
+  const name = `October Communications Coverage Report - ${safeClient} - ${fmtDate(new Date())}.${ext}`;
+  const ascii = name.replace(/[^\x20-\x7E]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 const STATUS_PILL_CSS = {
   published:      'background:#e6f4ea;color:#1f7a3d;border-color:#9bcfa8',
