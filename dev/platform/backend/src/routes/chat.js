@@ -757,7 +757,7 @@ router.post('/:clientId', async (req, res) => {
     // chat box, the analyst must use it for every data pull rather than its
     // own default window.
     const windowSuffix = win
-      ? `\n\nAnalysis window selected by the account manager: ${win.start} to ${win.end}. When you call get_connector_data, always pass start_date="${win.start}" and end_date="${win.end}" so every figure covers exactly this period — unless this message explicitly asks about a different timeframe.`
+      ? `\n\nDATA WINDOW (set by the account manager): ${win.start} to ${win.end}. Every get_connector_data result this turn is already constrained to exactly this period — the figures you receive cover ${win.start} to ${win.end} and nothing else. Report on this period and refer to it by these exact dates. Do NOT describe the data as "90 days", "the last quarter", or any window other than ${win.start} to ${win.end}.`
       : '';
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -790,7 +790,15 @@ router.post('/:clientId', async (req, res) => {
             toolsUsed.push(block.name);
             let result;
             try {
-              result = await executeTool(block.name, block.input, clientId);
+              // When the AM has pinned a data window, hard-enforce it on every
+              // connector pull — overriding whatever range the model chose — so
+              // the figures (and the period_days the model narrates from) always
+              // match the selected window rather than the model's default habit.
+              let toolInput = block.input;
+              if (win && block.name === 'get_connector_data') {
+                toolInput = { ...toolInput, start_date: win.start, end_date: win.end, days: undefined };
+              }
+              result = await executeTool(block.name, toolInput, clientId);
             } catch (err) {
               result = { error: err.message };
             }
