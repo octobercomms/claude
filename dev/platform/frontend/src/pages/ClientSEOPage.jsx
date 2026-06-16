@@ -118,6 +118,7 @@ import QuickWinsPanel from '../components/organic/QuickWinsPanel';
 import CtrBoostPanel from '../components/organic/CtrBoostPanel';
 import ContentAuditPanel from '../components/organic/ContentAuditPanel';
 import KeywordFootprintPanel from '../components/organic/KeywordFootprintPanel';
+import LocalSeoPanel from '../components/organic/LocalSeoPanel';
 
 const LOCATIONS = [
   { name: 'United Kingdom', code: 2826, flag: '🇬🇧' },
@@ -610,6 +611,8 @@ export default function ClientSEOPage() {
     'perf_insights', 'perf_hub', 'keywords', 'gsc', 'ctr_boost', 'aio', 'fanout', 'ai_visibility', 'gaps', 'authority', 'backlinks', 'site_audit', 'quick_wins', 'content_audit', 'keyword_footprint',
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
+    // Local SEO toolkit sub-tabs
+    'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_gbp',
   ]);
 
   // Redirect stale deep links to their new homes after the AI Overviews
@@ -685,6 +688,13 @@ export default function ClientSEOPage() {
             { key: 'publish',  label: '4 · Publish' },
             { key: 'promote',  label: '5 · Promote' },
           ],
+          local: [
+            { key: 'local_gap',      label: 'Competition gap' },
+            { key: 'local_schema',   label: 'Schema audit' },
+            { key: 'local_keywords', label: 'Buyer-intent keywords' },
+            { key: 'local_xray',     label: 'Competitor X-ray' },
+            { key: 'local_gbp',      label: 'GBP posts' },
+          ],
         };
         const GROUP_OF = {
           overview: 'overview',
@@ -693,12 +703,14 @@ export default function ClientSEOPage() {
           ai_visibility: 'performance',
           site_audit: 'performance', quick_wins: 'performance', content_audit: 'performance', keyword_footprint: 'performance',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
+          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_gbp: 'local',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
           { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setActiveTab('overview') },
           { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_insights') },
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
+          { key: 'local',       label: 'Local SEO',   active: currentGroup === 'local',       onClick: () => setActiveTab('local_gap') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => t.groupLabel ? t : ({
           ...t, active: activeTab === t.key, onClick: () => setActiveTab(t.key),
@@ -768,6 +780,12 @@ export default function ClientSEOPage() {
       {activeTab === 'draft' && <DraftPanel clientId={id} onNext={() => setActiveTab('publish')} />}
       {activeTab === 'publish' && <PublishPanel clientId={id} onNext={() => setActiveTab('promote')} />}
       {activeTab === 'promote' && <PromotePanel clientId={id} />}
+      {/* Local SEO toolkit */}
+      {activeTab === 'local_gap' && <LocalSeoPanel clientId={id} tool="competition_gap" />}
+      {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
+      {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
+      {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
+      {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
 
       {activeTab === 'keywords' && <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
