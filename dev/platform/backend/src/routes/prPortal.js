@@ -66,7 +66,7 @@ router.get('/:token/download', async (req, res) => {
       i.status_label, i.issue_date || '', i.story_url || '', fullAttachment(i.attachment_url),
     ]));
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-    res.setHeader('Content-Disposition', `attachment; filename="coverage-${(data.client_name || 'client').replace(/\W+/g, '-').toLowerCase()}.csv"`);
+    res.setHeader('Content-Disposition', coverageDisposition(data.client_name, 'csv'));
     res.send(rows.map((r) => r.map(esc).join(',')).join('\n'));
   } catch (err) { res.status(500).send('Error'); }
 });
@@ -83,7 +83,7 @@ router.get('/:token/pdf', async (req, res) => {
     const html = renderCoveragePdfHtml(data);
     const buf = await pdfService.generatePDFBuffer(html, { printFooter: false });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="coverage-${(data.client_name || 'client').replace(/\W+/g, '-').toLowerCase()}.pdf"`);
+    res.setHeader('Content-Disposition', coverageDisposition(data.client_name, 'pdf'));
     res.send(buf);
   } catch (err) { res.status(500).send('Error generating PDF: ' + err.message); }
 });
@@ -95,6 +95,16 @@ function fmtDate(d) {
   if (!d) return '';
   const t = new Date(d);
   return isNaN(t) ? String(d) : t.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+// Build the Content-Disposition value for a coverage export. Filename is
+// "October Communications Coverage Report - <client> - <date>.<ext>". Strips
+// characters that break filenames, and sends both an ASCII fallback and an
+// RFC 5987 filename* so non-ASCII client names survive across browsers.
+function coverageDisposition(clientName, ext) {
+  const safeClient = String(clientName || 'Client').replace(/[\/\\:*?"<>|]+/g, '').trim() || 'Client';
+  const name = `October Communications Coverage Report - ${safeClient} - ${fmtDate(new Date())}.${ext}`;
+  const ascii = name.replace(/[^\x20-\x7E]/g, '_');
+  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`;
 }
 const STATUS_PILL_CSS = {
   published:      'background:#e6f4ea;color:#1f7a3d;border-color:#9bcfa8',
@@ -111,23 +121,33 @@ function renderCoveragePdfHtml(data) {
   const rows = data.items
     .slice()
     .sort((a, b) => new Date(b.issue_date || 0) - new Date(a.issue_date || 0))
-    .map((i) => `
-      <tr>
-        <td class="strong">${escapeHtml(i.outlet || '—')}</td>
-        <td>${escapeHtml(i.journalist || '—')}</td>
-        <td>${escapeHtml(i.country || '')}</td>
-        <td><span class="pill" style="${STATUS_PILL_CSS[i.status] || 'background:#fff;color:#0a0a0a;border-color:#0a0a0a'}">${escapeHtml(i.status_label || i.status)}</span></td>
-        <td class="nowrap">${escapeHtml(fmtDate(i.issue_date))}</td>
-        <td>
-          ${i.story_title ? `<div class="strong">${escapeHtml(i.story_title)}</div>` : ''}
-          ${i.story_url ? `<div class="url">${escapeHtml(i.story_url)}</div>` : ''}
-        </td>
-      </tr>
-    `).join('');
+    .map((i) => {
+      // Story (title + link) renders as its own full-width row beneath the
+      // entry's columns rather than squeezed into a narrow column — long
+      // titles wrap across the page width instead of ballooning the row.
+      // Each entry is its own <tbody> so the two rows never split across a
+      // page break.
+      const hasStory = i.story_title || i.story_url;
+      return `
+      <tbody class="entry${hasStory ? '' : ' nostory'}">
+        <tr class="data-row">
+          <td class="strong">${escapeHtml(i.outlet || '—')}</td>
+          <td>${escapeHtml(i.journalist || '—')}</td>
+          <td>${escapeHtml(i.country || '')}</td>
+          <td><span class="pill" style="${STATUS_PILL_CSS[i.status] || 'background:#fff;color:#0a0a0a;border-color:#0a0a0a'}">${escapeHtml(i.status_label || i.status)}</span></td>
+          <td class="nowrap">${escapeHtml(fmtDate(i.issue_date))}</td>
+        </tr>
+        ${hasStory ? `<tr class="story-row"><td colspan="5">
+          ${i.story_title ? `<span class="story-title">${escapeHtml(i.story_title)}</span>` : ''}
+          ${i.story_url ? `<a class="story-link" href="${escapeHtml(i.story_url)}">${escapeHtml(i.story_url)}</a>` : ''}
+        </td></tr>` : ''}
+      </tbody>`;
+    }).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(data.client_name)} — Press coverage</title>
     <style>
+      ${pdfService.buildFontCSS()}
       * { box-sizing: border-box; }
-      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #0a0a0a; background: #FAFAF7; }
+      body { margin: 0; font-family: 'Brockmann', -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif; color: #0a0a0a; background: #FAFAF7; }
       .wrap { max-width: 1100px; margin: 0 auto; padding: 32px 28px 48px; }
       .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
       .o-mark { width: 26px; height: 26px; border-radius: 50%; background: #FFD600; color: #0a0a0a; font-weight: 800; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
@@ -138,17 +158,26 @@ function renderCoveragePdfHtml(data) {
       .cover { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; page-break-after: always; padding: 40px; }
       .cover img { width: 320px; max-width: 70%; height: auto; margin-bottom: 28px; }
       .cover .o-mark { width: 64px; height: 64px; font-size: 34px; border-radius: 50%; background: #FFD600; color: #0a0a0a; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 24px; }
-      .cover-h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.01em; }
+      .cover-h1 { font-size: 40px; font-weight: 700; letter-spacing: -0.01em; }
       .cover-sub { font-size: 14px; color: #6b7280; margin-top: 8px; }
       .card { background: #fff; border: 1px solid #e5e3dc; border-radius: 12px; padding: 26px; }
       h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; }
       .sub { color: #6b7280; font-size: 13px; margin: 0 0 14px; }
       .stats { display: flex; gap: 22px; margin-bottom: 18px; }
-      .stat-n { font-size: 24px; font-weight: 800; }
+      .stat-n { font-size: 24px; font-weight: 700; }
       .stat-l { font-size: 10px; color: #6b7280; text-transform: uppercase; letter-spacing: .06em; }
       table { width: 100%; border-collapse: collapse; }
       th { text-align: left; color: #6b7280; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; padding: 10px 10px; border-bottom: 2px solid #e5e3dc; }
-      td { padding: 10px; border-bottom: 1px solid #e5e3dc; font-size: 12px; vertical-align: top; page-break-inside: avoid; }
+      td { padding: 10px; font-size: 12px; vertical-align: top; }
+      /* Each entry is a <tbody> kept together across page breaks. The data
+         row carries no bottom border; the story row (or the data row, when
+         there's no story) draws the separator between entries. */
+      tbody.entry { page-break-inside: avoid; break-inside: avoid; }
+      .data-row td { border-bottom: none; padding-bottom: 6px; }
+      tbody.nostory .data-row td { border-bottom: 1px solid #e5e3dc; padding-bottom: 10px; }
+      .story-row td { padding: 0 10px 12px; border-bottom: 1px solid #e5e3dc; }
+      .story-title { font-weight: 700; font-size: 12px; }
+      .story-link { display: block; margin-top: 2px; font-size: 10px; color: #6b7280; word-break: break-all; text-decoration: none; }
       .strong { font-weight: 700; }
       .url { font-size: 10px; color: #6b7280; word-break: break-all; margin-top: 2px; }
       .nowrap { white-space: nowrap; }
@@ -156,7 +185,6 @@ function renderCoveragePdfHtml(data) {
       .footer { text-align: center; color: #6b7280; font-size: 11px; margin-top: 18px; }
     </style></head><body>
       <div class="cover">
-        ${logo ? `<img src="${logo}" alt="October">` : '<div class="o-mark">O</div>'}
         <div class="cover-h1">${escapeHtml(data.client_name)}</div>
         <div class="cover-sub">Press coverage report &middot; ${escapeHtml(fmtDate(new Date()))}</div>
       </div>
@@ -171,9 +199,9 @@ function renderCoveragePdfHtml(data) {
           </div>
           <table>
             <thead><tr>
-              <th>Publication</th><th>Journalist</th><th>Country</th><th>Status</th><th>Date</th><th>Story</th>
+              <th>Publication</th><th>Journalist</th><th>Country</th><th>Status</th><th>Date</th>
             </tr></thead>
-            <tbody>${rows || `<tr><td colspan="6" style="color:#6b7280;padding:24px;text-align:center;">No coverage to show yet.</td></tr>`}</tbody>
+            ${rows || `<tbody><tr><td colspan="5" style="color:#6b7280;padding:24px;text-align:center;">No coverage to show yet.</td></tr></tbody>`}
           </table>
         </div>
         <p class="footer">Coverage tracked by October Communications · octobercomms.com</p>
