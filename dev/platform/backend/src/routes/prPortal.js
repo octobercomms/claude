@@ -7,6 +7,22 @@ const router = express.Router();
 const pr = require('../services/pr');
 const prPress = require('../services/prPress');
 const pdfService = require('../services/pdfService');
+const fs = require('fs');
+const path = require('path');
+
+// October wordmark, base64-inlined so puppeteer renders it with no network
+// fetch. It's an animated GIF; print renders its first frame — a clean static
+// logo on the PDF cover. Cached after first read; null if the file is missing,
+// in which case the cover/header fall back to the text mark.
+let _coverageLogo;
+function coverageLogoDataUri() {
+  if (_coverageLogo !== undefined) return _coverageLogo;
+  try {
+    const b = fs.readFileSync(path.join(__dirname, '../../../frontend/public/coverage-logo.gif'));
+    _coverageLogo = `data:image/gif;base64,${b.toString('base64')}`;
+  } catch { _coverageLogo = null; }
+  return _coverageLogo;
+}
 
 // Public press-release approval (token-gated, no login). Defined before the
 // catch-all /:token coverage route so the two-segment paths match first.
@@ -90,6 +106,7 @@ const STATUS_PILL_CSS = {
   no_response:    'background:#fde7e7;color:#a32020;border-color:#f0b3b3',
 };
 function renderCoveragePdfHtml(data) {
+  const logo = coverageLogoDataUri();
   const published = data.items.filter((i) => i.published).length;
   const rows = data.items
     .slice()
@@ -115,6 +132,14 @@ function renderCoveragePdfHtml(data) {
       .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
       .o-mark { width: 26px; height: 26px; border-radius: 50%; background: #FFD600; color: #0a0a0a; font-weight: 800; font-size: 15px; display: inline-flex; align-items: center; justify-content: center; }
       .brand-name { font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+      .brand img { height: 30px; display: block; }
+      /* Cover — a static first frame: logo centred on the page surface, then a
+         page break into the report. */
+      .cover { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; page-break-after: always; padding: 40px; }
+      .cover img { width: 320px; max-width: 70%; height: auto; margin-bottom: 28px; }
+      .cover .o-mark { width: 64px; height: 64px; font-size: 34px; border-radius: 50%; background: #FFD600; color: #0a0a0a; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+      .cover-h1 { font-size: 40px; font-weight: 800; letter-spacing: -0.01em; }
+      .cover-sub { font-size: 14px; color: #6b7280; margin-top: 8px; }
       .card { background: #fff; border: 1px solid #e5e3dc; border-radius: 12px; padding: 26px; }
       h1 { margin: 0 0 4px; font-size: 28px; letter-spacing: -0.01em; }
       .sub { color: #6b7280; font-size: 13px; margin: 0 0 14px; }
@@ -130,8 +155,13 @@ function renderCoveragePdfHtml(data) {
       .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.3px; text-transform: uppercase; border-width: 1px; border-style: solid; white-space: nowrap; }
       .footer { text-align: center; color: #6b7280; font-size: 11px; margin-top: 18px; }
     </style></head><body>
+      <div class="cover">
+        ${logo ? `<img src="${logo}" alt="October">` : '<div class="o-mark">O</div>'}
+        <div class="cover-h1">${escapeHtml(data.client_name)}</div>
+        <div class="cover-sub">Press coverage report &middot; ${escapeHtml(fmtDate(new Date()))}</div>
+      </div>
       <div class="wrap">
-        <div class="brand"><span class="o-mark">O</span><span class="brand-name">October Marketing Intelligence</span></div>
+        <div class="brand">${logo ? `<img src="${logo}" alt="October">` : '<span class="o-mark">O</span><span class="brand-name">October Marketing Intelligence</span>'}</div>
         <div class="card">
           <h1>${escapeHtml(data.client_name)}</h1>
           <p class="sub">Press coverage report · ${escapeHtml(fmtDate(new Date()))}</p>
