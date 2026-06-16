@@ -42,6 +42,39 @@ echo "==> Restarting backend..."
 pm2 reload "$SOURCE_DIR/dev/platform/backend/ecosystem.config.js" --update-env \
   || pm2 restart october-platform --update-env
 
+# ─── nginx config sync ─────────────────────────────────────────────
+# update.sh historically rebuilt the frontend and reloaded pm2 but never
+# touched nginx, so changes to dev/platform/nginx/platform.conf (new
+# location blocks, headers, body limits) never reached the box on
+# auto-deploy — they needed a manual copy + reload that was easy to
+# forget. That's exactly how the /coverage-attachments proxy shipped in
+# the repo yet rendered a blank screen in production. Sync it here so a
+# merged nginx change deploys like everything else.
+#
+# Guarded so it's safe and never rolls back a good deploy:
+#   - only acts when the repo file differs from what's on the box,
+#   - validates with `nginx -t` BEFORE reloading,
+#   - on a bad config, restores the previous file and warns (the pm2
+#     restart above already succeeded; a typo in nginx must not abort it),
+#   - uses sudo only if needed/available, degrading to a warning if the
+#     deploy user can't write to /etc/nginx.
+NGINX_SRC="$SOURCE_DIR/dev/platform/nginx/platform.conf"
+NGINX_DST="/etc/nginx/sites-available/platform.octobercomms.com"
+SUDO=""; [ "$(id -u)" -ne 0 ] && command -v sudo >/dev/null 2>&1 && SUDO="sudo"
+if [ -f "$NGINX_SRC" ] && ! $SUDO cmp -s "$NGINX_SRC" "$NGINX_DST" 2>/dev/null; then
+  echo "==> nginx config changed — syncing and reloading..."
+  $SUDO cp "$NGINX_DST" "$NGINX_DST.bak" 2>/dev/null || true
+  if $SUDO cp "$NGINX_SRC" "$NGINX_DST" && $SUDO nginx -t; then
+    $SUDO systemctl reload nginx && echo "    nginx reloaded." \
+      || echo "    WARNING: nginx reload failed — check 'systemctl status nginx'."
+  else
+    echo "    WARNING: nginx -t failed — restoring previous config, NOT reloading."
+    $SUDO cp "$NGINX_DST.bak" "$NGINX_DST" 2>/dev/null || true
+  fi
+else
+  echo "==> nginx config unchanged — skipping reload."
+fi
+
 # ─── Shopify app (October MI on omi.octobercomms.com) ──────────────
 # Skipped if the app's .env is missing (host not yet provisioned). Keeps
 # this script safe to run on a partially-set-up box.
