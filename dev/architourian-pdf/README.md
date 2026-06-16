@@ -133,38 +133,35 @@ Last. Back cover (SVG illustration + contact)
 
 ## Automatic Updates (from GitHub)
 
-The plugin self-updates from **GitHub Releases** on a public mirror repo, so a
-new version shows up under **Plugins → Update available** and you click
-**Update now** — no manual zip upload.
+The plugin is developed **and released from the October monorepo**
+(`octobercomms/claude`) — the same as the other October plugins. It self-updates
+from that repo's **GitHub Releases**, so a new version shows up under
+**Plugins → Update available** and you click **Update now** — no manual zip
+upload. The repo is public, so no token is needed on the site.
 
-### One-time setup
-
-1. Create a **public** GitHub repo for the plugin, e.g. `octobercomms/architourian-pdf`.
-2. Confirm the URL in `architourian-pdf.php` matches it:
-   ```php
-   define( 'AIPDF_UPDATE_REPO', 'https://github.com/octobercomms/architourian-pdf/' );
-   ```
-3. Push the plugin source to that repo (or just publish Releases — the source
-   doesn't have to live there, only the Releases need to exist).
-
-### Publishing a new version
+### Publishing a new version (fully automated)
 
 1. Bump the version in **both** places in `architourian-pdf.php`:
    - the `Version:` header comment
-   - the `AIPDF_VERSION` constant
-2. Build the distributable zip:
-   ```bash
-   bash build.sh        # produces ../architourian-pdf.zip
-   ```
-3. Create a GitHub **Release** on the public repo:
-   - Tag: `v1.3.1` (must be ≥ the version installed on the site)
-   - **Attach `architourian-pdf.zip` as a release asset** — WordPress installs
-     this exact built zip (mPDF bundled), not the source zipball.
-4. Within ~12 hours (or click "Check again" on the Plugins screen) every site
+   - the `AIPDF_VERSION` constant (the release workflow fails the build if these
+     two don't match)
+2. Merge to `main`. The **`architourian-pdf-release.yml`** GitHub Action then:
+   - builds the distributable zip (`build.sh` — mPDF bundled, heavy fonts pruned),
+   - creates the tag **`aipdf-v<version>`** and a GitHub Release, and
+   - attaches `architourian-pdf-<version>.zip` as the release asset.
+3. Within ~3 hours (or click **Check again** on the Plugins screen) every site
    running an older version sees the update and can one-click install it.
 
-> The bundled update checker is [Plugin Update Checker](https://github.com/YahnisElsts/plugin-update-checker)
-> in `lib/`. `enableReleaseAssets()` is what makes WP use the attached zip.
+> The updater is `includes/class-aipdf-updater.php` — a small, dependency-free
+> checker that reads the repo's Releases, considers only `aipdf-v*` tags (so the
+> several plugins in the monorepo don't collide), and installs the attached zip.
+>
+> **Migration note:** a site still on the old build updates from the previous
+> separate repo. To move it onto this in-monorepo updater, install this version
+> once manually (Plugins → Add New → Upload), or publish one final release on the
+> old repo containing this build. After that, all updates flow from
+> `octobercomms/claude` automatically and the separate `octobercomms/architourian-pdf`
+> repo can be retired.
 
 ## Design Notes
 
