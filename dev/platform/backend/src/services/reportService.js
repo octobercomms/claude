@@ -409,8 +409,12 @@ function extractTopMetrics(rawData, allowedTypes = null) {
       }
       if (sessions > 0) metrics.push({ label: `${tag}Sessions`, value: Math.round(sessions).toLocaleString() });
     }
-    if (type === 'google_search_console' && data.rows?.length) {
-      const clicks = data.rows.reduce((s, r) => s + (r.clicks || 0), 0);
+    if (type === 'google_search_console') {
+      // GSC connector returns { totals, topQueries, topPages }; the
+      // undimensioned totals row holds the true period clicks. (Previously
+      // read data.rows, which no longer exists — so Organic Clicks was
+      // always missing from the weekly report.)
+      const clicks = Math.round(data.totals?.clicks || 0);
       if (clicks > 0) metrics.push({ label: `${tag}Organic Clicks`, value: clicks.toLocaleString() });
     }
   }
