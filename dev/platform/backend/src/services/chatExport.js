@@ -40,7 +40,16 @@ function buildPdfHtml({ title, clientName, body, generatedAt }) {
 <html>
 <head>
   <meta charset="UTF-8">
-  <style>${pdfService.getPageCSS()}</style>
+  <style>${pdfService.getPageCSS()}
+    /* Size markdown headings to match the template reports (whose section
+       titles are 13pt). Body text, lists and tables already inherit the
+       report sizes from getPageCSS; only headings lacked a rule and fell
+       back to large browser defaults. */
+    .report-content h1 { font-size: 16pt; font-weight: 700; margin: 12pt 0 8pt; line-height: 1.2; }
+    .report-content h2 { font-size: 13pt; font-weight: 700; margin: 14pt 0 6pt; }
+    .report-content h3 { font-size: 11pt; font-weight: 700; margin: 10pt 0 4pt; }
+    .report-content h4 { font-size: 9.5pt; font-weight: 700; margin: 8pt 0 3pt; }
+  </style>
 </head>
 <body>
 <div class="report-content">
@@ -52,7 +61,10 @@ ${body}
 }
 
 async function markdownToPdfBuffer(markdown, opts = {}) {
-  const body = marked.parse(markdown || '');
+  // Strip horizontal rules (markdown ---) so the export matches the template
+  // reports, which never use them — the model tends to scatter them between
+  // sections.
+  const body = marked.parse(markdown || '').replace(/<hr\b[^>]*>/gi, '');
   const html = buildPdfHtml({ ...opts, body });
   // Render exactly like the weekly/monthly reports: the body is wrapped in
   // .report-content only (NO .page wrapper) so page margins come solely from
@@ -181,10 +193,9 @@ function tokenToBlock(tok) {
         spacing: { before: 120, after: 120 },
       })];
     case 'hr':
-      return [new Paragraph({
-        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: 'CCCCCC' } },
-        spacing: { before: 120, after: 120 },
-      })];
+      // Horizontal rules are omitted to match the template reports, which
+      // separate sections with headings + spacing rather than rules.
+      return [];
     case 'space':
       return [];
     default:
