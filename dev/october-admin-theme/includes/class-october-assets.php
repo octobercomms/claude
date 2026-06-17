@@ -55,6 +55,12 @@ class October_Admin_Assets {
 			true
 		);
 
+		// Real hrefs for the sidebar's View Site / Log Out links (set in JS).
+		wp_localize_script( 'october-admin-theme', 'octoberAdmin', [
+			'homeUrl'   => home_url( '/' ),
+			'logoutUrl' => wp_logout_url(),
+		] );
+
 		$this->maybe_preload_font();
 	}
 

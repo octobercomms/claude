@@ -21,10 +21,10 @@ class October_Admin_Cleanup {
 		add_filter( 'admin_footer_text', [ $this, 'footer_text' ] );
 		add_filter( 'update_footer', [ $this, 'footer_version' ], 11 );
 
-		// Rebuild the toolbar down to a single "View Site" link in wp-admin.
-		add_action( 'admin_bar_menu', [ $this, 'simplify_toolbar' ], 99999 );
-
-		// Front end: no toolbar — just a floating "Dashboard" link instead.
+		// The WordPress toolbar is removed entirely. In wp-admin it's hidden via
+		// CSS (see admin-style.css) — "View Site" and "Log Out" live in the
+		// sidebar instead. On the front end we drop it and show a floating
+		// "Dashboard" link for logged-in users.
 		add_filter( 'show_admin_bar', [ $this, 'hide_toolbar_on_front' ] );
 		add_action( 'wp_footer', [ $this, 'render_front_dashboard_link' ] );
 	}
@@ -45,40 +45,6 @@ class October_Admin_Cleanup {
 	 */
 	public function footer_version() {
 		return '';
-	}
-
-	/**
-	 * In wp-admin, remove the toolbar clutter and leave a single "View Site"
-	 * link. We keep the account menu so logging out still has a home.
-	 */
-	public function simplify_toolbar( $wp_admin_bar ) {
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		$keep = (array) apply_filters( 'october_admin_toolbar_keep', [
-			'my-account',     // account dropdown (logout lives here)
-			'top-secondary',  // right-hand container that holds my-account
-		] );
-
-		foreach ( $wp_admin_bar->get_nodes() as $node ) {
-			// Keep our allow-list and anything nested under it.
-			if ( in_array( $node->id, $keep, true ) ) {
-				continue;
-			}
-			if ( $node->parent && in_array( $node->parent, $keep, true ) ) {
-				continue;
-			}
-			$wp_admin_bar->remove_node( $node->id );
-		}
-
-		// Add one clean "View Site" link on the left.
-		$wp_admin_bar->add_node( [
-			'id'    => 'oc-view-site',
-			'title' => esc_html__( 'View Site', 'october-admin-theme' ),
-			'href'  => home_url( '/' ),
-			'meta'  => [ 'target' => '_blank' ],
-		] );
 	}
 
 	/**

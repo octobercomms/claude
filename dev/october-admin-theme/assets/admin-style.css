@@ -89,6 +89,16 @@ body.wp-admin {
 	color: var(--cl-text) !important;
 }
 
+/* Remove the WordPress toolbar in wp-admin entirely (it's replaced by the
+   sidebar's View Site / Log Out links) and reclaim the space it reserved. */
+html.wp-toolbar {
+	padding-top: 0 !important;
+}
+
+#wpadminbar {
+	display: none !important;
+}
+
 /* --------------------------------------------------------------------------
    Admin Bar (#wpadminbar)
    -------------------------------------------------------------------------- */
@@ -931,6 +941,24 @@ p.search-box input[type="search"] {
 	text-decoration: none !important;
 }
 
+/* Primary buttons are black, so their TEXT must be white. The link rule above
+   uses #wpbody (an id) which out-specifies the `.button-primary` colour, so we
+   re-assert white here at id strength — otherwise anchor-based primary buttons
+   render as black text on a black fill (invisible). */
+.wrap a.button-primary,
+#wpbody a.button-primary,
+#wpbody .button-primary,
+.wrap .button-primary {
+	color: var(--cl-white) !important;
+}
+
+/* Secondary/plain buttons stay dark text on their white fill. */
+#wpbody a.button,
+#wpbody a.button-secondary,
+#wpbody a.page-title-action {
+	color: var(--cl-text) !important;
+}
+
 /* --------------------------------------------------------------------------
    Misc helpers
    -------------------------------------------------------------------------- */
@@ -1031,9 +1059,10 @@ pre {
 	text-underline-offset: 2px !important;
 }
 
-/* Separators become a faint grey line instead of a white-on-white ghost. */
-#adminmenu li.wp-menu-separator div {
-	background: var(--cl-border) !important;
+/* Hide ALL menu separators — including the dark "PLUGINS / POST TYPES" pills
+   that Crocoblock/JetEngine inject. Our own group headers replace them. */
+#adminmenu li.wp-menu-separator {
+	display: none !important;
 }
 
 /* Menu badge bubbles: solid black, white text (monochrome). */
@@ -1044,11 +1073,82 @@ pre {
 }
 
 /* --------------------------------------------------------------------------
-   Advanced section (collapsible menu group)
+   Grouped sidebar (Squarespace spacing & hierarchy)
    --------------------------------------------------------------------------
-   Advanced items are hidden by default and revealed when #adminmenu gains the
-   .oc-advanced-open class (toggled by admin-script.js, persisted per browser).
-   Rendered correct from the server, so there is no flash of the full menu. */
+   Bigger top-level nav text, smaller sub-nav, and real breathing room between
+   groups — driven by labelled header rows the menu builder inserts. */
+
+/* Top-level items: larger text, more padding. */
+#adminmenu > li > a.menu-top,
+#adminmenu li.menu-top > a.menu-top {
+	font-size: 14.5px !important;
+	font-weight: 500 !important;
+	padding: 11px 16px !important;
+}
+
+#adminmenu .wp-menu-name {
+	line-height: 1.3 !important;
+}
+
+/* Sub-nav: smaller, lighter, indented. */
+#adminmenu .wp-submenu li a {
+	font-size: 12.5px !important;
+	padding: 7px 16px 7px 47px !important;
+}
+
+/* Group header rows: small grey uppercase labels, non-interactive. */
+#adminmenu li.oc-group-header {
+	margin-top: 22px !important;
+	pointer-events: none !important;
+}
+
+#adminmenu li.oc-group-header > a.menu-top {
+	background: transparent !important;
+	border-left: 0 !important;
+	color: var(--cl-text-muted) !important;
+	font-size: 11px !important;
+	font-weight: 600 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.7px !important;
+	padding: 4px 16px 6px !important;
+	cursor: default !important;
+}
+
+#adminmenu li.oc-group-header .wp-menu-image,
+#adminmenu li.oc-group-header > a.menu-top::after {
+	display: none !important;
+}
+
+#adminmenu li.oc-group-header > a .wp-menu-name {
+	text-decoration: none !important;
+}
+
+/* Utility links (View Site / Log Out) at the bottom — quieter, with a divider. */
+#adminmenu li.oc-utility {
+	margin-top: 2px !important;
+}
+
+#adminmenu li.oc-utility-first {
+	margin-top: 18px !important;
+	border-top: 1px solid var(--cl-border) !important;
+	padding-top: 6px !important;
+}
+
+#adminmenu li.oc-utility > a.menu-top {
+	color: var(--cl-text-muted) !important;
+	font-size: 13px !important;
+	font-weight: 500 !important;
+}
+
+#adminmenu li.oc-utility > a.menu-top:hover {
+	color: var(--cl-text) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Advanced section (collapsible group)
+   --------------------------------------------------------------------------
+   Advanced items hide until #adminmenu gains .oc-advanced-open (toggled by
+   admin-script.js, persisted per browser). Server-rendered, so no flash. */
 #adminmenu li.oc-advanced-item {
 	display: none !important;
 }
@@ -1057,35 +1157,53 @@ pre {
 	display: block !important;
 }
 
-/* The "Advanced" toggle row */
-#adminmenu li.oc-advanced-toggle > a {
-	color: var(--cl-sidebar-muted) !important;
-	font-size: 12px !important;
+/* The "Advanced" toggle — a single-line group-header-style row with the caret
+   pushed to the right edge (flex layout keeps label + caret on one line). */
+#adminmenu li.oc-advanced-toggle {
+	margin-top: 22px !important;
+}
+
+#adminmenu li.oc-advanced-toggle > a.menu-top {
+	display: flex !important;
+	align-items: center !important;
+	background: transparent !important;
+	border-left: 0 !important;
+	color: var(--cl-text-muted) !important;
+	font-size: 11px !important;
 	font-weight: 600 !important;
 	text-transform: uppercase !important;
-	letter-spacing: 0.6px !important;
+	letter-spacing: 0.7px !important;
+	padding: 4px 16px 6px !important;
+	white-space: nowrap !important;
+}
+
+#adminmenu li.oc-advanced-toggle .wp-menu-image {
+	display: none !important;
 }
 
 #adminmenu li.oc-advanced-toggle > a:hover {
 	color: var(--cl-text) !important;
-	background: var(--cl-sidebar-mid) !important;
+	background: transparent !important;
 }
 
-/* Caret that flips when the section is open */
-#adminmenu li.oc-advanced-toggle > a::after {
+#adminmenu li.oc-advanced-toggle .wp-menu-name {
+	text-decoration: none !important;
+}
+
+/* Caret pinned to the right of the row; flips when open. */
+#adminmenu li.oc-advanced-toggle > a.menu-top::after {
 	content: "";
 	display: inline-block;
 	width: 6px;
 	height: 6px;
-	margin-left: 8px;
+	margin-left: auto !important;
 	border-right: 1.5px solid currentColor;
 	border-bottom: 1.5px solid currentColor;
 	transform: rotate(45deg);
 	transition: transform .15s ease;
-	vertical-align: middle;
 }
 
-#adminmenu.oc-advanced-open li.oc-advanced-toggle > a::after {
+#adminmenu.oc-advanced-open li.oc-advanced-toggle > a.menu-top::after {
 	transform: rotate(-135deg);
 }
 

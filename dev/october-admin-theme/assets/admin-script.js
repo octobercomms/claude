@@ -13,6 +13,8 @@
 			return;
 		}
 
+		setUtilityLinks( menu );
+
 		// Restore the user's last choice (per browser) before first paint of the list.
 		if ( safeGet( STORAGE_KEY ) === '1' ) {
 			menu.classList.add( 'oc-advanced-open' );
@@ -28,6 +30,21 @@
 			var open = menu.classList.toggle( 'oc-advanced-open' );
 			safeSet( STORAGE_KEY, open ? '1' : '0' );
 		} );
+	}
+
+	// Point the sidebar's View Site / Log Out rows at their real URLs.
+	function setUtilityLinks( menu ) {
+		var data = window.octoberAdmin || {};
+		var viewSite = menu.querySelector( '.oc-view-site-item > a' );
+		var logOut = menu.querySelector( '.oc-log-out-item > a' );
+		if ( viewSite && data.homeUrl ) {
+			viewSite.setAttribute( 'href', data.homeUrl );
+			viewSite.setAttribute( 'target', '_blank' );
+			viewSite.setAttribute( 'rel', 'noopener' );
+		}
+		if ( logOut && data.logoutUrl ) {
+			logOut.setAttribute( 'href', data.logoutUrl );
+		}
 	}
 
 	function safeGet( key ) {
