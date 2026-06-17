@@ -13,16 +13,19 @@
      --cl-text-muted:  #6b6560  muted warm grey
      --cl-border:      #e0d8ce  warm border
      --cl-white:       #ffffff
-     Font stack: 'Inter', system-ui, -apple-system, sans-serif
+     Font stack: system UI fonts (zero network cost) by default.
    ========================================================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* No @import here on purpose — an external Google Fonts request would block
+   render on every admin page. We use the OS system-font stack instead, which
+   renders instantly and still looks clean (San Francisco on macOS, Segoe UI on
+   Windows). To use a custom face, define OCTOBER_ADMIN_FONT_URL (see the assets
+   class), self-host the .woff2, and add it to --cl-font below. */
 
 /* --------------------------------------------------------------------------
    CSS Custom Properties
    -------------------------------------------------------------------------- */
-:root,
-.claude-theme {
+:root {
 	--cl-bg:          #faf8f5;
 	--cl-bg-subtle:   #f0ebe3;
 	--cl-bg-card:     #ffffff;
@@ -44,15 +47,40 @@
 	--cl-radius-sm:   6px;
 	--cl-radius-md:   10px;
 	--cl-radius-lg:   14px;
-	--cl-font:        'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+	--cl-font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
 /* --------------------------------------------------------------------------
    Base / Reset
-   -------------------------------------------------------------------------- */
-.claude-theme,
-.claude-theme * {
+   --------------------------------------------------------------------------
+   IMPORTANT: we do NOT set font-family on a universal `*` selector. Doing that
+   (as v1 did) overrides the icon-font of Dashicons and every plugin that ships
+   its own icon font (Elementor eicons, WooCommerce, Font Awesome, JetEngine) —
+   which is exactly how you end up with rows of "tofu" boxes instead of icons.
+   Instead we set the face on the body and on the specific text surfaces, and
+   then explicitly re-assert the icon fonts so they always win. */
+.october-theme,
+.october-theme #wpwrap,
+.october-theme #adminmenu,
+.october-theme #wpadminbar,
+.october-theme .wrap,
+.october-theme #wpbody-content,
+.october-theme input,
+.october-theme select,
+.october-theme textarea,
+.october-theme button,
+.october-theme .button,
+.october-theme .wp-list-table,
+.october-theme .postbox {
 	font-family: var(--cl-font) !important;
+}
+
+/* Re-assert icon fonts so the text rule above can never clobber them. */
+.october-theme .dashicons,
+.october-theme .dashicons-before:before,
+.october-theme [class^="dashicons-"]:before,
+.october-theme [class*=" dashicons-"]:before {
+	font-family: dashicons !important;
 }
 
 body.wp-admin {
@@ -914,6 +942,87 @@ pre {
 /* Spinner */
 .spinner {
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23d4763b' stroke-width='2' stroke-dasharray='31.4 31.4' transform='rotate(-90 12 12)'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='.8s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E") !important;
+}
+
+/* --------------------------------------------------------------------------
+   Advanced section (collapsible menu group)
+   --------------------------------------------------------------------------
+   Advanced items are hidden by default and revealed when #adminmenu gains the
+   .oc-advanced-open class (toggled by admin-script.js, persisted per browser).
+   Rendered correct from the server, so there is no flash of the full menu. */
+#adminmenu li.oc-advanced-item {
+	display: none !important;
+}
+
+#adminmenu.oc-advanced-open li.oc-advanced-item {
+	display: block !important;
+}
+
+/* The "Advanced" toggle row */
+#adminmenu li.oc-advanced-toggle > a {
+	color: var(--cl-sidebar-muted) !important;
+	font-size: 12px !important;
+	font-weight: 600 !important;
+	text-transform: uppercase !important;
+	letter-spacing: 0.6px !important;
+}
+
+#adminmenu li.oc-advanced-toggle > a:hover {
+	color: var(--cl-white) !important;
+	background: var(--cl-sidebar-mid) !important;
+}
+
+/* Caret that flips when the section is open */
+#adminmenu li.oc-advanced-toggle > a::after {
+	content: "";
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-left: 8px;
+	border-right: 1.5px solid currentColor;
+	border-bottom: 1.5px solid currentColor;
+	transform: rotate(45deg);
+	transition: transform .15s ease;
+	vertical-align: middle;
+}
+
+#adminmenu.oc-advanced-open li.oc-advanced-toggle > a::after {
+	transform: rotate(-135deg);
+}
+
+/* --------------------------------------------------------------------------
+   Custom welcome panel (.oc-welcome)
+   -------------------------------------------------------------------------- */
+.oc-welcome {
+	padding: 32px 36px;
+}
+
+.oc-welcome__title {
+	color: var(--cl-text) !important;
+	font-size: 26px !important;
+	font-weight: 650 !important;
+	letter-spacing: -0.5px !important;
+	margin: 0 0 6px !important;
+}
+
+.oc-welcome__sub {
+	color: var(--cl-text-muted) !important;
+	font-size: 14px !important;
+	max-width: 60ch;
+	margin: 0 0 20px !important;
+}
+
+.oc-welcome__actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+/* Override core's dark welcome-panel gradient for our clean version */
+#welcome-panel.welcome-panel {
+	background: var(--cl-white) !important;
+	color: var(--cl-text) !important;
+	padding: 0 !important;
 }
 
 /* --------------------------------------------------------------------------
