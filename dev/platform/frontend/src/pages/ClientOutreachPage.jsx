@@ -271,12 +271,12 @@ export default function ClientOutreachPage() {
 
   // Free scrape source — reads a public page and pulls contacts off it. Feeds
   // the same foundContacts preview + addFound() path as Hunter/Icypeas.
-  async function runScrape(urlArg) {
+  async function runScrape(urlArg, crawl = false) {
     const url = (typeof urlArg === 'string' ? urlArg : scrapeUrlInput).trim();
     if (!url) return;
     setFinding(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
     try {
-      const res = await api.post('/outreach/find/scrape', { url });
+      const res = await api.post('/outreach/find/scrape', { url, crawl });
       setFoundContacts(res.contacts || []);
       // Pre-select everything that has an email — the usual keep set.
       setSelected(new Set((res.contacts || []).map((c, i) => (c.email ? i : null)).filter(i => i !== null)));
@@ -564,7 +564,8 @@ export default function ClientOutreachPage() {
                 <input className="input" style={{ flex: 1 }} placeholder="Page URL — a Contact/Team page, directory or listing"
                   value={scrapeUrlInput} onChange={e => setScrapeUrlInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') runScrape(scrapeUrlInput); }} />
-                <button onClick={() => runScrape(scrapeUrlInput)} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Scrape'}</button>
+                <button onClick={() => runScrape(scrapeUrlInput, false)} disabled={finding} className="btn btn-primary" title="Just this page">{finding ? '…' : 'Scrape page'}</button>
+                <button onClick={() => runScrape(scrapeUrlInput, true)} disabled={finding} className="btn btn-secondary" title="This page plus its Contact / About / Team pages">{finding ? '…' : 'Scrape site'}</button>
               </div>
               <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>Free — reads the page and pulls any contacts on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
               {findError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}

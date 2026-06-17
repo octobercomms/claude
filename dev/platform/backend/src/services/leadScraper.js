@@ -66,33 +66,41 @@ ${text}
 """`;
 
 // Scrape one URL → array of contacts in the outreach /contacts/bulk shape.
-async function scrapeUrl(rawUrl) {
+// Fetch a URL (SSRF-guarded) and return its visible text, or null if it can't
+// be read. Never throws on fetch failure — callers crawling several pages
+// should skip a dead one, not abort the whole run.
+async function fetchPageText(rawUrl, { hard = false } = {}) {
   const url = normUrl(rawUrl);
-  if (!url) throw new Error('url required');
+  if (!url) { if (hard) throw new Error('url required'); return null; }
   await assertPublicHttpUrl(url); // SSRF guard — throws (→ 400) on internal/private hosts
-
   const r = await fetchRenderedHtml(url, { timeout: 15000 });
   if (!r.html || r.status >= 400) {
-    throw new Error(`Could not fetch ${url} — ${r.status ? `status ${r.status}` : 'no response'}`);
+    if (hard) throw new Error(`Could not fetch ${url} — ${r.status ? `status ${r.status}` : 'no response'}`);
+    return null;
   }
   const text = htmlToText(r.html).slice(0, 16000);
-  if (text.length < 40) throw new Error(`Fetched ${url} but it had no readable text (JS-only shell?).`);
+  if (text.length < 40) {
+    if (hard) throw new Error(`Fetched ${url} but it had no readable text (JS-only shell?).`);
+    return { url, text: '', html: r.html };
+  }
+  return { url, text, html: r.html };
+}
 
+// Map one page's text → normalised contacts via Claude.
+async function extractContacts(url, text) {
+  if (!text || text.length < 40) return [];
   const raw = await claudeService.callClaude({
     max_tokens: 3000,
     system: EXTRACT_SYSTEM,
     user: EXTRACT_PROMPT(url, text),
     feature: 'lead_scrape',
   });
-  const parsed = parseJson(raw);
-  const list = Array.isArray(parsed?.contacts) ? parsed.contacts : [];
-
+  const list = Array.isArray(parseJson(raw)?.contacts) ? parseJson(raw).contacts : [];
   return list
     .map((c) => {
       const name = (c.name || [c.first_name, c.last_name].filter(Boolean).join(' ') || '').trim() || null;
       const email = c.email && /@/.test(c.email) ? String(c.email).trim() : null;
-      // Skip rows with neither a name nor an email — nothing to act on.
-      if (!name && !email) return null;
+      if (!name && !email) return null; // nothing to act on
       return {
         name,
         first_name: c.first_name || null,
@@ -111,4 +119,54 @@ async function scrapeUrl(rawUrl) {
     .filter(Boolean);
 }
 
-module.exports = { scrapeUrl };
+// Single page → contacts (the slice-1 path).
+async function scrapeUrl(rawUrl) {
+  const page = await fetchPageText(rawUrl, { hard: true });
+  return extractContacts(page.url, page.text);
+}
+
+// Find same-host Contact/About/Team-style links on a page to crawl for more
+// contacts. Capped, deduped, homepage excluded (the caller already has it).
+const CONTACT_PATH_RE = /(contact|about|team|people|our[-_]?team|meet[-_]?the|staff|leadership|directors?|founders?)/i;
+function sameHost(a, b) { try { return new URL(a).host === new URL(b).host; } catch { return false; } }
+function discoverContactLinks(html, baseUrl, max = 4) {
+  const out = [];
+  const seen = new Set([baseUrl.replace(/\/$/, '')]);
+  const re = /<a[^>]+href=["']([^"'<>]+)["']/gi;
+  let m;
+  while ((m = re.exec(html)) !== null && out.length < max) {
+    const href = m[1].trim();
+    if (!href || /^(mailto:|tel:|javascript:|#)/i.test(href)) continue;
+    let abs;
+    try { abs = new URL(href, baseUrl).toString().split('#')[0].replace(/\/$/, ''); } catch { continue; }
+    if (!sameHost(abs, baseUrl) || seen.has(abs)) continue;
+    let pathname; try { pathname = new URL(abs).pathname; } catch { continue; }
+    if (CONTACT_PATH_RE.test(pathname)) { out.push(abs); seen.add(abs); }
+  }
+  return out;
+}
+
+// Crawl a site: the given page + its Contact/About/Team pages, merged and
+// deduped by email-or-name. Per-page failures are skipped so one bad page
+// doesn't sink the run.
+async function scrapeSite(rawUrl, { maxPages = 5 } = {}) {
+  const home = await fetchPageText(rawUrl, { hard: true });
+  const extraUrls = discoverContactLinks(home.html, home.url, maxPages - 1);
+  const dedup = new Map(); // email|name(lower) → contact
+  const addAll = (contacts) => {
+    for (const c of contacts) {
+      const key = (c.email || c.name || '').toLowerCase();
+      if (key && !dedup.has(key)) dedup.set(key, c);
+    }
+  };
+  addAll(await extractContacts(home.url, home.text));
+  for (const u of extraUrls) {
+    let page;
+    try { page = await fetchPageText(u); } catch { continue; } // SSRF/etc — skip
+    if (!page || !page.text) continue;
+    try { addAll(await extractContacts(page.url, page.text)); } catch { /* skip bad page */ }
+  }
+  return { contacts: Array.from(dedup.values()), pages_scraped: 1 + extraUrls.length, pages: [home.url, ...extraUrls] };
+}
+
+module.exports = { scrapeUrl, scrapeSite };
