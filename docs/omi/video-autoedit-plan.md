@@ -45,6 +45,34 @@ re-edit until a score threshold, then deliver.
 So the render pipe exists; the **post-production pipeline** (ingest → cut →
 caption → grade → export) is the new work.
 
+## Typography & brand styling — deterministic, from the Brand Kit
+
+The model must **never freestyle typography.** Output stays consistent because
+the styling is *applied from locked tokens*, not generated.
+
+- **Source of truth: the existing per-client Brand Kit** (`brand_assets`: `logo`,
+  `font`, `palette`, `guideline`). This is the same store the Social and
+  Ad-Creative generators already pull from, and the Remotion StyleA/C/G clips
+  already take brand colour / font / background as **props** — so the precedent
+  and the data both exist.
+- **Division of labour:** the LLM owns *content + timing* (caption text, which
+  words to emphasise, where graphics land in the timeline); the **Brand Kit + a
+  fixed set of caption/motion presets** own *the how* (font, colour, logo,
+  weight, safe margins, animation). The model picks a **preset**, never an
+  arbitrary font/colour.
+- **Presets:** a small named set (e.g. `bold-centred`, `lower-third`,
+  `karaoke-highlight`) each parameterised by the brand kit, so every render of a
+  client is visually identical in treatment.
+- **One new brand config:** a thin **"video style preset"** on the Brand profile
+  — pick a default caption/graphic look + safe-area, seeded from the client's
+  existing palette/fonts. Set once per client; applied to every render.
+- **Grader's role:** the QA loop *checks adherence* (legibility, inside safe
+  margins, correct brand font/colour) as a backstop — but the guarantee is the
+  deterministic preset, not the grade.
+
+This de-risks the "AI output drifts / looks generic" failure mode entirely:
+typography can't drift because it isn't being generated.
+
 ## The pipeline
 
 1. **Ingest** — AM uploads raw clips (or points at a Drive/Dropbox folder).
