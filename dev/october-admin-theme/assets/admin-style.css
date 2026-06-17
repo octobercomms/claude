@@ -1,18 +1,13 @@
 /* ==========================================================================
-   Claude Admin Theme — WordPress backend redesign
-   Palette:
-     --cl-bg:          #faf8f5  warm cream (main canvas)
-     --cl-bg-subtle:   #f0ebe3  slightly deeper cream (sidebars, rows)
-     --cl-sidebar:     #1c1814  very dark warm brown
-     --cl-sidebar-mid: #2d2520  mid dark brown (hover states)
-     --cl-sidebar-hi:  #3d3128  lighter dark brown (active)
-     --cl-accent:      #d4763b  Claude orange
-     --cl-accent-hi:   #c0612a  darker orange (hover)
-     --cl-accent-lt:   #f0e8e0  very light orange tint
-     --cl-text:        #1a1714  near-black warm
-     --cl-text-muted:  #6b6560  muted warm grey
-     --cl-border:      #e0d8ce  warm border
-     --cl-white:       #ffffff
+   October Admin Theme — WordPress backend redesign
+   Monochrome, Squarespace-style: black / white / grey only, underline accents.
+   The authoritative palette lives in the :root custom properties below.
+     --cl-bg          white canvas
+     --cl-bg-subtle   light grey (table headers, subtle fills)
+     --cl-sidebar     white left nav
+     --cl-accent      black (buttons, active states)
+     --cl-text        near-black / --cl-text-muted  grey
+     --cl-border      hairline grey
      Font stack: system UI fonts (zero network cost) by default.
    ========================================================================== */
 
@@ -355,7 +350,7 @@ input[type="submit"].button-primary {
 	padding: 7px 16px !important;
 	height: auto !important;
 	line-height: 1.4 !important;
-	box-shadow: 0 1px 3px rgba(212,118,59,.3) !important;
+	box-shadow: 0 1px 3px rgba(0,0,0,.18) !important;
 	transition: background .15s ease, box-shadow .15s ease !important;
 	cursor: pointer !important;
 }
@@ -364,7 +359,12 @@ input[type="submit"].button-primary {
 input[type="submit"].button-primary:hover {
 	background: var(--cl-accent-hi) !important;
 	border-color: var(--cl-accent-hi) !important;
-	box-shadow: 0 3px 8px rgba(212,118,59,.35) !important;
+	/* Re-assert white text on hover. Some plugin buttons (e.g. Elementor's
+	   "Upgrade Now") carry the .button-primary class AND their own :hover rule
+	   that sets a dark text colour for a light hover background — on our black
+	   fill that turns the label invisible. !important keeps it readable. */
+	color: var(--cl-white) !important;
+	box-shadow: 0 3px 8px rgba(0,0,0,.22) !important;
 }
 
 .button-primary:focus,
@@ -437,7 +437,7 @@ textarea:focus,
 select:focus {
 	border-color: var(--cl-accent) !important;
 	outline: none !important;
-	box-shadow: 0 0 0 3px rgba(212,118,59,.15) !important;
+	box-shadow: 0 0 0 3px rgba(0,0,0,.12) !important;
 }
 
 select {

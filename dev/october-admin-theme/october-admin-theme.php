@@ -3,7 +3,7 @@
  * Plugin Name: October Admin Theme
  * Plugin URI:  https://octobercomms.com
  * Description: Makes the WordPress admin calm and Squarespace-simple — a monochrome black/white/grey skin with underline accents, a grouped sidebar with labelled sections, generous whitespace, a collapsible "Advanced" group, no WordPress toolbar, and the classic editor (no Gutenberg). Fast: one small stylesheet, one tiny script, system fonts, no external requests.
- * Version:     2.2.2
+ * Version:     2.2.3
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL-2.0-or-later
@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCTOBER_THEME_VERSION', '2.2.2' );
+define( 'OCTOBER_THEME_VERSION', '2.2.3' );
 define( 'OCTOBER_THEME_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCTOBER_THEME_PATH', plugin_dir_path( __FILE__ ) );
 
