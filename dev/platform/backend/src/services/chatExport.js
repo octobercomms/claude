@@ -43,7 +43,7 @@ function buildPdfHtml({ title, clientName, body, generatedAt }) {
   <style>${pdfService.getPageCSS()}</style>
 </head>
 <body>
-<div class="page">
+<div class="page with-print-footer">
 <div class="report-content">
 ${headerHtml}
 ${body}
@@ -56,7 +56,19 @@ ${body}
 async function markdownToPdfBuffer(markdown, opts = {}) {
   const body = marked.parse(markdown || '');
   const html = buildPdfHtml({ ...opts, body });
-  return pdfService.generatePDFBuffer(html);
+  // Render with the SAME options as the weekly/monthly reports so the page
+  // chrome matches exactly: puppeteer's footer (page numbers + the configured
+  // company lines) and — crucially — the print-footer margin path. With
+  // displayHeaderFooter on, Chromium uses the page.pdf margin (0 L/R) and
+  // ignores the CSS @page margin, leaving just the 42pt .page padding. Without
+  // it, @page's 15mm stacked on top, which is why this export previously had
+  // ~double the margins of the weekly snapshot.
+  const footerLines = [
+    process.env.REPORT_FOOTER_LINE_1,
+    process.env.REPORT_FOOTER_LINE_2,
+    process.env.REPORT_FOOTER_LINE_3,
+  ].filter(Boolean);
+  return pdfService.generatePDFBuffer(html, { printFooter: true, footerLines });
 }
 
 // ── DOCX path (programmatic via docx library) ─────────────────────
