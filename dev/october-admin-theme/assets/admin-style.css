@@ -914,16 +914,21 @@ p.search-box input[type="search"] {
 /* --------------------------------------------------------------------------
    Links
    -------------------------------------------------------------------------- */
-/* Links: black with an underline — the Squarespace "accent" is the underline. */
-.wrap a,
-#wpbody a {
+/* Text links: black with an underline — the Squarespace "accent" is the
+   underline. We EXCLUDE anything button-like: plugin CTA buttons (Elementor's
+   "Upgrade Now", Accessibility Checker's "Run free scan", etc.) bring their own
+   dark backgrounds, so forcing our black text onto them makes the label vanish.
+   Excluded buttons keep their own designed colours; WP's own .button /
+   .button-primary are styled explicitly in the Buttons section above. */
+.wrap a:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action),
+#wpbody a:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action) {
 	color: var(--cl-accent) !important;
 	text-decoration: underline !important;
 	text-underline-offset: 2px !important;
 }
 
-.wrap a:hover,
-#wpbody a:hover {
+.wrap a:hover:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action),
+#wpbody a:hover:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action) {
 	color: var(--cl-accent-hi) !important;
 	text-decoration: underline !important;
 }
@@ -1098,7 +1103,7 @@ pre {
 
 /* Group header rows: small grey uppercase labels, non-interactive. */
 #adminmenu li.oc-group-header {
-	margin-top: 22px !important;
+	margin-top: 12px !important;
 	pointer-events: none !important;
 }
 
@@ -1129,7 +1134,7 @@ pre {
 }
 
 #adminmenu li.oc-utility-first {
-	margin-top: 18px !important;
+	margin-top: 12px !important;
 	border-top: 1px solid var(--cl-border) !important;
 	padding-top: 6px !important;
 }
@@ -1160,7 +1165,7 @@ pre {
 /* The "Advanced" toggle — a single-line group-header-style row with the caret
    pushed to the right edge (flex layout keeps label + caret on one line). */
 #adminmenu li.oc-advanced-toggle {
-	margin-top: 22px !important;
+	margin-top: 12px !important;
 }
 
 #adminmenu li.oc-advanced-toggle > a.menu-top {

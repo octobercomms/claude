@@ -52,21 +52,6 @@ class October_Admin_Menu {
 					'edit.php?post_type=product',
 				],
 			],
-			[
-				'label' => __( 'Analytics', 'october-admin-theme' ),
-				'slugs' => [
-					'googlesitekit-dashboard',
-					'wpseo_dashboard',
-					'wc-admin&path=/analytics/overview',
-				],
-			],
-			[
-				'label' => __( 'Settings', 'october-admin-theme' ),
-				'slugs' => [
-					'options-general.php',
-					'users.php',
-				],
-			],
 		];
 
 		return (array) apply_filters( 'october_admin_menu_groups', $defaults );
