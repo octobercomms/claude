@@ -913,55 +913,32 @@ p.search-box input[type="search"] {
 
 /* --------------------------------------------------------------------------
    Links
-   -------------------------------------------------------------------------- */
-/* Text links: black with an underline — the Squarespace "accent" is the
-   underline. We EXCLUDE anything button-like: plugin CTA buttons (Elementor's
-   "Upgrade Now", Accessibility Checker's "Run free scan", etc.) bring their own
-   dark backgrounds, so forcing our black text onto them makes the label vanish.
-   Excluded buttons keep their own designed colours; WP's own .button /
-   .button-primary are styled explicitly in the Buttons section above. */
-.wrap a:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action),
-#wpbody a:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action) {
-	color: var(--cl-accent) !important;
-	text-decoration: underline !important;
-	text-underline-offset: 2px !important;
+   --------------------------------------------------------------------------
+   Text links are black with an underline — but the tricky part is NOT recolour-
+   ing buttons. Plugin CTA buttons (Elementor "Upgrade Now", Accessibility
+   Checker "Run free scan", etc.) bring their own dark backgrounds with light
+   text; if we force our black text onto them the label disappears. Guessing
+   their class names is fragile, so instead we give our link rule only TYPE-level
+   specificity using :where() — (0,0,1). That is just enough to beat WordPress
+   core's default link colour, but it LOSES to any element that carries even a
+   single class of its own (every button does). So buttons always keep their own
+   colour, and only plain inline text links turn black. No class list to maintain. */
+:where(.october-theme .wrap) a,
+:where(.october-theme #wpbody) a {
+	color: var(--cl-accent);
+	text-decoration: underline;
+	text-underline-offset: 2px;
 }
 
-.wrap a:hover:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action),
-#wpbody a:hover:not([class*="button"]):not([class*="btn"]):not([class*="elementor"]):not([class*="edac"]):not(.components-button):not(.page-title-action) {
-	color: var(--cl-accent-hi) !important;
-	text-decoration: underline !important;
+:where(.october-theme .wrap) a:where(:hover),
+:where(.october-theme #wpbody) a:where(:hover) {
+	color: var(--cl-accent-hi);
 }
 
-/* Don't underline things that are clearly buttons/controls, not text links. */
-.wrap a.button,
-.wrap a.button-primary,
-.wrap a.button-secondary,
-.wrap a.page-title-action,
-#wpbody a.button,
-#wpbody a.button-primary,
-#wpbody a.page-title-action,
-#wpbody .row-actions a,
-#adminmenu a {
+/* Sidebar and row-action links never get the underline. */
+#adminmenu a,
+#wpbody .row-actions a {
 	text-decoration: none !important;
-}
-
-/* Primary buttons are black, so their TEXT must be white. The link rule above
-   uses #wpbody (an id) which out-specifies the `.button-primary` colour, so we
-   re-assert white here at id strength — otherwise anchor-based primary buttons
-   render as black text on a black fill (invisible). */
-.wrap a.button-primary,
-#wpbody a.button-primary,
-#wpbody .button-primary,
-.wrap .button-primary {
-	color: var(--cl-white) !important;
-}
-
-/* Secondary/plain buttons stay dark text on their white fill. */
-#wpbody a.button,
-#wpbody a.button-secondary,
-#wpbody a.page-title-action {
-	color: var(--cl-text) !important;
 }
 
 /* --------------------------------------------------------------------------
