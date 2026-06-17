@@ -1543,9 +1543,14 @@ router.post('/find/icypeas', async (req, res) => {
 // existing find → select → add-to-library path handles it unchanged.
 const leadScraper = require('../services/leadScraper');
 router.post('/find/scrape', async (req, res) => {
-  const { url } = req.body || {};
+  const { url, crawl } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url required' });
   try {
+    if (crawl) {
+      // Crawl the page + its Contact/About/Team pages, merged + deduped.
+      const { contacts, pages_scraped } = await leadScraper.scrapeSite(url);
+      return res.json({ contacts, pages_scraped });
+    }
     const contacts = await leadScraper.scrapeUrl(url);
     res.json({ contacts });
   } catch (err) {
