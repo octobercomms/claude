@@ -1,11 +1,34 @@
 # October Admin Theme
 
 A WordPress plugin that makes the wp-admin backend feel calm and
-Squarespace-simple for clients: generous whitespace, refined typography, a warm
-palette, and — most importantly — a **short sidebar** that folds all the
-technical clutter into a collapsible **"Advanced"** section.
+Squarespace-simple for clients: a **monochrome black/white/grey skin** (no
+colour — the only "accent" is an underline), generous whitespace, a white
+left-nav, and a **short sidebar** that folds all the technical clutter into a
+collapsible **"Advanced"** section.
+
+It also bundles two things so you don't need separate plugins:
+
+- **Classic editor** — Gutenberg is disabled site-wide; the classic TinyMCE
+  editor is used everywhere. (Drop the standalone Classic Editor plugin.)
+- **A stripped-back toolbar** — in wp-admin the WordPress toolbar is reduced to
+  a single **"View Site"** link (plus the account menu for logout); on the front
+  end the toolbar is removed entirely and replaced with a small floating
+  **"Dashboard"** link for logged-in users.
 
 Code lives in `dev/october-admin-theme/`. This folder holds the docs.
+
+## Look & feel
+
+Pure monochrome, Squarespace-style:
+
+- **Palette:** white canvas, white sidebar, greys for muted text and borders,
+  black for buttons and active states. No colour anywhere.
+- **Underline accents:** links are underlined; the active/hovered sidebar item
+  underlines its label (the Squarespace tell) rather than changing colour.
+- **Notices** are greyscale, distinguished only by the weight of a grey
+  left-border (error darkest → info lightest). *If a client needs the usual
+  green/red semantic notice colours back, that's a one-block change — say so.*
+- **Typography:** OS system font stack (San Francisco / Segoe UI), no web font.
 
 ## Can you really override *all* of the WordPress design?
 
@@ -53,7 +76,8 @@ dev/october-admin-theme/
 │   ├── class-october-assets.php     # enqueue CSS/JS, fonts, cache-busting
 │   ├── class-october-menu.php       # the Advanced section (menu reorg)
 │   ├── class-october-dashboard.php  # dashboard tidy-up + welcome panel
-│   └── class-october-cleanup.php    # footer text, admin-bar trim
+│   ├── class-october-cleanup.php    # toolbar (View Site / Dashboard), footer
+│   └── class-october-editor.php     # classic editor (Gutenberg off)
 └── assets/
     ├── admin-style.css              # the skin
     ├── admin-script.js              # Advanced toggle only (~1 KB)
@@ -87,6 +111,15 @@ add_filter( 'october_admin_essentials', function ( $slugs ) {
 
 // Turn the menu simplification off entirely (e.g. for developer accounts).
 add_filter( 'october_admin_simplify_menu', '__return_false' );
+
+// Keep Gutenberg / the block editor on (don't force the classic editor).
+add_filter( 'october_admin_disable_block_editor', '__return_false' );
+
+// Keep extra toolbar nodes in wp-admin beyond "View Site" + account.
+add_filter( 'october_admin_toolbar_keep', function ( $ids ) {
+	$ids[] = 'updates';
+	return $ids;
+} );
 
 // Use a custom self-hosted font instead of the system stack.
 define( 'OCTOBER_ADMIN_FONT_URL', plugins_url( 'assets/inter.woff2', __FILE__ ) );

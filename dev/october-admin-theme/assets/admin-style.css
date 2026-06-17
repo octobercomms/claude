@@ -26,27 +26,28 @@
    CSS Custom Properties
    -------------------------------------------------------------------------- */
 :root {
-	--cl-bg:          #faf8f5;
-	--cl-bg-subtle:   #f0ebe3;
+	/* Monochrome Squarespace palette — black, white, grey only. */
+	--cl-bg:          #ffffff;   /* main canvas */
+	--cl-bg-subtle:   #f6f6f6;   /* table headers, subtle fills */
 	--cl-bg-card:     #ffffff;
-	--cl-sidebar:     #1c1814;
-	--cl-sidebar-mid: #2d2520;
-	--cl-sidebar-hi:  #3d3128;
-	--cl-sidebar-txt: #e8e0d8;
-	--cl-sidebar-muted: #9e9089;
-	--cl-accent:      #d4763b;
-	--cl-accent-hi:   #c0612a;
-	--cl-accent-lt:   #fdf0e8;
-	--cl-text:        #1a1714;
-	--cl-text-muted:  #6b6560;
-	--cl-border:      #e0d8ce;
-	--cl-border-dark: #c8bfb5;
+	--cl-sidebar:     #ffffff;   /* white left nav (Squarespace) */
+	--cl-sidebar-mid: #f4f4f4;   /* hover background */
+	--cl-sidebar-hi:  #ededed;   /* active background */
+	--cl-sidebar-txt: #1a1a1a;   /* dark text on white */
+	--cl-sidebar-muted: #767676; /* muted grey (icons, submenu) */
+	--cl-accent:      #000000;   /* black — the only "accent" */
+	--cl-accent-hi:   #333333;   /* hover */
+	--cl-accent-lt:   #f4f4f4;   /* light grey tint (row hover) */
+	--cl-text:        #1a1a1a;
+	--cl-text-muted:  #717171;
+	--cl-border:      #e3e3e3;
+	--cl-border-dark: #cfcfcf;
 	--cl-white:       #ffffff;
-	--cl-shadow-sm:   0 1px 3px rgba(28,24,20,.06), 0 1px 2px rgba(28,24,20,.04);
-	--cl-shadow-md:   0 4px 12px rgba(28,24,20,.08), 0 2px 6px rgba(28,24,20,.05);
-	--cl-radius-sm:   6px;
-	--cl-radius-md:   10px;
-	--cl-radius-lg:   14px;
+	--cl-shadow-sm:   0 1px 2px rgba(0,0,0,.04);
+	--cl-shadow-md:   0 2px 8px rgba(0,0,0,.06);
+	--cl-radius-sm:   3px;
+	--cl-radius-md:   4px;
+	--cl-radius-lg:   6px;
 	--cl-font:        system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
@@ -526,7 +527,8 @@ input[type="radio"] {
 
 .row-actions .delete a,
 .row-actions .trash a {
-	color: #c0392b !important;
+	color: var(--cl-text-muted) !important;
+	text-decoration: underline !important;
 }
 
 /* Tablenav (filters above/below table) */
@@ -608,30 +610,31 @@ div.notice-info {
 	margin: 8px 0 16px !important;
 }
 
+/* Monochrome notices — distinguished only by greyscale left-border weight. */
 .notice-success,
 div.updated {
-	background: #f0faf4 !important;
-	border-left-color: #2ecc71 !important;
-	color: #1a5c35 !important;
+	background: var(--cl-bg-subtle) !important;
+	border-left-color: #888888 !important;
+	color: var(--cl-text) !important;
 }
 
 .notice-error,
 div.error {
-	background: #fdf2f2 !important;
-	border-left-color: #e74c3c !important;
-	color: #7b1f1f !important;
+	background: var(--cl-bg-subtle) !important;
+	border-left-color: #000000 !important;
+	color: var(--cl-text) !important;
 }
 
 .notice-warning {
-	background: #fffbeb !important;
-	border-left-color: #f59e0b !important;
-	color: #7c5a00 !important;
+	background: var(--cl-bg-subtle) !important;
+	border-left-color: #555555 !important;
+	color: var(--cl-text) !important;
 }
 
 .notice-info {
-	background: var(--cl-accent-lt) !important;
-	border-left-color: var(--cl-accent) !important;
-	color: #7a3d12 !important;
+	background: var(--cl-bg-subtle) !important;
+	border-left-color: #bbbbbb !important;
+	color: var(--cl-text) !important;
 }
 
 .notice .notice-dismiss::before {
@@ -673,7 +676,7 @@ div.error {
 }
 
 .welcome-panel {
-	background: linear-gradient(135deg, var(--cl-sidebar) 0%, var(--cl-sidebar-mid) 100%) !important;
+	background: var(--cl-white) !important;
 	border: none !important;
 	border-radius: var(--cl-radius-lg) !important;
 	color: var(--cl-sidebar-txt) !important;
@@ -807,8 +810,8 @@ div.error {
 }
 
 .plugins .update-message {
-	background: #fffbeb !important;
-	border-left: 3px solid #f59e0b !important;
+	background: var(--cl-bg-subtle) !important;
+	border-left: 3px solid #555555 !important;
 	border-radius: 0 0 var(--cl-radius-sm) 0 !important;
 }
 
@@ -874,7 +877,7 @@ p.search-box input[type="search"] {
 }
 
 .tagchecklist span.ntdelbutton:hover {
-	color: #e74c3c !important;
+	color: #000000 !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -901,16 +904,31 @@ p.search-box input[type="search"] {
 /* --------------------------------------------------------------------------
    Links
    -------------------------------------------------------------------------- */
+/* Links: black with an underline — the Squarespace "accent" is the underline. */
 .wrap a,
 #wpbody a {
 	color: var(--cl-accent) !important;
-	text-decoration: none !important;
+	text-decoration: underline !important;
+	text-underline-offset: 2px !important;
 }
 
 .wrap a:hover,
 #wpbody a:hover {
 	color: var(--cl-accent-hi) !important;
 	text-decoration: underline !important;
+}
+
+/* Don't underline things that are clearly buttons/controls, not text links. */
+.wrap a.button,
+.wrap a.button-primary,
+.wrap a.button-secondary,
+.wrap a.page-title-action,
+#wpbody a.button,
+#wpbody a.button-primary,
+#wpbody a.page-title-action,
+#wpbody .row-actions a,
+#adminmenu a {
+	text-decoration: none !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -941,7 +959,88 @@ pre {
 
 /* Spinner */
 .spinner {
-	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23d4763b' stroke-width='2' stroke-dasharray='31.4 31.4' transform='rotate(-90 12 12)'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='.8s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E") !important;
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='none' stroke='%23000000' stroke-width='2' stroke-dasharray='31.4 31.4' transform='rotate(-90 12 12)'%3E%3CanimateTransform attributeName='transform' type='rotate' from='0 12 12' to='360 12 12' dur='.8s' repeatCount='indefinite'/%3E%3C/circle%3E%3C/svg%3E") !important;
+}
+
+/* --------------------------------------------------------------------------
+   White-sidebar corrections (monochrome theme)
+   --------------------------------------------------------------------------
+   The base rules above were written for a dark sidebar and set text to white on
+   hover/active. On the white Squarespace sidebar that text would vanish, so we
+   re-assert dark text, light backgrounds, and the Squarespace tell: the active
+   (and hovered) nav item gets an underline rather than a colour. */
+
+/* Separate the white sidebar from the white canvas with a hairline. */
+#adminmenuback,
+#adminmenuwrap {
+	border-right: 1px solid var(--cl-border) !important;
+}
+
+/* Hover + active text stays dark, never white. */
+#adminmenu li:hover > a,
+#adminmenu li.wp-has-current-submenu:hover > a,
+#adminmenu li a:hover,
+#adminmenu li.current a.menu-top,
+#adminmenu li.wp-has-current-submenu a.wp-has-current-submenu,
+#adminmenu li.current > a,
+#adminmenu li.menu-top.current > a,
+#adminmenu li.wp-has-current-submenu > a {
+	color: var(--cl-text) !important;
+	background: var(--cl-sidebar-mid) !important;
+}
+
+/* Icons: grey at rest, black on hover/active. */
+#adminmenu li:hover > a .wp-menu-image::before,
+#adminmenu li.wp-has-current-submenu:hover > a .wp-menu-image::before,
+#adminmenu li.current > a .wp-menu-image::before,
+#adminmenu li.wp-has-current-submenu > a .wp-menu-image::before {
+	color: var(--cl-accent) !important;
+}
+
+/* Squarespace tell — underline the label on hover and on the current page. */
+#adminmenu li.menu-top > a:hover .wp-menu-name,
+#adminmenu li.current > a .wp-menu-name,
+#adminmenu li.wp-has-current-submenu > a .wp-menu-name {
+	text-decoration: underline !important;
+	text-underline-offset: 3px !important;
+}
+
+/* Active item: black left edge + light fill (drop the inset shadow's warmth). */
+#adminmenu li.current > a,
+#adminmenu li.menu-top.current > a,
+#adminmenu li.wp-has-current-submenu > a {
+	background: var(--cl-sidebar-hi) !important;
+	border-left: 2px solid var(--cl-accent) !important;
+}
+
+/* Submenus on a light sidebar: light-grey fill, dark text. */
+#adminmenu .wp-submenu,
+#adminmenu .wp-has-current-submenu .wp-submenu,
+#adminmenu .wp-submenu.sub-open {
+	background: var(--cl-bg-subtle) !important;
+}
+
+#adminmenu .wp-submenu li a {
+	color: var(--cl-text-muted) !important;
+}
+
+#adminmenu .wp-submenu li a:hover,
+#adminmenu .wp-submenu li.current a {
+	color: var(--cl-text) !important;
+	text-decoration: underline !important;
+	text-underline-offset: 2px !important;
+}
+
+/* Separators become a faint grey line instead of a white-on-white ghost. */
+#adminmenu li.wp-menu-separator div {
+	background: var(--cl-border) !important;
+}
+
+/* Menu badge bubbles: solid black, white text (monochrome). */
+#adminmenu .awaiting-mod,
+#adminmenu .update-plugins {
+	background: var(--cl-accent) !important;
+	color: var(--cl-white) !important;
 }
 
 /* --------------------------------------------------------------------------
@@ -968,7 +1067,7 @@ pre {
 }
 
 #adminmenu li.oc-advanced-toggle > a:hover {
-	color: var(--cl-white) !important;
+	color: var(--cl-text) !important;
 	background: var(--cl-sidebar-mid) !important;
 }
 
