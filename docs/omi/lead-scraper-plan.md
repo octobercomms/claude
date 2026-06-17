@@ -10,6 +10,19 @@ Status: **scope — awaiting sign-off before build.**
 
 ---
 
+## Interaction model — end-to-end auto-task (not a wizard)
+
+This is **one auto-task, not a step-by-step wizard.** A single input — a URL/list
+or a plain-English ICP, plus what to pull — then **Find leads**, and it runs
+autonomously (discover → fetch → extract → verify → dedupe) with a **live
+progress count**, handing back a finished list. The only human gate is a **light
+end review**: tick which contacts go into the library so junk doesn't pollute the
+DB — with an "auto-add everything above X confidence" option for true one-shot.
+Matches the platform's existing fire-and-respond + poll pattern (site audit,
+brand-voice), not the Find→Brief→Draft step-wizards.
+
+---
+
 ## Why
 
 The Outreach "find" step already pulls leads from **Hunter**, **Serper** and

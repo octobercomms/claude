@@ -9,6 +9,21 @@ Status: **scope — awaiting sign-off before build.**
 
 ---
 
+## Interaction model — end-to-end auto-task (not a wizard)
+
+This is **one auto-task, not a step-by-step wizard.** A single screen: drop the
+clips, pick the brand/style and the output target, hit **Auto-edit**. The
+pipeline then runs unattended — transcribe → cut → caption → grade → re-edit
+until ≥85 → export — with a **live progress strip** (current stage, grade
+attempt, score). The grading loop *is* the autonomy: it self-corrects rather than
+stopping to ask. Human-in-the-loop is a **single optional gate at the end**
+("review before it lands in Drive / goes to Social"), never a click between
+stages. If it caps out below 85 it surfaces the best cut + the outstanding issues
+for a manual tweak. Mirrors the platform's existing fire-and-respond + poll
+pattern (site audit, brand-voice extraction), not the Find→Brief→Draft wizards.
+
+---
+
 ## Why
 
 The whole edit — cut the dead air, add word-synced captions and motion graphics,
