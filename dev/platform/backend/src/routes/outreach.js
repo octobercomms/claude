@@ -1561,6 +1561,31 @@ router.post('/find/scrape', async (req, res) => {
   }
 });
 
+// Async ICP scrape: describe an audience → Serper finds sites → crawl each →
+// contacts accumulate into a run the client polls.
+router.post('/find/scrape/icp', async (req, res) => {
+  const { client_id, industry, location, specialisation } = req.body || {};
+  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  if (!industry && !specialisation) return res.status(400).json({ error: 'describe the audience (industry and/or specialisation)' });
+  try {
+    const run = await leadScraper.startIcpRun({ clientId: client_id, industry, location, specialisation });
+    res.status(202).json({ run });
+  } catch (err) {
+    const status = /No candidate sites/i.test(err.message) ? 400 : 502;
+    res.status(status).json({ error: err.message });
+  }
+});
+
+router.get('/find/scrape/runs/:id', async (req, res) => {
+  const { client_id } = req.query;
+  if (!client_id) return res.status(400).json({ error: 'client_id required' });
+  try {
+    const run = await leadScraper.getRun(client_id, req.params.id);
+    if (!run) return res.status(404).json({ error: 'Run not found' });
+    res.json({ run });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Wizard: audience refinement, batched contact search, link contacts ─────
 
 // Step 2 — Claude refines the audience into a description, target domains

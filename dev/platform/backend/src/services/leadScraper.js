@@ -11,7 +11,9 @@
 // Slice 1: a single URL. Multi-page crawl + ICP/Serper discovery + run history
 // land in later slices.
 
+const pool = require('../db');
 const claudeService = require('./claude');
+const serper = require('./serper');
 const { fetchRenderedHtml } = require('../utils/fetchHtml');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
@@ -169,4 +171,60 @@ async function scrapeSite(rawUrl, { maxPages = 5 } = {}) {
   return { contacts: Array.from(dedup.values()), pages_scraped: 1 + extraUrls.length, pages: [home.url, ...extraUrls] };
 }
 
-module.exports = { scrapeUrl, scrapeSite };
+// ── ICP run (async) ──────────────────────────────────────────────────────────
+// Describe an audience → Serper finds candidate sites → crawl each → contacts
+// accumulate into one lead_scrape_runs row the UI polls. Fire-and-respond, the
+// same pattern as site audit / brand voice.
+
+const MAX_ICP_SITES = 10;
+
+async function startIcpRun({ clientId, industry, location, specialisation }) {
+  const domains = await serper.findBusinessDomains({ industry, location, specialisation });
+  const sites = (domains || []).map(d => d.domain).filter(Boolean).slice(0, MAX_ICP_SITES);
+  if (!sites.length) throw new Error('No candidate sites found for that audience — try a broader description.');
+
+  const { rows } = await pool.query(
+    `INSERT INTO lead_scrape_runs (client_id, mode, input, sites_total)
+     VALUES ($1, 'icp', $2, $3) RETURNING *`,
+    [clientId, JSON.stringify({ industry, location, specialisation }), sites.length]
+  );
+  const run = rows[0];
+  // Background — don't block the response on N site crawls.
+  runIcpScrape(run.id, sites).catch(err => console.error(`[leadScraper] ICP run ${run.id} failed:`, err.message));
+  return run;
+}
+
+async function runIcpScrape(runId, sites) {
+  const dedup = new Map();
+  let done = 0;
+  for (const domain of sites) {
+    try {
+      const { contacts } = await scrapeSite(domain, { maxPages: 4 });
+      for (const c of contacts) {
+        const key = (c.email || c.name || '').toLowerCase();
+        if (key && !dedup.has(key)) dedup.set(key, c);
+      }
+    } catch (err) {
+      // skip a dead site, keep going
+    }
+    done++;
+    const all = Array.from(dedup.values());
+    await pool.query(
+      `UPDATE lead_scrape_runs SET sites_done = $1, found_count = $2, results = $3, updated_at = NOW() WHERE id = $4`,
+      [done, all.length, JSON.stringify(all), runId]
+    ).catch(() => {});
+  }
+  await pool.query(
+    `UPDATE lead_scrape_runs SET status = 'done', updated_at = NOW() WHERE id = $1`,
+    [runId]
+  ).catch(() => {});
+}
+
+async function getRun(clientId, runId) {
+  const { rows } = await pool.query(
+    `SELECT * FROM lead_scrape_runs WHERE id = $1 AND client_id = $2`, [runId, clientId]
+  );
+  return rows[0] || null;
+}
+
+module.exports = { scrapeUrl, scrapeSite, startIcpRun, getRun };
