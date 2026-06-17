@@ -1538,6 +1538,24 @@ router.post('/find/icypeas', async (req, res) => {
   }
 });
 
+// Free scrape source — fetch a public page via FlareSolverr + extract contacts
+// with Claude. Returns the same { contacts } shape as Hunter/Icypeas so the
+// existing find → select → add-to-library path handles it unchanged.
+const leadScraper = require('../services/leadScraper');
+router.post('/find/scrape', async (req, res) => {
+  const { url } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const contacts = await leadScraper.scrapeUrl(url);
+    res.json({ contacts });
+  } catch (err) {
+    // SSRF-guard / bad-input errors are the AM's to fix → 400; a fetch or
+    // model failure is upstream → 502.
+    const status = /url required|Only http|Refusing|private|internal|DNS|malformed|no readable text|Could not fetch/i.test(err.message) ? 400 : 502;
+    res.status(status).json({ error: err.message });
+  }
+});
+
 // ── Wizard: audience refinement, batched contact search, link contacts ─────
 
 // Step 2 — Claude refines the audience into a description, target domains

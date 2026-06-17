@@ -140,6 +140,7 @@ export default function ClientOutreachPage() {
   const [showLibrary, setShowLibrary] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [findDomain, setFindDomain] = useState('');
+  const [scrapeUrlInput, setScrapeUrlInput] = useState('');
   const [finding, setFinding] = useState(false);
   const [foundContacts, setFoundContacts] = useState([]);
   const [findError, setFindError] = useState('');
@@ -260,6 +261,25 @@ export default function ClientOutreachPage() {
     try {
       const res = await api.post(`/outreach/find/${source}`, { domain });
       setFoundContacts(res.contacts || []);
+      setSearched(true);
+    } catch (err) {
+      setFindError(err.message);
+    } finally {
+      setFinding(false);
+    }
+  }
+
+  // Free scrape source — reads a public page and pulls contacts off it. Feeds
+  // the same foundContacts preview + addFound() path as Hunter/Icypeas.
+  async function runScrape(urlArg) {
+    const url = (typeof urlArg === 'string' ? urlArg : scrapeUrlInput).trim();
+    if (!url) return;
+    setFinding(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
+    try {
+      const res = await api.post('/outreach/find/scrape', { url });
+      setFoundContacts(res.contacts || []);
+      // Pre-select everything that has an email — the usual keep set.
+      setSelected(new Set((res.contacts || []).map((c, i) => (c.email ? i : null)).filter(i => i !== null)));
       setSearched(true);
     } catch (err) {
       setFindError(err.message);
@@ -539,9 +559,17 @@ export default function ClientOutreachPage() {
                 <button onClick={() => runFind(findDomain, 'hunter')} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Hunter'}</button>
                 <button onClick={() => runFind(findDomain, 'icypeas')} disabled={finding} className="btn btn-secondary">{finding ? '…' : 'Icypeas'}</button>
               </div>
+              <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or scrape a page (free)</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input className="input" style={{ flex: 1 }} placeholder="Page URL — a Contact/Team page, directory or listing"
+                  value={scrapeUrlInput} onChange={e => setScrapeUrlInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') runScrape(scrapeUrlInput); }} />
+                <button onClick={() => runScrape(scrapeUrlInput)} disabled={finding} className="btn btn-primary">{finding ? '…' : 'Scrape'}</button>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>Free — reads the page and pulls any contacts on it. No per-lookup cost; use Hunter/Icypeas as a fallback for email guessing.</p>
               {findError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{findError}</p>}
               {searched && foundContacts.length === 0 && !findError && (
-                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '8px 0 0' }}>No emails found for that domain.</p>
+                <p style={{ color: 'var(--text-subtle)', fontSize: 12, margin: '8px 0 0' }}>No contacts found.</p>
               )}
               {foundContacts.length > 0 && (
                 <div style={{ marginTop: 12 }}>
@@ -554,7 +582,7 @@ export default function ClientOutreachPage() {
                           <td >{c.name || '—'}</td>
                           <td >{c.email}</td>
                           <td >{c.role || '—'}</td>
-                          <td >{c.confidence != null ? `${c.confidence}%` : '—'}</td>
+                          <td >{c.confidence == null ? '—' : (typeof c.confidence === 'number' ? `${c.confidence}%` : c.confidence)}</td>
                         </tr>
                       ))}
                     </tbody>
