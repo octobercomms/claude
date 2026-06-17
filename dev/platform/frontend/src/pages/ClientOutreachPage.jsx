@@ -150,6 +150,8 @@ export default function ClientOutreachPage() {
   const [searching, setSearching] = useState(false);
   const [serperDomains, setSerperDomains] = useState([]);
   const [serperError, setSerperError] = useState('');
+  const [scrapeRun, setScrapeRun] = useState(null);
+  const [icpScraping, setIcpScraping] = useState(false);
   const [expandedCampaign, setExpandedCampaign] = useState(null);
   const [wizardCampaignId, setWizardCampaignId] = useState(null);
   const [editingContact, setEditingContact] = useState(null);
@@ -286,6 +288,29 @@ export default function ClientOutreachPage() {
     } finally {
       setFinding(false);
     }
+  }
+
+  // Async ICP scrape — Serper finds sites, the scraper crawls each, contacts
+  // accumulate into a run we poll. When done they land in the same preview.
+  async function runIcpScrape() {
+    setIcpScraping(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false); setScrapeRun(null);
+    try {
+      const { run } = await api.post('/outreach/find/scrape/icp', { client_id: id, ...aud });
+      setScrapeRun(run);
+      pollScrapeRun(run.id);
+    } catch (err) { setFindError(err.message); setIcpScraping(false); }
+  }
+
+  async function pollScrapeRun(runId) {
+    try {
+      const { run } = await api.get(`/outreach/find/scrape/runs/${runId}?client_id=${id}`);
+      setScrapeRun(run);
+      if (run.status === 'running') { setTimeout(() => pollScrapeRun(runId), 4000); return; }
+      setFoundContacts(run.results || []);
+      setSelected(new Set((run.results || []).map((c, i) => (c.email ? i : null)).filter(i => i !== null)));
+      setSearched(true);
+      setIcpScraping(false);
+    } catch (err) { setFindError(err.message); setIcpScraping(false); }
   }
 
   function toggleSelected(i) {
@@ -536,6 +561,16 @@ export default function ClientOutreachPage() {
                 <input className="input" placeholder="Specialisation" value={aud.specialisation}
                   onChange={e => setAud(p => ({ ...p, specialisation: e.target.value }))} />
                 <button onClick={runSerper} disabled={searching} className="btn btn-primary">{searching ? 'Searching…' : 'Search'}</button>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8 }}>
+                <button onClick={runIcpScrape} disabled={icpScraping || (!aud.industry && !aud.specialisation)} className="btn btn-secondary">
+                  {icpScraping ? 'Scraping…' : '✦ Scrape all (free)'}
+                </button>
+                <span style={{ fontSize: 11, color: 'var(--text-subtle)' }}>
+                  {icpScraping || scrapeRun
+                    ? `Crawling ${scrapeRun?.sites_done || 0}/${scrapeRun?.sites_total || 0} sites · ${scrapeRun?.found_count || 0} contacts so far`
+                    : 'Finds sites for this audience and scrapes contacts from each — no per-lookup cost.'}
+                </span>
               </div>
               {serperError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
               {serperDomains.length > 0 && (
