@@ -40,6 +40,13 @@ async function request(path, options = {}) {
   const looksHtml = contentType.includes('text/html');
 
   if (!res.ok) {
+    // 413 comes back as nginx's HTML error page (it rejects oversized bodies
+    // before they reach the backend), so it trips the looksHtml branch below
+    // and used to read as "backend may be offline" — misleading. Call it what
+    // it is: the upload is too large.
+    if (res.status === 413) {
+      throw new Error('That file is too large to upload. Try a smaller file or split it into shorter clips.');
+    }
     if (looksHtml) {
       throw new Error(`Server returned HTML (HTTP ${res.status}) — the backend may be offline. Check pm2 / nginx.`);
     }
