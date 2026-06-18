@@ -186,6 +186,7 @@ app.use('/api/waitlist', require('./routes/waitlist'));
 app.use('/api/audiences', require('./routes/audiences'));
 app.use('/api/video', require('./routes/video'));
 app.use('/api/ai-visibility', require('./routes/aiVisibility'));
+app.use('/api/ai-seo', require('./routes/aiSeo'));
 app.use('/api/_internal', require('./routes/internal'));
 app.use('/auth', require('./routes/oauth'));
 
