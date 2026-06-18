@@ -477,6 +477,19 @@ router.get('/clients/:clientId/winners', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// AI Social Audit — Claude reads this account's own published performance
+// (content mix, timing, what's working, competitor read) and returns a
+// structured audit with recommendations. See services/socialAudit.js.
+const socialAudit = require('../services/socialAudit');
+router.get('/clients/:clientId/audit', async (req, res) => {
+  try { res.json({ audit: await socialAudit.latestAudit(req.params.clientId) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/audit/run', async (req, res) => {
+  try { res.status(201).json({ audit: await socialAudit.runAudit(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 // Daily reach + interactions sparkline for the Analytics summary chips.
 router.get('/clients/:clientId/sparkline', async (req, res) => {
   try {

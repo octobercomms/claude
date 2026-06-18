@@ -12,6 +12,7 @@ import SocialLearnStep from '../components/social/SocialLearnStep';
 import RefineChat from '../components/RefineChat';
 import SuiteOverview from '../components/SuiteOverview';
 import SuiteTabs from '../components/SuiteTabs';
+import SocialAuditPanel from '../components/SocialAuditPanel';
 import UiButton from '../components/ui/Button';
 import { useTabParam } from '../hooks/useTabParam';
 import { palette as UiPalette } from '../styles/tokens';
@@ -57,7 +58,7 @@ export default function ClientSocialPage() {
   const [socialTab, setSocialTab] = useTabParam('overview', [
     'overview',
     // performance sub-tabs (perf_insights is the landing — current SocialSuiteOverview)
-    'perf_insights', 'loop', 'performance', 'competitors',
+    'perf_insights', 'loop', 'performance', 'competitors', 'audit',
     // pipeline sub-tabs
     'brainstorm', 'plans', 'publish', 'learn',
   ]);
@@ -365,6 +366,7 @@ export default function ClientSocialPage() {
             { key: 'perf_insights', label: 'Insights' },
             { key: 'performance',   label: 'Winners' },
             { key: 'competitors',   label: 'Competitors' },
+            { key: 'audit',         label: 'AI Audit' },
           ],
           pipeline: [
             { key: 'brainstorm', label: '1 · Brainstorm' },
@@ -375,7 +377,7 @@ export default function ClientSocialPage() {
         };
         const GROUP_OF = {
           overview: 'overview',
-          perf_insights: 'performance', performance: 'performance', competitors: 'performance',
+          perf_insights: 'performance', performance: 'performance', competitors: 'performance', audit: 'performance',
           brainstorm: 'pipeline', plans: 'pipeline', publish: 'pipeline', learn: 'pipeline',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
@@ -527,6 +529,8 @@ export default function ClientSocialPage() {
 
       {/* COMPETITORS — editor, social scrape, landing-page diff,
           trending sounds (sounds are competitor-adjacent grounding). */}
+      {socialTab === 'audit' && <SocialAuditPanel clientId={id} />}
+
       {socialTab === 'competitors' && (
         <div className="stack-lg">
           <div>
