@@ -4,6 +4,7 @@ import { api } from '../utils/api';
 import ImportWizard from '../components/ImportWizard';
 import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
+import SecurityPanel from '../components/SecurityPanel';
 import IntegrationsPage from './IntegrationsPage';
 
 const KEY_GROUPS = [
@@ -422,6 +423,7 @@ export default function SettingsPage() {
           { key: 'publications', label: 'Publications' },
           { key: 'tags', label: 'Tags' },
           { key: 'users', label: 'Users & access' },
+          { key: 'security', label: 'Security' },
         ].map(t => (
           <button key={t.key} onClick={() => switchTab(t.key)}
             className={`tab ${tab === t.key ? "active" : ""}`}>
@@ -435,7 +437,8 @@ export default function SettingsPage() {
       {tab === 'publications' && <PublicationsPanel />}
       {tab === 'tags' && <TagsManager />}
       {tab === 'users' && <ManageUsersPage embedded />}
-      {tab !== 'contacts' && tab !== 'publications' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && (<>
+      {tab === 'security' && <SecurityPanel />}
+      {tab !== 'contacts' && tab !== 'publications' && tab !== 'users' && tab !== 'tags' && tab !== 'integrations' && tab !== 'security' && (<>
       <CostsPanel />
       <CostLogPanel />
       <KeywordSpendPanel />
