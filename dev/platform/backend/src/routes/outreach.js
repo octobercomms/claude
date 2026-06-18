@@ -2184,7 +2184,10 @@ router.put('/mailboxes/:id', authenticate, async (req, res) => {
 
 router.get('/tasks', authenticate, async (req, res) => {
   try {
-    const visible = await loadVisibleClientIds(req.user);
+    // getVisibleClientIds is the service the loadVisibleClientIds middleware
+    // wraps — call it directly here (this is a plain handler, not a
+    // middleware chain, so we have no `next` to hand the middleware).
+    const visible = await users.getVisibleClientIds(req.user);
     const rows = await outreachTasks.listForUser(req.user.id, visible);
     res.json(rows);
   } catch (err) {
