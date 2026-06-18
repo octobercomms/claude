@@ -75,9 +75,8 @@ export default function AudiencesPanel({ clientId }) {
   }
 
   function exportSegment(seg) {
-    const token = localStorage.getItem('token');
     fetch(`/api/audiences/segments/${seg.id}/export.csv`, {
-      headers: { Authorization: `Bearer ${token}` },
+      credentials: 'include',
     }).then(r => r.blob()).then(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');

@@ -81,9 +81,10 @@ app.use(helmet({
   },
 }));
 app.use(cors({
-  // Bearer-only auth — credentials:true was harmless but suggested a
-  // misunderstanding; drop it now so it doesn't become risky if cookie
-  // auth ever lands.
+  // Cookie-based session auth — credentials:true lets the browser send the
+  // httpOnly token cookie on API requests. The origin is pinned (never '*'),
+  // which is required when credentials are allowed.
+  credentials: true,
   origin: process.env.NODE_ENV === 'production'
     ? process.env.PLATFORM_URL
     : ['http://localhost:3000', 'http://localhost:5173'],

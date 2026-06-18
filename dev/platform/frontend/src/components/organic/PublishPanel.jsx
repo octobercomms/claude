@@ -65,7 +65,7 @@ export default function PublishPanel({ clientId, onNext }) {
     if (!activeDraft) return;
     try {
       const md = await fetch(`/api/seo/drafts/${activeDraft.id}/export/md`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        credentials: 'include',
       }).then(r => r.text());
       await navigator.clipboard.writeText(md);
       setLastResult({ status: 'copied', platform: 'clipboard' });
@@ -77,7 +77,7 @@ export default function PublishPanel({ clientId, onNext }) {
   function downloadDocx() {
     if (!activeDraft) return;
     const url = `/api/seo/drafts/${activeDraft.id}/export/docx`;
-    fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } })
+    fetch(url, { credentials: 'include' })
       .then(r => r.blob())
       .then(blob => {
         const a = document.createElement('a');

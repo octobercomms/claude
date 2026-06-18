@@ -1,20 +1,16 @@
 const BASE = '/api';
 
-function getToken() {
-  return localStorage.getItem('token');
-}
-
 async function request(path, options = {}) {
-  const token = getToken();
   // FormData sets its own Content-Type with boundary — don't force JSON.
   const isForm = typeof FormData !== 'undefined' && options.body instanceof FormData;
   let res;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...options,
+      // Session lives in an httpOnly cookie — send it with every request.
+      credentials: 'include',
       headers: {
         ...(isForm ? {} : { 'Content-Type': 'application/json' }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
       },
     });
@@ -26,7 +22,8 @@ async function request(path, options = {}) {
   }
 
   if (res.status === 401) {
-    localStorage.removeItem('token');
+    // Cookie missing/expired — bounce to login. Nothing to clear client-side
+    // (the token is httpOnly and owned by the server).
     window.location.href = '/login';
     throw new Error('Session expired');
   }
@@ -70,8 +67,6 @@ export const api = {
   patch: (path, body) => request(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: (path) => request(path, { method: 'DELETE' }),
 
-  // Raw fetch for CSV etc
-  raw: (path) => fetch(`${BASE}${path}`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  }),
+  // Raw fetch for CSV etc — the session cookie authenticates it.
+  raw: (path) => fetch(`${BASE}${path}`, { credentials: 'include' }),
 };

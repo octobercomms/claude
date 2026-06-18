@@ -1,12 +1,32 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 
-async function authenticate(req, res, next) {
+// Pull the JWT from the httpOnly `token` cookie (the primary path) or, as a
+// fallback, a Bearer header. The cookie keeps the token out of reach of
+// page scripts (XSS can't read httpOnly cookies); the Bearer fallback keeps
+// any header-based caller — and sessions mid-transition during a deploy —
+// working. Cookie parsed by hand to avoid pulling in cookie-parser.
+function tokenFromRequest(req) {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (authHeader && authHeader.startsWith('Bearer ')) return authHeader.slice(7);
+  const raw = req.headers.cookie;
+  if (raw) {
+    for (const part of raw.split(';')) {
+      const eq = part.indexOf('=');
+      if (eq === -1) continue;
+      if (part.slice(0, eq).trim() === 'token') {
+        return decodeURIComponent(part.slice(eq + 1).trim());
+      }
+    }
+  }
+  return null;
+}
+
+async function authenticate(req, res, next) {
+  const token = tokenFromRequest(req);
+  if (!token) {
     return res.status(401).json({ error: 'Authentication required' });
   }
-  const token = authHeader.slice(7);
   let payload;
   try {
     payload = jwt.verify(token, process.env.JWT_SECRET);
@@ -30,4 +50,4 @@ async function authenticate(req, res, next) {
   next();
 }
 
-module.exports = { authenticate };
+module.exports = { authenticate, tokenFromRequest };
