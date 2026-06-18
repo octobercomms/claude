@@ -23,6 +23,23 @@ function fmt(ts) {
   try { return new Date(ts).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' }); } catch { return ts; }
 }
 
+// A ready-to-paste prompt for Claude Code — the safe handoff for fixing a
+// finding (review-gated PR, not a one-click prod edit).
+function buildFixPrompt(f) {
+  return `In the October platform (code under dev/platform), resolve this security audit finding from Settings → Security. Make the minimal change needed — don't refactor unrelated code — add a verification, and open a PR. If it's a deliberate, accepted trade-off, say so instead of changing it.
+
+[${f.id}] ${f.title}
+Area: ${f.area}
+Severity: ${f.severity}
+Detail: ${f.detail}${f.recommendation ? `\nRecommended fix: ${f.recommendation}` : ''}`;
+}
+
+function buildAllFixPrompt(flagged) {
+  return `In the October platform (code under dev/platform), resolve these security audit findings from Settings → Security. For each, make the minimal change — don't refactor unrelated code — add a verification, and open a PR (you may group related fixes). If any is a deliberate, accepted trade-off, say so instead of changing it.
+
+${flagged.map((f, i) => `${i + 1}. [${f.id}] ${f.title} (${f.severity}) — ${f.detail}${f.recommendation ? ` Fix: ${f.recommendation}` : ''}`).join('\n')}`;
+}
+
 export default function SecurityPanel() {
   const toast = useToast();
   const [data, setData] = useState(null);
@@ -45,6 +62,11 @@ export default function SecurityPanel() {
       toast('Security audit complete.', 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setRunning(false); }
+  }
+
+  async function copyText(text, label) {
+    try { await navigator.clipboard.writeText(text); toast(`${label} copied — paste it into Claude Code to fix.`, 'success'); }
+    catch { toast('Could not copy to clipboard.', 'error'); }
   }
 
   if (loading) return <div className="text-subtle" style={{ padding: 20 }}>Running checks…</div>;
@@ -90,7 +112,10 @@ export default function SecurityPanel() {
       {/* Flagged summary */}
       {flagged.length > 0 && (
         <div className="card" style={{ marginTop: 14, background: 'rgba(154,107,0,0.06)' }}>
-          <div className="caption" style={{ marginBottom: 6 }}>{flagged.length} item{flagged.length === 1 ? '' : 's'} to review</div>
+          <div className="row between center" style={{ marginBottom: 6 }}>
+            <div className="caption">{flagged.length} item{flagged.length === 1 ? '' : 's'} to review</div>
+            <button className="btn btn-secondary btn-sm" onClick={() => copyText(buildAllFixPrompt(flagged), 'Fix prompt for all flagged items')}>Copy fix prompt for all</button>
+          </div>
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             {flagged.map(f => (
               <li key={f.id} className="body-sm" style={{ marginBottom: 2 }}>
@@ -122,6 +147,9 @@ export default function SecurityPanel() {
                       {f.recommendation && f.status !== 'pass' && (
                         <div className="body-xs" style={{ marginTop: 4, color: 'var(--text-muted)' }}><strong>Fix:</strong> {f.recommendation}</div>
                       )}
+                      {(f.status === 'warn' || f.status === 'fail') && (
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 6 }} onClick={() => copyText(buildFixPrompt(f), `Fix prompt for ${f.id}`)}>Copy fix prompt</button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -132,7 +160,7 @@ export default function SecurityPanel() {
       </div>
 
       <p className="body-xs text-subtle" style={{ marginTop: 8 }}>
-        Automated checks run nightly. For a deeper review, run the full SECURITY_AUDIT.md prompt against the codebase periodically — these checks cover the reliably-automatable areas, not every vulnerability class.
+        Checks run nightly. You're emailed only when a new actionable issue appears (not the steady-state hardening items). To fix one, hit <strong>Copy fix prompt</strong> and paste it into Claude Code — it makes the change on a branch and opens a PR for you to review. For a deeper review, run the full SECURITY_AUDIT.md prompt against the codebase periodically; these checks cover the reliably-automatable areas, not every vulnerability class.
       </p>
     </div>
   );
