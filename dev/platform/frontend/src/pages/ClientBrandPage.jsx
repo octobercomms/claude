@@ -26,6 +26,7 @@ export default function ClientBrandPage({ embedded = false } = {}) {
   const [uploadingKind, setUploadingKind] = useState(null);
   const [showPaletteForm, setShowPaletteForm] = useState(false);
   const [showGuidelineForm, setShowGuidelineForm] = useState(false);
+  const [editingAsset, setEditingAsset] = useState(null);
   const fileInputRef = useRef();
 
   async function refresh() {
@@ -120,6 +121,18 @@ export default function ClientBrandPage({ embedded = false } = {}) {
     }
   }
 
+  // Patch an asset's name/metadata in place (used by the font role selector
+  // and inline rename). metadata is replaced wholesale by the API, so callers
+  // must pass the full object — spread the existing one before changing a key.
+  async function updateAsset(asset, patch) {
+    try {
+      await api.put(`/brand/assets/${asset.id}`, patch);
+      refresh();
+    } catch (e) {
+      toast(`Update failed: ${e.message}`, 'error');
+    }
+  }
+
   const filtered = assets.filter(a => filter === 'all' ? true : a.kind === filter);
   const byKind = (k) => assets.filter(a => a.kind === k);
 
@@ -171,6 +184,12 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       {showGuidelineForm && (
         <GuidelineForm clientId={id} onClose={() => setShowGuidelineForm(false)} onSaved={() => { setShowGuidelineForm(false); refresh(); }} />
       )}
+      {editingAsset?.kind === 'palette' && (
+        <PaletteForm clientId={id} asset={editingAsset} onClose={() => setEditingAsset(null)} onSaved={() => { setEditingAsset(null); refresh(); }} />
+      )}
+      {editingAsset?.kind === 'guideline' && (
+        <GuidelineForm clientId={id} asset={editingAsset} onClose={() => setEditingAsset(null)} onSaved={() => { setEditingAsset(null); refresh(); }} />
+      )}
 
       {!filtered.length && (
         <div style={{ color: 'var(--text-subtle)', padding: 30, textAlign: 'center', border: '1px dashed #ddd', borderRadius: 6 }}>
@@ -180,7 +199,8 @@ export default function ClientBrandPage({ embedded = false } = {}) {
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 14 }}>
         {filtered.map(a => (
-          <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)} />
+          <AssetCard key={a.id} asset={a} onDelete={() => deleteAsset(a)}
+            onEdit={() => setEditingAsset(a)} onUpdate={updateAsset} />
         ))}
       </div>
 
@@ -229,21 +249,99 @@ function BulkUploadButton({ label, onPick, accept, disabled }) {
   );
 }
 
-function AssetCard({ asset, onDelete }) {
+// Brand asset files are served behind Bearer-token auth (the authenticate
+// middleware), which a plain <img>/<video>/font-face request can't satisfy —
+// the browser sends no Authorization header, gets a 401, and the preview
+// breaks (showing the alt filename instead of the image). So we fetch the
+// file with the token, turn it into a blob URL, and feed that to the element.
+// The object URL is revoked on unmount to avoid leaking memory.
+function useAuthedBlobUrl(url, enabled = true) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    if (!url || !enabled) return undefined;
+    let cancelled = false;
+    let objectUrl = null;
+    setBlobUrl(null); setError(false);
+    const token = localStorage.getItem('token');
+    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
+      .then(blob => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setBlobUrl(objectUrl);
+      })
+      .catch(() => { if (!cancelled) setError(true); });
+    return () => { cancelled = true; if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [url, enabled]);
+  return { blobUrl, error };
+}
+
+const FONT_ROLES = [
+  { value: '',        label: 'Set usage…' },
+  { value: 'heading', label: 'Headings' },
+  { value: 'body',    label: 'Body' },
+  { value: 'accent',  label: 'Accent / display' },
+  { value: 'other',   label: 'Other' },
+];
+
+// Live font specimen — loads the uploaded font file (auth blob) as a FontFace
+// and renders sample glyphs in it, so the AM can actually see the typeface
+// rather than a generic "font" placeholder. The font is registered under a
+// per-asset family name and removed on unmount.
+function FontPreview({ asset }) {
+  const { blobUrl, error } = useAuthedBlobUrl(asset.url, !!asset.url);
+  const [family, setFamily] = useState(null);
+  useEffect(() => {
+    if (!blobUrl || typeof FontFace === 'undefined') return undefined;
+    const fam = `brandfont-${asset.id}`;
+    const ff = new FontFace(fam, `url(${blobUrl})`);
+    let cancelled = false;
+    ff.load().then(loaded => {
+      if (cancelled) return;
+      document.fonts.add(loaded);
+      setFamily(fam);
+    }).catch(() => {});
+    return () => { cancelled = true; try { document.fonts.delete(ff); } catch { /* ignore */ } };
+  }, [blobUrl, asset.id]);
+
+  if (error) return <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontFamily: 'monospace' }}>font</span>;
+  return (
+    <div style={{ fontFamily: family || 'inherit', textAlign: 'center', lineHeight: 1.1, padding: 8, color: family ? 'var(--text)' : 'var(--text-subtle)' }}>
+      <div style={{ fontSize: 30 }}>Ag</div>
+      <div style={{ fontSize: 13, marginTop: 4 }}>The quick brown fox</div>
+    </div>
+  );
+}
+
+function AssetCard({ asset, onDelete, onEdit, onUpdate }) {
   const mimetype = asset.metadata?.mimetype || '';
   const isVideo = mimetype.startsWith('video/') || asset.kind === 'b_roll_clip';
   const isImage = !isVideo && (mimetype.startsWith('image/') || asset.kind === 'logo' || asset.kind === 'product_image' || asset.kind === 'prop_image');
+  const isFont = asset.kind === 'font';
   const isPalette = asset.kind === 'palette';
   const isGuideline = asset.kind === 'guideline';
+  const isEditable = isPalette || isGuideline;
+  // Images/video are fetched with auth and shown via blob URL (see hook above).
+  const { blobUrl, error } = useAuthedBlobUrl(asset.url, isImage || isVideo);
+
+  function setRole(role) {
+    onUpdate(asset, { metadata: { ...(asset.metadata || {}), role } });
+  }
+
   return (
     <div className="card" style={{ padding: 0, overflow: "hidden" }}>
       <div style={{ height: 140, background: 'var(--surface-raised)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderBottom: '1px solid #eee' }}>
-        {isVideo && asset.url && (
-          <video src={asset.url} muted preload="metadata" style={{ maxHeight: '100%', maxWidth: '100%' }} onMouseEnter={e => e.target.play()} onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }} />
+        {isVideo && blobUrl && (
+          <video src={blobUrl} muted preload="metadata" style={{ maxHeight: '100%', maxWidth: '100%' }} onMouseEnter={e => e.target.play()} onMouseLeave={e => { e.target.pause(); e.target.currentTime = 0; }} />
         )}
-        {isImage && asset.url && (
-          <img src={asset.url} alt={asset.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
+        {isImage && blobUrl && (
+          <img src={blobUrl} alt={asset.name} style={{ maxHeight: '100%', maxWidth: '100%', objectFit: 'contain' }} />
         )}
+        {(isImage || isVideo) && !blobUrl && (
+          <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontFamily: 'monospace' }}>{error ? 'preview unavailable' : 'loading…'}</span>
+        )}
+        {isFont && <FontPreview asset={asset} />}
         {isPalette && (
           <div style={{ display: 'flex', width: '100%', height: '100%' }}>
             {(asset.metadata?.colors || []).slice(0, 6).map((c, i) => (
@@ -256,27 +354,47 @@ function AssetCard({ asset, onDelete }) {
             {(asset.metadata?.body || '').slice(0, 180)}…
           </div>
         )}
-        {!isImage && !isVideo && !isPalette && !isGuideline && (
+        {!isImage && !isVideo && !isFont && !isPalette && !isGuideline && (
           <span style={{ fontSize: 11, color: 'var(--text-subtle)', fontFamily: 'monospace' }}>{asset.kind}</span>
         )}
       </div>
       <div style={{ padding: '10px 12px' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
         <div style={{ fontSize: 10, color: 'var(--text-subtle)', textTransform: 'uppercase', letterSpacing: 0.4, marginTop: 2 }}>{asset.kind.replace('_', ' ')}</div>
-        <button onClick={onDelete} className="btn btn-danger btn-sm">Delete</button>
+        {/* Fonts carry a usage role (headings vs body) so the Social, Ad
+            Creative and Video generators apply the right typeface to the
+            right text deterministically from the brand kit. */}
+        {isFont && (
+          <select
+            value={asset.metadata?.role || ''}
+            onChange={e => setRole(e.target.value)}
+            style={{ marginTop: 8, width: '100%', padding: '5px 8px', fontSize: 12, border: '2px solid var(--card-border)', borderRadius: 4, background: 'var(--surface)', color: 'var(--text)' }}
+          >
+            {FONT_ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
+        )}
+        <div className="row" style={{ gap: 6, marginTop: 8 }}>
+          {isEditable && <button onClick={onEdit} className="btn btn-secondary btn-sm">Edit</button>}
+          <button onClick={onDelete} className="btn btn-danger btn-sm">Delete</button>
+        </div>
       </div>
     </div>
   );
 }
 
-function PaletteForm({ clientId, onClose, onSaved }) {
-  const [name, setName] = useState('');
-  const [colors, setColors] = useState(['#1a1a1a', '#ffffff', '#e7cd41']);
+function PaletteForm({ clientId, asset, onClose, onSaved }) {
+  const editing = !!asset;
+  const [name, setName] = useState(asset?.name || '');
+  const [colors, setColors] = useState(asset?.metadata?.colors?.length ? asset.metadata.colors : ['#1a1a1a', '#ffffff', '#e7cd41']);
   const [saving, setSaving] = useState(false);
   async function save() {
     setSaving(true);
     try {
-      await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'palette', name: name || 'Brand palette', metadata: { colors } });
+      if (editing) {
+        await api.put(`/brand/assets/${asset.id}`, { name: name || 'Brand palette', metadata: { ...(asset.metadata || {}), colors } });
+      } else {
+        await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'palette', name: name || 'Brand palette', metadata: { colors } });
+      }
       onSaved();
     } catch (e) { alert(e.message); }
     finally { setSaving(false); }
@@ -284,7 +402,7 @@ function PaletteForm({ clientId, onClose, onSaved }) {
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>Add palette</h2>
+        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>{editing ? 'Edit palette' : 'Add palette'}</h2>
         <label style={modalStyles.label}>Name</label>
         <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Primary palette" />
         <label style={modalStyles.label}>Hex codes</label>
@@ -305,15 +423,20 @@ function PaletteForm({ clientId, onClose, onSaved }) {
   );
 }
 
-function GuidelineForm({ clientId, onClose, onSaved }) {
-  const [name, setName] = useState('');
-  const [body, setBody] = useState('');
+function GuidelineForm({ clientId, asset, onClose, onSaved }) {
+  const editing = !!asset;
+  const [name, setName] = useState(asset?.name || '');
+  const [body, setBody] = useState(asset?.metadata?.body || '');
   const [saving, setSaving] = useState(false);
   async function save() {
     if (!body.trim()) return;
     setSaving(true);
     try {
-      await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'guideline', name: name || 'Brand voice', metadata: { body } });
+      if (editing) {
+        await api.put(`/brand/assets/${asset.id}`, { name: name || 'Brand voice', metadata: { ...(asset.metadata || {}), body } });
+      } else {
+        await api.post(`/brand/clients/${clientId}/assets/meta`, { kind: 'guideline', name: name || 'Brand voice', metadata: { body } });
+      }
       onSaved();
     } catch (e) { alert(e.message); }
     finally { setSaving(false); }
@@ -321,7 +444,7 @@ function GuidelineForm({ clientId, onClose, onSaved }) {
   return (
     <div style={modalStyles.overlay} onClick={onClose}>
       <div style={modalStyles.modal} onClick={e => e.stopPropagation()}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>Add brand guideline</h2>
+        <h2 style={{ margin: '0 0 12px', fontSize: 18, fontWeight: 700 }}>{editing ? 'Edit brand guideline' : 'Add brand guideline'}</h2>
         <label style={modalStyles.label}>Name</label>
         <input style={modalStyles.input} value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Voice & tone" />
         <label style={modalStyles.label}>Notes</label>
