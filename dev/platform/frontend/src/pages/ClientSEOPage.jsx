@@ -613,7 +613,7 @@ export default function ClientSEOPage() {
     // Pipeline sub-tabs
     'find', 'planning', 'draft', 'publish', 'promote',
     // Local SEO toolkit sub-tabs
-    'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_gbp',
+    'local_gap', 'local_schema', 'local_keywords', 'local_xray', 'local_playbook', 'local_gbp',
   ]);
 
   // Redirect stale deep links to their new homes after the AI Overviews
@@ -695,6 +695,7 @@ export default function ClientSEOPage() {
             { key: 'local_schema',   label: 'Schema audit' },
             { key: 'local_keywords', label: 'Buyer-intent keywords' },
             { key: 'local_xray',     label: 'Competitor X-ray' },
+            { key: 'local_playbook', label: 'GBP ranking playbook' },
             { key: 'local_gbp',      label: 'GBP posts' },
           ],
         };
@@ -705,7 +706,7 @@ export default function ClientSEOPage() {
           ai_visibility: 'performance', ai_seo: 'performance',
           site_audit: 'performance', quick_wins: 'performance', content_audit: 'performance', keyword_footprint: 'performance',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
-          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_gbp: 'local',
+          local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_gbp: 'local',
         };
         const currentGroup = GROUP_OF[activeTab] || 'overview';
         const topTabs = [
@@ -788,6 +789,7 @@ export default function ClientSEOPage() {
       {activeTab === 'local_schema' && <LocalSeoPanel clientId={id} tool="schema_audit" />}
       {activeTab === 'local_keywords' && <LocalSeoPanel clientId={id} tool="buyer_intent" />}
       {activeTab === 'local_xray' && <LocalSeoPanel clientId={id} tool="competitor_xray" />}
+      {activeTab === 'local_playbook' && <LocalSeoPanel clientId={id} tool="ranking_playbook" />}
       {activeTab === 'local_gbp' && <LocalSeoPanel clientId={id} tool="gbp_posts" />}
 
       {activeTab === 'keywords' && <>
