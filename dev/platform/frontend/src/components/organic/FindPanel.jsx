@@ -233,8 +233,8 @@ function OwnSiteMode({ clientId }) {
       setLoading(true);
       try {
         const [iss, qw] = await Promise.all([
-          fetch('/api/seo/clients/' + clientId + '/site-audits/open-issues', { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({ issues: [] })),
-          fetch('/api/seo/clients/' + clientId + '/quick-wins',                { headers: { Authorization: 'Bearer ' + localStorage.getItem('token') } }).then(r => r.json()).catch(() => ({ wins: [] })),
+          fetch('/api/seo/clients/' + clientId + '/site-audits/open-issues', { credentials: 'include' }).then(r => r.json()).catch(() => ({ issues: [] })),
+          fetch('/api/seo/clients/' + clientId + '/quick-wins',                { credentials: 'include' }).then(r => r.json()).catch(() => ({ wins: [] })),
         ]);
         setIssues(iss.issues || []);
         setWins((qw.wins || []).filter(w => !w.dismissed_at));

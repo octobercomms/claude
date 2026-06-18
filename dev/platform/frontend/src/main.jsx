@@ -38,10 +38,8 @@ function reportToBackend(payload) {
   try {
     fetch('/api/_internal/log-frontend-error', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
-      },
+      credentials: 'include', // session cookie authenticates the report
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       keepalive: true,
     }).catch(() => {});

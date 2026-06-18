@@ -29,7 +29,7 @@ function DfsAvailabilityBanner() {
 
   // Stream the in-repo checklist .md down to the user's machine so they
   // can stash it somewhere they'll find again on the day. Goes through
-  // /api/docs/* so the Bearer token authenticates the request.
+  // /api/docs/* (via api.raw) so the session cookie authenticates the request.
   async function downloadChecklist() {
     // Hardcoded so the button still works even on a stale /auth/me
     // payload that pre-dates the doc_path field. The doc is fetched

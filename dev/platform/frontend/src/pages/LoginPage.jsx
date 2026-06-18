@@ -17,12 +17,13 @@ export default function LoginPage() {
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include', // store the httpOnly session cookie the server sets
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Login failed');
-      login(data.token);
+      login(data.user);
       navigate('/dashboard');
     } catch (err) {
       setError(err.message);

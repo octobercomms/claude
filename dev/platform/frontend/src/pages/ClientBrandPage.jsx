@@ -62,10 +62,9 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       fd.append('file', file);
       fd.append('kind', kind);
       if (name) fd.append('name', name);
-      const token = localStorage.getItem('token');
       const res = await fetch(`/api/brand/clients/${id}/assets`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         body: fd,
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
@@ -94,10 +93,9 @@ export default function ClientBrandPage({ embedded = false } = {}) {
       const fd = new FormData();
       fd.append('kind', kind);
       for (const f of files) fd.append('files', f);
-      const token = localStorage.getItem('token');
       const res = await fetch(`/api/brand/clients/${id}/assets/bulk`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
         body: fd,
       });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
@@ -249,12 +247,11 @@ function BulkUploadButton({ label, onPick, accept, disabled }) {
   );
 }
 
-// Brand asset files are served behind Bearer-token auth (the authenticate
-// middleware), which a plain <img>/<video>/font-face request can't satisfy —
-// the browser sends no Authorization header, gets a 401, and the preview
-// breaks (showing the alt filename instead of the image). So we fetch the
-// file with the token, turn it into a blob URL, and feed that to the element.
-// The object URL is revoked on unmount to avoid leaking memory.
+// Brand asset files are served behind the authenticate middleware. The session
+// cookie is sent automatically on same-origin requests, so we fetch the file
+// (carrying the cookie), turn it into a blob URL, and feed that to the element.
+// We still go via fetch rather than a bare <img src> so a 401 surfaces cleanly
+// as a broken-preview state. The object URL is revoked on unmount.
 function useAuthedBlobUrl(url, enabled = true) {
   const [blobUrl, setBlobUrl] = useState(null);
   const [error, setError] = useState(false);
@@ -263,8 +260,7 @@ function useAuthedBlobUrl(url, enabled = true) {
     let cancelled = false;
     let objectUrl = null;
     setBlobUrl(null); setError(false);
-    const token = localStorage.getItem('token');
-    fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    fetch(url, { credentials: 'include' })
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.blob(); })
       .then(blob => {
         if (cancelled) return;

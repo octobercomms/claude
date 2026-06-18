@@ -257,10 +257,9 @@ export default function ClientDetailPage() {
     // The OAuth helper routes live at /auth/oauth/* (NOT /api/auth/*)
     // because the legacy provider redirect URIs are registered against
     // that path. Bypass the api.get() helper so we hit the right mount;
-    // the bearer token still goes on the request for the gate to pass.
-    const token = localStorage.getItem('token');
+    // the session cookie (path=/) authenticates the request.
     fetch(`/auth/oauth/start-url?provider=${provider}&client_id=${clientId}`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: 'include',
     })
       .then(async r => {
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || `HTTP ${r.status}`);
