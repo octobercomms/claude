@@ -4,6 +4,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, Responsi
 import { api } from '../utils/api';
 import SuiteTabs from '../components/SuiteTabs';
 import SuiteOverview from '../components/SuiteOverview';
+import ClarityCroPanel from '../components/ClarityCroPanel';
 import { useCssVar } from '../hooks/useCssVar';
 import { useTabParam } from '../hooks/useTabParam';
 
@@ -43,7 +44,7 @@ export default function ClientSalesTrafficPage() {
   const accent = useCssVar('--accent', '#20A39E', scopeRef);
   const text = useCssVar('--text', '#1a1a1a', scopeRef);
   const subtle = useCssVar('--text-subtle', '#888', scopeRef);
-  const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard']);
+  const [tab, setTab] = useTabParam('overview', ['overview', 'dashboard', 'cro']);
   const [client, setClient] = useState(null);
   const [data, setData] = useState(null);
   const [start, setStart] = useState(() => isoDaysAgo(29));
@@ -119,7 +120,10 @@ export default function ClientSalesTrafficPage() {
       <SuiteTabs tabs={[
         { key: 'overview',  label: 'Overview',  active: tab === 'overview',  onClick: () => setTab('overview') },
         { key: 'dashboard', label: 'Performance', active: tab === 'dashboard', onClick: () => setTab('dashboard') },
+        { key: 'cro',       label: 'CRO / Funnel', active: tab === 'cro',     onClick: () => setTab('cro') },
       ]} />
+
+      {tab === 'cro' && <ClarityCroPanel clientId={id} />}
 
       {tab === 'overview' && (
         <SuiteOverview
