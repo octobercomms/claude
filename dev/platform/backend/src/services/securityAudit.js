@@ -307,6 +307,38 @@ async function getLatest() {
   return rows[0] || null;
 }
 
+// An "actionable" finding is a real failure or a high/critical warning — the
+// things worth an email. Steady-state low/medium hardening warnings are not.
+function actionableFindings(findings) {
+  return (findings || []).filter(f =>
+    f.status === 'fail' || (f.status === 'warn' && (f.severity === 'high' || f.severity === 'critical'))
+  );
+}
+
+// Run the daily audit, store it, then email ONLY when something actionable is
+// new since the last run (or send an all-clear when prior issues are gone).
+// This keeps the alert as signal — the known defence-in-depth warnings that
+// persist day to day never re-send. Called by the scheduler.
+async function runDailyAudit() {
+  const prev = await getLatest();
+  const run = await runAndStore('cron');
+  try {
+    const emailService = require('./emailService');
+    const prevActionable = actionableFindings(prev?.findings);
+    const curActionable = actionableFindings(run.findings);
+    const prevIds = new Set(prevActionable.map(f => f.id));
+    const newIssues = curActionable.filter(f => !prevIds.has(f.id));
+    if (newIssues.length) {
+      await emailService.sendSecurityAlert({ findings: curActionable, risk: run.risk });
+    } else if (prevActionable.length && !curActionable.length) {
+      await emailService.sendSecurityAlert({ findings: [], risk: run.risk, resolved: true });
+    }
+  } catch (e) {
+    console.error('[security] alert failed:', e.message);
+  }
+  return run;
+}
+
 async function getHistory(limit = 30) {
   const { rows } = await pool.query(
     'SELECT id, risk, pass_count, warn_count, fail_count, trigger, created_at FROM security_audit_runs ORDER BY created_at DESC LIMIT $1',
@@ -315,4 +347,4 @@ async function getHistory(limit = 30) {
   return rows;
 }
 
-module.exports = { runChecks, runAndStore, getLatest, getHistory, CHECK_COUNT: CHECKS.length };
+module.exports = { runChecks, runAndStore, runDailyAudit, getLatest, getHistory, CHECK_COUNT: CHECKS.length };

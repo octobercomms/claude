@@ -576,6 +576,56 @@ async function sendConnectorHealthAlert(issues) {
   });
 }
 
+// Security audit alert. Sent by the daily cron ONLY when there's a new,
+// actionable finding (a real failure or a high/critical warning) — or an
+// all-clear when previously-flagged issues are resolved. Steady-state
+// hardening warnings (the known defence-in-depth items) never trigger this, so
+// it stays signal, not noise. See services/securityAudit.js for the diff logic.
+async function sendSecurityAlert({ findings = [], risk, resolved = false }) {
+  if (!process.env.ALERT_EMAIL) return;
+  const platformUrl = process.env.PLATFORM_URL || 'https://platform.octobercomms.com';
+  const securityUrl = `${platformUrl}/settings?tab=security`;
+  const sevColour = { critical: '#b3261e', high: '#d1581e', medium: '#9a6b00', low: '#888' };
+
+  if (resolved) {
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #1a7f37;">Security audit: all clear</h2>
+        <p style="color: #444;">The issues flagged on a previous run have been resolved. The automated checklist is back to clean / hardening-only.</p>
+        <p style="margin-top: 20px;"><a href="${securityUrl}" style="color: #1a1a1a;">View the security dashboard →</a></p>
+        <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Marketing Intelligence — security audit</p>
+      </div>`;
+    return getTransporter().sendMail({ from: getSenderAddress(), to: process.env.ALERT_EMAIL, subject: 'Security audit: all clear', html });
+  }
+
+  const rows = findings.map(f => `
+    <tr>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0; font-weight: 600; white-space: nowrap;">${f.id} · ${f.area}</td>
+      <td style="padding: 8px 12px; border-bottom: 1px solid #f0f0f0;">
+        <strong>${f.title}</strong>
+        <span style="color: ${sevColour[f.severity] || '#888'}; font-size: 11px; font-weight: 700; text-transform: uppercase;"> · ${f.severity}</span>
+        <div style="color: #666; font-size: 13px; margin-top: 3px;">${f.detail || ''}</div>
+        ${f.recommendation ? `<div style="color: #444; font-size: 13px; margin-top: 3px;"><em>Fix:</em> ${f.recommendation}</div>` : ''}
+      </td>
+    </tr>`).join('');
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 700px; margin: 0 auto; padding: 20px;">
+      <h2 style="color: #1a1a1a;">Security audit: ${findings.length} item${findings.length === 1 ? '' : 's'} to resolve</h2>
+      <p style="color: #666;">The nightly security checklist flagged ${findings.length === 1 ? 'a new actionable issue' : 'new actionable issues'} (overall status: <strong>${risk}</strong>).</p>
+      <table style="width: 100%; border-collapse: collapse; margin-top: 16px;"><tbody>${rows}</tbody></table>
+      <p style="margin-top: 24px;"><a href="${securityUrl}" style="color: #1a1a1a; font-weight: 600;">Open the security dashboard →</a> — each item has a “Copy fix prompt” button to hand off to Claude Code.</p>
+      <p style="color: #aaa; font-size: 11px; margin-top: 32px;">October Marketing Intelligence — security audit. You only get this when there's a new, actionable issue.</p>
+    </div>`;
+
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `Security audit: ${findings.length} item${findings.length === 1 ? '' : 's'} to resolve`,
+    html,
+  });
+}
+
 async function sendReportReminderEmail(client) {
   if (!process.env.ALERT_EMAIL) return;
 
@@ -745,4 +795,4 @@ async function sendPrEmail({ to, subject, html }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert };
