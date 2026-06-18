@@ -1561,6 +1561,24 @@ router.post('/find/scrape', async (req, res) => {
   }
 });
 
+// Rank a batch of found/scraped contacts by fit against the client's ICP +
+// the AM's service criteria. A find-time ranking aid on the preview list —
+// returns the contacts annotated with fit_score / fit_reason, sorted best
+// first. See services/leadScoring.js.
+const leadScoring = require('../services/leadScoring');
+router.post('/score', async (req, res) => {
+  const { client_id, criteria, contacts } = req.body || {};
+  if (!Array.isArray(contacts) || !contacts.length) return res.status(400).json({ error: 'contacts required' });
+  if (!criteria || !String(criteria).trim()) return res.status(400).json({ error: 'criteria required' });
+  try {
+    if (client_id) await assertClientAccess(req, client_id);
+    const ranked = await leadScoring.rankContacts({ clientId: client_id || null, criteria, contacts });
+    res.json({ contacts: ranked });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
 // Async ICP scrape: describe an audience → Serper finds sites → crawl each →
 // contacts accumulate into a run the client polls.
 router.post('/find/scrape/icp', async (req, res) => {
