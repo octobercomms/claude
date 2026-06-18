@@ -16,6 +16,14 @@ import SequenceBuilder from '../components/SequenceBuilder';
 import { csvEscape } from '../utils/csv';
 import { useTabParam } from '../hooks/useTabParam';
 
+// Colour a lead's fit score: strong (green) / moderate (amber) / weak (red).
+function fitColor(n) {
+  if (n == null) return 'var(--text-subtle)';
+  if (n >= 70) return 'var(--positive, #1a7f37)';
+  if (n >= 45) return '#9a6b00';
+  return 'var(--negative, #b3261e)';
+}
+
 // Claude-drafted email sequence for a campaign — generate and edit steps.
 function CampaignSequence({ campaign, onCampaignChange }) {
   const toast = useToast();
@@ -152,6 +160,8 @@ export default function ClientOutreachPage() {
   const [serperError, setSerperError] = useState('');
   const [scrapeRun, setScrapeRun] = useState(null);
   const [icpScraping, setIcpScraping] = useState(false);
+  const [rankCriteria, setRankCriteria] = useState('');
+  const [ranking, setRanking] = useState(false);
   const [expandedCampaign, setExpandedCampaign] = useState(null);
   const [wizardCampaignId, setWizardCampaignId] = useState(null);
   const [editingContact, setEditingContact] = useState(null);
@@ -172,6 +182,9 @@ export default function ClientOutreachPage() {
     ])
       .then(([c, ct, cp, st, ss, dns]) => {
         setClient(c); setContacts(ct); setCampaigns(cp);
+        // Seed the lead-ranking criteria from the client's brief so "Rank by
+        // fit" works out of the box; the AM can refine it per search.
+        setRankCriteria(prev => prev || c.briefing_field || c.monthly_focus || '');
         setSendCfg(c.outreach_sending || {});
         setStats(st); setSystemStatus(ss || []);
         setDnsCheck(dns);
@@ -319,6 +332,22 @@ export default function ClientOutreachPage() {
       if (next.has(i)) next.delete(i); else next.add(i);
       return next;
     });
+  }
+
+  // Score the current find/scrape results by fit against the AM's criteria and
+  // re-order best-first. Auto-selects the strong fits (score ≥ 60 with an email)
+  // so the AM can add the good ones in one click.
+  async function runRank() {
+    if (!foundContacts.length) return;
+    if (!rankCriteria.trim()) { toast('Add some criteria to rank by.', 'error'); return; }
+    setRanking(true);
+    try {
+      const res = await api.post('/outreach/score', { client_id: id, criteria: rankCriteria, contacts: foundContacts });
+      const ranked = res.contacts || [];
+      setFoundContacts(ranked);
+      setSelected(new Set(ranked.map((c, i) => (c.email && c.fit_score != null && c.fit_score >= 60 ? i : null)).filter(i => i !== null)));
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setRanking(false); }
   }
 
   async function addFound() {
@@ -609,12 +638,25 @@ export default function ClientOutreachPage() {
               )}
               {foundContacts.length > 0 && (
                 <div style={{ marginTop: 12 }}>
+                  {/* Rank the results by fit against the client's ICP + service
+                      criteria before adding — score each lead 0–100. */}
+                  <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                    <input className="input" style={{ flex: 1 }} placeholder="Rank by fit — describe your ideal lead / service criteria"
+                      value={rankCriteria} onChange={e => setRankCriteria(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') runRank(); }} />
+                    <button onClick={runRank} disabled={ranking} className="btn btn-secondary" title="Score each lead 0–100 for fit against these criteria, best first">
+                      {ranking ? 'Ranking…' : '★ Rank by fit'}
+                    </button>
+                  </div>
                   <table className="table">
-                    <thead><tr>{['', 'Name', 'Email', 'Role', 'Confidence'].map(h => <th key={h} >{h}</th>)}</tr></thead>
+                    <thead><tr>{['', 'Fit', 'Name', 'Email', 'Role', 'Confidence'].map(h => <th key={h} >{h}</th>)}</tr></thead>
                     <tbody>
                       {foundContacts.map((c, i) => (
                         <tr key={i}>
                           <td ><input type="checkbox" checked={selected.has(i)} onChange={() => toggleSelected(i)} /></td>
+                          <td >{c.fit_score == null ? '—' : (
+                            <span title={c.fit_reason || ''} style={{ fontWeight: 700, color: fitColor(c.fit_score) }}>{c.fit_score}</span>
+                          )}</td>
                           <td >{c.name || '—'}</td>
                           <td >{c.email}</td>
                           <td >{c.role || '—'}</td>
