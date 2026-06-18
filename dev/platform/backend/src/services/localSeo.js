@@ -18,7 +18,7 @@ const playbooks = require('./playbooks');
 const { fetchRenderedHtml } = require('../utils/fetchHtml');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
-const TOOLS = ['competition_gap', 'schema_audit', 'buyer_intent', 'competitor_xray', 'gbp_posts'];
+const TOOLS = ['competition_gap', 'schema_audit', 'buyer_intent', 'competitor_xray', 'gbp_posts', 'ranking_playbook'];
 
 function isTool(t) { return TOOLS.includes(t); }
 
@@ -334,7 +334,59 @@ Exactly 10 posts. British English.`;
   return run;
 }
 
-// ─── run history (shared across all five tools) ──────────────────────────────
+// ─── 6. GBP RANKING PLAYBOOK (ranking levers + reviews + photos) ─────────────
+// Reverse-engineers what actually drives the local pack for a category and
+// turns it into an execution playbook — the ranking-levers table, a review
+// strategy, and a photo strategy from the "Claude for SEO" deck, in one run.
+async function runRankingPlaybook({ clientId, service, city, competitorUrls }) {
+  const client = await loadClient(clientId);
+  const svc = String(service || '').trim();
+  const loc = String(city || '').trim();
+  if (!svc || !loc) throw new Error('Both service and city are required.');
+
+  let comps = (Array.isArray(competitorUrls) ? competitorUrls : []).map(normUrl).filter(Boolean).slice(0, 3);
+  if (!comps.length && Array.isArray(client.competitor_domains)) {
+    comps = client.competitor_domains.map(normUrl).filter(Boolean).slice(0, 3);
+  }
+  const compPages = comps.length ? (await Promise.all(comps.map(u => fetchPage(u)))).filter(p => p.ok && p.text.length > 80) : [];
+  const compBlock = compPages.length
+    ? compPages.map((p, i) => `--- COMPETITOR ${i + 1}: ${p.url} ---\n${p.text.slice(0, 5000)}`).join('\n\n')
+    : '(no readable competitor pages supplied — work from the category + best practice)';
+
+  const prompt = `${clientLine(client)}
+
+Business: ${client.name} — a ${svc} in ${loc}.
+
+${compBlock}
+
+Build a Google Business Profile ranking playbook for the local map pack for "${svc} ${loc}". Cover three things:
+1. RANKING LEVERS — the levers Google actually rewards for this category/local pack, ranked by impact, each with the evidence (what top competitors demonstrate) and why it matters.
+2. REVIEW STRATEGY — how to use reviews as a ranking signal: keyword themes to seed naturally, review pacing/cadence, a rating-distribution target, and a reply approach.
+3. PHOTO STRATEGY — the priority GBP photo types, ideal weekly upload cadence, and what top profiles rely on.
+
+Return ONLY a JSON object, no preamble or code fences:
+{
+  "ranking_levers": [{"lever":"string","evidence":"what competitors demonstrate / why it ranks","impact":"high|medium|low"}],
+  "review_strategy": {"keyword_themes":["..."],"pacing":"string","rating_target":"string","reply_approach":"string"},
+  "photo_strategy": {"priority_types":["..."],"cadence":"string","notes":"string"},
+  "summary": "2-3 sentence AM briefing"
+}
+At least 5 ranking levers, ordered highest-impact first. Specific and execution-focused — avoid generic advice. British English.`;
+
+  const raw = await claudeService.callClaude({
+    max_tokens: 3500,
+    system: 'You are a local-SEO strategist specialising in Google Business Profile / map-pack ranking. Evidence-led, specific, execution-focused. Output JSON only.' + playbooks.systemSuffix(['local-seo']),
+    user: prompt,
+    feature: 'local_seo_ranking_playbook',
+    clientId,
+  });
+  const output = parseJson(raw);
+  output._meta = { competitors: compPages.map(p => p.url) };
+  const run = await saveRun({ clientId, tool: 'ranking_playbook', title: `${svc} · ${loc}`, input: { service: svc, city: loc, competitorUrls: comps }, output });
+  return run;
+}
+
+// ─── run history (shared across all tools) ───────────────────────────────────
 async function listRuns(clientId, tool) {
   const { rows } = await pool.query(
     `SELECT id, tool, title, input_json, output_json, created_at
@@ -355,6 +407,7 @@ const RUNNERS = {
   buyer_intent: runBuyerIntent,
   competitor_xray: runCompetitorXray,
   gbp_posts: runGbpPosts,
+  ranking_playbook: runRankingPlaybook,
 };
 
 // Dispatch by tool name with the route's body as named args.

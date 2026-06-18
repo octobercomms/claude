@@ -47,6 +47,16 @@ const TOOL_META = {
       { key: 'competitorUrl', kind: 'url', label: 'Competitor URL (optional)', placeholder: 'https://competitor.com' },
     ],
   },
+  ranking_playbook: {
+    title: 'GBP Ranking Playbook',
+    blurb: 'Reverse-engineer the local map pack for a service + city: the ranking levers Google rewards (with competitor evidence), a review strategy, and a photo strategy — one execution playbook.',
+    run: 'Build playbook',
+    fields: [
+      { key: 'service', kind: 'text', label: 'Service', placeholder: 'dentist' },
+      { key: 'city', kind: 'text', label: 'City', placeholder: 'Manchester' },
+      { key: 'competitorUrls', kind: 'urls', label: 'Competitor URLs (optional, up to 3)', placeholder: 'competitor1.com\ncompetitor2.com' },
+    ],
+  },
 };
 
 const LEVEL_CHIP = { low: 'chip-success', medium: 'chip-warning', high: 'chip-danger' };
@@ -393,6 +403,46 @@ function ToolResult({ tool, output }) {
             {p.cta && <div style={{ fontSize: 12, fontWeight: 700, marginTop: 6, color: 'var(--accent)' }}>{p.cta}</div>}
           </div>
         ))}
+      </>
+    );
+  }
+
+  if (tool === 'ranking_playbook') {
+    const rs = output.review_strategy || {};
+    const ps = output.photo_strategy || {};
+    return (
+      <>
+        <Summary text={output.summary} />
+        {(output.ranking_levers || []).length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div className="caption mb-2">Ranking levers (highest impact first)</div>
+            <table className="table">
+              <thead><tr>{['Impact', 'Lever', 'Evidence / why it ranks'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+              <tbody>
+                {output.ranking_levers.map((l, i) => (
+                  <tr key={i}>
+                    <td><span className={`chip ${LEVEL_CHIP[l.impact] || 'chip-neutral'}`}>{l.impact || '—'}</span></td>
+                    <td style={{ fontWeight: 600 }}>{l.lever}</td>
+                    <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{l.evidence}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="card" style={{ marginBottom: 10 }}>
+          <div className="caption mb-2">Review strategy</div>
+          {rs.keyword_themes?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={rs.keyword_themes} /></div>}
+          {rs.pacing && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Pacing:</strong> {rs.pacing}</div>}
+          {rs.rating_target && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Rating target:</strong> {rs.rating_target}</div>}
+          {rs.reply_approach && <div style={{ fontSize: 13 }}><strong>Replies:</strong> {rs.reply_approach}</div>}
+        </div>
+        <div className="card">
+          <div className="caption mb-2">Photo strategy</div>
+          {ps.priority_types?.length > 0 && <div style={{ marginBottom: 6 }}><Chips items={ps.priority_types} /></div>}
+          {ps.cadence && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Cadence:</strong> {ps.cadence}</div>}
+          {ps.notes && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{ps.notes}</div>}
+        </div>
       </>
     );
   }
