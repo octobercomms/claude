@@ -490,6 +490,34 @@ router.post('/clients/:clientId/audit/run', async (req, res) => {
   catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
+// Instagram DM autoresponder — phase 1. Per-client bot persona + Claude-drafted
+// reply templates + a live "draft a reply" tester. See services/dmBot.js.
+const dmBot = require('../services/dmBot');
+router.get('/clients/:clientId/dm-bot/persona', async (req, res) => {
+  try { res.json(await dmBot.getPersona(req.params.clientId)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.put('/clients/:clientId/dm-bot/persona', async (req, res) => {
+  try { res.json(await dmBot.savePersona(req.params.clientId, req.body?.persona || {})); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.get('/clients/:clientId/dm-bot/templates', async (req, res) => {
+  try { res.json({ templates: await dmBot.listTemplates(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/dm-bot/templates/generate', async (req, res) => {
+  try { res.status(201).json({ templates: await dmBot.generateTemplates(req.params.clientId, req.body || {}) }); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+router.delete('/clients/:clientId/dm-bot/templates/:id', async (req, res) => {
+  try { await dmBot.deleteTemplate(req.params.clientId, req.params.id); res.status(204).end(); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/dm-bot/draft', async (req, res) => {
+  try { res.json(await dmBot.draftReply(req.params.clientId, req.body?.incoming)); }
+  catch (err) { res.status(err.status || 502).json({ error: err.message }); }
+});
+
 // Daily reach + interactions sparkline for the Analytics summary chips.
 router.get('/clients/:clientId/sparkline', async (req, res) => {
   try {
