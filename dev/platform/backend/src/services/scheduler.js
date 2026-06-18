@@ -273,6 +273,19 @@ cron.schedule('30 7 * * *', async () => {
   await runConnectorHealthCheck();
 });
 
+// Security audit: 02:30 daily. Runs the automated checklist (config + source
+// scans, npm audit) and stores a run so Settings → Security always shows a
+// fresh result with anything that needs attention flagged. Quiet by design —
+// findings live on the dashboard; we don't email to avoid digest noise.
+cron.schedule('30 2 * * *', async () => {
+  try {
+    const run = await require('./securityAudit').runAndStore('cron');
+    console.log(`[security] audit: ${run.pass_count} pass, ${run.warn_count} warn, ${run.fail_count} fail (${run.risk})`);
+  } catch (err) {
+    console.error('[security] audit failed:', err.message);
+  }
+});
+
 // Daily report reminder: 08:00 AM — check if any client's monthly report is due in 48 hours
 cron.schedule('0 8 * * *', async () => {
   console.log('[Scheduler] Checking for report reminders...');
