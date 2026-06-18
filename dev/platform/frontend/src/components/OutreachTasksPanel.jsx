@@ -55,7 +55,13 @@ export default function OutreachTasksPanel() {
     setLoading(true);
     try {
       const r = await api.get('/outreach/tasks');
-      setTasks(r);
+      setTasks(Array.isArray(r) ? r : []);
+    } catch (e) {
+      // Surface it as a toast rather than letting the rejection go unhandled —
+      // an uncaught rejection here gets picked up by the global handler and
+      // logged to the error digest as a phantom "frontend" error.
+      toast(e.message, 'error');
+      setTasks([]);
     } finally { setLoading(false); }
   }
   useEffect(() => { refresh(); }, []);
