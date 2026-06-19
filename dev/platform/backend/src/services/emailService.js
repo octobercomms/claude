@@ -626,6 +626,32 @@ async function sendSecurityAlert({ findings = [], risk, resolved = false }) {
   });
 }
 
+// Video Studio — the auto-edited master finished. Notifies the team with the
+// QA score and links to open it in the Studio (where they're signed in) or
+// download it directly. Sent fire-and-forget when a project reaches 'done'.
+async function sendVideoReady({ to, clientName, projectName, score, studioUrl, downloadUrl }) {
+  if (!to || !to.length) return;
+  const scoreLine = score != null
+    ? `<p style="color:#444;">QA grade: <strong style="color:${score >= 85 ? '#1a7f37' : '#9a6b00'}">${score}/100</strong></p>` : '';
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h2 style="color:#1a1a1a;">Your video is ready 🎬</h2>
+      <p style="color:#444;"><strong>${projectName}</strong> for <strong>${clientName}</strong> has finished auto-editing.</p>
+      ${scoreLine}
+      <p style="margin-top:20px;">
+        <a href="${studioUrl}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">Open in Video Studio →</a>
+      </p>
+      <p style="color:#666;font-size:13px;margin-top:14px;">Or download directly: <a href="${downloadUrl}">${downloadUrl}</a> (you'll need to be signed in).</p>
+      <p style="color:#aaa;font-size:11px;margin-top:32px;">October Marketing Intelligence — Video Studio</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: to.join(', '),
+    subject: `Video ready: ${projectName} (${clientName})`,
+    html,
+  });
+}
+
 async function sendReportReminderEmail(client) {
   if (!process.env.ALERT_EMAIL) return;
 
@@ -795,4 +821,4 @@ async function sendPrEmail({ to, subject, html }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert };
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady };
