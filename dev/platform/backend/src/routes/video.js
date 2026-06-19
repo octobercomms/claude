@@ -13,6 +13,19 @@ const pool = require('../db');
 const videoProjects = require('../services/videoProjects');
 
 const router = express.Router();
+
+// Public, signed master URL — defined BEFORE the auth middleware so an external
+// fetcher (Instagram's Reel publisher) can pull the otherwise-private master.
+// The HMAC signature + short expiry are the access control.
+router.get('/public/:id/master.mp4', (req, res) => {
+  if (!videoProjects.verifyMasterSig(req.params.id, req.query.exp, req.query.sig)) {
+    return res.status(403).send('Invalid or expired link');
+  }
+  const filePath = path.join(__dirname, '../../video-outputs', `${parseInt(req.params.id, 10)}-master.mp4`);
+  if (!fs.existsSync(filePath)) return res.status(404).send('Not found');
+  res.sendFile(filePath);
+});
+
 router.use(authenticate);
 router.use(loadVisibleClientIds);
 

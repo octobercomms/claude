@@ -497,8 +497,25 @@ async function publishDuePlans() {
   return { processed: due.length, ok, failed };
 }
 
+// Publish a finished Video Studio master to the client's Instagram as a Reel.
+// Reuses the same Meta creds + publishing targets as the social pipeline; the
+// caller passes a public (signed) URL Meta can fetch. Returns { id, posted_url }.
+async function publishVideoToInstagram(clientId, { mediaUrl, caption }) {
+  const creds = await getMetaCreds(clientId);
+  const preferredIg = await getPreferredIgId(clientId);
+  const targets = await meta.pickPublishingTargets(creds, preferredIg);
+  return meta.publishToInstagram({
+    igBusinessId: targets.igBusinessId,
+    pageAccessToken: targets.pageAccessToken,
+    caption: caption || '',
+    mediaUrl,
+    mediaKind: 'video',
+  });
+}
+
 module.exports = {
   publishDuePlans, publishPlan,
   signMediaUrl, verifyMediaToken,
   pickPrimaryMedia, pickMediaPlan,
+  publishVideoToInstagram,
 };
