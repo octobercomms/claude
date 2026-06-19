@@ -66,5 +66,9 @@ add the keys for captions + the QA loop.
   (`{notes, adjust:{tighten, drop_intro}}`) stored on the project; the next
   roughcut acts on it (cut more dead air / drop a slow open) instead of a blunt
   re-trim. See `stages/{grade,roughcut}.js`.
+- Delivery: when a project reaches `done`, the team is emailed (QA score +
+  links to the Studio / direct download) — recipients = the client's report
+  recipients ∪ `ALERT_EMAIL`. Drive/Dropbox/social delivery per `output_target`
+  is the next delivery slice.
 - Later: S3-backed clip/master storage; motion-graphics (Remotion) intro/outro
-  + lower-thirds; delivery straight to Drive/Dropbox/social per `output_target`.
+  + lower-thirds.

@@ -112,7 +112,31 @@ async function completeJob(jobId) {
     await pool.query(`UPDATE video_projects SET status = 'processing', updated_at = NOW() WHERE id = $1`, [project_id]);
   } else {
     await pool.query(`UPDATE video_projects SET status = 'done', updated_at = NOW() WHERE id = $1`, [project_id]);
+    notifyVideoReady(project_id).catch(err => console.error('[video] ready-notify failed:', err.message));
   }
+}
+
+// Email the team when a project finishes — the chosen "delivery" for now.
+// Recipients = the client's report recipients ∪ ALERT_EMAIL. Fire-and-forget.
+async function notifyVideoReady(projectId) {
+  const { rows } = await pool.query(
+    `SELECT p.name, p.score, p.output_url, c.id AS client_id, c.name AS client_name, c.report_recipients
+       FROM video_projects p JOIN clients c ON c.id = p.client_id WHERE p.id = $1`,
+    [projectId]
+  );
+  if (!rows.length || !rows[0].output_url) return;
+  const p = rows[0];
+  const recips = new Set();
+  const rr = p.report_recipients || {};
+  for (const e of [...(rr.monthly || []), ...(rr.weekly || [])]) if (e) recips.add(e);
+  for (const e of String(process.env.ALERT_EMAIL || '').split(/[,\n]/).map(s => s.trim()).filter(Boolean)) recips.add(e);
+  if (!recips.size) return;
+  const platformUrl = (process.env.PLATFORM_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
+  await require('./emailService').sendVideoReady({
+    to: [...recips], clientName: p.client_name, projectName: p.name, score: p.score,
+    studioUrl: `${platformUrl}/clients/${p.client_id}/video`,
+    downloadUrl: `${platformUrl}${p.output_url}`,
+  });
 }
 
 async function failJob(jobId, message) {
