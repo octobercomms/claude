@@ -518,6 +518,22 @@ router.post('/clients/:clientId/dm-bot/draft', async (req, res) => {
   catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
+// DM bot — phase 2 live config (Meta auto-send) + the activity log.
+const metaMessaging = require('../services/metaMessaging');
+router.get('/clients/:clientId/dm-bot/live', async (req, res) => {
+  try {
+    const [config, events] = await Promise.all([
+      metaMessaging.getLiveConfig(req.params.clientId),
+      metaMessaging.listEvents(req.params.clientId, 50),
+    ]);
+    res.json({ config, events, webhook_path: '/api/social/dm-webhook', verify_token_set: !!metaMessaging.verifyToken() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.put('/clients/:clientId/dm-bot/live', async (req, res) => {
+  try { res.json(await metaMessaging.setLiveConfig(req.params.clientId, req.body || {})); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Daily reach + interactions sparkline for the Analytics summary chips.
 router.get('/clients/:clientId/sparkline', async (req, res) => {
   try {

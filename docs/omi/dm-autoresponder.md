@@ -1,0 +1,50 @@
+# Instagram DM autoresponder
+
+A native, Claude-powered alternative to ManyChat: auto-reply to Instagram DMs
+and comment-to-DM in the brand's voice. Lives under **Social → Performance → DM
+bot**.
+
+## Phase 1 — brain + drafts (shipped)
+- **Persona** (`social_dm_bot.persona`): brand instructions (system prompt),
+  FAQs/facts, tone, max words, escalation rule → compiled into a guard-railed
+  system prompt (`services/dmBot.js`).
+- **Reply templates**: Claude drafts a library across the common triggers.
+- **Live tester**: paste an incoming message → see the exact reply the bot would
+  send.
+
+## Phase 2 — live auto-send via Meta (shipped)
+A single signature-verified webhook receives Instagram messaging + comment
+events for every connected client, matches the event to a client by IG account
+id, drafts a reply with that client's persona, and sends it via the Graph API.
+
+- **Webhook:** `GET/POST /api/social/dm-webhook` (`routes/dmWebhook.js`),
+  mounted before auth + the global limiter. GET echoes `hub.challenge` when the
+  verify token matches; POST is HMAC-verified against `META_APP_SECRET` (raw
+  body via `express.json`'s verify hook), acks fast, processes async.
+- **Routing + send:** `services/metaMessaging.js` — `findClientByIgId`,
+  `sendDM` (`POST /{ig-id}/messages`), `sendPrivateReply` (comment-to-DM, the
+  highest-converting trigger). Every inbound/outbound message is logged to
+  `social_dm_events` (audit + dedupe by message/comment id, so we never
+  double-reply).
+- **Per-client config** (`social_dm_bot`): `enabled`, `ig_user_id`,
+  `page_token_encrypted` (Page token with `instagram_manage_messages`,
+  encrypted). Managed from the panel's **Live auto-send** card.
+
+### Setup (per client)
+1. Server env: `META_APP_SECRET` (already used for Meta OAuth) and
+   `META_WEBHOOK_VERIFY_TOKEN` (any string you'll also enter in the Meta app).
+2. Meta app dashboard → Webhooks → Instagram → callback
+   `https://platform.octobercomms.com/api/social/dm-webhook`, the verify token
+   above, subscribe to **messages** + **comments**.
+3. In the DM bot panel → Live auto-send: paste the **Instagram business account
+   ID** and a **Page access token** with `instagram_manage_messages`, save, then
+   **Go live**. Toggle off any time.
+
+### Guard-rails
+Replies obey the persona's word limit/tone, stay on-platform, never invent
+facts/prices, and escalate to a human per the AM's rule. Disabled or
+missing-token accounts log a `skipped` event rather than sending.
+
+## Later
+Public comment replies (not just private), per-keyword comment triggers,
+opt-out handling, and a richer inbox view of conversations.

@@ -28,19 +28,38 @@ export default function SocialDmBotPanel({ clientId }) {
   const [incoming, setIncoming] = useState('');
   const [draft, setDraft] = useState('');
   const [drafting, setDrafting] = useState(false);
+  const [live, setLive] = useState(null);       // { config, events, webhook_path, verify_token_set }
+  const [igId, setIgId] = useState('');
+  const [pageToken, setPageToken] = useState('');
+  const [savingLive, setSavingLive] = useState(false);
 
   async function load() {
     try {
-      const [p, t] = await Promise.all([
+      const [p, t, l] = await Promise.all([
         api.get(`/social/clients/${clientId}/dm-bot/persona`),
         api.get(`/social/clients/${clientId}/dm-bot/templates`),
+        api.get(`/social/clients/${clientId}/dm-bot/live`).catch(() => null),
       ]);
       if (p.persona && Object.keys(p.persona).length) setPersona(prev => ({ ...prev, ...p.persona }));
       setSavedAt(p.updated_at || null);
       setTemplates(t.templates || []);
+      if (l) { setLive(l); setIgId(l.config?.ig_user_id || ''); }
     } catch (e) { toast(e.message, 'error'); }
   }
   useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
+
+  async function saveLive(nextEnabled) {
+    setSavingLive(true);
+    try {
+      const body = { enabled: nextEnabled ?? live?.config?.enabled ?? false, ig_user_id: igId.trim() || null };
+      if (pageToken.trim()) body.page_token = pageToken.trim();
+      const config = await api.put(`/social/clients/${clientId}/dm-bot/live`, body);
+      setLive(prev => ({ ...(prev || {}), config }));
+      setPageToken('');
+      toast('Live settings saved.', 'success');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setSavingLive(false); }
+  }
 
   async function savePersona() {
     setSaving(true);
@@ -127,6 +146,63 @@ export default function SocialDmBotPanel({ clientId }) {
               <CopyBtn text={draft} />
             </div>
             <div className="body-sm" style={{ whiteSpace: 'pre-wrap' }}>{draft}</div>
+          </div>
+        )}
+      </div>
+
+      {/* Go live — Meta auto-send */}
+      <div className="card">
+        <div className="row between center" style={{ flexWrap: 'wrap', gap: 8 }}>
+          <div className="caption">Live auto-send (Instagram)</div>
+          {live?.config && (
+            <span style={{ fontSize: 12, fontWeight: 700, color: live.config.enabled ? 'var(--positive, #1a7f37)' : 'var(--text-subtle)' }}>
+              {live.config.enabled ? '● Live' : '○ Off'}
+            </span>
+          )}
+        </div>
+        <p className="body-sm text-muted" style={{ margin: '6px 0 10px' }}>
+          When live, the bot auto-replies to Instagram DMs and comment-to-DM using the persona above — the ManyChat flow, native.
+          Connect an Instagram business account and a Page token with <code>instagram_manage_messages</code>.
+        </p>
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 220px' }}>
+            <label className="field-label">Instagram business account ID</label>
+            <input className="input" value={igId} onChange={e => setIgId(e.target.value)} placeholder="17841400000000000" />
+          </div>
+          <div style={{ flex: '1 1 220px' }}>
+            <label className="field-label">Page access token {live?.config?.has_token && <span className="text-subtle">(set — leave blank to keep)</span>}</label>
+            <input className="input" type="password" value={pageToken} onChange={e => setPageToken(e.target.value)} placeholder={live?.config?.has_token ? '••••••••' : 'EAAG…'} />
+          </div>
+        </div>
+        <div className="row" style={{ marginTop: 12, gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button className="btn btn-secondary" onClick={() => saveLive()} disabled={savingLive}>{savingLive ? 'Saving…' : 'Save connection'}</button>
+          {live?.config && (
+            <button
+              className={live.config.enabled ? 'btn btn-danger' : 'btn btn-primary'}
+              disabled={savingLive || (!live.config.enabled && (!igId.trim() || (!pageToken.trim() && !live.config.has_token)))}
+              onClick={() => saveLive(!live.config.enabled)}
+            >{live.config.enabled ? 'Turn off' : 'Go live'}</button>
+          )}
+        </div>
+        {live && (
+          <div className="body-xs text-subtle" style={{ marginTop: 10, lineHeight: 1.6 }}>
+            In the Meta app dashboard, set the webhook callback to <code>{window.location.origin}{live.webhook_path}</code>{' '}
+            and subscribe to <strong>messages</strong> + <strong>comments</strong>.{' '}
+            {live.verify_token_set ? 'Verify token is configured on the server.' : '⚠ Set META_WEBHOOK_VERIFY_TOKEN on the server to complete verification.'}
+          </div>
+        )}
+        {live?.events?.length > 0 && (
+          <div style={{ marginTop: 12 }}>
+            <div className="caption mb-2">Recent activity</div>
+            <div className="stack stack-sm">
+              {live.events.slice(0, 12).map(ev => (
+                <div key={ev.id} className="body-xs" style={{ display: 'flex', gap: 8 }}>
+                  <span style={{ color: ev.direction === 'in' ? 'var(--text-muted)' : 'var(--accent)', fontWeight: 700, minWidth: 28 }}>{ev.direction === 'in' ? '→' : '↩'}</span>
+                  <span className="text-subtle" style={{ minWidth: 64 }}>{ev.channel}{ev.status ? ` · ${ev.status}` : ''}</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.text}</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
       </div>
