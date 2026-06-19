@@ -31,6 +31,9 @@ export default function SocialDmBotPanel({ clientId }) {
   const [live, setLive] = useState(null);       // { config, events, webhook_path, verify_token_set }
   const [igId, setIgId] = useState('');
   const [pageToken, setPageToken] = useState('');
+  const [keywords, setKeywords] = useState('');
+  const [publicReply, setPublicReply] = useState(false);
+  const [publicReplyText, setPublicReplyText] = useState('');
   const [savingLive, setSavingLive] = useState(false);
 
   async function load() {
@@ -43,7 +46,13 @@ export default function SocialDmBotPanel({ clientId }) {
       if (p.persona && Object.keys(p.persona).length) setPersona(prev => ({ ...prev, ...p.persona }));
       setSavedAt(p.updated_at || null);
       setTemplates(t.templates || []);
-      if (l) { setLive(l); setIgId(l.config?.ig_user_id || ''); }
+      if (l) {
+        setLive(l);
+        setIgId(l.config?.ig_user_id || '');
+        setKeywords((l.config?.comment_keywords || []).join(', '));
+        setPublicReply(!!l.config?.public_reply);
+        setPublicReplyText(l.config?.public_reply_text || '');
+      }
     } catch (e) { toast(e.message, 'error'); }
   }
   useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
@@ -51,7 +60,13 @@ export default function SocialDmBotPanel({ clientId }) {
   async function saveLive(nextEnabled) {
     setSavingLive(true);
     try {
-      const body = { enabled: nextEnabled ?? live?.config?.enabled ?? false, ig_user_id: igId.trim() || null };
+      const body = {
+        enabled: nextEnabled ?? live?.config?.enabled ?? false,
+        ig_user_id: igId.trim() || null,
+        comment_keywords: keywords.split(/[,\n]/).map(s => s.trim()).filter(Boolean),
+        public_reply: publicReply,
+        public_reply_text: publicReplyText.trim() || null,
+      };
       if (pageToken.trim()) body.page_token = pageToken.trim();
       const config = await api.put(`/social/clients/${clientId}/dm-bot/live`, body);
       setLive(prev => ({ ...(prev || {}), config }));
@@ -173,6 +188,22 @@ export default function SocialDmBotPanel({ clientId }) {
             <label className="field-label">Page access token {live?.config?.has_token && <span className="text-subtle">(set — leave blank to keep)</span>}</label>
             <input className="input" type="password" value={pageToken} onChange={e => setPageToken(e.target.value)} placeholder={live?.config?.has_token ? '••••••••' : 'EAAG…'} />
           </div>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label className="field-label">Comment trigger keywords <span className="text-subtle">(comma-separated — blank = reply to any comment)</span></label>
+          <input className="input" value={keywords} onChange={e => setKeywords(e.target.value)} placeholder="price, link, info" />
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <label className="row" style={{ gap: 8, alignItems: 'center', cursor: 'pointer' }}>
+            <input type="checkbox" checked={publicReply} onChange={e => setPublicReply(e.target.checked)} />
+            <span className="body-sm">Also post a public reply under the comment</span>
+          </label>
+          {publicReply && (
+            <input className="input" style={{ marginTop: 6 }} value={publicReplyText} onChange={e => setPublicReplyText(e.target.value)} placeholder="Just sent you a DM 📩" />
+          )}
+        </div>
+        <div className="body-xs text-subtle" style={{ marginTop: 8 }}>
+          Anyone who DMs “stop” / “unsubscribe” is auto opted-out and never messaged again.
         </div>
         <div className="row" style={{ marginTop: 12, gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn-secondary" onClick={() => saveLive()} disabled={savingLive}>{savingLive ? 'Saving…' : 'Save connection'}</button>

@@ -45,6 +45,15 @@ Replies obey the persona's word limit/tone, stay on-platform, never invent
 facts/prices, and escalate to a human per the AM's rule. Disabled or
 missing-token accounts log a `skipped` event rather than sending.
 
+## Refinements (shipped)
+- **Comment trigger keywords** (`social_dm_bot.comment_keywords`): when set,
+  comment-to-DM only fires on a comment containing one of them (the classic
+  "comment WORD for the link" play); blank = any comment.
+- **Public comment reply** (`public_reply` / `public_reply_text`): optionally
+  post a visible nudge under the comment in addition to the private DM.
+- **Opt-out / suppression** (`social_dm_optouts`): anyone who DMs
+  "stop" / "unsubscribe" / "opt out" is added to a per-client suppression list
+  and never messaged again; the inbound is logged as `opted_out`.
+
 ## Later
-Public comment replies (not just private), per-keyword comment triggers,
-opt-out handling, and a richer inbox view of conversations.
+A richer inbox view of conversations; analytics on reply/conversion rates.
