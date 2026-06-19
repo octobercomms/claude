@@ -24,6 +24,7 @@ define( 'ACLT_BASENAME', plugin_basename( __FILE__ ) );
 define( 'ACLT_TAX', 'ac_supplier' );
 
 require_once ACLT_PATH . 'includes/class-aclt-taxonomy.php';
+require_once ACLT_PATH . 'includes/class-aclt-assign.php';
 require_once ACLT_PATH . 'includes/class-aclt-product.php';
 require_once ACLT_PATH . 'includes/class-aclt-resolver.php';
 require_once ACLT_PATH . 'includes/class-aclt-admin.php';
@@ -60,6 +61,7 @@ add_action( 'plugins_loaded', function () {
 	}
 
 	new ACLT_Taxonomy();
+	new ACLT_Assign();
 	new ACLT_Product();
 	new ACLT_Admin();
 	new ACLT_Display();

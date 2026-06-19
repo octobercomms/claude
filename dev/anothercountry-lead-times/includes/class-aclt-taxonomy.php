@@ -51,6 +51,8 @@ class ACLT_Taxonomy {
 			'show_in_rest'      => true,
 			'query_var'         => false,
 			'rewrite'           => false,
+			// Single-select box on the product editor (one supplier per product).
+			'meta_box_cb'       => [ 'ACLT_Assign', 'meta_box' ],
 		] );
 	}
 

@@ -63,6 +63,52 @@ in-stock lead time, one Hardy supplier with an out-of-stock figure covers it.
 If different Hardy items have genuinely different in-stock lead times, either
 split them into separate suppliers or use a per-product override on those items.
 
+## Assigning products to suppliers
+
+- **One product:** set the supplier in the *Supplier* box on the product editor
+  (a single-select dropdown — one supplier per product).
+- **In bulk:** on the Products list, tick the products, choose **Bulk actions →
+  Edit → Apply**, set **Supplier**, then **Update**. Use the **Filter by
+  supplier** dropdown above the list to pull up a specific set first. The
+  Supplier column shows the assignment, so you can see what's attached.
+
+### One supplier per product (Q2)
+
+Yes — enforced. The product editor uses a single-select box, and bulk edit
+replaces rather than adds, so a product can only ever resolve to one supplier's
+lead time. (Defensively, if multiple were ever set programmatically, the first
+is used.) If a product genuinely spans two workshops, use the per-product
+override for its lead time.
+
+## Existing notice / where lead times come from today (Q3)
+
+**This needs checking on the live site before we finalise — that code isn't in
+this repo.** Another Country almost certainly already shows a lead-time notice
+somewhere, via one of:
+
+- a **theme template** override (e.g. `single-product.php` /
+  `content-single-product.php`, or a block/Gutenberg pattern);
+- an **ACF / custom field** printed by the theme;
+- the product **short description** or an existing **plugin**;
+- hard-coded text.
+
+**Recommendation: investigate first, then switch over — don't stack two systems.**
+Steps:
+
+1. Find the current notice text on a product page and search the active theme +
+   mu-plugins/plugins for it.
+2. Decide the single source of truth (this plugin) and **remove** the old
+   output so notices don't double up.
+3. Wire display: either leave this plugin's automatic single-product display on
+   (toggle on the Lead Times screen) **or**, if the theme controls placement,
+   turn auto-display off and drop `[ac_lead_time]` into the template/block where
+   the old notice was.
+4. Backfill: assign existing products to suppliers (bulk edit) and retire the
+   old field/snippet.
+
+Until that audit is done, keep auto-display **off** on production if an existing
+notice is still live, to avoid showing two.
+
 ## Usage
 
 - Display is automatic on single product pages (toggle on the Lead Times

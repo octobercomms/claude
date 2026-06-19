@@ -18,7 +18,10 @@ product by product is impractical. This plugin gives the team **one place** to
 manage them.
 
 * **Suppliers** — a `Supplier` taxonomy on products (Portugal, Welwyn, Slow &
-  Another Sofa, Hardy, etc.). Attach each product to a supplier once.
+  Another Sofa, Hardy, etc.). Attach each product to **one** supplier.
+* **Bulk assign** — set the supplier for many products at once from the
+  Products → Bulk Edit panel, and filter the Products list by supplier to pull
+  up the set you want. The supplier shows as a column so attachment is visible.
 * **Central Lead Times screen** (WooCommerce → Lead Times) — review and edit
   every supplier's lead time on a single page.
 * **Out-of-stock variation** — an optional longer lead time used automatically
@@ -58,5 +61,6 @@ Filter `aclt_notice_html` to customise the rendered markup:
 == Changelog ==
 
 = 1.0.0 =
-* Initial release: supplier taxonomy, central Lead Times screen, out-of-stock
+* Initial release: supplier taxonomy (one supplier per product), bulk assign +
+  supplier filter on the Products list, central Lead Times screen, out-of-stock
   and seasonal variations, per-product override, auto display + shortcode.
