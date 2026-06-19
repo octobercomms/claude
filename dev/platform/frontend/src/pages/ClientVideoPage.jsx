@@ -174,6 +174,9 @@ export default function ClientVideoPage() {
                       )}
                     </div>
                   )}
+                  {active.status === 'done' && active.output_url && (
+                    <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 4 }}>Files are auto-removed from the server 7 days after finishing.</div>
+                  )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
               </div>

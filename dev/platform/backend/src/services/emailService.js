@@ -645,6 +645,7 @@ async function sendVideoReady({ to, clientName, projectName, score, studioUrl, d
         <a href="${studioUrl}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">Open in Video Studio →</a>
       </p>
       <p style="color:#666;font-size:13px;margin-top:14px;">Or download directly: <a href="${downloadUrl}">${downloadUrl}</a> (you'll need to be signed in).</p>
+      <p style="color:#999;font-size:12px;margin-top:14px;">Heads up: the file is auto-removed from the server after 7 days — download or grab it from your delivery destination before then.</p>
       <p style="color:#aaa;font-size:11px;margin-top:32px;">October Marketing Intelligence — Video Studio</p>
     </div>`;
   return getTransporter().sendMail({
