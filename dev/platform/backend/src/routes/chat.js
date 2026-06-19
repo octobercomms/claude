@@ -784,7 +784,9 @@ router.post('/:clientId', async (req, res) => {
         // high cap only bites when the answer genuinely needs the room; both
         // values sit well within the model's output limit.
         max_tokens: reportRequested ? 32000 : 16000,
-        system: buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix,
+        // Cache the (stable) system prompt so each tool-loop round reuses it at
+        // ~10% input cost instead of re-sending the full analyst context.
+        system: require('../services/claude').cacheableSystem(buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix),
         tools: TOOLS,
         messages,
       });

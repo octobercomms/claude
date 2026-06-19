@@ -42,6 +42,15 @@ function getClient() {
 
 const SYSTEM_PROMPT = `You are a performance marketing analyst writing reports for October Communications, a marketing agency. Write clearly, commercially, without filler or generic language. British English. No hype. Your output will be sent directly to clients.`;
 
+// Mark the system prompt as a cacheable prefix. Anthropic stores it and reuses
+// it at ~10% of the input cost on repeat calls within the cache window. Most
+// OMI features send a large, identical system prompt (brand rules + playbooks),
+// so this cuts API spend with no behaviour change. Prompts under the minimum
+// cacheable length are processed uncached (no error), so it's safe everywhere.
+function cacheableSystem(system) {
+  return [{ type: 'text', text: system || SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }];
+}
+
 // Single-shot text call used by the template renderer for each narrative
 // section. Returns the concatenated text content (no tool use). Keep this
 // generic — section-specific framing lives in templateRenderer.js.
@@ -49,7 +58,7 @@ async function callClaude({ max_tokens, system, user, model = MODEL, feature = '
   const message = await callWithRetry(() => getClient().messages.create({
     model,
     max_tokens,
-    system: system || SYSTEM_PROMPT,
+    system: cacheableSystem(system),
     messages: [{ role: 'user', content: user }],
   }));
   // Record cost — fire-and-forget. The feature label defaults to
@@ -295,7 +304,7 @@ async function generateExecutiveSummary({ clientName, clientBriefing, period, mo
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM_PROMPT,
+    system: cacheableSystem(SYSTEM_PROMPT),
     messages: [{
       role: 'user',
       content: `Client: ${clientName}
@@ -327,7 +336,7 @@ async function generateWeeklySummary({ clientName, clientBriefing, week, monthly
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 512,
-    system: SYSTEM_PROMPT,
+    system: cacheableSystem(SYSTEM_PROMPT),
     messages: [{
       role: 'user',
       content: `Client: ${clientName}
@@ -377,7 +386,7 @@ async function researchBriefing({ clientName, domain, existingBriefing }) {
     model: MODEL,
     max_tokens: 1500,
     tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
-    system: 'You are a research analyst writing specific, factual company profiles for a B2B marketing-intelligence platform. Profiles must always describe what the business does and who it serves — not just list which marketing channels they use, and not just enumerate what they lack. Avoid superlatives ("leading", "innovative", "premier"). British English.',
+    system: cacheableSystem('You are a research analyst writing specific, factual company profiles for a B2B marketing-intelligence platform. Profiles must always describe what the business does and who it serves — not just list which marketing channels they use, and not just enumerate what they lack. Avoid superlatives ("leading", "innovative", "premier"). British English.'),
     messages: [{
       role: 'user',
       content: `Write a one-paragraph briefing about this company. Start from scratch — produce a complete, self-contained paragraph that could stand alone with no other context. Never reply with a one-line addendum, a fragment, or a sentence that only adds something to the existing briefing.
@@ -430,7 +439,7 @@ async function suggestMonthlyFocus({ client, previousFocuses = [], openContextIt
   const message = await getClient().messages.create({
     model: MODEL,
     max_tokens: 600,
-    system: SYSTEM_PROMPT,
+    system: cacheableSystem(SYSTEM_PROMPT),
     messages: [{
       role: 'user',
       content: `Suggest the focus for the next monthly report for this client.
@@ -474,6 +483,7 @@ async function verifyApiKey() {
 }
 
 module.exports = {
+  cacheableSystem,
   generateExecutiveSummary,
   generateWeeklySummary,
   researchBriefing,
