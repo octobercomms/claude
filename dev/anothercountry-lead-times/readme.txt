@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,11 @@ Public API for the theme:
 Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
+
+= 1.1.0 =
+* Added an "All products — quick override" list at the bottom of the Lead Times
+  screen: searchable, paginated, shows each product's supplier + currently-shown
+  lead time, with an inline override field (writes _ac_lead_time).
 
 = 1.0.0 =
 * Initial release: supplier taxonomy (one supplier per product), bulk assign +

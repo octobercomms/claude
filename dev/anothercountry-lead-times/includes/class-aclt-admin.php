@@ -16,6 +16,7 @@ class ACLT_Admin {
 	public function __construct() {
 		add_action( 'admin_menu', [ $this, 'register_menu' ] );
 		add_action( 'admin_post_aclt_save', [ $this, 'handle_save' ] );
+		add_action( 'admin_post_aclt_save_overrides', [ $this, 'handle_save_overrides' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
 	}
 
@@ -171,8 +172,138 @@ class ACLT_Admin {
 
 				<?php submit_button( __( 'Save lead times', 'anothercountry-lead-times' ) ); ?>
 			</form>
+
+			<?php $this->render_product_list(); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * A searchable, paginated list of every product with its resolved lead time
+	 * and a quick per-product override field — a fast way to see and override.
+	 */
+	private function render_product_list(): void {
+		$per_page = 50;
+		$search   = isset( $_GET['aclt_s'] ) ? sanitize_text_field( wp_unslash( $_GET['aclt_s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$paged    = isset( $_GET['aclt_p'] ) ? max( 1, absint( $_GET['aclt_p'] ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+		$args = [
+			'post_type'      => 'product',
+			'post_status'    => 'any',
+			'posts_per_page' => $per_page,
+			'paged'          => $paged,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		];
+		if ( '' !== $search ) {
+			$args['s'] = $search;
+		}
+		$query    = new WP_Query( $args );
+		$base_url = admin_url( 'admin.php?page=' . self::PAGE );
+		?>
+		<hr style="margin:2.5em 0 1.5em" />
+		<h2><?php esc_html_e( 'All products — quick override', 'anothercountry-lead-times' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'See what each product currently shows and override it here. Leave a field blank to inherit from the supplier / global default.', 'anothercountry-lead-times' ); ?></p>
+
+		<form method="get" action="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" style="margin:.75em 0">
+			<input type="hidden" name="page" value="<?php echo esc_attr( self::PAGE ); ?>" />
+			<input type="search" name="aclt_s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Search products…', 'anothercountry-lead-times' ); ?>" />
+			<button class="button"><?php esc_html_e( 'Search', 'anothercountry-lead-times' ); ?></button>
+			<?php if ( '' !== $search ) : ?>
+				<a class="button-link" href="<?php echo esc_url( $base_url ); ?>"><?php esc_html_e( 'Clear', 'anothercountry-lead-times' ); ?></a>
+			<?php endif; ?>
+		</form>
+
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="aclt_save_overrides" />
+			<input type="hidden" name="aclt_return_s" value="<?php echo esc_attr( $search ); ?>" />
+			<input type="hidden" name="aclt_return_p" value="<?php echo esc_attr( $paged ); ?>" />
+			<?php wp_nonce_field( 'aclt_overrides', 'aclt_overrides_nonce' ); ?>
+
+			<table class="widefat striped">
+				<thead>
+					<tr>
+						<th style="width:35%"><?php esc_html_e( 'Product', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Supplier', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Currently showing', 'anothercountry-lead-times' ); ?></th>
+						<th style="width:20%"><?php esc_html_e( 'Override', 'anothercountry-lead-times' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+				<?php if ( ! $query->have_posts() ) : ?>
+					<tr><td colspan="4"><?php esc_html_e( 'No products found.', 'anothercountry-lead-times' ); ?></td></tr>
+				<?php else : foreach ( $query->posts as $post ) :
+					$pid      = $post->ID;
+					$term     = ACLT_Resolver::get_supplier_term( $pid );
+					$resolved = ACLT_Resolver::get_lead_time( $pid );
+					$override = get_post_meta( $pid, '_ac_lead_time', true );
+					?>
+					<tr>
+						<td>
+							<a href="<?php echo esc_url( get_edit_post_link( $pid ) ); ?>"><?php echo esc_html( get_the_title( $pid ) ); ?></a>
+							<?php if ( 'publish' !== $post->post_status ) : ?><em>(<?php echo esc_html( $post->post_status ); ?>)</em><?php endif; ?>
+						</td>
+						<td><?php echo $term ? esc_html( $term->name ) : '<span style="color:#999">—</span>'; ?></td>
+						<td><?php echo esc_html( $resolved ); ?></td>
+						<td><input type="text" name="ov[<?php echo esc_attr( $pid ); ?>]" value="<?php echo esc_attr( $override ); ?>" placeholder="<?php esc_attr_e( 'inherit', 'anothercountry-lead-times' ); ?>" style="width:100%" /></td>
+					</tr>
+				<?php endforeach; endif; ?>
+				</tbody>
+			</table>
+
+			<?php
+			$total_pages = (int) $query->max_num_pages;
+			if ( $total_pages > 1 ) {
+				$page_link = add_query_arg( array_filter( [ 'page' => self::PAGE, 'aclt_s' => $search ] ), admin_url( 'admin.php' ) );
+				echo '<p class="tablenav-pages" style="margin:1em 0">';
+				echo wp_kses_post( paginate_links( [
+					'base'      => add_query_arg( 'aclt_p', '%#%', $page_link ),
+					'format'    => '',
+					'current'   => $paged,
+					'total'     => $total_pages,
+					'prev_text' => '&larr;',
+					'next_text' => '&rarr;',
+				] ) );
+				echo '</p>';
+			}
+			?>
+
+			<?php submit_button( __( 'Save overrides on this page', 'anothercountry-lead-times' ) ); ?>
+			<p class="description"><?php esc_html_e( 'Saves the overrides shown on this page. Move between pages to edit more.', 'anothercountry-lead-times' ); ?></p>
+		</form>
+		<?php
+		wp_reset_postdata();
+	}
+
+	/**
+	 * Persist per-product overrides from the product list.
+	 */
+	public function handle_save_overrides(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'anothercountry-lead-times' ) );
+		}
+		check_admin_referer( 'aclt_overrides', 'aclt_overrides_nonce' );
+
+		$rows = isset( $_POST['ov'] ) && is_array( $_POST['ov'] ) ? wp_unslash( $_POST['ov'] ) : [];
+		foreach ( $rows as $pid => $value ) {
+			$pid = absint( $pid );
+			if ( ! $pid || ! current_user_can( 'edit_post', $pid ) ) {
+				continue;
+			}
+			update_post_meta( $pid, '_ac_lead_time', sanitize_text_field( $value ) );
+		}
+
+		$args = [ 'page' => self::PAGE, 'updated' => 1 ];
+		$s    = isset( $_POST['aclt_return_s'] ) ? sanitize_text_field( wp_unslash( $_POST['aclt_return_s'] ) ) : '';
+		$p    = isset( $_POST['aclt_return_p'] ) ? absint( $_POST['aclt_return_p'] ) : 1;
+		if ( '' !== $s ) {
+			$args['aclt_s'] = $s;
+		}
+		if ( $p > 1 ) {
+			$args['aclt_p'] = $p;
+		}
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	/**
