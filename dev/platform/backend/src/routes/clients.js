@@ -244,6 +244,19 @@ router.patch('/:id/social-autopilot-paused', async (req, res) => {
   }
 });
 
+// Video Studio delivery: the client's Google Drive folder for finished masters.
+router.put('/:id/video-delivery', async (req, res) => {
+  const folder = req.body?.video_drive_folder;
+  try {
+    const { rows } = await pool.query(
+      'UPDATE clients SET video_drive_folder = $1 WHERE id = $2 RETURNING id, video_drive_folder',
+      [folder ? String(folder).trim() : null, req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Client not found' });
+    res.json(rows[0]);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.patch('/:id/ads-margin', async (req, res) => {
   const { ads_margin } = req.body;
   if (ads_margin == null) return res.status(400).json({ error: 'ads_margin is required' });

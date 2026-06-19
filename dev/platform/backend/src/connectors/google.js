@@ -50,10 +50,11 @@ const SCOPES = [
   'https://www.googleapis.com/auth/adwords',
   'https://www.googleapis.com/auth/content',
   'https://www.googleapis.com/auth/userinfo.email',
-  // Social autopilot — read media files from the user's nominated
-  // Drive folder once they've finished shooting. drive.readonly is
-  // the right level: we never write to Drive.
+  // Social autopilot reads media from the user's nominated Drive folder
+  // (drive.readonly); Video Studio delivery writes finished masters back to a
+  // Drive folder (drive.file — write access only to files the app creates).
   'https://www.googleapis.com/auth/drive.readonly',
+  'https://www.googleapis.com/auth/drive.file',
 ].join(' ');
 
 function getAuthUrl(state) {

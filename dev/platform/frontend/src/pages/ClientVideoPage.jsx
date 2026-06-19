@@ -28,16 +28,26 @@ export default function ClientVideoPage() {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [preset, setPreset] = useState('auto');
+  const [outputTarget, setOutputTarget] = useState('download');
+  const [driveFolder, setDriveFolder] = useState('');
+  const [savingFolder, setSavingFolder] = useState(false);
   const [creating, setCreating] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
   useEffect(() => {
     api.get(`/video/clients/${id}/projects`)
-      .then(r => setProjects(r.projects || []))
+      .then(r => { setProjects(r.projects || []); setDriveFolder(r.drive_folder || ''); })
       .catch(e => toast(e.message, 'error'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  async function saveDriveFolder() {
+    setSavingFolder(true);
+    try { await api.put(`/clients/${id}/video-delivery`, { video_drive_folder: driveFolder.trim() || null }); toast('Drive folder saved.', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setSavingFolder(false); }
+  }
 
   async function openProject(pid) {
     try { setActive(await api.get(`/video/projects/${pid}`)); }
@@ -56,7 +66,7 @@ export default function ClientVideoPage() {
     if (!name.trim()) return;
     setCreating(true);
     try {
-      const p = await api.post(`/video/clients/${id}/projects`, { name: name.trim(), style_preset: preset });
+      const p = await api.post(`/video/clients/${id}/projects`, { name: name.trim(), style_preset: preset, output_target: outputTarget });
       setProjects(prev => [{ ...p, clip_count: 0 }, ...prev]);
       setName('');
       openProject(p.id);
@@ -113,13 +123,25 @@ export default function ClientVideoPage() {
           <form onSubmit={createProject} className="card" style={{ marginBottom: 14 }}>
             <div className="caption mb-2">New edit</div>
             <input className="input" placeholder="Project name" value={name} onChange={e => setName(e.target.value)} style={{ marginBottom: 8 }} />
-            <select className="input" value={preset} onChange={e => setPreset(e.target.value)} style={{ marginBottom: 10 }}>
+            <select className="input" value={preset} onChange={e => setPreset(e.target.value)} style={{ marginBottom: 8 }}>
               {STYLE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+            </select>
+            <select className="input" value={outputTarget} onChange={e => setOutputTarget(e.target.value)} style={{ marginBottom: 10 }}>
+              <option value="download">Deliver: download / email</option>
+              <option value="drive">Deliver: Google Drive folder</option>
             </select>
             <button className="btn btn-primary" disabled={creating || !name.trim()} style={{ width: '100%' }}>
               {creating ? 'Creating…' : '+ Create'}
             </button>
           </form>
+
+          {/* Per-client Drive delivery folder. */}
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="caption mb-2">Google Drive delivery folder</div>
+            <input className="input" placeholder="https://drive.google.com/drive/folders/…" value={driveFolder} onChange={e => setDriveFolder(e.target.value)} style={{ marginBottom: 8 }} />
+            <button className="btn btn-secondary btn-sm" onClick={saveDriveFolder} disabled={savingFolder}>{savingFolder ? 'Saving…' : 'Save folder'}</button>
+            <div style={{ fontSize: 11, color: 'var(--text-subtle)', marginTop: 6 }}>Masters from “Deliver: Drive” projects land here. Needs an active Google connector with Drive access.</div>
+          </div>
           <div className="h3" style={{ marginBottom: 8 }}>Projects</div>
           {!projects.length && <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>No projects yet.</div>}
           {projects.map(p => (
@@ -144,7 +166,12 @@ export default function ClientVideoPage() {
                   <div className="h2">{active.name}</div>
                   <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}{active.score != null ? ` · QA score ${active.score}/100` : ''}</div>
                   {active.status === 'done' && active.output_url && (
-                    <a className="btn btn-primary btn-sm" style={{ marginTop: 8 }} href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                      <a className="btn btn-primary btn-sm" href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
+                      {active.delivered_url && (
+                        <a className="btn btn-secondary btn-sm" href={active.delivered_url} target="_blank" rel="noreferrer">📁 Open in Drive</a>
+                      )}
+                    </div>
                   )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>

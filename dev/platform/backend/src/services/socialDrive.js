@@ -9,6 +9,7 @@
 // will need to re-authorise; the diagnose panel surfaces the missing
 // scope.
 
+const fs = require('fs');
 const axios = require('axios');
 const pool = require('../db');
 const { decrypt } = require('../utils/encryption');
@@ -102,4 +103,29 @@ async function downloadFile(clientId, fileId) {
   return res;
 }
 
-module.exports = { parseFolderId, parseFileId, listFolder, downloadFile };
+// Upload a local file into a Drive folder (resumable: init → PUT the bytes).
+// Used by Video Studio delivery. Needs the drive.file scope — tokens that
+// predate it must re-authorise. Returns { id, webViewLink }.
+async function uploadFile(clientId, { name, mimeType = 'video/mp4', filePath, folderInput }) {
+  const folderId = parseFolderId(folderInput);
+  if (!folderId) throw new Error('Invalid Drive folder — paste the full folder URL from Drive.');
+  if (!fs.existsSync(filePath)) throw new Error('File to upload not found on disk.');
+  const creds = await getGoogleCreds(clientId);
+
+  const init = await axios.post(
+    'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id,webViewLink',
+    { name, parents: [folderId] },
+    { headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' } }
+  );
+  const uploadUrl = init.headers.location;
+  if (!uploadUrl) throw new Error('Drive did not return an upload URL.');
+
+  const size = fs.statSync(filePath).size;
+  const { data } = await axios.put(uploadUrl, fs.createReadStream(filePath), {
+    headers: { 'Content-Type': mimeType, 'Content-Length': size },
+    maxBodyLength: Infinity, maxContentLength: Infinity,
+  });
+  return { id: data?.id || null, webViewLink: data?.webViewLink || null };
+}
+
+module.exports = { parseFolderId, parseFileId, listFolder, downloadFile, uploadFile };

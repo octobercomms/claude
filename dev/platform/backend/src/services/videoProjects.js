@@ -112,7 +112,35 @@ async function completeJob(jobId) {
     await pool.query(`UPDATE video_projects SET status = 'processing', updated_at = NOW() WHERE id = $1`, [project_id]);
   } else {
     await pool.query(`UPDATE video_projects SET status = 'done', updated_at = NOW() WHERE id = $1`, [project_id]);
-    notifyVideoReady(project_id).catch(err => console.error('[video] ready-notify failed:', err.message));
+    // Deliver per output_target (e.g. push to Drive) before notifying.
+    deliverVideo(project_id)
+      .catch(err => console.error('[video] delivery failed:', err.message))
+      .finally(() => notifyVideoReady(project_id).catch(err => console.error('[video] ready-notify failed:', err.message)));
+  }
+}
+
+// Deliver the finished master per the project's output_target. Today: 'drive'
+// uploads to the client's configured Drive folder. Other targets are no-ops
+// (the master is always available via the in-app download + the email).
+async function deliverVideo(projectId) {
+  const { rows } = await pool.query(
+    `SELECT p.name, p.output_target, c.id AS client_id, c.video_drive_folder
+       FROM video_projects p JOIN clients c ON c.id = p.client_id WHERE p.id = $1`,
+    [projectId]
+  );
+  if (!rows.length) return;
+  const p = rows[0];
+  if (p.output_target !== 'drive' || !p.video_drive_folder) return;
+
+  const path = require('path');
+  const masterPath = path.join(__dirname, '../../video-outputs', `${projectId}-master.mp4`);
+  const socialDrive = require('./socialDrive');
+  const safe = String(p.name || 'video').replace(/[^\w.\- ]+/g, '').slice(0, 80);
+  const { webViewLink } = await socialDrive.uploadFile(p.client_id, {
+    name: `${safe}.mp4`, mimeType: 'video/mp4', filePath: masterPath, folderInput: p.video_drive_folder,
+  });
+  if (webViewLink) {
+    await pool.query(`UPDATE video_projects SET delivered_url = $2, updated_at = NOW() WHERE id = $1`, [projectId, webViewLink]);
   }
 }
 
@@ -120,7 +148,7 @@ async function completeJob(jobId) {
 // Recipients = the client's report recipients ∪ ALERT_EMAIL. Fire-and-forget.
 async function notifyVideoReady(projectId) {
   const { rows } = await pool.query(
-    `SELECT p.name, p.score, p.output_url, c.id AS client_id, c.name AS client_name, c.report_recipients
+    `SELECT p.name, p.score, p.output_url, p.delivered_url, c.id AS client_id, c.name AS client_name, c.report_recipients
        FROM video_projects p JOIN clients c ON c.id = p.client_id WHERE p.id = $1`,
     [projectId]
   );
@@ -136,6 +164,7 @@ async function notifyVideoReady(projectId) {
     to: [...recips], clientName: p.client_name, projectName: p.name, score: p.score,
     studioUrl: `${platformUrl}/clients/${p.client_id}/video`,
     downloadUrl: `${platformUrl}${p.output_url}`,
+    driveUrl: p.delivered_url || null,
   });
 }
 

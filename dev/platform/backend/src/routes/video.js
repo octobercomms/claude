@@ -44,8 +44,13 @@ async function projectAccess(req, res, next) {
 
 // ── Client-scoped ────────────────────────────────────────────────────────────
 router.get('/clients/:clientId/projects', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
-  try { res.json({ projects: await videoProjects.listProjects(req.params.clientId) }); }
-  catch (err) { res.status(500).json({ error: err.message }); }
+  try {
+    const [projects, { rows }] = await Promise.all([
+      videoProjects.listProjects(req.params.clientId),
+      pool.query('SELECT video_drive_folder FROM clients WHERE id = $1', [req.params.clientId]),
+    ]);
+    res.json({ projects, drive_folder: rows[0]?.video_drive_folder || '' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/clients/:clientId/projects', requireClientAccess({ paramNames: ['clientId'] }), async (req, res) => {
