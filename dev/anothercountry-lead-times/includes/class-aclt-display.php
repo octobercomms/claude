@@ -25,12 +25,18 @@ class ACLT_Display {
 
 	/**
 	 * Build the notice markup for a product, or '' if there is nothing to show.
+	 * (Optional standalone notice — the theme drives the main product page; this
+	 * is for the shortcode or any spot the team wants a self-contained block.)
 	 */
 	public function notice_html( int $product_id ): string {
-		$text = ACLT_Resolver::resolve_text( $product_id );
-		if ( $text === '' ) {
+		$lead = ACLT_Resolver::get_lead_time( $product_id );
+		if ( $lead === '' ) {
 			return '';
 		}
+
+		$note   = ACLT_Resolver::get_lead_time_note( $product_id );
+		$season = ACLT_Resolver::get_seasonal_note( $product_id );
+		$text   = trim( $lead . ( $note !== '' ? ' ' . $note : '' ) );
 
 		$settings = aclt_get_settings();
 		$prefix   = trim( (string) ( $settings['prefix'] ?? '' ) );
@@ -42,6 +48,9 @@ class ACLT_Display {
 			$html .= '<span class="aclt-label">' . esc_html( $prefix ) . '</span> ';
 		}
 		$html .= '<span class="aclt-value">' . esc_html( $text ) . '</span>';
+		if ( $season !== '' ) {
+			$html .= '<span class="aclt-season"><em>' . esc_html( $season ) . '</em></span>';
+		}
 		$html .= '</div>';
 
 		/**

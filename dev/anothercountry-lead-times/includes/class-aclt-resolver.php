@@ -1,75 +1,97 @@
 <?php
 /**
- * Resolves the effective lead-time notice for a given product.
+ * Resolves lead-time wording for a product from three layers, in order:
  *
- * Resolution order:
- *   1. Per-product override (the escape hatch for genuine one-offs).
- *   2. Supplier seasonal text, if a seasonal window is active today.
- *   3. Supplier out-of-stock text, if the product is not in stock.
- *   4. Supplier base text.
- * An optional supplier note is appended in cases 2&ndash;4.
+ *   1. Per-product override  — the existing `_ac_lead_time` field (already
+ *      populated on hundreds of products). Untouched, so those keep showing
+ *      exactly what they show today.
+ *   2. Per-supplier          — base / out-of-stock figures + note from the
+ *      assigned supplier term (the central screen), once configured.
+ *   3. Global default        — a single fallback figure, seeded to match the
+ *      site's current behaviour.
+ *
+ * The seasonal note is resolved independently (it's a workshop-closure caveat
+ * that applies regardless of which figure layer wins): supplier seasonal note
+ * when a supplier is configured, otherwise the global default note.
  */
 
 defined( 'ABSPATH' ) || exit;
 
 class ACLT_Resolver {
 
-	/**
-	 * Compute the lead-time string for a product (no markup, no prefix).
-	 * Returns '' when nothing should be shown.
-	 */
-	public static function resolve_text( int $product_id ): string {
-		// 1. Per-product override wins outright.
-		if ( get_post_meta( $product_id, '_aclt_override_enabled', true ) ) {
-			$override = trim( (string) get_post_meta( $product_id, '_aclt_override_text', true ) );
-			if ( $override !== '' ) {
-				return $override;
+	/** The lead-time figure, e.g. "8-10 weeks". Never empty (global default). */
+	public static function get_lead_time( int $product_id ): string {
+		// 1. Per-product override.
+		$override = trim( (string) get_post_meta( $product_id, '_ac_lead_time', true ) );
+		if ( '' !== $override ) {
+			return $override;
+		}
+
+		// 2. Supplier.
+		$term = self::get_supplier_term( $product_id );
+		if ( $term ) {
+			$d = ACLT_Taxonomy::get_data( $term->term_id );
+			if ( ! empty( $d['enabled'] ) ) {
+				if ( '' !== $d['oos'] && self::is_out_of_stock( $product_id ) ) {
+					return $d['oos'];
+				}
+				if ( '' !== $d['base'] ) {
+					return $d['base'];
+				}
 			}
 		}
 
-		$term = self::get_supplier_term( $product_id );
-		if ( ! $term ) {
-			$settings = aclt_get_settings();
-			return (string) ( $settings['fallback'] ?? '' );
-		}
-
-		$d = ACLT_Taxonomy::get_data( $term->term_id );
-		if ( empty( $d['enabled'] ) ) {
-			return '';
-		}
-
-		$text = '';
-
-		// 2. Seasonal window active.
-		if ( ! empty( $d['season_enabled'] ) && $d['season_text'] !== ''
-			&& self::in_season( $d['season_start'], $d['season_end'] ) ) {
-			$text = $d['season_text'];
-		}
-
-		// 3. Out of stock.
-		if ( $text === '' && $d['oos'] !== '' && self::is_out_of_stock( $product_id ) ) {
-			$text = $d['oos'];
-		}
-
-		// 4. Base.
-		if ( $text === '' ) {
-			$text = $d['base'];
-		}
-
-		if ( $text === '' ) {
-			return '';
-		}
-
-		if ( ! empty( $d['note'] ) ) {
-			$text .= ' ' . $d['note'];
-		}
-
-		return $text;
+		// 3. Global default.
+		$s = aclt_get_settings();
+		return (string) $s['default_lead'];
 	}
 
 	/**
-	 * Return the first supplier term assigned to a product, or null.
+	 * Supplier note (e.g. "from receipt of fabric at the warehouse"), or ''.
+	 * Only applies when the supplier layer supplies the figure — an explicit
+	 * per-product override is treated as a complete statement.
 	 */
+	public static function get_lead_time_note( int $product_id ): string {
+		if ( '' !== trim( (string) get_post_meta( $product_id, '_ac_lead_time', true ) ) ) {
+			return '';
+		}
+		$term = self::get_supplier_term( $product_id );
+		if ( $term ) {
+			$d = ACLT_Taxonomy::get_data( $term->term_id );
+			if ( ! empty( $d['enabled'] ) ) {
+				return (string) $d['note'];
+			}
+		}
+		return '';
+	}
+
+	/**
+	 * The seasonal note active today for a product, or ''.
+	 * Supplier-configured products use the supplier's own seasonal setting;
+	 * everything else falls back to the global default (preserving today's
+	 * behaviour until suppliers are filled in).
+	 */
+	public static function get_seasonal_note( int $product_id ): string {
+		$term = self::get_supplier_term( $product_id );
+		if ( $term ) {
+			$d = ACLT_Taxonomy::get_data( $term->term_id );
+			if ( ! empty( $d['enabled'] ) ) {
+				if ( empty( $d['season_enabled'] ) ) {
+					return ''; // Supplier configured, no seasonal closure.
+				}
+				return self::in_season( $d['season_start'], $d['season_end'] ) ? (string) $d['season_note'] : '';
+			}
+		}
+
+		$s = aclt_get_settings();
+		if ( ! empty( $s['default_season_enabled'] )
+			&& self::in_season( $s['default_season_start'], $s['default_season_end'] ) ) {
+			return (string) $s['default_season_note'];
+		}
+		return '';
+	}
+
+	/** Return the first supplier term assigned to a product, or null. */
 	public static function get_supplier_term( int $product_id ): ?WP_Term {
 		$terms = get_the_terms( $product_id, ACLT_TAX );
 		if ( is_wp_error( $terms ) || empty( $terms ) ) {
@@ -78,18 +100,13 @@ class ACLT_Resolver {
 		return $terms[0];
 	}
 
-	/**
-	 * Whether a product (or its variations) is out of stock / on backorder.
-	 */
+	/** Whether a product is out of stock / on backorder. */
 	public static function is_out_of_stock( int $product_id ): bool {
 		if ( ! function_exists( 'wc_get_product' ) ) {
 			return false;
 		}
 		$product = wc_get_product( $product_id );
-		if ( ! $product ) {
-			return false;
-		}
-		return ! $product->is_in_stock();
+		return $product ? ! $product->is_in_stock() : false;
 	}
 
 	/**
@@ -99,24 +116,19 @@ class ACLT_Resolver {
 	public static function in_season( string $start, string $end ): bool {
 		$start = self::sanitize_md( $start );
 		$end   = self::sanitize_md( $end );
-		if ( $start === '' || $end === '' ) {
+		if ( '' === $start || '' === $end ) {
 			return false;
 		}
-
-		$today = (int) current_time( 'md' ); // e.g. 0719 → 719
+		$today = (int) current_time( 'md' );
 		$s     = (int) str_replace( '-', '', $start );
 		$e     = (int) str_replace( '-', '', $end );
-
 		if ( $s <= $e ) {
 			return $today >= $s && $today <= $e;
 		}
-		// Wrapping window: active if after start OR before end.
 		return $today >= $s || $today <= $e;
 	}
 
-	/**
-	 * Normalise a MM-DD string. Returns '' if invalid.
-	 */
+	/** Normalise a MM-DD string. Returns '' if invalid. */
 	public static function sanitize_md( string $value ): string {
 		$value = trim( $value );
 		if ( ! preg_match( '/^(\d{1,2})-(\d{1,2})$/', $value, $m ) ) {

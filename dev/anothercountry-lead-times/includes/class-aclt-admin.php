@@ -105,7 +105,7 @@ class ACLT_Admin {
 									<label class="aclt-season-toggle"><input type="checkbox" name="<?php echo esc_attr( $base ); ?>[season_enabled]" value="1" <?php checked( $d['season_enabled'], 1 ); ?> /> <?php esc_html_e( 'On', 'anothercountry-lead-times' ); ?></label>
 									<input type="text" size="6" name="<?php echo esc_attr( $base ); ?>[season_start]" value="<?php echo esc_attr( $d['season_start'] ); ?>" placeholder="07-01" />
 									<input type="text" size="6" name="<?php echo esc_attr( $base ); ?>[season_end]" value="<?php echo esc_attr( $d['season_end'] ); ?>" placeholder="09-30" />
-									<input type="text" name="<?php echo esc_attr( $base ); ?>[season_text]" value="<?php echo esc_attr( $d['season_text'] ); ?>" placeholder="12–16 weeks (summer)" />
+									<input type="text" name="<?php echo esc_attr( $base ); ?>[season_note]" value="<?php echo esc_attr( $d['season_note'] ); ?>" placeholder="Allow an extra 3–4 weeks…" />
 									<?php if ( $active ) : ?><span class="aclt-badge"><?php esc_html_e( 'Active now', 'anothercountry-lead-times' ); ?></span><?php endif; ?>
 								</td>
 							</tr>
@@ -114,24 +114,58 @@ class ACLT_Admin {
 					</table>
 				<?php endif; ?>
 
-				<h2><?php esc_html_e( 'Display settings', 'anothercountry-lead-times' ); ?></h2>
+				<h2><?php esc_html_e( 'Global defaults', 'anothercountry-lead-times' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'The bottom-layer fallback, used when a product has no per-product lead time and no configured supplier. Seeded to match the current site wording so nothing changes until suppliers are filled in.', 'anothercountry-lead-times' ); ?></p>
 				<table class="form-table" role="presentation">
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Show on product pages', 'anothercountry-lead-times' ); ?></th>
+						<th scope="row"><label for="aclt_default_lead"><?php esc_html_e( 'Default lead time', 'anothercountry-lead-times' ); ?></label></th>
+						<td><input type="text" id="aclt_default_lead" class="regular-text" name="settings[default_lead]" value="<?php echo esc_attr( $settings['default_lead'] ); ?>" placeholder="8-10 weeks" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Default seasonal note', 'anothercountry-lead-times' ); ?></th>
+						<td>
+							<label><input type="checkbox" name="settings[default_season_enabled]" value="1" <?php checked( $settings['default_season_enabled'], 1 ); ?> /> <?php esc_html_e( 'Active', 'anothercountry-lead-times' ); ?></label>
+							&nbsp; <?php esc_html_e( 'From', 'anothercountry-lead-times' ); ?>
+							<input type="text" size="6" name="settings[default_season_start]" value="<?php echo esc_attr( $settings['default_season_start'] ); ?>" placeholder="07-01" />
+							<?php esc_html_e( 'to', 'anothercountry-lead-times' ); ?>
+							<input type="text" size="6" name="settings[default_season_end]" value="<?php echo esc_attr( $settings['default_season_end'] ); ?>" placeholder="09-30" />
+							<br />
+							<input type="text" class="large-text" name="settings[default_season_note]" value="<?php echo esc_attr( $settings['default_season_note'] ); ?>" placeholder="Allow up to 15 weeks for orders placed July to September." />
+						</td>
+					</tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Stock label', 'anothercountry-lead-times' ); ?></h2>
+				<p class="description"><?php esc_html_e( 'Relabels WooCommerce stock statuses near the price (replaces the Woo Custom Stock Status plugin, which can then be deactivated).', 'anothercountry-lead-times' ); ?></p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Relabel stock statuses', 'anothercountry-lead-times' ); ?></th>
+						<td><label><input type="checkbox" name="settings[relabel_stock]" value="1" <?php checked( $settings['relabel_stock'], 1 ); ?> /> <?php esc_html_e( 'Enabled', 'anothercountry-lead-times' ); ?></label></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="aclt_label_backorder"><?php esc_html_e( '“On backorder” label', 'anothercountry-lead-times' ); ?></label></th>
+						<td><input type="text" id="aclt_label_backorder" name="settings[label_backorder]" value="<?php echo esc_attr( $settings['label_backorder'] ); ?>" placeholder="Made to Order" />
+							&nbsp;<input type="text" size="9" name="settings[label_color]" value="<?php echo esc_attr( $settings['label_color'] ); ?>" placeholder="#77a464" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="aclt_label_outofstock"><?php esc_html_e( '“Out of stock” label', 'anothercountry-lead-times' ); ?></label></th>
+						<td><input type="text" id="aclt_label_outofstock" name="settings[label_outofstock]" value="<?php echo esc_attr( $settings['label_outofstock'] ); ?>" placeholder="Out of Stock" />
+							&nbsp;<input type="text" size="9" name="settings[label_color_oos]" value="<?php echo esc_attr( $settings['label_color_oos'] ); ?>" placeholder="#ff0000" /></td>
+					</tr>
+				</table>
+
+				<h2><?php esc_html_e( 'Standalone notice (optional)', 'anothercountry-lead-times' ); ?></h2>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Auto-display', 'anothercountry-lead-times' ); ?></th>
 						<td><label><input type="checkbox" name="settings[auto_display]" value="1" <?php checked( $settings['auto_display'], 1 ); ?> />
-							<?php esc_html_e( 'Automatically display the lead-time notice on single product pages.', 'anothercountry-lead-times' ); ?></label>
-							<p class="description"><?php echo wp_kses_post( __( 'You can also place it anywhere with the <code>[ac_lead_time]</code> shortcode.', 'anothercountry-lead-times' ) ); ?></p>
+							<?php esc_html_e( 'Show the plugin\'s own notice on single product pages.', 'anothercountry-lead-times' ); ?></label>
+							<p class="description"><?php echo wp_kses_post( __( 'Leave off when the theme renders the lead time (the normal setup). The <code>[ac_lead_time]</code> shortcode works regardless.', 'anothercountry-lead-times' ) ); ?></p>
 						</td>
 					</tr>
 					<tr>
 						<th scope="row"><label for="aclt_prefix"><?php esc_html_e( 'Notice label', 'anothercountry-lead-times' ); ?></label></th>
 						<td><input type="text" id="aclt_prefix" class="regular-text" name="settings[prefix]" value="<?php echo esc_attr( $settings['prefix'] ); ?>" /></td>
-					</tr>
-					<tr>
-						<th scope="row"><label for="aclt_fallback"><?php esc_html_e( 'Fallback (no supplier)', 'anothercountry-lead-times' ); ?></label></th>
-						<td><input type="text" id="aclt_fallback" class="regular-text" name="settings[fallback]" value="<?php echo esc_attr( $settings['fallback'] ); ?>" placeholder="<?php esc_attr_e( '(leave blank to show nothing)', 'anothercountry-lead-times' ); ?>" />
-							<p class="description"><?php esc_html_e( 'Shown on products that have no supplier assigned.', 'anothercountry-lead-times' ); ?></p>
-						</td>
 					</tr>
 				</table>
 
@@ -163,14 +197,24 @@ class ACLT_Admin {
 			update_term_meta( $term_id, 'aclt_season_enabled', empty( $row['season_enabled'] ) ? 0 : 1 );
 			update_term_meta( $term_id, 'aclt_season_start', ACLT_Resolver::sanitize_md( $row['season_start'] ?? '' ) );
 			update_term_meta( $term_id, 'aclt_season_end', ACLT_Resolver::sanitize_md( $row['season_end'] ?? '' ) );
-			update_term_meta( $term_id, 'aclt_season_text', sanitize_text_field( $row['season_text'] ?? '' ) );
+			update_term_meta( $term_id, 'aclt_season_note', sanitize_text_field( $row['season_note'] ?? '' ) );
 		}
 
-		$in = isset( $_POST['settings'] ) && is_array( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : [];
+		$in       = isset( $_POST['settings'] ) && is_array( $_POST['settings'] ) ? wp_unslash( $_POST['settings'] ) : [];
+		$defaults = aclt_default_settings();
 		update_option( 'aclt_settings', [
-			'auto_display' => empty( $in['auto_display'] ) ? 0 : 1,
-			'prefix'       => sanitize_text_field( $in['prefix'] ?? '' ),
-			'fallback'     => sanitize_text_field( $in['fallback'] ?? '' ),
+			'auto_display'           => empty( $in['auto_display'] ) ? 0 : 1,
+			'prefix'                 => sanitize_text_field( $in['prefix'] ?? '' ),
+			'default_lead'           => sanitize_text_field( $in['default_lead'] ?? '' ) ?: $defaults['default_lead'],
+			'default_season_enabled' => empty( $in['default_season_enabled'] ) ? 0 : 1,
+			'default_season_start'   => ACLT_Resolver::sanitize_md( $in['default_season_start'] ?? '' ),
+			'default_season_end'     => ACLT_Resolver::sanitize_md( $in['default_season_end'] ?? '' ),
+			'default_season_note'    => sanitize_text_field( $in['default_season_note'] ?? '' ),
+			'relabel_stock'          => empty( $in['relabel_stock'] ) ? 0 : 1,
+			'label_backorder'        => sanitize_text_field( $in['label_backorder'] ?? '' ),
+			'label_outofstock'       => sanitize_text_field( $in['label_outofstock'] ?? '' ),
+			'label_color'            => sanitize_hex_color( $in['label_color'] ?? '' ) ?: $defaults['label_color'],
+			'label_color_oos'        => sanitize_hex_color( $in['label_color_oos'] ?? '' ) ?: $defaults['label_color_oos'],
 		] );
 
 		wp_safe_redirect( add_query_arg( [ 'page' => self::PAGE, 'updated' => 1 ], admin_url( 'admin.php' ) ) );

@@ -68,7 +68,7 @@ class ACLT_Taxonomy {
 			'season_enabled',
 			'season_start',
 			'season_end',
-			'season_text',
+			'season_note',
 		];
 	}
 
@@ -153,10 +153,10 @@ class ACLT_Taxonomy {
 			</td>
 		</tr>
 		<tr class="form-field">
-			<th scope="row"><label for="aclt_season_text"><?php esc_html_e( 'Seasonal lead time text', 'anothercountry-lead-times' ); ?></label></th>
+			<th scope="row"><label for="aclt_season_note"><?php esc_html_e( 'Seasonal note', 'anothercountry-lead-times' ); ?></label></th>
 			<td>
-				<input type="text" name="aclt_season_text" id="aclt_season_text" value="<?php echo esc_attr( $d['season_text'] ); ?>" placeholder="e.g. 12&ndash;16 weeks (summer shutdown)" />
-				<p class="description"><?php esc_html_e( 'Replaces the base lead time while the seasonal window is active.', 'anothercountry-lead-times' ); ?></p>
+				<input type="text" name="aclt_season_note" id="aclt_season_note" value="<?php echo esc_attr( $d['season_note'] ); ?>" placeholder="e.g. Allow an extra 3&ndash;4 weeks for summer shutdown" />
+				<p class="description"><?php esc_html_e( 'Shown below the lead time while the seasonal window is active.', 'anothercountry-lead-times' ); ?></p>
 			</td>
 		</tr>
 		<?php
@@ -183,8 +183,8 @@ class ACLT_Taxonomy {
 		if ( isset( $_POST['aclt_note'] ) ) {
 			update_term_meta( $term_id, 'aclt_note', sanitize_text_field( wp_unslash( $_POST['aclt_note'] ) ) );
 		}
-		if ( isset( $_POST['aclt_season_text'] ) ) {
-			update_term_meta( $term_id, 'aclt_season_text', sanitize_text_field( wp_unslash( $_POST['aclt_season_text'] ) ) );
+		if ( isset( $_POST['aclt_season_note'] ) ) {
+			update_term_meta( $term_id, 'aclt_season_note', sanitize_text_field( wp_unslash( $_POST['aclt_season_note'] ) ) );
 		}
 		if ( isset( $_POST['aclt_season_start'] ) ) {
 			update_term_meta( $term_id, 'aclt_season_start', ACLT_Resolver::sanitize_md( wp_unslash( $_POST['aclt_season_start'] ) ) );

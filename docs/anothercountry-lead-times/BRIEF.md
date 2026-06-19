@@ -1,5 +1,14 @@
 # Another Country — Lead Times
 
+> **Update:** after reviewing the live site we found three overlapping
+> lead-time systems (Woo Custom Stock Status badge + ACF tooltip + hardcoded
+> trust chips, with contradictory numbers). The plugin is now the single source
+> of truth, with a three-layer resolver (per-product `_ac_lead_time` → supplier
+> → seeded global default) so nothing changes until suppliers are filled in. The
+> approved stock badge stays; the bad tooltip and duplicated text are removed;
+> the Woo Custom Stock Status plugin is absorbed. See **DEPLOYMENT.md** and
+> **theme-patches/** for the rollout and the exact theme edits.
+
 ## The problem
 
 Lead time notices on the Another Country site change frequently and can't be

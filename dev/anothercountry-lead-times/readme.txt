@@ -30,22 +30,30 @@ manage them.
 * **Seasonal windows** — set a recurring date range (e.g. 01 Jul–30 Sep) with an
   extended lead time that switches on and off automatically each year. No script
   to remember to run.
-* **Per-product override** — for genuine one-offs, override the supplier lead
-  time on the product's Lead Time tab.
-* **Display** — shows automatically on single product pages, or place it
-  anywhere with `[ac_lead_time]`.
+* **Per-product override** — the existing `_ac_lead_time` field on the product
+  General tab is the per-product override (existing data preserved). Blank =
+  inherit from supplier / global default.
+* **Global defaults** — a single fallback lead time + seasonal note, seeded to
+  match the site's current wording, so nothing changes until suppliers are set.
+* **Stock label** — relabels WooCommerce stock statuses near the price
+  (backorder → "Made to Order") with colour, replacing the Woo Custom Stock
+  Status plugin so it can be deactivated.
+* **Display** — the theme reads the figures via the public API
+  (`aclt_get_lead_time()`, `aclt_get_lead_time_note()`, `aclt_get_seasonal_note()`).
+  An optional standalone notice and `[ac_lead_time]` shortcode are also provided.
 
 == How it resolves the lead time ==
 
-For each product, in order:
+Figure, in order:
 
-1. Per-product override (if set).
-2. Supplier seasonal text (if a seasonal window is active today).
-3. Supplier out-of-stock text (if the product is out of stock).
-4. Supplier base text.
+1. Per-product override — `_ac_lead_time` (if set).
+2. Supplier out-of-stock figure (if out of stock) or supplier base figure.
+3. Global default figure.
 
-An optional supplier note (e.g. "from receipt of fabric at the warehouse") is
-appended.
+A supplier note (e.g. "from receipt of fabric at the warehouse") is exposed
+separately. The seasonal note is resolved independently: the supplier's seasonal
+note when configured, otherwise the global default note while its window is
+active.
 
 == Shortcode ==
 
@@ -54,13 +62,18 @@ appended.
 
 == Developer ==
 
-Filter `aclt_notice_html` to customise the rendered markup:
+Public API for the theme:
 
-`add_filter( 'aclt_notice_html', function ( $html, $product_id, $text ) { return $html; }, 10, 3 );`
+`aclt_get_lead_time( $product_id )` — lead-time figure.
+`aclt_get_lead_time_note( $product_id )` — supplier note or ''.
+`aclt_get_seasonal_note( $product_id )` — active seasonal note or ''.
+
+Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
 
 = 1.0.0 =
 * Initial release: supplier taxonomy (one supplier per product), bulk assign +
-  supplier filter on the Products list, central Lead Times screen, out-of-stock
-  and seasonal variations, per-product override, auto display + shortcode.
+  supplier filter, central Lead Times screen, three-layer resolver (per-product
+  / supplier / global default), out-of-stock + seasonal handling, public theme
+  API, stock-label relabel (absorbs Woo Custom Stock Status), shortcode.
