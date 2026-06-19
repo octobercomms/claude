@@ -108,6 +108,13 @@ app.use('/api/wp-connect', wpConnectLimiter, require('./routes/wpConnect'));
 const shopifyAppLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
 app.use('/api/shopify-app', shopifyAppLimiter, require('./routes/shopifyApp'));
 
+// Video worker API — the dedicated worker box polls this (WORKER_TOKEN auth).
+// Mounted before the global per-IP limiter so frequent polling/clip-pulls
+// aren't throttled, and before the session-authed /api/video router so the
+// /worker subtree never hits the user-auth middleware. Its own generous limiter.
+const videoWorkerLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
+app.use('/api/video/worker', videoWorkerLimiter, require('./routes/videoWorker'));
+
 // Brute-force defence on the password-checking endpoints only. Scoped tight on
 // purpose: an earlier version covered the whole /api/auth/* tree, which meant
 // /api/auth/me (the bearer-validation ping every page load fires) counted toward

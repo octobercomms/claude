@@ -142,7 +142,10 @@ export default function ClientVideoPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                 <div>
                   <div className="h2">{active.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-subtle)' }}>Status: {STATUS_LABEL[active.status] || active.status}{active.error ? ` — ${active.error}` : ''}{active.score != null ? ` · QA score ${active.score}/100` : ''}</div>
+                  {active.status === 'done' && active.output_url && (
+                    <a className="btn btn-primary btn-sm" style={{ marginTop: 8 }} href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
+                  )}
                 </div>
                 <button className="btn btn-ghost btn-sm" style={{ color: 'var(--text-subtle)' }} onClick={() => deleteProject(active.id)}>Delete</button>
               </div>
