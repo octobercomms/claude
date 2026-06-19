@@ -43,8 +43,8 @@ async function completeJob(jobId, body = {}) {
   await http.post(`/jobs/${jobId}/complete`, body);
 }
 
-async function submitGrade(jobId, score) {
-  const { data } = await http.post(`/jobs/${jobId}/complete`, { stage: 'grade', score });
+async function submitGrade(jobId, score, feedback) {
+  const { data } = await http.post(`/jobs/${jobId}/complete`, { stage: 'grade', score, feedback });
   return data; // { retried, score }
 }
 

@@ -31,7 +31,7 @@ module.exports = async function grade({ job }, api) {
   let transcript = '';
   try { transcript = fs.readFileSync(workPath(job.project_id, 'transcript.txt'), 'utf8'); } catch { /* none */ }
 
-  const { score, notes } = await gradeCut(frames, transcript);
-  console.log(`[grade] score ${score} — ${notes}`);
-  return { score };
+  const { score, notes, adjust } = await gradeCut(frames, transcript);
+  console.log(`[grade] score ${score} — ${notes} (tighten ${adjust.tighten}${adjust.drop_intro ? ', drop intro' : ''})`);
+  return { score, feedback: { notes, adjust } };
 };

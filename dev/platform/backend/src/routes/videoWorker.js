@@ -113,7 +113,7 @@ router.post('/jobs/:id/complete', async (req, res) => {
   try {
     const body = req.body || {};
     if (body.stage === 'grade') {
-      const r = await videoProjects.submitGrade(req.params.id, Math.max(0, Math.min(100, Math.round(Number(body.score) || 0))));
+      const r = await videoProjects.submitGrade(req.params.id, Math.max(0, Math.min(100, Math.round(Number(body.score) || 0))), body.feedback || null);
       return res.json({ ok: true, ...r });
     }
     if (body.project_patch) await videoProjects.patchProject(body.project_id, body.project_patch);

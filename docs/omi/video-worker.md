@@ -62,6 +62,9 @@ add the keys for captions + the QA loop.
 - Slice 1 (#641): platform-side data model, project/clip/job queue, upload UI.
 - Slice 2 (this): worker API + the worker box + all five stages, brand-kit
   typography, the QA re-edit loop, master upload + download.
+- Smarter re-edit loop: the grade stage returns structured feedback
+  (`{notes, adjust:{tighten, drop_intro}}`) stored on the project; the next
+  roughcut acts on it (cut more dead air / drop a slow open) instead of a blunt
+  re-trim. See `stages/{grade,roughcut}.js`.
 - Later: S3-backed clip/master storage; motion-graphics (Remotion) intro/outro
-  + lower-thirds; smarter re-edit heuristics that read the grade notes; delivery
-  straight to Drive/Dropbox/social per `output_target`.
+  + lower-thirds; delivery straight to Drive/Dropbox/social per `output_target`.

@@ -130,7 +130,7 @@ async function failJob(jobId, message) {
 // endpoint). Returned alongside the claimed job.
 async function getJobContext(projectId) {
   const { rows } = await pool.query(
-    `SELECT id, client_id, name, style_preset, output_target, score FROM video_projects WHERE id = $1`, [projectId]
+    `SELECT id, client_id, name, style_preset, output_target, score, grade_feedback FROM video_projects WHERE id = $1`, [projectId]
   );
   if (!rows.length) return null;
   const { rows: clips } = await pool.query(
@@ -160,7 +160,7 @@ async function patchProject(projectId, { score, output_url } = {}) {
 // Grade stage outcome. The worker submits a QA score; if it's below the bar and
 // we haven't hit the re-edit cap, loop back to roughcut for another pass —
 // otherwise advance to export and ship the best cut we have.
-async function submitGrade(jobId, score) {
+async function submitGrade(jobId, score, feedback = null) {
   const { rows } = await pool.query(
     `UPDATE video_jobs SET status = 'done', finished_at = NOW(), updated_at = NOW() WHERE id = $1 AND stage = 'grade' RETURNING project_id`,
     [jobId]
@@ -168,6 +168,9 @@ async function submitGrade(jobId, score) {
   if (!rows.length) return { retried: false };
   const pid = rows[0].project_id;
   await patchProject(pid, { score });
+  // Stash the structured feedback so the next roughcut can act on it.
+  await pool.query(`UPDATE video_projects SET grade_feedback = $2 WHERE id = $1`,
+    [pid, feedback ? JSON.stringify(feedback) : null]);
   const { rows: c } = await pool.query(`SELECT COUNT(*)::int AS n FROM video_jobs WHERE project_id = $1 AND stage = 'roughcut'`, [pid]);
   const reedits = c[0].n - 1; // first roughcut is the initial cut, not a re-edit
   const retry = (score < GRADE_PASS) && (reedits < MAX_REEDITS);

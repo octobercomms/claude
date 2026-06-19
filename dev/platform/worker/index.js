@@ -44,7 +44,7 @@ async function runOnce() {
     if (!handler) throw new Error(`Unknown stage: ${job.stage}`);
     const result = await handler(claimed, api);
     if (job.stage === 'grade') {
-      const r = await api.submitGrade(job.id, result?.score ?? 85);
+      const r = await api.submitGrade(job.id, result?.score ?? 85, result?.feedback || null);
       console.log(`[worker] ✓ ${tag} — score ${result?.score ?? 85}, ${r.retried ? 're-editing' : 'advancing to export'} (${secs(t0)})`);
     } else {
       await api.completeJob(job.id);
