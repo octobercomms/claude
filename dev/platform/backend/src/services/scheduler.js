@@ -273,6 +273,18 @@ cron.schedule('30 7 * * *', async () => {
   await runConnectorHealthCheck();
 });
 
+// Video Studio disk retention: 03:15 daily. Deletes raw clips + finished
+// masters older than the retention window (7 days) so large video files don't
+// fill the app server's disk. Clears output_url for purged masters.
+cron.schedule('15 3 * * *', async () => {
+  try {
+    const r = await require('./videoCleanup').runCleanup();
+    if (r.clips || r.masters) console.log(`[video] retention sweep: removed ${r.clips} clip(s) + ${r.masters} master(s) older than ${r.retentionDays}d`);
+  } catch (err) {
+    console.error('[video] retention sweep failed:', err.message);
+  }
+});
+
 // Security audit: 02:30 daily. Runs the automated checklist (config + source
 // scans, npm audit), stores a run for Settings → Security, and emails
 // ALERT_EMAIL ONLY when a new actionable issue appears (or an all-clear when

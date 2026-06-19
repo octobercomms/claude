@@ -75,5 +75,10 @@ add the keys for captions + the QA loop.
   master to the client's Instagram as a Reel (reusing the social publisher's
   Meta creds; a short-lived signed `/api/video/public/:id/master.mp4` URL lets
   Meta fetch the otherwise-private file). Dropbox delivery is the next slice.
-- Later: S3-backed clip/master storage; motion-graphics (Remotion) intro/outro
-  + lower-thirds.
+- Retention: a daily sweep (03:15) deletes raw clips + finished masters older
+  than `VIDEO_RETENTION_DAYS` (default 7) so large files don't fill the app
+  server's disk; a purged master's `output_url` is cleared (the delivered Drive/
+  IG link stays). See `services/videoCleanup.js`.
+- Later: motion-graphics (Remotion) intro/outro + lower-thirds. (S3-backed
+  storage intentionally deferred — local disk + 7-day retention is enough at
+  current scale.)
