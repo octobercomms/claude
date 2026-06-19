@@ -57,6 +57,16 @@ const TOOL_META = {
       { key: 'competitorUrls', kind: 'urls', label: 'Competitor URLs (optional, up to 3)', placeholder: 'competitor1.com\ncompetitor2.com' },
     ],
   },
+  ranking_outliers: {
+    title: 'Ranking Outliers',
+    blurb: 'Find the businesses ranking well despite weak signals — fewer reviews, thin site — and isolate the single dominant lever carrying each. Reveals what this niche actually rewards, not just what the leaders do.',
+    run: 'Find outliers',
+    fields: [
+      { key: 'service', kind: 'text', label: 'Service', placeholder: 'plumber' },
+      { key: 'city', kind: 'text', label: 'City', placeholder: 'Leeds' },
+      { key: 'competitorUrls', kind: 'urls', label: 'Competitor URLs (optional, up to 4)', placeholder: 'competitor1.com\ncompetitor2.com' },
+    ],
+  },
 };
 
 const LEVEL_CHIP = { low: 'chip-success', medium: 'chip-warning', high: 'chip-danger' };
@@ -443,6 +453,35 @@ function ToolResult({ tool, output }) {
           {ps.cadence && <div style={{ fontSize: 13, marginBottom: 3 }}><strong>Cadence:</strong> {ps.cadence}</div>}
           {ps.notes && <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>{ps.notes}</div>}
         </div>
+      </>
+    );
+  }
+
+  if (tool === 'ranking_outliers') {
+    return (
+      <>
+        {output.takeaway && <Summary text={output.takeaway} />}
+        {(output.outliers || []).length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <div className="caption mb-2">Outliers — ranking despite weak signals</div>
+            {output.outliers.map((o, i) => (
+              <div key={i} className="card" style={{ marginBottom: 8 }}>
+                <div style={{ fontWeight: 600 }}>{o.business}</div>
+                <div className="body-sm" style={{ marginTop: 4 }}><strong>Carried by:</strong> {o.dominant_signal}</div>
+                {o.why_unexpected && <div className="body-sm text-muted" style={{ marginTop: 3 }}>Weak on: {o.why_unexpected}</div>}
+                {o.evidence && <div className="body-xs text-subtle" style={{ marginTop: 3 }}>{o.evidence}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+        {(output.dominant_signals || []).length > 0 && (
+          <div className="card">
+            <div className="caption mb-2">What dominates this niche</div>
+            {output.dominant_signals.map((s, i) => (
+              <div key={i} className="body-sm" style={{ marginBottom: 4 }}><strong>{s.signal}</strong> — {s.why_it_dominates_here}</div>
+            ))}
+          </div>
+        )}
       </>
     );
   }

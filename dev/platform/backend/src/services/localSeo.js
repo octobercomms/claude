@@ -18,7 +18,7 @@ const playbooks = require('./playbooks');
 const { fetchRenderedHtml } = require('../utils/fetchHtml');
 const { assertPublicHttpUrl } = require('../utils/urlSafety');
 
-const TOOLS = ['competition_gap', 'schema_audit', 'buyer_intent', 'competitor_xray', 'gbp_posts', 'ranking_playbook'];
+const TOOLS = ['competition_gap', 'schema_audit', 'buyer_intent', 'competitor_xray', 'gbp_posts', 'ranking_playbook', 'ranking_outliers'];
 
 function isTool(t) { return TOOLS.includes(t); }
 
@@ -386,6 +386,54 @@ At least 5 ranking levers, ordered highest-impact first. Specific and execution-
   return run;
 }
 
+// ─── 7. RANKING OUTLIERS (what breaks the usual rules) ───────────────────────
+// The "Claude for SEO" deck's prompt #5: find businesses ranking well DESPITE
+// weaker signals (fewer reviews, thinner branding) and isolate the dominant
+// signal carrying them — that's where the non-obvious local-ranking insight is.
+async function runRankingOutliers({ clientId, service, city, competitorUrls }) {
+  const client = await loadClient(clientId);
+  const svc = String(service || '').trim();
+  const loc = String(city || '').trim();
+  if (!svc || !loc) throw new Error('Both service and city are required.');
+
+  let comps = (Array.isArray(competitorUrls) ? competitorUrls : []).map(normUrl).filter(Boolean).slice(0, 4);
+  if (!comps.length && Array.isArray(client.competitor_domains)) {
+    comps = client.competitor_domains.map(normUrl).filter(Boolean).slice(0, 4);
+  }
+  const compPages = comps.length ? (await Promise.all(comps.map(u => fetchPage(u)))).filter(p => p.ok && p.text.length > 80) : [];
+  const compBlock = compPages.length
+    ? compPages.map((p, i) => `--- BUSINESS ${i + 1}: ${p.url} ---\n${p.text.slice(0, 5000)}`).join('\n\n')
+    : '(no readable competitor pages supplied — reason from category knowledge)';
+
+  const prompt = `${clientLine(client)}
+
+Category: ${svc} in ${loc}.
+
+${compBlock}
+
+Analyse the local map-pack competitive set for "${svc} ${loc}" and find the OUTLIERS — businesses that rank (or would rank) well despite weaker-looking signals (fewer/worse reviews, thin website, weak branding, sparse content). For each, isolate the single dominant ranking signal that best explains it (e.g. proximity / category-exactness, review velocity, profile freshness/posting, keyword-in-name, citation consistency). Then name the signals that dominate THIS niche overall.
+
+Strictly observational and evidence-led — no generic advice. Return ONLY a JSON object, no preamble or code fences:
+{
+  "outliers": [{"business":"name or domain","why_unexpected":"what's weak about them","dominant_signal":"the one signal carrying them","evidence":"what in the data points to it"}],
+  "dominant_signals": [{"signal":"string","why_it_dominates_here":"string"}],
+  "takeaway": "1-2 sentences: what this niche actually rewards, and the move it implies for our client"
+}
+British English.`;
+
+  const raw = await claudeService.callClaude({
+    max_tokens: 3000,
+    system: 'You are a local-SEO analyst who reverse-engineers map-pack rankings. Observational, evidence-led, no generic advice. Output JSON only.' + playbooks.systemSuffix(['local-seo']),
+    user: prompt,
+    feature: 'local_seo_ranking_outliers',
+    clientId,
+  });
+  const output = parseJson(raw);
+  output._meta = { competitors: compPages.map(p => p.url) };
+  const run = await saveRun({ clientId, tool: 'ranking_outliers', title: `${svc} · ${loc}`, input: { service: svc, city: loc, competitorUrls: comps }, output });
+  return run;
+}
+
 // ─── run history (shared across all tools) ───────────────────────────────────
 async function listRuns(clientId, tool) {
   const { rows } = await pool.query(
@@ -408,6 +456,7 @@ const RUNNERS = {
   competitor_xray: runCompetitorXray,
   gbp_posts: runGbpPosts,
   ranking_playbook: runRankingPlaybook,
+  ranking_outliers: runRankingOutliers,
 };
 
 // Dispatch by tool name with the route's body as named args.
