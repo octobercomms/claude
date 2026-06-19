@@ -115,6 +115,11 @@ app.use('/api/shopify-app', shopifyAppLimiter, require('./routes/shopifyApp'));
 const videoWorkerLimiter = rateLimit({ windowMs: 60 * 1000, max: 1200 });
 app.use('/api/video/worker', videoWorkerLimiter, require('./routes/videoWorker'));
 
+// Instagram DM webhook — Meta calls this (no session). HMAC-verified against
+// META_APP_SECRET. Mounted before the global limiter so Meta's retry bursts and
+// the subscription handshake are never throttled. See routes/dmWebhook.js.
+app.use('/api/social/dm-webhook', require('./routes/dmWebhook'));
+
 // Brute-force defence on the password-checking endpoints only. Scoped tight on
 // purpose: an earlier version covered the whole /api/auth/* tree, which meant
 // /api/auth/me (the bearer-validation ping every page load fires) counted toward
