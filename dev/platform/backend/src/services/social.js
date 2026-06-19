@@ -184,7 +184,7 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
   const response = await client().messages.create({
     model: MODEL,
     max_tokens: 8192,
-    system: SYSTEM,
+    system: require('./claude').cacheableSystem(SYSTEM),
     tools: [POSTS_TOOL],
     tool_choice: { type: 'tool', name: 'propose_posts' },
     messages: [{ role: 'user', content: userPrompt }],
