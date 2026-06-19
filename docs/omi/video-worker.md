@@ -68,7 +68,9 @@ add the keys for captions + the QA loop.
   re-trim. See `stages/{grade,roughcut}.js`.
 - Delivery: when a project reaches `done`, the team is emailed (QA score +
   links to the Studio / direct download) — recipients = the client's report
-  recipients ∪ `ALERT_EMAIL`. Drive/Dropbox/social delivery per `output_target`
-  is the next delivery slice.
+  recipients ∪ `ALERT_EMAIL`. Projects with `output_target='drive'` also upload
+  the master to the client's `video_drive_folder` (Google Drive, reusing the
+  existing Google connector token + `drive.file` scope) and surface the Drive
+  link in the UI + email. Dropbox/social delivery is the next slice.
 - Later: S3-backed clip/master storage; motion-graphics (Remotion) intro/outro
   + lower-thirds.

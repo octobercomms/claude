@@ -629,15 +629,18 @@ async function sendSecurityAlert({ findings = [], risk, resolved = false }) {
 // Video Studio — the auto-edited master finished. Notifies the team with the
 // QA score and links to open it in the Studio (where they're signed in) or
 // download it directly. Sent fire-and-forget when a project reaches 'done'.
-async function sendVideoReady({ to, clientName, projectName, score, studioUrl, downloadUrl }) {
+async function sendVideoReady({ to, clientName, projectName, score, studioUrl, downloadUrl, driveUrl }) {
   if (!to || !to.length) return;
   const scoreLine = score != null
     ? `<p style="color:#444;">QA grade: <strong style="color:${score >= 85 ? '#1a7f37' : '#9a6b00'}">${score}/100</strong></p>` : '';
+  const driveLine = driveUrl
+    ? `<p style="color:#444;">📁 Delivered to Google Drive: <a href="${driveUrl}">open in Drive</a></p>` : '';
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
       <h2 style="color:#1a1a1a;">Your video is ready 🎬</h2>
       <p style="color:#444;"><strong>${projectName}</strong> for <strong>${clientName}</strong> has finished auto-editing.</p>
       ${scoreLine}
+      ${driveLine}
       <p style="margin-top:20px;">
         <a href="${studioUrl}" style="display:inline-block;background:#1a1a1a;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600;">Open in Video Studio →</a>
       </p>
