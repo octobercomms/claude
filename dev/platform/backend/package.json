@@ -39,5 +39,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
+  },
+  "overrides": {
+    "nodemailer": "^9.0.1"
   }
 }
