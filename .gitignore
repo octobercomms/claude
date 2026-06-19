@@ -26,3 +26,7 @@ npm-debug.log*
 dev/platform/backend/pdfs/
 *.zip
 .claude/worktrees/
+
+# Build/deploy artefacts — generated for handoff, not source
+# (release zips + generated client theme files handed to the user)
+releases/
