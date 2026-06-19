@@ -10,6 +10,8 @@ const pool = require('../db');
 // Ordered stages of the pipeline. The worker runs them in this order; the
 // grade stage can re-enqueue an earlier stage (capped) when it scores < 85.
 const STAGES = ['ingest', 'roughcut', 'caption', 'grade', 'export'];
+const GRADE_PASS = 85;     // minimum QA score to ship without a re-edit
+const MAX_REEDITS = 2;     // grade→roughcut loops before we ship the best cut
 
 async function createProject({ clientId, name, stylePreset, outputTarget }) {
   const { rows } = await pool.query(
@@ -123,8 +125,61 @@ async function failJob(jobId, message) {
   }
 }
 
+// Everything the worker needs once it's claimed a job: the project settings and
+// the ordered clips (with stored_path so it can pull each via the clip
+// endpoint). Returned alongside the claimed job.
+async function getJobContext(projectId) {
+  const { rows } = await pool.query(
+    `SELECT id, client_id, name, style_preset, output_target, score FROM video_projects WHERE id = $1`, [projectId]
+  );
+  if (!rows.length) return null;
+  const { rows: clips } = await pool.query(
+    `SELECT id, filename, stored_path, mime, duration_s, width, height, position
+       FROM video_clips WHERE project_id = $1 ORDER BY position, id`, [projectId]
+  );
+  return { project: rows[0], clips };
+}
+
+// Worker reports ffprobe results from the ingest stage.
+async function applyClipProbe(clipId, { duration_s, width, height } = {}) {
+  await pool.query(
+    `UPDATE video_clips SET duration_s = COALESCE($2, duration_s), width = COALESCE($3, width), height = COALESCE($4, height)
+       WHERE id = $1`,
+    [clipId, duration_s ?? null, width ?? null, height ?? null]
+  );
+}
+
+async function patchProject(projectId, { score, output_url } = {}) {
+  await pool.query(
+    `UPDATE video_projects SET score = COALESCE($2, score), output_url = COALESCE($3, output_url), updated_at = NOW()
+       WHERE id = $1`,
+    [projectId, score ?? null, output_url ?? null]
+  );
+}
+
+// Grade stage outcome. The worker submits a QA score; if it's below the bar and
+// we haven't hit the re-edit cap, loop back to roughcut for another pass —
+// otherwise advance to export and ship the best cut we have.
+async function submitGrade(jobId, score) {
+  const { rows } = await pool.query(
+    `UPDATE video_jobs SET status = 'done', finished_at = NOW(), updated_at = NOW() WHERE id = $1 AND stage = 'grade' RETURNING project_id`,
+    [jobId]
+  );
+  if (!rows.length) return { retried: false };
+  const pid = rows[0].project_id;
+  await patchProject(pid, { score });
+  const { rows: c } = await pool.query(`SELECT COUNT(*)::int AS n FROM video_jobs WHERE project_id = $1 AND stage = 'roughcut'`, [pid]);
+  const reedits = c[0].n - 1; // first roughcut is the initial cut, not a re-edit
+  const retry = (score < GRADE_PASS) && (reedits < MAX_REEDITS);
+  const nextStage = retry ? 'roughcut' : 'export';
+  await pool.query(`INSERT INTO video_jobs (project_id, stage, status) VALUES ($1, $2, 'queued')`, [pid, nextStage]);
+  await pool.query(`UPDATE video_projects SET status = 'processing', updated_at = NOW() WHERE id = $1`, [pid]);
+  return { retried: retry, score };
+}
+
 module.exports = {
-  STAGES,
+  STAGES, GRADE_PASS, MAX_REEDITS,
   createProject, listProjects, getProject, addClip, enqueueRun,
   claimNextJob, completeJob, failJob,
+  getJobContext, applyClipProbe, patchProject, submitGrade,
 };

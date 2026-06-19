@@ -105,6 +105,16 @@ router.get('/projects/:id/clips/:clipId/file', projectAccess, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Finished master download — the worker uploads it via the worker API; the AM
+// downloads it here (session-authed). output_url on the project points here.
+router.get('/projects/:id/output', projectAccess, async (req, res) => {
+  try {
+    const filePath = path.join(__dirname, '../../video-outputs', `${parseInt(req.params.id, 10)}-master.mp4`);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'No finished video yet' });
+    res.sendFile(filePath);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.delete('/projects/:id', projectAccess, async (req, res) => {
   try {
     // Best-effort clip cleanup, then cascade-delete the project.

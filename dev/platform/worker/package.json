@@ -1,0 +1,17 @@
+{
+  "name": "october-video-worker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Dedicated worker for the OMI Video Studio auto-edit pipeline. Drains video_jobs over the platform's WORKER_TOKEN API; runs ffmpeg/transcription/QA-grade stages on the box.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.9",
+    "form-data": "^4.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
