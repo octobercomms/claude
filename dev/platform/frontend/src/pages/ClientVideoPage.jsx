@@ -129,6 +129,7 @@ export default function ClientVideoPage() {
             <select className="input" value={outputTarget} onChange={e => setOutputTarget(e.target.value)} style={{ marginBottom: 10 }}>
               <option value="download">Deliver: download / email</option>
               <option value="drive">Deliver: Google Drive folder</option>
+              <option value="social">Deliver: publish to Instagram</option>
             </select>
             <button className="btn btn-primary" disabled={creating || !name.trim()} style={{ width: '100%' }}>
               {creating ? 'Creating…' : '+ Create'}
@@ -169,7 +170,7 @@ export default function ClientVideoPage() {
                     <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
                       <a className="btn btn-primary btn-sm" href={`/api/video/projects/${active.id}/output`} target="_blank" rel="noreferrer">↓ Download finished video</a>
                       {active.delivered_url && (
-                        <a className="btn btn-secondary btn-sm" href={active.delivered_url} target="_blank" rel="noreferrer">📁 Open in Drive</a>
+                        <a className="btn btn-secondary btn-sm" href={active.delivered_url} target="_blank" rel="noreferrer">↗ Open delivered</a>
                       )}
                     </div>
                   )}

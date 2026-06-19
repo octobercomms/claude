@@ -6,6 +6,23 @@
 // live in one place. See docs/omi/video-autoedit-plan.md.
 
 const pool = require('../db');
+const crypto = require('crypto');
+
+// Short-lived signed public URL for a finished master, so an external fetcher
+// (Instagram's Reel publisher) can pull the otherwise-private file. Same HMAC
+// approach as the social media-proxy.
+function signMasterUrl(projectId, ttlSec = 6 * 60 * 60) {
+  const exp = Math.floor(Date.now() / 1000) + ttlSec;
+  const sig = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`video.${projectId}.${exp}`).digest('hex');
+  const base = (process.env.PLATFORM_URL || 'https://platform.octobercomms.com').replace(/\/$/, '');
+  return `${base}/api/video/public/${projectId}/master.mp4?exp=${exp}&sig=${sig}`;
+}
+function verifyMasterSig(projectId, exp, sig) {
+  if (!exp || !sig || Math.floor(Date.now() / 1000) > Number(exp)) return false;
+  const expected = crypto.createHmac('sha256', process.env.JWT_SECRET).update(`video.${projectId}.${exp}`).digest('hex');
+  const a = Buffer.from(String(sig)); const b = Buffer.from(expected);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // Ordered stages of the pipeline. The worker runs them in this order; the
 // grade stage can re-enqueue an earlier stage (capped) when it scores < 85.
@@ -130,17 +147,27 @@ async function deliverVideo(projectId) {
   );
   if (!rows.length) return;
   const p = rows[0];
-  if (p.output_target !== 'drive' || !p.video_drive_folder) return;
 
-  const path = require('path');
-  const masterPath = path.join(__dirname, '../../video-outputs', `${projectId}-master.mp4`);
-  const socialDrive = require('./socialDrive');
-  const safe = String(p.name || 'video').replace(/[^\w.\- ]+/g, '').slice(0, 80);
-  const { webViewLink } = await socialDrive.uploadFile(p.client_id, {
-    name: `${safe}.mp4`, mimeType: 'video/mp4', filePath: masterPath, folderInput: p.video_drive_folder,
-  });
-  if (webViewLink) {
-    await pool.query(`UPDATE video_projects SET delivered_url = $2, updated_at = NOW() WHERE id = $1`, [projectId, webViewLink]);
+  // Drive: upload the master to the client's folder.
+  if (p.output_target === 'drive' && p.video_drive_folder) {
+    const path = require('path');
+    const masterPath = path.join(__dirname, '../../video-outputs', `${projectId}-master.mp4`);
+    const socialDrive = require('./socialDrive');
+    const safe = String(p.name || 'video').replace(/[^\w.\- ]+/g, '').slice(0, 80);
+    const { webViewLink } = await socialDrive.uploadFile(p.client_id, {
+      name: `${safe}.mp4`, mimeType: 'video/mp4', filePath: masterPath, folderInput: p.video_drive_folder,
+    });
+    if (webViewLink) await pool.query(`UPDATE video_projects SET delivered_url = $2, updated_at = NOW() WHERE id = $1`, [projectId, webViewLink]);
+    return;
+  }
+
+  // Social: publish the master to the client's Instagram as a Reel, via a
+  // short-lived signed public URL Meta can fetch.
+  if (p.output_target === 'social') {
+    const socialPublisher = require('./socialPublisher');
+    const r = await socialPublisher.publishVideoToInstagram(p.client_id, { mediaUrl: signMasterUrl(projectId), caption: p.name || '' });
+    if (r?.posted_url) await pool.query(`UPDATE video_projects SET delivered_url = $2, updated_at = NOW() WHERE id = $1`, [projectId, r.posted_url]);
+    return;
   }
 }
 
@@ -238,4 +265,5 @@ module.exports = {
   createProject, listProjects, getProject, addClip, enqueueRun,
   claimNextJob, completeJob, failJob,
   getJobContext, applyClipProbe, patchProject, submitGrade,
+  signMasterUrl, verifyMasterSig,
 };

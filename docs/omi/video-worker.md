@@ -71,6 +71,9 @@ add the keys for captions + the QA loop.
   recipients ∪ `ALERT_EMAIL`. Projects with `output_target='drive'` also upload
   the master to the client's `video_drive_folder` (Google Drive, reusing the
   existing Google connector token + `drive.file` scope) and surface the Drive
-  link in the UI + email. Dropbox/social delivery is the next slice.
+  link in the UI + email. Projects with `output_target='social'` publish the
+  master to the client's Instagram as a Reel (reusing the social publisher's
+  Meta creds; a short-lived signed `/api/video/public/:id/master.mp4` URL lets
+  Meta fetch the otherwise-private file). Dropbox delivery is the next slice.
 - Later: S3-backed clip/master storage; motion-graphics (Remotion) intro/outro
   + lower-thirds.
