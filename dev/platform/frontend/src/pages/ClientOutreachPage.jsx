@@ -162,6 +162,10 @@ export default function ClientOutreachPage() {
   const [icpScraping, setIcpScraping] = useState(false);
   const [rankCriteria, setRankCriteria] = useState('');
   const [ranking, setRanking] = useState(false);
+  const [deepProviders, setDeepProviders] = useState([]);
+  const [deepProvider, setDeepProvider] = useState('');
+  const [deepTitles, setDeepTitles] = useState('');
+  const [deepLoading, setDeepLoading] = useState(false);
   const [expandedCampaign, setExpandedCampaign] = useState(null);
   const [wizardCampaignId, setWizardCampaignId] = useState(null);
   const [editingContact, setEditingContact] = useState(null);
@@ -332,6 +336,36 @@ export default function ClientOutreachPage() {
       if (next.has(i)) next.delete(i); else next.add(i);
       return next;
     });
+  }
+
+  // Which paid providers are configured (Apollo / PDL / Hunter) — only offer
+  // the ones with an API key set.
+  useEffect(() => {
+    api.get('/outreach/find/deep/providers').then(r => {
+      const ps = r.providers || [];
+      setDeepProviders(ps);
+      setDeepProvider(prev => prev || ps[0] || '');
+    }).catch(() => {});
+  }, []);
+
+  const PROVIDER_LABEL = { apollo: 'Apollo', peopledatalabs: 'People Data Labs', hunter: 'Hunter Discover' };
+
+  // Deep find — paid provider discovery. Results flow into the same
+  // foundContacts preview as the free finders (select → rank → add).
+  async function runDeepFind() {
+    if (!deepProvider) { toast('No paid provider configured — add a key in Settings → Integrations.', 'error'); return; }
+    setDeepLoading(true); setFindError(''); setFoundContacts([]); setSelected(new Set()); setSearched(false);
+    try {
+      const res = await api.post('/outreach/find/deep', {
+        client_id: id, provider: deepProvider,
+        query: { titles: deepTitles, industry: aud.industry, location: aud.location, keywords: aud.specialisation },
+      });
+      const found = res.contacts || [];
+      setFoundContacts(found); setSearched(true);
+      setSelected(new Set(found.map((c, i) => (c.email ? i : null)).filter(i => i !== null)));
+      if (!found.length) setFindError('No leads returned — broaden the criteria or try another provider.');
+    } catch (e) { setFindError(e.message); }
+    finally { setDeepLoading(false); }
   }
 
   // Score the current find/scrape results by fit against the AM's criteria and
@@ -601,6 +635,19 @@ export default function ClientOutreachPage() {
                     : 'Finds sites for this audience and scrapes contacts from each — no per-lookup cost.'}
                 </span>
               </div>
+              {deepProviders.length > 0 && (
+                <>
+                  <div style={{ borderTop: '1px solid #eee', margin: '14px 0 8px', paddingTop: 14, fontWeight: 600, fontSize: 13 }}>Or dig deeper (paid data)</div>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <select className="input" style={{ width: 170 }} value={deepProvider} onChange={e => setDeepProvider(e.target.value)}>
+                      {deepProviders.map(p => <option key={p} value={p}>{PROVIDER_LABEL[p] || p}</option>)}
+                    </select>
+                    <input className="input" style={{ flex: 1, minWidth: 160 }} placeholder="Job titles — e.g. founder, head of marketing" value={deepTitles} onChange={e => setDeepTitles(e.target.value)} />
+                    <button onClick={runDeepFind} disabled={deepLoading} className="btn btn-primary">{deepLoading ? '…' : 'Find leads'}</button>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--text-subtle)', margin: '6px 0 0' }}>Uses the audience fields above (industry / location / keywords) + titles. Costs per lookup on the provider — use when the free path comes up short.</p>
+                </>
+              )}
               {serperError && <p style={{ color: 'var(--negative)', fontSize: 12, margin: '8px 0 0' }}>{serperError}</p>}
               {serperDomains.length > 0 && (
                 <div style={{ marginTop: 10 }}>

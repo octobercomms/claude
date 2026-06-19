@@ -208,6 +208,8 @@ const KEY_GROUPS = [
       { key: 'ICYPEAS_API_SECRET', label: 'Icypeas API Secret', placeholder: 'Icypeas API secret', type: 'password' },
       { key: 'ICYPEAS_USER_ID', label: 'Icypeas User ID', placeholder: 'Icypeas account user ID', type: 'text' },
       { key: 'SERPER_API_KEY', label: 'Serper API Key', placeholder: 'Serper.dev API key', type: 'password' },
+      { key: 'APOLLO_API_KEY', label: 'Apollo API Key', placeholder: 'apollo.io API key (deep lead find)', type: 'password' },
+      { key: 'PEOPLEDATALABS_API_KEY', label: 'People Data Labs API Key', placeholder: 'peopledatalabs.com API key (deep lead find)', type: 'password' },
     ],
   },
   {

@@ -1517,6 +1517,25 @@ router.post('/find/hunter', async (req, res) => {
   }
 });
 
+// "Dig deeper" — paid provider discovery (Apollo / PDL / Hunter). Returns
+// contacts in the same shape as the other finders. See services/leadEnrichment.
+const leadEnrichment = require('../services/leadEnrichment');
+router.get('/find/deep/providers', async (req, res) => {
+  try { res.json({ providers: await leadEnrichment.availableProviders() }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+router.post('/find/deep', async (req, res) => {
+  const { client_id, provider, query } = req.body || {};
+  if (!provider) return res.status(400).json({ error: 'provider required' });
+  try {
+    if (client_id) await assertClientAccess(req, client_id);
+    const contacts = await leadEnrichment.deepFind({ provider, query });
+    res.json({ contacts, provider });
+  } catch (err) {
+    res.status(err.status || 502).json({ error: err.message });
+  }
+});
+
 router.post('/find/serper', async (req, res) => {
   const { industry, location, specialisation } = req.body;
   try {
