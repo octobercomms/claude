@@ -1,0 +1,52 @@
+.aclt-wrap .aclt-intro {
+	max-width: 70em;
+	margin: .5em 0 1.5em;
+}
+
+.aclt-wrap .aclt-intro .button {
+	margin-left: .75em;
+}
+
+.aclt-table td,
+.aclt-table th {
+	vertical-align: middle;
+}
+
+.aclt-table input[type="text"] {
+	width: 100%;
+	max-width: 16em;
+}
+
+.aclt-table .aclt-supplier .aclt-count {
+	display: block;
+	color: #777;
+	font-size: .85em;
+	font-weight: 400;
+}
+
+.aclt-table .aclt-season input[type="text"] {
+	max-width: 9em;
+	margin-right: .25em;
+}
+
+.aclt-table .aclt-season-toggle {
+	display: inline-block;
+	margin-right: .5em;
+	white-space: nowrap;
+}
+
+.aclt-table .aclt-season-active {
+	background: #fff7e6;
+}
+
+.aclt-badge {
+	display: inline-block;
+	margin-left: .25em;
+	padding: .1em .5em;
+	background: #d9822b;
+	color: #fff;
+	border-radius: 10px;
+	font-size: .75em;
+	font-weight: 600;
+	vertical-align: middle;
+}

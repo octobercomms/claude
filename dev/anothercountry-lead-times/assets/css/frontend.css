@@ -1,0 +1,17 @@
+.aclt-notice {
+	margin: 1em 0;
+	padding: .65em .9em;
+	border: 1px solid #e3ddd2;
+	background: #f7f4ee;
+	border-radius: 3px;
+	font-size: .95em;
+	line-height: 1.4;
+}
+
+.aclt-notice .aclt-label {
+	font-weight: 600;
+}
+
+.aclt-notice .aclt-value {
+	color: #3a3a3a;
+}
