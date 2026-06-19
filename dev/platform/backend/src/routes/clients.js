@@ -30,6 +30,13 @@ router.param('id', (req, res, next, id) => {
 // Nested resource — per-client report template (Claude-designed, locked by AM).
 router.use('/:id/report-template', require('./reportTemplates'));
 
+// Per-client setup readiness checklist (what's configured vs. still needed).
+const clientReadiness = require('../services/clientReadiness');
+router.get('/:id/readiness', async (req, res) => {
+  try { res.json(await clientReadiness.getReadiness(req.params.id)); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 // List all clients (filtered by the caller's visibility)
 router.get('/', async (req, res) => {
   try {

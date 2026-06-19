@@ -6,6 +6,7 @@ import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
 import SuiteOverview from '../components/SuiteOverview';
+import SetupReadinessPanel from '../components/SetupReadinessPanel';
 import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
@@ -338,6 +339,8 @@ export default function ClientDetailPage() {
       )}
 
       {tab === 'setup_overview' && (
+        <>
+        <SetupReadinessPanel clientId={id} />
         <SuiteOverview
           tagline="Everything Claude needs about this client."
           description="One place for the brief, brand kit, and every connector. Once Setup is complete, every other section pulls live data automatically."
@@ -355,6 +358,7 @@ export default function ClientDetailPage() {
             { tag: 'Connectors', title: 'Google, Meta, Shopify, more',    body: 'OAuth-based connectors. Whole-row colour shows status at a glance — green when live, red on error, amber when expired.' },
           ]}
         />
+        </>
       )}
 
       {tab === 'forms' && (
