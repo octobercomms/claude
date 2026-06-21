@@ -52,10 +52,12 @@ export default function ClientSocialPage() {
   const [plansRefreshKey, setPlansRefreshKey] = useState(0);
   const [bulkOpen, setBulkOpen] = useState(false);
   const [hookVaultOpen, setHookVaultOpen] = useState(false);
-  // Top-level: overview / performance / pipeline (mirrors Organic).
+  // Top-level: overview / performance / pipeline / dm_bot (mirrors Organic).
   // Performance sub-tabs absorbed the old Insights group (winners +
-  // competitors). Pipeline has 4 numbered steps. 'loop' kept as alias
-  // for the renamed Performance landing so old deep links resolve.
+  // competitors). Pipeline has 4 numbered steps. DM bot is its own
+  // top-level tab (an always-on engagement automation, not a report).
+  // 'loop' kept as alias for the renamed Performance landing so old deep
+  // links resolve.
   const [socialTab, setSocialTab] = useTabParam('overview', [
     'overview',
     // performance sub-tabs (perf_insights is the landing — current SocialSuiteOverview)
@@ -355,12 +357,13 @@ export default function ClientSocialPage() {
         </div>
       </header>
 
-      {/* Four groups: Overview / Performance (daily hub, was Loop) /
-          Pipeline (write → schedule → publish → learn) / Insights
-          (Winners + Competitors). Renamed Create → Pipeline to match
-          Organic + Paid; sub-tab keys are unchanged so deep links stay
-          valid. A PipelineStrip renders above the sub-tab strip when
-          in Pipeline so the AM sees the full production arc. */}
+      {/* Four top groups: Overview / Performance (daily hub — Insights,
+          Winners, Competitors, AI Audit) / Pipeline (brainstorm →
+          plan → publish → learn) / DM bot (the always-on engagement
+          automation, lifted out of Performance to its own tab). Sub-tab
+          keys are unchanged so deep links stay valid. A PipelineStrip
+          renders above the sub-tab strip when in Pipeline so the AM sees
+          the full production arc. */}
       {(() => {
         const SUB_TABS = {
           performance: [
@@ -368,7 +371,6 @@ export default function ClientSocialPage() {
             { key: 'performance',   label: 'Winners' },
             { key: 'competitors',   label: 'Competitors' },
             { key: 'audit',         label: 'AI Audit' },
-            { key: 'dm_bot',        label: 'DM bot' },
           ],
           pipeline: [
             { key: 'brainstorm', label: '1 · Brainstorm' },
@@ -379,14 +381,18 @@ export default function ClientSocialPage() {
         };
         const GROUP_OF = {
           overview: 'overview',
-          perf_insights: 'performance', performance: 'performance', competitors: 'performance', audit: 'performance', dm_bot: 'performance',
+          perf_insights: 'performance', performance: 'performance', competitors: 'performance', audit: 'performance',
           brainstorm: 'pipeline', plans: 'pipeline', publish: 'pipeline', learn: 'pipeline',
+          // DM bot is an always-on engagement automation, not a reporting
+          // view — it lives as its own top-level tab, not under Performance.
+          dm_bot: 'dm_bot',
         };
         const currentGroup = GROUP_OF[socialTab] || 'overview';
         const topTabs = [
           { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setSocialTab('overview') },
           { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setSocialTab('perf_insights') },
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setSocialTab('brainstorm') },
+          { key: 'dm_bot',      label: 'DM bot',      active: currentGroup === 'dm_bot',      onClick: () => setSocialTab('dm_bot') },
         ];
         const subTabs = (SUB_TABS[currentGroup] || []).map(t => ({
           ...t, active: socialTab === t.key, onClick: () => setSocialTab(t.key),
