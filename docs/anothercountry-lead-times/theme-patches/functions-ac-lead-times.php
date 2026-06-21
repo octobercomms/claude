@@ -129,11 +129,14 @@ function ac_lt_inline_assets() {
 		   margin-left:2em on this badge, so override with matching specificity. */
 		@media (max-width:782px){
 			.single-product .woocommerce-Price-amount.amount{ flex-direction:column; }
-			body.single-product .woocommerce-variation-price p.available-on-backorder,
-			body.single-product .woocommerce-variation-price p.stock.in-stock{
-				margin-left:0 !important;
-				margin-top:0.5em !important;
+			.single-product .woocommerce-Price-amount.amount > p.stock{
 				width:100%;
+				margin:.5em 0 0 0 !important;
+			}
+			/* beat the theme's margin-left:2em on the made-to-order badge */
+			body.single-product .woocommerce-variation-price p.available-on-backorder{
+				margin-left:0 !important;
+				margin-top:.5em !important;
 			}
 		}
 	</style>
@@ -144,6 +147,15 @@ function ac_lt_inline_assets() {
 		if (!$scope.length) { $scope = $('body'); }
 
 		function esc(t){ return $('<div>').text(t).html(); }
+
+		// 0) Simple products render the stock badge in the add-to-cart area; move
+		//    it next to the price so it matches variable products.
+		function relocateSimpleStock(){
+			var $amount = $scope.find('.product_price .woocommerce-Price-amount.amount').first();
+			if (!$amount.length || $amount.find('p.stock').length) { return; }
+			var $stock = $scope.find('.product_add_to_cart_button > p.stock').first();
+			if ($stock.length) { $amount.append($stock); }
+		}
 
 		// 1) Resolve the "Made to Order + In Stock" oxymoron — keep Made to Order.
 		function resolveOxymoron(){
@@ -164,7 +176,7 @@ function ac_lt_inline_assets() {
 			$badge.append(add);
 		}
 
-		function refresh(){ resolveOxymoron(); applyInline(); }
+		function refresh(){ relocateSimpleStock(); resolveOxymoron(); applyInline(); }
 		refresh();
 
 		// 3) Keep a single, correct status (and appended lead time) as variations change.
