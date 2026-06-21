@@ -7,6 +7,7 @@ import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
 import SuiteOverview from '../components/SuiteOverview';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
+import ClientStrategyPanel from '../components/ClientStrategyPanel';
 import SuiteTabs from '../components/SuiteTabs';
 import ReportPreviewModal from '../components/ReportPreviewModal';
 import ClientBrandPage from './ClientBrandPage';
@@ -340,6 +341,7 @@ export default function ClientDetailPage() {
 
       {tab === 'setup_overview' && (
         <>
+        <ClientStrategyPanel clientId={id} />
         <SetupReadinessPanel clientId={id} />
         <SuiteOverview
           tagline="Everything Claude needs about this client."
