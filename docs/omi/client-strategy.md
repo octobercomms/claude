@@ -8,8 +8,10 @@ dashboard shows it as a phased checklist the AM works through.
 ## Model (migration 101)
 - **`strategy_templates`** — the library: `{ name, business_type,
   lifecycle_stage, summary, phases:[{title, items:[text]}], is_seed }`. Seeded
-  with a starter set (Retail/Service × Launch/Growth/Maturity) grounded in
-  lifecycle theory.
+  with a starter set (Retail/Service × Launch/Growth/Maturity) structured to the
+  **SOSTAC®** framework — every template's phases are *Situation, Objectives,
+  Strategy, Tactics, Action, Control*. `ensureSeeded` re-installs the SOSTAC
+  seeds whenever no seed rows exist (migration 102 cleared the earlier set).
 - **`client_strategy`** — per client: a **snapshot** of the chosen template's
   phases with checkbox + note state (`phases:[{title, items:[{id,text,done,note}]}]`),
   so editing the library later never wipes a client's progress.
@@ -33,7 +35,8 @@ dashboard shows it as a phased checklist the AM works through.
 pickers → assign, then the phased checklist with checkboxes, per-item notes,
 a progress bar, **Tailor with Claude**, and **Change**.
 
-## Not yet (fast follow-up)
-An admin **template editor** in Settings to edit the seeded library / add new
-playbooks. Today the library is seeded + editable per-client via tailoring;
-global template editing is the next slice.
+## Admin editor
+Settings → **Strategy templates** (admin): list / create / edit / delete
+templates, including a phase + checklist editor. Edits apply to future
+assignments; clients already assigned keep their snapshot. Seed templates are
+flagged and can be edited or deleted.

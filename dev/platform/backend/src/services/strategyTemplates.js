@@ -21,65 +21,92 @@ const LIFECYCLE_STAGES = [
 ];
 
 // ── Seed library ─────────────────────────────────────────────────────────────
-// A representative starter set grounded in lifecycle marketing theory. The AM
-// can tailor a client's copy with Claude, and (later) edit the library itself.
+// Structured to PR Smith's SOSTAC® planning framework — the six phases every
+// template follows: Situation, Objectives, Strategy, Tactics, Action, Control.
+// Items are tailored per business type × lifecycle stage. The AM tailors a
+// client's copy with Claude; admins edit the library in Settings.
+const SOSTAC = ['Situation Analysis', 'Objectives', 'Strategy', 'Tactics', 'Action', 'Control'];
+const sostac = (sa, o, st, ta, ac, co) => SOSTAC.map((title, i) => ({ title, items: [sa, o, st, ta, ac, co][i] }));
+
 const SEED = [
   {
     name: 'Retail · Launch', business_type: 'retail', lifecycle_stage: 'launch',
-    summary: 'Build awareness and prove product–market fit. Win the first cohort of buyers, capture data, and learn what converts before scaling spend.',
-    phases: [
-      { title: 'Foundations', items: ['Define the ideal customer + 2–3 buying occasions', 'Nail positioning & the hero offer', 'Install analytics + conversion tracking (GA4, pixels)', 'Set up email/SMS capture with a welcome flow'] },
-      { title: 'Demand', items: ['Launch a tight paid-social test (3–5 creatives)', 'Seed founder/UGC content + first reviews', 'Run a launch promo / first-order incentive', 'Outreach to micro-influencers in the niche'] },
-      { title: 'Learn', items: ['Review CAC vs AOV weekly', 'Identify the winning creative + audience', 'Fix the biggest funnel drop-off (CRO)', 'Decide what to scale next month'] },
-    ],
+    summary: 'SOSTAC plan to take the product to market: prove product–market fit, win the first buyers, and learn what converts before scaling spend.',
+    phases: sostac(
+      ['Audit the market, category & key competitors', 'Define the ideal customer + 2–3 buying occasions', 'Baseline: traffic, conversion, AOV, channels available'],
+      ['Set SMART launch goals (first-90-day revenue / orders)', 'Define target CAC and a break-even ROAS', 'Agree the data goals (email list size, first reviews)'],
+      ['Positioning + the hero offer / launch promotion', 'Segment & target the first audience to win', 'Channel priority: where the first buyers actually are'],
+      ['Install GA4 + pixels and email/SMS capture + welcome flow', 'Launch a tight paid-social creative test (3–5 variants)', 'Seed founder/UGC content + first-review push'],
+      ['Build the launch calendar + owners and budget', 'Brief creative & set the weekly test cadence', 'Set the first-order incentive live'],
+      ['Weekly review: CAC vs AOV, winning creative/audience', 'Fix the biggest funnel drop-off (CRO)', 'Decide what to scale next month'],
+    ),
   },
   {
     name: 'Retail · Growth', business_type: 'retail', lifecycle_stage: 'growth',
-    summary: 'Scale what works profitably. Expand winning channels, raise AOV and repeat rate, and build a content + retention engine.',
-    phases: [
-      { title: 'Scale acquisition', items: ['Scale winning paid campaigns; add a second channel', 'Systematise creative testing (weekly batch)', 'Stand up SEO/content for high-intent terms', 'Launch a referral / affiliate motion'] },
-      { title: 'Raise value', items: ['Add bundles / cross-sell to lift AOV', 'Build post-purchase + win-back email flows', 'Introduce a loyalty or subscribe-and-save offer', 'Optimise the PDP + checkout for conversion'] },
-      { title: 'Operate', items: ['Weekly KPI review: CAC, ROAS, repeat rate', 'Forecast inventory against demand', 'Tighten attribution & reporting'] },
-    ],
+    summary: 'SOSTAC plan to scale profitably: expand winning channels, raise AOV and repeat rate, and build a content + retention engine.',
+    phases: sostac(
+      ['Review channel performance + unit economics to date', 'Identify winning creatives, audiences & SKUs', 'Map the gaps competitors are exploiting'],
+      ['Set growth targets: revenue, ROAS, repeat rate, LTV', 'Define an AOV uplift target', 'Set a new-customer vs returning revenue split'],
+      ['Decide which channels to scale + the second channel', 'Retention strategy: lifecycle flows + loyalty', 'Pricing & merchandising approach to lift AOV'],
+      ['Scale winning paid campaigns; systematise weekly creative tests', 'Stand up SEO/content for high-intent terms', 'Build bundles/cross-sell + post-purchase & win-back flows', 'Launch a referral / affiliate motion'],
+      ['Resource the content + creative pipeline', 'Schedule promos against the calendar', 'Forecast inventory against demand'],
+      ['Weekly KPI review: CAC, ROAS, repeat rate, LTV:CAC', 'Tighten attribution & reporting', 'Kill underperformers; reinvest in winners'],
+    ),
   },
   {
     name: 'Retail · Maturity', business_type: 'retail', lifecycle_stage: 'maturity',
-    summary: 'Defend share and reignite growth. Maximise lifetime value, protect margins, and find the next product/market or channel.',
-    phases: [
-      { title: 'Defend & retain', items: ['Double down on retention + loyalty economics', 'Win-back lapsed customers with segmented offers', 'Protect brand search & top SKUs', 'Audit margin & discount dependency'] },
-      { title: 'Reinvent', items: ['Test a new product line or category', 'Enter a new channel (marketplace / wholesale / retail)', 'Refresh brand + creative to a new audience', 'Pilot a community or content franchise'] },
-    ],
+    summary: 'SOSTAC plan to defend share and reignite growth: maximise lifetime value, protect margins, and open the next product/market or channel.',
+    phases: sostac(
+      ['Audit margin, discount dependency & SKU profitability', 'Assess brand health, share & customer cohorts', 'Spot saturation in current channels'],
+      ['Set defend goals: retention, LTV, margin %', 'Set a target for revenue from new lines/channels', 'Agree acceptable churn / reactivation targets'],
+      ['Retention & loyalty economics as the priority', 'Diversification: new product, channel or audience', 'Brand refresh / repositioning where needed'],
+      ['Win back lapsed customers with segmented offers', 'Protect brand search & top SKUs', 'Test a new product line or channel (marketplace/wholesale/retail)', 'Pilot a community or content franchise'],
+      ['Sequence the reinvention bets by effort/return', 'Resource the new channel/product test', 'Protect BAU while piloting'],
+      ['Monitor retention, margin & cohort LTV', 'Review the diversification pilots against targets', 'Double down or cut based on evidence'],
+    ),
   },
   {
     name: 'Service · Launch', business_type: 'service', lifecycle_stage: 'launch',
-    summary: 'Generate qualified leads and prove the offer. Build trust signals, a simple lead engine, and a tight follow-up so early enquiries convert.',
-    phases: [
-      { title: 'Foundations', items: ['Define the ICP + the core problem you solve', 'Productise the offer + clear pricing', 'Build a high-converting landing page + lead form', 'Set up lead tracking + a fast follow-up SLA'] },
-      { title: 'Lead generation', items: ['Stand up Google Business Profile + reviews', 'Launch search/intent ads for buying keywords', 'Start targeted outreach (email/LinkedIn)', 'Publish 2–3 proof assets (case study, FAQ)'] },
-      { title: 'Convert', items: ['Tighten the enquiry → consult → proposal flow', 'Add testimonials + guarantees to reduce risk', 'Review lead quality & cost weekly', 'Ask every happy client for a review/referral'] },
-    ],
+    summary: 'SOSTAC plan to generate qualified leads and prove the offer: trust signals, a simple lead engine, and tight follow-up so enquiries convert.',
+    phases: sostac(
+      ['Define the ICP + the core problem you solve', 'Audit competitors’ positioning, offers & proof', 'Baseline current enquiry sources & close rate'],
+      ['Set lead-volume & cost-per-lead targets', 'Set an enquiry → client conversion target', 'Agree the revenue goal for the first 90 days'],
+      ['Productise the offer + clear pricing', 'Pick the 1–2 channels with the best-fit buyers', 'Trust/risk-reversal strategy (proof, guarantees)'],
+      ['Build a high-converting landing page + lead form', 'Stand up Google Business Profile + reviews', 'Launch search/intent ads + targeted outreach (email/LinkedIn)', 'Publish 2–3 proof assets (case study, FAQ)'],
+      ['Set a fast follow-up SLA + owner', 'Build the enquiry → consult → proposal flow', 'Schedule the outreach + content cadence'],
+      ['Weekly review of lead quality & cost by source', 'Tighten the weakest step in the funnel', 'Ask every happy client for a review/referral'],
+    ),
   },
   {
     name: 'Service · Growth', business_type: 'service', lifecycle_stage: 'growth',
-    summary: 'Scale lead flow and conversion without dropping quality. Build authority, systematise sales, and turn clients into a referral engine.',
-    phases: [
-      { title: 'Scale demand', items: ['Scale the channel(s) with the best lead quality', 'Build authority content / SEO for the niche', 'Add a second outbound or partnership channel', 'Run webinars / lead magnets for the pipeline'] },
-      { title: 'Systematise sales', items: ['Document the sales process + objection handling', 'Add nurture sequences for slow leads', 'Track pipeline stages + conversion by source', 'Introduce tiered packages / retainers'] },
-      { title: 'Retain & refer', items: ['Build an onboarding + results-reporting rhythm', 'Formalise a referral programme', 'Upsell existing clients into more services'] },
-    ],
+    summary: 'SOSTAC plan to scale lead flow and conversion without dropping quality: build authority, systematise sales, and turn clients into a referral engine.',
+    phases: sostac(
+      ['Review lead quality & conversion by source', 'Assess capacity & delivery quality vs demand', 'Identify the niche where you win most'],
+      ['Set pipeline & revenue growth targets', 'Set conversion-rate and average-deal-size goals', 'Define a referral / repeat-revenue target'],
+      ['Scale the best-quality channel + add a second', 'Authority/thought-leadership positioning', 'Packaging: tiered offers / retainers'],
+      ['Build authority content / SEO for the niche', 'Add nurture sequences for slow leads', 'Run webinars / lead magnets', 'Add an outbound or partnership channel'],
+      ['Document the sales process + objection handling', 'Build an onboarding + results-reporting rhythm', 'Resource content + sales against the plan'],
+      ['Track pipeline stages + conversion by source', 'Review delivery quality & client satisfaction', 'Formalise the referral programme; upsell existing clients'],
+    ),
   },
   {
     name: 'Service · Maturity', business_type: 'service', lifecycle_stage: 'maturity',
-    summary: 'Protect the book and find new growth. Deepen accounts, raise prices on value, and open a new segment or productised offering.',
-    phases: [
-      { title: 'Defend & deepen', items: ['Map account health + churn risk; intervene early', 'Raise prices in line with demonstrated value', 'Deepen retainers with new service lines', 'Protect brand + reputation (reviews, PR)'] },
-      { title: 'New growth', items: ['Productise a service into a scalable offer', 'Enter an adjacent segment or vertical', 'Build thought-leadership / partnerships', 'Test a lower-touch / self-serve tier'] },
-    ],
+    summary: 'SOSTAC plan to protect the book and find new growth: deepen accounts, price on value, and open a new segment or productised offering.',
+    phases: sostac(
+      ['Map account health + churn risk', 'Audit pricing vs value delivered', 'Assess brand/reputation & market saturation'],
+      ['Set retention & net-revenue-retention targets', 'Set a price-realisation / margin goal', 'Target % revenue from new segments/products'],
+      ['Account deepening & value-based pricing', 'Diversification: new segment or productised offer', 'Reputation & thought-leadership defence'],
+      ['Raise prices in line with demonstrated value', 'Deepen retainers with new service lines', 'Productise a service into a scalable offer', 'Build thought-leadership / partnerships; protect reviews/PR'],
+      ['Sequence the new-growth bets', 'Resource the productised/self-serve tier', 'Protect delivery while expanding'],
+      ['Monitor churn, NRR & price realisation', 'Review the diversification pilots vs targets', 'Scale what works; retire what doesn’t'],
+    ),
   },
 ];
 
+// Re-seed when the SOSTAC seed set is absent (e.g. after migration 102 clears an
+// older seed). Gated on seed rows only, so admins' custom templates are kept.
 async function ensureSeeded() {
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM strategy_templates');
+  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM strategy_templates WHERE is_seed = TRUE');
   if (rows[0].n > 0) return;
   for (const t of SEED) {
     await pool.query(
@@ -95,6 +122,53 @@ async function listTemplates() {
   await ensureSeeded();
   const { rows } = await pool.query('SELECT * FROM strategy_templates ORDER BY business_type, lifecycle_stage, name');
   return rows;
+}
+
+// Normalise an editor-submitted phases array to [{title, items:[text]}].
+function cleanPhases(phases) {
+  return (Array.isArray(phases) ? phases : [])
+    .map(p => ({
+      title: String(p.title || '').trim(),
+      items: (Array.isArray(p.items) ? p.items : [])
+        .map(it => String(typeof it === 'string' ? it : it.text || '').trim()).filter(Boolean),
+    }))
+    .filter(p => p.title || p.items.length);
+}
+
+async function getTemplate(id) {
+  const { rows } = await pool.query('SELECT * FROM strategy_templates WHERE id = $1', [id]);
+  return rows[0] || null;
+}
+
+async function createTemplate({ name, business_type, lifecycle_stage, summary, phases }) {
+  if (!name || !business_type || !lifecycle_stage) { const e = new Error('name, business_type and lifecycle_stage are required.'); e.status = 400; throw e; }
+  const { rows } = await pool.query(
+    `INSERT INTO strategy_templates (name, business_type, lifecycle_stage, summary, phases)
+     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [name.trim(), business_type, lifecycle_stage, summary || null, JSON.stringify(cleanPhases(phases))]
+  );
+  return rows[0];
+}
+
+async function updateTemplate(id, { name, business_type, lifecycle_stage, summary, phases }) {
+  const { rows } = await pool.query(
+    `UPDATE strategy_templates SET
+       name = COALESCE($2, name),
+       business_type = COALESCE($3, business_type),
+       lifecycle_stage = COALESCE($4, lifecycle_stage),
+       summary = $5,
+       phases = COALESCE($6::jsonb, phases),
+       updated_at = NOW()
+     WHERE id = $1 RETURNING *`,
+    [id, name?.trim() || null, business_type || null, lifecycle_stage || null,
+     summary ?? null, phases === undefined ? null : JSON.stringify(cleanPhases(phases))]
+  );
+  if (!rows.length) { const e = new Error('Template not found'); e.status = 404; throw e; }
+  return rows[0];
+}
+
+async function deleteTemplate(id) {
+  await pool.query('DELETE FROM strategy_templates WHERE id = $1', [id]);
 }
 
 async function matchTemplate(businessType, lifecycleStage) {
@@ -230,6 +304,6 @@ Tailor it to this client. Return ONLY:
 
 module.exports = {
   BUSINESS_TYPES, LIFECYCLE_STAGES,
-  listTemplates, matchTemplate,
+  listTemplates, matchTemplate, getTemplate, createTemplate, updateTemplate, deleteTemplate,
   assignToClient, getClientStrategy, setItem, tailorWithClaude,
 };
