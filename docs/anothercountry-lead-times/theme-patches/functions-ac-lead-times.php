@@ -84,8 +84,32 @@ function ac_lt_inline_assets() {
 	}
 	?>
 	<style>
-		.ac-lead-time{ margin:.4em 0 0; font-size:.95em; color:#3a3a3a; }
-		.ac-lead-time-season{ margin:.15em 0 0; font-size:.9em; font-style:italic; color:#777; }
+		/* Remove the old CSS tooltip + its info icon on the stock labels
+		   (no template edit needed). */
+		.single-product p.available-on-backorder:before,
+		.single-product p.available-on-backorder:after,
+		.single-product p.stock.in-stock:before,
+		.single-product p.stock.in-stock:after{
+			content:none !important;
+			display:none !important;
+		}
+		/* Lead time + seasonal note are appended inside the "Made to Order"
+		   badge (with a line break) so they share its font and colour. */
+		.single-product .ac-lead-season{ display:inline-block; margin-top:.15em; }
+		/* The badge is not a real link — neutralise the old tooltip trigger. */
+		.single-product p.available-on-backorder{ cursor:default !important; }
+		.single-product p.available-on-backorder a{
+			pointer-events:none !important;
+			cursor:default !important;
+			text-decoration:none !important;
+			color:inherit !important;
+		}
+		/* Alignment: top-align the price with the "Made to Order" badge and
+		   tidy the space below the seasonal line. (If the price/badge live in a
+		   different wrapper, send the inspected HTML and we'll target it exactly.) */
+		.single-product .product_price{ align-items:flex-start !important; }
+		.single-product .product_price .price{ margin-top:0 !important; margin-bottom:0 !important; }
+		.single-product p.available-on-backorder{ margin:0 !important; }
 	</style>
 	<script>
 	jQuery(function ($) {
@@ -101,20 +125,23 @@ function ac_lt_inline_assets() {
 			var $is = $scope.find('p.stock.in-stock:visible');
 			if ($bo.length && $is.length) { $is.hide(); }
 		}
-		resolveOxymoron();
 
-		// 2) Insert the inline lead time right after the (single) stock badge.
-		if (data.lead && !$scope.find('.ac-lead-time').length) {
-			var $badge = $scope.find('p.stock:visible').first();
-			if (!$badge.length) { $badge = $scope.find('.product_price').first(); }
-			if ($badge.length) {
-				var html = '<p class="ac-lead-time">' + esc(data.lead + ' lead time') + '</p>';
-				if (data.season) { html += '<p class="ac-lead-time-season">' + esc(data.season) + '</p>'; }
-				$badge.after(html);
-			}
+		// 2) Append the lead time (and seasonal note, on a new line) to the badge
+		//    → "Made to Order in 8-12 weeks" / "Allow up to 15 weeks…".
+		function applyInline(){
+			if (!data.lead) { return; }
+			var $badge = $scope.find('p.available-on-backorder:visible').first();
+			if (!$badge.length) { return; } // only on made-to-order
+			if ($badge.find('.ac-lead-inline').length) { return; }
+			var add = '<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>';
+			if (data.season) { add += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
+			$badge.append(add);
 		}
 
-		// 3) Keep a single, correct status as variations change.
+		function refresh(){ resolveOxymoron(); applyInline(); }
+		refresh();
+
+		// 3) Keep a single, correct status (and appended lead time) as variations change.
 		$(document.body).on('show_variation', function (e, v) {
 			var $var = $('.woocommerce-variation-availability p.stock');
 			if ($var.length) {
@@ -124,6 +151,7 @@ function ac_lt_inline_assets() {
 				$scope.find('p.available-on-backorder').hide();
 				$scope.find('p.stock.in-stock').show();
 			}
+			refresh();
 		});
 	});
 	</script>
