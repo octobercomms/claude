@@ -360,7 +360,9 @@ export default function ClientDetailPage() {
             { tag: 'Connectors', title: 'Google, Meta, Shopify, more',    body: 'OAuth-based connectors. Whole-row colour shows status at a glance — green when live, red on error, amber when expired.' },
           ]}
         />
-        <SetupReadinessPanel clientId={id} />
+        <div style={{ marginTop: 'var(--s8)' }}>
+          <SetupReadinessPanel clientId={id} />
+        </div>
         </>
       )}
 
