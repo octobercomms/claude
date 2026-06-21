@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AdCreativePanel from '../components/AdCreativePanel';
 import StrategistPanel from '../components/StrategistPanel';
 import AudiencesPanel from '../components/AudiencesPanel';
+import CompetitorAdsPanel from '../components/CompetitorAdsPanel';
 import SuiteOverview from '../components/SuiteOverview';
 import GoogleAdsPlaybook from '../components/GoogleAdsPlaybook';
 import PaidPipelinePanel from '../components/paid/PaidPipelinePanel';
@@ -30,7 +31,7 @@ export default function ClientAdsPage() {
   // approve / launch. 'creative' and 'pipeline' are aliases that both
   // resolve to the brief step so old deep links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
-    'overview', 'performance', 'strategist', 'audiences',
+    'overview', 'performance', 'strategist', 'audiences', 'competitor_ads',
     // pipeline sub-tabs
     'pipeline', 'creative',
     'brief', 'concepts', 'render', 'approve', 'launch',
@@ -206,6 +207,7 @@ export default function ClientAdsPage() {
         { key: 'strategist',  label: 'Strategist',  active: normalisedTab === 'strategist',  onClick: () => setTab('strategist') },
         { key: 'pipeline',    label: 'Pipeline',    active: normalisedTab === 'pipeline',    onClick: () => setTab('brief') },
         { key: 'audiences',   label: 'Audiences',   active: normalisedTab === 'audiences',   onClick: () => setTab('audiences') },
+        { key: 'competitor_ads', label: 'Competitor ads', active: normalisedTab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
       ]} />
       {isPipelineGroup && (
         <SuiteTabs variant="sub" tabs={[
@@ -249,6 +251,7 @@ export default function ClientAdsPage() {
       {isPipelineGroup && <PaidPipelinePanel clientId={id} clientName={client?.name || ''} step={pipelineStep} onNavigate={setTab} />}
       {normalisedTab === 'strategist' && <StrategistPanel clientId={id} hasMeta={hasMeta} hasGoogle={hasGoogle} />}
       {normalisedTab === 'audiences' && <AudiencesPanel clientId={id} />}
+      {normalisedTab === 'competitor_ads' && <CompetitorAdsPanel clientId={id} />}
       {normalisedTab === 'performance' && <>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[7, 14, 30, 90].map(d => (

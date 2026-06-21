@@ -211,6 +211,7 @@ const KEY_GROUPS = [
       { key: 'SERPER_API_KEY', label: 'Serper API Key', placeholder: 'Serper.dev API key', type: 'password' },
       { key: 'APOLLO_API_KEY', label: 'Apollo API Key', placeholder: 'apollo.io API key (deep lead find)', type: 'password' },
       { key: 'PEOPLEDATALABS_API_KEY', label: 'People Data Labs API Key', placeholder: 'peopledatalabs.com API key (deep lead find)', type: 'password' },
+      { key: 'SERPAPI_API_KEY', label: 'SerpApi Key', placeholder: 'serpapi.com key (competitor Google Ads / Ads Transparency)', type: 'password' },
     ],
   },
   {
