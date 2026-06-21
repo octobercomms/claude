@@ -330,19 +330,19 @@ export default function ClientDetailPage() {
         </div>
       </header>
 
-      {['details', 'brand', 'connectors', 'setup_overview'].includes(tab) && (
+      {['details', 'brand', 'connectors', 'setup_overview', 'strategy'].includes(tab) && (
         <div className="tabs">
-          {[['setup_overview', 'Overview'], ['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
+          {[['setup_overview', 'Overview'], ['strategy', 'Strategy'], ['details', 'Brief'], ['brand', 'Brand'], ['connectors', 'Connectors']].map(([key, label]) => (
             <button key={key} type="button" onClick={() => setSearchParams({ tab: key })}
               className={`tab ${tab === key ? 'active' : ''}`}>{label}</button>
           ))}
         </div>
       )}
 
+      {tab === 'strategy' && <ClientStrategyPanel clientId={id} />}
+
       {tab === 'setup_overview' && (
         <>
-        <ClientStrategyPanel clientId={id} />
-        <SetupReadinessPanel clientId={id} />
         <SuiteOverview
           tagline="Everything Claude needs about this client."
           description="One place for the brief, brand kit, and every connector. Once Setup is complete, every other section pulls live data automatically."
@@ -360,6 +360,7 @@ export default function ClientDetailPage() {
             { tag: 'Connectors', title: 'Google, Meta, Shopify, more',    body: 'OAuth-based connectors. Whole-row colour shows status at a glance — green when live, red on error, amber when expired.' },
           ]}
         />
+        <SetupReadinessPanel clientId={id} />
         </>
       )}
 
