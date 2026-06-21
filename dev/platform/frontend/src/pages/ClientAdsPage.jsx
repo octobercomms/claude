@@ -26,10 +26,13 @@ export default function ClientAdsPage() {
   const [days, setDays] = useState(30);
   const [adsMargin, setAdsMargin] = useState(0.46);
   const [adsMarginInput, setAdsMarginInput] = useState('46');
-  // Top-level tabs: overview / performance / strategist / pipeline / audiences.
-  // Pipeline has 5 sub-tabs (mirrors Organic): brief / concepts / render /
-  // approve / launch. 'creative' and 'pipeline' are aliases that both
-  // resolve to the brief step so old deep links still land sensibly.
+  // Grouped tabs (mirrors Organic / Social): four top groups —
+  //   Overview · Performance · Tools · Pipeline
+  // Tools fans out into Strategist / Audiences / Competitor ads (the
+  // analysis + intel views); Pipeline fans out into the 5-step wizard
+  // brief → concepts → render → approve → launch. 'creative' and
+  // 'pipeline' are aliases that resolve to the brief step so old deep
+  // links still land sensibly.
   const [tab, setTab] = useTabParam('overview', [
     'overview', 'performance', 'strategist', 'audiences', 'competitor_ads',
     // pipeline sub-tabs
@@ -42,6 +45,13 @@ export default function ClientAdsPage() {
   const pipelineStep = isPipelineStep ? tab : 'brief';
   // For the top-tab strip we collapse all pipeline sub-tab states into 'pipeline'.
   const normalisedTab = isPipelineGroup ? 'pipeline' : tab;
+  // Which top group is active. Tools collects the standalone analysis views.
+  const TOOLS_TABS = ['strategist', 'audiences', 'competitor_ads'];
+  const currentGroup = normalisedTab === 'overview' ? 'overview'
+    : normalisedTab === 'performance' ? 'performance'
+    : isPipelineGroup ? 'pipeline'
+    : TOOLS_TABS.includes(tab) ? 'tools'
+    : 'overview';
 
   // Redirect legacy 'creative' / 'pipeline' top-level URLs to the first step.
   useEffect(() => {
@@ -202,13 +212,18 @@ export default function ClientAdsPage() {
         </div>
       </header>
       <SuiteTabs tabs={[
-        { key: 'overview',    label: 'Overview',    active: normalisedTab === 'overview',    onClick: () => setTab('overview') },
-        { key: 'performance', label: 'Performance', active: normalisedTab === 'performance', onClick: () => setTab('performance') },
-        { key: 'strategist',  label: 'Strategist',  active: normalisedTab === 'strategist',  onClick: () => setTab('strategist') },
-        { key: 'pipeline',    label: 'Pipeline',    active: normalisedTab === 'pipeline',    onClick: () => setTab('brief') },
-        { key: 'audiences',   label: 'Audiences',   active: normalisedTab === 'audiences',   onClick: () => setTab('audiences') },
-        { key: 'competitor_ads', label: 'Competitor ads', active: normalisedTab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
+        { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setTab('overview') },
+        { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setTab('performance') },
+        { key: 'tools',       label: 'Tools',       active: currentGroup === 'tools',       onClick: () => setTab('strategist') },
+        { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setTab('brief') },
       ]} />
+      {currentGroup === 'tools' && (
+        <SuiteTabs variant="sub" tabs={[
+          { key: 'strategist',     label: 'Strategist',     active: tab === 'strategist',     onClick: () => setTab('strategist') },
+          { key: 'audiences',      label: 'Audiences',      active: tab === 'audiences',      onClick: () => setTab('audiences') },
+          { key: 'competitor_ads', label: 'Competitor ads', active: tab === 'competitor_ads', onClick: () => setTab('competitor_ads') },
+        ]} />
+      )}
       {isPipelineGroup && (
         <SuiteTabs variant="sub" tabs={[
           { key: 'brief',    label: '1 · Brief',    active: pipelineStep === 'brief',    onClick: () => setTab('brief') },
