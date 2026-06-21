@@ -119,6 +119,7 @@ function ac_lt_inline_assets() {
 		.single-product p.stock.available-on-backorder,
 		.single-product p.stock.in-stock{
 			margin:-0.12em 0 0 0 !important; /* nudge first line up to meet the price top */
+			font-size:16px;                  /* consistent size across simple + variable */
 			line-height:1.45;
 		}
 		/* Sensible spacing below, before Add to cart. */
