@@ -125,11 +125,16 @@ function ac_lt_inline_assets() {
 		.single-product .product_price,
 		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
 		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
-		/* Mobile: stack the badge flush under the price, not indented beside it. */
+		/* Mobile: stack the badge flush under the price. The theme sets
+		   margin-left:2em on this badge, so override with matching specificity. */
 		@media (max-width:782px){
 			.single-product .woocommerce-Price-amount.amount{ flex-direction:column; }
-			.single-product p.stock.available-on-backorder,
-			.single-product p.stock.in-stock{ width:100%; margin:.15em 0 0 0 !important; }
+			body.single-product .woocommerce-variation-price p.available-on-backorder,
+			body.single-product .woocommerce-variation-price p.stock.in-stock{
+				margin-left:0 !important;
+				margin-top:0.5em !important;
+				width:100%;
+			}
 		}
 	</style>
 	<script>
