@@ -111,7 +111,7 @@ async function runAudit(clientId, { days = 90 } = {}) {
 
   const out = parseJson(await claudeService.callClaude({
     max_tokens: 2500,
-    system: SYSTEM,
+    system: SYSTEM + require('./playbooks').systemSuffix(['instagram-ranking']),
     user: buildPrompt({ client, posts: posts.map(compact), competitors }),
     feature: 'social_audit',
     clientId,

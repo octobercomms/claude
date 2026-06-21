@@ -69,7 +69,7 @@ Return only the caption.`;
   const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 1024,
-    system: SYSTEM_PROMPT + playbooks.systemSuffix(['copywriting']),
+    system: SYSTEM_PROMPT + playbooks.systemSuffix(['copywriting', 'instagram-ranking']),
     messages: [{ role: 'user', content: userPrompt }],
   });
   require('./costLog').recordClaudeCost({ model: MODEL, response, feature: 'social_captions' });
