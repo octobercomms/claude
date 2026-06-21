@@ -19,6 +19,7 @@ class ACLT_Admin {
 		add_action( 'admin_post_aclt_save', [ $this, 'handle_save' ] );
 		add_action( 'admin_post_aclt_save_overrides', [ $this, 'handle_save_overrides' ] );
 		add_action( 'admin_post_aclt_apply_category', [ $this, 'handle_apply_category' ] );
+		add_action( 'admin_post_aclt_assign_supplier', [ $this, 'handle_assign_supplier' ] );
 		add_action( 'admin_post_aclt_export_csv', [ $this, 'handle_export_csv' ] );
 		add_action( 'admin_post_aclt_import_csv', [ $this, 'handle_import_csv' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
@@ -251,6 +252,10 @@ class ACLT_Admin {
 		// --- Category chips ("tag cloud") ---
 		$cats = get_terms( [ 'taxonomy' => 'product_cat', 'hide_empty' => true, 'orderby' => 'name' ] );
 		$cats = is_wp_error( $cats ) ? [] : $cats;
+
+		// --- Suppliers (for the category → supplier assigner) ---
+		$suppliers = get_terms( [ 'taxonomy' => ACLT_TAX, 'hide_empty' => false, 'orderby' => 'name' ] );
+		$suppliers = is_wp_error( $suppliers ) ? [] : $suppliers;
 		?>
 		<p class="description" style="margin-top:1em"><?php esc_html_e( 'Override the lead time for individual products, or apply one message to a whole category at once. Leave a field blank to inherit from the supplier / global default.', 'anothercountry-lead-times' ); ?></p>
 
@@ -284,6 +289,22 @@ class ACLT_Admin {
 				<input type="text" name="aclt_apply_value" placeholder="<?php esc_attr_e( 'e.g. 10-12 weeks (blank = clear overrides)', 'anothercountry-lead-times' ); ?>" style="width:22em" />
 				<?php submit_button( __( 'Apply to category', 'anothercountry-lead-times' ), 'secondary', 'submit', false ); ?>
 			</form>
+			<?php if ( ! empty( $suppliers ) ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="aclt-bulk-apply" onsubmit="return confirm('<?php echo esc_js( sprintf( __( 'Attach every product in “%s” to the chosen supplier? This replaces any existing supplier on those products.', 'anothercountry-lead-times' ), $cat_name ) ); ?>');">
+					<input type="hidden" name="action" value="aclt_assign_supplier" />
+					<input type="hidden" name="aclt_cat" value="<?php echo esc_attr( $cat ); ?>" />
+					<?php wp_nonce_field( 'aclt_assign_supplier', 'aclt_assign_nonce' ); ?>
+					<strong><?php echo esc_html( sprintf( __( 'Or assign all in “%s” to supplier:', 'anothercountry-lead-times' ), $cat_name ) ); ?></strong>
+					<select name="aclt_supplier">
+						<option value="0">— <?php esc_html_e( 'none (detach supplier)', 'anothercountry-lead-times' ); ?> —</option>
+						<?php foreach ( $suppliers as $s ) : ?>
+							<option value="<?php echo esc_attr( $s->term_id ); ?>"><?php echo esc_html( $s->name ); ?></option>
+						<?php endforeach; ?>
+					</select>
+					<?php submit_button( __( 'Assign supplier', 'anothercountry-lead-times' ), 'secondary', 'submit', false ); ?>
+					<span class="description"><?php esc_html_e( 'Single source of truth — change the supplier’s lead time later and every attached product updates.', 'anothercountry-lead-times' ); ?></span>
+				</form>
+			<?php endif; ?>
 		<?php endif; ?>
 
 		<!-- Search + per-page -->
@@ -526,6 +547,36 @@ class ACLT_Admin {
 			] );
 			foreach ( $ids as $pid ) {
 				update_post_meta( $pid, '_ac_lead_time', $value );
+			}
+		}
+
+		$this->redirect( [ 'tab' => 'products', 'aclt_cat' => $cat ] );
+	}
+
+	/**
+	 * Attach every product in a category to a supplier (single source of truth).
+	 * Supplier 0 detaches the supplier from those products.
+	 */
+	public function handle_assign_supplier(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'anothercountry-lead-times' ) );
+		}
+		check_admin_referer( 'aclt_assign_supplier', 'aclt_assign_nonce' );
+
+		$cat      = isset( $_POST['aclt_cat'] ) ? absint( $_POST['aclt_cat'] ) : 0;
+		$supplier = isset( $_POST['aclt_supplier'] ) ? absint( $_POST['aclt_supplier'] ) : 0;
+
+		if ( $cat ) {
+			$ids = get_posts( [
+				'post_type'      => 'product',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'fields'         => 'ids',
+				'tax_query'      => [ [ 'taxonomy' => 'product_cat', 'field' => 'term_id', 'terms' => [ $cat ] ] ],
+			] );
+			$terms = $supplier ? [ $supplier ] : [];
+			foreach ( $ids as $pid ) {
+				wp_set_object_terms( $pid, $terms, ACLT_TAX, false );
 			}
 		}
 

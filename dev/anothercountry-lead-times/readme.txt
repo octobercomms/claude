@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.5.0
+Stable tag: 1.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,11 @@ Public API for the theme:
 Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
+
+= 1.6.0 =
+* New "Assign all in {category} to supplier" action on the Products tab: attach
+  a whole category to a supplier in one click (single source of truth). Built
+  for grouping e.g. all Armadillo products onto the Armadillo supplier.
 
 = 1.5.0 =
 * Inventory columns are read-only again (edit stock in WooCommerce); the grid is
