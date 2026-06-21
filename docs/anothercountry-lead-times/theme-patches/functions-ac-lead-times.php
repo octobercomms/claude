@@ -95,9 +95,10 @@ function ac_lt_inline_assets() {
 		}
 		/* Inline lead-time notice under the price/badge. */
 		.single-product .ac-lead-time{
-			margin:.45em 0 .1em;
+			margin:.35em 0 .1em;
 			font-size:14px;
 			line-height:1.45;
+			font-style:normal;
 			color:#6b6b6b;
 			letter-spacing:.01em;
 		}
@@ -130,9 +131,11 @@ function ac_lt_inline_assets() {
 			var $badge = $scope.find('p.stock:visible').first();
 			if (!$badge.length) { $badge = $scope.find('.product_price').first(); }
 			if ($badge.length) {
+				var ff = $badge.css('font-family'); // match the badge font, not the heading serif
 				var html = '<p class="ac-lead-time">' + esc(data.lead + ' lead time') + '</p>';
 				if (data.season) { html += '<p class="ac-lead-time-season">' + esc(data.season) + '</p>'; }
 				$badge.after(html);
+				$scope.find('.ac-lead-time, .ac-lead-time-season').css('font-family', ff);
 			}
 		}
 
