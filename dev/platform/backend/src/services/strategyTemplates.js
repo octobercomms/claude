@@ -101,19 +101,94 @@ const SEED = [
       ['Monitor churn, NRR & price realisation', 'Review the diversification pilots vs targets', 'Scale what works; retire what doesn’t'],
     ),
   },
+  {
+    name: 'B2B · Launch', business_type: 'b2b', lifecycle_stage: 'launch',
+    summary: 'SOSTAC plan to build a B2B pipeline from zero: nail the ICP, align sales + marketing, and prove a repeatable lead → opportunity motion.',
+    phases: sostac(
+      ['Define the ICP, buying committee & total addressable market', 'Audit competitors’ positioning, pricing & proof', 'Baseline: current pipeline sources & win rate'],
+      ['Set pipeline / MQL & SQL targets for the first 90 days', 'Define target CAC and sales-cycle length', 'Agree the marketing → sales SLA & definitions'],
+      ['Sharp positioning + ICP-led messaging', 'Choose the motion: inbound, outbound/ABM, or both', 'Prioritise the 1–2 channels the buyers actually use'],
+      ['Build a credibility website + lead-capture + demo flow', 'Publish proof (case studies, ROI, comparison pages)', 'Stand up LinkedIn + targeted outbound sequences', 'Create a lead magnet for the buying committee'],
+      ['Align sales + marketing on stages & handoff', 'Build the outreach cadence + content calendar', 'Set up CRM, lead routing & attribution'],
+      ['Weekly pipeline review: MQL→SQL→opp conversion', 'Track CAC, cycle length & source quality', 'Fix the weakest funnel stage'],
+    ),
+  },
+  {
+    name: 'B2B · Growth', business_type: 'b2b', lifecycle_stage: 'growth',
+    summary: 'SOSTAC plan to scale B2B pipeline predictably: expand ABM, enable sales, and tighten attribution to reinvest in what closes.',
+    phases: sostac(
+      ['Review pipeline by source, segment & win rate', 'Identify the best-fit accounts & expansion segments', 'Assess sales capacity vs lead volume'],
+      ['Set pipeline-coverage & revenue targets', 'Set conversion & average-deal-size goals', 'Define a target CAC payback period'],
+      ['Scale the highest-quality channel; layer ABM on tier-1 accounts', 'Category authority / thought-leadership positioning', 'Packaging & pricing for larger deals'],
+      ['Scale content/SEO for the buying journey', 'Run ABM plays (ads + outbound + events) on target accounts', 'Build sales enablement: decks, ROI tools, battlecards', 'Add nurture for long-cycle leads'],
+      ['Document the repeatable sales process', 'Resource SDR/content against the plan', 'Operationalise account scoring & routing'],
+      ['Track pipeline coverage, conversion & CAC payback', 'Multi-touch attribution to reallocate spend', 'Review deal-desk / win-loss monthly'],
+    ),
+  },
+  {
+    name: 'B2B · Maturity', business_type: 'b2b', lifecycle_stage: 'maturity',
+    summary: 'SOSTAC plan to defend revenue and find the next S-curve: expand accounts, protect category position, and enter a new segment or product.',
+    phases: sostac(
+      ['Map account health, churn & expansion potential', 'Assess category position & competitive threats', 'Audit margin & discounting in the deal base'],
+      ['Set net-revenue-retention & expansion targets', 'Set targets for a new segment / product line', 'Define win-back & reactivation goals'],
+      ['Land-and-expand within existing accounts', 'Category leadership & community building', 'Diversify into an adjacent segment or product'],
+      ['Customer-marketing & QBR programme for expansion', 'Thought-leadership + analyst/PR to defend position', 'Pilot a new-segment GTM or a lower-touch tier', 'Win-back campaigns for lapsed accounts'],
+      ['Sequence expansion vs new-segment bets', 'Resource customer marketing + the new GTM', 'Protect core revenue while piloting'],
+      ['Monitor NRR, expansion revenue & churn', 'Review the new-segment pilot vs targets', 'Double down or cut based on evidence'],
+    ),
+  },
+  {
+    name: 'Local · Launch', business_type: 'local', lifecycle_stage: 'launch',
+    summary: 'SOSTAC plan to get found and chosen locally: own the map pack, build reviews, and turn local demand into bookings/visits.',
+    phases: sostac(
+      ['Audit the local market, catchment & competitors', 'Define the ideal local customer + key services', 'Baseline: GBP status, reviews & local rankings'],
+      ['Set targets for calls / bookings / footfall', 'Set a reviews target (volume + rating)', 'Define a cost-per-enquiry goal'],
+      ['Local positioning + the hero offer', 'Map-pack (proximity, category, reviews) priorities', 'Channel mix: local search + social + offline'],
+      ['Optimise Google Business Profile + local citations', 'Launch a review-generation system', 'Local search/Maps ads for buying keywords', 'Location landing pages + local schema'],
+      ['Set the review-ask into the customer journey', 'Build the GBP posting + content cadence', 'Set up call/booking tracking'],
+      ['Weekly review of calls/bookings by source', 'Track map-pack rank + review velocity', 'Fix the weakest step (listing, CRO, follow-up)'],
+    ),
+  },
+  {
+    name: 'Local · Growth', business_type: 'local', lifecycle_stage: 'growth',
+    summary: 'SOSTAC plan to scale local presence: dominate the map pack across services/areas, compound reviews, and build referrals.',
+    phases: sostac(
+      ['Review enquiry volume & cost by service/area', 'Identify the best services & adjacent areas', 'Spot where competitors out-rank you'],
+      ['Set growth targets for enquiries & revenue', 'Set a sustained review-velocity target', 'Define a referral / repeat-visit target'],
+      ['Expand to more service/area landing pages', 'Reputation as a moat (reviews + responses)', 'Add a referral / loyalty motion'],
+      ['Scale local SEO + content for more terms/areas', 'Scale local ads on the best-performing services', 'Systematise reviews + owner responses', 'Launch referral incentives'],
+      ['Resource content + review ops', 'Schedule promos against local demand peaks', 'Tighten booking/CRM follow-up'],
+      ['Weekly KPIs: enquiries, cost, map-pack coverage', 'Track review velocity & response rate', 'Reallocate to the best services/areas'],
+    ),
+  },
+  {
+    name: 'Local · Maturity', business_type: 'local', lifecycle_stage: 'maturity',
+    summary: 'SOSTAC plan to defend the patch and grow: protect the map pack, deepen loyalty, and open new services, areas or locations.',
+    phases: sostac(
+      ['Audit map-pack defensibility & review lead', 'Assess loyalty / repeat-visit economics', 'Spot saturation in current services/areas'],
+      ['Set retention & repeat-visit targets', 'Set a margin / average-spend goal', 'Target % revenue from new services/areas'],
+      ['Defend rankings + reputation lead', 'Loyalty & community as retention drivers', 'Expand to a new service, area or location'],
+      ['Protect GBP + top local rankings', 'Win-back lapsed customers with local offers', 'Launch a new service / area / location pilot', 'Build community (events, partnerships, PR)'],
+      ['Sequence the expansion bets', 'Resource the new service/location pilot', 'Protect BAU while expanding'],
+      ['Monitor retention, average spend & rankings', 'Review the expansion pilot vs targets', 'Scale what works; cut what doesn’t'],
+    ),
+  },
 ];
 
-// Re-seed when the SOSTAC seed set is absent (e.g. after migration 102 clears an
-// older seed). Gated on seed rows only, so admins' custom templates are kept.
+// Additive seeding: insert any seed type×stage combo that isn't present yet, so
+// new combos (e.g. B2B / Local) fill in without disturbing existing seed rows
+// (preserving their ids + any clients linked to them) or admin-authored ones.
 async function ensureSeeded() {
-  const { rows } = await pool.query('SELECT COUNT(*)::int AS n FROM strategy_templates WHERE is_seed = TRUE');
-  if (rows[0].n > 0) return;
+  const { rows } = await pool.query('SELECT business_type, lifecycle_stage FROM strategy_templates WHERE is_seed = TRUE');
+  const have = new Set(rows.map(r => `${r.business_type}|${r.lifecycle_stage}`));
   for (const t of SEED) {
+    if (have.has(`${t.business_type}|${t.lifecycle_stage}`)) continue;
     await pool.query(
       `INSERT INTO strategy_templates (name, business_type, lifecycle_stage, summary, phases, is_seed)
        VALUES ($1, $2, $3, $4, $5, TRUE)`,
       [t.name, t.business_type, t.lifecycle_stage, t.summary, JSON.stringify(t.phases)]
     );
+    have.add(`${t.business_type}|${t.lifecycle_stage}`);
   }
 }
 
