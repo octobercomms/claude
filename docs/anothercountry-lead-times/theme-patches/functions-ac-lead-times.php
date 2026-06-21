@@ -27,6 +27,16 @@ function ac_lt_is_made_to_order( $product ) {
 	return has_term( $furniture_cats, 'product_cat', $product->get_id() ) && 'instock' !== $product->get_stock_status();
 }
 
+/** Expose each variation's resolved lead time to the variations JSON so the
+ *  front-end can show the selected variant's lead time. */
+add_filter( 'woocommerce_available_variation', 'ac_lt_variation_lead', 10, 3 );
+function ac_lt_variation_lead( $data, $product, $variation ) {
+	if ( function_exists( 'aclt_get_lead_time' ) ) {
+		$data['ac_lead_time'] = aclt_get_lead_time( $variation->get_id() );
+	}
+	return $data;
+}
+
 /** Trust chips below the add-to-cart (no lead-time line — that's inline now). */
 add_action( 'woocommerce_after_add_to_cart_form', 'ac_pdp_trust_chips', 20 );
 function ac_pdp_trust_chips() {
@@ -167,20 +177,22 @@ function ac_lt_inline_assets() {
 
 		// 2) Append the lead time (and seasonal note, on a new line) to the badge
 		//    → "Made to Order in 8-12 weeks" / "Allow up to 15 weeks…".
-		function applyInline(){
-			if (!data.lead) { return; }
+		//    `lead` defaults to the product's; a selected variation can override it.
+		function applyInline(lead){
+			lead = lead || data.lead;
+			if (!lead) { return; }
 			var $badge = $scope.find('p.available-on-backorder:visible').first();
 			if (!$badge.length) { return; } // only on made-to-order
 			if ($badge.find('.ac-lead-inline').length) { return; }
-			var add = '<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>';
+			var add = '<span class="ac-lead-inline"> in ' + esc(lead) + '</span>';
 			if (data.season) { add += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
 			$badge.append(add);
 		}
 
-		function refresh(){ relocateSimpleStock(); resolveOxymoron(); applyInline(); }
+		function refresh(lead){ relocateSimpleStock(); resolveOxymoron(); applyInline(lead); }
 		refresh();
 
-		// 3) Keep a single, correct status (and appended lead time) as variations change.
+		// 3) Keep a single, correct status + the selected variation's lead time.
 		$(document.body).on('show_variation', function (e, v) {
 			var $var = $('.woocommerce-variation-availability p.stock');
 			if ($var.length) {
@@ -190,7 +202,7 @@ function ac_lt_inline_assets() {
 				$scope.find('p.available-on-backorder').hide();
 				$scope.find('p.stock.in-stock').show();
 			}
-			refresh();
+			refresh( v && v.ac_lead_time ? v.ac_lead_time : data.lead );
 		});
 	});
 	</script>

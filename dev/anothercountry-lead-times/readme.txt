@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.4.0
+Stable tag: 1.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,15 @@ Public API for the theme:
 Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
+
+= 1.5.0 =
+* Inventory columns are read-only again (edit stock in WooCommerce); the grid is
+  for seeing inventory at a glance + editing lead times.
+* Per-variation lead-time overrides: each variation can have its own lead time
+  (blank = inherit the product). The front-end shows the selected variation's
+  lead time. Variations inherit the parent unless overridden.
+* "Old message" column shows the full text (so the team can read it; remove the
+  column once new values are verified).
 
 = 1.4.0 =
 * Products tab is now an editable inventory + lead-time grid: Manage stock, Qty,

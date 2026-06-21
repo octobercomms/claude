@@ -121,6 +121,6 @@
 .aclt-scroll { overflow-x: auto; }
 .aclt-products th, .aclt-products td { vertical-align: middle; white-space: nowrap; }
 .aclt-products .aclt-meta { color: #888; font-size: .85em; }
-.aclt-products .aclt-old { white-space: normal; max-width: 22em; color: #777; font-size: .9em; }
+.aclt-products .aclt-old { white-space: normal; min-width: 24em; max-width: 40em; color: #777; font-size: .9em; line-height: 1.4; }
 .aclt-products .aclt-old span { display: inline-block; }
 .aclt-info { color: #7a8aa0; cursor: help; }

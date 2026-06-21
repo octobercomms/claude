@@ -21,10 +21,18 @@ class ACLT_Resolver {
 
 	/** The lead-time figure, e.g. "8-10 weeks". Never empty (global default). */
 	public static function get_lead_time( int $product_id ): string {
-		// 1. Per-product override.
+		// 1. Per-product (or per-variation) override.
 		$override = trim( (string) get_post_meta( $product_id, '_ac_lead_time', true ) );
 		if ( '' !== $override ) {
 			return $override;
+		}
+
+		// 1b. A variation with no override inherits its parent product.
+		if ( 'product_variation' === get_post_type( $product_id ) ) {
+			$parent = wp_get_post_parent_id( $product_id );
+			if ( $parent ) {
+				return self::get_lead_time( $parent );
+			}
 		}
 
 		// 2. Supplier.
