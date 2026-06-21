@@ -104,12 +104,24 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
-		/* Alignment: top-align the price with the "Made to Order" badge and
-		   tidy the space below the seasonal line. (If the price/badge live in a
-		   different wrapper, send the inspected HTML and we'll target it exactly.) */
-		.single-product .product_price{ align-items:flex-start !important; }
-		.single-product .product_price .price{ margin-top:0 !important; margin-bottom:0 !important; }
-		.single-product p.available-on-backorder{ margin:0 !important; }
+		/* The "Made to Order" badge renders INSIDE the price amount span
+		   (sibling of the £ value). Lay them out side by side, top-aligned;
+		   wraps cleanly to two lines on mobile. */
+		.single-product .product_price .price,
+		.single-product .woocommerce-variation-price .price,
+		.single-product .woocommerce-Price-amount.amount{
+			display:flex;
+			align-items:flex-start;
+			flex-wrap:wrap;
+			column-gap:.6em;
+			row-gap:.1em;
+		}
+		.single-product p.stock.available-on-backorder,
+		.single-product p.stock.in-stock{ margin:0 !important; line-height:1.45; }
+		/* Sensible spacing below, before Add to cart. */
+		.single-product .product_price,
+		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
+		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
 	</style>
 	<script>
 	jQuery(function ($) {
