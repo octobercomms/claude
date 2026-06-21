@@ -93,17 +93,11 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Inline lead-time notice under the price/badge. */
-		.single-product .ac-lead-time{
-			margin:.35em 0 .1em;
-			font-size:14px;
-			line-height:1.45;
-			font-style:normal;
-			color:#6b6b6b;
-			letter-spacing:.01em;
-		}
+		/* Lead time is appended inline to the "Made to Order" badge, so it
+		   inherits the badge font/colour. Seasonal note sits on a small line. */
 		.single-product .ac-lead-time-season{
-			margin:0 0 .4em;
+			display:block;
+			margin:.25em 0 .4em;
 			font-size:13px;
 			line-height:1.4;
 			font-style:italic;
@@ -124,22 +118,25 @@ function ac_lt_inline_assets() {
 			var $is = $scope.find('p.stock.in-stock:visible');
 			if ($bo.length && $is.length) { $is.hide(); }
 		}
-		resolveOxymoron();
 
-		// 2) Insert the inline lead time right after the (single) stock badge.
-		if (data.lead && !$scope.find('.ac-lead-time').length) {
-			var $badge = $scope.find('p.stock:visible').first();
-			if (!$badge.length) { $badge = $scope.find('.product_price').first(); }
-			if ($badge.length) {
-				var ff = $badge.css('font-family'); // match the badge font, not the heading serif
-				var html = '<p class="ac-lead-time">' + esc(data.lead + ' lead time') + '</p>';
-				if (data.season) { html += '<p class="ac-lead-time-season">' + esc(data.season) + '</p>'; }
-				$badge.after(html);
-				$scope.find('.ac-lead-time, .ac-lead-time-season').css('font-family', ff);
+		// 2) Append the lead time to the badge → "Made to Order in 8-12 weeks".
+		function applyInline(){
+			if (!data.lead) { return; }
+			var $badge = $scope.find('p.available-on-backorder:visible').first();
+			if (!$badge.length) { return; } // only on made-to-order
+			if (!$badge.find('.ac-lead-inline').length) {
+				$badge.append('<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>');
+			}
+			if (data.season && !$scope.find('.ac-lead-time-season').length) {
+				$badge.after('<p class="ac-lead-time-season">' + esc(data.season) + '</p>');
+				$scope.find('.ac-lead-time-season').css('font-family', $badge.css('font-family'));
 			}
 		}
 
-		// 3) Keep a single, correct status as variations change.
+		function refresh(){ resolveOxymoron(); applyInline(); }
+		refresh();
+
+		// 3) Keep a single, correct status (and appended lead time) as variations change.
 		$(document.body).on('show_variation', function (e, v) {
 			var $var = $('.woocommerce-variation-availability p.stock');
 			if ($var.length) {
@@ -149,6 +146,7 @@ function ac_lt_inline_assets() {
 				$scope.find('p.available-on-backorder').hide();
 				$scope.find('p.stock.in-stock').show();
 			}
+			refresh();
 		});
 	});
 	</script>
