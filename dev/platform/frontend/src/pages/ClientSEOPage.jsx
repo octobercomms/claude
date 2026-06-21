@@ -648,16 +648,16 @@ export default function ClientSEOPage() {
         </div>
       </header>
 
-      {/* 10 flat tabs → 4 groups by job-to-be-done: Position (where are we
-          today), AI Search (visibility in generative AI), Plan (what to
-          write next). Each group fans out into the existing tab content
-          via a sub-strip — no JSX guards below this point change. */}
-      {/* Three top-level groups: Overview (launchpad), Performance (live
-          data + measurement), Pipeline (the production wizard — Find →
-          Brief → Draft → Publish → Promote). Briefs (PlanningTab) was
-          previously a standalone tab; it now lives as Pipeline step 2.
-          Content Gaps stays in Performance because it's a measurement
-          view, not a production step. */}
+      {/* Five top-level groups by job-to-be-done, each fanning out into the
+          existing tab content via a sub-strip (no JSX guards below change):
+            Overview     — launchpad
+            Performance  — reporting / measurement (where do we stand today)
+            Optimise     — the tools: audits we run + actions we generate
+            Pipeline     — the production wizard (Find → Brief → Draft →
+                           Publish → Promote); Briefs is step 2
+            Local SEO    — the local toolkit
+          Performance and Optimise were one overloaded "Performance" group;
+          splitting reporting from action keeps each strip scannable. */}
       {(() => {
         const SUB_TABS = {
           // Performance sub-tabs grouped with inline labels (rendered
@@ -666,22 +666,31 @@ export default function ClientSEOPage() {
           //   Measurement — what's happening today: ranks + GSC + AI visibility
           //   On-page     — health of pages we control: site/content/footprint/wins
           //   Off-page    — authority + links
+          // Performance = reporting/measurement only ("where do we stand
+          // today"). The action-oriented tools moved to Optimise below, so
+          // this group stays a clean read-out rather than a wall of options.
           performance: [
             { groupLabel: 'Measurement' },
             { key: 'perf_insights', label: 'Insights' },
             { key: 'keywords',      label: 'Keywords' },
             { key: 'gsc',           label: 'Search Console' },
-            { key: 'ctr_boost',     label: 'CTR boosters' },
             { key: 'ai_visibility', label: 'AI Visibility' },
-            { key: 'ai_seo',        label: 'AI SEO' },
+            { groupLabel: 'Off-page' },
+            { key: 'authority',     label: 'Authority' },
+            { key: 'backlinks',     label: 'Backlinks' },
+          ],
+          // Optimise = the "what do we do about it" tools — audits we run
+          // and actions we generate, split out of Performance so the two
+          // jobs-to-be-done don't share one overloaded strip.
+          optimise: [
             { groupLabel: 'On-page' },
             { key: 'site_audit',    label: 'Site audit' },
             { key: 'content_audit', label: 'Content audit' },
             { key: 'keyword_footprint', label: 'Keyword footprint' },
             { key: 'quick_wins',    label: 'Quick wins' },
-            { groupLabel: 'Off-page' },
-            { key: 'authority',     label: 'Authority' },
-            { key: 'backlinks',     label: 'Backlinks' },
+            { groupLabel: 'Search appearance' },
+            { key: 'ctr_boost',     label: 'CTR boosters' },
+            { key: 'ai_seo',        label: 'AI keyword targets' },
           ],
           pipeline: [
             { key: 'find',     label: '1 · Find' },
@@ -703,9 +712,10 @@ export default function ClientSEOPage() {
         const GROUP_OF = {
           overview: 'overview',
           perf_insights: 'performance',
-          keywords: 'performance', gsc: 'performance', ctr_boost: 'performance', authority: 'performance', backlinks: 'performance',
-          ai_visibility: 'performance', ai_seo: 'performance',
-          site_audit: 'performance', quick_wins: 'performance', content_audit: 'performance', keyword_footprint: 'performance',
+          keywords: 'performance', gsc: 'performance', authority: 'performance', backlinks: 'performance',
+          ai_visibility: 'performance',
+          site_audit: 'optimise', quick_wins: 'optimise', content_audit: 'optimise', keyword_footprint: 'optimise',
+          ctr_boost: 'optimise', ai_seo: 'optimise',
           find: 'pipeline', planning: 'pipeline', draft: 'pipeline', publish: 'pipeline', promote: 'pipeline',
           local_gap: 'local', local_schema: 'local', local_keywords: 'local', local_xray: 'local', local_playbook: 'local', local_outliers: 'local', local_gbp: 'local',
         };
@@ -713,6 +723,7 @@ export default function ClientSEOPage() {
         const topTabs = [
           { key: 'overview',    label: 'Overview',    active: currentGroup === 'overview',    onClick: () => setActiveTab('overview') },
           { key: 'performance', label: 'Performance', active: currentGroup === 'performance', onClick: () => setActiveTab('perf_insights') },
+          { key: 'optimise',    label: 'Optimise',    active: currentGroup === 'optimise',    onClick: () => setActiveTab('site_audit') },
           { key: 'pipeline',    label: 'Pipeline',    active: currentGroup === 'pipeline',    onClick: () => setActiveTab('find') },
           { key: 'local',       label: 'Local SEO',   active: currentGroup === 'local',       onClick: () => setActiveTab('local_gap') },
         ];
