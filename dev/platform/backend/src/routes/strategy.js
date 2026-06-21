@@ -4,7 +4,7 @@
 
 const express = require('express');
 const { authenticate } = require('../middleware/auth');
-const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
+const { loadVisibleClientIds, requireClientAccess, requireAdmin } = require('../middleware/clientAccess');
 const strategy = require('../services/strategyTemplates');
 
 const router = express.Router();
@@ -17,6 +17,20 @@ router.get('/meta', (req, res) => {
 router.get('/templates', async (req, res) => {
   try { res.json({ templates: await strategy.listTemplates() }); }
   catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Template library editor — admin only.
+router.post('/templates', requireAdmin, async (req, res) => {
+  try { res.status(201).json({ template: await strategy.createTemplate(req.body || {}) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.put('/templates/:id', requireAdmin, async (req, res) => {
+  try { res.json({ template: await strategy.updateTemplate(req.params.id, req.body || {}) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.delete('/templates/:id', requireAdmin, async (req, res) => {
+  try { await strategy.deleteTemplate(req.params.id); res.status(204).end(); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
 // Per-client — access-controlled.
