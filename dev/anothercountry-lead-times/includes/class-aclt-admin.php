@@ -329,33 +329,61 @@ class ACLT_Admin {
 			<input type="hidden" name="aclt_return_p" value="<?php echo esc_attr( $paged ); ?>" />
 			<?php wp_nonce_field( 'aclt_overrides', 'aclt_overrides_nonce' ); ?>
 
-			<table class="widefat striped">
+			<table class="widefat striped aclt-products">
 				<thead>
 					<tr>
-						<th style="width:35%"><?php esc_html_e( 'Product', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Product / variation', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'SKU', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Stock', 'anothercountry-lead-times' ); ?></th>
 						<th><?php esc_html_e( 'Supplier', 'anothercountry-lead-times' ); ?></th>
-						<th><?php esc_html_e( 'Currently showing', 'anothercountry-lead-times' ); ?></th>
-						<th style="width:20%"><?php esc_html_e( 'Override', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Lead time', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Old message', 'anothercountry-lead-times' ); ?></th>
+						<th style="width:14%"><?php esc_html_e( 'Override', 'anothercountry-lead-times' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 				<?php if ( ! $query->have_posts() ) : ?>
-					<tr><td colspan="4"><?php esc_html_e( 'No products found.', 'anothercountry-lead-times' ); ?></td></tr>
+					<tr><td colspan="7"><?php esc_html_e( 'No products found.', 'anothercountry-lead-times' ); ?></td></tr>
 				<?php else : foreach ( $query->posts as $post ) :
 					$pid      = $post->ID;
+					$product  = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
 					$term     = ACLT_Resolver::get_supplier_term( $pid );
 					$resolved = ACLT_Resolver::get_lead_time( $pid );
 					$override = get_post_meta( $pid, '_ac_lead_time', true );
+					$old      = ACLT_Resolver::old_message( $pid );
+					$old_s    = mb_strlen( $old ) > 60 ? mb_substr( $old, 0, 60 ) . '…' : $old;
 					?>
 					<tr>
 						<td>
-							<a href="<?php echo esc_url( get_edit_post_link( $pid ) ); ?>"><?php echo esc_html( get_the_title( $pid ) ); ?></a>
-							<?php if ( 'publish' !== $post->post_status ) : ?><em>(<?php echo esc_html( $post->post_status ); ?>)</em><?php endif; ?>
+							<a href="<?php echo esc_url( get_edit_post_link( $pid ) ); ?>"><strong><?php echo esc_html( get_the_title( $pid ) ); ?></strong></a>
+							<?php if ( 'publish' !== $post->post_status ) : ?> <em>(<?php echo esc_html( $post->post_status ); ?>)</em><?php endif; ?>
 						</td>
+						<td><?php echo esc_html( $product ? $product->get_sku() : '' ); ?></td>
+						<td><?php echo esc_html( ACLT_Resolver::stock_label( $pid ) ); ?></td>
 						<td><?php echo $term ? esc_html( $term->name ) : '<span style="color:#999">—</span>'; ?></td>
 						<td><?php echo esc_html( $resolved ); ?></td>
+						<td><span title="<?php echo esc_attr( $old ); ?>"><?php echo esc_html( $old_s ); ?></span></td>
 						<td><input type="text" name="ov[<?php echo esc_attr( $pid ); ?>]" value="<?php echo esc_attr( $override ); ?>" placeholder="<?php esc_attr_e( 'inherit', 'anothercountry-lead-times' ); ?>" style="width:100%" /></td>
 					</tr>
+					<?php
+					// Variation sub-rows (read-only) so mixed-stock variants are visible.
+					if ( $product && $product->is_type( 'variable' ) ) :
+						foreach ( $product->get_children() as $vid ) :
+							$v = wc_get_product( $vid );
+							if ( ! $v ) {
+								continue;
+							}
+							$vname = function_exists( 'wc_get_formatted_variation' ) ? wc_get_formatted_variation( $v, true ) : '#' . $vid;
+							?>
+							<tr class="aclt-variation-row">
+								<td class="aclt-variation-name">↳ <?php echo esc_html( $vname ?: ( '#' . $vid ) ); ?></td>
+								<td><?php echo esc_html( $v->get_sku() ); ?></td>
+								<td><?php echo esc_html( ACLT_Resolver::stock_label( $vid ) ); ?><?php echo $v->managing_stock() ? ' (' . esc_html( (string) $v->get_stock_quantity() ) . ')' : ''; ?></td>
+								<td colspan="4"><span class="description"><?php esc_html_e( 'inherits the product’s lead time', 'anothercountry-lead-times' ); ?></span></td>
+							</tr>
+						<?php endforeach;
+					endif;
+					?>
 				<?php endforeach; endif; ?>
 				</tbody>
 			</table>
@@ -505,7 +533,7 @@ class ACLT_Admin {
 		header( 'Content-Disposition: attachment; filename=ac-lead-times-' . gmdate( 'Y-m-d' ) . '.csv' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'Product ID', 'SKU', 'Product', 'Categories', 'Supplier', 'Currently showing', 'Override' ] );
+		fputcsv( $out, [ 'Product ID', 'SKU', 'Product', 'Categories', 'Stock', 'Supplier', 'Lead time', 'Old message', 'Override' ] );
 		foreach ( $ids as $pid ) {
 			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
 			$cats    = wp_get_post_terms( $pid, 'product_cat', [ 'fields' => 'names' ] );
@@ -515,8 +543,10 @@ class ACLT_Admin {
 				$product ? $product->get_sku() : '',
 				get_the_title( $pid ),
 				is_wp_error( $cats ) ? '' : implode( ', ', $cats ),
+				ACLT_Resolver::stock_label( $pid ),
 				$term ? $term->name : '',
 				ACLT_Resolver::get_lead_time( $pid ),
+				ACLT_Resolver::old_message( $pid ),
 				(string) get_post_meta( $pid, '_ac_lead_time', true ),
 			] );
 		}

@@ -109,6 +109,34 @@ class ACLT_Resolver {
 		return $product ? ! $product->is_in_stock() : false;
 	}
 
+	/** A human stock-status label: In stock / Made to order / Out of stock. */
+	public static function stock_label( int $product_id ): string {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return '';
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return '';
+		}
+		switch ( $product->get_stock_status() ) {
+			case 'onbackorder':
+				return __( 'Made to order', 'anothercountry-lead-times' );
+			case 'outofstock':
+				return __( 'Out of stock', 'anothercountry-lead-times' );
+			default:
+				return __( 'In stock', 'anothercountry-lead-times' );
+		}
+	}
+
+	/** The original (pre-migration) ACF lead-time message, still in the DB. */
+	public static function old_message( int $product_id ): string {
+		$t = (string) get_post_meta( $product_id, 'lead_time_popup_text', true );
+		if ( '' === trim( $t ) ) {
+			$t = (string) get_option( 'options_lead_time_popup_text', '' );
+		}
+		return $t;
+	}
+
 	/**
 	 * Is today inside a recurring MM-DD window? Supports windows that wrap the
 	 * year boundary (e.g. 11-01 → 02-28).

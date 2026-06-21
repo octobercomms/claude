@@ -112,3 +112,7 @@
 	flex-wrap: wrap;
 }
 .aclt-products-filter { margin: .75em 0; display: flex; gap: .5em; align-items: center; }
+
+/* Variation sub-rows in the products table */
+.aclt-products .aclt-variation-row td { background: #fbfaf7; color: #6b6b6b; font-size: .92em; }
+.aclt-products .aclt-variation-name { padding-left: 1.8em; }
