@@ -117,11 +117,20 @@ function ac_lt_inline_assets() {
 			row-gap:.1em;
 		}
 		.single-product p.stock.available-on-backorder,
-		.single-product p.stock.in-stock{ margin:0 !important; line-height:1.45; }
+		.single-product p.stock.in-stock{
+			margin:-0.12em 0 0 0 !important; /* nudge first line up to meet the price top */
+			line-height:1.45;
+		}
 		/* Sensible spacing below, before Add to cart. */
 		.single-product .product_price,
 		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
 		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
+		/* Mobile: stack the badge flush under the price, not indented beside it. */
+		@media (max-width:782px){
+			.single-product .woocommerce-Price-amount.amount{ flex-direction:column; }
+			.single-product p.stock.available-on-backorder,
+			.single-product p.stock.in-stock{ width:100%; margin:.15em 0 0 0 !important; }
+		}
 	</style>
 	<script>
 	jQuery(function ($) {
