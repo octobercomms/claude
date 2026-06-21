@@ -329,45 +329,49 @@ class ACLT_Admin {
 			<input type="hidden" name="aclt_return_p" value="<?php echo esc_attr( $paged ); ?>" />
 			<?php wp_nonce_field( 'aclt_overrides', 'aclt_overrides_nonce' ); ?>
 
+			<div class="aclt-scroll">
 			<table class="widefat striped aclt-products">
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Product / variation', 'anothercountry-lead-times' ); ?></th>
-						<th><?php esc_html_e( 'SKU', 'anothercountry-lead-times' ); ?></th>
-						<th><?php esc_html_e( 'Stock', 'anothercountry-lead-times' ); ?></th>
-						<th><?php esc_html_e( 'Supplier', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Manage', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Qty', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Stock status', 'anothercountry-lead-times' ); ?></th>
+						<th><?php esc_html_e( 'Backorders', 'anothercountry-lead-times' ); ?></th>
 						<th><?php esc_html_e( 'Lead time', 'anothercountry-lead-times' ); ?></th>
 						<th><?php esc_html_e( 'Old message', 'anothercountry-lead-times' ); ?></th>
-						<th style="width:14%"><?php esc_html_e( 'Override', 'anothercountry-lead-times' ); ?></th>
+						<th style="width:12%"><?php esc_html_e( 'Override', 'anothercountry-lead-times' ); ?></th>
 					</tr>
 				</thead>
 				<tbody>
 				<?php if ( ! $query->have_posts() ) : ?>
-					<tr><td colspan="7"><?php esc_html_e( 'No products found.', 'anothercountry-lead-times' ); ?></td></tr>
+					<tr><td colspan="8"><?php esc_html_e( 'No products found.', 'anothercountry-lead-times' ); ?></td></tr>
 				<?php else : foreach ( $query->posts as $post ) :
 					$pid      = $post->ID;
 					$product  = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
+					if ( ! $product ) {
+						continue;
+					}
 					$term     = ACLT_Resolver::get_supplier_term( $pid );
 					$resolved = ACLT_Resolver::get_lead_time( $pid );
 					$override = get_post_meta( $pid, '_ac_lead_time', true );
 					$old      = ACLT_Resolver::old_message( $pid );
-					$old_s    = mb_strlen( $old ) > 60 ? mb_substr( $old, 0, 60 ) . '…' : $old;
+					$old_s    = mb_strlen( $old ) > 70 ? mb_substr( $old, 0, 70 ) . '…' : $old;
+					$meta     = trim( $product->get_sku() . ( $term ? ' · ' . $term->name : '' ), ' ·' );
 					?>
 					<tr>
 						<td>
 							<a href="<?php echo esc_url( get_edit_post_link( $pid ) ); ?>"><strong><?php echo esc_html( get_the_title( $pid ) ); ?></strong></a>
 							<?php if ( 'publish' !== $post->post_status ) : ?> <em>(<?php echo esc_html( $post->post_status ); ?>)</em><?php endif; ?>
+							<?php if ( $meta ) : ?><br /><span class="aclt-meta"><?php echo esc_html( $meta ); ?></span><?php endif; ?>
 						</td>
-						<td><?php echo esc_html( $product ? $product->get_sku() : '' ); ?></td>
-						<td><?php echo esc_html( ACLT_Resolver::stock_label( $pid ) ); ?></td>
-						<td><?php echo $term ? esc_html( $term->name ) : '<span style="color:#999">—</span>'; ?></td>
+						<?php $this->inv_cells( $product ); ?>
 						<td><?php echo esc_html( $resolved ); ?></td>
-						<td><span title="<?php echo esc_attr( $old ); ?>"><?php echo esc_html( $old_s ); ?></span></td>
+						<td class="aclt-old"><span title="<?php echo esc_attr( $old ); ?>"><?php echo esc_html( $old_s ); ?></span></td>
 						<td><input type="text" name="ov[<?php echo esc_attr( $pid ); ?>]" value="<?php echo esc_attr( $override ); ?>" placeholder="<?php esc_attr_e( 'inherit', 'anothercountry-lead-times' ); ?>" style="width:100%" /></td>
 					</tr>
 					<?php
-					// Variation sub-rows (read-only) so mixed-stock variants are visible.
-					if ( $product && $product->is_type( 'variable' ) ) :
+					if ( $product->is_type( 'variable' ) ) :
 						foreach ( $product->get_children() as $vid ) :
 							$v = wc_get_product( $vid );
 							if ( ! $v ) {
@@ -376,10 +380,11 @@ class ACLT_Admin {
 							$vname = function_exists( 'wc_get_formatted_variation' ) ? wc_get_formatted_variation( $v, true ) : '#' . $vid;
 							?>
 							<tr class="aclt-variation-row">
-								<td class="aclt-variation-name">↳ <?php echo esc_html( $vname ?: ( '#' . $vid ) ); ?></td>
-								<td><?php echo esc_html( $v->get_sku() ); ?></td>
-								<td><?php echo esc_html( ACLT_Resolver::stock_label( $vid ) ); ?><?php echo $v->managing_stock() ? ' (' . esc_html( (string) $v->get_stock_quantity() ) . ')' : ''; ?></td>
-								<td colspan="4"><span class="description"><?php esc_html_e( 'inherits the product’s lead time', 'anothercountry-lead-times' ); ?></span></td>
+								<td class="aclt-variation-name">↳ <?php echo esc_html( $vname ?: ( '#' . $vid ) ); ?><?php if ( $v->get_sku() ) : ?><br /><span class="aclt-meta"><?php echo esc_html( $v->get_sku() ); ?></span><?php endif; ?></td>
+								<?php $this->inv_cells( $v ); ?>
+								<td><span class="description"><?php esc_html_e( 'inherits', 'anothercountry-lead-times' ); ?></span></td>
+								<td>—</td>
+								<td>—</td>
 							</tr>
 						<?php endforeach;
 					endif;
@@ -387,6 +392,9 @@ class ACLT_Admin {
 				<?php endforeach; endif; ?>
 				</tbody>
 			</table>
+			</div>
+
+			<p class="description"><?php esc_html_e( 'Manage / Qty / Stock status / Backorders edit WooCommerce inventory directly. Override sets the lead time for that product (variations inherit it).', 'anothercountry-lead-times' ); ?></p>
 
 			<?php
 			$total_pages = (int) $query->max_num_pages;
@@ -405,10 +413,40 @@ class ACLT_Admin {
 			}
 			?>
 
-			<?php submit_button( __( 'Save overrides on this page', 'anothercountry-lead-times' ) ); ?>
+			<?php submit_button( __( 'Save changes on this page', 'anothercountry-lead-times' ) ); ?>
 		</form>
 		<?php
 		wp_reset_postdata();
+	}
+
+	/** Editable inventory cells (Manage / Qty / Stock status / Backorders). */
+	private function inv_cells( $p ): void {
+		$id        = $p->get_id();
+		$manage    = $p->get_manage_stock();
+		$qty       = $p->get_stock_quantity();
+		$status    = $p->get_stock_status();
+		$bo        = $p->get_backorders();
+		$statuses  = [ 'instock' => __( 'In stock', 'anothercountry-lead-times' ), 'outofstock' => __( 'Out of stock', 'anothercountry-lead-times' ), 'onbackorder' => __( 'On backorder', 'anothercountry-lead-times' ) ];
+		$backorder = [ 'no' => __( 'Do not allow', 'anothercountry-lead-times' ), 'notify' => __( 'Allow, notify', 'anothercountry-lead-times' ), 'yes' => __( 'Allow', 'anothercountry-lead-times' ) ];
+		$name      = 'inv[' . $id . ']';
+		?>
+		<td style="text-align:center"><input type="checkbox" name="<?php echo esc_attr( $name ); ?>[manage]" value="1" <?php checked( $manage, true ); ?> /></td>
+		<td><input type="number" step="1" name="<?php echo esc_attr( $name ); ?>[qty]" value="<?php echo esc_attr( ( $manage && null !== $qty ) ? $qty : '' ); ?>" style="width:5em" /></td>
+		<td>
+			<select name="<?php echo esc_attr( $name ); ?>[stock]">
+				<?php foreach ( $statuses as $k => $lbl ) : ?>
+					<option value="<?php echo esc_attr( $k ); ?>" <?php selected( $status, $k ); ?>><?php echo esc_html( $lbl ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</td>
+		<td>
+			<select name="<?php echo esc_attr( $name ); ?>[backorders]">
+				<?php foreach ( $backorder as $k => $lbl ) : ?>
+					<option value="<?php echo esc_attr( $k ); ?>" <?php selected( $bo, $k ); ?>><?php echo esc_html( $lbl ); ?></option>
+				<?php endforeach; ?>
+			</select>
+		</td>
+		<?php
 	}
 
 	// -------------------------------------------------------------------------
@@ -471,6 +509,35 @@ class ACLT_Admin {
 				continue;
 			}
 			update_post_meta( $pid, '_ac_lead_time', sanitize_text_field( $value ) );
+		}
+
+		// Inventory fields (products + variations) via WooCommerce setters.
+		$inv = isset( $_POST['inv'] ) && is_array( $_POST['inv'] ) ? wp_unslash( $_POST['inv'] ) : [];
+		foreach ( $inv as $id => $f ) {
+			$id = absint( $id );
+			if ( ! $id || ! current_user_can( 'edit_post', $id ) || ! function_exists( 'wc_get_product' ) ) {
+				continue;
+			}
+			$p = wc_get_product( $id );
+			if ( ! $p ) {
+				continue;
+			}
+			$manage = ! empty( $f['manage'] );
+			$p->set_manage_stock( $manage );
+
+			if ( $manage ) {
+				$qty = ( isset( $f['qty'] ) && '' !== $f['qty'] ) ? wc_stock_amount( $f['qty'] ) : null;
+				$p->set_stock_quantity( $qty );
+			} elseif ( isset( $f['stock'] ) && in_array( $f['stock'], [ 'instock', 'outofstock', 'onbackorder' ], true ) ) {
+				// Stock status is only manually settable when not managing quantity.
+				$p->set_stock_status( $f['stock'] );
+			}
+
+			if ( isset( $f['backorders'] ) && in_array( $f['backorders'], [ 'no', 'notify', 'yes' ], true ) ) {
+				$p->set_backorders( $f['backorders'] );
+			}
+
+			$p->save();
 		}
 
 		$this->redirect( [

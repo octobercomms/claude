@@ -116,3 +116,11 @@
 /* Variation sub-rows in the products table */
 .aclt-products .aclt-variation-row td { background: #fbfaf7; color: #6b6b6b; font-size: .92em; }
 .aclt-products .aclt-variation-name { padding-left: 1.8em; }
+
+/* Inventory grid */
+.aclt-scroll { overflow-x: auto; }
+.aclt-products th, .aclt-products td { vertical-align: middle; white-space: nowrap; }
+.aclt-products .aclt-meta { color: #888; font-size: .85em; }
+.aclt-products .aclt-old { white-space: normal; max-width: 22em; color: #777; font-size: .9em; }
+.aclt-products .aclt-old span { display: inline-block; }
+.aclt-info { color: #7a8aa0; cursor: help; }

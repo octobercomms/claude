@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.7
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.3.0
+Stable tag: 1.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -71,6 +71,12 @@ Public API for the theme:
 Filter `aclt_notice_html` customises the standalone notice markup.
 
 == Changelog ==
+
+= 1.4.0 =
+* Products tab is now an editable inventory + lead-time grid: Manage stock, Qty,
+  Stock status and Backorders are editable inline (via WooCommerce setters), for
+  products and each variation. "Old message" is a visible column; wide grid
+  scrolls horizontally.
 
 = 1.3.0 =
 * Products tab now shows SKU, Stock status (+ qty), Lead time, the original

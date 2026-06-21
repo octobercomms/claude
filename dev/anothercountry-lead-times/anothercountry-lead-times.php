@@ -3,7 +3,7 @@
  * Plugin Name: Another Country Lead Times
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Central, supplier-based lead-time manager for Another Country. Set delivery lead times once per supplier/workshop, attach products to suppliers, and have the notice update everywhere automatically — with out-of-stock and seasonal (e.g. summer shutdown) variations, plus per-product overrides.
- * Version:     1.3.0
+ * Version:     1.4.0
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL v2 or later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ACLT_VERSION', '1.3.0' );
+define( 'ACLT_VERSION', '1.4.0' );
 define( 'ACLT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ACLT_URL', plugin_dir_url( __FILE__ ) );
 define( 'ACLT_BASENAME', plugin_basename( __FILE__ ) );
