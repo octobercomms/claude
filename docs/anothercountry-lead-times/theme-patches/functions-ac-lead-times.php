@@ -93,15 +93,16 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		/* Lead time is appended inline to the "Made to Order" badge, so it
-		   inherits the badge font/colour. Seasonal note sits on a small line. */
-		.single-product .ac-lead-time-season{
-			display:block;
-			margin:.25em 0 .4em;
-			font-size:13px;
-			line-height:1.4;
-			font-style:italic;
-			color:#8a8a8a;
+		/* Lead time + seasonal note are appended inside the "Made to Order"
+		   badge (with a line break) so they share its font and colour. */
+		.single-product .ac-lead-season{ display:inline-block; margin-top:.15em; }
+		/* The badge is not a real link — neutralise the old tooltip trigger. */
+		.single-product p.available-on-backorder{ cursor:default !important; }
+		.single-product p.available-on-backorder a{
+			pointer-events:none !important;
+			cursor:default !important;
+			text-decoration:none !important;
+			color:inherit !important;
 		}
 	</style>
 	<script>
@@ -119,18 +120,16 @@ function ac_lt_inline_assets() {
 			if ($bo.length && $is.length) { $is.hide(); }
 		}
 
-		// 2) Append the lead time to the badge → "Made to Order in 8-12 weeks".
+		// 2) Append the lead time (and seasonal note, on a new line) to the badge
+		//    → "Made to Order in 8-12 weeks" / "Allow up to 15 weeks…".
 		function applyInline(){
 			if (!data.lead) { return; }
 			var $badge = $scope.find('p.available-on-backorder:visible').first();
 			if (!$badge.length) { return; } // only on made-to-order
-			if (!$badge.find('.ac-lead-inline').length) {
-				$badge.append('<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>');
-			}
-			if (data.season && !$scope.find('.ac-lead-time-season').length) {
-				$badge.after('<p class="ac-lead-time-season">' + esc(data.season) + '</p>');
-				$scope.find('.ac-lead-time-season').css('font-family', $badge.css('font-family'));
-			}
+			if ($badge.find('.ac-lead-inline').length) { return; }
+			var add = '<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>';
+			if (data.season) { add += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
+			$badge.append(add);
 		}
 
 		function refresh(){ resolveOxymoron(); applyInline(); }
