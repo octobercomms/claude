@@ -104,6 +104,12 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
+		/* Alignment: top-align the price with the "Made to Order" badge and
+		   tidy the space below the seasonal line. (If the price/badge live in a
+		   different wrapper, send the inspected HTML and we'll target it exactly.) */
+		.single-product .product_price{ align-items:flex-start !important; }
+		.single-product .product_price .price{ margin-top:0 !important; margin-bottom:0 !important; }
+		.single-product p.available-on-backorder{ margin:0 !important; }
 	</style>
 	<script>
 	jQuery(function ($) {
