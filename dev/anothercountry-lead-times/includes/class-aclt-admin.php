@@ -19,6 +19,8 @@ class ACLT_Admin {
 		add_action( 'admin_post_aclt_save', [ $this, 'handle_save' ] );
 		add_action( 'admin_post_aclt_save_overrides', [ $this, 'handle_save_overrides' ] );
 		add_action( 'admin_post_aclt_apply_category', [ $this, 'handle_apply_category' ] );
+		add_action( 'admin_post_aclt_export_csv', [ $this, 'handle_export_csv' ] );
+		add_action( 'admin_post_aclt_import_csv', [ $this, 'handle_import_csv' ] );
 		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue' ] );
 	}
 
@@ -59,7 +61,11 @@ class ACLT_Admin {
 		<div class="wrap aclt-wrap">
 			<h1><?php esc_html_e( 'Another Country — Lead Times', 'anothercountry-lead-times' ); ?></h1>
 
-			<?php if ( isset( $_GET['updated'] ) ) : ?>
+			<?php if ( isset( $_GET['imported'] ) ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php echo esc_html( sprintf( __( 'Imported %d products from CSV.', 'anothercountry-lead-times' ), absint( $_GET['imported'] ) ) ); ?></p></div>
+			<?php elseif ( isset( $_GET['import_error'] ) ) : ?>
+				<div class="notice notice-error is-dismissible"><p><?php esc_html_e( 'Import failed — the CSV needs a “Product ID” column and an “Override” column (re-upload a file exported from here).', 'anothercountry-lead-times' ); ?></p></div>
+			<?php elseif ( isset( $_GET['updated'] ) ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Saved.', 'anothercountry-lead-times' ); ?></p></div>
 			<?php endif; ?>
 
@@ -137,7 +143,15 @@ class ACLT_Admin {
 									<input type="text" size="6" name="<?php echo esc_attr( $base ); ?>[season_start]" value="<?php echo esc_attr( $d['season_start'] ); ?>" placeholder="07-01" />
 									<input type="text" size="6" name="<?php echo esc_attr( $base ); ?>[season_end]" value="<?php echo esc_attr( $d['season_end'] ); ?>" placeholder="09-30" />
 									<input type="text" name="<?php echo esc_attr( $base ); ?>[season_note]" value="<?php echo esc_attr( $d['season_note'] ); ?>" placeholder="Allow an extra 3–4 weeks…" />
-									<?php if ( $active ) : ?><span class="aclt-badge"><?php esc_html_e( 'Active now', 'anothercountry-lead-times' ); ?></span><?php endif; ?>
+									<?php
+									if ( empty( $d['season_enabled'] ) ) {
+										echo '<span class="aclt-status aclt-status-off">' . esc_html__( 'Off', 'anothercountry-lead-times' ) . '</span>';
+									} elseif ( $active ) {
+										echo '<span class="aclt-status aclt-status-active">' . esc_html__( 'Active now', 'anothercountry-lead-times' ) . '</span>';
+									} else {
+										echo '<span class="aclt-status aclt-status-scheduled">' . esc_html__( 'Scheduled', 'anothercountry-lead-times' ) . '</span>';
+									}
+									?>
 								</td>
 							</tr>
 						<?php endforeach; ?>
@@ -158,7 +172,19 @@ class ACLT_Admin {
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Default seasonal note', 'anothercountry-lead-times' ); ?></th>
 						<td>
-							<label><input type="checkbox" name="settings[default_season_enabled]" value="1" <?php checked( $settings['default_season_enabled'], 1 ); ?> /> <?php esc_html_e( 'Active', 'anothercountry-lead-times' ); ?></label>
+							<?php
+							$def_on     = ! empty( $settings['default_season_enabled'] );
+							$def_active = $def_on && ACLT_Resolver::in_season( $settings['default_season_start'], $settings['default_season_end'] );
+							if ( ! $def_on ) {
+								echo '<span class="aclt-status aclt-status-off">' . esc_html__( 'Off', 'anothercountry-lead-times' ) . '</span> ';
+							} elseif ( $def_active ) {
+								echo '<span class="aclt-status aclt-status-active">' . esc_html__( 'Active now', 'anothercountry-lead-times' ) . '</span> ';
+							} else {
+								echo '<span class="aclt-status aclt-status-scheduled">' . esc_html__( 'Scheduled — not showing today', 'anothercountry-lead-times' ) . '</span> ';
+							}
+							?>
+							<br />
+							<label><input type="checkbox" name="settings[default_season_enabled]" value="1" <?php checked( $settings['default_season_enabled'], 1 ); ?> /> <?php esc_html_e( 'Enable', 'anothercountry-lead-times' ); ?></label>
 							&nbsp; <?php esc_html_e( 'From', 'anothercountry-lead-times' ); ?>
 							<input type="text" size="6" name="settings[default_season_start]" value="<?php echo esc_attr( $settings['default_season_start'] ); ?>" placeholder="07-01" />
 							<?php esc_html_e( 'to', 'anothercountry-lead-times' ); ?>
@@ -227,6 +253,18 @@ class ACLT_Admin {
 		$cats = is_wp_error( $cats ) ? [] : $cats;
 		?>
 		<p class="description" style="margin-top:1em"><?php esc_html_e( 'Override the lead time for individual products, or apply one message to a whole category at once. Leave a field blank to inherit from the supplier / global default.', 'anothercountry-lead-times' ); ?></p>
+
+		<div class="aclt-io">
+			<a class="button" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=aclt_export_csv' ), 'aclt_export' ) ); ?>">⬇ <?php esc_html_e( 'Export CSV', 'anothercountry-lead-times' ); ?></a>
+			<span class="description"><?php esc_html_e( 'Download every product + its lead time. Send to the team to fill in the “Override” column, then import it back.', 'anothercountry-lead-times' ); ?></span>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" enctype="multipart/form-data" class="aclt-import-form">
+				<input type="hidden" name="action" value="aclt_import_csv" />
+				<?php wp_nonce_field( 'aclt_import', 'aclt_import_nonce' ); ?>
+				<input type="file" name="aclt_csv" accept=".csv" required />
+				<?php submit_button( __( 'Import CSV', 'anothercountry-lead-times' ), 'secondary', 'submit', false ); ?>
+				<span class="description"><?php esc_html_e( 'Updates the Override for each row by Product ID. Blank Override = inherit.', 'anothercountry-lead-times' ); ?></span>
+			</form>
+		</div>
 
 		<div class="aclt-catcloud">
 			<a class="aclt-chip <?php echo 0 === $cat ? 'is-active' : ''; ?>" href="<?php echo esc_url( $this->tab_url( 'products' ) ); ?>"><?php esc_html_e( 'All', 'anothercountry-lead-times' ); ?></a>
@@ -442,6 +480,98 @@ class ACLT_Admin {
 		}
 
 		$this->redirect( [ 'tab' => 'products', 'aclt_cat' => $cat ] );
+	}
+
+	/**
+	 * Export every product + lead time as CSV (round-trips with the importer).
+	 */
+	public function handle_export_csv(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'anothercountry-lead-times' ) );
+		}
+		check_admin_referer( 'aclt_export' );
+
+		$ids = get_posts( [
+			'post_type'      => 'product',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'fields'         => 'ids',
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+		] );
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename=ac-lead-times-' . gmdate( 'Y-m-d' ) . '.csv' );
+
+		$out = fopen( 'php://output', 'w' );
+		fputcsv( $out, [ 'Product ID', 'SKU', 'Product', 'Categories', 'Supplier', 'Currently showing', 'Override' ] );
+		foreach ( $ids as $pid ) {
+			$product = function_exists( 'wc_get_product' ) ? wc_get_product( $pid ) : null;
+			$cats    = wp_get_post_terms( $pid, 'product_cat', [ 'fields' => 'names' ] );
+			$term    = ACLT_Resolver::get_supplier_term( $pid );
+			fputcsv( $out, [
+				$pid,
+				$product ? $product->get_sku() : '',
+				get_the_title( $pid ),
+				is_wp_error( $cats ) ? '' : implode( ', ', $cats ),
+				$term ? $term->name : '',
+				ACLT_Resolver::get_lead_time( $pid ),
+				(string) get_post_meta( $pid, '_ac_lead_time', true ),
+			] );
+		}
+		fclose( $out );
+		exit;
+	}
+
+	/**
+	 * Import a CSV and update each product's override by Product ID.
+	 */
+	public function handle_import_csv(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to do this.', 'anothercountry-lead-times' ) );
+		}
+		check_admin_referer( 'aclt_import', 'aclt_import_nonce' );
+
+		if ( empty( $_FILES['aclt_csv']['tmp_name'] ) || ! is_uploaded_file( $_FILES['aclt_csv']['tmp_name'] ) ) {
+			$this->redirect( [ 'tab' => 'products', 'import_error' => 1 ] );
+		}
+
+		$fh = fopen( $_FILES['aclt_csv']['tmp_name'], 'r' ); // phpcs:ignore WordPress.WP.AlternativeFunctions
+		if ( ! $fh ) {
+			$this->redirect( [ 'tab' => 'products', 'import_error' => 1 ] );
+		}
+
+		$header = fgetcsv( $fh );
+		$idx_id = $idx_ov = null;
+		if ( is_array( $header ) ) {
+			foreach ( $header as $i => $col ) {
+				$col = strtolower( trim( (string) $col ) );
+				if ( 'product id' === $col || 'id' === $col ) {
+					$idx_id = $i;
+				} elseif ( false !== strpos( $col, 'override' ) ) {
+					$idx_ov = $i;
+				}
+			}
+		}
+
+		if ( null === $idx_id || null === $idx_ov ) {
+			fclose( $fh );
+			$this->redirect( [ 'tab' => 'products', 'import_error' => 1 ] );
+		}
+
+		$updated = 0;
+		while ( ( $row = fgetcsv( $fh ) ) !== false ) {
+			$pid = absint( $row[ $idx_id ] ?? 0 );
+			if ( ! $pid || 'product' !== get_post_type( $pid ) || ! current_user_can( 'edit_post', $pid ) ) {
+				continue;
+			}
+			update_post_meta( $pid, '_ac_lead_time', sanitize_text_field( $row[ $idx_ov ] ?? '' ) );
+			$updated++;
+		}
+		fclose( $fh );
+
+		$this->redirect( [ 'tab' => 'products', 'imported' => $updated ] );
 	}
 
 	/** Redirect back to the page with the given args + an updated flag. */

@@ -76,6 +76,9 @@ Filter `aclt_notice_html` customises the standalone notice markup.
 * Tabbed admin (Suppliers / Defaults & display / Products).
 * Products tab: category "tag cloud" filter, bulk-apply a lead time to every
   product in a category, and a per-page selector (50/100/200/Show all).
+* CSV export / import of per-product lead times (round-trippable for the team).
+* Seasonal status indicator (Active now / Scheduled / Off) on the global default
+  and each supplier.
 
 = 1.1.0 =
 * Added an "All products — quick override" list at the bottom of the Lead Times

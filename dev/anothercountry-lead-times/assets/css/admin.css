@@ -50,3 +50,65 @@
 	font-weight: 600;
 	vertical-align: middle;
 }
+
+/* Status pills (seasonal active / scheduled / off) */
+.aclt-status {
+	display: inline-block;
+	padding: .1em .5em;
+	border-radius: 10px;
+	font-size: .75em;
+	font-weight: 600;
+	vertical-align: middle;
+	white-space: nowrap;
+}
+.aclt-status-active    { background: #d9822b; color: #fff; }
+.aclt-status-scheduled { background: #e6e0d4; color: #6b6b6b; }
+.aclt-status-off       { background: #efefef; color: #999; }
+
+/* Export / import box */
+.aclt-io {
+	margin: 1em 0 1.5em;
+	padding: 1em;
+	background: #f7f4ee;
+	border: 1px solid #e3ddd2;
+	border-radius: 4px;
+}
+.aclt-io .aclt-import-form {
+	margin-top: .75em;
+	padding-top: .75em;
+	border-top: 1px solid #e3ddd2;
+	display: flex;
+	align-items: center;
+	gap: .5em;
+	flex-wrap: wrap;
+}
+.aclt-io .description { display: inline-block; margin-left: .5em; }
+
+/* Category "tag cloud" */
+.aclt-catcloud { margin: 1em 0; display: flex; flex-wrap: wrap; gap: .4em; }
+.aclt-chip {
+	display: inline-block;
+	padding: .25em .7em;
+	background: #fff;
+	border: 1px solid #d3cabb;
+	border-radius: 14px;
+	font-size: .85em;
+	text-decoration: none;
+	color: #50463a;
+}
+.aclt-chip:hover { background: #f3eee4; }
+.aclt-chip.is-active { background: #50463a; border-color: #50463a; color: #fff; }
+.aclt-chip .aclt-chip-count { opacity: .6; font-size: .85em; }
+
+.aclt-bulk-apply {
+	margin: .75em 0 1em;
+	padding: .75em 1em;
+	background: #fff7e6;
+	border: 1px solid #f0e3c4;
+	border-radius: 4px;
+	display: flex;
+	align-items: center;
+	gap: .5em;
+	flex-wrap: wrap;
+}
+.aclt-products-filter { margin: .75em 0; display: flex; gap: .5em; align-items: center; }
