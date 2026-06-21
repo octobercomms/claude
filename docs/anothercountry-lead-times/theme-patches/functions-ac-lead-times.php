@@ -84,8 +84,30 @@ function ac_lt_inline_assets() {
 	}
 	?>
 	<style>
-		.ac-lead-time{ margin:.4em 0 0; font-size:.95em; color:#3a3a3a; }
-		.ac-lead-time-season{ margin:.15em 0 0; font-size:.9em; font-style:italic; color:#777; }
+		/* Remove the old CSS tooltip + its info icon on the stock labels
+		   (no template edit needed). */
+		.single-product p.available-on-backorder:before,
+		.single-product p.available-on-backorder:after,
+		.single-product p.stock.in-stock:before,
+		.single-product p.stock.in-stock:after{
+			content:none !important;
+			display:none !important;
+		}
+		/* Inline lead-time notice under the price/badge. */
+		.single-product .ac-lead-time{
+			margin:.45em 0 .1em;
+			font-size:14px;
+			line-height:1.45;
+			color:#6b6b6b;
+			letter-spacing:.01em;
+		}
+		.single-product .ac-lead-time-season{
+			margin:0 0 .4em;
+			font-size:13px;
+			line-height:1.4;
+			font-style:italic;
+			color:#8a8a8a;
+		}
 	</style>
 	<script>
 	jQuery(function ($) {
