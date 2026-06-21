@@ -118,6 +118,42 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+
+      <StrategyOverview />
+    </div>
+  );
+}
+
+// Cross-client strategy roll-up — each client's assigned playbook + progress.
+function StrategyOverview() {
+  const [rows, setRows] = useState(null);
+  useEffect(() => { api.get('/strategy/overview').then(r => setRows(r.clients || [])).catch(() => setRows([])); }, []);
+  if (!rows || !rows.length) return null;
+  return (
+    <div style={{ marginTop: 'var(--s8)' }}>
+      <h2 className="h2 mb-4">Client strategies</h2>
+      <div className="card" style={{ padding: 0 }}>
+        <table className="table">
+          <thead><tr>{['Client', 'Type · Stage', 'Strategy', 'Progress'].map(h => <th key={h}>{h}</th>)}</tr></thead>
+          <tbody>
+            {rows.map(s => (
+              <tr key={s.client_id}>
+                <td><Link to={`/clients/${s.client_id}`} className="text-accent">{s.client_name}</Link></td>
+                <td className="text-subtle" style={{ textTransform: 'capitalize' }}>{[s.business_type, s.lifecycle_stage].filter(Boolean).join(' · ') || '—'}</td>
+                <td>{s.template_name || '—'}</td>
+                <td>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden' }}>
+                      <div style={{ width: `${s.pct}%`, height: '100%', background: s.pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
+                    </div>
+                    <span className="body-xs text-subtle">{s.done}/{s.total}</span>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

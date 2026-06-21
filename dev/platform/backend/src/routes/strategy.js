@@ -19,6 +19,12 @@ router.get('/templates', async (req, res) => {
   catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Cross-client roll-up for the main dashboard, scoped to visible clients.
+router.get('/overview', loadVisibleClientIds, async (req, res) => {
+  try { res.json({ clients: await strategy.overview(req.visibleClientIds) }); }
+  catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Template library editor — admin only.
 router.post('/templates', requireAdmin, async (req, res) => {
   try { res.status(201).json({ template: await strategy.createTemplate(req.body || {}) }); }
