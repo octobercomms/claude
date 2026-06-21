@@ -3,7 +3,7 @@
  * Plugin Name: Another Country Lead Times
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Central, supplier-based lead-time manager for Another Country. Set delivery lead times once per supplier/workshop, attach products to suppliers, and have the notice update everywhere automatically — with out-of-stock and seasonal (e.g. summer shutdown) variations, plus per-product overrides.
- * Version:     1.6.0
+ * Version:     1.7.0
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL v2 or later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ACLT_VERSION', '1.6.0' );
+define( 'ACLT_VERSION', '1.7.0' );
 define( 'ACLT_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ACLT_URL', plugin_dir_url( __FILE__ ) );
 define( 'ACLT_BASENAME', plugin_basename( __FILE__ ) );
@@ -49,6 +49,10 @@ function aclt_default_settings(): array {
 		// Global default lead time — the bottom fallback when a product has no
 		// per-product value and no configured supplier. Matches today's fallback.
 		'default_lead'           => '8-10 weeks',
+
+		// Global default status label — the words before the lead time, e.g.
+		// "Made to Order in 8-12 weeks". Suppliers can override per supplier.
+		'default_label'          => __( 'Made to Order', 'anothercountry-lead-times' ),
 
 		// Global default seasonal note — reproduces the currently hardcoded line.
 		'default_season_enabled' => 1,
@@ -101,6 +105,11 @@ add_action( 'plugins_loaded', function () {
 /** The lead-time figure for a product, e.g. "8-10 weeks". */
 function aclt_get_lead_time( $product_id ): string {
 	return ACLT_Resolver::get_lead_time( (int) $product_id );
+}
+
+/** The status label before the lead time, e.g. "Made to Order" / "Available". */
+function aclt_get_badge_label( $product_id ): string {
+	return ACLT_Resolver::get_badge_label( (int) $product_id );
 }
 
 /** An optional supplier note (e.g. "from receipt of fabric…"), or ''. */

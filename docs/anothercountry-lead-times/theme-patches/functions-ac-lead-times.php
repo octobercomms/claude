@@ -32,7 +32,8 @@ function ac_lt_is_made_to_order( $product ) {
 add_filter( 'woocommerce_available_variation', 'ac_lt_variation_lead', 10, 3 );
 function ac_lt_variation_lead( $data, $product, $variation ) {
 	if ( function_exists( 'aclt_get_lead_time' ) ) {
-		$data['ac_lead_time'] = aclt_get_lead_time( $variation->get_id() );
+		$data['ac_lead_time']  = aclt_get_lead_time( $variation->get_id() );
+		$data['ac_lead_label'] = function_exists( 'aclt_get_badge_label' ) ? aclt_get_badge_label( $variation->get_id() ) : '';
 	}
 	return $data;
 }
@@ -86,10 +87,12 @@ function ac_lt_inline_assets() {
 	}
 
 	$lead   = '';
+	$label  = '';
 	$season = '';
 	if ( ac_lt_is_made_to_order( $product ) ) {
 		$pid    = $product->get_id();
 		$lead   = function_exists( 'aclt_get_lead_time' ) ? aclt_get_lead_time( $pid ) : '8-10 weeks';
+		$label  = function_exists( 'aclt_get_badge_label' ) ? aclt_get_badge_label( $pid ) : 'Made to Order';
 		$season = function_exists( 'aclt_get_seasonal_note' ) ? aclt_get_seasonal_note( $pid ) : '';
 	}
 	?>
@@ -153,7 +156,7 @@ function ac_lt_inline_assets() {
 	</style>
 	<script>
 	jQuery(function ($) {
-		var data = { lead: <?php echo wp_json_encode( $lead ); ?>, season: <?php echo wp_json_encode( $season ); ?> };
+		var data = { lead: <?php echo wp_json_encode( $lead ); ?>, label: <?php echo wp_json_encode( $label ); ?>, season: <?php echo wp_json_encode( $season ); ?> };
 		var $scope = $('.product_infos, .summary').first();
 		if (!$scope.length) { $scope = $('body'); }
 
@@ -175,21 +178,23 @@ function ac_lt_inline_assets() {
 			if ($bo.length && $is.length) { $is.hide(); }
 		}
 
-		// 2) Append the lead time (and seasonal note, on a new line) to the badge
-		//    → "Made to Order in 8-12 weeks" / "Allow up to 15 weeks…".
-		//    `lead` defaults to the product's; a selected variation can override it.
-		function applyInline(lead){
-			lead = lead || data.lead;
+		// 2) Set the badge text to "{label} in {lead}" (+ seasonal note on a new
+		//    line) → "Made to Order in 8-12 weeks" / "Available in approx. 6 weeks".
+		//    The label replaces the theme's hardcoded "Made to Order" so stock
+		//    suppliers can read differently. `lead`/`label` default to the product's;
+		//    a selected variation can override them.
+		function applyInline(lead, label){
+			lead  = lead  || data.lead;
+			label = label || data.label;
 			if (!lead) { return; }
 			var $badge = $scope.find('p.available-on-backorder:visible').first();
 			if (!$badge.length) { return; } // only on made-to-order
-			if ($badge.find('.ac-lead-inline').length) { return; }
-			var add = '<span class="ac-lead-inline"> in ' + esc(lead) + '</span>';
-			if (data.season) { add += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
-			$badge.append(add);
+			var html = (label ? esc(label) + ' ' : '') + '<span class="ac-lead-inline">in ' + esc(lead) + '</span>';
+			if (data.season) { html += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
+			$badge.html(html);
 		}
 
-		function refresh(lead){ relocateSimpleStock(); resolveOxymoron(); applyInline(lead); }
+		function refresh(lead, label){ relocateSimpleStock(); resolveOxymoron(); applyInline(lead, label); }
 		refresh();
 
 		// 3) Keep a single, correct status + the selected variation's lead time.
@@ -202,7 +207,10 @@ function ac_lt_inline_assets() {
 				$scope.find('p.available-on-backorder').hide();
 				$scope.find('p.stock.in-stock').show();
 			}
-			refresh( v && v.ac_lead_time ? v.ac_lead_time : data.lead );
+			refresh(
+				v && v.ac_lead_time  ? v.ac_lead_time  : data.lead,
+				v && v.ac_lead_label ? v.ac_lead_label : data.label
+			);
 		});
 	});
 	</script>

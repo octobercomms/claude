@@ -171,6 +171,13 @@ class ACLT_Admin {
 						<td><input type="text" id="aclt_default_lead" class="regular-text" name="settings[default_lead]" value="<?php echo esc_attr( $settings['default_lead'] ); ?>" placeholder="8-10 weeks" /></td>
 					</tr>
 					<tr>
+						<th scope="row"><label for="aclt_default_label"><?php esc_html_e( 'Default status label', 'anothercountry-lead-times' ); ?></label></th>
+						<td>
+							<input type="text" id="aclt_default_label" class="regular-text" name="settings[default_label]" value="<?php echo esc_attr( $settings['default_label'] ); ?>" placeholder="Made to Order" />
+							<p class="description"><?php esc_html_e( 'The words before the lead time on the product page, e.g. “Made to Order in 8-12 weeks”. Suppliers (like a stock warehouse) can set their own, e.g. “Available”.', 'anothercountry-lead-times' ); ?></p>
+						</td>
+					</tr>
+					<tr>
 						<th scope="row"><?php esc_html_e( 'Default seasonal note', 'anothercountry-lead-times' ); ?></th>
 						<td>
 							<?php
@@ -486,6 +493,7 @@ class ACLT_Admin {
 			'auto_display'           => empty( $in['auto_display'] ) ? 0 : 1,
 			'prefix'                 => sanitize_text_field( $in['prefix'] ?? '' ),
 			'default_lead'           => sanitize_text_field( $in['default_lead'] ?? '' ) ?: $defaults['default_lead'],
+			'default_label'          => sanitize_text_field( $in['default_label'] ?? '' ) ?: $defaults['default_label'],
 			'default_season_enabled' => empty( $in['default_season_enabled'] ) ? 0 : 1,
 			'default_season_start'   => ACLT_Resolver::sanitize_md( $in['default_season_start'] ?? '' ),
 			'default_season_end'     => ACLT_Resolver::sanitize_md( $in['default_season_end'] ?? '' ),

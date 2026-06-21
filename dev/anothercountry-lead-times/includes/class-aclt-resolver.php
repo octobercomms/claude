@@ -55,6 +55,30 @@ class ACLT_Resolver {
 	}
 
 	/**
+	 * The status label shown before the lead time (e.g. "Made to Order",
+	 * "Available"). Supplier label wins when set; otherwise the global default.
+	 * A per-product override has no supplier, so it uses the global default.
+	 */
+	public static function get_badge_label( int $product_id ): string {
+		// Variations inherit their parent's supplier/label.
+		if ( 'product_variation' === get_post_type( $product_id ) ) {
+			$parent = wp_get_post_parent_id( $product_id );
+			if ( $parent ) {
+				return self::get_badge_label( $parent );
+			}
+		}
+		$term = self::get_supplier_term( $product_id );
+		if ( $term ) {
+			$d = ACLT_Taxonomy::get_data( $term->term_id );
+			if ( ! empty( $d['enabled'] ) && '' !== trim( (string) $d['label'] ) ) {
+				return trim( (string) $d['label'] );
+			}
+		}
+		$s = aclt_get_settings();
+		return (string) $s['default_label'];
+	}
+
+	/**
 	 * Supplier note (e.g. "from receipt of fabric at the warehouse"), or ''.
 	 * Only applies when the supplier layer supplies the figure — an explicit
 	 * per-product override is treated as a complete statement.

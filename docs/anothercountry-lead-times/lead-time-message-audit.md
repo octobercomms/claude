@@ -24,8 +24,10 @@ message and should simply inherit the 8-12 week default.
 
 1. **Global default** = `8-12 weeks` + seasonal note (summer close, early July –
    late September, may extend to 11-15 weeks). Silently covers A + E (~553).
-2. **Supplier "Armadillo"** = `approx. 6 weeks`. Use the **Products tab →
-   Armadillo category → "Assign all to supplier"** action (added v1.6.0) to
+2. **Supplier "Armadillo"** = base lead `approx. 6 weeks`, **Status label =
+   `Available`** (so the badge reads "Available in approx. 6 weeks", not "Made to
+   Order" — these are stock-despatch, not bespoke; v1.7.0). Use the **Products
+   tab → Armadillo category → "Assign all to supplier"** action (v1.6.0) to
    attach all 41 in one click. Single source of truth: change the supplier's
    lead time later and all attached products update.
 3. **Hardy Collection** = `10-12 weeks` via the category bulk-apply (set-and-
