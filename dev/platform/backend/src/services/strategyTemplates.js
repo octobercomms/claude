@@ -235,6 +235,32 @@ async function getClientStrategy(clientId) {
   return { ...s, progress: { done, total } };
 }
 
+// Cross-client roll-up for the main dashboard. Scoped to the caller's visible
+// clients (null = admin, all).
+async function overview(visibleClientIds) {
+  const scoped = Array.isArray(visibleClientIds);
+  const { rows } = await pool.query(
+    `SELECT cs.client_id, c.name AS client_name, c.business_type, c.lifecycle_stage,
+            st.name AS template_name, cs.phases
+       FROM client_strategy cs
+       JOIN clients c ON c.id = cs.client_id
+       LEFT JOIN strategy_templates st ON st.id = cs.template_id
+      ${scoped ? 'WHERE cs.client_id = ANY($1::uuid[])' : ''}
+      ORDER BY c.name`,
+    scoped ? [visibleClientIds] : []
+  );
+  return rows.map(r => {
+    const total = (r.phases || []).reduce((n, p) => n + (p.items || []).length, 0);
+    const done = (r.phases || []).reduce((n, p) => n + (p.items || []).filter(i => i.done).length, 0);
+    return {
+      client_id: r.client_id, client_name: r.client_name,
+      business_type: r.business_type, lifecycle_stage: r.lifecycle_stage,
+      template_name: r.template_name, done, total,
+      pct: total ? Math.round((done / total) * 100) : 0,
+    };
+  });
+}
+
 async function setItem(clientId, itemId, { done, note }) {
   const cur = await getClientStrategy(clientId);
   if (!cur) { const e = new Error('No strategy assigned'); e.status = 404; throw e; }
@@ -305,5 +331,5 @@ Tailor it to this client. Return ONLY:
 module.exports = {
   BUSINESS_TYPES, LIFECYCLE_STAGES,
   listTemplates, matchTemplate, getTemplate, createTemplate, updateTemplate, deleteTemplate,
-  assignToClient, getClientStrategy, setItem, tailorWithClaude,
+  assignToClient, getClientStrategy, setItem, tailorWithClaude, overview,
 };
