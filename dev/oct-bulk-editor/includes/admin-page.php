@@ -60,7 +60,9 @@
 		<strong><?php esc_html_e( 'Columns:', 'oct-bulk-editor' ); ?></strong>
 		<?php
 		$columns = [
-			'image'        => __( 'Image', 'oct-bulk-editor' ),
+			'image'         => __( 'Image', 'oct-bulk-editor' ),
+			'acvs_lifestyle'=> __( 'Lifestyle Image', 'oct-bulk-editor' ),
+			'acvs_catalog'  => __( 'On Category Page', 'oct-bulk-editor' ),
 			'sku'          => __( 'SKU', 'oct-bulk-editor' ),
 			'regular_price'=> __( 'Regular Price', 'oct-bulk-editor' ),
 			'sale_price'   => __( 'Sale Price', 'oct-bulk-editor' ),
@@ -83,7 +85,9 @@
 			<thead>
 				<tr>
 					<th class="wbe-col-image" data-col="image"><?php esc_html_e( 'Image', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"><?php esc_html_e( 'Lifestyle', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-catalog" data-col="acvs_catalog"><?php esc_html_e( 'On Category Page', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-sku" data-col="sku"><?php esc_html_e( 'SKU', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-price" data-col="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-price" data-col="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></th>
@@ -95,7 +99,7 @@
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="9">
+					<td colspan="11">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>

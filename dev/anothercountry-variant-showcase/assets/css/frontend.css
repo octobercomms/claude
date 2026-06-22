@@ -1,0 +1,47 @@
+/**
+ * Lifestyle hover swap.
+ *
+ * The main product <img> defines the box (whatever size/ratio the theme renders
+ * its cards at). The lifestyle <img> is layered on top and uses object-fit:cover
+ * so it always fills that exact footprint — square or not — without distortion.
+ * That means cropping is handled at display time: a non-square lifestyle photo is
+ * centre-cropped to match the main thumbnail rather than stretching the card.
+ */
+
+.acvs-image-swap {
+	position: relative;
+	display: block;
+	overflow: hidden;
+}
+
+/* Keep the main image as the layout-defining element. */
+.acvs-image-swap > img:first-child {
+	display: block;
+	width: 100%;
+	height: auto;
+}
+
+.acvs-lifestyle-image {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	opacity: 0;
+	transition: opacity 0.35s ease;
+	pointer-events: none;
+}
+
+/* Reveal on hover of the card or the image link. */
+li.product:hover .acvs-lifestyle-image,
+.wc-block-grid__product:hover .acvs-lifestyle-image,
+.acvs-image-swap:hover .acvs-lifestyle-image {
+	opacity: 1;
+}
+
+/* Respect users who prefer no motion: instant swap, no fade. */
+@media (prefers-reduced-motion: reduce) {
+	.acvs-lifestyle-image {
+		transition: none;
+	}
+}

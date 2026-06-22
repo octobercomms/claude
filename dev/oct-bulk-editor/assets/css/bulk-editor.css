@@ -353,6 +353,38 @@
 	to { transform: rotate(360deg); }
 }
 
+/* Variant Showcase: "On Category Page" checkbox column */
+.wbe-col-catalog {
+	width: 110px;
+	min-width: 110px;
+	text-align: center;
+	padding: 6px 8px !important;
+}
+
+.wbe-col-catalog .wbe-check {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	min-height: 36px;
+}
+
+.wbe-cell-check {
+	margin: 0;
+	cursor: pointer;
+	transform: scale(1.2);
+}
+
+.wbe-col-catalog.is-dirty {
+	background: #fffbea;
+	box-shadow: inset 2px 0 0 #f0ad00;
+}
+
+/* Variant Showcase: lifestyle image column gets a subtle tint to set it apart */
+.wbe-col-lifestyle {
+	background: rgba(127, 84, 179, 0.035);
+}
+
 /* Price currency prefix */
 .wbe-col-price {
 	min-width: 120px;
