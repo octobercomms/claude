@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs and more without clicking one by one.
- * Version:     1.0.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image) without clicking one by one.
+ * Version:     1.1.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,16 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.0.0' );
+define( 'OCTWBE_VERSION', '1.1.0' );
+
+/*
+ * Variant Showcase meta keys (kept as literals so this editor stays decoupled
+ * from the Another Country Variant Showcase plugin — either can be active alone,
+ * and when both are installed they share the same per-product/variation meta).
+ */
+define( 'OCTWBE_ACVS_MODE', '_acvs_mode' );               // product: default|expand|single
+define( 'OCTWBE_ACVS_SHOW', '_acvs_show_in_catalog' );    // variation: 'yes' to expose as its own card
+define( 'OCTWBE_ACVS_LIFESTYLE', '_acvs_lifestyle_image_id' ); // product/variation: hover image attachment ID
 define( 'OCTWBE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OCTWBE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
@@ -167,8 +176,24 @@ class OctBulkEditor {
 		];
 	}
 
-	private function format_parent_row( WC_Product $p ): array {
+	/**
+	 * Variant Showcase fields for a product or variation row: catalogue mode,
+	 * the "show as its own card" flag, and the lifestyle (hover) image.
+	 */
+	private function get_acvs_data( WC_Product $p ): array {
+		$lifestyle_id = (int) $p->get_meta( OCTWBE_ACVS_LIFESTYLE );
+		$thumb        = $lifestyle_id ? wp_get_attachment_image_url( $lifestyle_id, [ 50, 50 ] ) : '';
+
 		return [
+			'acvs_mode'       => $p->get_meta( OCTWBE_ACVS_MODE ) ?: 'default',
+			'acvs_show'       => $p->get_meta( OCTWBE_ACVS_SHOW ) === 'yes' ? 'yes' : 'no',
+			'lifestyle_id'    => $lifestyle_id ?: '',
+			'lifestyle_thumb' => $thumb ?: '',
+		];
+	}
+
+	private function format_parent_row( WC_Product $p ): array {
+		return array_merge( [
 			'id'           => $p->get_id(),
 			'type'         => 'parent',
 			'name'         => $p->get_name(),
@@ -181,7 +206,7 @@ class OctBulkEditor {
 			'image_id'     => '',
 			'image_thumb'  => '',
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		];
+		], $this->get_acvs_data( $p ) );
 	}
 
 	private function format_simple_row( WC_Product $p ): array {
@@ -196,7 +221,7 @@ class OctBulkEditor {
 			'stock_status' => $p->get_stock_status(),
 			'status'       => $p->get_status(),
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		], $this->get_image_data( (int) $p->get_image_id() ) );
+		], $this->get_image_data( (int) $p->get_image_id() ), $this->get_acvs_data( $p ) );
 	}
 
 	private function format_variation_row( WC_Product_Variation $v, WC_Product $parent ): array {
@@ -225,7 +250,7 @@ class OctBulkEditor {
 			'stock_status'  => $v->get_stock_status(),
 			'status'        => $v->get_status(),
 			'edit_url'      => get_edit_post_link( $parent->get_id(), '' ),
-		], $this->get_image_data( $image_id ) );
+		], $this->get_image_data( $image_id ), $this->get_acvs_data( $v ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -263,7 +288,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -343,6 +368,38 @@ class OctBulkEditor {
 					return new WP_Error( 'invalid', "Invalid image attachment ID for product {$product->get_id()}." );
 				}
 				$product->set_image_id( $attachment_id ?: '' );
+				break;
+
+			case 'acvs_mode':
+				$allowed = [ 'default', 'expand', 'single' ];
+				if ( ! in_array( $value, $allowed, true ) ) {
+					return new WP_Error( 'invalid', "Invalid catalogue mode '{$value}'." );
+				}
+				$product->update_meta_data( OCTWBE_ACVS_MODE, $value );
+				break;
+
+			case 'acvs_show':
+				$show = $value === 'yes' ? 'yes' : 'no';
+				$product->update_meta_data( OCTWBE_ACVS_SHOW, $show );
+
+				// Convenience: ticking a variation only does something on the
+				// storefront when its parent is in "expand" mode, so switch the
+				// parent over automatically the first time one is ticked.
+				if ( $show === 'yes' && $product->is_type( 'variation' ) ) {
+					$parent = wc_get_product( $product->get_parent_id() );
+					if ( $parent && $parent->get_meta( OCTWBE_ACVS_MODE ) !== 'expand' ) {
+						$parent->update_meta_data( OCTWBE_ACVS_MODE, 'expand' );
+						$parent->save();
+					}
+				}
+				break;
+
+			case 'acvs_lifestyle':
+				$attachment_id = absint( $value );
+				if ( $value !== '' && ( ! $attachment_id || get_post_type( $attachment_id ) !== 'attachment' ) ) {
+					return new WP_Error( 'invalid', "Invalid lifestyle image ID for product {$product->get_id()}." );
+				}
+				$product->update_meta_data( OCTWBE_ACVS_LIFESTYLE, $attachment_id ?: '' );
 				break;
 		}
 

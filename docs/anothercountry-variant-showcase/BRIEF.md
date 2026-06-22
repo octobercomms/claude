@@ -63,10 +63,16 @@ Storage (post meta):
 - Expansion targets classic product loops (main shop/category query, `[products]`
   shortcode, classic product blocks). Store-API-rendered blocks are not expanded.
 
-## Open question / possible follow-up
+## Bulk-editor integration (done — two-plugin approach)
 
-Surface the **"Show on category page" checkbox + a thumbnail column** inside the
-existing **WooCommerce Bulk Editor** (`dev/woo-bulk-editor`) so the team can flag
-variations in bulk from one grid. Both plugins would share `_acvs_show_in_catalog`.
-The front-end rendering + lifestyle-image pickers stay in this plugin. Pending
-client go-ahead.
+Per client decision, the storefront feature stays in this plugin and the
+**OctoberComms Bulk Editor** (`dev/oct-bulk-editor`, v1.1.0) gained two optional,
+default-hidden columns that write the **same meta** so variations can be flagged
+in bulk:
+
+- **Lifestyle** image column (drag-and-drop / media picker) → `_acvs_lifestyle_image_id`
+- **On Category Page** → parent mode dropdown (`_acvs_mode`) + variation checkbox
+  (`_acvs_show_in_catalog`); ticking a variation auto-sets its parent to `expand`.
+
+See `docs/oct-bulk-editor/VARIANT-SHOWCASE-COLUMNS.md`. Either plugin can run
+alone; together the grid manages what this plugin renders.

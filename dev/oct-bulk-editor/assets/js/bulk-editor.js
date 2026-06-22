@@ -68,16 +68,22 @@
 	// -------------------------------------------------------------------------
 	// Image cell – click to pick from media library, drag-and-drop to upload
 	// -------------------------------------------------------------------------
-	function buildImageCell(id, imageId, thumbUrl) {
-		const $td = $('<td>').addClass('wbe-col-image').attr('data-col', 'image');
+	function buildImageCell(id, imageId, thumbUrl, field, colKey, extraClass) {
+		field    = field    || 'image';
+		colKey   = colKey   || 'image';
+		const $td = $('<td>')
+			.addClass('wbe-col-image' + (extraClass ? ' ' + extraClass : ''))
+			.attr('data-col', colKey);
 
 		const $wrap = $('<div>')
 			.addClass('wbe-img-wrap')
 			.attr({
 				'data-id':       id,
-				'data-field':    'image',
+				'data-field':    field,
 				'data-original': String(imageId || ''),
-				title:           'Click to choose image, or drag & drop a file',
+				title:           field === 'acvs_lifestyle'
+					? 'Lifestyle (hover) image — click to choose, or drag & drop a file'
+					: 'Click to choose image, or drag & drop a file',
 			});
 
 		if (thumbUrl) {
@@ -166,7 +172,7 @@
 
 	function applyImageToCell($wrap, attachmentId, thumbUrl) {
 		const id    = $wrap.data('id');
-		const field = 'image';
+		const field = $wrap.data('field') || 'image';
 		const orig  = String($wrap.data('original') ?? '');
 		const value = String(attachmentId);
 		const key   = changeKey(id, field);
@@ -205,12 +211,15 @@
 
 		const $tr = $('<tr>').addClass(rowClass).attr('data-id', row.id);
 
-		// Image cell (parent gets empty non-editable cell)
+		// Main image cell (parent gets empty non-editable cell)
 		if (isParent) {
 			$tr.append('<td class="wbe-col-image" data-col="image"></td>');
 		} else {
 			$tr.append(buildImageCell(row.id, row.image_id, row.image_thumb));
 		}
+
+		// Lifestyle (hover) image cell — editable on every row type.
+		$tr.append(buildImageCell(row.id, row.lifestyle_id, row.lifestyle_thumb, 'acvs_lifestyle', 'acvs_lifestyle', 'wbe-col-lifestyle'));
 
 		// Name cell
 		const nameContent = isParent
@@ -218,6 +227,23 @@
 			: esc(row.name);
 
 		$tr.append(`<td class="wbe-col-name">${nameContent}</td>`);
+
+		// "On Category Page" cell.
+		const modeOptions = [
+			{ value: 'default', label: 'Single card' },
+			{ value: 'expand',  label: 'Variation cards' },
+			{ value: 'single',  label: 'Feature one' },
+		];
+		if (isParent) {
+			// Variable product: choose how it appears in the catalogue.
+			$tr.append(buildSelectCell(row.id, 'acvs_mode', row.acvs_mode || 'default', modeOptions, 'wbe-col-catalog', 'acvs_catalog'));
+		} else if (isVariation) {
+			// Variation: tick to show it as its own card.
+			$tr.append(buildCheckboxCell(row.id, row.acvs_show === 'yes'));
+		} else {
+			// Simple product: not applicable (it always shows as itself).
+			$tr.append('<td class="wbe-col-catalog" data-col="acvs_catalog"></td>');
+		}
 
 		if (isParent) {
 			$tr.append('<td colspan="6" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
@@ -282,8 +308,24 @@
 		return buildTextCell(id, field, formatPrice(value), colClass, 'number');
 	}
 
-	function buildSelectCell(id, field, currentValue, options, colClass) {
-		const $td = $('<td>').addClass(colClass).attr('data-col', field);
+	function buildCheckboxCell(id, checked) {
+		const $td = $('<td>').addClass('wbe-col-catalog').attr('data-col', 'acvs_catalog');
+		const $label = $('<label>').addClass('wbe-check');
+		const $cb = $('<input type="checkbox">')
+			.addClass('wbe-cell-check')
+			.attr({
+				'data-id':       id,
+				'data-field':    'acvs_show',
+				'data-original': checked ? 'yes' : 'no',
+			});
+		if (checked) $cb.prop('checked', true);
+		$label.append($cb);
+		$td.append($label);
+		return $td;
+	}
+
+	function buildSelectCell(id, field, currentValue, options, colClass, colKey) {
+		const $td = $('<td>').addClass(colClass).attr('data-col', colKey || field);
 		const $select = $('<select>')
 			.addClass('wbe-cell-select')
 			.attr({
@@ -307,12 +349,44 @@
 	}
 
 	// -------------------------------------------------------------------------
-	// Column visibility toggle
+	// Column visibility toggle (persisted per user via localStorage).
+	// The Variant Showcase columns start hidden so the grid stays uncluttered
+	// for anyone not using the feature — the functionality is still there, one
+	// click away in the Columns row.
 	// -------------------------------------------------------------------------
+	const COL_PREF_KEY      = 'octwbe_columns_v1';
+	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog'];
+
+	function loadColPrefs() {
+		try { return JSON.parse(localStorage.getItem(COL_PREF_KEY)) || {}; }
+		catch (e) { return {}; }
+	}
+
+	function saveColPrefs(prefs) {
+		try { localStorage.setItem(COL_PREF_KEY, JSON.stringify(prefs)); }
+		catch (e) { /* storage unavailable — fall back to per-session state */ }
+	}
+
+	function applyColPrefs() {
+		const prefs = loadColPrefs();
+		$('.wbe-col-toggle-cb').each(function () {
+			const col = $(this).data('col');
+			const visible = Object.prototype.hasOwnProperty.call(prefs, col)
+				? !!prefs[col]
+				: COL_DEFAULT_HIDDEN.indexOf(col) === -1;
+			$(this).prop('checked', visible);
+			$('#wbe-table [data-col="' + col + '"]').toggle(visible);
+		});
+	}
+
 	$(document).on('change', '.wbe-col-toggle-cb', function () {
-		const col    = $(this).data('col');
-		const hidden = !this.checked;
-		$('#wbe-table [data-col="' + col + '"]').toggle(!hidden);
+		const col     = $(this).data('col');
+		const visible = this.checked;
+		$('#wbe-table [data-col="' + col + '"]').toggle(visible);
+
+		const prefs = loadColPrefs();
+		prefs[col] = visible;
+		saveColPrefs(prefs);
 	});
 
 	// -------------------------------------------------------------------------
@@ -326,7 +400,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="9">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="11">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -362,7 +436,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="9">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="11">No products found.</td></tr>');
 			return;
 		}
 
@@ -476,6 +550,28 @@
 	});
 
 	// -------------------------------------------------------------------------
+	// Cell change tracking – "On Category Page" checkbox
+	// -------------------------------------------------------------------------
+	$tbody.on('change', '.wbe-cell-check', function () {
+		const $cb   = $(this);
+		const id    = $cb.data('id');
+		const field = $cb.data('field');
+		const orig  = String($cb.data('original') ?? 'no');
+		const value = $cb.is(':checked') ? 'yes' : 'no';
+		const key   = changeKey(id, field);
+
+		if (value !== orig) {
+			state.changes[key] = { id, field, value, originalValue: orig };
+			$cb.closest('td').addClass('is-dirty');
+		} else {
+			delete state.changes[key];
+			$cb.closest('td').removeClass('is-dirty');
+		}
+
+		updateToolbar();
+	});
+
+	// -------------------------------------------------------------------------
 	// Save
 	// -------------------------------------------------------------------------
 	$saveBtn.on('click', function () {
@@ -522,10 +618,15 @@
 					$tbody.find(`.wbe-cell-select[data-id="${c.id}"][data-field="${c.field}"]`)
 						.attr('data-original', c.value)
 						.removeClass('is-dirty');
-					if (c.field === 'image') {
-						$tbody.find(`.wbe-img-wrap[data-id="${c.id}"]`)
+					if (c.field === 'image' || c.field === 'acvs_lifestyle') {
+						$tbody.find(`.wbe-img-wrap[data-id="${c.id}"][data-field="${c.field}"]`)
 							.attr('data-original', c.value)
 							.removeClass('is-dirty');
+					}
+					const $savedCb = $tbody.find(`.wbe-cell-check[data-id="${c.id}"][data-field="${c.field}"]`);
+					if ($savedCb.length) {
+						$savedCb.attr('data-original', c.value);
+						$savedCb.closest('td').removeClass('is-dirty');
 					}
 				}
 			});
@@ -554,9 +655,15 @@
 			if ($sel.length) {
 				$sel.val(c.originalValue).removeClass('is-dirty');
 			}
-			// Image cells
-			if (c.field === 'image') {
-				const $wrap = $tbody.find(`.wbe-img-wrap[data-id="${c.id}"]`);
+			// "On Category Page" checkbox
+			const $cb = $tbody.find(`.wbe-cell-check[data-id="${c.id}"][data-field="${c.field}"]`);
+			if ($cb.length) {
+				$cb.prop('checked', c.originalValue === 'yes');
+				$cb.closest('td').removeClass('is-dirty');
+			}
+			// Image cells (main + lifestyle)
+			if (c.field === 'image' || c.field === 'acvs_lifestyle') {
+				const $wrap = $tbody.find(`.wbe-img-wrap[data-id="${c.id}"][data-field="${c.field}"]`);
 				$wrap.removeClass('is-dirty');
 				$wrap.find('.wbe-img-thumb').remove();
 				if (c.originalThumb) {
@@ -608,6 +715,9 @@
 		updateToolbar();
 		loadProducts(1);
 	});
+
+	// Apply saved column visibility (Showcase columns hidden by default), then load.
+	applyColPrefs();
 
 	// Auto-load on page open
 	loadProducts(1);
