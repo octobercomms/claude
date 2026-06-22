@@ -214,60 +214,67 @@ class ARPL_Admin {
 		$new_id   = isset( $_GET['arpl_new'] ) ? absint( $_GET['arpl_new'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
 		?>
 		<div class="wrap arpl-wrap">
-			<h1>Payment Links
-				<span class="arpl-mode arpl-mode-<?php echo esc_attr( $mode ); ?>"><?php echo esc_html( strtoupper( $mode ) ); ?> MODE</span>
-			</h1>
+			<div class="arpl-hero">
+				<div class="arpl-hero-text">
+					<h1>Take a payment</h1>
+					<p>Create a secure payment link for a customer's tour balance — then copy it, email it, or show the QR code.</p>
+				</div>
+				<span class="arpl-mode arpl-mode-<?php echo esc_attr( $mode ); ?>"><?php echo esc_html( strtolower( $mode ) ); ?> mode</span>
+			</div>
 
 			<?php self::notices(); ?>
 
 			<?php if ( ! $has_key ) : ?>
 				<div class="notice notice-warning"><p>
 					No Stripe <strong><?php echo esc_html( $mode ); ?></strong> secret key is set yet.
-					<a href="<?php echo esc_url( admin_url( 'admin.php?page=arpl-settings' ) ); ?>">Add it in Settings</a> to start creating links.
+					<a href="<?php echo esc_url( admin_url( 'admin.php?page=arpl-settings' ) ); ?>">Add it in Settings</a> to start taking payments.
 				</p></div>
 			<?php endif; ?>
 
 			<div class="arpl-grid">
 				<div class="arpl-card arpl-create">
-					<h2>Create a payment link</h2>
-					<p class="description">Enter the amount due — the price isn't fixed, so type whatever the customer owes today.</p>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<h2>New payment link</h2>
+					<p class="arpl-lead">The amount isn't fixed — just type whatever the customer owes today.</p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="arpl-form">
 						<input type="hidden" name="action" value="arpl_create" />
 						<?php wp_nonce_field( 'arpl_create' ); ?>
 
-						<p>
-							<label for="arpl-customer"><strong>Customer name</strong></label><br>
-							<input type="text" id="arpl-customer" name="customer" class="regular-text" required placeholder="e.g. John &amp; Jane Smith" />
-						</p>
-						<p>
-							<label for="arpl-note"><strong>Note</strong> <span class="description">(shown to the customer)</span></label><br>
-							<textarea id="arpl-note" name="note" rows="2" class="large-text" placeholder="e.g. Final balance — India Architecture Tour, Feb 2026"></textarea>
-						</p>
-						<p>
-							<label for="arpl-amount"><strong>Amount to pay</strong></label><br>
-							<span class="arpl-amount-wrap">
-								<span class="arpl-amount-cur"><?php echo esc_html( strtoupper( $currency ) ); ?></span>
-								<input type="number" id="arpl-amount" name="amount" step="0.01" min="0.50" class="arpl-amount-input" required placeholder="0.00" />
-							</span>
-							<select name="currency" class="arpl-cur-select">
-								<?php foreach ( [ 'gbp' => 'GBP', 'usd' => 'USD', 'eur' => 'EUR', 'aud' => 'AUD', 'cad' => 'CAD' ] as $code => $label ) : ?>
-									<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $currency, $code ); ?>><?php echo esc_html( $label ); ?></option>
-								<?php endforeach; ?>
-							</select>
-						</p>
-						<p>
-							<button type="submit" class="button button-primary button-hero" <?php disabled( ! $has_key ); ?>>Generate payment link</button>
-						</p>
+						<div class="arpl-field">
+							<label for="arpl-customer">Who's paying?</label>
+							<input type="text" id="arpl-customer" name="customer" required placeholder="e.g. John &amp; Jane Smith" />
+						</div>
+
+						<div class="arpl-field">
+							<label for="arpl-note">What's it for? <span>(the customer sees this)</span></label>
+							<textarea id="arpl-note" name="note" rows="2" placeholder="e.g. Final balance — India Architecture Tour, Feb 2026"></textarea>
+						</div>
+
+						<div class="arpl-field">
+							<label for="arpl-amount">How much?</label>
+							<div class="arpl-amount-row">
+								<span class="arpl-amount-wrap">
+									<span class="arpl-amount-cur"><?php echo esc_html( strtoupper( $currency ) ); ?></span>
+									<input type="number" id="arpl-amount" name="amount" step="0.01" min="0.50" class="arpl-amount-input" required placeholder="0.00" />
+								</span>
+								<select name="currency" class="arpl-cur-select">
+									<?php foreach ( [ 'gbp' => 'GBP', 'usd' => 'USD', 'eur' => 'EUR', 'aud' => 'AUD', 'cad' => 'CAD' ] as $code => $label ) : ?>
+										<option value="<?php echo esc_attr( $code ); ?>" <?php selected( $currency, $code ); ?>><?php echo esc_html( $label ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+						</div>
+
+						<button type="submit" class="arpl-btn arpl-btn-primary" <?php disabled( ! $has_key ); ?>>Generate payment link &rarr;</button>
 					</form>
 				</div>
 
 				<div class="arpl-card arpl-help">
 					<h2>How it works</h2>
-					<ol>
-						<li>Fill in the customer, a note and the amount, then generate.</li>
-						<li>Copy the link (or scan the QR code) and send it to your customer.</li>
-						<li>They pay securely on Stripe's hosted page — no card details touch your site.</li>
-						<li>Hit <em>Refresh status</em> to see who's paid. Paid links close automatically<?php echo ARPL_Settings::get( 'deactivate_on_paid', 1 ) ? '' : ' (disabled in settings)'; ?>.</li>
+					<ol class="arpl-steps">
+						<li><span>1</span> Fill in the name, note and amount, then generate.</li>
+						<li><span>2</span> Copy the link or show the QR code, and send it to your customer.</li>
+						<li><span>3</span> They pay securely on Stripe — no card details ever touch your site.</li>
+						<li><span>4</span> Hit <em>Refresh status</em> to see who's paid. Paid links close automatically<?php echo ARPL_Settings::get( 'deactivate_on_paid', 1 ) ? '' : ' (disabled in settings)'; ?>.</li>
 					</ol>
 				</div>
 			</div>

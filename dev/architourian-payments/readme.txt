@@ -4,7 +4,7 @@ Tags: stripe, payments, payment link, invoicing, tours
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPL-2.0-or-later
 
 Generate Stripe payment links for tour balances from inside WordPress, with a QR code, a log, and paid/unpaid status tracking.
@@ -35,6 +35,10 @@ No card details ever touch your site — customers pay on Stripe's hosted page.
 4. Open Payment Links to create your first link.
 
 == Changelog ==
+
+= 1.0.1 =
+* Friendlier "Take a payment" screen themed to match architourian.com — warm
+  terracotta header, cream cards, serif headings and a green action button.
 
 = 1.0.0 =
 * Initial release.
