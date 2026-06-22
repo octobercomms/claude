@@ -114,4 +114,15 @@
 		<button id="wbe-next" class="button"><?php esc_html_e( 'Next &rarr;', 'oct-bulk-editor' ); ?></button>
 	</div>
 
+	<!-- Floating save bar — follows the page so the Save button is never missed -->
+	<div id="wbe-float-actions" class="wbe-float-actions" style="display:none">
+		<span id="wbe-float-count" class="wbe-change-badge"></span>
+		<button id="wbe-float-discard" class="button button-secondary">
+			<?php esc_html_e( 'Discard', 'oct-bulk-editor' ); ?>
+		</button>
+		<button id="wbe-float-save" class="button button-primary">
+			<?php esc_html_e( 'Save All Changes', 'oct-bulk-editor' ); ?>
+		</button>
+	</div>
+
 </div><!-- .wrap -->

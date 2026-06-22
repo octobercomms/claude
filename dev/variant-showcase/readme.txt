@@ -1,10 +1,10 @@
-=== Another Country Variant Showcase ===
+=== Variant Showcase ===
 Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.0
+Stable tag: 1.0.2
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -12,7 +12,7 @@ each with an optional lifestyle image that fades in on hover.
 
 == Description ==
 
-Built for Another Country. Lets one variable product (e.g. a sofa range with
+Lets one variable product (e.g. a sofa range with
 3-seater / 2-seater / armchair variations, or a dining table with several sizes
 and shapes) display its chosen variations as individual product cards on the
 shop and category pages — while other products keep the normal single card.
@@ -54,6 +54,21 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fix: stop expanding variable products inside the admin (including admin-ajax),
+  which was corrupting the OctoberComms Bulk Editor grid (variation rows losing
+  their "On Category Page" checkbox).
+* Lifestyle hover now also injects via the core post_thumbnail_html filter, so it
+  works on themes that render loop thumbnails with the_post_thumbnail() instead of
+  $product->get_image().
+
+= 1.0.1 =
+* Lifestyle hover now also works on custom themes that render loop thumbnails
+  without firing WooCommerce's standard shop-loop-item hooks (falls back to
+  WordPress's own loop flag on shop/category archives).
+* Broadened the hover trigger so the swap fires when the card's wrapping link is
+  hovered, not only li.product cards.
 
 = 1.0.0 =
 * Initial release: per-variation catalogue cards, three per-product display modes,

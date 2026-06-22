@@ -17,8 +17,8 @@ define( 'OCTWBE_VERSION', '1.1.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
- * from the Another Country Variant Showcase plugin — either can be active alone,
- * and when both are installed they share the same per-product/variation meta).
+ * from the Variant Showcase plugin — either can be active alone, and when both
+ * are installed they share the same per-product/variation meta).
  */
 define( 'OCTWBE_ACVS_MODE', '_acvs_mode' );               // product: default|expand|single
 define( 'OCTWBE_ACVS_SHOW', '_acvs_show_in_catalog' );    // variation: 'yes' to expose as its own card

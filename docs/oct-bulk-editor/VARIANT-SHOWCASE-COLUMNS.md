@@ -1,7 +1,7 @@
 # OctoberComms Bulk Editor — Variant Showcase columns (v1.1.0)
 
-The bulk editor gained two optional columns that manage the **Another Country
-Variant Showcase** settings in bulk, from the same grid as prices/stock/images.
+The bulk editor gained two optional columns that manage the **Variant Showcase**
+settings in bulk, from the same grid as prices/stock/images.
 Both plugins share the same post meta, so either can be active alone — but
 together you can flag variations fast here and have them render on the storefront
 via the Showcase plugin.
