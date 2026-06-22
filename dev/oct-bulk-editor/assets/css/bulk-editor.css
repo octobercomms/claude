@@ -119,6 +119,39 @@
 	margin-right: 3px;
 }
 
+/* Bulk edit bar */
+.wbe-bulkedit {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	background: #f3effe;
+	border: 1px solid #e0d8f5;
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	font-size: 13px;
+}
+
+.wbe-bulkedit .wbe-input {
+	height: 30px;
+	min-width: 0;
+	margin: 0;
+}
+
+.wbe-bulkedit #wbe-bulk-field {
+	min-width: 150px;
+}
+
+.wbe-bulkedit #wbe-bulk-value-input {
+	min-width: 150px;
+}
+
+.wbe-bulkedit-hint {
+	color: #777;
+	font-size: 12px;
+}
+
 /* Table wrapper – horizontal scroll */
 .wbe-table-wrapper {
 	overflow-x: auto;

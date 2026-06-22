@@ -728,6 +728,68 @@
 		loadProducts(1);
 	});
 
+	// -------------------------------------------------------------------------
+	// Bulk edit: set one field's value across every loaded row at once. Reuses
+	// the existing per-cell change tracking by triggering the same events, so the
+	// changes flow through the normal Save / Discard machinery.
+	// -------------------------------------------------------------------------
+	var BULK_VALUES = {
+		stock_status:  { type: 'select', options: [ [ 'instock', 'In stock' ], [ 'outofstock', 'Out of stock' ], [ 'onbackorder', 'On backorder' ] ] },
+		status:        { type: 'select', options: [ [ 'publish', 'Published' ], [ 'draft', 'Draft' ], [ 'private', 'Private' ], [ 'pending', 'Pending review' ] ] },
+		acvs_show:     { type: 'select', options: [ [ 'yes', 'Yes' ], [ 'no', 'No' ] ] },
+		stock_qty:     { type: 'number' },
+		regular_price: { type: 'number' },
+		sale_price:    { type: 'number' },
+	};
+
+	function renderBulkValue() {
+		var def   = BULK_VALUES[ $( '#wbe-bulk-field' ).val() ] || { type: 'number' };
+		var $wrap = $( '#wbe-bulk-value' );
+		if ( def.type === 'select' ) {
+			var html = '<select class="wbe-input" id="wbe-bulk-value-input">';
+			def.options.forEach( function ( o ) { html += '<option value="' + o[ 0 ] + '">' + o[ 1 ] + '</option>'; } );
+			$wrap.html( html + '</select>' );
+		} else {
+			$wrap.html( '<input type="number" step="0.01" class="wbe-input" id="wbe-bulk-value-input" placeholder="Value" />' );
+		}
+	}
+
+	$( '#wbe-bulk-field' ).on( 'change', renderBulkValue );
+	renderBulkValue();
+
+	$( '#wbe-bulk-apply' ).on( 'click', function () {
+		var field = $( '#wbe-bulk-field' ).val();
+		var value = $( '#wbe-bulk-value-input' ).val();
+		if ( value === null || typeof value === 'undefined' ) { return; }
+
+		var $rows = $( '#wbe-tbody tr' ).not( '.wbe-row-parent' ).not( '.wbe-placeholder' );
+		if ( ! $rows.length ) { showStatus( 'No rows to apply to. Load products first.', 'error' ); return; }
+
+		var applied = 0;
+		$rows.each( function () {
+			var $row = $( this );
+
+			var $sel = $row.find( '.wbe-cell-select[data-field="' + field + '"]' );
+			if ( $sel.length ) { $sel.val( value ).trigger( 'change' ); applied++; return; }
+
+			var $cb = $row.find( '.wbe-cell-check[data-field="' + field + '"]' );
+			if ( $cb.length ) { $cb.prop( 'checked', value === 'yes' ).trigger( 'change' ); applied++; return; }
+
+			var $cell = $row.find( '.wbe-cell[data-field="' + field + '"]' );
+			if ( $cell.length ) {
+				var v = value;
+				if ( $cell.data( 'type' ) === 'number' && v !== '' ) {
+					var n = parseFloat( v );
+					v = isNaN( n ) ? v : ( field.indexOf( 'price' ) !== -1 ? n.toFixed( 2 ) : String( n ) );
+				}
+				$cell.text( v ).trigger( 'blur' );
+				applied++;
+			}
+		} );
+
+		showStatus( 'Applied to ' + applied + ' row' + ( applied !== 1 ? 's' : '' ) + '. Review, then Save All Changes.', 'info' );
+	} );
+
 	// Apply saved column visibility (Showcase columns hidden by default), then load.
 	applyColPrefs();
 

@@ -79,6 +79,22 @@
 		<?php endforeach; ?>
 	</div>
 
+	<!-- Bulk edit: set one field across every loaded row at once -->
+	<div class="wbe-bulkedit">
+		<strong><?php esc_html_e( 'Bulk edit:', 'oct-bulk-editor' ); ?></strong>
+		<select id="wbe-bulk-field" class="wbe-input">
+			<option value="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></option>
+			<option value="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></option>
+			<option value="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></option>
+			<option value="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_show"><?php esc_html_e( 'On Category Page', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<span id="wbe-bulk-value"></span>
+		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
+		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Applies to every row currently loaded; review, then Save.', 'oct-bulk-editor' ); ?></span>
+	</div>
+
 	<!-- Spreadsheet table -->
 	<div class="wbe-table-wrapper">
 		<table id="wbe-table" class="wbe-table widefat">
