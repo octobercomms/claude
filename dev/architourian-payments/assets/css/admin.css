@@ -58,6 +58,9 @@
 	white-space: nowrap;
 }
 
+/* Notice anchor — keep it invisible (it only marks where notices are placed). */
+.arpl-wrap .wp-header-end { display: none; }
+
 /* ---- Cards ---- */
 .arpl-grid {
 	display: flex;

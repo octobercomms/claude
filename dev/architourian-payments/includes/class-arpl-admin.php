@@ -222,6 +222,10 @@ class ARPL_Admin {
 				<span class="arpl-mode arpl-mode-<?php echo esc_attr( $mode ); ?>"><?php echo esc_html( strtolower( $mode ) ); ?> mode</span>
 			</div>
 
+			<?php // WordPress hoists admin notices to just after this marker — keep them
+			// below the coloured hero so they stay readable (not white-on-terracotta). ?>
+			<hr class="wp-header-end">
+
 			<?php self::notices(); ?>
 
 			<?php if ( ! $has_key ) : ?>
