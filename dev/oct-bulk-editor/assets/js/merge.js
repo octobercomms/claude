@@ -39,6 +39,9 @@
 		var html = '';
 		items.forEach( function ( it ) {
 			var meta = it.type === 'variable' ? ( it.variations + ' variations' ) : it.type;
+			if ( it.status && it.status !== 'publish' ) {
+				meta += ' · ' + it.status;
+			}
 			html += '<label class="octwbe-merge-item">' +
 				'<input type="checkbox" class="octwbe-merge-cb" value="' + it.id + '"' +
 					' data-name="' + esc( it.name ) + '" data-type="' + esc( it.type ) + '" data-variations="' + it.variations + '"' +

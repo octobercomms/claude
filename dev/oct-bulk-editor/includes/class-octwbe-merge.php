@@ -78,7 +78,7 @@ class OctWBE_Merge {
 		$search = sanitize_text_field( $_POST['search'] ?? '' );
 		$args   = [
 			'post_type'      => 'product',
-			'post_status'    => 'publish',
+			'post_status'    => [ 'publish', 'draft', 'pending', 'private' ],
 			'posts_per_page' => 100,
 			'orderby'        => 'title',
 			'order'          => 'ASC',
@@ -97,6 +97,7 @@ class OctWBE_Merge {
 				'id'         => $product->get_id(),
 				'name'       => $product->get_name(),
 				'type'       => $product->get_type(),
+				'status'     => $product->get_status(),
 				'variations' => $product->is_type( 'variable' ) ? count( $product->get_children() ) : 0,
 			];
 		}
@@ -373,13 +374,19 @@ class OctWBE_Merge {
 			$redirects = [];
 		}
 		foreach ( $sources as $product ) {
-			$path = untrailingslashit( wp_make_link_relative( get_permalink( $product->get_id() ) ) );
+			// Only published sources have a public URL worth redirecting; a draft's
+			// permalink is a non-public ?p= form, so skip it (don't risk mapping a
+			// junk path to the new product).
+			$was_published = $product->get_status() === 'publish';
+			$path          = $was_published
+				? untrailingslashit( wp_make_link_relative( get_permalink( $product->get_id() ) ) )
+				: '';
 
 			$product->set_sku( '' );
 			$product->set_status( 'draft' );
 			$product->save();
 
-			if ( $path ) {
+			if ( $path && $path !== '' && strpos( $path, '?' ) === false ) {
 				$redirects[ $path ] = $new_id;
 			}
 		}
