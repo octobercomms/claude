@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs and more without clicking one by one.
- * Version:     1.0.0
+ * Version:     1.2.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.0.0' );
+define( 'OCTWBE_VERSION', '1.2.0' );
 define( 'OCTWBE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'OCTWBE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
