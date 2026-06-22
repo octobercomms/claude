@@ -2576,7 +2576,7 @@ function ac_lt_inline_assets() {
 		.single-product .woocommerce-variation-price,
 		.single-product .product_price .woocommerce-Price-amount.amount{
 			display:flex;
-			align-items:baseline;
+			align-items:flex-start; /* top-align the badge with the price */
 			flex-wrap:wrap;
 		}
 		.single-product .woocommerce-variation-price > p.stock,
@@ -2586,11 +2586,17 @@ function ac_lt_inline_assets() {
 		.single-product p.stock.available-on-backorder,
 		.single-product p.stock.in-stock{
 			font-size:16px;
-			line-height:1.45;
+			line-height:1.4;
 		}
+		/* Tighten the vertical space above and below the price / made-to-order line. */
+		.single-product .ac-fabric-swatch-ui{ margin-bottom:.4rem !important; }
+		.single-product .single_variation_wrap,
+		.single-product .woocommerce-variation,
+		.single-product .single_variation,
+		.single-product .woocommerce-variation-description{ margin:0 !important; padding:0 !important; }
 		.single-product .product_price,
-		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
-		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
+		.single-product .woocommerce-variation-price{ margin:.1em 0 0 0 !important; padding:0 !important; }
+		.single-product .woocommerce-variation-add-to-cart{ margin-top:.6em !important; }
 		@media (max-width:782px){
 			.single-product .woocommerce-variation-price > p.stock,
 			.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
