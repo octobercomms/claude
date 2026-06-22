@@ -584,7 +584,7 @@
          ACCORDION LAYOUT
          ================================================ -->
     <div class="layout-accordion" id="layout-accordion">
-      <div class="mode-note">All sections visible. Click any header to expand. Image updates live as you pick.</div>
+      <div class="mode-note">First time through, each section advances automatically. After that, open any section freely to compare.</div>
 
       <div class="acc-list">
 
@@ -659,30 +659,19 @@
           </div>
         </div>
 
-        <!-- Fabric -->
-        <div class="acc-item is-done" id="acc-fab">
-          <div class="acc-header" onclick="toggleAcc('acc-fab')">
-            <div class="acc-header-left">
-              <span class="acc-number">✓</span>
-              <span class="acc-title">Fabric</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="display:flex;align-items:center;gap:6px;font-size:12px;color:#555">
-                <div id="acc-fab-swatch" style="width:18px;height:18px;border-radius:3px;background:#d4c5b0;border:1px solid rgba(0,0,0,0.1)"></div>
-                <span id="acc-fab-sub">Oatmeal</span>
-              </div>
-              <span class="acc-chevron">▼</span>
-            </div>
-          </div>
-          <div class="acc-body">
-            <p style="font-size:11px;color:#999;margin-bottom:10px">Click to select · <a href="#" style="color:#3a5a3a">Order free swatches</a></p>
-            <div class="acc-fab-grid" id="fab-grid-acc">
-              <!-- populated by JS -->
-            </div>
+      </div><!-- /acc-list -->
+
+      <!-- Fabric drawer — unchanged from current layout -->
+      <div class="fabric-drawer" style="margin-bottom:18px">
+        <div class="fabric-drawer-left">
+          <div class="fabric-swatch" id="acc-fab-swatch-drawer" style="background:#d4c5b0"></div>
+          <div>
+            <div class="fabric-drawer-label">Select fabric</div>
+            <div class="fabric-drawer-value" id="acc-fab-drawer-val">Oatmeal</div>
           </div>
         </div>
-
-      </div><!-- /acc-list -->
+        <div class="fabric-plus">+</div>
+      </div>
 
       <div class="price-block">
         <div class="price-was">£5,595</div>
@@ -713,18 +702,16 @@ const fabrics = [
   { name:'Navy',       color:'#1e2e50', body:'#1c2c4e', back:'#141e38', cush:'#203060' },
 ];
 
-// Render fabric grids
+// Render fabric grid (step-by-step only)
 function renderFabGrids() {
-  ['fab-grid-steps','fab-grid-acc'].forEach(gridId => {
-    const grid = document.getElementById(gridId);
-    if (!grid) return;
-    grid.innerHTML = fabrics.map((f,i) => `
-      <button class="fab-btn ${i===0?'selected':''}"
-        onclick="pickFabric(this,'${f.name}','${f.color}','${f.body}','${f.back}','${f.cush}')">
-        <div class="fab-swatch" style="background:${f.color}"></div>
-        <div class="fab-name">${f.name}</div>
-      </button>`).join('');
-  });
+  const grid = document.getElementById('fab-grid-steps');
+  if (!grid) return;
+  grid.innerHTML = fabrics.map((f,i) => `
+    <button class="fab-btn ${i===0?'selected':''}"
+      onclick="pickFabric(this,'${f.name}','${f.color}','${f.body}','${f.back}','${f.cush}')">
+      <div class="fab-swatch" style="background:${f.color}"></div>
+      <div class="fab-name">${f.name}</div>
+    </button>`).join('');
 }
 renderFabGrids();
 
@@ -798,16 +785,15 @@ function pickFabric(btn,name,color,body,back,cush) {
   cfg.fab=name;
   updateSofaFabric(body,back,cush);
   document.getElementById('img-fab-preview').style.background=color;
-  // also sync acc swatch if visible
-  document.getElementById('acc-fab-swatch').style.background=color;
-  document.getElementById('acc-fab-sub').textContent=name;
 }
 
 // ─── Accordion ───────────────────────────────────────────────────────────────
+// Once all sections have been completed once, stop auto-advancing
+let accAllDone = false;
+
 function toggleAcc(id) {
   const item = document.getElementById(id);
   const isOpen = item.classList.contains('is-open');
-  // close all
   document.querySelectorAll('.acc-item').forEach(i => i.classList.remove('is-open'));
   if (!isOpen) item.classList.add('is-open');
 }
@@ -818,15 +804,14 @@ function accPickSize(btn, label) {
   document.getElementById('acc-size-sub').textContent = '— '+label;
   document.getElementById('acc-size').classList.add('is-done');
   updateSizeLabel(label);
-  // auto-advance
-  setTimeout(()=>{ toggleAcc('acc-fill'); }, 300);
+  if (!accAllDone) setTimeout(()=>{ toggleAcc('acc-fill'); }, 300);
 }
 function accPickFill(btn, label) {
   btn.closest('.acc-fill-list').querySelectorAll('.acc-fill-btn').forEach(b=>b.classList.remove('selected'));
   btn.classList.add('selected');
   document.getElementById('acc-fill-sub').textContent = '— '+label;
   document.getElementById('acc-fill').classList.add('is-done');
-  setTimeout(()=>{ toggleAcc('acc-leg'); }, 300);
+  if (!accAllDone) setTimeout(()=>{ toggleAcc('acc-leg'); }, 300);
 }
 function accPickLeg(btn, label, legColor) {
   btn.closest('.acc-leg-grid').querySelectorAll('.leg-btn').forEach(b=>b.classList.remove('selected'));
@@ -834,7 +819,13 @@ function accPickLeg(btn, label, legColor) {
   document.getElementById('acc-leg-sub').textContent = '— '+label;
   document.getElementById('acc-leg').classList.add('is-done');
   updateLegColor(legColor);
-  setTimeout(()=>{ toggleAcc('acc-fab'); }, 300);
+  if (!accAllDone) {
+    // All sections done for the first time — close everything, show fabric drawer
+    accAllDone = true;
+    setTimeout(()=>{
+      document.querySelectorAll('.acc-item').forEach(i => i.classList.remove('is-open'));
+    }, 300);
+  }
 }
 </script>
 </body>
