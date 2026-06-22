@@ -14,11 +14,11 @@
 	overflow: hidden;
 }
 
-/* Keep the main image as the layout-defining element. */
+/* Keep the main image as the layout-defining element. We deliberately do NOT
+   force width/height here so a theme's own image sizing (e.g. fixed-ratio
+   object-fit cards) is preserved when the swap span wraps it. */
 .acvs-image-swap > img:first-child {
 	display: block;
-	width: 100%;
-	height: auto;
 }
 
 .acvs-lifestyle-image {

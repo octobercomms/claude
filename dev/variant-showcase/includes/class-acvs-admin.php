@@ -39,14 +39,16 @@ class ACVS_Admin {
 			esc_html__( 'Variant Showcase', 'variant-showcase' ) .
 			'</strong></p>';
 
-		// Catalog display mode.
+		// Catalog display mode (variable products only — simple products always
+		// show as a single card).
 		woocommerce_wp_select( [
-			'id'          => ACVS_META_MODE,
-			'label'       => __( 'Catalog display', 'variant-showcase' ),
-			'value'       => $mode,
-			'description' => __( 'How this product appears on shop and category pages.', 'variant-showcase' ),
-			'desc_tip'    => true,
-			'options'     => [
+			'id'            => ACVS_META_MODE,
+			'label'         => __( 'Catalog display', 'variant-showcase' ),
+			'value'         => $mode,
+			'description'   => __( 'How this product appears on shop and category pages.', 'variant-showcase' ),
+			'desc_tip'      => true,
+			'wrapper_class' => 'show_if_variable',
+			'options'       => [
 				'default' => __( 'Single card (default WooCommerce)', 'variant-showcase' ),
 				'expand'  => __( 'Separate card per selected variation', 'variant-showcase' ),
 				'single'  => __( 'Feature one variation', 'variant-showcase' ),
@@ -72,12 +74,15 @@ class ACVS_Admin {
 			'options'     => $options,
 		] );
 
-		// Product-level lifestyle image (used for the default/single-product card hover).
+		// Product-level lifestyle image — simple products only. Variable products
+		// attach the hover image to each variation instead.
 		$this->image_field(
 			ACVS_META_LIFESTYLE,
 			$life_id,
 			__( 'Lifestyle image (hover)', 'variant-showcase' ),
-			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'variant-showcase' )
+			__( 'Shown when a shopper hovers this product on shop/category pages.', 'variant-showcase' ),
+			'',
+			'show_if_simple'
 		);
 
 		echo '</div>';
@@ -159,13 +164,14 @@ class ACVS_Admin {
 	 * @param int    $value Current attachment ID.
 	 * @param string $label Field label.
 	 * @param string $tip   Tooltip / description.
-	 * @param string $name  Optional input name override (for array-style variation fields).
+	 * @param string $name          Optional input name override (for array-style variation fields).
+	 * @param string $wrapper_class Optional extra class on the field wrapper.
 	 */
-	private function image_field( string $id, int $value, string $label, string $tip, string $name = '' ): void {
+	private function image_field( string $id, int $value, string $label, string $tip, string $name = '', string $wrapper_class = '' ): void {
 		$name    = $name ?: $id;
 		$preview = $value ? wp_get_attachment_image( $value, 'thumbnail' ) : '';
 
-		echo '<p class="form-field acvs-image-field">';
+		echo '<p class="form-field acvs-image-field ' . esc_attr( $wrapper_class ) . '">';
 		echo '<label>' . esc_html( $label ) . ' ' . wc_help_tip( $tip ) . '</label>';
 		echo '<span class="acvs-image-preview">' . $preview . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() is safe markup.
 		echo '<input type="hidden" class="acvs-image-id" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" />';

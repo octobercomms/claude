@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image) without clicking one by one.
- * Version:     1.1.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image), and merge several products into one variable product.
+ * Version:     1.2.2
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.1.0' );
+define( 'OCTWBE_VERSION', '1.2.2' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -310,7 +310,7 @@ class OctBulkEditor {
 		wp_send_json_success( [ 'saved' => array_unique( $saved ) ] );
 	}
 
-	private function apply_field( WC_Product $product, string $field, string $value ): true|WP_Error {
+	private function apply_field( WC_Product $product, string $field, string $value ): bool|WP_Error {
 		switch ( $field ) {
 			case 'regular_price':
 				if ( $value !== '' && ! is_numeric( $value ) ) {
@@ -442,6 +442,8 @@ class OctBulkEditor {
 	}
 }
 
+require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-merge.php';
+
 // Bootstrap
 add_action( 'plugins_loaded', function () {
 	if ( ! class_exists( 'WooCommerce' ) ) {
@@ -454,4 +456,5 @@ add_action( 'plugins_loaded', function () {
 	}
 
 	new OctBulkEditor();
+	new OctWBE_Merge();
 } );

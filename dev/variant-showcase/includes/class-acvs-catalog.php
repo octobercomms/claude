@@ -20,6 +20,11 @@ class ACVS_Catalog {
 	/** True only while a single shop-loop card is being rendered. */
 	private bool $in_loop = false;
 
+	/** Lifestyle images for products/variations rendered on the current page,
+	 *  keyed by post ID: [ id => [ 'img' => url, 'href' => permalink ] ].
+	 *  Used by the JS fallback to attach the hover overlay theme-independently. */
+	private array $lifestyle_data = [];
+
 	public function __construct() {
 		// Expand the loop's posts into variation cards.
 		add_filter( 'the_posts', [ $this, 'expand_loop_posts' ], 10, 2 );
@@ -36,7 +41,13 @@ class ACVS_Catalog {
 		add_filter( 'woocommerce_product_get_image', [ $this, 'add_lifestyle_image' ], 10, 5 );
 		add_filter( 'post_thumbnail_html', [ $this, 'add_lifestyle_to_thumbnail' ], 10, 5 );
 
-		// Front-end styles.
+		// Collect lifestyle images for every card in the loop so the JS fallback
+		// can attach the hover overlay even on themes that render thumbnails in a
+		// way the two image filters above don't intercept.
+		add_action( 'the_post', [ $this, 'collect_lifestyle' ], 10, 2 );
+		add_action( 'wp_footer', [ $this, 'print_lifestyle_data' ], 5 );
+
+		// Front-end assets.
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue' ] );
 	}
 
@@ -307,6 +318,64 @@ class ACVS_Catalog {
 	}
 
 	/* ---------------------------------------------------------------------
+	 * JS fallback data
+	 * ------------------------------------------------------------------ */
+
+	/**
+	 * Record the lifestyle image for each product/variation as it is set up in
+	 * the main archive loop. Fires for every card regardless of how the theme
+	 * renders it, so the JS fallback can always find a match.
+	 *
+	 * @param WP_Post        $post  Current post.
+	 * @param WP_Query|null  $query The query (passed since WP 4.x).
+	 */
+	public function collect_lifestyle( $post, $query = null ): void {
+		if ( is_admin() || ! $post instanceof WP_Post ) {
+			return;
+		}
+		if ( $query instanceof WP_Query && ! $query->is_main_query() ) {
+			return;
+		}
+		if ( ! function_exists( 'is_shop' ) || ! ( is_shop() || is_product_taxonomy() ) ) {
+			return;
+		}
+		if ( $post->post_type !== 'product' && $post->post_type !== 'product_variation' ) {
+			return;
+		}
+		if ( isset( $this->lifestyle_data[ $post->ID ] ) ) {
+			return;
+		}
+
+		$product = wc_get_product( $post->ID );
+		if ( ! $product instanceof WC_Product ) {
+			return;
+		}
+		$lifestyle_id = absint( $product->get_meta( ACVS_META_LIFESTYLE ) );
+		if ( ! $lifestyle_id ) {
+			return;
+		}
+		$url = wp_get_attachment_image_url( $lifestyle_id, 'woocommerce_thumbnail' );
+		if ( ! $url ) {
+			return;
+		}
+
+		$this->lifestyle_data[ $post->ID ] = [
+			'img'  => $url,
+			'href' => $product->get_permalink(),
+		];
+	}
+
+	/** Print the collected lifestyle map for the JS fallback. */
+	public function print_lifestyle_data(): void {
+		if ( empty( $this->lifestyle_data ) ) {
+			return;
+		}
+		echo '<script id="acvs-lifestyle-data">window.acvsLifestyle = '
+			. wp_json_encode( $this->lifestyle_data )
+			. ';</script>' . "\n";
+	}
+
+	/* ---------------------------------------------------------------------
 	 * Assets
 	 * ------------------------------------------------------------------ */
 
@@ -316,6 +385,7 @@ class ACVS_Catalog {
 		}
 		if ( is_shop() || is_product_taxonomy() || is_product() ) {
 			wp_enqueue_style( 'acvs-frontend', ACVS_URL . 'assets/css/frontend.css', [], ACVS_VERSION );
+			wp_enqueue_script( 'acvs-frontend', ACVS_URL . 'assets/js/frontend.js', [], ACVS_VERSION, true );
 		}
 	}
 }

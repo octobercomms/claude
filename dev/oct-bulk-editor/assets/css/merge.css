@@ -1,0 +1,116 @@
+/* Merge Products screen */
+.octwbe-merge-intro {
+	margin: 12px 0 16px;
+}
+
+.octwbe-merge-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 20px;
+	align-items: start;
+}
+
+@media (max-width: 1100px) {
+	.octwbe-merge-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.octwbe-merge-col {
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 16px;
+}
+
+.octwbe-merge-col h2 {
+	margin-top: 0;
+	font-size: 14px;
+}
+
+.octwbe-merge-col .wbe-input {
+	width: 100%;
+	margin-bottom: 10px;
+}
+
+.octwbe-merge-list {
+	max-height: 460px;
+	overflow-y: auto;
+	border: 1px solid #eee;
+	border-radius: 4px;
+}
+
+.octwbe-merge-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 7px 10px;
+	border-bottom: 1px solid #f1f1f1;
+	cursor: pointer;
+}
+
+.octwbe-merge-item:hover {
+	background: #f6f3fc;
+}
+
+.octwbe-merge-item-name {
+	flex: 1;
+}
+
+.octwbe-merge-item-meta {
+	color: #888;
+	font-size: 11px;
+	white-space: nowrap;
+}
+
+.octwbe-merge-loading {
+	padding: 16px;
+	color: #888;
+}
+
+.octwbe-merge-selected {
+	margin: 8px 0 12px;
+}
+
+.octwbe-merge-selected th,
+.octwbe-merge-selected td {
+	padding: 6px 8px;
+	vertical-align: middle;
+}
+
+.octwbe-merge-empty td {
+	color: #888;
+	text-align: center;
+	padding: 14px;
+}
+
+.octwbe-merge-actions {
+	margin: 8px 0;
+}
+
+.octwbe-merge-previewbox {
+	background: #f8f7fb;
+	border: 1px solid #e3def2;
+	border-radius: 6px;
+	padding: 12px 16px;
+	margin: 12px 0;
+}
+
+.octwbe-merge-previewbox h3 {
+	margin-top: 0;
+}
+
+.octwbe-merge-ul {
+	list-style: disc;
+	margin: 6px 0 12px 20px;
+}
+
+.octwbe-merge-confirm {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid #eee;
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+}

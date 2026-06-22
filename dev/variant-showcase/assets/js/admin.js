@@ -6,6 +6,24 @@
 ( function ( $ ) {
 	'use strict';
 
+	/*
+	 * Keep the General tab clean. Product type drives most of it via WooCommerce's
+	 * own show_if_simple / show_if_variable classes (product-level lifestyle image =
+	 * simple only; Catalog display = variable only). The one extra rule: the
+	 * "Featured variation" picker only applies to the "Feature one variation" mode.
+	 */
+	function acvsToggleFields() {
+		var $mode = $( '#_acvs_mode' );
+		if ( ! $mode.length ) {
+			return;
+		}
+		var isVariable = $( '#product-type' ).val() === 'variable';
+		$( '._acvs_single_variation_field' ).toggle( isVariable && $mode.val() === 'single' );
+	}
+
+	$( document ).on( 'change', '#_acvs_mode, #product-type', acvsToggleFields );
+	acvsToggleFields();
+
 	$( document ).on( 'click', '.acvs-upload-image', function ( e ) {
 		e.preventDefault();
 
