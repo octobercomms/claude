@@ -27,10 +27,25 @@ leaving WordPress.
    calls Stripe to create a one-off **Price** (with an inline product) and a
    **Payment Link** for it, then stores a row in `{prefix}arpl_links`.
 3. **Share**: copy the link, show the QR code (rendered locally, no third-party
-   service), or open it.
-4. **Track**: *Refresh status* queries Stripe's Checkout Sessions for that link
-   and marks it **Paid** when a completed session is found. With "deactivate on
-   paid" on (default), the link is then closed so it can't be paid twice.
+   service), open it, **or email it** to the customer.
+4. **Email** (`?arpl_compose=<id>`): an editable draft (subject + message, with
+   `{customer}` / `{amount}` / `{note}` placeholders) is pre-filled from the
+   template settings. The branded HTML wrapper, the amount box, a tracked
+   **Pay now** button and an open-tracking pixel are added automatically. Sent
+   via **Brevo's transactional API** (`/v3/smtp/email`), or `wp_mail` if no
+   Brevo key is set.
+5. **Track**: every link carries an unguessable `token`. Emailed buttons point at
+   `?arpl_go=<token>` (logs a **clicked** event, then 302s to Stripe) and embed
+   `?arpl_open=<token>` as a 1×1 pixel (logs **opened**, deduped for 2 min).
+   *Refresh status* queries Stripe and logs **paid**. The log's Activity column
+   shows opened / clicked / sent counts so staff know whether to chase.
+6. **Chase**: the *Chase* button reopens the compose screen with the reminder
+   template; it can be sent as many times as needed, each logged.
+
+### Activity events (`{prefix}arpl_events`)
+
+`sent`, `reminder`, `opened`, `clicked`, `paid` — one row each, with timestamps,
+summarised per link for the Activity column and the compose summary.
 
 ### Stripe API surface used
 
@@ -53,10 +68,12 @@ required — status is pulled on demand.
 dev/architourian-payments/
   architourian-payments.php        Plugin bootstrap, constants, updater wiring
   includes/
-    class-arpl-settings.php        Stripe keys, mode, currency, defaults
+    class-arpl-settings.php        Stripe + Brevo keys, mode, currency, templates
     class-arpl-stripe.php          Thin Stripe REST client (wp_remote_*)
-    class-arpl-store.php           {prefix}arpl_links table + CRUD
-    class-arpl-admin.php           Dashboard UI + admin-post action handlers
+    class-arpl-store.php           arpl_links + arpl_events tables + CRUD
+    class-arpl-email.php           Brevo sender + branded HTML email + templates
+    class-arpl-track.php           Public open-pixel + click-redirect endpoints
+    class-arpl-admin.php           Dashboard, compose/send screen, action handlers
     class-arpl-updater.php         Self-update from monorepo GitHub Releases
   assets/
     js/admin.js                    Copy-to-clipboard + QR modal

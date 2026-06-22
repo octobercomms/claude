@@ -25,6 +25,7 @@ class ARPL_Admin {
 		add_action( 'admin_post_arpl_check_all', [ __CLASS__, 'handle_check_all' ] );
 		add_action( 'admin_post_arpl_deactivate', [ __CLASS__, 'handle_deactivate' ] );
 		add_action( 'admin_post_arpl_delete', [ __CLASS__, 'handle_delete' ] );
+		add_action( 'admin_post_arpl_send', [ __CLASS__, 'handle_send' ] );
 	}
 
 	public static function menu() {
@@ -83,6 +84,7 @@ class ARPL_Admin {
 		self::guard( 'arpl_create' );
 
 		$customer = isset( $_POST['customer'] ) ? sanitize_text_field( wp_unslash( $_POST['customer'] ) ) : '';
+		$email    = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 		$note     = isset( $_POST['note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['note'] ) ) : '';
 		$amount_raw = isset( $_POST['amount'] ) ? wp_unslash( $_POST['amount'] ) : '';
 		$currency = isset( $_POST['currency'] )
@@ -110,6 +112,7 @@ class ARPL_Admin {
 
 		$id = ARPL_Store::insert( [
 			'customer'        => $customer,
+			'email'           => $email,
 			'note'            => $note,
 			'amount'          => $minor,
 			'currency'        => $currency,
@@ -119,6 +122,10 @@ class ARPL_Admin {
 			'url'             => $result['url'],
 		] );
 
+		// If we have an email, jump straight to the editable draft so Ian can send it.
+		if ( is_email( $email ) ) {
+			self::redirect( [ 'arpl_compose' => $id, 'kind' => 'initial', 'arpl_msg' => 'created_compose' ] );
+		}
 		self::redirect( [ 'arpl_msg' => 'created', 'arpl_new' => $id ] );
 	}
 
@@ -173,6 +180,9 @@ class ARPL_Admin {
 				$formats[]         = '%d';
 			}
 			ARPL_Store::update( $id, $fields, $formats );
+			if ( ! ARPL_Store::has_event( $id, 'paid' ) ) {
+				ARPL_Store::log_event( $id, 'paid' );
+			}
 		} else {
 			ARPL_Store::update( $id, [ 'checked_at' => current_time( 'mysql' ) ], [ '%s' ] );
 		}
@@ -202,10 +212,57 @@ class ARPL_Admin {
 		self::redirect( [ 'arpl_msg' => 'deleted' ] );
 	}
 
+	/**
+	 * Send (or re-send as a reminder) the payment email for a link.
+	 */
+	public static function handle_send() {
+		self::guard( 'arpl_send' );
+
+		$id   = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		$kind = ( isset( $_POST['kind'] ) && 'reminder' === $_POST['kind'] ) ? 'reminder' : 'initial';
+		$to   = isset( $_POST['to'] ) ? sanitize_email( wp_unslash( $_POST['to'] ) ) : '';
+		$subject = isset( $_POST['subject'] ) ? sanitize_text_field( wp_unslash( $_POST['subject'] ) ) : '';
+		$body    = isset( $_POST['body'] ) ? sanitize_textarea_field( wp_unslash( $_POST['body'] ) ) : '';
+
+		$row = ARPL_Store::get( $id );
+		if ( ! $row ) {
+			self::redirect( [ 'arpl_msg' => 'deleted' ] );
+		}
+		if ( ! is_email( $to ) ) {
+			set_transient( 'arpl_error_' . get_current_user_id(), 'Please enter a valid customer email address.', 60 );
+			self::redirect( [ 'arpl_compose' => $id, 'kind' => $kind, 'arpl_msg' => 'send_error' ] );
+		}
+		if ( '' === trim( $subject ) || '' === trim( $body ) ) {
+			set_transient( 'arpl_error_' . get_current_user_id(), 'The subject and message can\'t be empty.', 60 );
+			self::redirect( [ 'arpl_compose' => $id, 'kind' => $kind, 'arpl_msg' => 'send_error' ] );
+		}
+
+		// Persist any change to the email address on the link, then send.
+		if ( $to !== $row->email ) {
+			ARPL_Store::update( $id, [ 'email' => $to ], [ '%s' ] );
+			$row->email = $to;
+		}
+
+		$result = ARPL_Email::send( $row, $subject, $body );
+		if ( is_wp_error( $result ) ) {
+			set_transient( 'arpl_error_' . get_current_user_id(), $result->get_error_message(), 60 );
+			self::redirect( [ 'arpl_compose' => $id, 'kind' => $kind, 'arpl_msg' => 'send_error' ] );
+		}
+
+		ARPL_Store::log_event( $id, 'reminder' === $kind ? 'reminder' : 'sent', $to );
+		self::redirect( [ 'arpl_msg' => 'reminder' === $kind ? 'reminder_sent' : 'sent' ] );
+	}
+
 	// ---- Rendering ---------------------------------------------------------
 
 	public static function render() {
 		if ( ! current_user_can( self::CAP ) ) {
+			return;
+		}
+		// Compose / send screen for one link.
+		$compose_id = isset( $_GET['arpl_compose'] ) ? absint( $_GET['arpl_compose'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		if ( $compose_id ) {
+			self::render_compose( $compose_id );
 			return;
 		}
 		$mode     = ARPL_Settings::mode();
@@ -246,6 +303,11 @@ class ARPL_Admin {
 						<div class="arpl-field">
 							<label for="arpl-customer">Who's paying?</label>
 							<input type="text" id="arpl-customer" name="customer" required placeholder="e.g. John &amp; Jane Smith" />
+						</div>
+
+						<div class="arpl-field">
+							<label for="arpl-email">Their email <span>(optional — to send the link straight away)</span></label>
+							<input type="email" id="arpl-email" name="email" placeholder="e.g. john@example.com" />
 						</div>
 
 						<div class="arpl-field">
@@ -298,6 +360,98 @@ class ARPL_Admin {
 		<?php
 	}
 
+	/**
+	 * The editable email draft for one link (initial send or reminder).
+	 */
+	private static function render_compose( $id ) {
+		$row = ARPL_Store::get( $id );
+		if ( ! $row ) {
+			echo '<div class="wrap arpl-wrap"><p>That payment link no longer exists. <a href="' . esc_url( admin_url( 'admin.php?page=arpl' ) ) . '">Back to links</a>.</p></div>';
+			return;
+		}
+		$kind     = ( isset( $_GET['kind'] ) && 'reminder' === $_GET['kind'] ) ? 'reminder' : 'initial'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$draft    = ARPL_Email::draft( $row, $kind );
+		$to       = $row->email ? $row->email : '';
+		$is_remind = ( 'reminder' === $kind );
+		$brevo    = '' !== trim( (string) ARPL_Settings::get( 'brevo_api_key', '' ) );
+		$summary  = ARPL_Store::event_summary( $id );
+		$back      = admin_url( 'admin.php?page=arpl' );
+		?>
+		<div class="wrap arpl-wrap">
+			<div class="arpl-hero">
+				<div class="arpl-hero-text">
+					<h1><?php echo $is_remind ? 'Send a reminder' : 'Send the payment link'; ?></h1>
+					<p>Review and tweak the message below, then send it straight to <?php echo esc_html( $row->customer ); ?>. The amount and a “Pay now” button are added for you.</p>
+				</div>
+				<a class="arpl-back" href="<?php echo esc_url( $back ); ?>">&larr; Back to links</a>
+			</div>
+
+			<hr class="wp-header-end">
+			<?php self::notices(); ?>
+
+			<div class="arpl-grid">
+				<div class="arpl-card arpl-create">
+					<h2><?php echo $is_remind ? 'Reminder email' : 'Payment email'; ?></h2>
+					<p class="arpl-lead">Everything here is editable before it goes out.</p>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="arpl-form">
+						<input type="hidden" name="action" value="arpl_send" />
+						<input type="hidden" name="id" value="<?php echo esc_attr( $id ); ?>" />
+						<input type="hidden" name="kind" value="<?php echo esc_attr( $kind ); ?>" />
+						<?php wp_nonce_field( 'arpl_send' ); ?>
+
+						<div class="arpl-field">
+							<label for="arpl-to">To</label>
+							<input type="email" id="arpl-to" name="to" value="<?php echo esc_attr( $to ); ?>" required placeholder="customer@example.com" />
+						</div>
+						<div class="arpl-field">
+							<label for="arpl-subject">Subject</label>
+							<input type="text" id="arpl-subject" name="subject" value="<?php echo esc_attr( $draft['subject'] ); ?>" required />
+						</div>
+						<div class="arpl-field">
+							<label for="arpl-body">Message</label>
+							<textarea id="arpl-body" name="body" rows="10" required><?php echo esc_textarea( $draft['body'] ); ?></textarea>
+						</div>
+
+						<button type="submit" class="arpl-btn arpl-btn-primary"><?php echo $is_remind ? 'Send reminder &rarr;' : 'Send email &rarr;'; ?></button>
+						<p class="arpl-lead" style="margin-top:14px;">
+							<?php if ( $brevo ) : ?>
+								Sends via Brevo. Opens, clicks and payment are tracked automatically.
+							<?php else : ?>
+								No Brevo key set, so this will send via the site's default mailer. Opens &amp; clicks are still tracked.
+								<a href="<?php echo esc_url( admin_url( 'admin.php?page=arpl-settings' ) ); ?>">Add a Brevo key</a> for best deliverability.
+							<?php endif; ?>
+						</p>
+					</form>
+				</div>
+
+				<div class="arpl-card arpl-help">
+					<h2>Summary</h2>
+					<dl class="arpl-summary">
+						<dt>Customer</dt><dd><?php echo esc_html( $row->customer ); ?></dd>
+						<dt>Amount due</dt><dd><strong><?php echo esc_html( self::format_money( $row->amount, $row->currency ) ); ?></strong></dd>
+						<?php if ( $row->note ) : ?><dt>For</dt><dd><?php echo esc_html( $row->note ); ?></dd><?php endif; ?>
+						<dt>Status</dt><dd><?php echo 'paid' === $row->status ? 'Paid' : ( (int) $row->active === 1 ? 'Unpaid' : 'Closed' ); ?></dd>
+					</dl>
+					<?php if ( $summary['sent']['count'] || $summary['reminder']['count'] ) : ?>
+						<p class="arpl-lead" style="margin:6px 0 0;">
+							Already emailed <?php echo (int) ( $summary['sent']['count'] + $summary['reminder']['count'] ); ?> time(s)<?php
+							$last = $summary['reminder']['last'] ?: $summary['sent']['last'];
+							if ( $last ) { echo ', last on ' . esc_html( mysql2date( 'j M Y', $last ) ); }
+							?>.
+						</p>
+					<?php endif; ?>
+					<?php if ( $row->url ) : ?>
+						<p style="margin-top:14px;">
+							<button type="button" class="button button-small arpl-copy" data-url="<?php echo esc_attr( $row->url ); ?>">Copy link</button>
+							<a class="button button-small" href="<?php echo esc_url( $row->url ); ?>" target="_blank" rel="noopener">Open ↗</a>
+						</p>
+					<?php endif; ?>
+				</div>
+			</div>
+		</div>
+		<?php
+	}
+
 	private static function render_log( $default_currency, $new_id ) {
 		$rows = ARPL_Store::all();
 		?>
@@ -324,6 +478,7 @@ class ARPL_Admin {
 							<th>Note</th>
 							<th class="arpl-num">Amount</th>
 							<th>Status</th>
+							<th>Activity</th>
 							<th>Link</th>
 							<th class="arpl-actions-col">Actions</th>
 						</tr>
@@ -344,6 +499,9 @@ class ARPL_Admin {
 		$paid     = ( 'paid' === $row->status );
 		$active   = ( (int) $row->active === 1 );
 		$post_url = admin_url( 'admin-post.php' );
+		$ev       = ARPL_Store::event_summary( $row->id );
+		$emailed  = ( $ev['sent']['count'] + $ev['reminder']['count'] ) > 0;
+		$compose  = admin_url( 'admin.php?page=arpl&arpl_compose=' . (int) $row->id );
 		?>
 		<tr class="<?php echo $is_new ? 'arpl-row-new' : ''; ?>">
 			<td><?php echo esc_html( mysql2date( 'j M Y', $row->created_at ) ); ?>
@@ -362,6 +520,22 @@ class ARPL_Admin {
 					<span class="arpl-badge arpl-badge-unpaid">Unpaid</span>
 				<?php endif; ?>
 			</td>
+			<td class="arpl-activity">
+				<?php
+				$chips = [];
+				if ( $emailed ) {
+					$n     = (int) ( $ev['sent']['count'] + $ev['reminder']['count'] );
+					$chips[] = '<span class="arpl-chip arpl-chip-sent" title="Last: ' . esc_attr( mysql2date( 'j M Y, g:ia', $ev['reminder']['last'] ?: $ev['sent']['last'] ) ) . '">✉ Sent' . ( $n > 1 ? ' ×' . $n : '' ) . '</span>';
+				}
+				if ( $ev['opened']['count'] ) {
+					$chips[] = '<span class="arpl-chip arpl-chip-open" title="Last: ' . esc_attr( mysql2date( 'j M Y, g:ia', $ev['opened']['last'] ) ) . '">👁 Opened</span>';
+				}
+				if ( $ev['clicked']['count'] ) {
+					$chips[] = '<span class="arpl-chip arpl-chip-click" title="Last: ' . esc_attr( mysql2date( 'j M Y, g:ia', $ev['clicked']['last'] ) ) . '">↗ Clicked</span>';
+				}
+				echo $chips ? implode( ' ', $chips ) : '<span class="description">—</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				?>
+			</td>
 			<td>
 				<?php if ( $row->url ) : ?>
 					<div class="arpl-link-actions">
@@ -375,6 +549,7 @@ class ARPL_Admin {
 			</td>
 			<td class="arpl-actions-col">
 				<?php if ( ! $paid && $active ) : ?>
+					<a href="<?php echo esc_url( $compose . '&kind=' . ( $emailed ? 'reminder' : 'initial' ) ); ?>" class="button button-small button-primary arpl-inline"><?php echo $emailed ? '↻ Chase' : '✉ Send email'; ?></a>
 					<form method="post" action="<?php echo esc_url( $post_url ); ?>" class="arpl-inline">
 						<input type="hidden" name="action" value="arpl_check" />
 						<input type="hidden" name="id" value="<?php echo esc_attr( $row->id ); ?>" />
@@ -409,6 +584,10 @@ class ARPL_Admin {
 
 		$map = [
 			'created'      => [ 'success', 'Payment link created. Copy it below or show the QR code to your customer.' ],
+			'created_compose' => [ 'success', 'Payment link created — here is the email, ready to review and send.' ],
+			'sent'         => [ 'success', 'Email sent to the customer. You can chase later from the Activity column.' ],
+			'reminder_sent' => [ 'success', 'Reminder sent. Send another any time from the Chase button.' ],
+			'send_error'   => [ 'error', 'Could not send: ' . ( $error ? $error : 'something went wrong.' ) ],
 			'checked'      => [ 'info', 'Status refreshed from Stripe.' ],
 			'checked_all'  => [ 'info', sprintf( 'Refreshed %d unpaid link(s) from Stripe.', isset( $_GET['arpl_n'] ) ? absint( $_GET['arpl_n'] ) : 0 ) ],
 			'deactivated'  => [ 'success', 'Link closed — it can no longer be paid.' ],

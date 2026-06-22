@@ -29,6 +29,13 @@ class ARPL_Settings {
 			'secret_live'        => '',
 			'currency'           => 'gbp',
 			'deactivate_on_paid' => 1,
+			'brevo_api_key'      => '',
+			'from_name'          => 'Architourian',
+			'from_email'         => '',
+			'email_subject'      => '',
+			'email_body'         => '',
+			'reminder_subject'   => '',
+			'reminder_body'      => '',
 		];
 	}
 
@@ -70,7 +77,7 @@ class ARPL_Settings {
 		$clean['deactivate_on_paid'] = empty( $input['deactivate_on_paid'] ) ? 0 : 1;
 
 		// Keys: blank submission preserves the stored key; otherwise sanitise + store.
-		foreach ( [ 'secret_test', 'secret_live' ] as $key ) {
+		foreach ( [ 'secret_test', 'secret_live', 'brevo_api_key' ] as $key ) {
 			$submitted = isset( $input[ $key ] ) ? trim( $input[ $key ] ) : '';
 			if ( '' === $submitted ) {
 				$clean[ $key ] = $current[ $key ];
@@ -78,6 +85,14 @@ class ARPL_Settings {
 				$clean[ $key ] = sanitize_text_field( $submitted );
 			}
 		}
+
+		// Email sender + templates.
+		$clean['from_name']        = isset( $input['from_name'] ) ? sanitize_text_field( $input['from_name'] ) : 'Architourian';
+		$clean['from_email']       = isset( $input['from_email'] ) ? sanitize_email( $input['from_email'] ) : '';
+		$clean['email_subject']    = isset( $input['email_subject'] ) ? sanitize_text_field( $input['email_subject'] ) : '';
+		$clean['reminder_subject'] = isset( $input['reminder_subject'] ) ? sanitize_text_field( $input['reminder_subject'] ) : '';
+		$clean['email_body']       = isset( $input['email_body'] ) ? sanitize_textarea_field( $input['email_body'] ) : '';
+		$clean['reminder_body']    = isset( $input['reminder_body'] ) ? sanitize_textarea_field( $input['reminder_body'] ) : '';
 
 		return $clean;
 	}
@@ -140,6 +155,61 @@ class ARPL_Settings {
 						</td>
 					</tr>
 				</table>
+
+				<h2 class="title">Emails</h2>
+				<p>Used when you email a payment link or a reminder to a customer. Sent through Brevo's
+					transactional API when a key is set (otherwise via the site's normal mailer).
+					Placeholders: <code>{customer}</code>, <code>{amount}</code>, <code>{note}</code>.</p>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><label for="arpl_brevo_api_key">Brevo API key</label></th>
+						<td>
+							<?php self::render_key_field( 'brevo_api_key', $opts['brevo_api_key'], 'xkeysib-…' ); ?>
+							<p class="description">From Brevo → SMTP &amp; API → API Keys. Leave blank to send via the site's default mailer instead.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_from_name">From name</label></th>
+						<td><input type="text" id="arpl_from_name" name="<?php echo esc_attr( self::OPTION ); ?>[from_name]"
+							value="<?php echo esc_attr( $opts['from_name'] ); ?>" class="regular-text" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_from_email">From email</label></th>
+						<td>
+							<input type="email" id="arpl_from_email" name="<?php echo esc_attr( self::OPTION ); ?>[from_email]"
+								value="<?php echo esc_attr( $opts['from_email'] ); ?>" class="regular-text"
+								placeholder="<?php echo esc_attr( get_option( 'admin_email' ) ); ?>" />
+							<p class="description">Must be a verified sender in your Brevo account.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_email_subject">Payment email — subject</label></th>
+						<td><input type="text" id="arpl_email_subject" name="<?php echo esc_attr( self::OPTION ); ?>[email_subject]"
+							value="<?php echo esc_attr( $opts['email_subject'] ); ?>" class="large-text"
+							placeholder="<?php echo esc_attr( ARPL_Email::default_subject( 'initial' ) ); ?>" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_email_body">Payment email — message</label></th>
+						<td><textarea id="arpl_email_body" name="<?php echo esc_attr( self::OPTION ); ?>[email_body]"
+							rows="7" class="large-text" placeholder="<?php echo esc_attr( ARPL_Email::default_body( 'initial' ) ); ?>"><?php echo esc_textarea( $opts['email_body'] ); ?></textarea>
+							<p class="description">Leave blank to use the built-in default. The amount box and Pay button are added automatically.</p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_reminder_subject">Reminder email — subject</label></th>
+						<td><input type="text" id="arpl_reminder_subject" name="<?php echo esc_attr( self::OPTION ); ?>[reminder_subject]"
+							value="<?php echo esc_attr( $opts['reminder_subject'] ); ?>" class="large-text"
+							placeholder="<?php echo esc_attr( ARPL_Email::default_subject( 'reminder' ) ); ?>" /></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="arpl_reminder_body">Reminder email — message</label></th>
+						<td><textarea id="arpl_reminder_body" name="<?php echo esc_attr( self::OPTION ); ?>[reminder_body]"
+							rows="7" class="large-text" placeholder="<?php echo esc_attr( ARPL_Email::default_body( 'reminder' ) ); ?>"><?php echo esc_textarea( $opts['reminder_body'] ); ?></textarea>
+							<p class="description">Each draft is still fully editable before you hit send.</p>
+						</td>
+					</tr>
+				</table>
+
 				<?php submit_button( 'Save settings' ); ?>
 			</form>
 		</div>
