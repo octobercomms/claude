@@ -2560,7 +2560,7 @@ function ac_lt_inline_assets() {
 			content:none !important;
 			display:none !important;
 		}
-		.single-product .ac-lead-season{ display:inline-block; margin-top:.15em; }
+		.single-product .ac-lead-season{ display:block; margin-top:.15em; }
 		/* The badge is not a real link — neutralise the old tooltip trigger. */
 		.single-product p.available-on-backorder{ cursor:default !important; }
 		.single-product p.available-on-backorder a{
@@ -2569,20 +2569,22 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
-		/* The "Made to Order" badge renders INSIDE the price amount span
-		   (sibling of the £ value). Lay them out side by side, top-aligned. */
-		.single-product .product_price .price,
-		.single-product .woocommerce-variation-price .price,
-		.single-product .woocommerce-Price-amount.amount{
+		/* Price + made-to-order badge on ONE line. The JS relocates the badge into
+		   the price wrapper (variable: .woocommerce-variation-price; simple: the
+		   price .amount) so they share a flex row; the badge sits 40px to the
+		   right of the price, first lines baseline-aligned. */
+		.single-product .woocommerce-variation-price,
+		.single-product .product_price .woocommerce-Price-amount.amount{
 			display:flex;
-			align-items:flex-start;
+			align-items:baseline;
 			flex-wrap:wrap;
-			column-gap:.6em;
-			row-gap:.1em;
+		}
+		.single-product .woocommerce-variation-price > p.stock,
+		.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
+			margin:0 0 0 40px !important;
 		}
 		.single-product p.stock.available-on-backorder,
 		.single-product p.stock.in-stock{
-			margin:-0.12em 0 0 0 !important;
 			font-size:16px;
 			line-height:1.45;
 		}
@@ -2590,14 +2592,10 @@ function ac_lt_inline_assets() {
 		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
 		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
 		@media (max-width:782px){
-			.single-product .woocommerce-Price-amount.amount{ flex-direction:column; }
-			.single-product .woocommerce-Price-amount.amount > p.stock{
-				width:100%;
+			.single-product .woocommerce-variation-price > p.stock,
+			.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
+				flex-basis:100%;
 				margin:.5em 0 0 0 !important;
-			}
-			body.single-product .woocommerce-variation-price p.available-on-backorder{
-				margin-left:0 !important;
-				margin-top:.5em !important;
 			}
 		}
 	</style>
@@ -2614,6 +2612,16 @@ function ac_lt_inline_assets() {
 			if (!$amount.length || $amount.find('p.stock').length) { return; }
 			var $stock = $scope.find('.product_add_to_cart_button > p.stock').first();
 			if ($stock.length) { $amount.append($stock); }
+		}
+
+		// Variable products: move the availability badge into the price wrapper so
+		// it sits on the same line as the price (re-runs on each variation change,
+		// since WooCommerce re-renders the price/availability blocks).
+		function relocateVariableStock(){
+			var $wrap = $scope.find('.woocommerce-variation-price').first();
+			if (!$wrap.length || $wrap.find('p.stock').length) { return; }
+			var $stock = $scope.find('.woocommerce-variation-availability p.stock').first();
+			if ($stock.length) { $wrap.append($stock); }
 		}
 
 		function resolveOxymoron(){
@@ -2633,7 +2641,7 @@ function ac_lt_inline_assets() {
 			$badge.html(html);
 		}
 
-		function refresh(lead, label){ relocateSimpleStock(); resolveOxymoron(); applyInline(lead, label); }
+		function refresh(lead, label){ relocateSimpleStock(); relocateVariableStock(); resolveOxymoron(); applyInline(lead, label); }
 		refresh();
 
 		$(document.body).on('show_variation', function (e, v) {
