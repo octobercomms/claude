@@ -439,8 +439,38 @@
 	100% { background-color: transparent; }
 }
 
+/* Floating save bar — fixed bottom-right, visible only with unsaved changes */
+.wbe-float-actions {
+	position: fixed;
+	right: 24px;
+	bottom: 24px;
+	z-index: 9999;
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 8px;
+	padding: 10px 14px;
+	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+	animation: wbe-float-in 0.18s ease;
+}
+
+.wbe-float-actions .wbe-change-badge {
+	display: inline-block;
+}
+
+@keyframes wbe-float-in {
+	from { opacity: 0; transform: translateY(8px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+
 /* Responsive adjustments */
 @media (max-width: 960px) {
+	.wbe-float-actions {
+		right: 12px;
+		bottom: 12px;
+	}
 	.wbe-toolbar {
 		flex-direction: column;
 		align-items: flex-start;

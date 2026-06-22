@@ -26,6 +26,10 @@
 	const $pageInfo    = $('#wbe-page-info');
 	const $prevBtn     = $('#wbe-prev');
 	const $nextBtn     = $('#wbe-next');
+	const $floatBar    = $('#wbe-float-actions');
+	const $floatCount  = $('#wbe-float-count');
+	const $floatSave   = $('#wbe-float-save');
+	const $floatDiscard= $('#wbe-float-discard');
 
 	// -------------------------------------------------------------------------
 	// Helpers
@@ -49,15 +53,23 @@
 	function updateToolbar() {
 		const count = Object.keys(state.changes).length;
 		if (count > 0) {
-			$changeBadge.text(count + ' unsaved change' + (count !== 1 ? 's' : '')).show();
+			const label = count + ' unsaved change' + (count !== 1 ? 's' : '');
+			$changeBadge.text(label).show();
 			$discardBtn.show();
 			$saveBtn.prop('disabled', false);
+			$floatCount.text(label);
+			$floatBar.show();
 		} else {
 			$changeBadge.hide();
 			$discardBtn.hide();
 			$saveBtn.prop('disabled', true);
+			$floatBar.hide();
 		}
 	}
+
+	// Floating bar buttons proxy to the toolbar buttons (single source of truth).
+	$floatSave.on('click', function () { $saveBtn.trigger('click'); });
+	$floatDiscard.on('click', function () { $discardBtn.trigger('click'); });
 
 	function formatPrice(val) {
 		if (val === '' || val === null || val === undefined) return '';
