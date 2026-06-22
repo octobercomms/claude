@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Another Country – Configurator Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f2ee;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .page-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  /* Toggle between modes */
+  .mode-toggle {
+    display: flex;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 36px;
+  }
+  .mode-btn {
+    padding: 9px 22px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+  }
+  .mode-btn.active {
+    background: #3a5a3a;
+    color: #fff;
+  }
+
+  /* Product shell */
+  .product {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 60px;
+    max-width: 960px;
+    width: 100%;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  }
+
+  .product-image {
+    background: #f0ece6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 480px;
+    position: relative;
+  }
+  .product-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .product-image svg {
+    width: 320px;
+    opacity: 0.25;
+  }
+
+  .product-info {
+    padding: 48px 40px 40px 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .product-name {
+    font-family: Georgia, serif;
+    font-size: 28px;
+    font-weight: normal;
+    line-height: 1.2;
+    margin-bottom: 12px;
+    color: #1a2a1a;
+  }
+
+  .product-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #666;
+    margin-bottom: 28px;
+  }
+
+  /* ======================================================
+     CURRENT LAYOUT (stacked buttons)
+     ====================================================== */
+  .layout-current .attr-group {
+    margin-bottom: 20px;
+  }
+  .layout-current .attr-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 10px;
+  }
+  .btn-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .opt-btn {
+    padding: 8px 14px;
+    border: 1px solid #ccc;
+    background: #fff;
+    font-size: 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: #333;
+  }
+  .opt-btn:hover { border-color: #3a5a3a; color: #3a5a3a; }
+  .opt-btn.selected { background: #3a5a3a; color: #fff; border-color: #3a5a3a; }
+
+  .fabric-drawer {
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    margin-bottom: 20px;
+  }
+  .fabric-drawer-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .fabric-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 3px;
+    background: #d4c5b0;
+    flex-shrink: 0;
+  }
+  .fabric-drawer-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
+  .fabric-drawer-value { font-size: 13px; color: #222; margin-top: 2px; }
+  .fabric-plus { font-size: 22px; color: #888; line-height: 1; }
+
+  /* ======================================================
+     STEP-BY-STEP LAYOUT
+     ====================================================== */
+  .layout-steps { display: none; }
+
+  /* Progress bar */
+  .steps-progress {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    margin-bottom: 28px;
+  }
+  .step-dot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #bbb;
+    transition: color 0.3s;
+    white-space: nowrap;
+  }
+  .step-dot.active { color: #3a5a3a; }
+  .step-dot.done { color: #888; }
+  .dot {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1.5px solid #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 600;
+    transition: all 0.3s;
+    background: #fff;
+    flex-shrink: 0;
+  }
+  .step-dot.active .dot { border-color: #3a5a3a; background: #3a5a3a; color: #fff; }
+  .step-dot.done .dot { border-color: #3a5a3a; background: #f0f5f0; color: #3a5a3a; }
+  .dot-check { font-size: 10px; }
+  .step-line {
+    flex: 1;
+    height: 1px;
+    background: #e0e0e0;
+    margin: 0 6px;
+    transition: background 0.3s;
+    min-width: 8px;
+  }
+  .step-line.done { background: #3a5a3a; }
+
+  /* Step panels */
+  .step-panel {
+    display: none;
+    animation: fadeIn 0.25s ease;
+  }
+  .step-panel.active { display: block; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .step-heading {
+    font-family: Georgia, serif;
+    font-size: 17px;
+    font-weight: normal;
+    color: #1a2a1a;
+    margin-bottom: 4px;
+  }
+  .step-sub {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 16px;
+  }
+
+  /* Size grid – larger buttons to show all options clearly */
+  .size-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .size-btn {
+    padding: 14px 12px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 13px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    color: #333;
+    line-height: 1.3;
+  }
+  .size-btn .size-price {
+    display: block;
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 3px;
+  }
+  .size-btn:hover { border-color: #3a5a3a; }
+  .size-btn.selected {
+    background: #3a5a3a;
+    border-color: #3a5a3a;
+    color: #fff;
+  }
+  .size-btn.selected .size-price { color: rgba(255,255,255,0.7); }
+
+  /* Filling options – horizontal, more visual */
+  .fill-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .fill-btn {
+    padding: 14px 16px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .fill-btn-name { font-size: 13px; color: #333; }
+  .fill-btn-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .fill-btn-badge {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #f0f5f0;
+    color: #3a5a3a;
+    white-space: nowrap;
+  }
+  .fill-btn:hover { border-color: #3a5a3a; }
+  .fill-btn.selected { background: #3a5a3a; border-color: #3a5a3a; }
+  .fill-btn.selected .fill-btn-name,
+  .fill-btn.selected .fill-btn-desc { color: #fff; }
+  .fill-btn.selected .fill-btn-badge { background: rgba(255,255,255,0.2); color: #fff; }
+
+  /* Leg options */
+  .leg-grid {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 24px;
+  }
+  .leg-btn {
+    flex: 1;
+    padding: 16px;
+    border: 1px solid #ddd;
+    background: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+  }
+  .leg-swatch {
+    width: 40px;
+    height: 12px;
+    border-radius: 2px;
+    margin: 0 auto 8px;
+  }
+  .leg-swatch.oak { background: linear-gradient(90deg, #c9a97a, #b8955e); }
+  .leg-swatch.dark { background: linear-gradient(90deg, #4a3728, #3a2a1e); }
+  .leg-btn-name { font-size: 12px; color: #444; }
+  .leg-btn:hover { border-color: #3a5a3a; }
+  .leg-btn.selected { background: #3a5a3a; border-color: #3a5a3a; }
+  .leg-btn.selected .leg-btn-name { color: #fff; }
+
+  /* Fabric step */
+  .fabric-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 24px;
+  }
+  .fab-btn {
+    cursor: pointer;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: all 0.15s;
+    background: none;
+    padding: 0;
+  }
+  .fab-btn img,
+  .fab-swatch {
+    width: 100%;
+    aspect-ratio: 1;
+    display: block;
+    border-radius: 3px;
+  }
+  .fab-swatch { border-radius: 3px; }
+  .fab-btn:hover { border-color: #3a5a3a; }
+  .fab-btn.selected { border-color: #3a5a3a; }
+  .fab-name { font-size: 10px; color: #888; text-align: center; margin-top: 4px; padding: 0 2px; line-height: 1.3; }
+  .fab-btn.selected .fab-name { color: #3a5a3a; font-weight: 600; }
+
+  /* Nav buttons */
+  .step-nav {
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
+  }
+  .btn-back {
+    padding: 11px 20px;
+    border: 1px solid #ddd;
+    background: #fff;
+    font-size: 13px;
+    border-radius: 3px;
+    cursor: pointer;
+    color: #555;
+    transition: all 0.15s;
+  }
+  .btn-back:hover { border-color: #888; }
+  .btn-next {
+    flex: 1;
+    padding: 11px 20px;
+    border: none;
+    background: #3a5a3a;
+    color: #fff;
+    font-size: 13px;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.04em;
+  }
+  .btn-next:hover { background: #2d4a2d; }
+  .btn-next:disabled { background: #ccc; cursor: default; }
+
+  /* Summary step */
+  .summary-rows { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-key { color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .summary-val { color: #222; font-weight: 500; }
+  .summary-edit {
+    font-size: 11px;
+    color: #3a5a3a;
+    cursor: pointer;
+    text-decoration: underline;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+
+  /* Price + CTA */
+  .price-block { margin-top: auto; padding-top: 20px; border-top: 1px solid #eee; }
+  .price-was { font-size: 14px; color: #cc4444; text-decoration: line-through; margin-bottom: 2px; }
+  .price-now { font-size: 26px; font-family: Georgia, serif; color: #1a2a1a; margin-bottom: 4px; }
+  .price-note { font-size: 11px; color: #3a5a3a; margin-bottom: 16px; }
+  .btn-add {
+    width: 100%;
+    padding: 15px;
+    background: #8b4513;
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    letter-spacing: 0.05em;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-bottom: 10px;
+  }
+  .btn-add:hover { background: #7a3c10; }
+  .btn-add:disabled { background: #ccc; cursor: default; }
+  .btn-swatches {
+    width: 100%;
+    padding: 13px;
+    background: transparent;
+    color: #444;
+    border: 1px solid #ddd;
+    font-size: 13px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+
+  .config-note {
+    font-size: 11px;
+    color: #aaa;
+    text-align: center;
+    margin-top: 16px;
+    line-height: 1.6;
+  }
+
+  /* Current mode note */
+  .mode-note {
+    font-size: 11px;
+    background: #f0f5f0;
+    border: 1px solid #c5d9c5;
+    color: #3a5a3a;
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">Another Country — Product Page Configurator Concepts</p>
+
+<div class="mode-toggle">
+  <button class="mode-btn active" onclick="setMode('current')">Current layout</button>
+  <button class="mode-btn" onclick="setMode('steps')">Step-by-step</button>
+</div>
+
+<div class="product">
+  <!-- Left: product image placeholder -->
+  <div class="product-image">
+    <svg viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+      <!-- Simple sofa illustration -->
+      <rect x="30" y="140" width="340" height="80" rx="8" fill="#c9b99a"/>
+      <rect x="30" y="110" width="340" height="45" rx="6" fill="#b8a88a"/>
+      <rect x="30" y="108" width="60" height="118" rx="6" fill="#b8a88a"/>
+      <rect x="310" y="108" width="60" height="118" rx="6" fill="#b8a88a"/>
+      <rect x="80" y="215" width="30" height="25" rx="3" fill="#9a8060"/>
+      <rect x="290" y="215" width="30" height="25" rx="3" fill="#9a8060"/>
+      <rect x="90" y="118" width="80" height="35" rx="5" fill="#cdbfa8"/>
+      <rect x="230" y="118" width="80" height="35" rx="5" fill="#cdbfa8"/>
+    </svg>
+  </div>
+
+  <!-- Right: product info -->
+  <div class="product-info">
+    <h1 class="product-name">Another Sofa &amp; Armchair</h1>
+    <p class="product-desc">Generously-filled cushions and a refined wooden base frame the slim silhouette of the Another Sofa. A Modern British design handcrafted with all-natural materials.</p>
+
+    <!-- ================================================
+         CURRENT LAYOUT
+         ================================================ -->
+    <div class="layout-current" id="layout-current">
+      <div class="mode-note">This is roughly how it looks now — all options stacked.</div>
+
+      <div class="attr-group">
+        <div class="attr-label">Size</div>
+        <div class="btn-grid">
+          <button class="opt-btn" onclick="sel(this,'size')">Armchair</button>
+          <button class="opt-btn" onclick="sel(this,'size')">2 Seat Sofa</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Sofa (2 Cushions)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Sofa (3 Cushions)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Chaise Sofa (Left)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Chaise Sofa (Right)</button>
+          <button class="opt-btn selected" onclick="sel(this,'size')">Corner Sofa</button>
+          <button class="opt-btn" onclick="sel(this,'size')">Ottoman</button>
+        </div>
+      </div>
+
+      <div class="attr-group">
+        <div class="attr-label">Cushion Filling</div>
+        <div class="btn-grid">
+          <button class="opt-btn selected" onclick="sel(this,'fill')">All-feather</button>
+          <button class="opt-btn" onclick="sel(this,'fill')">Bio-foam + feather</button>
+          <button class="opt-btn" onclick="sel(this,'fill')">Natural latex + feather</button>
+        </div>
+      </div>
+
+      <div class="attr-group">
+        <div class="attr-label">Leg</div>
+        <div class="btn-grid">
+          <button class="opt-btn selected" onclick="sel(this,'leg')">Natural Oak</button>
+          <button class="opt-btn" onclick="sel(this,'leg')">Dark-Stained Oak</button>
+        </div>
+      </div>
+
+      <div class="fabric-drawer">
+        <div class="fabric-drawer-left">
+          <div class="fabric-swatch"></div>
+          <div>
+            <div class="fabric-drawer-label">Select fabric</div>
+            <div class="fabric-drawer-value">Oatmeal</div>
+          </div>
+        </div>
+        <div class="fabric-plus">+</div>
+      </div>
+
+      <div class="price-block">
+        <div class="price-was">£5,595</div>
+        <div class="price-now">£4,755.76</div>
+        <div class="price-note">Made to Order ⓘ</div>
+        <button class="btn-add">Add to cart</button>
+        <button class="btn-swatches">Order fabric swatches</button>
+      </div>
+    </div>
+
+    <!-- ================================================
+         STEP-BY-STEP LAYOUT
+         ================================================ -->
+    <div class="layout-steps" id="layout-steps">
+
+      <!-- Progress indicator -->
+      <div class="steps-progress" id="progress">
+        <div class="step-dot active" id="dot-1"><span class="dot">1</span></div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step-dot" id="dot-2"><span class="dot">2</span></div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step-dot" id="dot-3"><span class="dot">3</span></div>
+        <div class="step-line" id="line-3"></div>
+        <div class="step-dot" id="dot-4"><span class="dot">4</span></div>
+        <div class="step-line" id="line-4"></div>
+        <div class="step-dot" id="dot-5"><span class="dot">5</span></div>
+      </div>
+
+      <!-- Step 1: Size -->
+      <div class="step-panel active" id="step-1">
+        <div class="step-heading">Choose your size</div>
+        <div class="step-sub">All sizes made to order — 8–10 weeks</div>
+        <div class="size-grid">
+          <button class="size-btn" onclick="pickSize(this,'Armchair','£1,495')">
+            Armchair <span class="size-price">from £1,495</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'2 Seat Sofa','£2,995')">
+            2 Seat Sofa <span class="size-price">from £2,995</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Sofa (2 Cushions)','£3,795')">
+            3 Seat Sofa (2 Cushions) <span class="size-price">from £3,795</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Sofa (3 Cushions)','£3,995')">
+            3 Seat Sofa (3 Cushions) <span class="size-price">from £3,995</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Chaise (Left)','£4,295')">
+            3 Seat Chaise (Left) <span class="size-price">from £4,295</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Chaise (Right)','£4,295')">
+            3 Seat Chaise (Right) <span class="size-price">from £4,295</span>
+          </button>
+          <button class="size-btn selected" onclick="pickSize(this,'Corner Sofa','£5,595')">
+            Corner Sofa <span class="size-price">from £5,595</span>
+          </button>
+          <button class="size-btn" onclick="pickSize(this,'Ottoman','£695')">
+            Ottoman <span class="size-price">from £695</span>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-next" id="btn-next-1" onclick="goStep(2)">Choose cushion filling →</button>
+        </div>
+      </div>
+
+      <!-- Step 2: Cushion Filling -->
+      <div class="step-panel" id="step-2">
+        <div class="step-heading">Cushion filling</div>
+        <div class="step-sub">All fillings are sustainably sourced</div>
+        <div class="fill-grid">
+          <button class="fill-btn selected" onclick="pickFill(this,'All-feather')">
+            <div>
+              <div class="fill-btn-name">All-feather</div>
+              <div class="fill-btn-desc">The classic, softest feel</div>
+            </div>
+            <span class="fill-btn-badge">Most popular</span>
+          </button>
+          <button class="fill-btn" onclick="pickFill(this,'Bio-foam + feather')">
+            <div>
+              <div class="fill-btn-name">Bio-foam + feather</div>
+              <div class="fill-btn-desc">Firmer support, longer shape retention</div>
+            </div>
+          </button>
+          <button class="fill-btn" onclick="pickFill(this,'Natural latex + feather')">
+            <div>
+              <div class="fill-btn-name">Natural latex + feather</div>
+              <div class="fill-btn-desc">Responsive and hypoallergenic</div>
+            </div>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(1)">← Back</button>
+          <button class="btn-next" onclick="goStep(3)">Choose leg finish →</button>
+        </div>
+      </div>
+
+      <!-- Step 3: Leg -->
+      <div class="step-panel" id="step-3">
+        <div class="step-heading">Leg finish</div>
+        <div class="step-sub">Solid oak, hand-finished in our workshop</div>
+        <div class="leg-grid">
+          <button class="leg-btn selected" onclick="pickLeg(this,'Natural Oak')">
+            <div class="leg-swatch oak"></div>
+            <div class="leg-btn-name">Natural Oak</div>
+          </button>
+          <button class="leg-btn" onclick="pickLeg(this,'Dark-Stained Oak')">
+            <div class="leg-swatch dark"></div>
+            <div class="leg-btn-name">Dark-Stained Oak</div>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(2)">← Back</button>
+          <button class="btn-next" onclick="goStep(4)">Choose fabric →</button>
+        </div>
+      </div>
+
+      <!-- Step 4: Fabric -->
+      <div class="step-panel" id="step-4">
+        <div class="step-heading">Select fabric</div>
+        <div class="step-sub">Click to select · <a href="#" style="color:#3a5a3a;font-size:11px">Order free swatches</a></div>
+        <div class="fabric-grid">
+          <button class="fab-btn selected" onclick="pickFab(this,'Oatmeal')">
+            <div class="fab-swatch" style="background:#d4c5b0"></div>
+            <div class="fab-name">Oatmeal</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Sand')">
+            <div class="fab-swatch" style="background:#c9b88a"></div>
+            <div class="fab-name">Sand</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Dove Grey')">
+            <div class="fab-swatch" style="background:#b0aaa8"></div>
+            <div class="fab-name">Dove Grey</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Charcoal')">
+            <div class="fab-swatch" style="background:#4a4a4a"></div>
+            <div class="fab-name">Charcoal</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Sage')">
+            <div class="fab-swatch" style="background:#8a9e88"></div>
+            <div class="fab-name">Sage</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Forest')">
+            <div class="fab-swatch" style="background:#3a5a3a"></div>
+            <div class="fab-name">Forest</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Terracotta')">
+            <div class="fab-swatch" style="background:#b5603a"></div>
+            <div class="fab-name">Terracotta</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Blush')">
+            <div class="fab-swatch" style="background:#d4a898"></div>
+            <div class="fab-name">Blush</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Cream')">
+            <div class="fab-swatch" style="background:#ede8de"></div>
+            <div class="fab-name">Cream</div>
+          </button>
+          <button class="fab-btn" onclick="pickFab(this,'Navy')">
+            <div class="fab-swatch" style="background:#1e2e50"></div>
+            <div class="fab-name">Navy</div>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(3)">← Back</button>
+          <button class="btn-next" onclick="goStep(5)">Review &amp; add to cart →</button>
+        </div>
+      </div>
+
+      <!-- Step 5: Summary -->
+      <div class="step-panel" id="step-5">
+        <div class="step-heading">Your configuration</div>
+        <div class="step-sub">Review before adding to cart</div>
+        <div class="summary-rows">
+          <div class="summary-row">
+            <div>
+              <div class="summary-key">Size</div>
+              <div class="summary-val" id="sum-size">Corner Sofa</div>
+            </div>
+            <button class="summary-edit" onclick="goStep(1)">Change</button>
+          </div>
+          <div class="summary-row">
+            <div>
+              <div class="summary-key">Cushion Filling</div>
+              <div class="summary-val" id="sum-fill">All-feather</div>
+            </div>
+            <button class="summary-edit" onclick="goStep(2)">Change</button>
+          </div>
+          <div class="summary-row">
+            <div>
+              <div class="summary-key">Leg Finish</div>
+              <div class="summary-val" id="sum-leg">Natural Oak</div>
+            </div>
+            <button class="summary-edit" onclick="goStep(3)">Change</button>
+          </div>
+          <div class="summary-row">
+            <div>
+              <div class="summary-key">Fabric</div>
+              <div class="summary-val" id="sum-fab">Oatmeal</div>
+            </div>
+            <button class="summary-edit" onclick="goStep(4)">Change</button>
+          </div>
+        </div>
+
+        <div class="price-block">
+          <div class="price-was">£5,595</div>
+          <div class="price-now" id="sum-price">£4,755.76</div>
+          <div class="price-note">Made to Order ⓘ</div>
+          <button class="btn-add">Add to cart</button>
+          <button class="btn-swatches">Order fabric swatches</button>
+        </div>
+      </div>
+
+    </div><!-- /layout-steps -->
+
+    <!-- Price block visible in current layout (already inside layout-current above) -->
+
+  </div><!-- /product-info -->
+</div><!-- /product -->
+
+<p class="config-note">Mockup only — not connected to WooCommerce</p>
+
+<script>
+  // ---- Current layout helpers ----
+  function sel(btn, group) {
+    btn.closest('.btn-grid').querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  }
+
+  // ---- Mode toggle ----
+  function setMode(mode) {
+    document.querySelectorAll('.mode-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&mode==='current')||(i===1&&mode==='steps')));
+    document.getElementById('layout-current').style.display = mode === 'current' ? '' : 'none';
+    document.getElementById('layout-steps').style.display   = mode === 'steps'   ? '' : 'none';
+  }
+
+  // ---- Step-by-step state ----
+  const cfg = { size: 'Corner Sofa', fill: 'All-feather', leg: 'Natural Oak', fab: 'Oatmeal' };
+
+  function goStep(n) {
+    document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('step-' + n).classList.add('active');
+
+    // Update progress dots
+    for (let i = 1; i <= 5; i++) {
+      const dot  = document.getElementById('dot-' + i);
+      const line = document.getElementById('line-' + i);
+      dot.className  = 'step-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+      dot.querySelector('.dot').innerHTML = i < n ? '✓' : i;
+      if (line) line.className = 'step-line' + (i < n ? ' done' : '');
+    }
+
+    // Update summary
+    if (n === 5) {
+      document.getElementById('sum-size').textContent = cfg.size;
+      document.getElementById('sum-fill').textContent = cfg.fill;
+      document.getElementById('sum-leg').textContent  = cfg.leg;
+      document.getElementById('sum-fab').textContent  = cfg.fab;
+    }
+  }
+
+  function pickSize(btn, label, price) {
+    btn.closest('.size-grid').querySelectorAll('.size-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    cfg.size = label;
+  }
+
+  function pickFill(btn, label) {
+    btn.closest('.fill-grid').querySelectorAll('.fill-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    cfg.fill = label;
+  }
+
+  function pickLeg(btn, label) {
+    btn.closest('.leg-grid').querySelectorAll('.leg-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    cfg.leg = label;
+  }
+
+  function pickFab(btn, label) {
+    btn.closest('.fabric-grid').querySelectorAll('.fab-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    cfg.fab = label;
+  }
+</script>
+</body>
+</html>
