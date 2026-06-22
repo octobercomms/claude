@@ -1,0 +1,120 @@
+.ac-fabric-swatch-ui{margin:0 0 1.25rem}.ac-fabric-group-grid{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill, minmax(110px, 1fr));align-items:start}.ac-fabric-trigger{width:100%;border:0;background:#fbfbf8 !important;background-color:#fbfbf8 !important;min-height:40px !important;padding:0;display:flex;align-items:center;gap:.9rem;text-align:left;cursor:pointer}.ac-fabric-trigger:hover{background-color:rgba(0,0,0,.0588)}.ac-fabric-trigger-thumb{width:65px;height:65px;flex:0 0 65px;background:#e2e5df;overflow:hidden;display:none}.ac-fabric-trigger-thumb.has-image{display:block}.ac-fabric-trigger-thumb img{width:100%;height:100%;object-fit:cover}.ac-fabric-trigger-copy{flex:1;color:#2e6642;text-transform:initial;padding-left:1em}.ac-fabric-trigger-title{display:block;font-size:1rem;color:#2e6642}.ac-fabric-trigger-selected{display:none;margin-top:.2rem;font-size:1rem;color:#000;min-height:1.2em}.ac-fabric-trigger-selected.has-value{display:block}.ac-fabric-trigger-arrow{color:#2e6642;margin-right:1rem;font-size:23px;line-height:1}.ac-fabric-swatch{cursor:pointer;padding:.2rem;text-align:left;color:#000;text-transform:initial;letter-spacing:0;background:rgba(0,0,0,0);border:0}.ac-fabric-swatch:hover,.ac-fabric-swatch.is-active{background:hsla(0,0%,100%,.5);opacity:1;color:#000}.ac-fabric-swatch-tile{display:block;width:100%;margin-bottom:.4rem;overflow:hidden}.ac-fabric-swatch-tile img{width:100%;height:75px;object-position:bottom;object-fit:cover}.ac-fabric-swatch-name,.ac-fabric-swatch-desc{display:block;line-height:1.2}.ac-fabric-swatch-name{font-size:.82rem}.ac-fabric-swatch-desc{font-size:.72rem;opacity:.75;margin-top:.2rem}.ac-fabric-drawer-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);opacity:0;visibility:hidden;transition:opacity .2s ease;z-index:9998}.ac-fabric-drawer-backdrop.ac-is-open{opacity:1;visibility:visible}.ac-fabric-drawer{position:fixed;top:0;right:0;width:min(92vw,460px);height:100vh;background:#f0f3ec;transform:translateX(100%);transition:transform .25s ease;z-index:9999;display:flex;flex-direction:column}.ac-fabric-drawer.ac-is-open{opacity:1;visibility:visible;transform:translateX(0)}.ac-fabric-drawer-head{display:flex;justify-content:space-between;align-items:center;padding:1rem;border-bottom:1px solid #d8ddd4}.ac-fabric-drawer-head h3{margin:0;font-size:1.2rem !important}.ac-fabric-drawer-body{overflow:auto;padding:1rem;flex:1}.ac-fabric-drawer-preview{display:none;background:#fff}.ac-fabric-drawer-preview.has-image{display:block}.ac-fabric-drawer-preview img{width:100%;height:auto;display:block;object-fit:cover;height:220px;object-position:bottom}.ac-fabric-drawer-footer{border-top:1px solid #d8ddd4;padding:.8rem 1rem;display:flex;align-items:center;gap:.8rem;background:#fff}.ac-fabric-drawer-selected{flex:1;font-size:.92rem;color:#000}.ac-fabric-drawer-price{flex:0 0 auto;font-size:.92rem;color:#000;white-space:nowrap;display:none}.ac-fabric-drawer-price.is-visible{display:block}.ac-close-fabric-drawer{border:0;background:rgba(0,0,0,0);font-size:1.5rem;cursor:pointer;padding:0;color:#2e6642}.ac-fabric-group{margin-bottom:1.25rem}.ac-fabric-group h4{margin:0 0 .75rem;font-size:1.1em !important}.ac-confirm-fabric-selection{margin-bottom:0 !important;text-transform:initial;letter-spacing:0;font-size:15px;padding:.6em 1.2em;background:#2e6642 !important}.ac-confirm-fabric-selection:hover{opacity:.8}.ac-confirm-fabric-selection:disabled{opacity:.45;cursor:not-allowed}@media(max-width: 767px){.ac-fabric-drawer{width:100vw}}body.ac-fabric-drawer-open .offcanvas_container{z-index:999999}
+
+/* ===== OCTOBER COMMS ADDITION - START ===== */
+.ac-fabric-cell{display:flex;flex-direction:column}
+/* "Add sample" matches the fabric composition line (e.g. "100% Recycled Cotton") */
+.ac-fabric-sample{display:flex;align-items:center;gap:.4rem;margin-top:.3rem;padding:0 .2rem;cursor:pointer;text-transform:none;letter-spacing:0}
+.ac-fabric-sample span{font-size:.72rem;line-height:1.2;font-weight:400;color:#000;opacity:.75;user-select:none}
+.ac-fabric-sample img.ac-swatch-cart-ico{flex:0 0 auto;display:block;height:auto;margin:0}
+.ac-fabric-sample input[type=checkbox]{-webkit-appearance:none;appearance:none;margin:0;flex:0 0 auto;width:14px;height:14px;border:1px solid #b9beb3;border-radius:2px;background:#fff;cursor:pointer;position:relative}
+.ac-fabric-sample input[type=checkbox]:checked{background:#2e6642;border-color:#2e6642}
+.ac-fabric-sample input[type=checkbox]:checked::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+/* Screen-colour note matches the fabric name style (e.g. "Ochre").
+   font-family:inherit !important stops the theme's <p> font overriding it. */
+.ac-fabric-drawer .ac-fabric-screen-note{margin:.75rem 1rem 0;font-family:inherit !important;font-size:.82rem;line-height:1.3;font-weight:400;color:#000;text-transform:none;letter-spacing:0}
+.ac-fabric-sample-bar{display:flex;flex-wrap:wrap;align-items:center;gap:.7rem;padding:.8rem 1rem;border-top:1px solid #d8ddd4;background:#fff}
+.ac-fabric-sample-count{flex:1 1 auto;font-size:.85rem;color:#2e6642}
+.ac-order-swatches{flex:0 0 auto;margin-bottom:0 !important;text-transform:initial;letter-spacing:0;font-size:14px;padding:.55em 1.1em;background:#2e6642 !important}
+.ac-order-swatches:hover{opacity:.85}
+.ac-order-swatches[disabled]{opacity:.45;cursor:not-allowed}
+.ac-order-swatches.is-loading{opacity:.7;cursor:progress}
+.ac-fabric-sample-msg{flex-basis:100%;min-height:1em;font-size:.72rem;color:#5a5f56}
+.ac-fabric-sample-msg a{color:#2e6642;text-decoration:underline}
+
+/* PDP trust bullets — uniform set matched to the B-Corp line (Untitled Sans, 11px). */
+.ac-trust-chips{list-style:none;margin:.8rem 0 0;padding:0;display:flex;flex-direction:column;gap:.45rem}
+.ac-trust-chips .ac-trust-chip,
+.ac-trust-chips .ac-trust-tx,
+.ac-trust-chips .ac-trust-tx strong,
+.ac-trust-chips .ac-trust-link{font-family:"Untitled Sans", sans-serif !important;font-size:11px !important;line-height:1.45 !important;letter-spacing:0 !important;text-transform:none !important}
+.ac-trust-chips .ac-trust-chip{display:flex;gap:.6rem;align-items:flex-start;margin:0;color:#000}
+/* Fixed icon box so every icon shares the same footprint and alignment */
+.ac-trust-chips .ac-trust-ic{flex:0 0 16px;width:16px;height:16px;display:flex;align-items:center;justify-content:center;color:#2e6642;margin-top:1px}
+.ac-trust-chips .ac-trust-ic svg{width:15px;height:15px;display:block}
+.ac-trust-chips .ac-trust-tx strong{font-weight:600}
+.ac-trust-link{color:#2e6642;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
+.ac-trust-link:hover{opacity:.8}
+
+/* Customise modal */
+.ac-modal-overlay{position:fixed;inset:0;background:rgba(31,36,32,.45);display:none;align-items:flex-start;justify-content:center;z-index:1000001;padding:5vh 16px;overflow:auto}
+.ac-modal-overlay.is-open{display:flex}
+.ac-modal{position:relative;background:#f0f3ec;width:100%;max-width:560px;padding:30px 30px 34px;border-radius:2px}
+.ac-modal-title{margin:0 0 1rem;font-size:1.3rem !important;color:#2e6642}
+.ac-modal-close{position:absolute;top:8px;right:14px;border:0;background:none;font-size:1.7rem;line-height:1;color:#2e6642;cursor:pointer;padding:0}
+.ac-modal-close:hover{opacity:.7}
+body.ac-modal-open{overflow:hidden}
+
+/* Variation buttons (used inside the accordion bodies) */
+.ac-variation-buttons{display:flex;flex-wrap:wrap;gap:.4rem}
+.ac-variation-btn{font-size:13px;line-height:1.2;padding:.45rem .85rem;border:1px solid #d8ddd4;background:#fff;color:#000;cursor:pointer;border-radius:0;text-transform:none;letter-spacing:0}
+.ac-variation-btn:hover{border-color:#2e6642}
+.ac-variation-btn.is-active{border-color:#2e6642;background:#2e6642;color:#fff}
+.ac-variation-btn[disabled]{opacity:.4;cursor:not-allowed}
+
+/* Variation accordion (Size, Cushion Filling, Leg) — top/bottom rules only,
+   no side borders, no background, no gaps, content flush left, 80px right inset. */
+.ac-acc-list{margin:0 80px 0 0;border-top:1px solid #d8ddd4}
+.ac-acc-item{border:0;border-bottom:1px solid #d8ddd4;border-radius:0;margin:0}
+.ac-acc-item.is-open{box-shadow:none}
+.ac-acc-header{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10.5px 0;background:transparent;border:0;cursor:pointer;text-align:left;font-family:inherit}
+.ac-acc-head-left{display:flex;align-items:center;gap:10px;min-width:0}
+.ac-acc-num{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:#e8e8e8;color:#999;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center}
+.ac-acc-item.is-done .ac-acc-num{background:#2e6642;color:#fff}
+.ac-acc-title{font-size:13px;color:#000;text-transform:none;letter-spacing:0}
+.ac-acc-sub{color:#2e6642;font-weight:400}
+.ac-acc-chevron{flex:0 0 auto;color:#9aa399;font-size:0 !important;line-height:1}
+.ac-acc-chevron::before{content:"+";font-size:20px;line-height:1}
+.ac-acc-item.is-open .ac-acc-chevron::before{content:"\2212"}
+.ac-acc-body{display:none;padding:0 0 14px;background:transparent}
+.ac-acc-item.is-open .ac-acc-body{display:block}
+
+/* Fabric trigger styled as another row in the same list (opens the drawer) */
+.ac-fabric-swatch-ui{display:block !important;width:auto !important;margin:0 80px .9rem 0;border-bottom:1px solid #d8ddd4}
+.ac-fabric-trigger{width:100% !important;box-sizing:border-box !important;min-height:0 !important;background:transparent !important;background-color:transparent !important;border:0 !important;padding:10.5px 0 !important;display:flex !important;align-items:center;justify-content:space-between;gap:10px}
+.ac-fabric-trigger:hover{background-color:transparent !important}
+.ac-fabric-trigger-thumb{display:none !important}
+.ac-fabric-trigger-left{display:flex;align-items:center;gap:10px;min-width:0}
+.ac-fabric-trigger.is-selected .ac-fabric-num{background:#2e6642 !important;color:#fff !important}
+.ac-fabric-trigger-title{display:inline !important;font-size:13px !important;color:#000 !important;text-transform:none !important;letter-spacing:0 !important}
+.ac-fabric-trigger-selected{display:inline !important;margin:0 0 0 .25rem !important;min-height:0 !important;font-size:13px !important;color:#2e6642 !important;text-transform:none !important;letter-spacing:0 !important}
+.ac-fabric-trigger-selected.has-value::before{content:"— "}
+.ac-fabric-trigger-arrow{font-size:20px !important;color:#9aa399 !important;margin:0 0 0 auto !important;flex:0 0 auto}
+@media(max-width:900px){.ac-acc-list{margin-right:0}.ac-fabric-swatch-ui{margin-right:0}}
+
+/* Kill the theme's button hover/focus box on the accordion + fabric rows */
+.ac-acc-header,.ac-fabric-trigger{background:transparent !important;box-shadow:none !important;outline:none !important;-webkit-appearance:none;appearance:none}
+.ac-acc-header:hover,.ac-fabric-trigger:hover{background:#f6f4ef !important}
+.ac-acc-header:focus,.ac-acc-header:active,.ac-fabric-trigger:focus,.ac-fabric-trigger:active{background:transparent !important;outline:none !important;box-shadow:none !important}
+
+/* Variation sale price + current price on one line */
+.single-product .woocommerce-variation-price .price,
+.single-product .single_variation .price{display:flex;align-items:baseline;flex-wrap:wrap;gap:.5rem}
+.single-product .woocommerce-variation-price .price br,
+.single-product .single_variation .price br{display:none}
+.single-product .woocommerce-variation-price del,
+.single-product .single_variation del,
+.single-product .woocommerce-variation-price ins,
+.single-product .single_variation ins{display:inline}
+
+/* Trim 5px below the price and 5px below the Klarna block */
+.single-product .woocommerce-variation-add-to-cart{margin-top:-5px !important}
+.single-product .klarna-outer{margin-bottom:-5px !important}
+/* ===== OCTOBER COMMS ADDITION - END ===== */
+
+/* "Order fabric swatches" button, inline next to Add to Cart.
+   min-height matches the Add to Cart button height (adjust to the exact px). */
+.ac-order-swatch-trigger{display:inline-flex;align-items:center;justify-content:center;vertical-align:top;box-sizing:border-box;margin:0 0 0 .5rem;height:40px;min-height:40px;background:#fff !important;color:#2e6642;border:1px solid #2e6642;border-radius:0;text-transform:initial;letter-spacing:0;font-size:15px;line-height:1;padding:0 1.1em;cursor:pointer}
+.ac-order-swatch-trigger:hover{background:#2e6642 !important;color:#fff}
+@media(max-width:600px){.ac-order-swatch-trigger{display:flex;width:100%;margin:.6rem 0 0}}
+
+/* Tighten the top of the product summary so the buy box fits the image height.
+   Scoped to single product. If a gap persists, the theme may use a different
+   selector for that element. */
+body.single-product .woocommerce.single .woocommerce-breadcrumb,
+body.single-product .woocommerce .woocommerce-breadcrumb,
+body.single-product #breadcrumbs{margin-bottom:1em !important}
+.single-product .product_title,
+.single-product h1.product_title,
+.single-product h1.entry-title{margin:.1rem 0 .5rem !important;padding-top:0 !important}
+.single-product .woocommerce-product-details__short-description{margin:0 0 1rem !important}
+.single-product .woocommerce-product-details__short-description p:last-child{margin-bottom:0 !important}

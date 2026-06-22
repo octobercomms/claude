@@ -9,7 +9,7 @@ Tracks the merge of parallel agent work into one source of truth in this repo.
 | **Lead Times** plugin | `dev/anothercountry-lead-times` | **v1.7.0** pulled in from branch `claude/dreamy-noether-iia0mj`. Was only v1.1.0 on main. |
 | **Variant Showcase** plugin | `dev/variant-showcase` | v1.0.5 (mine; merged to main earlier). |
 | **OctoberComms Bulk Editor** | `dev/oct-bulk-editor` | **v1.4.0** — my feature set (showcase columns, merge tool, CSV export/import, bulk-edit bar) **+ ported** the other agent's select-all checkboxes (from `claude/woocommerce-bulk-editor-311ZX`). This is now the one canonical bulk editor. |
-| **Fabric Drawer / configurator** (theme) | `merchandiser-child` theme — **NOT yet in repo** | Pending: need the live `functions.php`, `fabric-drawer.js`, `fabric-drawer.css` to bring into version control. |
+| **Fabric Drawer / configurator** (theme) | `dev/anothercountry-theme/` | **Now in repo.** Live `functions.php` + `fabric-drawer.js/css` committed. functions.php reconciled (lead-times collision fixed); fabric step marker tweaked (grey number → green ✓ on select). |
 
 ## The live conflict (why lead-times went dark)
 
@@ -32,7 +32,14 @@ Produce **one** `OCTOBER COMMS` block in `functions.php` that:
 Then commit the reconciled `functions.php` + `fabric-drawer.js/css` into the repo
 (canonical home TBD — likely `dev/anothercountry-theme/` per the two-folder rule).
 
-## Outstanding / needed from client
-1. Live `functions.php` (with the Fabric Drawer block).
-2. `fabric-drawer.js` + `fabric-drawer.css` from the child theme.
-3. Confirm active plugins + versions on live (esp. Lead Times active & version).
+## Done
+- All three live theme files received and committed to `dev/anothercountry-theme/`.
+- `functions.php` reconciled: lead-times badge restored, fabric drawer intact.
+- Fabric step marker fixed (grey number → green ✓).
+
+## Outstanding / to verify on deploy
+1. Deploy the three theme files + purge LiteSpeed (see `docs/anothercountry-theme/README.md`).
+2. Confirm the **Another Country Lead Times** plugin is active at **v1.7** on live
+   (the badge wording depends on it).
+3. Set the merged "Another Sofa & Armchair" lead time via the plugin (or it uses
+   the global default) — the merge tool didn't copy `_ac_lead_time`.
