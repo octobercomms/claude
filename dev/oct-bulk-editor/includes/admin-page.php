@@ -77,11 +77,46 @@
 		<?php endforeach; ?>
 	</div>
 
+	<!-- Bulk action bar (shown when rows are selected) -->
+	<div id="wbe-bulk-bar" class="wbe-bulk-bar" style="display:none">
+		<span id="wbe-bulk-count" class="wbe-bulk-count"></span>
+		<select id="wbe-bulk-field" class="wbe-input wbe-bulk-field">
+			<option value=""><?php esc_html_e( '— Set field…', 'oct-bulk-editor' ); ?></option>
+			<option value="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></option>
+			<option value="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></option>
+			<option value="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></option>
+			<option value="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></option>
+		</select>
+
+		<!-- Value inputs – only one shown at a time -->
+		<select id="wbe-bulk-val-stock_status" class="wbe-input wbe-bulk-val" style="display:none">
+			<option value="instock"><?php esc_html_e( 'In stock', 'oct-bulk-editor' ); ?></option>
+			<option value="outofstock"><?php esc_html_e( 'Out of stock', 'oct-bulk-editor' ); ?></option>
+			<option value="onbackorder"><?php esc_html_e( 'On backorder', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<select id="wbe-bulk-val-status" class="wbe-input wbe-bulk-val" style="display:none">
+			<option value="publish"><?php esc_html_e( 'Published', 'oct-bulk-editor' ); ?></option>
+			<option value="draft"><?php esc_html_e( 'Draft', 'oct-bulk-editor' ); ?></option>
+			<option value="private"><?php esc_html_e( 'Private', 'oct-bulk-editor' ); ?></option>
+			<option value="pending"><?php esc_html_e( 'Pending review', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<input id="wbe-bulk-val-text" type="text" class="wbe-input wbe-bulk-val" placeholder="<?php esc_attr_e( 'Value…', 'oct-bulk-editor' ); ?>" style="display:none; max-width:120px" />
+
+		<button id="wbe-bulk-apply" class="button button-primary" disabled>
+			<?php esc_html_e( 'Apply to selected', 'oct-bulk-editor' ); ?>
+		</button>
+		<button id="wbe-bulk-clear" class="button button-link">
+			<?php esc_html_e( 'Clear selection', 'oct-bulk-editor' ); ?>
+		</button>
+	</div>
+
 	<!-- Spreadsheet table -->
 	<div class="wbe-table-wrapper">
 		<table id="wbe-table" class="wbe-table widefat">
 			<thead>
 				<tr>
+					<th class="wbe-col-check"><input type="checkbox" id="wbe-select-all" title="<?php esc_attr_e( 'Select all', 'oct-bulk-editor' ); ?>" /></th>
 					<th class="wbe-col-image" data-col="image"><?php esc_html_e( 'Image', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-sku" data-col="sku"><?php esc_html_e( 'SKU', 'oct-bulk-editor' ); ?></th>
@@ -95,7 +130,7 @@
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="9">
+					<td colspan="10">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>

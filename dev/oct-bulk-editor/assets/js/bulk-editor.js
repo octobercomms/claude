@@ -8,7 +8,8 @@
 	// State
 	// -------------------------------------------------------------------------
 	const state = {
-		changes: {},   // { "productId:field": { id, field, value, originalValue } }
+		changes: {},    // { "productId:field": { id, field, value, originalValue } }
+		rowData: {},    // { productId: { field: originalValue, … } }
 		page: 1,
 		totalPages: 1,
 		loading: false,
@@ -194,6 +195,122 @@
 	}
 
 	// -------------------------------------------------------------------------
+	// Bulk selection
+	// -------------------------------------------------------------------------
+	const $bulkBar     = $('#wbe-bulk-bar');
+	const $bulkCount   = $('#wbe-bulk-count');
+	const $bulkField   = $('#wbe-bulk-field');
+	const $bulkApply   = $('#wbe-bulk-apply');
+	const $selectAll   = $('#wbe-select-all');
+
+	function getCheckedIds() {
+		return $tbody.find('.wbe-row-check:checked').map(function () {
+			return $(this).val();
+		}).get();
+	}
+
+	function updateBulkBar() {
+		const ids = getCheckedIds();
+		const n   = ids.length;
+		if (n > 0) {
+			$bulkCount.text(n + ' row' + (n !== 1 ? 's' : '') + ' selected');
+			$bulkBar.show();
+		} else {
+			$bulkBar.hide();
+		}
+		$selectAll.prop('indeterminate', n > 0 && n < $tbody.find('.wbe-row-check').length);
+		$selectAll.prop('checked', n > 0 && n === $tbody.find('.wbe-row-check').length);
+		updateBulkApplyBtn();
+	}
+
+	function updateBulkApplyBtn() {
+		const hasField = $bulkField.val() !== '';
+		const hasRows  = getCheckedIds().length > 0;
+		$bulkApply.prop('disabled', !hasField || !hasRows);
+	}
+
+	// Show the right value input when field changes
+	$bulkField.on('change', function () {
+		$('.wbe-bulk-val').hide();
+		const field = $(this).val();
+		if (field === 'stock_status') $('#wbe-bulk-val-stock_status').show();
+		else if (field === 'status')  $('#wbe-bulk-val-status').show();
+		else if (field)               $('#wbe-bulk-val-text').show().val('');
+		updateBulkApplyBtn();
+	});
+
+	// Select-all checkbox
+	$selectAll.on('change', function () {
+		$tbody.find('.wbe-row-check').prop('checked', this.checked);
+		// Sync parent checkboxes
+		$tbody.find('.wbe-parent-check').prop('checked', this.checked);
+		updateBulkBar();
+	});
+
+	// Parent row checkbox selects/deselects all its children
+	$tbody.on('change', '.wbe-parent-check', function () {
+		const parentId = $(this).data('parent-id');
+		$tbody.find(`.wbe-row-check[data-parent-id="${parentId}"]`).prop('checked', this.checked);
+		updateBulkBar();
+	});
+
+	// Individual row checkbox
+	$tbody.on('change', '.wbe-row-check', function () {
+		// Sync parent checkbox state
+		const parentId = $(this).data('parent-id');
+		if (parentId) {
+			const $siblings  = $tbody.find(`.wbe-row-check[data-parent-id="${parentId}"]`);
+			const allChecked = $siblings.length === $siblings.filter(':checked').length;
+			$tbody.find(`.wbe-parent-check[data-parent-id="${parentId}"]`).prop('checked', allChecked);
+		}
+		updateBulkBar();
+	});
+
+	// Clear selection
+	$('#wbe-bulk-clear').on('click', function () {
+		$tbody.find('.wbe-row-check, .wbe-parent-check').prop('checked', false);
+		$selectAll.prop('checked', false).prop('indeterminate', false);
+		$bulkBar.hide();
+	});
+
+	// Apply bulk value to all selected rows
+	$bulkApply.on('click', function () {
+		const field = $bulkField.val();
+		if (!field) return;
+
+		let value;
+		if (field === 'stock_status') value = $('#wbe-bulk-val-stock_status').val();
+		else if (field === 'status')  value = $('#wbe-bulk-val-status').val();
+		else                          value = $('#wbe-bulk-val-text').val().trim();
+
+		const ids = getCheckedIds();
+
+		ids.forEach(id => {
+			const key  = changeKey(id, field);
+			const orig = String(state.rowData[id]?.[field] ?? '');
+
+			// Update the visible cell
+			const $select = $tbody.find(`.wbe-cell-select[data-id="${id}"][data-field="${field}"]`);
+			const $cell   = $tbody.find(`.wbe-cell[data-id="${id}"][data-field="${field}"]`);
+
+			if ($select.length) {
+				$select.val(value).addClass('is-dirty');
+			} else if ($cell.length) {
+				$cell.text(value).addClass('is-dirty');
+			}
+
+			if (value !== orig) {
+				state.changes[key] = { id: parseInt(id), field, value, originalValue: orig };
+			} else {
+				delete state.changes[key];
+			}
+		});
+
+		updateToolbar();
+		showStatus(`Applied "${value}" to ${ids.length} row${ids.length !== 1 ? 's' : ''} — click Save All Changes to save.`, 'info');
+	});
+
+	// -------------------------------------------------------------------------
 	// Build table rows from server data
 	// -------------------------------------------------------------------------
 	function buildRow(row) {
@@ -204,6 +321,16 @@
 		                  :               'wbe-row-simple';
 
 		const $tr = $('<tr>').addClass(rowClass).attr('data-id', row.id);
+
+		// Checkbox cell
+		if (isParent) {
+			const $cb = $('<input>').attr({ type: 'checkbox', 'data-parent-id': row.id }).addClass('wbe-parent-check');
+			$tr.append($('<td>').addClass('wbe-col-check').append($cb));
+		} else {
+			const parentId = row.parent_id || '';
+			const $cb = $('<input>').attr({ type: 'checkbox', value: row.id, 'data-parent-id': parentId }).addClass('wbe-row-check');
+			$tr.append($('<td>').addClass('wbe-col-check').append($cb));
+		}
 
 		// Image cell (parent gets empty non-editable cell)
 		if (isParent) {
@@ -365,6 +492,27 @@
 			$tbody.html('<tr class="wbe-placeholder"><td colspan="9">No products found.</td></tr>');
 			return;
 		}
+
+		// Cache original row data for bulk-apply baseline
+		state.rowData = {};
+		rows.forEach(row => {
+			if (row.type !== 'parent') {
+				state.rowData[row.id] = {
+					stock_status:  row.stock_status,
+					status:        row.status,
+					regular_price: row.regular_price,
+					sale_price:    row.sale_price,
+					stock_qty:     row.stock_qty,
+					sku:           row.sku,
+				};
+			}
+		});
+
+		// Reset selection state
+		$selectAll.prop('checked', false).prop('indeterminate', false);
+		$bulkBar.hide();
+		$bulkField.val('');
+		$('.wbe-bulk-val').hide();
 
 		rows.forEach(row => $tbody.append(buildRow(row)));
 

@@ -266,6 +266,79 @@
 	font-size: 14px;
 }
 
+/* Checkbox column */
+.wbe-col-check {
+	width: 36px;
+	min-width: 36px;
+	text-align: center;
+	padding: 0 8px !important;
+}
+.wbe-col-check input[type="checkbox"] {
+	cursor: pointer;
+	width: 15px;
+	height: 15px;
+}
+
+/* Bulk action bar */
+.wbe-bulk-bar {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	background: #1a2a1a;
+	color: #fff;
+	border-radius: 6px;
+	padding: 10px 16px;
+	margin-bottom: 10px;
+	animation: wbe-slide-in 0.15s ease;
+}
+@keyframes wbe-slide-in {
+	from { opacity: 0; transform: translateY(-4px); }
+	to   { opacity: 1; transform: translateY(0); }
+}
+.wbe-bulk-count {
+	font-size: 13px;
+	font-weight: 600;
+	white-space: nowrap;
+	margin-right: 4px;
+}
+.wbe-bulk-field {
+	min-width: 160px !important;
+}
+.wbe-bulk-bar .wbe-input {
+	min-width: unset;
+	height: 32px;
+	font-size: 12px;
+}
+.wbe-bulk-bar .button-primary {
+	height: 32px;
+	line-height: 30px;
+	background: #7f54b3;
+	border-color: #7f54b3;
+}
+.wbe-bulk-bar .button-primary:hover {
+	background: #6a44a0;
+	border-color: #6a44a0;
+}
+.wbe-bulk-bar .button-link {
+	color: #aaa;
+	font-size: 12px;
+	text-decoration: underline;
+	cursor: pointer;
+	border: none;
+	background: none;
+	padding: 0;
+}
+.wbe-bulk-bar .button-link:hover { color: #fff; }
+
+/* Highlight selected rows */
+.wbe-table tbody tr:has(.wbe-row-check:checked) {
+	background: #f0f0ff !important;
+}
+.wbe-table tbody tr:has(.wbe-parent-check:checked) {
+	background: #ede8fb !important;
+}
+
 /* Image column */
 .wbe-col-image {
 	width: 60px;
