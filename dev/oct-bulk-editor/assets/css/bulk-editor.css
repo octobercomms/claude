@@ -152,6 +152,29 @@
 	font-size: 12px;
 }
 
+.wbe-ie {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	padding-left: 12px;
+	border-left: 1px solid #d9cef0;
+}
+
+.wbe-import-label {
+	position: relative;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.wbe-import-label input[type="file"] {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+	font-size: 0;
+}
+
 /* Table wrapper – horizontal scroll */
 .wbe-table-wrapper {
 	overflow-x: auto;

@@ -790,6 +790,58 @@
 		showStatus( 'Applied to ' + applied + ' row' + ( applied !== 1 ? 's' : '' ) + '. Review, then Save All Changes.', 'info' );
 	} );
 
+	// -------------------------------------------------------------------------
+	// Export / Import CSV
+	// -------------------------------------------------------------------------
+	$( '#wbe-export' ).on( 'click', function () {
+		var params = $.param( {
+			action:   'octwbe_export',
+			_wpnonce: octwbe.exportNonce,
+			search:   $( '#wbe-search' ).val().trim(),
+			category: $( '#wbe-category' ).val(),
+		} );
+		window.location = octwbe.exportUrl + '?' + params;
+	} );
+
+	$( '#wbe-import-file' ).on( 'change', function () {
+		var file = this.files && this.files[ 0 ];
+		var $input = $( this );
+		if ( ! file ) { return; }
+
+		var formData = new FormData();
+		formData.append( 'action', 'octwbe_import' );
+		formData.append( 'nonce', octwbe.importNonce );
+		formData.append( 'file', file, file.name );
+
+		showStatus( 'Importing ' + file.name + '…', 'info' );
+
+		$.ajax( {
+			url:         octwbe.ajaxUrl,
+			type:        'POST',
+			data:        formData,
+			processData: false,
+			contentType: false,
+		} ).done( function ( res ) {
+			if ( ! res.success ) {
+				showStatus( res.data || 'Import failed.', 'error' );
+				return;
+			}
+			var d = res.data;
+			var msg = 'Imported: ' + d.updated + ' row' + ( d.updated !== 1 ? 's' : '' ) + ' updated.';
+			if ( d.errors && d.errors.length ) {
+				msg += ' ' + d.errors.length + ' issue' + ( d.errors.length !== 1 ? 's' : '' ) + ': ' + d.errors.slice( 0, 5 ).join( ' | ' );
+			}
+			showStatus( msg, d.errors && d.errors.length ? 'error' : 'success' );
+			state.changes = {};
+			updateToolbar();
+			loadProducts( state.page ); // refresh to show imported values
+		} ).fail( function () {
+			showStatus( 'Import request failed.', 'error' );
+		} ).always( function () {
+			$input.val( '' );
+		} );
+	} );
+
 	// Apply saved column visibility (Showcase columns hidden by default), then load.
 	applyColPrefs();
 

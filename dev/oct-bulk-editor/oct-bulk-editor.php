@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image), and merge several products into one variable product.
- * Version:     1.2.3
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image), merge several products into one variable product, and export/import via CSV.
+ * Version:     1.3.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.2.3' );
+define( 'OCTWBE_VERSION', '1.3.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -34,6 +34,8 @@ class OctBulkEditor {
 		add_action( 'wp_ajax_octwbe_get_products', [ $this, 'ajax_get_products' ] );
 		add_action( 'wp_ajax_octwbe_save_changes', [ $this, 'ajax_save_changes' ] );
 		add_action( 'wp_ajax_octwbe_upload_image', [ $this, 'ajax_upload_image' ] );
+		add_action( 'wp_ajax_octwbe_import', [ $this, 'ajax_import' ] );
+		add_action( 'admin_post_octwbe_export', [ $this, 'handle_export' ] );
 	}
 
 	public function register_menu(): void {
@@ -71,8 +73,11 @@ class OctBulkEditor {
 
 		wp_localize_script( 'wbe-script', 'octwbe', [
 			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'exportUrl'    => admin_url( 'admin-post.php' ),
 			'nonce'        => wp_create_nonce( 'octwbe_nonce' ),
 			'uploadNonce'  => wp_create_nonce( 'octwbe_upload_image' ),
+			'exportNonce'  => wp_create_nonce( 'octwbe_export' ),
+			'importNonce'  => wp_create_nonce( 'octwbe_import' ),
 			'i18n'         => [
 				'saving'        => __( 'Saving…', 'oct-bulk-editor' ),
 				'saved'         => __( 'All changes saved!', 'oct-bulk-editor' ),
@@ -311,6 +316,16 @@ class OctBulkEditor {
 	}
 
 	private function apply_field( WC_Product $product, string $field, string $value ): bool|WP_Error {
+		$result = $this->set_field_value( $product, $field, $value );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$product->save();
+		return true;
+	}
+
+	/** Set a single field on the product object without saving (caller saves). */
+	private function set_field_value( WC_Product $product, string $field, string $value ): bool|WP_Error {
 		switch ( $field ) {
 			case 'regular_price':
 				if ( $value !== '' && ! is_numeric( $value ) ) {
@@ -403,8 +418,6 @@ class OctBulkEditor {
 				break;
 		}
 
-		$product->save();
-
 		return true;
 	}
 
@@ -439,6 +452,178 @@ class OctBulkEditor {
 			'attachment_id' => $attachment_id,
 			'thumb_url'     => $thumb ?: '',
 		] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Export: download the current filter as CSV
+	// -------------------------------------------------------------------------
+
+	public function handle_export(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export.', 'oct-bulk-editor' ) );
+		}
+		check_admin_referer( 'octwbe_export' );
+
+		$search   = sanitize_text_field( wp_unslash( $_GET['search'] ?? '' ) );
+		$category = absint( $_GET['category'] ?? 0 );
+
+		$args = [
+			'post_type'      => 'product',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'no_found_rows'  => true,
+		];
+		if ( $search !== '' ) {
+			$args['s'] = $search;
+		}
+		if ( $category > 0 ) {
+			$args['tax_query'] = [ [
+				'taxonomy' => 'product_cat',
+				'field'    => 'term_id',
+				'terms'    => $category,
+			] ];
+		}
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
+
+		$out = fopen( 'php://output', 'w' );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id' ] );
+
+		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
+			$product = wc_get_product( $post->ID );
+			if ( ! $product ) {
+				continue;
+			}
+			if ( $product->is_type( 'variable' ) ) {
+				foreach ( $product->get_children() as $vid ) {
+					$variation = wc_get_product( $vid );
+					if ( $variation ) {
+						$this->export_row( $out, $variation, $product );
+					}
+				}
+			} else {
+				$this->export_row( $out, $product, null );
+			}
+		}
+
+		fclose( $out );
+		exit;
+	}
+
+	private function export_row( $out, WC_Product $p, ?WC_Product $parent ): void {
+		$is_variation    = $p->is_type( 'variation' );
+		$variation_label = '';
+		if ( $is_variation ) {
+			$bits = [];
+			foreach ( $p->get_variation_attributes() as $key => $val ) {
+				$tax    = str_replace( 'attribute_', '', $key );
+				$bits[] = wc_attribute_label( $tax ) . ': ' . $val;
+			}
+			$variation_label = implode( ' / ', $bits );
+		}
+
+		fputcsv( $out, [
+			$p->get_id(),
+			$is_variation ? 'variation' : 'simple',
+			$parent ? $parent->get_id() : '',
+			$parent ? $parent->get_name() : $p->get_name(),
+			$variation_label,
+			$p->get_sku(),
+			$p->get_regular_price(),
+			$p->get_sale_price(),
+			$p->get_manage_stock() ? $p->get_stock_quantity() : '',
+			$p->get_stock_status(),
+			$p->get_status(),
+			$p->get_meta( OCTWBE_ACVS_SHOW ) === 'yes' ? 'yes' : 'no',
+			(int) $p->get_meta( OCTWBE_ACVS_LIFESTYLE ) ?: '',
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Import: apply a CSV (matched by id) through the same field setters
+	// -------------------------------------------------------------------------
+
+	public function ajax_import(): void {
+		check_ajax_referer( 'octwbe_import', 'nonce' );
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( 'Forbidden', 403 );
+		}
+		if ( empty( $_FILES['file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['file']['tmp_name'] ) ) {
+			wp_send_json_error( __( 'No file received.', 'oct-bulk-editor' ) );
+		}
+
+		$handle = fopen( $_FILES['file']['tmp_name'], 'r' );
+		if ( ! $handle ) {
+			wp_send_json_error( __( 'Could not read the file.', 'oct-bulk-editor' ) );
+		}
+
+		$header = fgetcsv( $handle );
+		if ( ! $header ) {
+			fclose( $handle );
+			wp_send_json_error( __( 'The file appears to be empty.', 'oct-bulk-editor' ) );
+		}
+		$header = array_map( static fn( $h ) => strtolower( trim( (string) $h ) ), $header );
+		$idx    = array_flip( $header );
+		if ( ! isset( $idx['id'] ) ) {
+			fclose( $handle );
+			wp_send_json_error( __( 'The CSV must include an "id" column (export first to get the right format).', 'oct-bulk-editor' ) );
+		}
+
+		// CSV column => editor field.
+		$map = [
+			'sku'                => 'sku',
+			'regular_price'      => 'regular_price',
+			'sale_price'         => 'sale_price',
+			'stock_qty'          => 'stock_qty',
+			'stock_status'       => 'stock_status',
+			'status'             => 'status',
+			'on_category'        => 'acvs_show',
+			'lifestyle_image_id' => 'acvs_lifestyle',
+		];
+
+		$updated = 0;
+		$errors  = [];
+		$rownum  = 1;
+
+		while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+			$rownum++;
+			$id = absint( $row[ $idx['id'] ] ?? 0 );
+			if ( ! $id ) {
+				continue;
+			}
+			$product = wc_get_product( $id );
+			if ( ! $product ) {
+				$errors[] = "Row {$rownum}: product {$id} not found.";
+				continue;
+			}
+
+			$dirty = false;
+			foreach ( $map as $col => $field ) {
+				if ( ! isset( $idx[ $col ] ) ) {
+					continue;
+				}
+				$value  = sanitize_text_field( (string) ( $row[ $idx[ $col ] ] ?? '' ) );
+				$result = $this->set_field_value( $product, $field, $value );
+				if ( is_wp_error( $result ) ) {
+					$errors[] = "Row {$rownum} ({$col}): " . $result->get_error_message();
+				} else {
+					$dirty = true;
+				}
+			}
+
+			if ( $dirty ) {
+				$product->save();
+				$updated++;
+			}
+		}
+
+		fclose( $handle );
+
+		wp_send_json_success( [ 'updated' => $updated, 'errors' => $errors ] );
 	}
 }
 

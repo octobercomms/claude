@@ -93,6 +93,15 @@
 		<span id="wbe-bulk-value"></span>
 		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
 		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Applies to every row currently loaded; review, then Save.', 'oct-bulk-editor' ); ?></span>
+
+		<span class="wbe-ie">
+			<button id="wbe-export" class="button"><?php esc_html_e( 'Export CSV', 'oct-bulk-editor' ); ?></button>
+			<label class="button wbe-import-label">
+				<?php esc_html_e( 'Import CSV', 'oct-bulk-editor' ); ?>
+				<input type="file" id="wbe-import-file" accept=".csv,text/csv" />
+			</label>
+			<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Export the current filter, edit in Excel, re-import (matched by id).', 'oct-bulk-editor' ); ?></span>
+		</span>
 	</div>
 
 	<!-- Spreadsheet table -->
