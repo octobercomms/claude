@@ -4,7 +4,7 @@ Tags: stripe, payments, payment link, invoicing, tours
 Requires at least: 5.8
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 1.0.2
+Stable tag: 1.1.0
 License: GPL-2.0-or-later
 
 Generate Stripe payment links for tour balances from inside WordPress, with a QR code, a log, and paid/unpaid status tracking.
@@ -19,8 +19,11 @@ hand — nothing is hard-coded.
 Features:
 
 * Create a Stripe payment link for any amount (GBP, USD, EUR, AUD, CAD).
+* Email the link to the customer with an editable draft, sent via Brevo.
 * Copy-to-clipboard and an on-screen QR code for each link.
 * A log of every link created, with who/what/how much.
+* Activity tracking — opened, clicked and paid — so you know whether to chase.
+* "Chase" button to re-send a reminder as many times as needed.
 * Paid / Unpaid status pulled from Stripe on demand.
 * Optionally closes a link automatically once it has been paid.
 * Test and Live modes with separate secret keys.
@@ -35,6 +38,16 @@ No card details ever touch your site — customers pay on Stripe's hosted page.
 4. Open Payment Links to create your first link.
 
 == Changelog ==
+
+= 1.1.0 =
+* Email a payment link straight to the customer, with a fully editable draft
+  (subject + message) before sending. Sends via Brevo's transactional API
+  (falls back to the site's mailer if no key is set).
+* Activity tracking per link — see when a customer opened the email, clicked
+  through, and paid, so you know whether to chase.
+* "Chase" button to send a reminder, as many times as needed.
+* New email sender + template settings (Brevo key, from name/email, editable
+  payment and reminder templates).
 
 = 1.0.2 =
 * Fix the "no Stripe key set" warning rendering as unreadable white text inside
