@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -54,6 +54,13 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.0.1 =
+* Lifestyle hover now also works on custom themes that render loop thumbnails
+  without firing WooCommerce's standard shop-loop-item hooks (falls back to
+  WordPress's own loop flag on shop/category archives).
+* Broadened the hover trigger so the swap fires when the card's wrapping link is
+  hovered, not only li.product cards.
 
 = 1.0.0 =
 * Initial release: per-variation catalogue cards, three per-product display modes,

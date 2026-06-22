@@ -181,11 +181,29 @@ class ACVS_Catalog {
 	}
 
 	/**
+	 * Whether we are rendering a product card in a catalogue loop.
+	 *
+	 * Primary signal is the woocommerce_before/after_shop_loop_item hooks. As a
+	 * fallback for custom themes that render loop thumbnails without firing those
+	 * hooks, trust WordPress's own loop flag while on a shop/category archive
+	 * (never on a single product page or in the admin).
+	 */
+	private function is_in_catalog_loop(): bool {
+		if ( $this->in_loop ) {
+			return true;
+		}
+		if ( is_admin() || is_singular() ) {
+			return false;
+		}
+		return in_the_loop() && ( is_shop() || is_product_taxonomy() );
+	}
+
+	/**
 	 * Variation posts carry no useful post_title, so substitute the WooCommerce
 	 * product name (e.g. "Series 1 Sofa – 3 Seater") for the loop card heading.
 	 */
 	public function variation_loop_title( $title, $id = 0 ) {
-		if ( ! $this->in_loop || ! $id || get_post_type( $id ) !== 'product_variation' ) {
+		if ( ! $this->is_in_catalog_loop() || ! $id || get_post_type( $id ) !== 'product_variation' ) {
 			return $title;
 		}
 		$variation = wc_get_product( $id );
@@ -209,7 +227,7 @@ class ACVS_Catalog {
 	 * @return string
 	 */
 	public function add_lifestyle_image( $html, $product, $size, $attr, $placeholder ) {
-		if ( ! $this->in_loop || ! $product instanceof WC_Product ) {
+		if ( ! $this->is_in_catalog_loop() || ! $product instanceof WC_Product ) {
 			return $html;
 		}
 

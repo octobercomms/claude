@@ -32,9 +32,12 @@
 	pointer-events: none;
 }
 
-/* Reveal on hover of the card or the image link. */
+/* Reveal on hover of the card, the wrapping link, or the image itself. The
+   anchor selector keeps it working on custom themes whose card container is not
+   li.product (the swap span and its parent <a> are always present). */
 li.product:hover .acvs-lifestyle-image,
 .wc-block-grid__product:hover .acvs-lifestyle-image,
+a:hover .acvs-image-swap .acvs-lifestyle-image,
 .acvs-image-swap:hover .acvs-lifestyle-image {
 	opacity: 1;
 }
