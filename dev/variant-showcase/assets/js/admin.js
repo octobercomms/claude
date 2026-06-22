@@ -7,23 +7,21 @@
 	'use strict';
 
 	/*
-	 * Show the Variant Showcase fields only when they apply, so the General tab
-	 * stays clean:
-	 *   - "Featured variation" only matters for the "Feature one variation" mode.
-	 *   - The product-level "Lifestyle image" only applies to single-card products
-	 *     (default / feature-one). In "expand" mode each variation carries its own.
+	 * Keep the General tab clean. Product type drives most of it via WooCommerce's
+	 * own show_if_simple / show_if_variable classes (product-level lifestyle image =
+	 * simple only; Catalog display = variable only). The one extra rule: the
+	 * "Featured variation" picker only applies to the "Feature one variation" mode.
 	 */
 	function acvsToggleFields() {
 		var $mode = $( '#_acvs_mode' );
 		if ( ! $mode.length ) {
 			return;
 		}
-		var mode = $mode.val();
-		$( '._acvs_single_variation_field' ).toggle( mode === 'single' );
-		$( '.acvs-product-lifestyle-field' ).toggle( mode !== 'expand' );
+		var isVariable = $( '#product-type' ).val() === 'variable';
+		$( '._acvs_single_variation_field' ).toggle( isVariable && $mode.val() === 'single' );
 	}
 
-	$( document ).on( 'change', '#_acvs_mode', acvsToggleFields );
+	$( document ).on( 'change', '#_acvs_mode, #product-type', acvsToggleFields );
 	acvsToggleFields();
 
 	$( document ).on( 'click', '.acvs-upload-image', function ( e ) {

@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.4
+Stable tag: 1.0.5
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -54,6 +54,12 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.0.5 =
+* Admin clarity by product type: the product-level "Lifestyle image" now shows
+  only for simple products (variable products attach the hover image per
+  variation); "Catalog display" shows only for variable products; "Featured
+  variation" only in "Feature one variation" mode.
 
 = 1.0.4 =
 * Admin tidy-up: the "Featured variation" and product-level "Lifestyle image"

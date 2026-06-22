@@ -39,14 +39,16 @@ class ACVS_Admin {
 			esc_html__( 'Variant Showcase', 'variant-showcase' ) .
 			'</strong></p>';
 
-		// Catalog display mode.
+		// Catalog display mode (variable products only — simple products always
+		// show as a single card).
 		woocommerce_wp_select( [
-			'id'          => ACVS_META_MODE,
-			'label'       => __( 'Catalog display', 'variant-showcase' ),
-			'value'       => $mode,
-			'description' => __( 'How this product appears on shop and category pages.', 'variant-showcase' ),
-			'desc_tip'    => true,
-			'options'     => [
+			'id'            => ACVS_META_MODE,
+			'label'         => __( 'Catalog display', 'variant-showcase' ),
+			'value'         => $mode,
+			'description'   => __( 'How this product appears on shop and category pages.', 'variant-showcase' ),
+			'desc_tip'      => true,
+			'wrapper_class' => 'show_if_variable',
+			'options'       => [
 				'default' => __( 'Single card (default WooCommerce)', 'variant-showcase' ),
 				'expand'  => __( 'Separate card per selected variation', 'variant-showcase' ),
 				'single'  => __( 'Feature one variation', 'variant-showcase' ),
@@ -72,14 +74,15 @@ class ACVS_Admin {
 			'options'     => $options,
 		] );
 
-		// Product-level lifestyle image (used for the default/single-product card hover).
+		// Product-level lifestyle image — simple products only. Variable products
+		// attach the hover image to each variation instead.
 		$this->image_field(
 			ACVS_META_LIFESTYLE,
 			$life_id,
 			__( 'Lifestyle image (hover)', 'variant-showcase' ),
-			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'variant-showcase' ),
+			__( 'Shown when a shopper hovers this product on shop/category pages.', 'variant-showcase' ),
 			'',
-			'acvs-product-lifestyle-field'
+			'show_if_simple'
 		);
 
 		echo '</div>';
