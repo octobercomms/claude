@@ -27,6 +27,17 @@ function ac_lt_is_made_to_order( $product ) {
 	return has_term( $furniture_cats, 'product_cat', $product->get_id() ) && 'instock' !== $product->get_stock_status();
 }
 
+/** Expose each variation's resolved lead time to the variations JSON so the
+ *  front-end can show the selected variant's lead time. */
+add_filter( 'woocommerce_available_variation', 'ac_lt_variation_lead', 10, 3 );
+function ac_lt_variation_lead( $data, $product, $variation ) {
+	if ( function_exists( 'aclt_get_lead_time' ) ) {
+		$data['ac_lead_time']  = aclt_get_lead_time( $variation->get_id() );
+		$data['ac_lead_label'] = function_exists( 'aclt_get_badge_label' ) ? aclt_get_badge_label( $variation->get_id() ) : '';
+	}
+	return $data;
+}
+
 /** Trust chips below the add-to-cart (no lead-time line — that's inline now). */
 add_action( 'woocommerce_after_add_to_cart_form', 'ac_pdp_trust_chips', 20 );
 function ac_pdp_trust_chips() {
@@ -76,10 +87,12 @@ function ac_lt_inline_assets() {
 	}
 
 	$lead   = '';
+	$label  = '';
 	$season = '';
 	if ( ac_lt_is_made_to_order( $product ) ) {
 		$pid    = $product->get_id();
 		$lead   = function_exists( 'aclt_get_lead_time' ) ? aclt_get_lead_time( $pid ) : '8-10 weeks';
+		$label  = function_exists( 'aclt_get_badge_label' ) ? aclt_get_badge_label( $pid ) : 'Made to Order';
 		$season = function_exists( 'aclt_get_seasonal_note' ) ? aclt_get_seasonal_note( $pid ) : '';
 	}
 	?>
@@ -104,20 +117,59 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
-		/* Alignment: top-align the price with the "Made to Order" badge and
-		   tidy the space below the seasonal line. (If the price/badge live in a
-		   different wrapper, send the inspected HTML and we'll target it exactly.) */
-		.single-product .product_price{ align-items:flex-start !important; }
-		.single-product .product_price .price{ margin-top:0 !important; margin-bottom:0 !important; }
-		.single-product p.available-on-backorder{ margin:0 !important; }
+		/* The "Made to Order" badge renders INSIDE the price amount span
+		   (sibling of the £ value). Lay them out side by side, top-aligned;
+		   wraps cleanly to two lines on mobile. */
+		.single-product .product_price .price,
+		.single-product .woocommerce-variation-price .price,
+		.single-product .woocommerce-Price-amount.amount{
+			display:flex;
+			align-items:flex-start;
+			flex-wrap:wrap;
+			column-gap:.6em;
+			row-gap:.1em;
+		}
+		.single-product p.stock.available-on-backorder,
+		.single-product p.stock.in-stock{
+			margin:-0.12em 0 0 0 !important; /* nudge first line up to meet the price top */
+			font-size:16px;                  /* consistent size across simple + variable */
+			line-height:1.45;
+		}
+		/* Sensible spacing below, before Add to cart. */
+		.single-product .product_price,
+		.single-product .woocommerce-variation-price{ margin-bottom:1em !important; }
+		.single-product .woocommerce-variation-add-to-cart{ margin-top:1em !important; }
+		/* Mobile: stack the badge flush under the price. The theme sets
+		   margin-left:2em on this badge, so override with matching specificity. */
+		@media (max-width:782px){
+			.single-product .woocommerce-Price-amount.amount{ flex-direction:column; }
+			.single-product .woocommerce-Price-amount.amount > p.stock{
+				width:100%;
+				margin:.5em 0 0 0 !important;
+			}
+			/* beat the theme's margin-left:2em on the made-to-order badge */
+			body.single-product .woocommerce-variation-price p.available-on-backorder{
+				margin-left:0 !important;
+				margin-top:.5em !important;
+			}
+		}
 	</style>
 	<script>
 	jQuery(function ($) {
-		var data = { lead: <?php echo wp_json_encode( $lead ); ?>, season: <?php echo wp_json_encode( $season ); ?> };
+		var data = { lead: <?php echo wp_json_encode( $lead ); ?>, label: <?php echo wp_json_encode( $label ); ?>, season: <?php echo wp_json_encode( $season ); ?> };
 		var $scope = $('.product_infos, .summary').first();
 		if (!$scope.length) { $scope = $('body'); }
 
 		function esc(t){ return $('<div>').text(t).html(); }
+
+		// 0) Simple products render the stock badge in the add-to-cart area; move
+		//    it next to the price so it matches variable products.
+		function relocateSimpleStock(){
+			var $amount = $scope.find('.product_price .woocommerce-Price-amount.amount').first();
+			if (!$amount.length || $amount.find('p.stock').length) { return; }
+			var $stock = $scope.find('.product_add_to_cart_button > p.stock').first();
+			if ($stock.length) { $amount.append($stock); }
+		}
 
 		// 1) Resolve the "Made to Order + In Stock" oxymoron — keep Made to Order.
 		function resolveOxymoron(){
@@ -126,22 +178,26 @@ function ac_lt_inline_assets() {
 			if ($bo.length && $is.length) { $is.hide(); }
 		}
 
-		// 2) Append the lead time (and seasonal note, on a new line) to the badge
-		//    → "Made to Order in 8-12 weeks" / "Allow up to 15 weeks…".
-		function applyInline(){
-			if (!data.lead) { return; }
+		// 2) Set the badge text to "{label} in {lead}" (+ seasonal note on a new
+		//    line) → "Made to Order in 8-12 weeks" / "Available in approx. 6 weeks".
+		//    The label replaces the theme's hardcoded "Made to Order" so stock
+		//    suppliers can read differently. `lead`/`label` default to the product's;
+		//    a selected variation can override them.
+		function applyInline(lead, label){
+			lead  = lead  || data.lead;
+			label = label || data.label;
+			if (!lead) { return; }
 			var $badge = $scope.find('p.available-on-backorder:visible').first();
 			if (!$badge.length) { return; } // only on made-to-order
-			if ($badge.find('.ac-lead-inline').length) { return; }
-			var add = '<span class="ac-lead-inline"> in ' + esc(data.lead) + '</span>';
-			if (data.season) { add += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
-			$badge.append(add);
+			var html = (label ? esc(label) + ' ' : '') + '<span class="ac-lead-inline">in ' + esc(lead) + '</span>';
+			if (data.season) { html += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
+			$badge.html(html);
 		}
 
-		function refresh(){ resolveOxymoron(); applyInline(); }
+		function refresh(lead, label){ relocateSimpleStock(); resolveOxymoron(); applyInline(lead, label); }
 		refresh();
 
-		// 3) Keep a single, correct status (and appended lead time) as variations change.
+		// 3) Keep a single, correct status + the selected variation's lead time.
 		$(document.body).on('show_variation', function (e, v) {
 			var $var = $('.woocommerce-variation-availability p.stock');
 			if ($var.length) {
@@ -151,7 +207,10 @@ function ac_lt_inline_assets() {
 				$scope.find('p.available-on-backorder').hide();
 				$scope.find('p.stock.in-stock').show();
 			}
-			refresh();
+			refresh(
+				v && v.ac_lead_time  ? v.ac_lead_time  : data.lead,
+				v && v.ac_lead_label ? v.ac_lead_label : data.label
+			);
 		});
 	});
 	</script>

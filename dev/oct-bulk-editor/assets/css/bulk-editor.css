@@ -119,6 +119,25 @@
 	margin-right: 3px;
 }
 
+/* Selection checkbox column */
+.wbe-col-check {
+	width: 34px;
+	min-width: 34px;
+	text-align: center;
+	padding: 0 6px !important;
+}
+
+.wbe-col-check input {
+	margin: 0;
+	cursor: pointer;
+}
+
+.wbe-bulk-selcount {
+	font-size: 12px;
+	font-weight: 600;
+	color: #7f54b3;
+}
+
 /* Bulk edit bar */
 .wbe-bulkedit {
 	display: flex;

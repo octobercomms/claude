@@ -92,7 +92,9 @@
 		</select>
 		<span id="wbe-bulk-value"></span>
 		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
-		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Applies to every row currently loaded; review, then Save.', 'oct-bulk-editor' ); ?></span>
+		<span id="wbe-bulk-selcount" class="wbe-bulk-selcount" style="display:none"></span>
+		<button id="wbe-bulk-clear" class="button button-link" style="display:none"><?php esc_html_e( 'Clear selection', 'oct-bulk-editor' ); ?></button>
+		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Tick rows to target a selection, or apply to every loaded row.', 'oct-bulk-editor' ); ?></span>
 
 		<span class="wbe-ie">
 			<button id="wbe-export" class="button"><?php esc_html_e( 'Export CSV', 'oct-bulk-editor' ); ?></button>
@@ -109,6 +111,7 @@
 		<table id="wbe-table" class="wbe-table widefat">
 			<thead>
 				<tr>
+					<th class="wbe-col-check"><input type="checkbox" id="wbe-select-all" title="<?php esc_attr_e( 'Select all', 'oct-bulk-editor' ); ?>" /></th>
 					<th class="wbe-col-image" data-col="image"><?php esc_html_e( 'Image', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"><?php esc_html_e( 'Lifestyle', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'oct-bulk-editor' ); ?></th>
@@ -124,7 +127,7 @@
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="11">
+					<td colspan="12">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>

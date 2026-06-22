@@ -223,6 +223,14 @@
 
 		const $tr = $('<tr>').addClass(rowClass).attr('data-id', row.id);
 
+		// Selection checkbox (parent toggles its children; simple/variation select themselves)
+		if (isParent) {
+			$tr.append('<td class="wbe-col-check"><input type="checkbox" class="wbe-parent-check" data-parent-id="' + esc(String(row.id)) + '" /></td>');
+		} else {
+			const parentAttr = isVariation && row.parent_id ? ' data-parent-id="' + esc(String(row.parent_id)) + '"' : '';
+			$tr.append('<td class="wbe-col-check"><input type="checkbox" class="wbe-row-check" value="' + esc(String(row.id)) + '"' + parentAttr + ' /></td>');
+		}
+
 		// Main image cell (parent gets empty non-editable cell)
 		if (isParent) {
 			$tr.append('<td class="wbe-col-image" data-col="image"></td>');
@@ -412,7 +420,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="11">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="12">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -448,7 +456,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="11">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="12">No products found.</td></tr>');
 			return;
 		}
 
@@ -461,6 +469,9 @@
 				$('#wbe-table [data-col="' + col + '"]').hide();
 			}
 		});
+
+		// Fresh rows start unselected; reset the select-all / bulk bar state.
+		updateSelectionUI();
 	}
 
 	function renderPagination(page, totalPages, total) {
@@ -757,12 +768,63 @@
 	$( '#wbe-bulk-field' ).on( 'change', renderBulkValue );
 	renderBulkValue();
 
+	// Row selection (ported from the select-all branch): a checkbox column with a
+	// header select-all and parent-row checkboxes that toggle their children.
+	var $selectAll = $( '#wbe-select-all' );
+
+	function updateSelectionUI() {
+		var $all = $tbody.find( '.wbe-row-check' );
+		var n    = $tbody.find( '.wbe-row-check:checked' ).length;
+		$selectAll.prop( 'indeterminate', n > 0 && n < $all.length );
+		$selectAll.prop( 'checked', n > 0 && n === $all.length );
+		if ( n > 0 ) {
+			$( '#wbe-bulk-selcount' ).text( n + ' selected' ).show();
+			$( '#wbe-bulk-clear' ).show();
+			$( '#wbe-bulk-apply' ).text( 'Apply to ' + n + ' selected' );
+		} else {
+			$( '#wbe-bulk-selcount' ).hide();
+			$( '#wbe-bulk-clear' ).hide();
+			$( '#wbe-bulk-apply' ).text( 'Apply to all rows' );
+		}
+	}
+
+	$selectAll.on( 'change', function () {
+		$tbody.find( '.wbe-row-check, .wbe-parent-check' ).prop( 'checked', this.checked );
+		updateSelectionUI();
+	} );
+
+	$tbody.on( 'change', '.wbe-parent-check', function () {
+		var pid = $( this ).data( 'parent-id' );
+		$tbody.find( '.wbe-row-check[data-parent-id="' + pid + '"]' ).prop( 'checked', this.checked );
+		updateSelectionUI();
+	} );
+
+	$tbody.on( 'change', '.wbe-row-check', function () {
+		var pid = $( this ).data( 'parent-id' );
+		if ( pid ) {
+			var $sib = $tbody.find( '.wbe-row-check[data-parent-id="' + pid + '"]' );
+			$tbody.find( '.wbe-parent-check[data-parent-id="' + pid + '"]' )
+				.prop( 'checked', $sib.length === $sib.filter( ':checked' ).length );
+		}
+		updateSelectionUI();
+	} );
+
+	$( '#wbe-bulk-clear' ).on( 'click', function () {
+		$tbody.find( '.wbe-row-check, .wbe-parent-check' ).prop( 'checked', false );
+		$selectAll.prop( 'checked', false ).prop( 'indeterminate', false );
+		updateSelectionUI();
+	} );
+
 	$( '#wbe-bulk-apply' ).on( 'click', function () {
 		var field = $( '#wbe-bulk-field' ).val();
 		var value = $( '#wbe-bulk-value-input' ).val();
 		if ( value === null || typeof value === 'undefined' ) { return; }
 
-		var $rows = $( '#wbe-tbody tr' ).not( '.wbe-row-parent' ).not( '.wbe-placeholder' );
+		// Target the selected rows if any are ticked; otherwise every loaded row.
+		var $checked = $tbody.find( '.wbe-row-check:checked' );
+		var $rows = $checked.length
+			? $checked.closest( 'tr' )
+			: $( '#wbe-tbody tr' ).not( '.wbe-row-parent' ).not( '.wbe-placeholder' );
 		if ( ! $rows.length ) { showStatus( 'No rows to apply to. Load products first.', 'error' ); return; }
 
 		var applied = 0;
