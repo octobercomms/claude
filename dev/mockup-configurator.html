@@ -778,8 +778,8 @@
   // ---- Mode toggle ----
   function setMode(mode) {
     document.querySelectorAll('.mode-btn').forEach((b,i) => b.classList.toggle('active', (i===0&&mode==='current')||(i===1&&mode==='steps')));
-    document.getElementById('layout-current').style.display = mode === 'current' ? '' : 'none';
-    document.getElementById('layout-steps').style.display   = mode === 'steps'   ? '' : 'none';
+    document.getElementById('layout-current').style.display = mode === 'current' ? 'block' : 'none';
+    document.getElementById('layout-steps').style.display   = mode === 'steps'   ? 'block' : 'none';
   }
 
   // ---- Step-by-step state ----
