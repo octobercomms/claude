@@ -6,6 +6,26 @@
 ( function ( $ ) {
 	'use strict';
 
+	/*
+	 * Show the Variant Showcase fields only when they apply, so the General tab
+	 * stays clean:
+	 *   - "Featured variation" only matters for the "Feature one variation" mode.
+	 *   - The product-level "Lifestyle image" only applies to single-card products
+	 *     (default / feature-one). In "expand" mode each variation carries its own.
+	 */
+	function acvsToggleFields() {
+		var $mode = $( '#_acvs_mode' );
+		if ( ! $mode.length ) {
+			return;
+		}
+		var mode = $mode.val();
+		$( '._acvs_single_variation_field' ).toggle( mode === 'single' );
+		$( '.acvs-product-lifestyle-field' ).toggle( mode !== 'expand' );
+	}
+
+	$( document ).on( 'change', '#_acvs_mode', acvsToggleFields );
+	acvsToggleFields();
+
 	$( document ).on( 'click', '.acvs-upload-image', function ( e ) {
 		e.preventDefault();
 

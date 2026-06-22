@@ -77,7 +77,9 @@ class ACVS_Admin {
 			ACVS_META_LIFESTYLE,
 			$life_id,
 			__( 'Lifestyle image (hover)', 'variant-showcase' ),
-			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'variant-showcase' )
+			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'variant-showcase' ),
+			'',
+			'acvs-product-lifestyle-field'
 		);
 
 		echo '</div>';
@@ -159,13 +161,14 @@ class ACVS_Admin {
 	 * @param int    $value Current attachment ID.
 	 * @param string $label Field label.
 	 * @param string $tip   Tooltip / description.
-	 * @param string $name  Optional input name override (for array-style variation fields).
+	 * @param string $name          Optional input name override (for array-style variation fields).
+	 * @param string $wrapper_class Optional extra class on the field wrapper.
 	 */
-	private function image_field( string $id, int $value, string $label, string $tip, string $name = '' ): void {
+	private function image_field( string $id, int $value, string $label, string $tip, string $name = '', string $wrapper_class = '' ): void {
 		$name    = $name ?: $id;
 		$preview = $value ? wp_get_attachment_image( $value, 'thumbnail' ) : '';
 
-		echo '<p class="form-field acvs-image-field">';
+		echo '<p class="form-field acvs-image-field ' . esc_attr( $wrapper_class ) . '">';
 		echo '<label>' . esc_html( $label ) . ' ' . wc_help_tip( $tip ) . '</label>';
 		echo '<span class="acvs-image-preview">' . $preview . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() is safe markup.
 		echo '<input type="hidden" class="acvs-image-id" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" />';
