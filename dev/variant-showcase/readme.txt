@@ -1,4 +1,4 @@
-=== Another Country Variant Showcase ===
+=== Variant Showcase ===
 Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
@@ -12,7 +12,7 @@ each with an optional lifestyle image that fades in on hover.
 
 == Description ==
 
-Built for Another Country. Lets one variable product (e.g. a sofa range with
+Lets one variable product (e.g. a sofa range with
 3-seater / 2-seater / armchair variations, or a dining table with several sizes
 and shapes) display its chosen variations as individual product cards on the
 shop and category pages — while other products keep the normal single card.

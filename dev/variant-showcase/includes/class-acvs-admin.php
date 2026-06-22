@@ -36,25 +36,25 @@ class ACVS_Admin {
 		echo '<div class="options_group acvs-product-options">';
 
 		echo '<p class="form-field"><strong>' .
-			esc_html__( 'Variant Showcase', 'anothercountry-variant-showcase' ) .
+			esc_html__( 'Variant Showcase', 'variant-showcase' ) .
 			'</strong></p>';
 
 		// Catalog display mode.
 		woocommerce_wp_select( [
 			'id'          => ACVS_META_MODE,
-			'label'       => __( 'Catalog display', 'anothercountry-variant-showcase' ),
+			'label'       => __( 'Catalog display', 'variant-showcase' ),
 			'value'       => $mode,
-			'description' => __( 'How this product appears on shop and category pages.', 'anothercountry-variant-showcase' ),
+			'description' => __( 'How this product appears on shop and category pages.', 'variant-showcase' ),
 			'desc_tip'    => true,
 			'options'     => [
-				'default' => __( 'Single card (default WooCommerce)', 'anothercountry-variant-showcase' ),
-				'expand'  => __( 'Separate card per selected variation', 'anothercountry-variant-showcase' ),
-				'single'  => __( 'Feature one variation', 'anothercountry-variant-showcase' ),
+				'default' => __( 'Single card (default WooCommerce)', 'variant-showcase' ),
+				'expand'  => __( 'Separate card per selected variation', 'variant-showcase' ),
+				'single'  => __( 'Feature one variation', 'variant-showcase' ),
 			],
 		] );
 
 		// Which single variation to feature (only used by "single" mode).
-		$options = [ 0 => __( '— Select a variation —', 'anothercountry-variant-showcase' ) ];
+		$options = [ 0 => __( '— Select a variation —', 'variant-showcase' ) ];
 		if ( $product && $product->is_type( 'variable' ) ) {
 			foreach ( $product->get_children() as $variation_id ) {
 				$variation = wc_get_product( $variation_id );
@@ -65,9 +65,9 @@ class ACVS_Admin {
 		}
 		woocommerce_wp_select( [
 			'id'          => ACVS_META_SINGLE,
-			'label'       => __( 'Featured variation', 'anothercountry-variant-showcase' ),
+			'label'       => __( 'Featured variation', 'variant-showcase' ),
 			'value'       => $single,
-			'description' => __( 'Used when "Feature one variation" is selected above.', 'anothercountry-variant-showcase' ),
+			'description' => __( 'Used when "Feature one variation" is selected above.', 'variant-showcase' ),
 			'desc_tip'    => true,
 			'options'     => $options,
 		] );
@@ -76,8 +76,8 @@ class ACVS_Admin {
 		$this->image_field(
 			ACVS_META_LIFESTYLE,
 			$life_id,
-			__( 'Lifestyle image (hover)', 'anothercountry-variant-showcase' ),
-			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'anothercountry-variant-showcase' )
+			__( 'Lifestyle image (hover)', 'variant-showcase' ),
+			__( 'Shown when a shopper hovers the product image on shop/category pages. Variation cards use their own lifestyle image instead (set on each variation).', 'variant-showcase' )
 		);
 
 		echo '</div>';
@@ -115,18 +115,18 @@ class ACVS_Admin {
 		woocommerce_wp_checkbox( [
 			'id'            => "acvs_show_in_catalog_{$loop}",
 			'name'          => "acvs_show_in_catalog[{$loop}]",
-			'label'         => __( 'Show as its own card on shop/category pages', 'anothercountry-variant-showcase' ),
+			'label'         => __( 'Show as its own card on shop/category pages', 'variant-showcase' ),
 			'value'         => $show ? 'yes' : 'no',
 			'wrapper_class' => 'form-row form-row-full',
-			'description'   => __( 'Requires the product\'s "Catalog display" to be set to "Separate card per selected variation".', 'anothercountry-variant-showcase' ),
+			'description'   => __( 'Requires the product\'s "Catalog display" to be set to "Separate card per selected variation".', 'variant-showcase' ),
 		] );
 
 		// Per-variation lifestyle image.
 		$this->image_field(
 			"acvs_lifestyle_image_id_{$loop}",
 			$life_id,
-			__( 'Lifestyle image (hover)', 'anothercountry-variant-showcase' ),
-			__( 'Shown on hover when this variation appears as its own card.', 'anothercountry-variant-showcase' ),
+			__( 'Lifestyle image (hover)', 'variant-showcase' ),
+			__( 'Shown on hover when this variation appears as its own card.', 'variant-showcase' ),
 			"acvs_lifestyle_image_id[{$loop}]"
 		);
 
@@ -169,8 +169,8 @@ class ACVS_Admin {
 		echo '<label>' . esc_html( $label ) . ' ' . wc_help_tip( $tip ) . '</label>';
 		echo '<span class="acvs-image-preview">' . $preview . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- wp_get_attachment_image() is safe markup.
 		echo '<input type="hidden" class="acvs-image-id" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) $value ) . '" />';
-		echo '<button type="button" class="button acvs-upload-image">' . esc_html__( 'Choose image', 'anothercountry-variant-showcase' ) . '</button> ';
-		echo '<button type="button" class="button acvs-remove-image"' . ( $value ? '' : ' style="display:none"' ) . '>' . esc_html__( 'Remove', 'anothercountry-variant-showcase' ) . '</button>';
+		echo '<button type="button" class="button acvs-upload-image">' . esc_html__( 'Choose image', 'variant-showcase' ) . '</button> ';
+		echo '<button type="button" class="button acvs-remove-image"' . ( $value ? '' : ' style="display:none"' ) . '>' . esc_html__( 'Remove', 'variant-showcase' ) . '</button>';
 		echo '</p>';
 	}
 
@@ -190,8 +190,8 @@ class ACVS_Admin {
 
 		wp_enqueue_script( 'acvs-admin', ACVS_URL . 'assets/js/admin.js', [ 'jquery' ], ACVS_VERSION, true );
 		wp_localize_script( 'acvs-admin', 'acvs', [
-			'title'  => __( 'Select lifestyle image', 'anothercountry-variant-showcase' ),
-			'button' => __( 'Use this image', 'anothercountry-variant-showcase' ),
+			'title'  => __( 'Select lifestyle image', 'variant-showcase' ),
+			'button' => __( 'Use this image', 'variant-showcase' ),
 		] );
 	}
 }

@@ -1,4 +1,4 @@
-# Another Country Variant Showcase — Brief
+# Variant Showcase — Brief
 
 ## Problem
 
@@ -19,8 +19,9 @@ Concrete asks from the client:
 
 ## Solution
 
-A standalone WooCommerce plugin: `dev/anothercountry-variant-showcase`
-(slug `anothercountry-variant-showcase`, prefix `ACVS`).
+A standalone WooCommerce plugin: `dev/variant-showcase`
+(slug `variant-showcase`, prefix `ACVS` — kept internally so the bulk
+editor's shared `_acvs_*` meta keys stay stable).
 
 ### Admin (Product data → General)
 

@@ -1,13 +1,13 @@
 <?php
 /**
- * Plugin Name: Another Country Variant Showcase
+ * Plugin Name: Variant Showcase
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Show selected product variations as their own cards on shop/category pages, each with an optional lifestyle image that fades in on hover. Per-product control: keep the normal single card, expand chosen variations into separate cards, or feature one variation — so sofas (seat counts) and dining tables (sizes/shapes) can each expose just the variations that matter.
  * Version:     1.0.0
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL v2 or later
- * Text Domain: anothercountry-variant-showcase
+ * Text Domain: variant-showcase
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * WC requires at least: 7.0
@@ -34,7 +34,7 @@ add_action( 'plugins_loaded', function () {
 	if ( ! class_exists( 'WooCommerce' ) ) {
 		add_action( 'admin_notices', function () {
 			echo '<div class="notice notice-error"><p>' .
-				esc_html__( 'Another Country Variant Showcase requires WooCommerce to be active.', 'anothercountry-variant-showcase' ) .
+				esc_html__( 'Variant Showcase requires WooCommerce to be active.', 'variant-showcase' ) .
 				'</p></div>';
 		} );
 		return;
