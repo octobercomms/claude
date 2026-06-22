@@ -3,7 +3,7 @@
  * Plugin Name: Architourian Payment Links
  * Plugin URI:  https://architourian.com
  * Description: Generate Stripe payment links for tour balances right inside WordPress. Type a customer name, a note and the amount to pay, and get a shareable Stripe link with a QR code. Keeps a log of every link and tracks which have been paid.
- * Version:     1.0.1
+ * Version:     1.0.2
  * Author:      Architourian
  * License:     GPL-2.0-or-later
  * Text Domain: architourian-payments
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'ARPL_VERSION', '1.0.1' );
+define( 'ARPL_VERSION', '1.0.2' );
 define( 'ARPL_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ARPL_URL', plugin_dir_url( __FILE__ ) );
 
