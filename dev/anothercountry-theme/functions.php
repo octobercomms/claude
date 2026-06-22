@@ -2575,9 +2575,16 @@ function ac_lt_inline_assets() {
 		   right of the price, first lines baseline-aligned. */
 		.single-product .woocommerce-variation-price,
 		.single-product .product_price .woocommerce-Price-amount.amount{
-			display:flex;
-			align-items:flex-start; /* top-align the badge with the price */
+			display:flex !important;
+			align-items:flex-start !important; /* top-align the badge with the price */
 			flex-wrap:wrap;
+		}
+		/* Force both the price and the badge to the top of the row, in case the
+		   theme pushes the price down with its own align-self / margin. */
+		.single-product .woocommerce-variation-price > *,
+		.single-product .product_price .woocommerce-Price-amount.amount > *{
+			align-self:flex-start !important;
+			margin-top:0 !important;
 		}
 		.single-product .woocommerce-variation-price > p.stock,
 		.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
