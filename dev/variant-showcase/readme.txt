@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -54,6 +54,14 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.0.2 =
+* Fix: stop expanding variable products inside the admin (including admin-ajax),
+  which was corrupting the OctoberComms Bulk Editor grid (variation rows losing
+  their "On Category Page" checkbox).
+* Lifestyle hover now also injects via the core post_thumbnail_html filter, so it
+  works on themes that render loop thumbnails with the_post_thumbnail() instead of
+  $product->get_image().
 
 = 1.0.1 =
 * Lifestyle hover now also works on custom themes that render loop thumbnails

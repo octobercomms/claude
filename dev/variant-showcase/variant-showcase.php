@@ -3,7 +3,7 @@
  * Plugin Name: Variant Showcase
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Show selected product variations as their own cards on shop/category pages, each with an optional lifestyle image that fades in on hover. Per-product control: keep the normal single card, expand chosen variations into separate cards, or feature one variation — so sofas (seat counts) and dining tables (sizes/shapes) can each expose just the variations that matter.
- * Version:     1.0.1
+ * Version:     1.0.2
  * Author:      October Comms
  * Author URI:  https://octobercomms.com
  * License:     GPL v2 or later
@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ACVS_VERSION', '1.0.1' );
+define( 'ACVS_VERSION', '1.0.2' );
 define( 'ACVS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ACVS_URL', plugin_dir_url( __FILE__ ) );
 define( 'ACVS_BASENAME', plugin_basename( __FILE__ ) );

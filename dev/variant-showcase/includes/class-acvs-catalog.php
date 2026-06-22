@@ -31,8 +31,10 @@ class ACVS_Catalog {
 		// Give variation cards a readable title (variation posts have no useful post_title).
 		add_filter( 'the_title', [ $this, 'variation_loop_title' ], 10, 2 );
 
-		// Lifestyle hover image.
+		// Lifestyle hover image — hook both the WooCommerce image method and the
+		// core post-thumbnail filter so it works whichever the theme uses.
 		add_filter( 'woocommerce_product_get_image', [ $this, 'add_lifestyle_image' ], 10, 5 );
+		add_filter( 'post_thumbnail_html', [ $this, 'add_lifestyle_to_thumbnail' ], 10, 5 );
 
 		// Front-end styles.
 		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue' ] );
@@ -51,7 +53,10 @@ class ACVS_Catalog {
 	 * @return array
 	 */
 	public function expand_loop_posts( $posts, $query ) {
-		if ( is_admin() && ! wp_doing_ajax() ) {
+		// Never expand in the admin. This includes admin-ajax requests such as
+		// the bulk editor's product fetch — expanding there would replace a
+		// variable product with its variation posts and corrupt the grid.
+		if ( is_admin() ) {
 			return $posts;
 		}
 		if ( empty( $posts ) || is_feed() || ! $this->is_product_loop( $query ) ) {
@@ -215,9 +220,8 @@ class ACVS_Catalog {
 	 * ------------------------------------------------------------------ */
 
 	/**
-	 * Append the lifestyle image as a second <img> inside the loop thumbnail so
-	 * CSS can crossfade to it on hover. Reads the variation's own lifestyle image
-	 * for variation cards, or the product's for normal cards.
+	 * Filter for `woocommerce_product_get_image` — used by themes that render the
+	 * loop thumbnail via `$product->get_image()`.
 	 *
 	 * @param string     $html        Existing image markup.
 	 * @param WC_Product $product     Product (or variation) being rendered.
@@ -230,7 +234,53 @@ class ACVS_Catalog {
 		if ( ! $this->is_in_catalog_loop() || ! $product instanceof WC_Product ) {
 			return $html;
 		}
+		if ( strpos( (string) $html, 'acvs-image-swap' ) !== false ) {
+			return $html; // Already wrapped.
+		}
+		return $this->wrap_with_lifestyle( (string) $html, $product, $size );
+	}
 
+	/**
+	 * Filter for `post_thumbnail_html` — covers themes that render the loop
+	 * thumbnail via `the_post_thumbnail()` / `get_the_post_thumbnail()` rather
+	 * than `$product->get_image()`.
+	 *
+	 * @param string $html         Featured-image markup.
+	 * @param int    $post_id      Post being rendered.
+	 * @param int    $thumbnail_id Attachment ID.
+	 * @param string|array $size   Requested size.
+	 * @param array  $attr         Image attributes.
+	 * @return string
+	 */
+	public function add_lifestyle_to_thumbnail( $html, $post_id, $thumbnail_id, $size, $attr ) {
+		if ( (string) $html === '' || ! $this->is_in_catalog_loop() ) {
+			return $html;
+		}
+		if ( strpos( (string) $html, 'acvs-image-swap' ) !== false ) {
+			return $html; // Already wrapped (e.g. via woocommerce_product_get_image).
+		}
+		$type = get_post_type( $post_id );
+		if ( $type !== 'product' && $type !== 'product_variation' ) {
+			return $html;
+		}
+		$product = wc_get_product( $post_id );
+		if ( ! $product instanceof WC_Product ) {
+			return $html;
+		}
+		return $this->wrap_with_lifestyle( (string) $html, $product, $size );
+	}
+
+	/**
+	 * Wrap a thumbnail in the swap span with the product/variation's lifestyle
+	 * image layered on top for the CSS hover crossfade. Returns the original
+	 * markup unchanged when there is no lifestyle image.
+	 *
+	 * @param string     $html    Existing thumbnail markup.
+	 * @param WC_Product $product Product or variation.
+	 * @param string|array $size  Requested image size.
+	 * @return string
+	 */
+	private function wrap_with_lifestyle( string $html, WC_Product $product, $size ): string {
 		$lifestyle_id = absint( $product->get_meta( ACVS_META_LIFESTYLE ) );
 		if ( ! $lifestyle_id ) {
 			return $html;
