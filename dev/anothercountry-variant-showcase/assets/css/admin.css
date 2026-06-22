@@ -1,0 +1,21 @@
+.acvs-product-options {
+	padding-top: 8px;
+}
+
+.acvs-image-field .acvs-image-preview {
+	display: block;
+	margin: 4px 0 8px;
+}
+
+.acvs-image-field .acvs-image-preview img {
+	max-width: 80px;
+	height: auto;
+	border: 1px solid #dcdcde;
+	border-radius: 3px;
+}
+
+.acvs-variation-options {
+	margin-top: 8px;
+	padding-top: 8px;
+	border-top: 1px solid #eee;
+}
