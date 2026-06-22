@@ -4,7 +4,7 @@ Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 8.0
 WC requires at least: 7.0
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 
 Show selected product variations as their own cards on shop and category pages,
@@ -54,6 +54,13 @@ shows; WooCommerce's "showing x of y" count reflects parent products, so it may
 read slightly low on expanded pages. Pagination still works.
 
 == Changelog ==
+
+= 1.0.3 =
+* Add a theme-independent JS fallback for the lifestyle hover: when the theme
+  renders thumbnails in a way the PHP image filters can't intercept, the overlay
+  is attached directly in the rendered DOM (matched by post-<id> class or product
+  link URL). No-op for cards already wrapped server-side.
+* Don't force width/height on the wrapped main image, preserving theme card sizing.
 
 = 1.0.2 =
 * Fix: stop expanding variable products inside the admin (including admin-ajax),
