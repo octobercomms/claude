@@ -342,7 +342,12 @@
 		}
 
 		if (isParent) {
-			$tr.append('<td colspan="13" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			// Whole-product cards (a variable product shown as one card) get their
+			// own editable Card Title + Catalog Order so they can be retitled and
+			// positioned in the grid alongside everything else.
+			$tr.append('<td colspan="11" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
+			$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
 		}

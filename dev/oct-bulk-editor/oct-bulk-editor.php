@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order; merge products; export/import via CSV.
- * Version:     1.9.0
+ * Version:     1.9.1
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.9.0' );
+define( 'OCTWBE_VERSION', '1.9.1' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -273,7 +273,7 @@ class OctBulkEditor {
 			'image_id'     => '',
 			'image_thumb'  => '',
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		], $this->get_acvs_data( $p ) );
+		], $this->get_acvs_data( $p ), $this->get_extra_data( $p, null ) );
 	}
 
 	private function format_simple_row( WC_Product $p ): array {
