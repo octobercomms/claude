@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, and group-by-attribute image fill; merge products; export/import via CSV.
- * Version:     1.7.1
+ * Version:     1.7.2
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.7.1' );
+define( 'OCTWBE_VERSION', '1.7.2' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -574,7 +574,13 @@ class OctBulkEditor {
 	/**
 	 * Find an existing attachment whose stored file matches this filename, so a
 	 * re-dragged image attaches the original instead of creating a duplicate.
-	 * Matches the upload-relative path's basename (handles year/month folders).
+	 *
+	 * Handles WordPress's large-image handling: photos over the big-image
+	 * threshold (2560px) are stored as "name-scaled.ext" and the attachment's
+	 * _wp_attached_file points at the scaled file, with the pre-scale name kept in
+	 * the attachment metadata's "original_image". We match the basename exactly,
+	 * the "-scaled" variant, and the stored original_image — across year/month
+	 * folders.
 	 */
 	private function find_attachment_by_filename( string $filename ): int {
 		if ( $filename === '' ) {
@@ -582,20 +588,46 @@ class OctBulkEditor {
 		}
 
 		global $wpdb;
+
+		$info   = pathinfo( $filename );
+		$base   = $info['filename'] ?? $filename;                 // "sofa"
+		$ext    = isset( $info['extension'] ) ? '.' . $info['extension'] : ''; // ".jpg"
+		$scaled = $base . '-scaled' . $ext;                       // "sofa-scaled.jpg"
+
+		// 1) Match _wp_attached_file basename: exact name or the -scaled variant,
+		//    with or without an uploads sub-folder prefix.
 		$id = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT post_id FROM {$wpdb->postmeta}
 			 WHERE meta_key = '_wp_attached_file'
-			   AND ( meta_value = %s OR meta_value LIKE %s )
+			   AND ( meta_value = %s OR meta_value LIKE %s
+			      OR meta_value = %s OR meta_value LIKE %s )
 			 ORDER BY post_id ASC
 			 LIMIT 1",
 			$filename,
-			'%/' . $wpdb->esc_like( $filename )
+			'%/' . $wpdb->esc_like( $filename ),
+			$scaled,
+			'%/' . $wpdb->esc_like( $scaled )
 		) );
-
-		// Confirm the post still exists as an attachment (meta can outlive a delete).
 		if ( $id && get_post_type( $id ) === 'attachment' ) {
 			return $id;
 		}
+
+		// 2) Match the pre-scale name stored in the attachment metadata's
+		//    "original_image" (the exact serialized token, so it can't false-match
+		//    a different file that merely contains this name as a substring).
+		$token = '"original_image";s:' . strlen( $filename ) . ':"' . $filename . '"';
+		$id    = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT post_id FROM {$wpdb->postmeta}
+			 WHERE meta_key = '_wp_attachment_metadata'
+			   AND meta_value LIKE %s
+			 ORDER BY post_id ASC
+			 LIMIT 1",
+			'%' . $wpdb->esc_like( $token ) . '%'
+		) );
+		if ( $id && get_post_type( $id ) === 'attachment' ) {
+			return $id;
+		}
+
 		return 0;
 	}
 
