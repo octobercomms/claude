@@ -69,6 +69,13 @@
 			'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
 			'stock_status' => __( 'Stock Status', 'oct-bulk-editor' ),
 			'status'       => __( 'Publish Status', 'oct-bulk-editor' ),
+			'fabric_group' => __( 'Fabric Group', 'oct-bulk-editor' ),
+			'price_eur'      => __( 'Regular € (EUR)', 'oct-bulk-editor' ),
+			'sale_price_eur' => __( 'Sale € (EUR)', 'oct-bulk-editor' ),
+			'price_usd'      => __( 'Regular $ (USD)', 'oct-bulk-editor' ),
+			'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
+			'acvs_card_title'    => __( 'Card Title', 'oct-bulk-editor' ),
+			'acvs_catalog_order' => __( 'Catalog Order', 'oct-bulk-editor' ),
 		];
 		foreach ( $columns as $key => $label ) :
 		?>
@@ -79,11 +86,55 @@
 		<?php endforeach; ?>
 	</div>
 
+	<!-- Group variations by a shared attribute (e.g. Fabric) for one-image-fits-group editing -->
+	<div class="wbe-groupby-bar">
+		<strong><?php esc_html_e( 'Group variations by:', 'oct-bulk-editor' ); ?></strong>
+		<select id="wbe-groupby" class="wbe-input">
+			<option value=""><?php esc_html_e( '— No grouping —', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Collapse variations under a shared attribute and set one image for the whole group (e.g. all cushion fillings of a fabric).', 'oct-bulk-editor' ); ?></span>
+	</div>
+
+	<!-- Bulk edit: set one field across every loaded row at once -->
+	<div class="wbe-bulkedit">
+		<strong><?php esc_html_e( 'Bulk edit:', 'oct-bulk-editor' ); ?></strong>
+		<select id="wbe-bulk-field" class="wbe-input">
+			<option value="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></option>
+			<option value="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></option>
+			<option value="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></option>
+			<option value="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_show"><?php esc_html_e( 'On Category Page', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_fabric_group"><?php esc_html_e( 'Fabric Group', 'oct-bulk-editor' ); ?></option>
+			<option value="price_eur"><?php esc_html_e( 'Regular € (EUR)', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price_eur"><?php esc_html_e( 'Sale € (EUR)', 'oct-bulk-editor' ); ?></option>
+			<option value="price_usd"><?php esc_html_e( 'Regular $ (USD)', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_catalog_order"><?php esc_html_e( 'Catalog Order', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_card_title"><?php esc_html_e( 'Card Title', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<span id="wbe-bulk-value"></span>
+		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
+		<span id="wbe-bulk-selcount" class="wbe-bulk-selcount" style="display:none"></span>
+		<button id="wbe-bulk-clear" class="button button-link" style="display:none"><?php esc_html_e( 'Clear selection', 'oct-bulk-editor' ); ?></button>
+		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Tick rows to target a selection, or apply to every loaded row.', 'oct-bulk-editor' ); ?></span>
+
+		<span class="wbe-ie">
+			<button id="wbe-export" class="button"><?php esc_html_e( 'Export CSV', 'oct-bulk-editor' ); ?></button>
+			<label class="button wbe-import-label">
+				<?php esc_html_e( 'Import CSV', 'oct-bulk-editor' ); ?>
+				<input type="file" id="wbe-import-file" accept=".csv,text/csv" />
+			</label>
+			<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Export the current filter, edit in Excel, re-import (matched by id).', 'oct-bulk-editor' ); ?></span>
+		</span>
+	</div>
+
 	<!-- Spreadsheet table -->
 	<div class="wbe-table-wrapper">
 		<table id="wbe-table" class="wbe-table widefat">
 			<thead>
 				<tr>
+					<th class="wbe-col-check"><input type="checkbox" id="wbe-select-all" title="<?php esc_attr_e( 'Select all', 'oct-bulk-editor' ); ?>" /></th>
 					<th class="wbe-col-image" data-col="image"><?php esc_html_e( 'Image', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"><?php esc_html_e( 'Lifestyle', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-name"><?php esc_html_e( 'Product / Variation', 'oct-bulk-editor' ); ?></th>
@@ -94,12 +145,19 @@
 					<th class="wbe-col-stock" data-col="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-status" data-col="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-status" data-col="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-fabricgroup" data-col="fabric_group"><?php esc_html_e( 'Fabric Group', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="price_eur"><?php esc_html_e( 'Regular € (EUR)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="sale_price_eur"><?php esc_html_e( 'Sale € (EUR)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="price_usd"><?php esc_html_e( 'Regular $ (USD)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-cardtitle" data-col="acvs_card_title"><?php esc_html_e( 'Card Title', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-order" data-col="acvs_catalog_order"><?php esc_html_e( 'Catalog Order', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'oct-bulk-editor' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="11">
+					<td colspan="19">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>

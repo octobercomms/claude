@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image), and merge several products into one variable product.
- * Version:     1.2.2
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order; merge products; export/import via CSV.
+ * Version:     1.9.2
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.2.2' );
+define( 'OCTWBE_VERSION', '1.9.2' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -34,6 +34,8 @@ class OctBulkEditor {
 		add_action( 'wp_ajax_octwbe_get_products', [ $this, 'ajax_get_products' ] );
 		add_action( 'wp_ajax_octwbe_save_changes', [ $this, 'ajax_save_changes' ] );
 		add_action( 'wp_ajax_octwbe_upload_image', [ $this, 'ajax_upload_image' ] );
+		add_action( 'wp_ajax_octwbe_import', [ $this, 'ajax_import' ] );
+		add_action( 'admin_post_octwbe_export', [ $this, 'handle_export' ] );
 	}
 
 	public function register_menu(): void {
@@ -71,8 +73,11 @@ class OctBulkEditor {
 
 		wp_localize_script( 'wbe-script', 'octwbe', [
 			'ajaxUrl'      => admin_url( 'admin-ajax.php' ),
+			'exportUrl'    => admin_url( 'admin-post.php' ),
 			'nonce'        => wp_create_nonce( 'octwbe_nonce' ),
 			'uploadNonce'  => wp_create_nonce( 'octwbe_upload_image' ),
+			'exportNonce'  => wp_create_nonce( 'octwbe_export' ),
+			'importNonce'  => wp_create_nonce( 'octwbe_import' ),
 			'i18n'         => [
 				'saving'        => __( 'Saving…', 'oct-bulk-editor' ),
 				'saved'         => __( 'All changes saved!', 'oct-bulk-editor' ),
@@ -145,12 +150,19 @@ class OctBulkEditor {
 				// Parent row (read-only header)
 				$rows[] = $this->format_parent_row( $product );
 
-				// One row per variation
+				// One row per variation, sorted alphabetically by attribute name so
+				// like sits with like (all of a size together, then filling, leg,
+				// fabric) instead of WooCommerce's stored menu order.
+				$vrows = [];
 				foreach ( $product->get_children() as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
 					if ( $variation ) {
-						$rows[] = $this->format_variation_row( $variation, $product );
+						$vrows[] = $this->format_variation_row( $variation, $product );
 					}
+				}
+				usort( $vrows, static fn( $a, $b ) => strnatcasecmp( $a['name'], $b['name'] ) );
+				foreach ( $vrows as $vrow ) {
+					$rows[] = $vrow;
 				}
 			} else {
 				$rows[] = $this->format_simple_row( $product );
@@ -192,6 +204,61 @@ class OctBulkEditor {
 		];
 	}
 
+	/**
+	 * Per-variation Fabric Drawer group + Aelia per-currency (EUR/USD) prices.
+	 * Fabric group options come from the parent product's Fabric Groups box.
+	 */
+	private function get_extra_data( WC_Product $p, ?WC_Product $parent ): array {
+		$reg  = $p->get_meta( '_regular_currency_prices' );
+		$sale = $p->get_meta( '_sale_currency_prices' );
+		$reg  = is_array( $reg ) ? $reg : [];
+		$sale = is_array( $sale ) ? $sale : [];
+
+		// Catalogue order: variations store it in meta; products use menu_order.
+		$catalog_order = $p->is_type( 'variation' )
+			? (string) $p->get_meta( '_acvs_catalog_order' )
+			: ( $p->get_menu_order() ? (string) $p->get_menu_order() : '' );
+
+		return [
+			'fabric_group'         => (string) $p->get_meta( '_ac_fabric_group_key' ),
+			'fabric_group_options' => $parent instanceof WC_Product ? $this->fabric_group_options( $parent ) : [],
+			'price_eur'            => isset( $reg['EUR'] ) ? $reg['EUR'] : '',
+			'sale_price_eur'       => isset( $sale['EUR'] ) ? $sale['EUR'] : '',
+			'price_usd'            => isset( $reg['USD'] ) ? $reg['USD'] : '',
+			'sale_price_usd'       => isset( $sale['USD'] ) ? $sale['USD'] : '',
+			'acvs_card_title'      => (string) $p->get_meta( '_acvs_card_title' ),
+			'acvs_catalog_order'   => $catalog_order,
+		];
+	}
+
+	/**
+	 * Parse a product's Fabric Groups box into a JS-friendly list of
+	 * [ 'value' => key, 'label' => label ] entries (matches the theme parser).
+	 * Returns a sequential array so it JSON-encodes as a JS array, not an object.
+	 */
+	private function fabric_group_options( WC_Product $parent ): array {
+		$raw     = (string) $parent->get_meta( '_ac_fabric_groups' );
+		$options = [ [ 'value' => '', 'label' => __( 'Default', 'oct-bulk-editor' ) ] ];
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: [] as $line ) {
+			$line = trim( $line );
+			if ( $line === '' ) {
+				continue;
+			}
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			$key   = sanitize_title( $parts[0] );
+			if ( $key === '' ) {
+				continue;
+			}
+			$options[] = [
+				'value' => $key,
+				'label' => ( isset( $parts[1] ) && $parts[1] !== '' )
+					? $parts[1]
+					: ucwords( str_replace( '-', ' ', $key ) ),
+			];
+		}
+		return $options;
+	}
+
 	private function format_parent_row( WC_Product $p ): array {
 		return array_merge( [
 			'id'           => $p->get_id(),
@@ -206,7 +273,7 @@ class OctBulkEditor {
 			'image_id'     => '',
 			'image_thumb'  => '',
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		], $this->get_acvs_data( $p ) );
+		], $this->get_acvs_data( $p ), $this->get_extra_data( $p, null ) );
 	}
 
 	private function format_simple_row( WC_Product $p ): array {
@@ -221,15 +288,31 @@ class OctBulkEditor {
 			'stock_status' => $p->get_stock_status(),
 			'status'       => $p->get_status(),
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		], $this->get_image_data( (int) $p->get_image_id() ), $this->get_acvs_data( $p ) );
+		], $this->get_image_data( (int) $p->get_image_id() ), $this->get_acvs_data( $p ), $this->get_extra_data( $p, null ) );
 	}
 
 	private function format_variation_row( WC_Product_Variation $v, WC_Product $parent ): array {
-		$attrs = [];
+		$attrs      = [];
+		$attr_map = [];
 		foreach ( $v->get_variation_attributes() as $key => $val ) {
-			$tax    = str_replace( 'attribute_', '', $key );
-			$label  = wc_attribute_label( $tax );
-			$attrs[] = $label . ': ' . ( $val ?: __( 'Any', 'oct-bulk-editor' ) );
+			$tax     = str_replace( 'attribute_', '', $key );
+			$label   = wc_attribute_label( $tax );
+			$val     = (string) $val;
+			$display = $val;
+			if ( $val !== '' && taxonomy_exists( $tax ) ) {
+				$term = get_term_by( 'slug', $val, $tax );
+				if ( $term ) {
+					$display = $term->name;
+				}
+			}
+			$display       = $display !== '' ? $display : __( 'Any', 'oct-bulk-editor' );
+			$attrs[]       = $label . ': ' . $display;
+			$attr_map[]  = [
+				'name'        => $tax,
+				'label'       => $label,
+				'value'       => $val,
+				'value_label' => $display,
+			];
 		}
 
 		// Variation image falls back to parent image if not set
@@ -243,6 +326,7 @@ class OctBulkEditor {
 			'parent_id'     => $parent->get_id(),
 			'type'          => 'variation',
 			'name'          => implode( ' / ', $attrs ) ?: '#' . $v->get_id(),
+			'attributes'    => $attr_map,
 			'sku'           => $v->get_sku(),
 			'regular_price' => $v->get_regular_price(),
 			'sale_price'    => $v->get_sale_price(),
@@ -250,7 +334,7 @@ class OctBulkEditor {
 			'stock_status'  => $v->get_stock_status(),
 			'status'        => $v->get_status(),
 			'edit_url'      => get_edit_post_link( $parent->get_id(), '' ),
-		], $this->get_image_data( $image_id ), $this->get_acvs_data( $v ) );
+		], $this->get_image_data( $image_id ), $this->get_acvs_data( $v ), $this->get_extra_data( $v, $parent ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -288,7 +372,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -311,6 +395,16 @@ class OctBulkEditor {
 	}
 
 	private function apply_field( WC_Product $product, string $field, string $value ): bool|WP_Error {
+		$result = $this->set_field_value( $product, $field, $value );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		$product->save();
+		return true;
+	}
+
+	/** Set a single field on the product object without saving (caller saves). */
+	private function set_field_value( WC_Product $product, string $field, string $value ): bool|WP_Error {
 		switch ( $field ) {
 			case 'regular_price':
 				if ( $value !== '' && ! is_numeric( $value ) ) {
@@ -401,9 +495,62 @@ class OctBulkEditor {
 				}
 				$product->update_meta_data( OCTWBE_ACVS_LIFESTYLE, $attachment_id ?: '' );
 				break;
-		}
 
-		$product->save();
+			case 'acvs_fabric_group':
+				// Per-variation Fabric Drawer group (matches the theme's meta key).
+				$product->update_meta_data( '_ac_fabric_group_key', sanitize_title( $value ) );
+				break;
+
+			case 'price_eur':
+			case 'sale_price_eur':
+			case 'price_usd':
+			case 'sale_price_usd':
+				// Aelia Currency Switcher per-currency prices (serialised arrays).
+				if ( $value !== '' && ! is_numeric( $value ) ) {
+					return new WP_Error( 'invalid', "Invalid currency price for product {$product->get_id()}." );
+				}
+				$is_sale  = strpos( $field, 'sale_' ) === 0;
+				$parts    = explode( '_', $field );
+				$currency = strtoupper( (string) end( $parts ) ); // EUR | USD
+				$meta_key = $is_sale ? '_sale_currency_prices' : '_regular_currency_prices';
+				$prices   = $product->get_meta( $meta_key );
+				if ( ! is_array( $prices ) ) {
+					$prices = [];
+				}
+				if ( $value === '' ) {
+					unset( $prices[ $currency ] );
+				} else {
+					$prices[ $currency ] = $value;
+				}
+				$product->update_meta_data( $meta_key, $prices );
+				break;
+
+			case 'acvs_card_title':
+				// Custom catalogue card title (Variant Showcase).
+				if ( $value === '' ) {
+					$product->delete_meta_data( '_acvs_card_title' );
+				} else {
+					$product->update_meta_data( '_acvs_card_title', sanitize_text_field( $value ) );
+				}
+				break;
+
+			case 'acvs_catalog_order':
+				// Catalogue sort position (lower = earlier). Variations store it in
+				// meta; products use their menu_order.
+				if ( $value !== '' && ! is_numeric( $value ) ) {
+					return new WP_Error( 'invalid', "Invalid catalog order for product {$product->get_id()}." );
+				}
+				if ( $product->is_type( 'variation' ) ) {
+					if ( $value === '' ) {
+						$product->delete_meta_data( '_acvs_catalog_order' );
+					} else {
+						$product->update_meta_data( '_acvs_catalog_order', (int) $value );
+					}
+				} else {
+					$product->set_menu_order( $value === '' ? 0 : (int) $value );
+				}
+				break;
+		}
 
 		return true;
 	}
@@ -419,8 +566,22 @@ class OctBulkEditor {
 			wp_send_json_error( 'Forbidden', 403 );
 		}
 
-		if ( empty( $_FILES['file'] ) ) {
+		if ( empty( $_FILES['file'] ) || ! isset( $_FILES['file']['name'] ) ) {
 			wp_send_json_error( 'No file received.' );
+		}
+
+		// De-dupe: dragging the same square image onto many variations would
+		// otherwise pile up identical copies in the media library. If an
+		// attachment with this filename already exists, reuse it.
+		$filename = sanitize_file_name( (string) $_FILES['file']['name'] );
+		$existing = $this->find_attachment_by_filename( $filename );
+		if ( $existing ) {
+			wp_send_json_success( [
+				'attachment_id' => $existing,
+				'thumb_url'     => wp_get_attachment_image_url( $existing, [ 50, 50 ] ) ?: '',
+				'reused'        => true,
+				'filename'      => $filename,
+			] );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -438,7 +599,286 @@ class OctBulkEditor {
 		wp_send_json_success( [
 			'attachment_id' => $attachment_id,
 			'thumb_url'     => $thumb ?: '',
+			'reused'        => false,
+			'filename'      => $filename,
 		] );
+	}
+
+	/**
+	 * Find an existing attachment whose stored file matches this filename, so a
+	 * re-dragged image attaches the original instead of creating a duplicate.
+	 *
+	 * Handles WordPress's large-image handling: photos over the big-image
+	 * threshold (2560px) are stored as "name-scaled.ext" and the attachment's
+	 * _wp_attached_file points at the scaled file, with the pre-scale name kept in
+	 * the attachment metadata's "original_image". We match the basename exactly,
+	 * the "-scaled" variant, and the stored original_image — across year/month
+	 * folders.
+	 */
+	private function find_attachment_by_filename( string $filename ): int {
+		if ( $filename === '' ) {
+			return 0;
+		}
+
+		global $wpdb;
+
+		$info   = pathinfo( $filename );
+		$base   = $info['filename'] ?? $filename;                 // "sofa"
+		$ext    = isset( $info['extension'] ) ? '.' . $info['extension'] : ''; // ".jpg"
+		$scaled = $base . '-scaled' . $ext;                       // "sofa-scaled.jpg"
+
+		// 1) Match _wp_attached_file basename: exact name or the -scaled variant,
+		//    with or without an uploads sub-folder prefix.
+		$id = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT post_id FROM {$wpdb->postmeta}
+			 WHERE meta_key = '_wp_attached_file'
+			   AND ( meta_value = %s OR meta_value LIKE %s
+			      OR meta_value = %s OR meta_value LIKE %s )
+			 ORDER BY post_id ASC
+			 LIMIT 1",
+			$filename,
+			'%/' . $wpdb->esc_like( $filename ),
+			$scaled,
+			'%/' . $wpdb->esc_like( $scaled )
+		) );
+		if ( $id && get_post_type( $id ) === 'attachment' ) {
+			return $id;
+		}
+
+		// 2) Match the pre-scale name stored in the attachment metadata's
+		//    "original_image" (the exact serialized token, so it can't false-match
+		//    a different file that merely contains this name as a substring).
+		$token = '"original_image";s:' . strlen( $filename ) . ':"' . $filename . '"';
+		$id    = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT post_id FROM {$wpdb->postmeta}
+			 WHERE meta_key = '_wp_attachment_metadata'
+			   AND meta_value LIKE %s
+			 ORDER BY post_id ASC
+			 LIMIT 1",
+			'%' . $wpdb->esc_like( $token ) . '%'
+		) );
+		if ( $id && get_post_type( $id ) === 'attachment' ) {
+			return $id;
+		}
+
+		return 0;
+	}
+
+	// -------------------------------------------------------------------------
+	// Export: download the current filter as CSV
+	// -------------------------------------------------------------------------
+
+	public function handle_export(): void {
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_die( esc_html__( 'You do not have permission to export.', 'oct-bulk-editor' ) );
+		}
+		check_admin_referer( 'octwbe_export' );
+
+		$search   = sanitize_text_field( wp_unslash( $_GET['search'] ?? '' ) );
+		$category = absint( $_GET['category'] ?? 0 );
+
+		$args = [
+			'post_type'      => 'product',
+			'post_status'    => 'any',
+			'posts_per_page' => -1,
+			'orderby'        => 'title',
+			'order'          => 'ASC',
+			'no_found_rows'  => true,
+		];
+		if ( $search !== '' ) {
+			$args['s'] = $search;
+		}
+		if ( $category > 0 ) {
+			$args['tax_query'] = [ [
+				'taxonomy' => 'product_cat',
+				'field'    => 'term_id',
+				'terms'    => $category,
+			] ];
+		}
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
+
+		$out = fopen( 'php://output', 'w' );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order' ] );
+
+		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
+			$product = wc_get_product( $post->ID );
+			if ( ! $product ) {
+				continue;
+			}
+			if ( $product->is_type( 'variable' ) ) {
+				// Match the grid: variations sorted alphabetically by attribute name.
+				$variations = [];
+				foreach ( $product->get_children() as $vid ) {
+					$variation = wc_get_product( $vid );
+					if ( $variation ) {
+						$variations[] = $variation;
+					}
+				}
+				usort(
+					$variations,
+					fn( $a, $b ) => strnatcasecmp( $this->variation_attr_label( $a ), $this->variation_attr_label( $b ) )
+				);
+				foreach ( $variations as $variation ) {
+					$this->export_row( $out, $variation, $product );
+				}
+			} else {
+				$this->export_row( $out, $product, null );
+			}
+		}
+
+		fclose( $out );
+		exit;
+	}
+
+	/** The composite "Attr: Value / …" label used to sort variations like the grid. */
+	private function variation_attr_label( WC_Product_Variation $v ): string {
+		$bits = [];
+		foreach ( $v->get_variation_attributes() as $key => $val ) {
+			$tax = str_replace( 'attribute_', '', $key );
+			$val = (string) $val;
+			if ( $val !== '' && taxonomy_exists( $tax ) ) {
+				$term = get_term_by( 'slug', $val, $tax );
+				if ( $term ) {
+					$val = $term->name;
+				}
+			}
+			$bits[] = wc_attribute_label( $tax ) . ': ' . $val;
+		}
+		return implode( ' / ', $bits );
+	}
+
+	private function export_row( $out, WC_Product $p, ?WC_Product $parent ): void {
+		$is_variation    = $p->is_type( 'variation' );
+		$variation_label = '';
+		if ( $is_variation ) {
+			$bits = [];
+			foreach ( $p->get_variation_attributes() as $key => $val ) {
+				$tax    = str_replace( 'attribute_', '', $key );
+				$bits[] = wc_attribute_label( $tax ) . ': ' . $val;
+			}
+			$variation_label = implode( ' / ', $bits );
+		}
+
+		$reg  = $p->get_meta( '_regular_currency_prices' );
+		$sale = $p->get_meta( '_sale_currency_prices' );
+		$reg  = is_array( $reg ) ? $reg : [];
+		$sale = is_array( $sale ) ? $sale : [];
+
+		fputcsv( $out, [
+			$p->get_id(),
+			$is_variation ? 'variation' : 'simple',
+			$parent ? $parent->get_id() : '',
+			$parent ? $parent->get_name() : $p->get_name(),
+			$variation_label,
+			$p->get_sku(),
+			$p->get_regular_price(),
+			$p->get_sale_price(),
+			$p->get_manage_stock() ? $p->get_stock_quantity() : '',
+			$p->get_stock_status(),
+			$p->get_status(),
+			$p->get_meta( OCTWBE_ACVS_SHOW ) === 'yes' ? 'yes' : 'no',
+			(int) $p->get_meta( OCTWBE_ACVS_LIFESTYLE ) ?: '',
+			(string) $p->get_meta( '_ac_fabric_group_key' ),
+			$reg['EUR']  ?? '',
+			$sale['EUR'] ?? '',
+			$reg['USD']  ?? '',
+			$sale['USD'] ?? '',
+			(string) $p->get_meta( '_acvs_card_title' ),
+			$is_variation ? (string) $p->get_meta( '_acvs_catalog_order' ) : ( $p->get_menu_order() ?: '' ),
+		] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Import: apply a CSV (matched by id) through the same field setters
+	// -------------------------------------------------------------------------
+
+	public function ajax_import(): void {
+		check_ajax_referer( 'octwbe_import', 'nonce' );
+		if ( ! current_user_can( 'manage_woocommerce' ) ) {
+			wp_send_json_error( 'Forbidden', 403 );
+		}
+		if ( empty( $_FILES['file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['file']['tmp_name'] ) ) {
+			wp_send_json_error( __( 'No file received.', 'oct-bulk-editor' ) );
+		}
+
+		$handle = fopen( $_FILES['file']['tmp_name'], 'r' );
+		if ( ! $handle ) {
+			wp_send_json_error( __( 'Could not read the file.', 'oct-bulk-editor' ) );
+		}
+
+		$header = fgetcsv( $handle );
+		if ( ! $header ) {
+			fclose( $handle );
+			wp_send_json_error( __( 'The file appears to be empty.', 'oct-bulk-editor' ) );
+		}
+		$header = array_map( static fn( $h ) => strtolower( trim( (string) $h ) ), $header );
+		$idx    = array_flip( $header );
+		if ( ! isset( $idx['id'] ) ) {
+			fclose( $handle );
+			wp_send_json_error( __( 'The CSV must include an "id" column (export first to get the right format).', 'oct-bulk-editor' ) );
+		}
+
+		// CSV column => editor field.
+		$map = [
+			'sku'                => 'sku',
+			'regular_price'      => 'regular_price',
+			'sale_price'         => 'sale_price',
+			'stock_qty'          => 'stock_qty',
+			'stock_status'       => 'stock_status',
+			'status'             => 'status',
+			'on_category'        => 'acvs_show',
+			'lifestyle_image_id' => 'acvs_lifestyle',
+			'fabric_group'       => 'acvs_fabric_group',
+			'price_eur'          => 'price_eur',
+			'sale_price_eur'     => 'sale_price_eur',
+			'price_usd'          => 'price_usd',
+			'sale_price_usd'     => 'sale_price_usd',
+			'card_title'         => 'acvs_card_title',
+			'catalog_order'      => 'acvs_catalog_order',
+		];
+
+		$updated = 0;
+		$errors  = [];
+		$rownum  = 1;
+
+		while ( ( $row = fgetcsv( $handle ) ) !== false ) {
+			$rownum++;
+			$id = absint( $row[ $idx['id'] ] ?? 0 );
+			if ( ! $id ) {
+				continue;
+			}
+			$product = wc_get_product( $id );
+			if ( ! $product ) {
+				$errors[] = "Row {$rownum}: product {$id} not found.";
+				continue;
+			}
+
+			$dirty = false;
+			foreach ( $map as $col => $field ) {
+				if ( ! isset( $idx[ $col ] ) ) {
+					continue;
+				}
+				$value  = sanitize_text_field( (string) ( $row[ $idx[ $col ] ] ?? '' ) );
+				$result = $this->set_field_value( $product, $field, $value );
+				if ( is_wp_error( $result ) ) {
+					$errors[] = "Row {$rownum} ({$col}): " . $result->get_error_message();
+				} else {
+					$dirty = true;
+				}
+			}
+
+			if ( $dirty ) {
+				$product->save();
+				$updated++;
+			}
+		}
+
+		fclose( $handle );
+
+		wp_send_json_success( [ 'updated' => $updated, 'errors' => $errors ] );
 	}
 }
 

@@ -9,6 +9,7 @@
 	// -------------------------------------------------------------------------
 	const state = {
 		changes: {},   // { "productId:field": { id, field, value, originalValue } }
+		rows: [],      // last-loaded server rows, kept so grouping can re-render
 		page: 1,
 		totalPages: 1,
 		loading: false,
@@ -125,11 +126,21 @@
 
 		frame.on('select', function () {
 			const attachment = frame.state().get('selection').first().toJSON();
-			applyImageToCell($wrap, attachment.id, attachment.sizes?.thumbnail?.url || attachment.url);
+			deliverImage($wrap, attachment.id, attachment.sizes?.thumbnail?.url || attachment.url);
 		});
 
 		frame.open();
 	});
+
+	// A group-header image wrap fills every member variation in the group; a normal
+	// wrap just sets its own cell. Both media-pick and drag-drop funnel through here.
+	function deliverImage($wrap, attachmentId, thumbUrl) {
+		if ($wrap.hasClass('is-group')) {
+			fillGroupImage($wrap, attachmentId, thumbUrl);
+		} else {
+			applyImageToCell($wrap, attachmentId, thumbUrl);
+		}
+	}
 
 	// Drag-and-drop image upload
 	$tbody.on('dragover dragenter', '.wbe-img-wrap', function (e) {
@@ -149,11 +160,35 @@
 		uploadImageFile($(this), file);
 	});
 
+	// Per-session upload cache, keyed by file name + size. The first drop of a
+	// given image uploads it; every later drop of the same file — even ones fired
+	// in parallel before the first finishes — waits on that single request and
+	// reuses its attachment, so the media library never gets duplicates.
+	const uploadCache = {};
+
 	function uploadImageFile($wrap, file) {
 		if ($wrap.hasClass('is-uploading')) return;
 
+		const cacheKey = file.name + ':' + file.size;
 		$wrap.addClass('is-uploading');
 		$wrap.find('.wbe-img-spinner').show();
+
+		// Already uploaded (or uploading) this exact file this session — reuse it.
+		if (uploadCache[cacheKey]) {
+			uploadCache[cacheKey].done(function (data) {
+				deliverImage($wrap, data.attachment_id, data.thumb_url);
+				showStatus('Reused "' + file.name + '" — no duplicate uploaded.', 'info');
+			}).fail(function () {
+				showStatus(octwbe.i18n.uploadError, 'error');
+			}).always(function () {
+				$wrap.removeClass('is-uploading');
+				$wrap.find('.wbe-img-spinner').hide();
+			});
+			return;
+		}
+
+		const dfd = $.Deferred();
+		uploadCache[cacheKey] = dfd;
 		showStatus(octwbe.i18n.uploading, 'info');
 
 		const formData = new FormData();
@@ -169,12 +204,21 @@
 			contentType: false,
 		}).done(function (response) {
 			if (response.success) {
-				applyImageToCell($wrap, response.data.attachment_id, response.data.thumb_url);
-				hideStatus();
+				dfd.resolve(response.data);
+				deliverImage($wrap, response.data.attachment_id, response.data.thumb_url);
+				if (response.data.reused) {
+					showStatus('Reused existing "' + (response.data.filename || file.name) + '" from the media library — no duplicate uploaded.', 'info');
+				} else {
+					hideStatus();
+				}
 			} else {
+				delete uploadCache[cacheKey]; // allow a retry
+				dfd.reject();
 				showStatus(response.data || octwbe.i18n.uploadError, 'error');
 			}
 		}).fail(function () {
+			delete uploadCache[cacheKey]; // allow a retry
+			dfd.reject();
 			showStatus(octwbe.i18n.uploadError, 'error');
 		}).always(function () {
 			$wrap.removeClass('is-uploading');
@@ -200,7 +244,7 @@
 
 		// Track change
 		if (value !== orig) {
-			state.changes[key] = { id, field, value, originalValue: orig, originalThumb: $wrap.data('current-thumb') || '' };
+			state.changes[key] = { id, field, value, originalValue: orig, originalThumb: $wrap.data('current-thumb') || '', thumb: thumbUrl };
 			$wrap.addClass('is-dirty');
 		} else {
 			delete state.changes[key];
@@ -209,6 +253,38 @@
 
 		$wrap.attr('data-current-thumb', thumbUrl);
 		updateToolbar();
+	}
+
+	// Set one image across every variation in a group (e.g. all cushion fillings
+	// of the same fabric). Updates the group header's preview, then applies the
+	// image to each member row's own image cell so it flows through normal change
+	// tracking and the existing Save All Changes flow.
+	function fillGroupImage($wrap, attachmentId, thumbUrl) {
+		const pid  = String($wrap.data('parent-id'));
+		const gval = String($wrap.data('group-value'));
+
+		// Update the header's own preview
+		$wrap.find('.wbe-img-placeholder').remove();
+		let $img = $wrap.find('.wbe-img-thumb');
+		if (!$img.length) {
+			$img = $('<img>').addClass('wbe-img-thumb').attr('alt', '');
+			$wrap.prepend($img);
+		}
+		$img.attr('src', thumbUrl);
+
+		// Propagate to each member variation's main image cell
+		let n = 0;
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) !== pid || String($row.data('group-value')) !== gval) return;
+			const $memberWrap = $row.find('.wbe-img-wrap[data-field="image"]');
+			if ($memberWrap.length) {
+				applyImageToCell($memberWrap, attachmentId, thumbUrl);
+				n++;
+			}
+		});
+
+		showStatus('Applied image to ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
 	}
 
 	// -------------------------------------------------------------------------
@@ -223,6 +299,14 @@
 
 		const $tr = $('<tr>').addClass(rowClass).attr('data-id', row.id);
 
+		// Selection checkbox (parent toggles its children; simple/variation select themselves)
+		if (isParent) {
+			$tr.append('<td class="wbe-col-check"><input type="checkbox" class="wbe-parent-check" data-parent-id="' + esc(String(row.id)) + '" /></td>');
+		} else {
+			const parentAttr = isVariation && row.parent_id ? ' data-parent-id="' + esc(String(row.parent_id)) + '"' : '';
+			$tr.append('<td class="wbe-col-check"><input type="checkbox" class="wbe-row-check" value="' + esc(String(row.id)) + '"' + parentAttr + ' /></td>');
+		}
+
 		// Main image cell (parent gets empty non-editable cell)
 		if (isParent) {
 			$tr.append('<td class="wbe-col-image" data-col="image"></td>');
@@ -235,7 +319,7 @@
 
 		// Name cell
 		const nameContent = isParent
-			? `<strong>${esc(row.name)}</strong> <span style="color:#999;font-size:11px;font-weight:400">(variable product)</span>`
+			? `<strong>${esc(row.name)}</strong> <span style="color:#999;font-size:11px;font-weight:400">(variable product — edit variations below)</span>`
 			: esc(row.name);
 
 		$tr.append(`<td class="wbe-col-name">${nameContent}</td>`);
@@ -258,7 +342,16 @@
 		}
 
 		if (isParent) {
-			$tr.append('<td colspan="6" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			// Whole-product cards (a variable product shown as one card) get their
+			// own editable Card Title + Catalog Order. Render the same per-column
+			// cells as every other row (empty for the inapplicable fields) so the
+			// columns align and hide/show with the toggles — a single colspan
+			// placeholder here misaligns once columns are hidden.
+			['sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd'].forEach(function (col) {
+				$tr.append('<td class="wbe-col-empty" data-col="' + col + '"></td>');
+			});
+			$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
+			$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
 		}
@@ -291,6 +384,26 @@
 			{ value: 'pending', label: 'Pending review' },
 		];
 		$tr.append(buildSelectCell(row.id, 'status', row.status, statusOptions, 'wbe-col-status'));
+
+		// Fabric Group — per-variation drawer category. Variations get a dropdown
+		// built from the parent product's Fabric Groups; simple products get nothing
+		// (the drawer is a variable-product feature).
+		if (isVariation && Array.isArray(row.fabric_group_options) && row.fabric_group_options.length) {
+			const fgOptions = row.fabric_group_options.map(o => ({ value: o.value, label: o.label }));
+			$tr.append(buildSelectCell(row.id, 'acvs_fabric_group', row.fabric_group || '', fgOptions, 'wbe-col-fabricgroup', 'fabric_group'));
+		} else {
+			$tr.append('<td class="wbe-col-fabricgroup" data-col="fabric_group"></td>');
+		}
+
+		// Aelia multi-currency prices (EUR / USD, regular + sale).
+		$tr.append(buildPriceCell(row.id, 'price_eur', row.price_eur, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'sale_price_eur', row.sale_price_eur, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'price_usd', row.price_usd, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'sale_price_usd', row.sale_price_usd, 'wbe-col-price'));
+
+		// Variant Showcase: custom catalogue card title + catalogue sort order.
+		$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
+		$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 
 		// Actions
 		$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit in WooCommerce" style="text-decoration:none;color:#555"></a></td>`);
@@ -367,7 +480,7 @@
 	// click away in the Columns row.
 	// -------------------------------------------------------------------------
 	const COL_PREF_KEY      = 'octwbe_columns_v1';
-	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog'];
+	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order'];
 
 	function loadColPrefs() {
 		try { return JSON.parse(localStorage.getItem(COL_PREF_KEY)) || {}; }
@@ -402,6 +515,77 @@
 	});
 
 	// -------------------------------------------------------------------------
+	// Group variations by attribute (e.g. Fabric) — re-renders the loaded rows
+	// with collapsible group headers. Edits in progress are preserved because we
+	// re-render from the server rows and re-apply any dirty changes.
+	// -------------------------------------------------------------------------
+	$('#wbe-groupby').on('change', function () {
+		if (state.rows && state.rows.length) {
+			renderRows(state.rows);
+			reapplyChanges();
+		}
+	});
+
+	// Collapse / expand a group's member rows by clicking its header label.
+	$tbody.on('click', '.wbe-row-group .wbe-col-grouphdr', function () {
+		const $hdr      = $(this).closest('tr');
+		const pid       = String($hdr.data('parent-id'));
+		const gval      = String($hdr.data('group-value'));
+		const collapsed = $hdr.toggleClass('is-collapsed').hasClass('is-collapsed');
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) === pid && String($row.data('group-value')) === gval) {
+				$row.toggle(!collapsed);
+			}
+		});
+	});
+
+	// Clicking the group's Fabric Group control must not toggle the collapse.
+	$tbody.on('click', '.wbe-group-fg', function (e) { e.stopPropagation(); });
+
+	// Apply a Fabric Group to every variation in the group at once.
+	$tbody.on('change', '.wbe-group-fg-select', function () {
+		const $hdr  = $(this).closest('tr');
+		const pid   = String($hdr.data('parent-id'));
+		const gval  = String($hdr.data('group-value'));
+		const value = $(this).val();
+		let n = 0;
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) !== pid || String($row.data('group-value')) !== gval) return;
+			const $sel = $row.find('.wbe-cell-select[data-field="acvs_fabric_group"]');
+			if ($sel.length) { $sel.val(value).trigger('change'); n++; }
+		});
+		showStatus('Set Fabric Group on ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
+	});
+
+	// After a re-render (e.g. toggling grouping), re-paint any unsaved edits onto
+	// the fresh cells so the dirty state survives the re-render.
+	function reapplyChanges() {
+		Object.values(state.changes).forEach(c => {
+			const $cell = $tbody.find('.wbe-cell[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($cell.length) { $cell.text(c.value).addClass('is-dirty'); }
+			const $sel = $tbody.find('.wbe-cell-select[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($sel.length) { $sel.val(c.value).addClass('is-dirty'); }
+			const $chk = $tbody.find('.wbe-cell-check[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($chk.length) { $chk.prop('checked', c.value === 'yes').closest('td').addClass('is-dirty'); }
+			if (c.field === 'image' || c.field === 'acvs_lifestyle') {
+				const $wrap = $tbody.find('.wbe-img-wrap[data-id="' + c.id + '"][data-field="' + c.field + '"]').not('.is-group');
+				if ($wrap.length) {
+					$wrap.addClass('is-dirty');
+					if (c.thumb) {
+						$wrap.find('.wbe-img-placeholder').remove();
+						let $img = $wrap.find('.wbe-img-thumb');
+						if (!$img.length) { $img = $('<img>').addClass('wbe-img-thumb').attr('alt', ''); $wrap.prepend($img); }
+						$img.attr('src', c.thumb);
+						$wrap.attr('data-current-thumb', c.thumb);
+					}
+				}
+			}
+		});
+	}
+
+	// -------------------------------------------------------------------------
 	// Load products via AJAX
 	// -------------------------------------------------------------------------
 	function loadProducts(page = 1) {
@@ -412,7 +596,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="11">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="19">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -445,14 +629,35 @@
 	}
 
 	function renderRows(rows) {
+		state.rows = rows;
+		populateGroupBy(rows);
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="11">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="19">No products found.</td></tr>');
 			return;
 		}
 
-		rows.forEach(row => $tbody.append(buildRow(row)));
+		const groupBy = $('#wbe-groupby').val() || '';
+
+		// Walk the flat list: a parent is immediately followed by its variations.
+		let i = 0;
+		while (i < rows.length) {
+			const row = rows[i];
+			if (row.type === 'parent') {
+				$tbody.append(buildRow(row));
+				const vars = [];
+				i++;
+				while (i < rows.length && rows[i].type === 'variation' && String(rows[i].parent_id) === String(row.id)) {
+					vars.push(rows[i]);
+					i++;
+				}
+				renderVariations(row, vars, groupBy);
+			} else {
+				$tbody.append(buildRow(row)); // simple product
+				i++;
+			}
+		}
 
 		// Re-apply hidden columns
 		$('.wbe-col-toggle-cb').each(function () {
@@ -461,6 +666,113 @@
 				$('#wbe-table [data-col="' + col + '"]').hide();
 			}
 		});
+
+		// Fresh rows start unselected; reset the select-all / bulk bar state.
+		updateSelectionUI();
+	}
+
+	// Render a parent's variations — flat, or grouped under headers when a
+	// group-by attribute is active and these variations carry it.
+	function renderVariations(parent, vars, groupBy) {
+		const hasAttr = groupBy && vars.some(v => (v.attributes || []).some(a => a.name === groupBy));
+		if (!hasAttr) {
+			vars.forEach(v => $tbody.append(buildRow(v)));
+			return;
+		}
+
+		const groups = {};
+		const order  = [];
+		let attrLabel = groupBy;
+		vars.forEach(v => {
+			const a   = (v.attributes || []).find(x => x.name === groupBy);
+			const key = a ? a.value : '';
+			if (a && a.label) attrLabel = a.label;
+			if (!groups[key]) {
+				groups[key] = { value: key, label: a ? a.value_label : 'Any', rows: [] };
+				order.push(key);
+			}
+			groups[key].rows.push(v);
+		});
+
+		order.forEach(key => {
+			const g = groups[key];
+			$tbody.append(buildGroupHeader(parent.id, attrLabel, g));
+			g.rows.forEach(v => {
+				const $vr = buildRow(v);
+				$vr.attr('data-parent-id', parent.id).attr('data-group-value', key);
+				$tbody.append($vr);
+			});
+		});
+	}
+
+	// A collapsible group header with an image cell that fills the whole group.
+	function buildGroupHeader(parentId, attrLabel, g) {
+		const $tr = $('<tr>')
+			.addClass('wbe-row-group')
+			.attr({ 'data-parent-id': parentId, 'data-group-value': g.value });
+
+		$tr.append('<td class="wbe-col-check"></td>');
+
+		// Group image: show the shared image if every member already matches.
+		const ids     = g.rows.map(r => String(r.image_id || ''));
+		const allSame = ids.length > 0 && ids.every(x => x === ids[0] && x !== '');
+		const thumb   = allSame ? (g.rows[0].image_thumb || '') : '';
+		const $imgTd  = buildImageCell(parentId, '', thumb, 'image', 'image');
+		$imgTd.find('.wbe-img-wrap')
+			.addClass('is-group')
+			.attr({ 'data-parent-id': parentId, 'data-group-value': g.value })
+			.attr('title', 'Set the image for all ' + g.rows.length + ' variations in this group');
+		$tr.append($imgTd);
+
+		// Lifestyle column placeholder (keeps column alignment / respects its toggle).
+		$tr.append('<td class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"></td>');
+
+		// Optional "set Fabric Group for the whole group" control. Built from the
+		// members' fabric_group_options (same for every variation of a product);
+		// only shown when the product actually defines groups beyond Default.
+		let fgControl = '';
+		const fgOptions = (g.rows[0] && g.rows[0].fabric_group_options) || [];
+		if (Array.isArray(fgOptions) && fgOptions.length > 1) {
+			// Preselect the group's current value when every member already shares one.
+			const fgVals   = g.rows.map(r => String(r.fabric_group || ''));
+			const fgCommon = fgVals.every(v => v === fgVals[0]) ? fgVals[0] : '';
+			fgControl = '<span class="wbe-group-fg"><label>Fabric Group for all:</label> <select class="wbe-group-fg-select">';
+			fgOptions.forEach(o => {
+				const sel = String(o.value) === fgCommon ? ' selected' : '';
+				fgControl += '<option value="' + esc(o.value) + '"' + sel + '>' + esc(o.label) + '</option>';
+			});
+			fgControl += '</select></span>';
+		}
+
+		// Label spans the remaining 14 columns.
+		const caret = '<span class="wbe-group-caret dashicons dashicons-arrow-down-alt2"></span>';
+		$tr.append(
+			'<td class="wbe-col-grouphdr" colspan="16">' + caret +
+			'<strong>' + esc(attrLabel) + ': ' + esc(g.label) + '</strong> ' +
+			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span>' +
+			fgControl + '</td>'
+		);
+
+		return $tr;
+	}
+
+	// Populate the "Group variations by" dropdown from the loaded variation
+	// attributes, preserving the current choice when it's still available.
+	function populateGroupBy(rows) {
+		const $gb = $('#wbe-groupby');
+		if (!$gb.length) return;
+		const seen = {};
+		const opts = [];
+		rows.forEach(r => {
+			if (r.type !== 'variation') return;
+			(r.attributes || []).forEach(a => {
+				if (!seen[a.name]) { seen[a.name] = true; opts.push({ name: a.name, label: a.label }); }
+			});
+		});
+		const cur = $gb.val();
+		$gb.find('option:not(:first-child)').remove();
+		opts.forEach(o => $gb.append($('<option>').val(o.name).text(o.label)));
+		$gb.val(cur && seen[cur] ? cur : '');
 	}
 
 	function renderPagination(page, totalPages, total) {
@@ -727,6 +1039,180 @@
 		updateToolbar();
 		loadProducts(1);
 	});
+
+	// -------------------------------------------------------------------------
+	// Bulk edit: set one field's value across every loaded row at once. Reuses
+	// the existing per-cell change tracking by triggering the same events, so the
+	// changes flow through the normal Save / Discard machinery.
+	// -------------------------------------------------------------------------
+	var BULK_VALUES = {
+		stock_status:  { type: 'select', options: [ [ 'instock', 'In stock' ], [ 'outofstock', 'Out of stock' ], [ 'onbackorder', 'On backorder' ] ] },
+		status:        { type: 'select', options: [ [ 'publish', 'Published' ], [ 'draft', 'Draft' ], [ 'private', 'Private' ], [ 'pending', 'Pending review' ] ] },
+		acvs_show:     { type: 'select', options: [ [ 'yes', 'Yes' ], [ 'no', 'No' ] ] },
+		stock_qty:     { type: 'number' },
+		regular_price: { type: 'number' },
+		sale_price:    { type: 'number' },
+		price_eur:        { type: 'number' },
+		sale_price_eur:   { type: 'number' },
+		price_usd:        { type: 'number' },
+		sale_price_usd:   { type: 'number' },
+		acvs_fabric_group: { type: 'text', placeholder: 'Fabric group key (e.g. outdoor)' },
+		acvs_catalog_order: { type: 'number' },
+		acvs_card_title:    { type: 'text', placeholder: 'Card title' },
+	};
+
+	function renderBulkValue() {
+		var def   = BULK_VALUES[ $( '#wbe-bulk-field' ).val() ] || { type: 'number' };
+		var $wrap = $( '#wbe-bulk-value' );
+		if ( def.type === 'select' ) {
+			var html = '<select class="wbe-input" id="wbe-bulk-value-input">';
+			def.options.forEach( function ( o ) { html += '<option value="' + o[ 0 ] + '">' + o[ 1 ] + '</option>'; } );
+			$wrap.html( html + '</select>' );
+		} else if ( def.type === 'text' ) {
+			$wrap.html( '<input type="text" class="wbe-input" id="wbe-bulk-value-input" placeholder="' + ( def.placeholder || 'Value' ) + '" />' );
+		} else {
+			$wrap.html( '<input type="number" step="0.01" class="wbe-input" id="wbe-bulk-value-input" placeholder="Value" />' );
+		}
+	}
+
+	$( '#wbe-bulk-field' ).on( 'change', renderBulkValue );
+	renderBulkValue();
+
+	// Row selection (ported from the select-all branch): a checkbox column with a
+	// header select-all and parent-row checkboxes that toggle their children.
+	var $selectAll = $( '#wbe-select-all' );
+
+	function updateSelectionUI() {
+		var $all = $tbody.find( '.wbe-row-check' );
+		var n    = $tbody.find( '.wbe-row-check:checked' ).length;
+		$selectAll.prop( 'indeterminate', n > 0 && n < $all.length );
+		$selectAll.prop( 'checked', n > 0 && n === $all.length );
+		if ( n > 0 ) {
+			$( '#wbe-bulk-selcount' ).text( n + ' selected' ).show();
+			$( '#wbe-bulk-clear' ).show();
+			$( '#wbe-bulk-apply' ).text( 'Apply to ' + n + ' selected' );
+		} else {
+			$( '#wbe-bulk-selcount' ).hide();
+			$( '#wbe-bulk-clear' ).hide();
+			$( '#wbe-bulk-apply' ).text( 'Apply to all rows' );
+		}
+	}
+
+	$selectAll.on( 'change', function () {
+		$tbody.find( '.wbe-row-check, .wbe-parent-check' ).prop( 'checked', this.checked );
+		updateSelectionUI();
+	} );
+
+	$tbody.on( 'change', '.wbe-parent-check', function () {
+		var pid = $( this ).data( 'parent-id' );
+		$tbody.find( '.wbe-row-check[data-parent-id="' + pid + '"]' ).prop( 'checked', this.checked );
+		updateSelectionUI();
+	} );
+
+	$tbody.on( 'change', '.wbe-row-check', function () {
+		var pid = $( this ).data( 'parent-id' );
+		if ( pid ) {
+			var $sib = $tbody.find( '.wbe-row-check[data-parent-id="' + pid + '"]' );
+			$tbody.find( '.wbe-parent-check[data-parent-id="' + pid + '"]' )
+				.prop( 'checked', $sib.length === $sib.filter( ':checked' ).length );
+		}
+		updateSelectionUI();
+	} );
+
+	$( '#wbe-bulk-clear' ).on( 'click', function () {
+		$tbody.find( '.wbe-row-check, .wbe-parent-check' ).prop( 'checked', false );
+		$selectAll.prop( 'checked', false ).prop( 'indeterminate', false );
+		updateSelectionUI();
+	} );
+
+	$( '#wbe-bulk-apply' ).on( 'click', function () {
+		var field = $( '#wbe-bulk-field' ).val();
+		var value = $( '#wbe-bulk-value-input' ).val();
+		if ( value === null || typeof value === 'undefined' ) { return; }
+
+		// Target the selected rows if any are ticked; otherwise every loaded row.
+		var $checked = $tbody.find( '.wbe-row-check:checked' );
+		var $rows = $checked.length
+			? $checked.closest( 'tr' )
+			: $( '#wbe-tbody tr' ).not( '.wbe-row-parent' ).not( '.wbe-placeholder' );
+		if ( ! $rows.length ) { showStatus( 'No rows to apply to. Load products first.', 'error' ); return; }
+
+		var applied = 0;
+		$rows.each( function () {
+			var $row = $( this );
+
+			var $sel = $row.find( '.wbe-cell-select[data-field="' + field + '"]' );
+			if ( $sel.length ) { $sel.val( value ).trigger( 'change' ); applied++; return; }
+
+			var $cb = $row.find( '.wbe-cell-check[data-field="' + field + '"]' );
+			if ( $cb.length ) { $cb.prop( 'checked', value === 'yes' ).trigger( 'change' ); applied++; return; }
+
+			var $cell = $row.find( '.wbe-cell[data-field="' + field + '"]' );
+			if ( $cell.length ) {
+				var v = value;
+				if ( $cell.data( 'type' ) === 'number' && v !== '' ) {
+					var n = parseFloat( v );
+					v = isNaN( n ) ? v : ( field.indexOf( 'price' ) !== -1 ? n.toFixed( 2 ) : String( n ) );
+				}
+				$cell.text( v ).trigger( 'blur' );
+				applied++;
+			}
+		} );
+
+		showStatus( 'Applied to ' + applied + ' row' + ( applied !== 1 ? 's' : '' ) + '. Review, then Save All Changes.', 'info' );
+	} );
+
+	// -------------------------------------------------------------------------
+	// Export / Import CSV
+	// -------------------------------------------------------------------------
+	$( '#wbe-export' ).on( 'click', function () {
+		var params = $.param( {
+			action:   'octwbe_export',
+			_wpnonce: octwbe.exportNonce,
+			search:   $( '#wbe-search' ).val().trim(),
+			category: $( '#wbe-category' ).val(),
+		} );
+		window.location = octwbe.exportUrl + '?' + params;
+	} );
+
+	$( '#wbe-import-file' ).on( 'change', function () {
+		var file = this.files && this.files[ 0 ];
+		var $input = $( this );
+		if ( ! file ) { return; }
+
+		var formData = new FormData();
+		formData.append( 'action', 'octwbe_import' );
+		formData.append( 'nonce', octwbe.importNonce );
+		formData.append( 'file', file, file.name );
+
+		showStatus( 'Importing ' + file.name + '…', 'info' );
+
+		$.ajax( {
+			url:         octwbe.ajaxUrl,
+			type:        'POST',
+			data:        formData,
+			processData: false,
+			contentType: false,
+		} ).done( function ( res ) {
+			if ( ! res.success ) {
+				showStatus( res.data || 'Import failed.', 'error' );
+				return;
+			}
+			var d = res.data;
+			var msg = 'Imported: ' + d.updated + ' row' + ( d.updated !== 1 ? 's' : '' ) + ' updated.';
+			if ( d.errors && d.errors.length ) {
+				msg += ' ' + d.errors.length + ' issue' + ( d.errors.length !== 1 ? 's' : '' ) + ': ' + d.errors.slice( 0, 5 ).join( ' | ' );
+			}
+			showStatus( msg, d.errors && d.errors.length ? 'error' : 'success' );
+			state.changes = {};
+			updateToolbar();
+			loadProducts( state.page ); // refresh to show imported values
+		} ).fail( function () {
+			showStatus( 'Import request failed.', 'error' );
+		} ).always( function () {
+			$input.val( '' );
+		} );
+	} );
 
 	// Apply saved column visibility (Showcase columns hidden by default), then load.
 	applyColPrefs();

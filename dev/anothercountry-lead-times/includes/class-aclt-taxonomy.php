@@ -62,6 +62,7 @@ class ACLT_Taxonomy {
 	public static function meta_keys(): array {
 		return [
 			'enabled',
+			'label',
 			'base',
 			'oos',
 			'note',
@@ -93,6 +94,11 @@ class ACLT_Taxonomy {
 		wp_nonce_field( 'aclt_term', 'aclt_term_nonce' );
 		?>
 		<div class="form-field">
+			<label for="aclt_label"><?php esc_html_e( 'Status label', 'anothercountry-lead-times' ); ?></label>
+			<input type="text" name="aclt_label" id="aclt_label" value="" placeholder="<?php esc_attr_e( 'e.g. Made to Order, Available, Ships from stock', 'anothercountry-lead-times' ); ?>" />
+			<p><?php esc_html_e( 'The words before the lead time, e.g. “Available in 6 weeks”. Blank uses the global default. Use this for stock suppliers that aren’t made to order.', 'anothercountry-lead-times' ); ?></p>
+		</div>
+		<div class="form-field">
 			<label for="aclt_base"><?php esc_html_e( 'Base lead time', 'anothercountry-lead-times' ); ?></label>
 			<input type="text" name="aclt_base" id="aclt_base" value="" placeholder="e.g. 9&ndash;12 weeks" />
 			<p><?php esc_html_e( 'Shown on every product attached to this supplier.', 'anothercountry-lead-times' ); ?></p>
@@ -117,6 +123,13 @@ class ACLT_Taxonomy {
 		<tr class="form-field">
 			<th scope="row"><label for="aclt_enabled"><?php esc_html_e( 'Show lead-time notice', 'anothercountry-lead-times' ); ?></label></th>
 			<td><input type="checkbox" name="aclt_enabled" id="aclt_enabled" value="1" <?php checked( $d['enabled'], 1 ); ?> /></td>
+		</tr>
+		<tr class="form-field">
+			<th scope="row"><label for="aclt_label"><?php esc_html_e( 'Status label', 'anothercountry-lead-times' ); ?></label></th>
+			<td>
+				<input type="text" name="aclt_label" id="aclt_label" value="<?php echo esc_attr( $d['label'] ); ?>" placeholder="<?php esc_attr_e( 'e.g. Made to Order, Available, Ships from stock', 'anothercountry-lead-times' ); ?>" />
+				<p class="description"><?php esc_html_e( 'The words before the lead time, e.g. “Available in 6 weeks”. Blank uses the global default (“Made to Order”). Use this for stock suppliers that aren’t made to order.', 'anothercountry-lead-times' ); ?></p>
+			</td>
 		</tr>
 		<tr class="form-field">
 			<th scope="row"><label for="aclt_base"><?php esc_html_e( 'Base lead time', 'anothercountry-lead-times' ); ?></label></th>
@@ -174,6 +187,9 @@ class ACLT_Taxonomy {
 		}
 
 		// On the "add" screen the checkboxes aren't rendered, so only update keys present.
+		if ( isset( $_POST['aclt_label'] ) ) {
+			update_term_meta( $term_id, 'aclt_label', sanitize_text_field( wp_unslash( $_POST['aclt_label'] ) ) );
+		}
 		if ( isset( $_POST['aclt_base'] ) ) {
 			update_term_meta( $term_id, 'aclt_base', sanitize_text_field( wp_unslash( $_POST['aclt_base'] ) ) );
 		}

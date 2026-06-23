@@ -119,6 +119,81 @@
 	margin-right: 3px;
 }
 
+/* Selection checkbox column */
+.wbe-col-check {
+	width: 34px;
+	min-width: 34px;
+	text-align: center;
+	padding: 0 6px !important;
+}
+
+.wbe-col-check input {
+	margin: 0;
+	cursor: pointer;
+}
+
+.wbe-bulk-selcount {
+	font-size: 12px;
+	font-weight: 600;
+	color: #7f54b3;
+}
+
+/* Bulk edit bar */
+.wbe-bulkedit {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+	background: #f3effe;
+	border: 1px solid #e0d8f5;
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	font-size: 13px;
+}
+
+.wbe-bulkedit .wbe-input {
+	height: 30px;
+	min-width: 0;
+	margin: 0;
+}
+
+.wbe-bulkedit #wbe-bulk-field {
+	min-width: 150px;
+}
+
+.wbe-bulkedit #wbe-bulk-value-input {
+	min-width: 150px;
+}
+
+.wbe-bulkedit-hint {
+	color: #777;
+	font-size: 12px;
+}
+
+.wbe-ie {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	margin-left: auto;
+	padding-left: 12px;
+	border-left: 1px solid #d9cef0;
+}
+
+.wbe-import-label {
+	position: relative;
+	overflow: hidden;
+	cursor: pointer;
+}
+
+.wbe-import-label input[type="file"] {
+	position: absolute;
+	inset: 0;
+	opacity: 0;
+	cursor: pointer;
+	font-size: 0;
+}
+
 /* Table wrapper – horizontal scroll */
 .wbe-table-wrapper {
 	overflow-x: auto;
@@ -131,7 +206,10 @@
 	border-collapse: collapse;
 	width: 100%;
 	font-size: 13px;
-	table-layout: fixed;
+	/* auto layout: columns size to their content, so hiding columns reclaims the
+	   freed space and the table expands to fill the width — keeping each variation
+	   row on a single line. */
+	table-layout: auto;
 }
 
 .wbe-table thead th {
@@ -189,6 +267,7 @@
 .wbe-table td.wbe-col-name {
 	padding: 8px 12px;
 	min-width: 200px;
+	white-space: nowrap;
 }
 
 .wbe-table td.wbe-col-actions {
@@ -382,6 +461,111 @@
 
 /* Variant Showcase: lifestyle image column gets a subtle tint to set it apart */
 .wbe-col-lifestyle {
+	background: rgba(127, 84, 179, 0.035);
+}
+
+/* Group-by bar */
+.wbe-groupby-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	font-size: 13px;
+}
+
+.wbe-groupby-bar .wbe-input {
+	height: 30px;
+	min-width: 180px;
+}
+
+/* Variation group header row */
+.wbe-table tr.wbe-row-group {
+	background: #efeafc !important;
+	border-top: 2px solid #d8cef3;
+}
+
+.wbe-table tr.wbe-row-group:hover {
+	background: #e8e0fb !important;
+}
+
+.wbe-table td.wbe-col-grouphdr {
+	padding: 8px 12px;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	color: #4a3a78;
+}
+
+.wbe-group-caret {
+	font-size: 16px;
+	line-height: 1;
+	vertical-align: middle;
+	margin-right: 4px;
+	transition: transform 0.12s;
+}
+
+.wbe-table tr.wbe-row-group.is-collapsed .wbe-group-caret {
+	transform: rotate(-90deg);
+}
+
+.wbe-group-count {
+	color: #7a6aa8;
+	font-weight: 400;
+	font-size: 12px;
+	margin-left: 4px;
+}
+
+/* "Set Fabric Group for the whole group" control, right-aligned in the bar */
+.wbe-group-fg {
+	float: right;
+	font-weight: 400;
+	color: #4a3a78;
+	cursor: default;
+}
+
+.wbe-group-fg label {
+	font-size: 12px;
+	margin-right: 4px;
+}
+
+.wbe-group-fg-select {
+	height: 26px;
+	border-radius: 4px;
+	border: 1px solid #b9a8e8;
+	background: #fff;
+	font-size: 12px;
+	padding: 0 6px;
+	cursor: pointer;
+}
+
+/* Group header image wrap: dashed accent so it reads as a "fill the group" action */
+.wbe-img-wrap.is-group {
+	box-shadow: 0 0 0 1px #b9a8e8;
+}
+
+.wbe-img-wrap.is-group:hover {
+	box-shadow: 0 0 0 2px #7f54b3;
+}
+
+/* Fabric Group column (per-variation drawer category) */
+.wbe-col-fabricgroup {
+	min-width: 150px;
+	background: rgba(127, 84, 179, 0.035);
+}
+
+/* Catalogue card title + order columns (Variant Showcase) */
+.wbe-col-cardtitle {
+	min-width: 180px;
+	background: rgba(127, 84, 179, 0.035);
+}
+
+.wbe-col-order {
+	min-width: 90px;
 	background: rgba(127, 84, 179, 0.035);
 }
 

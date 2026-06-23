@@ -15,7 +15,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'ACVS_VERSION', '1.0.5' );
+define( 'ACVS_VERSION', '1.1.0' );
 define( 'ACVS_PATH', plugin_dir_path( __FILE__ ) );
 define( 'ACVS_URL', plugin_dir_url( __FILE__ ) );
 define( 'ACVS_BASENAME', plugin_basename( __FILE__ ) );
@@ -25,6 +25,8 @@ define( 'ACVS_META_MODE', '_acvs_mode' );             // Product-level catalog m
 define( 'ACVS_META_SINGLE', '_acvs_single_variation' ); // Product-level: variation ID to feature (single mode).
 define( 'ACVS_META_SHOW', '_acvs_show_in_catalog' );  // Variation-level: 'yes' to expose as its own card.
 define( 'ACVS_META_LIFESTYLE', '_acvs_lifestyle_image_id' ); // Product- or variation-level lifestyle image ID.
+define( 'ACVS_META_CARD_TITLE', '_acvs_card_title' );    // Product- or variation-level: custom catalogue card title.
+define( 'ACVS_META_CATALOG_ORDER', '_acvs_catalog_order' ); // Variation-level: catalogue sort position (lower = earlier).
 
 require_once ACVS_PATH . 'includes/class-acvs-admin.php';
 require_once ACVS_PATH . 'includes/class-acvs-catalog.php';

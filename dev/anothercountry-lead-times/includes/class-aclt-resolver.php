@@ -21,10 +21,18 @@ class ACLT_Resolver {
 
 	/** The lead-time figure, e.g. "8-10 weeks". Never empty (global default). */
 	public static function get_lead_time( int $product_id ): string {
-		// 1. Per-product override.
+		// 1. Per-product (or per-variation) override.
 		$override = trim( (string) get_post_meta( $product_id, '_ac_lead_time', true ) );
 		if ( '' !== $override ) {
 			return $override;
+		}
+
+		// 1b. A variation with no override inherits its parent product.
+		if ( 'product_variation' === get_post_type( $product_id ) ) {
+			$parent = wp_get_post_parent_id( $product_id );
+			if ( $parent ) {
+				return self::get_lead_time( $parent );
+			}
 		}
 
 		// 2. Supplier.
@@ -44,6 +52,30 @@ class ACLT_Resolver {
 		// 3. Global default.
 		$s = aclt_get_settings();
 		return (string) $s['default_lead'];
+	}
+
+	/**
+	 * The status label shown before the lead time (e.g. "Made to Order",
+	 * "Available"). Supplier label wins when set; otherwise the global default.
+	 * A per-product override has no supplier, so it uses the global default.
+	 */
+	public static function get_badge_label( int $product_id ): string {
+		// Variations inherit their parent's supplier/label.
+		if ( 'product_variation' === get_post_type( $product_id ) ) {
+			$parent = wp_get_post_parent_id( $product_id );
+			if ( $parent ) {
+				return self::get_badge_label( $parent );
+			}
+		}
+		$term = self::get_supplier_term( $product_id );
+		if ( $term ) {
+			$d = ACLT_Taxonomy::get_data( $term->term_id );
+			if ( ! empty( $d['enabled'] ) && '' !== trim( (string) $d['label'] ) ) {
+				return trim( (string) $d['label'] );
+			}
+		}
+		$s = aclt_get_settings();
+		return (string) $s['default_label'];
 	}
 
 	/**
@@ -107,6 +139,34 @@ class ACLT_Resolver {
 		}
 		$product = wc_get_product( $product_id );
 		return $product ? ! $product->is_in_stock() : false;
+	}
+
+	/** A human stock-status label: In stock / Made to order / Out of stock. */
+	public static function stock_label( int $product_id ): string {
+		if ( ! function_exists( 'wc_get_product' ) ) {
+			return '';
+		}
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return '';
+		}
+		switch ( $product->get_stock_status() ) {
+			case 'onbackorder':
+				return __( 'Made to order', 'anothercountry-lead-times' );
+			case 'outofstock':
+				return __( 'Out of stock', 'anothercountry-lead-times' );
+			default:
+				return __( 'In stock', 'anothercountry-lead-times' );
+		}
+	}
+
+	/** The original (pre-migration) ACF lead-time message, still in the DB. */
+	public static function old_message( int $product_id ): string {
+		$t = (string) get_post_meta( $product_id, 'lead_time_popup_text', true );
+		if ( '' === trim( $t ) ) {
+			$t = (string) get_option( 'options_lead_time_popup_text', '' );
+		}
+		return $t;
 	}
 
 	/**
