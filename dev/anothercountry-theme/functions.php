@@ -2569,25 +2569,23 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
-		/* Price + made-to-order badge on ONE line. The JS relocates the badge into
-		   the price wrapper (variable: .woocommerce-variation-price; simple: the
-		   price .amount) so they share a flex row; the badge sits 40px to the
-		   right of the price, first lines baseline-aligned. */
-		.single-product .woocommerce-variation-price,
-		.single-product .product_price .woocommerce-Price-amount.amount{
-			display:flex !important;
-			align-items:flex-start !important; /* top-align the badge with the price */
-			flex-wrap:wrap;
+		/* Price + made-to-order badge on ONE line, TOP-aligned. The JS relocates the
+		   badge into .woocommerce-variation-price; we use inline-block + vertical-
+		   align:top (more predictable than flex, and it leaves the multi-amount
+		   price RANGE on the un-selected state untouched). The now-empty
+		   .woocommerce-variation-availability is hidden so it leaves no gap. */
+		.single-product .woocommerce-variation-availability{ display:none !important; }
+		.single-product .woocommerce-variation-price{
+			display:block !important;
+			margin:.1em 0 0 0 !important;
+			padding:0 !important;
 		}
-		/* Force both the price and the badge to the top of the row, in case the
-		   theme pushes the price down with its own align-self / margin. */
-		.single-product .woocommerce-variation-price > *,
-		.single-product .product_price .woocommerce-Price-amount.amount > *{
-			align-self:flex-start !important;
+		.single-product .woocommerce-variation-price > *{
+			display:inline-block !important;
+			vertical-align:top !important;
 			margin-top:0 !important;
 		}
-		.single-product .woocommerce-variation-price > p.stock,
-		.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
+		.single-product .woocommerce-variation-price > p.stock{
 			margin:0 0 0 40px !important;
 		}
 		.single-product p.stock.available-on-backorder,
@@ -2601,13 +2599,10 @@ function ac_lt_inline_assets() {
 		.single-product .woocommerce-variation,
 		.single-product .single_variation,
 		.single-product .woocommerce-variation-description{ margin:0 !important; padding:0 !important; }
-		.single-product .product_price,
-		.single-product .woocommerce-variation-price{ margin:.1em 0 0 0 !important; padding:0 !important; }
-		.single-product .woocommerce-variation-add-to-cart{ margin-top:.6em !important; }
+		.single-product .woocommerce-variation-add-to-cart{ margin-top:.5em !important; }
 		@media (max-width:782px){
-			.single-product .woocommerce-variation-price > p.stock,
-			.single-product .product_price .woocommerce-Price-amount.amount > p.stock{
-				flex-basis:100%;
+			.single-product .woocommerce-variation-price > p.stock{
+				display:block !important;
 				margin:.5em 0 0 0 !important;
 			}
 		}
