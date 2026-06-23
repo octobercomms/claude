@@ -319,7 +319,7 @@
 
 		// Name cell
 		const nameContent = isParent
-			? `<strong>${esc(row.name)}</strong> <span style="color:#999;font-size:11px;font-weight:400">(variable product)</span>`
+			? `<strong>${esc(row.name)}</strong> <span style="color:#999;font-size:11px;font-weight:400">(variable product — edit variations below)</span>`
 			: esc(row.name);
 
 		$tr.append(`<td class="wbe-col-name">${nameContent}</td>`);
@@ -343,9 +343,13 @@
 
 		if (isParent) {
 			// Whole-product cards (a variable product shown as one card) get their
-			// own editable Card Title + Catalog Order so they can be retitled and
-			// positioned in the grid alongside everything else.
-			$tr.append('<td colspan="11" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			// own editable Card Title + Catalog Order. Render the same per-column
+			// cells as every other row (empty for the inapplicable fields) so the
+			// columns align and hide/show with the toggles — a single colspan
+			// placeholder here misaligns once columns are hidden.
+			['sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd'].forEach(function (col) {
+				$tr.append('<td class="wbe-col-empty" data-col="' + col + '"></td>');
+			});
 			$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
 			$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
