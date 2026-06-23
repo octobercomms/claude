@@ -35,3 +35,20 @@ group header is just a fast applicator on top.
   featured-image change as editing each cell by hand.
 - Keep the **Image** column visible (it is by default) to use the group image
   cell — hiding the Image column hides the group applicator too.
+
+## v1.7.0 — variation order & upload de-duplication
+
+Two workflow fixes that pair with the image work above:
+
+- **Variations are now sorted alphabetically** by their attribute name within
+  each product (`strnatcasecmp` on "Size: … / Cushion Filling: … / Leg: … /
+  Fabric: …"), so like sits with like — all of a size together, then filling,
+  leg, fabric — instead of WooCommerce's stored menu order. The CSV export uses
+  the same order so the sheet matches the grid.
+- **Drag-drop uploads de-duplicate by filename.** Dragging the same square image
+  onto many variations used to create a new media-library entry each time. The
+  upload endpoint now checks `_wp_attached_file` for an existing attachment with
+  that filename (matching the basename, year/month folders included) and, if
+  found, **attaches the original instead of re-uploading**. The status bar
+  confirms when an image was reused. Same-name-different-image is treated as the
+  same file by design — rename before dropping if you truly need a separate copy.

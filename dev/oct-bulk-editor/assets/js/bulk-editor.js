@@ -181,7 +181,11 @@
 		}).done(function (response) {
 			if (response.success) {
 				deliverImage($wrap, response.data.attachment_id, response.data.thumb_url);
-				hideStatus();
+				if (response.data.reused) {
+					showStatus('Reused existing "' + (response.data.filename || file.name) + '" from the media library — no duplicate uploaded.', 'info');
+				} else {
+					hideStatus();
+				}
 			} else {
 				showStatus(response.data || octwbe.i18n.uploadError, 'error');
 			}

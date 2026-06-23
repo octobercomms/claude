@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, and group-by-attribute image fill; merge products; export/import via CSV.
- * Version:     1.6.0
+ * Version:     1.7.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.6.0' );
+define( 'OCTWBE_VERSION', '1.7.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -150,12 +150,19 @@ class OctBulkEditor {
 				// Parent row (read-only header)
 				$rows[] = $this->format_parent_row( $product );
 
-				// One row per variation
+				// One row per variation, sorted alphabetically by attribute name so
+				// like sits with like (all of a size together, then filling, leg,
+				// fabric) instead of WooCommerce's stored menu order.
+				$vrows = [];
 				foreach ( $product->get_children() as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
 					if ( $variation ) {
-						$rows[] = $this->format_variation_row( $variation, $product );
+						$vrows[] = $this->format_variation_row( $variation, $product );
 					}
+				}
+				usort( $vrows, static fn( $a, $b ) => strnatcasecmp( $a['name'], $b['name'] ) );
+				foreach ( $vrows as $vrow ) {
+					$rows[] = $vrow;
 				}
 			} else {
 				$rows[] = $this->format_simple_row( $product );
@@ -526,8 +533,22 @@ class OctBulkEditor {
 			wp_send_json_error( 'Forbidden', 403 );
 		}
 
-		if ( empty( $_FILES['file'] ) ) {
+		if ( empty( $_FILES['file'] ) || ! isset( $_FILES['file']['name'] ) ) {
 			wp_send_json_error( 'No file received.' );
+		}
+
+		// De-dupe: dragging the same square image onto many variations would
+		// otherwise pile up identical copies in the media library. If an
+		// attachment with this filename already exists, reuse it.
+		$filename = sanitize_file_name( (string) $_FILES['file']['name'] );
+		$existing = $this->find_attachment_by_filename( $filename );
+		if ( $existing ) {
+			wp_send_json_success( [
+				'attachment_id' => $existing,
+				'thumb_url'     => wp_get_attachment_image_url( $existing, [ 50, 50 ] ) ?: '',
+				'reused'        => true,
+				'filename'      => $filename,
+			] );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/image.php';
@@ -545,7 +566,37 @@ class OctBulkEditor {
 		wp_send_json_success( [
 			'attachment_id' => $attachment_id,
 			'thumb_url'     => $thumb ?: '',
+			'reused'        => false,
+			'filename'      => $filename,
 		] );
+	}
+
+	/**
+	 * Find an existing attachment whose stored file matches this filename, so a
+	 * re-dragged image attaches the original instead of creating a duplicate.
+	 * Matches the upload-relative path's basename (handles year/month folders).
+	 */
+	private function find_attachment_by_filename( string $filename ): int {
+		if ( $filename === '' ) {
+			return 0;
+		}
+
+		global $wpdb;
+		$id = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT post_id FROM {$wpdb->postmeta}
+			 WHERE meta_key = '_wp_attached_file'
+			   AND ( meta_value = %s OR meta_value LIKE %s )
+			 ORDER BY post_id ASC
+			 LIMIT 1",
+			$filename,
+			'%/' . $wpdb->esc_like( $filename )
+		) );
+
+		// Confirm the post still exists as an attachment (meta can outlive a delete).
+		if ( $id && get_post_type( $id ) === 'attachment' ) {
+			return $id;
+		}
+		return 0;
 	}
 
 	// -------------------------------------------------------------------------
@@ -593,11 +644,20 @@ class OctBulkEditor {
 				continue;
 			}
 			if ( $product->is_type( 'variable' ) ) {
+				// Match the grid: variations sorted alphabetically by attribute name.
+				$variations = [];
 				foreach ( $product->get_children() as $vid ) {
 					$variation = wc_get_product( $vid );
 					if ( $variation ) {
-						$this->export_row( $out, $variation, $product );
+						$variations[] = $variation;
 					}
+				}
+				usort(
+					$variations,
+					fn( $a, $b ) => strnatcasecmp( $this->variation_attr_label( $a ), $this->variation_attr_label( $b ) )
+				);
+				foreach ( $variations as $variation ) {
+					$this->export_row( $out, $variation, $product );
 				}
 			} else {
 				$this->export_row( $out, $product, null );
@@ -606,6 +666,23 @@ class OctBulkEditor {
 
 		fclose( $out );
 		exit;
+	}
+
+	/** The composite "Attr: Value / …" label used to sort variations like the grid. */
+	private function variation_attr_label( WC_Product_Variation $v ): string {
+		$bits = [];
+		foreach ( $v->get_variation_attributes() as $key => $val ) {
+			$tax = str_replace( 'attribute_', '', $key );
+			$val = (string) $val;
+			if ( $val !== '' && taxonomy_exists( $tax ) ) {
+				$term = get_term_by( 'slug', $val, $tax );
+				if ( $term ) {
+					$val = $term->name;
+				}
+			}
+			$bits[] = wc_attribute_label( $tax ) . ': ' . $val;
+		}
+		return implode( ' / ', $bits );
 	}
 
 	private function export_row( $out, WC_Product $p, ?WC_Product $parent ): void {
