@@ -206,7 +206,10 @@
 	border-collapse: collapse;
 	width: 100%;
 	font-size: 13px;
-	table-layout: fixed;
+	/* auto layout: columns size to their content, so hiding columns reclaims the
+	   freed space and the table expands to fill the width — keeping each variation
+	   row on a single line. */
+	table-layout: auto;
 }
 
 .wbe-table thead th {
@@ -264,6 +267,7 @@
 .wbe-table td.wbe-col-name {
 	padding: 8px 12px;
 	min-width: 200px;
+	white-space: nowrap;
 }
 
 .wbe-table td.wbe-col-actions {
@@ -457,6 +461,12 @@
 
 /* Variant Showcase: lifestyle image column gets a subtle tint to set it apart */
 .wbe-col-lifestyle {
+	background: rgba(127, 84, 179, 0.035);
+}
+
+/* Fabric Group column (per-variation drawer category) */
+.wbe-col-fabricgroup {
+	min-width: 150px;
 	background: rgba(127, 84, 179, 0.035);
 }
 

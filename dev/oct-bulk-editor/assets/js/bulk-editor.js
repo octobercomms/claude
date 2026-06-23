@@ -266,7 +266,7 @@
 		}
 
 		if (isParent) {
-			$tr.append('<td colspan="6" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			$tr.append('<td colspan="11" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
 		}
@@ -299,6 +299,22 @@
 			{ value: 'pending', label: 'Pending review' },
 		];
 		$tr.append(buildSelectCell(row.id, 'status', row.status, statusOptions, 'wbe-col-status'));
+
+		// Fabric Group — per-variation drawer category. Variations get a dropdown
+		// built from the parent product's Fabric Groups; simple products get nothing
+		// (the drawer is a variable-product feature).
+		if (isVariation && Array.isArray(row.fabric_group_options) && row.fabric_group_options.length) {
+			const fgOptions = row.fabric_group_options.map(o => ({ value: o.value, label: o.label }));
+			$tr.append(buildSelectCell(row.id, 'acvs_fabric_group', row.fabric_group || '', fgOptions, 'wbe-col-fabricgroup', 'fabric_group'));
+		} else {
+			$tr.append('<td class="wbe-col-fabricgroup" data-col="fabric_group"></td>');
+		}
+
+		// Aelia multi-currency prices (EUR / USD, regular + sale).
+		$tr.append(buildPriceCell(row.id, 'price_eur', row.price_eur, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'sale_price_eur', row.sale_price_eur, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'price_usd', row.price_usd, 'wbe-col-price'));
+		$tr.append(buildPriceCell(row.id, 'sale_price_usd', row.sale_price_usd, 'wbe-col-price'));
 
 		// Actions
 		$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit in WooCommerce" style="text-decoration:none;color:#555"></a></td>`);
@@ -375,7 +391,7 @@
 	// click away in the Columns row.
 	// -------------------------------------------------------------------------
 	const COL_PREF_KEY      = 'octwbe_columns_v1';
-	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog'];
+	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd'];
 
 	function loadColPrefs() {
 		try { return JSON.parse(localStorage.getItem(COL_PREF_KEY)) || {}; }
@@ -420,7 +436,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="12">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="17">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -456,7 +472,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="12">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="17">No products found.</td></tr>');
 			return;
 		}
 
@@ -751,6 +767,11 @@
 		stock_qty:     { type: 'number' },
 		regular_price: { type: 'number' },
 		sale_price:    { type: 'number' },
+		price_eur:        { type: 'number' },
+		sale_price_eur:   { type: 'number' },
+		price_usd:        { type: 'number' },
+		sale_price_usd:   { type: 'number' },
+		acvs_fabric_group: { type: 'text', placeholder: 'Fabric group key (e.g. outdoor)' },
 	};
 
 	function renderBulkValue() {
@@ -760,6 +781,8 @@
 			var html = '<select class="wbe-input" id="wbe-bulk-value-input">';
 			def.options.forEach( function ( o ) { html += '<option value="' + o[ 0 ] + '">' + o[ 1 ] + '</option>'; } );
 			$wrap.html( html + '</select>' );
+		} else if ( def.type === 'text' ) {
+			$wrap.html( '<input type="text" class="wbe-input" id="wbe-bulk-value-input" placeholder="' + ( def.placeholder || 'Value' ) + '" />' );
 		} else {
 			$wrap.html( '<input type="number" step="0.01" class="wbe-input" id="wbe-bulk-value-input" placeholder="Value" />' );
 		}

@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images and Variant Showcase settings (catalogue display + lifestyle image), merge several products into one variable product, and export/import via CSV.
- * Version:     1.4.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, and EUR/USD (Aelia) prices; merge products; export/import via CSV.
+ * Version:     1.5.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.4.0' );
+define( 'OCTWBE_VERSION', '1.5.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -197,6 +197,54 @@ class OctBulkEditor {
 		];
 	}
 
+	/**
+	 * Per-variation Fabric Drawer group + Aelia per-currency (EUR/USD) prices.
+	 * Fabric group options come from the parent product's Fabric Groups box.
+	 */
+	private function get_extra_data( WC_Product $p, ?WC_Product $parent ): array {
+		$reg  = $p->get_meta( '_regular_currency_prices' );
+		$sale = $p->get_meta( '_sale_currency_prices' );
+		$reg  = is_array( $reg ) ? $reg : [];
+		$sale = is_array( $sale ) ? $sale : [];
+
+		return [
+			'fabric_group'         => (string) $p->get_meta( '_ac_fabric_group_key' ),
+			'fabric_group_options' => $parent instanceof WC_Product ? $this->fabric_group_options( $parent ) : [],
+			'price_eur'            => isset( $reg['EUR'] ) ? $reg['EUR'] : '',
+			'sale_price_eur'       => isset( $sale['EUR'] ) ? $sale['EUR'] : '',
+			'price_usd'            => isset( $reg['USD'] ) ? $reg['USD'] : '',
+			'sale_price_usd'       => isset( $sale['USD'] ) ? $sale['USD'] : '',
+		];
+	}
+
+	/**
+	 * Parse a product's Fabric Groups box into a JS-friendly list of
+	 * [ 'value' => key, 'label' => label ] entries (matches the theme parser).
+	 * Returns a sequential array so it JSON-encodes as a JS array, not an object.
+	 */
+	private function fabric_group_options( WC_Product $parent ): array {
+		$raw     = (string) $parent->get_meta( '_ac_fabric_groups' );
+		$options = [ [ 'value' => '', 'label' => __( 'Default', 'oct-bulk-editor' ) ] ];
+		foreach ( preg_split( '/\r\n|\r|\n/', $raw ) ?: [] as $line ) {
+			$line = trim( $line );
+			if ( $line === '' ) {
+				continue;
+			}
+			$parts = array_map( 'trim', explode( '|', $line ) );
+			$key   = sanitize_title( $parts[0] );
+			if ( $key === '' ) {
+				continue;
+			}
+			$options[] = [
+				'value' => $key,
+				'label' => ( isset( $parts[1] ) && $parts[1] !== '' )
+					? $parts[1]
+					: ucwords( str_replace( '-', ' ', $key ) ),
+			];
+		}
+		return $options;
+	}
+
 	private function format_parent_row( WC_Product $p ): array {
 		return array_merge( [
 			'id'           => $p->get_id(),
@@ -226,7 +274,7 @@ class OctBulkEditor {
 			'stock_status' => $p->get_stock_status(),
 			'status'       => $p->get_status(),
 			'edit_url'     => get_edit_post_link( $p->get_id(), '' ),
-		], $this->get_image_data( (int) $p->get_image_id() ), $this->get_acvs_data( $p ) );
+		], $this->get_image_data( (int) $p->get_image_id() ), $this->get_acvs_data( $p ), $this->get_extra_data( $p, null ) );
 	}
 
 	private function format_variation_row( WC_Product_Variation $v, WC_Product $parent ): array {
@@ -255,7 +303,7 @@ class OctBulkEditor {
 			'stock_status'  => $v->get_stock_status(),
 			'status'        => $v->get_status(),
 			'edit_url'      => get_edit_post_link( $parent->get_id(), '' ),
-		], $this->get_image_data( $image_id ), $this->get_acvs_data( $v ) );
+		], $this->get_image_data( $image_id ), $this->get_acvs_data( $v ), $this->get_extra_data( $v, $parent ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -293,7 +341,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -416,6 +464,35 @@ class OctBulkEditor {
 				}
 				$product->update_meta_data( OCTWBE_ACVS_LIFESTYLE, $attachment_id ?: '' );
 				break;
+
+			case 'acvs_fabric_group':
+				// Per-variation Fabric Drawer group (matches the theme's meta key).
+				$product->update_meta_data( '_ac_fabric_group_key', sanitize_title( $value ) );
+				break;
+
+			case 'price_eur':
+			case 'sale_price_eur':
+			case 'price_usd':
+			case 'sale_price_usd':
+				// Aelia Currency Switcher per-currency prices (serialised arrays).
+				if ( $value !== '' && ! is_numeric( $value ) ) {
+					return new WP_Error( 'invalid', "Invalid currency price for product {$product->get_id()}." );
+				}
+				$is_sale  = strpos( $field, 'sale_' ) === 0;
+				$parts    = explode( '_', $field );
+				$currency = strtoupper( (string) end( $parts ) ); // EUR | USD
+				$meta_key = $is_sale ? '_sale_currency_prices' : '_regular_currency_prices';
+				$prices   = $product->get_meta( $meta_key );
+				if ( ! is_array( $prices ) ) {
+					$prices = [];
+				}
+				if ( $value === '' ) {
+					unset( $prices[ $currency ] );
+				} else {
+					$prices[ $currency ] = $value;
+				}
+				$product->update_meta_data( $meta_key, $prices );
+				break;
 		}
 
 		return true;
@@ -491,7 +568,7 @@ class OctBulkEditor {
 		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id' ] );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd' ] );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
 			$product = wc_get_product( $post->ID );
@@ -526,6 +603,11 @@ class OctBulkEditor {
 			$variation_label = implode( ' / ', $bits );
 		}
 
+		$reg  = $p->get_meta( '_regular_currency_prices' );
+		$sale = $p->get_meta( '_sale_currency_prices' );
+		$reg  = is_array( $reg ) ? $reg : [];
+		$sale = is_array( $sale ) ? $sale : [];
+
 		fputcsv( $out, [
 			$p->get_id(),
 			$is_variation ? 'variation' : 'simple',
@@ -540,6 +622,11 @@ class OctBulkEditor {
 			$p->get_status(),
 			$p->get_meta( OCTWBE_ACVS_SHOW ) === 'yes' ? 'yes' : 'no',
 			(int) $p->get_meta( OCTWBE_ACVS_LIFESTYLE ) ?: '',
+			(string) $p->get_meta( '_ac_fabric_group_key' ),
+			$reg['EUR']  ?? '',
+			$sale['EUR'] ?? '',
+			$reg['USD']  ?? '',
+			$sale['USD'] ?? '',
 		] );
 	}
 
@@ -583,6 +670,11 @@ class OctBulkEditor {
 			'status'             => 'status',
 			'on_category'        => 'acvs_show',
 			'lifestyle_image_id' => 'acvs_lifestyle',
+			'fabric_group'       => 'acvs_fabric_group',
+			'price_eur'          => 'price_eur',
+			'sale_price_eur'     => 'sale_price_eur',
+			'price_usd'          => 'price_usd',
+			'sale_price_usd'     => 'sale_price_usd',
 		];
 
 		$updated = 0;

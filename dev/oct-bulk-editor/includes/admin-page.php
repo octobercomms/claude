@@ -69,6 +69,11 @@
 			'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
 			'stock_status' => __( 'Stock Status', 'oct-bulk-editor' ),
 			'status'       => __( 'Publish Status', 'oct-bulk-editor' ),
+			'fabric_group' => __( 'Fabric Group', 'oct-bulk-editor' ),
+			'price_eur'      => __( 'Regular € (EUR)', 'oct-bulk-editor' ),
+			'sale_price_eur' => __( 'Sale € (EUR)', 'oct-bulk-editor' ),
+			'price_usd'      => __( 'Regular $ (USD)', 'oct-bulk-editor' ),
+			'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
 		];
 		foreach ( $columns as $key => $label ) :
 		?>
@@ -89,6 +94,11 @@
 			<option value="regular_price"><?php esc_html_e( 'Regular Price', 'oct-bulk-editor' ); ?></option>
 			<option value="sale_price"><?php esc_html_e( 'Sale Price', 'oct-bulk-editor' ); ?></option>
 			<option value="acvs_show"><?php esc_html_e( 'On Category Page', 'oct-bulk-editor' ); ?></option>
+			<option value="acvs_fabric_group"><?php esc_html_e( 'Fabric Group', 'oct-bulk-editor' ); ?></option>
+			<option value="price_eur"><?php esc_html_e( 'Regular € (EUR)', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price_eur"><?php esc_html_e( 'Sale € (EUR)', 'oct-bulk-editor' ); ?></option>
+			<option value="price_usd"><?php esc_html_e( 'Regular $ (USD)', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></option>
 		</select>
 		<span id="wbe-bulk-value"></span>
 		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
@@ -122,12 +132,17 @@
 					<th class="wbe-col-stock" data-col="stock_qty"><?php esc_html_e( 'Stock Qty', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-status" data-col="stock_status"><?php esc_html_e( 'Stock Status', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-status" data-col="status"><?php esc_html_e( 'Publish Status', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-fabricgroup" data-col="fabric_group"><?php esc_html_e( 'Fabric Group', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="price_eur"><?php esc_html_e( 'Regular € (EUR)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="sale_price_eur"><?php esc_html_e( 'Sale € (EUR)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="price_usd"><?php esc_html_e( 'Regular $ (USD)', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-price" data-col="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'oct-bulk-editor' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="12">
+					<td colspan="17">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>
