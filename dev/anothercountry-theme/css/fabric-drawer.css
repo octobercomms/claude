@@ -126,19 +126,21 @@ body.single-product #breadcrumbs{margin-bottom:1em !important}
 .product_add_to_cart_button .klarna-outer {
   display: inline-block;
   vertical-align: middle;
+  margin-top: 12px !important; /* sit closer to the Add to Cart button */
 }
 .product_add_to_cart_button .carbon-netural {
   display: inline-flex;
   align-items: center;
   vertical-align: middle;
+  margin-top: 12px !important;
 }
 /* 50px gap only when the B-Corp line actually follows the Klarna box. */
 .product_add_to_cart_button .klarna-outer + .carbon-netural {
   margin-left: 50px;
 }
-/* Enlarge the B-Corp / Carbon Neutral mark so it's recognisable. */
+/* B-Corp / Carbon Neutral mark — legible but compact. */
 .product_add_to_cart_button .carbon-netural img {
-  width: 72px;
+  width: 30px;
   height: auto;
 }
 /* Stack again on narrow screens so they don't overflow. */
