@@ -420,9 +420,15 @@
     $select.hide();
 
     $btns.on("click", ".ac-variation-btn", function () {
+      // Advance to the next step only the first time this one is answered. When
+      // the customer is changing an already-made choice, keep the current
+      // section open so they can keep adjusting it without it collapsing.
+      var wasDone = $item.hasClass("is-done");
       $select.val($(this).data("value")).trigger("change");
       $item.addClass("is-done");
-      openNext($list, $item);
+      if (!wasDone) {
+        openNext($list, $item);
+      }
     });
 
     function sync() {

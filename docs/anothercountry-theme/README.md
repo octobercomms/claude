@@ -58,6 +58,14 @@ and made-to-order badge) and slides the existing Slick gallery to the image whos
 first load. No markup/PHP change — it reuses the theme's existing
 variation→image tagging and the live Slick instance.
 
+### Accordion — keep the section open when changing a choice
+Picking a value in a variation accordion step used to always collapse it and
+auto-advance to the next step. That's right for the **first** time a step is
+answered (initial configuration), but annoying when the customer is **changing**
+an existing choice. The accordion button handler now calls `openNext()` only when
+the step wasn't already answered (`is-done`); changing an existing selection keeps
+the current section open so they can keep adjusting it.
+
 ## Deploy
 
 1. Upload all three files to the live `merchandiser-child` theme (same paths).
