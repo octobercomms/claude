@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, and group-by-attribute image fill; merge products; export/import via CSV.
- * Version:     1.8.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order; merge products; export/import via CSV.
+ * Version:     1.9.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.8.0' );
+define( 'OCTWBE_VERSION', '1.9.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -214,6 +214,11 @@ class OctBulkEditor {
 		$reg  = is_array( $reg ) ? $reg : [];
 		$sale = is_array( $sale ) ? $sale : [];
 
+		// Catalogue order: variations store it in meta; products use menu_order.
+		$catalog_order = $p->is_type( 'variation' )
+			? (string) $p->get_meta( '_acvs_catalog_order' )
+			: ( $p->get_menu_order() ? (string) $p->get_menu_order() : '' );
+
 		return [
 			'fabric_group'         => (string) $p->get_meta( '_ac_fabric_group_key' ),
 			'fabric_group_options' => $parent instanceof WC_Product ? $this->fabric_group_options( $parent ) : [],
@@ -221,6 +226,8 @@ class OctBulkEditor {
 			'sale_price_eur'       => isset( $sale['EUR'] ) ? $sale['EUR'] : '',
 			'price_usd'            => isset( $reg['USD'] ) ? $reg['USD'] : '',
 			'sale_price_usd'       => isset( $sale['USD'] ) ? $sale['USD'] : '',
+			'acvs_card_title'      => (string) $p->get_meta( '_acvs_card_title' ),
+			'acvs_catalog_order'   => $catalog_order,
 		];
 	}
 
@@ -365,7 +372,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -516,6 +523,32 @@ class OctBulkEditor {
 					$prices[ $currency ] = $value;
 				}
 				$product->update_meta_data( $meta_key, $prices );
+				break;
+
+			case 'acvs_card_title':
+				// Custom catalogue card title (Variant Showcase).
+				if ( $value === '' ) {
+					$product->delete_meta_data( '_acvs_card_title' );
+				} else {
+					$product->update_meta_data( '_acvs_card_title', sanitize_text_field( $value ) );
+				}
+				break;
+
+			case 'acvs_catalog_order':
+				// Catalogue sort position (lower = earlier). Variations store it in
+				// meta; products use their menu_order.
+				if ( $value !== '' && ! is_numeric( $value ) ) {
+					return new WP_Error( 'invalid', "Invalid catalog order for product {$product->get_id()}." );
+				}
+				if ( $product->is_type( 'variation' ) ) {
+					if ( $value === '' ) {
+						$product->delete_meta_data( '_acvs_catalog_order' );
+					} else {
+						$product->update_meta_data( '_acvs_catalog_order', (int) $value );
+					}
+				} else {
+					$product->set_menu_order( $value === '' ? 0 : (int) $value );
+				}
 				break;
 		}
 
@@ -668,7 +701,7 @@ class OctBulkEditor {
 		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd' ] );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order' ] );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
 			$product = wc_get_product( $post->ID );
@@ -753,6 +786,8 @@ class OctBulkEditor {
 			$sale['EUR'] ?? '',
 			$reg['USD']  ?? '',
 			$sale['USD'] ?? '',
+			(string) $p->get_meta( '_acvs_card_title' ),
+			$is_variation ? (string) $p->get_meta( '_acvs_catalog_order' ) : ( $p->get_menu_order() ?: '' ),
 		] );
 	}
 
@@ -801,6 +836,8 @@ class OctBulkEditor {
 			'sale_price_eur'     => 'sale_price_eur',
 			'price_usd'          => 'price_usd',
 			'sale_price_usd'     => 'sale_price_usd',
+			'card_title'         => 'acvs_card_title',
+			'catalog_order'      => 'acvs_catalog_order',
 		];
 
 		$updated = 0;

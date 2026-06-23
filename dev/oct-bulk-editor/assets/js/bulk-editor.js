@@ -342,7 +342,7 @@
 		}
 
 		if (isParent) {
-			$tr.append('<td colspan="11" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
+			$tr.append('<td colspan="13" style="color:#aaa;font-size:12px;padding:0 12px">Edit individual variations below</td>');
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
 		}
@@ -391,6 +391,10 @@
 		$tr.append(buildPriceCell(row.id, 'sale_price_eur', row.sale_price_eur, 'wbe-col-price'));
 		$tr.append(buildPriceCell(row.id, 'price_usd', row.price_usd, 'wbe-col-price'));
 		$tr.append(buildPriceCell(row.id, 'sale_price_usd', row.sale_price_usd, 'wbe-col-price'));
+
+		// Variant Showcase: custom catalogue card title + catalogue sort order.
+		$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
+		$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 
 		// Actions
 		$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit in WooCommerce" style="text-decoration:none;color:#555"></a></td>`);
@@ -467,7 +471,7 @@
 	// click away in the Columns row.
 	// -------------------------------------------------------------------------
 	const COL_PREF_KEY      = 'octwbe_columns_v1';
-	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd'];
+	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order'];
 
 	function loadColPrefs() {
 		try { return JSON.parse(localStorage.getItem(COL_PREF_KEY)) || {}; }
@@ -583,7 +587,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="17">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="19">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -621,7 +625,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="17">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="19">No products found.</td></tr>');
 			return;
 		}
 
@@ -734,7 +738,7 @@
 		// Label spans the remaining 14 columns.
 		const caret = '<span class="wbe-group-caret dashicons dashicons-arrow-down-alt2"></span>';
 		$tr.append(
-			'<td class="wbe-col-grouphdr" colspan="14">' + caret +
+			'<td class="wbe-col-grouphdr" colspan="16">' + caret +
 			'<strong>' + esc(attrLabel) + ': ' + esc(g.label) + '</strong> ' +
 			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span>' +
 			fgControl + '</td>'
@@ -1044,6 +1048,8 @@
 		price_usd:        { type: 'number' },
 		sale_price_usd:   { type: 'number' },
 		acvs_fabric_group: { type: 'text', placeholder: 'Fabric group key (e.g. outdoor)' },
+		acvs_catalog_order: { type: 'number' },
+		acvs_card_title:    { type: 'text', placeholder: 'Card title' },
 	};
 
 	function renderBulkValue() {

@@ -558,6 +558,17 @@
 	background: rgba(127, 84, 179, 0.035);
 }
 
+/* Catalogue card title + order columns (Variant Showcase) */
+.wbe-col-cardtitle {
+	min-width: 180px;
+	background: rgba(127, 84, 179, 0.035);
+}
+
+.wbe-col-order {
+	min-width: 90px;
+	background: rgba(127, 84, 179, 0.035);
+}
+
 /* Price currency prefix */
 .wbe-col-price {
 	min-width: 120px;

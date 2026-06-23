@@ -105,7 +105,61 @@ class ACVS_Catalog {
 			}
 		}
 
+		// Apply the curated catalogue order — but only for the default view. If a
+		// shopper has explicitly chosen a sort (price, popularity, …) respect it.
+		$chosen = isset( $_GET['orderby'] ) ? sanitize_text_field( wp_unslash( $_GET['orderby'] ) ) : '';
+		if ( $chosen === '' || strpos( $chosen, 'menu_order' ) === 0 ) {
+			$expanded = $this->sort_by_catalog_order( $expanded );
+		}
+
 		return $expanded;
+	}
+
+	/**
+	 * Stable-sort the expanded loop by catalogue order so individual variation
+	 * cards can be interleaved with other products. Effective order is:
+	 *   - product card        → its menu_order
+	 *   - variation card      → its _acvs_catalog_order meta, or (unset) the
+	 *                           parent product's menu_order so it stays put.
+	 * Ties keep WooCommerce's original order (lower number shows first).
+	 *
+	 * @param WP_Post[] $posts
+	 * @return WP_Post[]
+	 */
+	private function sort_by_catalog_order( array $posts ): array {
+		$indexed      = [];
+		$parent_cache = [];
+		$seq          = 0;
+
+		foreach ( $posts as $post ) {
+			$order = 0;
+
+			if ( isset( $post->post_type ) && $post->post_type === 'product_variation' ) {
+				$meta = get_post_meta( $post->ID, ACVS_META_CATALOG_ORDER, true );
+				if ( $meta !== '' && is_numeric( $meta ) ) {
+					$order = (int) $meta;
+				} else {
+					$pid = (int) ( $post->post_parent ?? 0 );
+					if ( ! array_key_exists( $pid, $parent_cache ) ) {
+						$parent_post          = $pid ? get_post( $pid ) : null;
+						$parent_cache[ $pid ] = $parent_post ? (int) $parent_post->menu_order : 0;
+					}
+					$order = $parent_cache[ $pid ];
+				}
+			} else {
+				$order = isset( $post->menu_order ) ? (int) $post->menu_order : 0;
+			}
+
+			$indexed[] = [ 'post' => $post, 'order' => $order, 'seq' => $seq++ ];
+		}
+
+		usort( $indexed, static function ( $a, $b ) {
+			return $a['order'] === $b['order']
+				? $a['seq'] <=> $b['seq']
+				: $a['order'] <=> $b['order'];
+		} );
+
+		return array_map( static fn( $row ) => $row['post'], $indexed );
 	}
 
 	/** Should this query be treated as a shop/category product loop? */
@@ -219,11 +273,27 @@ class ACVS_Catalog {
 	 * product name (e.g. "Series 1 Sofa – 3 Seater") for the loop card heading.
 	 */
 	public function variation_loop_title( $title, $id = 0 ) {
-		if ( ! $this->is_in_catalog_loop() || ! $id || get_post_type( $id ) !== 'product_variation' ) {
+		if ( ! $this->is_in_catalog_loop() || ! $id ) {
 			return $title;
 		}
-		$variation = wc_get_product( $id );
-		return $variation ? $variation->get_name() : $title;
+		$type = get_post_type( $id );
+		if ( $type !== 'product_variation' && $type !== 'product' ) {
+			return $title;
+		}
+		$product = wc_get_product( $id );
+		if ( ! $product instanceof WC_Product ) {
+			return $title;
+		}
+		// A custom catalogue card title wins, for products and variation cards alike.
+		$custom = trim( (string) $product->get_meta( ACVS_META_CARD_TITLE ) );
+		if ( $custom !== '' ) {
+			return $custom;
+		}
+		// Variation posts carry no useful post_title — use the WooCommerce product name.
+		if ( $type === 'product_variation' ) {
+			return $product->get_name();
+		}
+		return $title;
 	}
 
 	/* ---------------------------------------------------------------------
