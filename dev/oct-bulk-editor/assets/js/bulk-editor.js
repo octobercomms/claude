@@ -527,6 +527,25 @@
 		});
 	});
 
+	// Clicking the group's Fabric Group control must not toggle the collapse.
+	$tbody.on('click', '.wbe-group-fg', function (e) { e.stopPropagation(); });
+
+	// Apply a Fabric Group to every variation in the group at once.
+	$tbody.on('change', '.wbe-group-fg-select', function () {
+		const $hdr  = $(this).closest('tr');
+		const pid   = String($hdr.data('parent-id'));
+		const gval  = String($hdr.data('group-value'));
+		const value = $(this).val();
+		let n = 0;
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) !== pid || String($row.data('group-value')) !== gval) return;
+			const $sel = $row.find('.wbe-cell-select[data-field="acvs_fabric_group"]');
+			if ($sel.length) { $sel.val(value).trigger('change'); n++; }
+		});
+		showStatus('Set Fabric Group on ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
+	});
+
 	// After a re-render (e.g. toggling grouping), re-paint any unsaved edits onto
 	// the fresh cells so the dirty state survives the re-render.
 	function reapplyChanges() {
@@ -695,12 +714,30 @@
 		// Lifestyle column placeholder (keeps column alignment / respects its toggle).
 		$tr.append('<td class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"></td>');
 
+		// Optional "set Fabric Group for the whole group" control. Built from the
+		// members' fabric_group_options (same for every variation of a product);
+		// only shown when the product actually defines groups beyond Default.
+		let fgControl = '';
+		const fgOptions = (g.rows[0] && g.rows[0].fabric_group_options) || [];
+		if (Array.isArray(fgOptions) && fgOptions.length > 1) {
+			// Preselect the group's current value when every member already shares one.
+			const fgVals   = g.rows.map(r => String(r.fabric_group || ''));
+			const fgCommon = fgVals.every(v => v === fgVals[0]) ? fgVals[0] : '';
+			fgControl = '<span class="wbe-group-fg"><label>Fabric Group for all:</label> <select class="wbe-group-fg-select">';
+			fgOptions.forEach(o => {
+				const sel = String(o.value) === fgCommon ? ' selected' : '';
+				fgControl += '<option value="' + esc(o.value) + '"' + sel + '>' + esc(o.label) + '</option>';
+			});
+			fgControl += '</select></span>';
+		}
+
 		// Label spans the remaining 14 columns.
 		const caret = '<span class="wbe-group-caret dashicons dashicons-arrow-down-alt2"></span>';
 		$tr.append(
 			'<td class="wbe-col-grouphdr" colspan="14">' + caret +
 			'<strong>' + esc(attrLabel) + ': ' + esc(g.label) + '</strong> ' +
-			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span></td>'
+			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span>' +
+			fgControl + '</td>'
 		);
 
 		return $tr;

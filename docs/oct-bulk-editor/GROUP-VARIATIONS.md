@@ -17,6 +17,12 @@ image once for the whole group.
    it and it's applied to **every variation in that group** at once — flowing
    through the normal change tracking, so nothing is written until you hit
    **Save All Changes**.
+4. The group header also carries a **"Fabric Group for all" dropdown** (when the
+   product defines fabric groups). Pick a value and it stamps that Fabric Group
+   onto every variation in the group in one go — e.g. group by Fabric, then mark
+   all of "Dusty Pink" as the **Linen** drawer group. It preselects the group's
+   current value when the members already share one, and (like the image fill)
+   only writes on **Save All Changes**.
 
 The individual variation image cells are still there and still editable — the
 group header is just a fast applicator on top.

@@ -520,6 +520,29 @@
 	margin-left: 4px;
 }
 
+/* "Set Fabric Group for the whole group" control, right-aligned in the bar */
+.wbe-group-fg {
+	float: right;
+	font-weight: 400;
+	color: #4a3a78;
+	cursor: default;
+}
+
+.wbe-group-fg label {
+	font-size: 12px;
+	margin-right: 4px;
+}
+
+.wbe-group-fg-select {
+	height: 26px;
+	border-radius: 4px;
+	border: 1px solid #b9a8e8;
+	background: #fff;
+	font-size: 12px;
+	padding: 0 6px;
+	cursor: pointer;
+}
+
 /* Group header image wrap: dashed accent so it reads as a "fill the group" action */
 .wbe-img-wrap.is-group {
 	box-shadow: 0 0 0 1px #b9a8e8;
