@@ -2569,42 +2569,35 @@ function ac_lt_inline_assets() {
 			text-decoration:none !important;
 			color:inherit !important;
 		}
-		/* Price + made-to-order badge on ONE line, TOP-aligned. The JS relocates the
-		   badge into .woocommerce-variation-price; we use inline-block + vertical-
-		   align:top (more predictable than flex, and it leaves the multi-amount
-		   price RANGE on the un-selected state untouched). The now-empty
-		   .woocommerce-variation-availability is hidden so it leaves no gap. */
-		.single-product .woocommerce-variation-availability{ display:none !important; }
-		.single-product .woocommerce-variation-price{
-			display:block !important;
-			margin:.1em 0 0 0 !important;
-			padding:0 !important;
+		/* This theme renders the made-to-order badge (p.stock.available-on-backorder)
+		   INSIDE the price amount, as a sibling of the price number <bdi>. Flex that
+		   amount so the price and badge sit on one line, TOP-aligned, badge 40px to
+		   the right. Scoped to .woocommerce-variation-price so the first-load price
+		   RANGE (in .product_price) is untouched. */
+		.single-product .woocommerce-variation-price .woocommerce-Price-amount.amount{
+			display:inline-flex !important;
+			align-items:flex-start !important;
+			flex-wrap:wrap;
 		}
-		.single-product .woocommerce-variation-price > *{
-			display:inline-block !important;
-			vertical-align:top !important;
-			margin-top:0 !important;
-		}
-		.single-product .woocommerce-variation-price > p.stock{
+		.single-product .woocommerce-variation-price p.stock.available-on-backorder{
 			margin:0 0 0 40px !important;
-		}
-		.single-product p.stock.available-on-backorder,
-		.single-product p.stock.in-stock{
+			padding:0 !important;
 			font-size:16px;
 			line-height:1.4;
 		}
-		/* Tighten the vertical space above and below the price / made-to-order line. */
+		.single-product p.stock.available-on-backorder{ color:inherit; }
+		/* Remove the empty availability block + collapse the space around the price. */
+		.single-product .woocommerce-variation-availability{ display:none !important; }
 		.single-product .ac-fabric-swatch-ui{ margin-bottom:.4rem !important; }
 		.single-product .single_variation_wrap,
-		.single-product .woocommerce-variation,
-		.single-product .single_variation,
-		.single-product .woocommerce-variation-description{ margin:0 !important; padding:0 !important; }
-		.single-product .woocommerce-variation-add-to-cart{ margin-top:.5em !important; }
+		.single-product .woocommerce-variation.single_variation,
+		.single-product .woocommerce-variation-description,
+		.single-product .woocommerce-variation-price .price{ margin:0 !important; padding:0 !important; }
+		.single-product .woocommerce-variation-price{ margin:.1em 0 0 0 !important; padding:0 !important; }
+		.single-product .woocommerce-variation-add-to-cart{ margin-top:.6em !important; padding-top:0 !important; }
 		@media (max-width:782px){
-			.single-product .woocommerce-variation-price > p.stock{
-				display:block !important;
-				margin:.5em 0 0 0 !important;
-			}
+			.single-product .woocommerce-variation-price .woocommerce-Price-amount.amount{ display:block !important; }
+			.single-product .woocommerce-variation-price p.stock.available-on-backorder{ margin:.5em 0 0 0 !important; }
 		}
 	</style>
 	<script>
@@ -2615,53 +2608,27 @@ function ac_lt_inline_assets() {
 
 		function esc(t){ return $('<div>').text(t).html(); }
 
-		function relocateSimpleStock(){
-			var $amount = $scope.find('.product_price .woocommerce-Price-amount.amount').first();
-			if (!$amount.length || $amount.find('p.stock').length) { return; }
-			var $stock = $scope.find('.product_add_to_cart_button > p.stock').first();
-			if ($stock.length) { $amount.append($stock); }
-		}
-
-		// Variable products: move the availability badge into the price wrapper so
-		// it sits on the same line as the price (re-runs on each variation change,
-		// since WooCommerce re-renders the price/availability blocks).
-		function relocateVariableStock(){
-			var $wrap = $scope.find('.woocommerce-variation-price').first();
-			if (!$wrap.length || $wrap.find('p.stock').length) { return; }
-			var $stock = $scope.find('.woocommerce-variation-availability p.stock').first();
-			if ($stock.length) { $wrap.append($stock); }
-		}
-
-		function resolveOxymoron(){
-			var $bo = $scope.find('p.available-on-backorder:visible');
-			var $is = $scope.find('p.stock.in-stock:visible');
-			if ($bo.length && $is.length) { $is.hide(); }
-		}
-
+		// This theme renders the badge (p.stock.available-on-backorder) inside the
+		// price amount. We only need to set its wording and keep it visible — CSS
+		// lays it out beside the price. No relocation needed.
 		function applyInline(lead, label){
 			lead  = lead  || data.lead;
 			label = label || data.label;
 			if (!lead) { return; }
-			var $badge = $scope.find('p.available-on-backorder:visible').first();
+			var $badge = $scope.find('.woocommerce-variation-price p.available-on-backorder').first();
+			if (!$badge.length) { $badge = $scope.find('p.available-on-backorder').first(); }
 			if (!$badge.length) { return; }
 			var html = (label ? esc(label) + ' ' : '') + '<span class="ac-lead-inline">in ' + esc(lead) + '</span>';
 			if (data.season) { html += '<br><span class="ac-lead-season">' + esc(data.season) + '</span>'; }
-			$badge.html(html);
+			$badge.html(html).css('display', '');
 		}
 
-		function refresh(lead, label){ relocateSimpleStock(); relocateVariableStock(); resolveOxymoron(); applyInline(lead, label); }
-		refresh();
+		applyInline();
 
+		// Re-apply per selected variation (the variation JSON carries its own
+		// resolved lead time / label from ac_lt_variation_lead()).
 		$(document.body).on('show_variation', function (e, v) {
-			var $var = $('.woocommerce-variation-availability p.stock');
-			if ($var.length) {
-				$scope.find('p.stock').not($var).hide();
-				$var.show();
-			} else {
-				$scope.find('p.available-on-backorder').hide();
-				$scope.find('p.stock.in-stock').show();
-			}
-			refresh(
+			applyInline(
 				v && v.ac_lead_time  ? v.ac_lead_time  : data.lead,
 				v && v.ac_lead_label ? v.ac_lead_label : data.label
 			);
