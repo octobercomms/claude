@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Another Country – Configurator Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: #f5f2ee;
+    color: #222;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+
+  .page-title {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #888;
+    margin-bottom: 32px;
+    text-align: center;
+  }
+
+  .mode-toggle {
+    display: flex;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 36px;
+  }
+  .mode-btn {
+    padding: 9px 22px;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+    border-right: 1px solid #ddd;
+  }
+  .mode-btn:last-child { border-right: none; }
+  .mode-btn.active { background: #3a5a3a; color: #fff; }
+
+  /* Product shell */
+  .product {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 60px;
+    max-width: 960px;
+    width: 100%;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  }
+
+  /* Image panel */
+  .product-image {
+    background: #f0ece6;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 480px;
+    position: relative;
+    transition: background 0.4s;
+  }
+  .sofa-svg { width: 85%; transition: all 0.4s; }
+  .img-label {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #888;
+    background: rgba(255,255,255,0.85);
+    padding: 5px 12px;
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: opacity 0.3s;
+  }
+  .img-fabric-preview {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.15);
+    transition: background 0.3s;
+  }
+
+  /* Right panel */
+  .product-info {
+    padding: 40px 40px 36px 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .product-name {
+    font-family: Georgia, serif;
+    font-size: 26px;
+    font-weight: normal;
+    line-height: 1.2;
+    margin-bottom: 10px;
+    color: #1a2a1a;
+  }
+  .product-desc {
+    font-size: 13px;
+    line-height: 1.7;
+    color: #666;
+    margin-bottom: 24px;
+  }
+
+  /* Price + CTA – shared */
+  .price-block { padding-top: 18px; border-top: 1px solid #eee; margin-top: auto; }
+  .price-was { font-size: 14px; color: #cc4444; text-decoration: line-through; margin-bottom: 2px; }
+  .price-now { font-size: 26px; font-family: Georgia, serif; color: #1a2a1a; margin-bottom: 4px; }
+  .price-note { font-size: 11px; color: #3a5a3a; margin-bottom: 14px; }
+  .btn-add {
+    width: 100%; padding: 14px; background: #8b4513; color: #fff;
+    border: none; font-size: 14px; letter-spacing: 0.05em; border-radius: 3px;
+    cursor: pointer; transition: background 0.2s; margin-bottom: 8px;
+  }
+  .btn-add:hover { background: #7a3c10; }
+  .btn-swatches {
+    width: 100%; padding: 12px; background: transparent; color: #444;
+    border: 1px solid #ddd; font-size: 13px; border-radius: 3px; cursor: pointer;
+  }
+
+  /* Shared option buttons */
+  .opt-btn {
+    padding: 8px 14px; border: 1px solid #ccc; background: #fff;
+    font-size: 12px; border-radius: 3px; cursor: pointer; transition: all 0.15s; color: #333;
+  }
+  .opt-btn:hover { border-color: #3a5a3a; color: #3a5a3a; }
+  .opt-btn.selected { background: #3a5a3a; color: #fff; border-color: #3a5a3a; }
+  .btn-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Mode note */
+  .mode-note {
+    font-size: 11px; background: #f0f5f0; border: 1px solid #c5d9c5;
+    color: #3a5a3a; border-radius: 4px; padding: 8px 12px; margin-bottom: 18px; line-height: 1.5;
+  }
+
+  /* =====================================================
+     CURRENT LAYOUT
+     ===================================================== */
+  .layout-current .attr-group { margin-bottom: 18px; }
+  .layout-current .attr-label {
+    font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #888; margin-bottom: 8px;
+  }
+  .fabric-drawer {
+    border: 1px solid #e0e0e0; border-radius: 4px; padding: 12px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; margin-bottom: 18px;
+  }
+  .fabric-drawer-left { display: flex; align-items: center; gap: 12px; }
+  .fabric-swatch { width: 36px; height: 36px; border-radius: 3px; background: #d4c5b0; flex-shrink: 0; }
+  .fabric-drawer-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.08em; }
+  .fabric-drawer-value { font-size: 13px; color: #222; margin-top: 2px; }
+  .fabric-plus { font-size: 22px; color: #888; line-height: 1; }
+
+  /* =====================================================
+     STEP-BY-STEP LAYOUT
+     ===================================================== */
+  .layout-steps { display: none; }
+
+  .steps-progress {
+    display: flex; align-items: center; margin-bottom: 24px;
+  }
+  .step-dot {
+    display: flex; align-items: center; gap: 6px; font-size: 10px;
+    letter-spacing: 0.06em; text-transform: uppercase; color: #bbb; transition: color 0.3s; white-space: nowrap;
+  }
+  .step-dot.active { color: #3a5a3a; }
+  .step-dot.done   { color: #888; }
+  .dot {
+    width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid #ddd;
+    display: flex; align-items: center; justify-content: center; font-size: 10px;
+    font-weight: 600; transition: all 0.3s; background: #fff; flex-shrink: 0;
+  }
+  .step-dot.active .dot { border-color: #3a5a3a; background: #3a5a3a; color: #fff; }
+  .step-dot.done .dot   { border-color: #3a5a3a; background: #f0f5f0; color: #3a5a3a; }
+  .step-line { flex: 1; height: 1px; background: #e0e0e0; margin: 0 4px; transition: background 0.3s; min-width: 6px; }
+  .step-line.done { background: #3a5a3a; }
+
+  .step-panel { display: none; animation: fadeIn 0.2s ease; }
+  .step-panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+  .step-heading { font-family: Georgia, serif; font-size: 16px; font-weight: normal; color: #1a2a1a; margin-bottom: 3px; }
+  .step-sub { font-size: 11px; color: #999; margin-bottom: 14px; }
+
+  .size-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 20px; }
+  .size-btn {
+    padding: 12px 10px; border: 1px solid #ddd; background: #fff; font-size: 12px;
+    border-radius: 4px; cursor: pointer; transition: all 0.15s; text-align: left; color: #333; line-height: 1.3;
+  }
+  .size-btn .size-price { display: block; font-size: 10px; color: #aaa; margin-top: 2px; }
+  .size-btn:hover { border-color: #3a5a3a; }
+  .size-btn.selected { background: #3a5a3a; border-color: #3a5a3a; color: #fff; }
+  .size-btn.selected .size-price { color: rgba(255,255,255,0.65); }
+
+  .fill-grid { display: flex; flex-direction: column; gap: 7px; margin-bottom: 20px; }
+  .fill-btn {
+    padding: 12px 14px; border: 1px solid #ddd; background: #fff; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s; text-align: left; display: flex; justify-content: space-between; align-items: center;
+  }
+  .fill-btn-name { font-size: 13px; color: #333; }
+  .fill-btn-desc { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .fill-btn-badge { font-size: 10px; padding: 2px 7px; border-radius: 10px; background: #f0f5f0; color: #3a5a3a; white-space: nowrap; }
+  .fill-btn:hover { border-color: #3a5a3a; }
+  .fill-btn.selected { background: #3a5a3a; border-color: #3a5a3a; }
+  .fill-btn.selected .fill-btn-name,
+  .fill-btn.selected .fill-btn-desc { color: #fff; }
+  .fill-btn.selected .fill-btn-badge { background: rgba(255,255,255,0.2); color: #fff; }
+
+  .leg-grid { display: flex; gap: 8px; margin-bottom: 20px; }
+  .leg-btn { flex:1; padding:14px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer; text-align:center; transition:all 0.15s; }
+  .leg-swatch { width:36px; height:10px; border-radius:2px; margin:0 auto 6px; }
+  .leg-swatch.oak  { background: linear-gradient(90deg,#c9a97a,#b8955e); }
+  .leg-swatch.dark { background: linear-gradient(90deg,#4a3728,#3a2a1e); }
+  .leg-btn-name { font-size: 12px; color: #444; }
+  .leg-btn:hover { border-color: #3a5a3a; }
+  .leg-btn.selected { background: #3a5a3a; border-color: #3a5a3a; }
+  .leg-btn.selected .leg-btn-name { color: #fff; }
+
+  .fabric-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 7px; margin-bottom: 20px; }
+  .fab-btn { cursor:pointer; border:2px solid transparent; border-radius:4px; transition:all 0.15s; background:none; padding:0; }
+  .fab-swatch { width:100%; aspect-ratio:1; display:block; border-radius:3px; }
+  .fab-btn:hover { border-color: #3a5a3a; }
+  .fab-btn.selected { border-color: #3a5a3a; }
+  .fab-name { font-size:10px; color:#888; text-align:center; margin-top:3px; padding:0 1px; line-height:1.3; }
+  .fab-btn.selected .fab-name { color:#3a5a3a; font-weight:600; }
+
+  .step-nav { display:flex; gap:8px; margin-top:6px; }
+  .btn-back { padding:10px 18px; border:1px solid #ddd; background:#fff; font-size:13px; border-radius:3px; cursor:pointer; color:#555; }
+  .btn-back:hover { border-color:#888; }
+  .btn-next { flex:1; padding:10px 18px; border:none; background:#3a5a3a; color:#fff; font-size:13px; border-radius:3px; cursor:pointer; letter-spacing:0.03em; }
+  .btn-next:hover { background:#2d4a2d; }
+
+  .summary-rows { display:flex; flex-direction:column; margin-bottom:16px; }
+  .summary-row { display:flex; justify-content:space-between; align-items:center; padding:9px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+  .summary-row:last-child { border-bottom:none; }
+  .summary-key { color:#888; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; }
+  .summary-val { color:#222; font-weight:500; }
+  .summary-edit { font-size:11px; color:#3a5a3a; cursor:pointer; text-decoration:underline; background:none; border:none; padding:0; }
+
+  /* =====================================================
+     ACCORDION LAYOUT
+     ===================================================== */
+  .layout-accordion { display: none; }
+
+  .acc-list { margin-bottom: 16px; }
+
+  .acc-item {
+    border: 1px solid #e8e8e8;
+    border-radius: 5px;
+    margin-bottom: 6px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+  }
+  .acc-item.is-open {
+    box-shadow: 0 1px 8px rgba(0,0,0,0.08);
+    border-color: #ccc;
+  }
+
+  .acc-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    cursor: pointer;
+    background: #fff;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .acc-header:hover { background: #fafafa; }
+  .acc-item.is-open .acc-header { background: #fafafa; border-bottom: 1px solid #eee; }
+
+  .acc-header-left { display: flex; align-items: center; gap: 10px; }
+
+  .acc-number {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #3a5a3a; color: #fff;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .acc-item:not(.is-open):not(.is-done) .acc-number { background: #e8e8e8; color: #999; }
+  .acc-item.is-done:not(.is-open) .acc-number { background: #f0f5f0; color: #3a5a3a; font-size: 11px; }
+
+  .acc-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #222;
+    letter-spacing: 0.01em;
+  }
+  .acc-subtitle {
+    font-size: 12px;
+    color: #888;
+    margin-left: 4px;
+    font-weight: normal;
+  }
+
+  /* Inline swatch preview in closed header */
+  .acc-preview {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: #555;
+  }
+  .acc-preview-swatch {
+    width: 20px; height: 20px; border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.1);
+    flex-shrink: 0;
+    display: none;
+  }
+
+  .acc-chevron {
+    font-size: 11px;
+    color: #aaa;
+    transition: transform 0.25s;
+    flex-shrink: 0;
+  }
+  .acc-item.is-open .acc-chevron { transform: rotate(180deg); }
+
+  .acc-body {
+    padding: 16px;
+    background: #fff;
+    display: none;
+    animation: accFade 0.2s ease;
+  }
+  .acc-item.is-open .acc-body { display: block; }
+  @keyframes accFade { from { opacity:0; } to { opacity:1; } }
+
+  /* Size buttons in accordion – wrap freely */
+  .acc-size-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .acc-size-btn {
+    padding: 9px 13px;
+    border: 1px solid #ddd; background: #fff;
+    font-size: 12px; border-radius: 3px; cursor: pointer;
+    transition: all 0.15s; color: #333; line-height: 1.3; text-align: left;
+  }
+  .acc-size-btn .sp { display: block; font-size: 10px; color: #bbb; margin-top: 1px; }
+  .acc-size-btn:hover { border-color: #3a5a3a; }
+  .acc-size-btn.selected { background: #3a5a3a; border-color: #3a5a3a; color: #fff; }
+  .acc-size-btn.selected .sp { color: rgba(255,255,255,0.6); }
+
+  /* Acc fabric grid – slightly larger */
+  .acc-fab-grid {
+    display: grid;
+    grid-template-columns: repeat(5,1fr);
+    gap: 8px;
+  }
+
+  .acc-fill-list { display: flex; flex-direction: column; gap: 6px; }
+  .acc-fill-btn {
+    padding: 11px 13px; border: 1px solid #ddd; background: #fff; border-radius: 4px;
+    cursor: pointer; transition: all 0.15s; text-align: left;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .acc-fill-btn:hover { border-color: #3a5a3a; }
+  .acc-fill-btn.selected { background: #3a5a3a; border-color: #3a5a3a; }
+  .acc-fill-btn.selected .fill-btn-name,
+  .acc-fill-btn.selected .fill-btn-desc { color: #fff; }
+  .acc-fill-btn.selected .fill-btn-badge { background: rgba(255,255,255,0.2); color: #fff; }
+
+  .acc-leg-grid { display: flex; gap: 8px; }
+
+  .config-note {
+    font-size: 11px; color: #aaa; text-align: center; margin-top: 16px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+
+<p class="page-title">Another Country — Product Page Configurator Concepts</p>
+
+<div class="mode-toggle">
+  <button class="mode-btn active"  onclick="setMode('current')">Current layout</button>
+  <button class="mode-btn"         onclick="setMode('steps')">Step-by-step</button>
+  <button class="mode-btn"         onclick="setMode('accordion')">Accordion</button>
+</div>
+
+<div class="product">
+
+  <!-- ── Left: image panel ── -->
+  <div class="product-image" id="img-panel">
+    <div class="img-fabric-preview" id="img-fab-preview" style="background:#d4c5b0"></div>
+    <svg class="sofa-svg" id="sofa-svg" viewBox="0 0 400 260" xmlns="http://www.w3.org/2000/svg">
+      <rect x="30"  y="140" width="340" height="80"  rx="8" id="sv-body"    fill="#c9b99a"/>
+      <rect x="30"  y="110" width="340" height="45"  rx="6" id="sv-back"    fill="#b8a88a"/>
+      <rect x="30"  y="108" width="60"  height="118" rx="6" id="sv-arm-l"   fill="#b8a88a"/>
+      <rect x="310" y="108" width="60"  height="118" rx="6" id="sv-arm-r"   fill="#b8a88a"/>
+      <rect x="80"  y="215" width="30"  height="25"  rx="3" id="sv-leg-l"   fill="#9a8060"/>
+      <rect x="290" y="215" width="30"  height="25"  rx="3" id="sv-leg-r"   fill="#9a8060"/>
+      <rect x="90"  y="118" width="80"  height="35"  rx="5" id="sv-cush-l"  fill="#cdbfa8"/>
+      <rect x="230" y="118" width="80"  height="35"  rx="5" id="sv-cush-r"  fill="#cdbfa8"/>
+    </svg>
+    <div class="img-label" id="img-size-label">Corner Sofa</div>
+  </div>
+
+  <!-- ── Right: product info ── -->
+  <div class="product-info">
+    <h1 class="product-name">Another Sofa &amp; Armchair</h1>
+    <p class="product-desc">Generously-filled cushions and a refined wooden base frame the slim silhouette of the Another Sofa. A Modern British design handcrafted with all-natural materials.</p>
+
+    <!-- ================================================
+         CURRENT LAYOUT
+         ================================================ -->
+    <div class="layout-current" id="layout-current">
+      <div class="mode-note">This is roughly how it looks now — all options stacked.</div>
+
+      <div class="attr-group">
+        <div class="attr-label">Size</div>
+        <div class="btn-grid">
+          <button class="opt-btn" onclick="sel(this,'size')">Armchair</button>
+          <button class="opt-btn" onclick="sel(this,'size')">2 Seat Sofa</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Sofa (2 Cushions)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Sofa (3 Cushions)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Chaise Sofa (Left)</button>
+          <button class="opt-btn" onclick="sel(this,'size')">3 Seat Chaise Sofa (Right)</button>
+          <button class="opt-btn selected" onclick="sel(this,'size')">Corner Sofa</button>
+          <button class="opt-btn" onclick="sel(this,'size')">Ottoman</button>
+        </div>
+      </div>
+      <div class="attr-group">
+        <div class="attr-label">Cushion Filling</div>
+        <div class="btn-grid">
+          <button class="opt-btn selected" onclick="sel(this,'fill')">All-feather</button>
+          <button class="opt-btn" onclick="sel(this,'fill')">Bio-foam + feather</button>
+          <button class="opt-btn" onclick="sel(this,'fill')">Natural latex + feather</button>
+        </div>
+      </div>
+      <div class="attr-group">
+        <div class="attr-label">Leg</div>
+        <div class="btn-grid">
+          <button class="opt-btn selected" onclick="sel(this,'leg')">Natural Oak</button>
+          <button class="opt-btn" onclick="sel(this,'leg')">Dark-Stained Oak</button>
+        </div>
+      </div>
+      <div class="fabric-drawer">
+        <div class="fabric-drawer-left">
+          <div class="fabric-swatch"></div>
+          <div>
+            <div class="fabric-drawer-label">Select fabric</div>
+            <div class="fabric-drawer-value">Oatmeal</div>
+          </div>
+        </div>
+        <div class="fabric-plus">+</div>
+      </div>
+      <div class="price-block">
+        <div class="price-was">£5,595</div>
+        <div class="price-now">£4,755.76</div>
+        <div class="price-note">Made to Order ⓘ</div>
+        <button class="btn-add">Add to cart</button>
+        <button class="btn-swatches">Order fabric swatches</button>
+      </div>
+    </div>
+
+    <!-- ================================================
+         STEP-BY-STEP LAYOUT
+         ================================================ -->
+    <div class="layout-steps" id="layout-steps">
+      <div class="steps-progress">
+        <div class="step-dot active" id="dot-1"><span class="dot">1</span></div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step-dot" id="dot-2"><span class="dot">2</span></div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step-dot" id="dot-3"><span class="dot">3</span></div>
+        <div class="step-line" id="line-3"></div>
+        <div class="step-dot" id="dot-4"><span class="dot">4</span></div>
+        <div class="step-line" id="line-4"></div>
+        <div class="step-dot" id="dot-5"><span class="dot">5</span></div>
+      </div>
+
+      <div class="step-panel active" id="step-1">
+        <div class="step-heading">Choose your size</div>
+        <div class="step-sub">All sizes made to order — 8–10 weeks</div>
+        <div class="size-grid">
+          <button class="size-btn" onclick="pickSize(this,'Armchair','£1,495')">Armchair<span class="size-price">from £1,495</span></button>
+          <button class="size-btn" onclick="pickSize(this,'2 Seat Sofa','£2,995')">2 Seat Sofa<span class="size-price">from £2,995</span></button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Sofa (2 Cushions)','£3,795')">3 Seat Sofa (2 Cushions)<span class="size-price">from £3,795</span></button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Sofa (3 Cushions)','£3,995')">3 Seat Sofa (3 Cushions)<span class="size-price">from £3,995</span></button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Chaise (Left)','£4,295')">3 Seat Chaise (Left)<span class="size-price">from £4,295</span></button>
+          <button class="size-btn" onclick="pickSize(this,'3 Seat Chaise (Right)','£4,295')">3 Seat Chaise (Right)<span class="size-price">from £4,295</span></button>
+          <button class="size-btn selected" onclick="pickSize(this,'Corner Sofa','£5,595')">Corner Sofa<span class="size-price">from £5,595</span></button>
+          <button class="size-btn" onclick="pickSize(this,'Ottoman','£695')">Ottoman<span class="size-price">from £695</span></button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-next" onclick="goStep(2)">Choose cushion filling →</button>
+        </div>
+      </div>
+
+      <div class="step-panel" id="step-2">
+        <div class="step-heading">Cushion filling</div>
+        <div class="step-sub">All fillings are sustainably sourced</div>
+        <div class="fill-grid">
+          <button class="fill-btn selected" onclick="pickFill(this,'All-feather')">
+            <div><div class="fill-btn-name">All-feather</div><div class="fill-btn-desc">The classic, softest feel</div></div>
+            <span class="fill-btn-badge">Most popular</span>
+          </button>
+          <button class="fill-btn" onclick="pickFill(this,'Bio-foam + feather')">
+            <div><div class="fill-btn-name">Bio-foam + feather</div><div class="fill-btn-desc">Firmer support, longer shape retention</div></div>
+          </button>
+          <button class="fill-btn" onclick="pickFill(this,'Natural latex + feather')">
+            <div><div class="fill-btn-name">Natural latex + feather</div><div class="fill-btn-desc">Responsive and hypoallergenic</div></div>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(1)">← Back</button>
+          <button class="btn-next" onclick="goStep(3)">Choose leg finish →</button>
+        </div>
+      </div>
+
+      <div class="step-panel" id="step-3">
+        <div class="step-heading">Leg finish</div>
+        <div class="step-sub">Solid oak, hand-finished in our workshop</div>
+        <div class="leg-grid">
+          <button class="leg-btn selected" onclick="pickLeg(this,'Natural Oak')">
+            <div class="leg-swatch oak"></div><div class="leg-btn-name">Natural Oak</div>
+          </button>
+          <button class="leg-btn" onclick="pickLeg(this,'Dark-Stained Oak')">
+            <div class="leg-swatch dark"></div><div class="leg-btn-name">Dark-Stained Oak</div>
+          </button>
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(2)">← Back</button>
+          <button class="btn-next" onclick="goStep(4)">Choose fabric →</button>
+        </div>
+      </div>
+
+      <div class="step-panel" id="step-4">
+        <div class="step-heading">Select fabric</div>
+        <div class="step-sub">Click to select · <a href="#" style="color:#3a5a3a;font-size:11px">Order free swatches</a></div>
+        <div class="fabric-grid" id="fab-grid-steps">
+          <!-- populated by JS -->
+        </div>
+        <div class="step-nav">
+          <button class="btn-back" onclick="goStep(3)">← Back</button>
+          <button class="btn-next" onclick="goStep(5)">Review &amp; add to cart →</button>
+        </div>
+      </div>
+
+      <div class="step-panel" id="step-5">
+        <div class="step-heading">Your configuration</div>
+        <div class="step-sub">Review before adding to cart</div>
+        <div class="summary-rows">
+          <div class="summary-row"><div><div class="summary-key">Size</div><div class="summary-val" id="sum-size">Corner Sofa</div></div><button class="summary-edit" onclick="goStep(1)">Change</button></div>
+          <div class="summary-row"><div><div class="summary-key">Cushion Filling</div><div class="summary-val" id="sum-fill">All-feather</div></div><button class="summary-edit" onclick="goStep(2)">Change</button></div>
+          <div class="summary-row"><div><div class="summary-key">Leg Finish</div><div class="summary-val" id="sum-leg">Natural Oak</div></div><button class="summary-edit" onclick="goStep(3)">Change</button></div>
+          <div class="summary-row"><div><div class="summary-key">Fabric</div><div class="summary-val" id="sum-fab">Oatmeal</div></div><button class="summary-edit" onclick="goStep(4)">Change</button></div>
+        </div>
+        <div class="price-block">
+          <div class="price-was">£5,595</div>
+          <div class="price-now">£4,755.76</div>
+          <div class="price-note">Made to Order ⓘ</div>
+          <button class="btn-add">Add to cart</button>
+          <button class="btn-swatches">Order fabric swatches</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================================================
+         ACCORDION LAYOUT
+         ================================================ -->
+    <div class="layout-accordion" id="layout-accordion">
+      <div class="mode-note">First time through, each section advances automatically. After that, open any section freely to compare.</div>
+
+      <div class="acc-list">
+
+        <!-- Size -->
+        <div class="acc-item is-open is-done" id="acc-size">
+          <div class="acc-header" onclick="toggleAcc('acc-size')">
+            <div class="acc-header-left">
+              <span class="acc-number">✓</span>
+              <span class="acc-title">Size <span class="acc-subtitle" id="acc-size-sub">— Corner Sofa</span></span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span class="acc-chevron">▼</span>
+            </div>
+          </div>
+          <div class="acc-body">
+            <div class="acc-size-grid">
+              <button class="acc-size-btn" onclick="accPickSize(this,'Armchair')">Armchair<span class="sp">from £1,495</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'2 Seat Sofa')">2 Seat Sofa<span class="sp">from £2,995</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'3 Seat Sofa (2 Cushions)')">3 Seat Sofa (2 Cushions)<span class="sp">from £3,795</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'3 Seat Sofa (3 Cushions)')">3 Seat Sofa (3 Cushions)<span class="sp">from £3,995</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'3 Seat Chaise (Left)')">3 Seat Chaise (Left)<span class="sp">from £4,295</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'3 Seat Chaise (Right)')">3 Seat Chaise (Right)<span class="sp">from £4,295</span></button>
+              <button class="acc-size-btn selected" onclick="accPickSize(this,'Corner Sofa')">Corner Sofa<span class="sp">from £5,595</span></button>
+              <button class="acc-size-btn" onclick="accPickSize(this,'Ottoman')">Ottoman<span class="sp">from £695</span></button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cushion Filling -->
+        <div class="acc-item is-done" id="acc-fill">
+          <div class="acc-header" onclick="toggleAcc('acc-fill')">
+            <div class="acc-header-left">
+              <span class="acc-number">✓</span>
+              <span class="acc-title">Cushion Filling <span class="acc-subtitle" id="acc-fill-sub">— All-feather</span></span>
+            </div>
+            <span class="acc-chevron">▼</span>
+          </div>
+          <div class="acc-body">
+            <div class="acc-fill-list">
+              <button class="acc-fill-btn selected" onclick="accPickFill(this,'All-feather')">
+                <div><div class="fill-btn-name">All-feather</div><div class="fill-btn-desc">The classic, softest feel</div></div>
+                <span class="fill-btn-badge">Most popular</span>
+              </button>
+              <button class="acc-fill-btn" onclick="accPickFill(this,'Bio-foam + feather')">
+                <div><div class="fill-btn-name">Bio-foam + feather</div><div class="fill-btn-desc">Firmer support, longer shape retention</div></div>
+              </button>
+              <button class="acc-fill-btn" onclick="accPickFill(this,'Natural latex + feather')">
+                <div><div class="fill-btn-name">Natural latex + feather</div><div class="fill-btn-desc">Responsive and hypoallergenic</div></div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leg -->
+        <div class="acc-item is-done" id="acc-leg">
+          <div class="acc-header" onclick="toggleAcc('acc-leg')">
+            <div class="acc-header-left">
+              <span class="acc-number">✓</span>
+              <span class="acc-title">Leg Finish <span class="acc-subtitle" id="acc-leg-sub">— Natural Oak</span></span>
+            </div>
+            <span class="acc-chevron">▼</span>
+          </div>
+          <div class="acc-body">
+            <div class="acc-leg-grid">
+              <button class="leg-btn selected" onclick="accPickLeg(this,'Natural Oak','#9a8060')">
+                <div class="leg-swatch oak"></div><div class="leg-btn-name">Natural Oak</div>
+              </button>
+              <button class="leg-btn" onclick="accPickLeg(this,'Dark-Stained Oak','#3a2a1e')">
+                <div class="leg-swatch dark"></div><div class="leg-btn-name">Dark-Stained Oak</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /acc-list -->
+
+      <!-- Fabric drawer — unchanged from current layout -->
+      <div class="fabric-drawer" style="margin-bottom:18px">
+        <div class="fabric-drawer-left">
+          <div class="fabric-swatch" id="acc-fab-swatch-drawer" style="background:#d4c5b0"></div>
+          <div>
+            <div class="fabric-drawer-label">Select fabric</div>
+            <div class="fabric-drawer-value" id="acc-fab-drawer-val">Oatmeal</div>
+          </div>
+        </div>
+        <div class="fabric-plus">+</div>
+      </div>
+
+      <div class="price-block">
+        <div class="price-was">£5,595</div>
+        <div class="price-now" id="acc-price">£4,755.76</div>
+        <div class="price-note">Made to Order ⓘ</div>
+        <button class="btn-add">Add to cart</button>
+        <button class="btn-swatches">Order fabric swatches</button>
+      </div>
+    </div>
+
+  </div><!-- /product-info -->
+</div><!-- /product -->
+
+<p class="config-note">Mockup only — not connected to WooCommerce · Click the sofa's fabric to see the image update</p>
+
+<script>
+// ─── Fabric palette ────────────────────────────────────────────────────────
+const fabrics = [
+  { name:'Oatmeal',    color:'#d4c5b0', body:'#c9b99a', back:'#b8a88a', cush:'#cdbfa8' },
+  { name:'Sand',       color:'#c9b88a', body:'#bfaa76', back:'#ae9a66', cush:'#c4b07e' },
+  { name:'Dove Grey',  color:'#b0aaa8', body:'#a5a0a0', back:'#959090', cush:'#aeaaaa' },
+  { name:'Charcoal',   color:'#4a4a4a', body:'#484848', back:'#383838', cush:'#525252' },
+  { name:'Sage',       color:'#8a9e88', body:'#829880', back:'#728870', cush:'#8aa088' },
+  { name:'Forest',     color:'#3a5a3a', body:'#385838', back:'#284828', cush:'#406040' },
+  { name:'Terracotta', color:'#b5603a', body:'#aa5a35', back:'#9a4a25', cush:'#b86040' },
+  { name:'Blush',      color:'#d4a898', body:'#caa090', back:'#ba9080', cush:'#d0aca0' },
+  { name:'Cream',      color:'#ede8de', body:'#e8e0d0', back:'#d8d0c0', cush:'#ece4d6' },
+  { name:'Navy',       color:'#1e2e50', body:'#1c2c4e', back:'#141e38', cush:'#203060' },
+];
+
+// Render fabric grid (step-by-step only)
+function renderFabGrids() {
+  const grid = document.getElementById('fab-grid-steps');
+  if (!grid) return;
+  grid.innerHTML = fabrics.map((f,i) => `
+    <button class="fab-btn ${i===0?'selected':''}"
+      onclick="pickFabric(this,'${f.name}','${f.color}','${f.body}','${f.back}','${f.cush}')">
+      <div class="fab-swatch" style="background:${f.color}"></div>
+      <div class="fab-name">${f.name}</div>
+    </button>`).join('');
+}
+renderFabGrids();
+
+// ─── Live image update ──────────────────────────────────────────────────────
+function updateSofaFabric(body, back, cush) {
+  document.getElementById('sv-body').style.fill   = body;
+  document.getElementById('sv-back').style.fill   = back;
+  document.getElementById('sv-arm-l').style.fill  = back;
+  document.getElementById('sv-arm-r').style.fill  = back;
+  document.getElementById('sv-cush-l').style.fill = cush;
+  document.getElementById('sv-cush-r').style.fill = cush;
+}
+function updateLegColor(color) {
+  document.getElementById('sv-leg-l').style.fill = color;
+  document.getElementById('sv-leg-r').style.fill = color;
+}
+function updateSizeLabel(label) {
+  document.getElementById('img-size-label').textContent = label;
+}
+
+// ─── Current layout ─────────────────────────────────────────────────────────
+function sel(btn, group) {
+  btn.closest('.btn-grid').querySelectorAll('.opt-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+// ─── Mode toggle ─────────────────────────────────────────────────────────────
+function setMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach((b,i) => {
+    b.classList.toggle('active', ['current','steps','accordion'][i] === mode);
+  });
+  document.getElementById('layout-current').style.display   = mode==='current'   ? 'block' : 'none';
+  document.getElementById('layout-steps').style.display     = mode==='steps'     ? 'block' : 'none';
+  document.getElementById('layout-accordion').style.display = mode==='accordion' ? 'block' : 'none';
+}
+
+// ─── Step-by-step ────────────────────────────────────────────────────────────
+const cfg = { size:'Corner Sofa', fill:'All-feather', leg:'Natural Oak', fab:'Oatmeal' };
+
+function goStep(n) {
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-'+n).classList.add('active');
+  for (let i=1;i<=5;i++) {
+    const dot=document.getElementById('dot-'+i), line=document.getElementById('line-'+i);
+    dot.className = 'step-dot'+(i<n?' done':i===n?' active':'');
+    dot.querySelector('.dot').innerHTML = i<n?'✓':i;
+    if(line) line.className = 'step-line'+(i<n?' done':'');
+  }
+  if(n===5) {
+    document.getElementById('sum-size').textContent = cfg.size;
+    document.getElementById('sum-fill').textContent = cfg.fill;
+    document.getElementById('sum-leg').textContent  = cfg.leg;
+    document.getElementById('sum-fab').textContent  = cfg.fab;
+  }
+}
+function pickSize(btn,label) {
+  btn.closest('.size-grid').querySelectorAll('.size-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); cfg.size=label; updateSizeLabel(label);
+}
+function pickFill(btn,label) {
+  btn.closest('.fill-grid').querySelectorAll('.fill-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); cfg.fill=label;
+}
+function pickLeg(btn,label) {
+  btn.closest('.leg-grid').querySelectorAll('.leg-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected'); cfg.leg=label;
+}
+function pickFabric(btn,name,color,body,back,cush) {
+  btn.closest('[class*="fabric-grid"], [class*="fab-grid"]').querySelectorAll('.fab-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  cfg.fab=name;
+  updateSofaFabric(body,back,cush);
+  document.getElementById('img-fab-preview').style.background=color;
+}
+
+// ─── Accordion ───────────────────────────────────────────────────────────────
+// Once all sections have been completed once, stop auto-advancing
+let accAllDone = false;
+
+function toggleAcc(id) {
+  const item = document.getElementById(id);
+  const isOpen = item.classList.contains('is-open');
+  document.querySelectorAll('.acc-item').forEach(i => i.classList.remove('is-open'));
+  if (!isOpen) item.classList.add('is-open');
+}
+
+function accPickSize(btn, label) {
+  btn.closest('.acc-size-grid').querySelectorAll('.acc-size-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('acc-size-sub').textContent = '— '+label;
+  document.getElementById('acc-size').classList.add('is-done');
+  updateSizeLabel(label);
+  if (!accAllDone) setTimeout(()=>{ toggleAcc('acc-fill'); }, 300);
+}
+function accPickFill(btn, label) {
+  btn.closest('.acc-fill-list').querySelectorAll('.acc-fill-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('acc-fill-sub').textContent = '— '+label;
+  document.getElementById('acc-fill').classList.add('is-done');
+  if (!accAllDone) setTimeout(()=>{ toggleAcc('acc-leg'); }, 300);
+}
+function accPickLeg(btn, label, legColor) {
+  btn.closest('.acc-leg-grid').querySelectorAll('.leg-btn').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('acc-leg-sub').textContent = '— '+label;
+  document.getElementById('acc-leg').classList.add('is-done');
+  updateLegColor(legColor);
+  if (!accAllDone) {
+    // All sections done for the first time — close everything, show fabric drawer
+    accAllDone = true;
+    setTimeout(()=>{
+      document.querySelectorAll('.acc-item').forEach(i => i.classList.remove('is-open'));
+    }, 300);
+  }
+}
+</script>
+</body>
+</html>

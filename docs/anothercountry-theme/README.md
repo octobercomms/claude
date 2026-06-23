@@ -72,3 +72,12 @@ the current section open so they can keep adjusting it.
 2. **Purge LiteSpeed cache** (Toolbox → Purge All) — the JS/CSS are enqueued with
    a time()-based version, but the page HTML is cached.
 3. Confirm the Lead Times plugin is active (v1.7).
+
+## Configurator mockup (reference)
+
+`configurator-mockup.html` is a standalone HTML **prototype** of the Another
+Country product configurator (the design precursor to the live accordion +
+fabric-drawer build). Salvaged from the abandoned `claude/woocommerce-bulk-editor-311ZX`
+branch (PR #698) before that PR was closed. Kept as a design reference only — it
+is **not** deployed; the live configurator lives in `functions.php` +
+`js/fabric-drawer.js` + `css/fabric-drawer.css`.
