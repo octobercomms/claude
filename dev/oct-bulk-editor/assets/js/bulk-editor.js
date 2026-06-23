@@ -9,6 +9,7 @@
 	// -------------------------------------------------------------------------
 	const state = {
 		changes: {},   // { "productId:field": { id, field, value, originalValue } }
+		rows: [],      // last-loaded server rows, kept so grouping can re-render
 		page: 1,
 		totalPages: 1,
 		loading: false,
@@ -125,11 +126,21 @@
 
 		frame.on('select', function () {
 			const attachment = frame.state().get('selection').first().toJSON();
-			applyImageToCell($wrap, attachment.id, attachment.sizes?.thumbnail?.url || attachment.url);
+			deliverImage($wrap, attachment.id, attachment.sizes?.thumbnail?.url || attachment.url);
 		});
 
 		frame.open();
 	});
+
+	// A group-header image wrap fills every member variation in the group; a normal
+	// wrap just sets its own cell. Both media-pick and drag-drop funnel through here.
+	function deliverImage($wrap, attachmentId, thumbUrl) {
+		if ($wrap.hasClass('is-group')) {
+			fillGroupImage($wrap, attachmentId, thumbUrl);
+		} else {
+			applyImageToCell($wrap, attachmentId, thumbUrl);
+		}
+	}
 
 	// Drag-and-drop image upload
 	$tbody.on('dragover dragenter', '.wbe-img-wrap', function (e) {
@@ -169,7 +180,7 @@
 			contentType: false,
 		}).done(function (response) {
 			if (response.success) {
-				applyImageToCell($wrap, response.data.attachment_id, response.data.thumb_url);
+				deliverImage($wrap, response.data.attachment_id, response.data.thumb_url);
 				hideStatus();
 			} else {
 				showStatus(response.data || octwbe.i18n.uploadError, 'error');
@@ -200,7 +211,7 @@
 
 		// Track change
 		if (value !== orig) {
-			state.changes[key] = { id, field, value, originalValue: orig, originalThumb: $wrap.data('current-thumb') || '' };
+			state.changes[key] = { id, field, value, originalValue: orig, originalThumb: $wrap.data('current-thumb') || '', thumb: thumbUrl };
 			$wrap.addClass('is-dirty');
 		} else {
 			delete state.changes[key];
@@ -209,6 +220,38 @@
 
 		$wrap.attr('data-current-thumb', thumbUrl);
 		updateToolbar();
+	}
+
+	// Set one image across every variation in a group (e.g. all cushion fillings
+	// of the same fabric). Updates the group header's preview, then applies the
+	// image to each member row's own image cell so it flows through normal change
+	// tracking and the existing Save All Changes flow.
+	function fillGroupImage($wrap, attachmentId, thumbUrl) {
+		const pid  = String($wrap.data('parent-id'));
+		const gval = String($wrap.data('group-value'));
+
+		// Update the header's own preview
+		$wrap.find('.wbe-img-placeholder').remove();
+		let $img = $wrap.find('.wbe-img-thumb');
+		if (!$img.length) {
+			$img = $('<img>').addClass('wbe-img-thumb').attr('alt', '');
+			$wrap.prepend($img);
+		}
+		$img.attr('src', thumbUrl);
+
+		// Propagate to each member variation's main image cell
+		let n = 0;
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) !== pid || String($row.data('group-value')) !== gval) return;
+			const $memberWrap = $row.find('.wbe-img-wrap[data-field="image"]');
+			if ($memberWrap.length) {
+				applyImageToCell($memberWrap, attachmentId, thumbUrl);
+				n++;
+			}
+		});
+
+		showStatus('Applied image to ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
 	}
 
 	// -------------------------------------------------------------------------
@@ -426,6 +469,58 @@
 	});
 
 	// -------------------------------------------------------------------------
+	// Group variations by attribute (e.g. Fabric) — re-renders the loaded rows
+	// with collapsible group headers. Edits in progress are preserved because we
+	// re-render from the server rows and re-apply any dirty changes.
+	// -------------------------------------------------------------------------
+	$('#wbe-groupby').on('change', function () {
+		if (state.rows && state.rows.length) {
+			renderRows(state.rows);
+			reapplyChanges();
+		}
+	});
+
+	// Collapse / expand a group's member rows by clicking its header label.
+	$tbody.on('click', '.wbe-row-group .wbe-col-grouphdr', function () {
+		const $hdr      = $(this).closest('tr');
+		const pid       = String($hdr.data('parent-id'));
+		const gval      = String($hdr.data('group-value'));
+		const collapsed = $hdr.toggleClass('is-collapsed').hasClass('is-collapsed');
+		$('#wbe-tbody tr.wbe-row-variation').each(function () {
+			const $row = $(this);
+			if (String($row.data('parent-id')) === pid && String($row.data('group-value')) === gval) {
+				$row.toggle(!collapsed);
+			}
+		});
+	});
+
+	// After a re-render (e.g. toggling grouping), re-paint any unsaved edits onto
+	// the fresh cells so the dirty state survives the re-render.
+	function reapplyChanges() {
+		Object.values(state.changes).forEach(c => {
+			const $cell = $tbody.find('.wbe-cell[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($cell.length) { $cell.text(c.value).addClass('is-dirty'); }
+			const $sel = $tbody.find('.wbe-cell-select[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($sel.length) { $sel.val(c.value).addClass('is-dirty'); }
+			const $chk = $tbody.find('.wbe-cell-check[data-id="' + c.id + '"][data-field="' + c.field + '"]');
+			if ($chk.length) { $chk.prop('checked', c.value === 'yes').closest('td').addClass('is-dirty'); }
+			if (c.field === 'image' || c.field === 'acvs_lifestyle') {
+				const $wrap = $tbody.find('.wbe-img-wrap[data-id="' + c.id + '"][data-field="' + c.field + '"]').not('.is-group');
+				if ($wrap.length) {
+					$wrap.addClass('is-dirty');
+					if (c.thumb) {
+						$wrap.find('.wbe-img-placeholder').remove();
+						let $img = $wrap.find('.wbe-img-thumb');
+						if (!$img.length) { $img = $('<img>').addClass('wbe-img-thumb').attr('alt', ''); $wrap.prepend($img); }
+						$img.attr('src', c.thumb);
+						$wrap.attr('data-current-thumb', c.thumb);
+					}
+				}
+			}
+		});
+	}
+
+	// -------------------------------------------------------------------------
 	// Load products via AJAX
 	// -------------------------------------------------------------------------
 	function loadProducts(page = 1) {
@@ -469,6 +564,8 @@
 	}
 
 	function renderRows(rows) {
+		state.rows = rows;
+		populateGroupBy(rows);
 		$tbody.empty();
 
 		if (!rows.length) {
@@ -476,7 +573,26 @@
 			return;
 		}
 
-		rows.forEach(row => $tbody.append(buildRow(row)));
+		const groupBy = $('#wbe-groupby').val() || '';
+
+		// Walk the flat list: a parent is immediately followed by its variations.
+		let i = 0;
+		while (i < rows.length) {
+			const row = rows[i];
+			if (row.type === 'parent') {
+				$tbody.append(buildRow(row));
+				const vars = [];
+				i++;
+				while (i < rows.length && rows[i].type === 'variation' && String(rows[i].parent_id) === String(row.id)) {
+					vars.push(rows[i]);
+					i++;
+				}
+				renderVariations(row, vars, groupBy);
+			} else {
+				$tbody.append(buildRow(row)); // simple product
+				i++;
+			}
+		}
 
 		// Re-apply hidden columns
 		$('.wbe-col-toggle-cb').each(function () {
@@ -488,6 +604,92 @@
 
 		// Fresh rows start unselected; reset the select-all / bulk bar state.
 		updateSelectionUI();
+	}
+
+	// Render a parent's variations — flat, or grouped under headers when a
+	// group-by attribute is active and these variations carry it.
+	function renderVariations(parent, vars, groupBy) {
+		const hasAttr = groupBy && vars.some(v => (v.attributes || []).some(a => a.name === groupBy));
+		if (!hasAttr) {
+			vars.forEach(v => $tbody.append(buildRow(v)));
+			return;
+		}
+
+		const groups = {};
+		const order  = [];
+		let attrLabel = groupBy;
+		vars.forEach(v => {
+			const a   = (v.attributes || []).find(x => x.name === groupBy);
+			const key = a ? a.value : '';
+			if (a && a.label) attrLabel = a.label;
+			if (!groups[key]) {
+				groups[key] = { value: key, label: a ? a.value_label : 'Any', rows: [] };
+				order.push(key);
+			}
+			groups[key].rows.push(v);
+		});
+
+		order.forEach(key => {
+			const g = groups[key];
+			$tbody.append(buildGroupHeader(parent.id, attrLabel, g));
+			g.rows.forEach(v => {
+				const $vr = buildRow(v);
+				$vr.attr('data-parent-id', parent.id).attr('data-group-value', key);
+				$tbody.append($vr);
+			});
+		});
+	}
+
+	// A collapsible group header with an image cell that fills the whole group.
+	function buildGroupHeader(parentId, attrLabel, g) {
+		const $tr = $('<tr>')
+			.addClass('wbe-row-group')
+			.attr({ 'data-parent-id': parentId, 'data-group-value': g.value });
+
+		$tr.append('<td class="wbe-col-check"></td>');
+
+		// Group image: show the shared image if every member already matches.
+		const ids     = g.rows.map(r => String(r.image_id || ''));
+		const allSame = ids.length > 0 && ids.every(x => x === ids[0] && x !== '');
+		const thumb   = allSame ? (g.rows[0].image_thumb || '') : '';
+		const $imgTd  = buildImageCell(parentId, '', thumb, 'image', 'image');
+		$imgTd.find('.wbe-img-wrap')
+			.addClass('is-group')
+			.attr({ 'data-parent-id': parentId, 'data-group-value': g.value })
+			.attr('title', 'Set the image for all ' + g.rows.length + ' variations in this group');
+		$tr.append($imgTd);
+
+		// Lifestyle column placeholder (keeps column alignment / respects its toggle).
+		$tr.append('<td class="wbe-col-image wbe-col-lifestyle" data-col="acvs_lifestyle"></td>');
+
+		// Label spans the remaining 14 columns.
+		const caret = '<span class="wbe-group-caret dashicons dashicons-arrow-down-alt2"></span>';
+		$tr.append(
+			'<td class="wbe-col-grouphdr" colspan="14">' + caret +
+			'<strong>' + esc(attrLabel) + ': ' + esc(g.label) + '</strong> ' +
+			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span></td>'
+		);
+
+		return $tr;
+	}
+
+	// Populate the "Group variations by" dropdown from the loaded variation
+	// attributes, preserving the current choice when it's still available.
+	function populateGroupBy(rows) {
+		const $gb = $('#wbe-groupby');
+		if (!$gb.length) return;
+		const seen = {};
+		const opts = [];
+		rows.forEach(r => {
+			if (r.type !== 'variation') return;
+			(r.attributes || []).forEach(a => {
+				if (!seen[a.name]) { seen[a.name] = true; opts.push({ name: a.name, label: a.label }); }
+			});
+		});
+		const cur = $gb.val();
+		$gb.find('option:not(:first-child)').remove();
+		opts.forEach(o => $gb.append($('<option>').val(o.name).text(o.label)));
+		$gb.val(cur && seen[cur] ? cur : '');
 	}
 
 	function renderPagination(page, totalPages, total) {

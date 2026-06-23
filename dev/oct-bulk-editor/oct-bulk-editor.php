@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, and EUR/USD (Aelia) prices; merge products; export/import via CSV.
- * Version:     1.5.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, and group-by-attribute image fill; merge products; export/import via CSV.
+ * Version:     1.6.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.5.0' );
+define( 'OCTWBE_VERSION', '1.6.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -278,11 +278,27 @@ class OctBulkEditor {
 	}
 
 	private function format_variation_row( WC_Product_Variation $v, WC_Product $parent ): array {
-		$attrs = [];
+		$attrs      = [];
+		$attr_map = [];
 		foreach ( $v->get_variation_attributes() as $key => $val ) {
-			$tax    = str_replace( 'attribute_', '', $key );
-			$label  = wc_attribute_label( $tax );
-			$attrs[] = $label . ': ' . ( $val ?: __( 'Any', 'oct-bulk-editor' ) );
+			$tax     = str_replace( 'attribute_', '', $key );
+			$label   = wc_attribute_label( $tax );
+			$val     = (string) $val;
+			$display = $val;
+			if ( $val !== '' && taxonomy_exists( $tax ) ) {
+				$term = get_term_by( 'slug', $val, $tax );
+				if ( $term ) {
+					$display = $term->name;
+				}
+			}
+			$display       = $display !== '' ? $display : __( 'Any', 'oct-bulk-editor' );
+			$attrs[]       = $label . ': ' . $display;
+			$attr_map[]  = [
+				'name'        => $tax,
+				'label'       => $label,
+				'value'       => $val,
+				'value_label' => $display,
+			];
 		}
 
 		// Variation image falls back to parent image if not set
@@ -296,6 +312,7 @@ class OctBulkEditor {
 			'parent_id'     => $parent->get_id(),
 			'type'          => 'variation',
 			'name'          => implode( ' / ', $attrs ) ?: '#' . $v->get_id(),
+			'attributes'    => $attr_map,
 			'sku'           => $v->get_sku(),
 			'regular_price' => $v->get_regular_price(),
 			'sale_price'    => $v->get_sale_price(),

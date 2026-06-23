@@ -464,6 +464,71 @@
 	background: rgba(127, 84, 179, 0.035);
 }
 
+/* Group-by bar */
+.wbe-groupby-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	background: #fff;
+	border: 1px solid #e0e0e0;
+	border-radius: 6px;
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	font-size: 13px;
+}
+
+.wbe-groupby-bar .wbe-input {
+	height: 30px;
+	min-width: 180px;
+}
+
+/* Variation group header row */
+.wbe-table tr.wbe-row-group {
+	background: #efeafc !important;
+	border-top: 2px solid #d8cef3;
+}
+
+.wbe-table tr.wbe-row-group:hover {
+	background: #e8e0fb !important;
+}
+
+.wbe-table td.wbe-col-grouphdr {
+	padding: 8px 12px;
+	cursor: pointer;
+	user-select: none;
+	white-space: nowrap;
+	color: #4a3a78;
+}
+
+.wbe-group-caret {
+	font-size: 16px;
+	line-height: 1;
+	vertical-align: middle;
+	margin-right: 4px;
+	transition: transform 0.12s;
+}
+
+.wbe-table tr.wbe-row-group.is-collapsed .wbe-group-caret {
+	transform: rotate(-90deg);
+}
+
+.wbe-group-count {
+	color: #7a6aa8;
+	font-weight: 400;
+	font-size: 12px;
+	margin-left: 4px;
+}
+
+/* Group header image wrap: dashed accent so it reads as a "fill the group" action */
+.wbe-img-wrap.is-group {
+	box-shadow: 0 0 0 1px #b9a8e8;
+}
+
+.wbe-img-wrap.is-group:hover {
+	box-shadow: 0 0 0 2px #7f54b3;
+}
+
 /* Fabric Group column (per-variation drawer category) */
 .wbe-col-fabricgroup {
 	min-width: 150px;

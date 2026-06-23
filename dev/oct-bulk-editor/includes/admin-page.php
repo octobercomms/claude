@@ -84,6 +84,15 @@
 		<?php endforeach; ?>
 	</div>
 
+	<!-- Group variations by a shared attribute (e.g. Fabric) for one-image-fits-group editing -->
+	<div class="wbe-groupby-bar">
+		<strong><?php esc_html_e( 'Group variations by:', 'oct-bulk-editor' ); ?></strong>
+		<select id="wbe-groupby" class="wbe-input">
+			<option value=""><?php esc_html_e( '— No grouping —', 'oct-bulk-editor' ); ?></option>
+		</select>
+		<span class="wbe-bulkedit-hint"><?php esc_html_e( 'Collapse variations under a shared attribute and set one image for the whole group (e.g. all cushion fillings of a fabric).', 'oct-bulk-editor' ); ?></span>
+	</div>
+
 	<!-- Bulk edit: set one field across every loaded row at once -->
 	<div class="wbe-bulkedit">
 		<strong><?php esc_html_e( 'Bulk edit:', 'oct-bulk-editor' ); ?></strong>
