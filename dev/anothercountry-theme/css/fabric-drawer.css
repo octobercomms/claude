@@ -118,3 +118,38 @@ body.single-product #breadcrumbs{margin-bottom:1em !important}
 .single-product h1.entry-title{margin:.1rem 0 .5rem !important;padding-top:0 !important}
 .single-product .woocommerce-product-details__short-description{margin:0 0 1rem !important}
 .single-product .woocommerce-product-details__short-description p:last-child{margin-bottom:0 !important}
+/* ===== OCTOBER COMMS ADDITION - START =====
+   PDP trust signals: sit the B-Corp / Carbon Neutral line beside the Klarna
+   box (instead of stacked) to save vertical space, with a clear 50px gap so
+   they read as separate items, and a larger, legible B-Corp mark.
+   ========================================== */
+.product_add_to_cart_button .klarna-outer {
+  display: inline-block;
+  vertical-align: middle;
+}
+.product_add_to_cart_button .carbon-netural {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+/* 50px gap only when the B-Corp line actually follows the Klarna box. */
+.product_add_to_cart_button .klarna-outer + .carbon-netural {
+  margin-left: 50px;
+}
+/* Enlarge the B-Corp / Carbon Neutral mark so it's recognisable. */
+.product_add_to_cart_button .carbon-netural img {
+  width: 72px;
+  height: auto;
+}
+/* Stack again on narrow screens so they don't overflow. */
+@media (max-width: 600px) {
+  .product_add_to_cart_button .klarna-outer,
+  .product_add_to_cart_button .carbon-netural {
+    display: block;
+  }
+  .product_add_to_cart_button .klarna-outer + .carbon-netural {
+    margin-left: 0;
+    margin-top: 16px;
+  }
+}
+/* ===== OCTOBER COMMS ADDITION - END ===== */
