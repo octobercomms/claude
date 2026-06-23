@@ -160,11 +160,35 @@
 		uploadImageFile($(this), file);
 	});
 
+	// Per-session upload cache, keyed by file name + size. The first drop of a
+	// given image uploads it; every later drop of the same file — even ones fired
+	// in parallel before the first finishes — waits on that single request and
+	// reuses its attachment, so the media library never gets duplicates.
+	const uploadCache = {};
+
 	function uploadImageFile($wrap, file) {
 		if ($wrap.hasClass('is-uploading')) return;
 
+		const cacheKey = file.name + ':' + file.size;
 		$wrap.addClass('is-uploading');
 		$wrap.find('.wbe-img-spinner').show();
+
+		// Already uploaded (or uploading) this exact file this session — reuse it.
+		if (uploadCache[cacheKey]) {
+			uploadCache[cacheKey].done(function (data) {
+				deliverImage($wrap, data.attachment_id, data.thumb_url);
+				showStatus('Reused "' + file.name + '" — no duplicate uploaded.', 'info');
+			}).fail(function () {
+				showStatus(octwbe.i18n.uploadError, 'error');
+			}).always(function () {
+				$wrap.removeClass('is-uploading');
+				$wrap.find('.wbe-img-spinner').hide();
+			});
+			return;
+		}
+
+		const dfd = $.Deferred();
+		uploadCache[cacheKey] = dfd;
 		showStatus(octwbe.i18n.uploading, 'info');
 
 		const formData = new FormData();
@@ -180,6 +204,7 @@
 			contentType: false,
 		}).done(function (response) {
 			if (response.success) {
+				dfd.resolve(response.data);
 				deliverImage($wrap, response.data.attachment_id, response.data.thumb_url);
 				if (response.data.reused) {
 					showStatus('Reused existing "' + (response.data.filename || file.name) + '" from the media library — no duplicate uploaded.', 'info');
@@ -187,9 +212,13 @@
 					hideStatus();
 				}
 			} else {
+				delete uploadCache[cacheKey]; // allow a retry
+				dfd.reject();
 				showStatus(response.data || octwbe.i18n.uploadError, 'error');
 			}
 		}).fail(function () {
+			delete uploadCache[cacheKey]; // allow a retry
+			dfd.reject();
 			showStatus(octwbe.i18n.uploadError, 'error');
 		}).always(function () {
 			$wrap.removeClass('is-uploading');
