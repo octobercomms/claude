@@ -626,4 +626,63 @@
     $(document).on("keyup", function (e) { if (e.key === "Escape") { close(); } });
   });
 })(jQuery);
+
+/* ===== OCTOBER COMMS ADDITION - START =====
+   Sync the main product image slider to the selected variation. The theme tags
+   each gallery <img> with data-variation-id (a comma list of the variation IDs
+   that use that image). On a variation match we slide the Slick gallery to the
+   matching image. This restores the variation -> main image behaviour under the
+   custom accordion + fabric-drawer selection UI (the parent theme's old sync was
+   bound to the native dropdowns, which we no longer drive directly).
+   ========================================== */
+(function ($) {
+  "use strict";
+  $(function () {
+    var $form = $(".variations_form");
+    if (!$form.length) { return; }
+    var $slider = $("#product_single_image_slider");
+    if (!$slider.length) { return; }
+
+    // Slide to the (non-cloned) gallery image whose data-variation-id list
+    // contains this variation id. No-op if the gallery or id isn't ready.
+    function slideToVariation(variationId) {
+      if (!variationId || !$slider.hasClass("slick-initialized")) { return; }
+      var target = -1;
+      $slider.find("img.slick-slide").not(".slick-cloned").each(function () {
+        var raw = $(this).attr("data-variation-id");
+        if (!raw) { return; }
+        if ($.inArray(String(variationId), raw.split(",")) !== -1) {
+          target = parseInt($(this).attr("data-slick-index"), 10);
+          return false; // first match wins; ids are unique per slide
+        }
+      });
+      if (target >= 0 && !isNaN(target)) {
+        $slider.slick("slickGoTo", target);
+      }
+    }
+
+    // WooCommerce still fires found_variation (price/badge update proves it),
+    // regardless of how the selection was made in our custom UI.
+    $form.on("found_variation", function (event, variation) {
+      if (variation && variation.variation_id) {
+        slideToVariation(variation.variation_id);
+      }
+    });
+
+    // On first load, sync once the slider is initialised and a variation has
+    // resolved (the page can load with a full variation already selected).
+    var tries = 0;
+    var timer = setInterval(function () {
+      tries++;
+      var current = $form.find("input.variation_id").val();
+      if ($slider.hasClass("slick-initialized") && current && current !== "0") {
+        slideToVariation(current);
+        clearInterval(timer);
+      } else if (tries > 20) {
+        clearInterval(timer);
+      }
+    }, 250);
+  });
+})(jQuery);
+/* ===== OCTOBER COMMS ADDITION - END ===== */
 /* ===== OCTOBER COMMS ADDITION - END ===== */

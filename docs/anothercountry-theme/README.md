@@ -43,6 +43,21 @@ green ✓ only once a fabric is chosen. Touches three files:
 - `css/fabric-drawer.css`: `.ac-fabric-num` is grey by default (inherits
   `.ac-acc-num`); green only under `.ac-fabric-trigger.is-selected`.
 
+### Main image slider — re-synced to the selected variation
+The PDP gallery is a custom **Slick** slider (`#product_single_image_slider`)
+whose images are each tagged server-side with `data-variation-id` (a comma list
+of the variations that use that image). The parent theme's original sync was
+bound to the native WooCommerce dropdowns; once we drive selection through the
+custom accordion + fabric drawer, that sync stopped firing and the big image no
+longer changed with the variation.
+
+`js/fabric-drawer.js` now carries an `OCTOBER COMMS` block that listens to
+WooCommerce's `found_variation` event (still fired — it's what updates the price
+and made-to-order badge) and slides the existing Slick gallery to the image whose
+`data-variation-id` contains the resolved `variation_id`. It also syncs once on
+first load. No markup/PHP change — it reuses the theme's existing
+variation→image tagging and the live Slick instance.
+
 ## Deploy
 
 1. Upload all three files to the live `merchandiser-child` theme (same paths).
