@@ -102,7 +102,7 @@ Produce exactly ${count} ad creative concepts. Vary the framework — don't retu
   const response = await getClient().messages.create({
     model: MODEL,
     max_tokens: 6000,
-    system: require('./claude').cacheableSystem(SYSTEM),
+    system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['copywriting', 'ad-copy'])),
     tools: [TOOL],
     tool_choice: { type: 'tool', name: 'propose_ad_creatives' },
     messages: [{ role: 'user', content: userPrompt }],
