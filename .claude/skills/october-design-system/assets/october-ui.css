@@ -1,0 +1,289 @@
+/* ============================================================================
+   October Design System — portable stylesheet (v1, derived from OMI v3.1)
+   ----------------------------------------------------------------------------
+   A self-contained, app-agnostic snapshot of the October house style:
+   two-tone discipline (white surface + black text + one accent), Brockmann
+   type, thick 2px borders, chunky radii, sanctioned semantic colours, and a
+   soft depth/polish layer. Drop this into any app, then build with the tokens
+   and primitives below.
+
+   Canonical source of truth: dev/platform/frontend/src/index.css (OMI). This
+   file is the reusable subset — OMI-specific layout (hero, sequence builder,
+   chat, strategist, client switcher) is intentionally omitted.
+
+   Brand rules: keep the accent reserved for action/active/highlight; only the
+   three sanctioned semantic hues (positive/negative/warning) are allowed
+   beyond the two-tone palette. Override --accent (and --accent-on for legible
+   text on it) per app if a different brand colour is needed.
+   ========================================================================== */
+
+:root {
+  /* Main panel — light theme. Off-white page, white bentos. */
+  --page-bg: #faf9f5;
+  --surface: #ffffff;
+  --surface-raised: #fafafa;
+  --surface-sunken: #f3f3f3;
+  --text: #1a1a1a;
+  --text-muted: #555555;
+  --text-subtle: #888888;
+  --border-neutral: #1a1a1a;
+  --card-border: #e3e2db;   /* soft grey — the default bento border */
+
+  /* Dark chrome — for a sidebar / nav rail. Kept dark for contrast so the
+     rest of the app stays two-tone clean. */
+  --sidebar-bg: #0b0b0c;
+  --sidebar-fg: #fafafa;
+  --sidebar-muted: #a0a0a8;
+  --sidebar-subtle: #6e6e76;
+  --sidebar-border: #26262b;
+
+  /* Accent. Brand yellow — override per app. --accent-on must stay legible
+     when used as text/icon colour ON the accent fill. */
+  --accent: #E7CD41;
+  --accent-soft: rgba(231, 205, 65, 0.12);
+  --accent-on: #1a1a1a;
+
+  /* Sanctioned semantic colours — the ONLY third-tier hues allowed. Used for
+     up/down deltas, profit/loss, success/error. Everything else stays inside
+     the two-tone palette. */
+  --positive: #2e7d32;
+  --positive-soft: rgba(56, 142, 60, 0.10);
+  --negative: #c62828;
+  --negative-soft: rgba(198, 40, 40, 0.10);
+  --warning: #b86e00;
+  --warning-soft: rgba(255, 187, 6, 0.16);
+
+  /* Type — Brockmann everywhere (fall back to system sans if unavailable). */
+  --font: 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+  /* Spacing — 4pt base. */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px;
+  --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px;
+  --s9: 56px; --s10: 72px;
+
+  /* Chunky radii. */
+  --r-sm: 8px;  --r-md: 14px;  --r-lg: 20px;  --r-pill: 999px;
+
+  /* Borders are thick everywhere. */
+  --border-w: 2px;
+
+  /* Depth — soft, low-contrast shadows for gentle elevation. The flat
+     two-tone system stays; these lift surfaces off the page and give
+     overlays a frosted feel. Tune the alphas up/down to taste. */
+  --shadow-xs: 0 1px 3px rgba(20, 20, 20, 0.07);
+  --shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.06), 0 5px 14px rgba(20, 20, 20, 0.09);
+  --shadow-md: 0 4px 10px rgba(20, 20, 20, 0.09), 0 20px 46px rgba(20, 20, 20, 0.14);
+  --shadow-lg: 0 24px 64px rgba(20, 20, 20, 0.20);
+  --shadow-accent: 0 3px 14px rgba(231, 205, 65, 0.42);
+}
+
+/* ─── Base ───────────────────────────────────────────────────────────── */
+
+html, body {
+  background: var(--page-bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}
+* { box-sizing: border-box; }
+a { color: var(--text); text-decoration: none; }
+a:hover { color: var(--accent); text-decoration: underline; text-decoration-thickness: var(--border-w); text-underline-offset: 3px; }
+button { font-family: inherit; }
+
+/* ─── Type ───────────────────────────────────────────────────────────── */
+
+.display { font-size: 54px; font-weight: 800; line-height: 1; letter-spacing: -1.6px; color: var(--text); margin: 0; }
+.h1 { font-size: 32px; font-weight: 700; line-height: 1.15; letter-spacing: -0.6px; margin: 0; }
+.h2 { font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.3px; margin: 0; }
+.h3 { font-size: 15px; font-weight: 600; line-height: 1.3; margin: 0; }
+.body    { font-size: 15px; font-weight: 400; line-height: 1.55; color: var(--text-muted); margin: 0; }
+.body-sm { font-size: 14px; font-weight: 400; line-height: 1.5;  color: var(--text); margin: 0; }
+.body-xs { font-size: 12px; font-weight: 400; line-height: 1.4;  color: var(--text-muted); margin: 0; }
+.caption { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: var(--text); margin: 0; }
+.caption-muted { color: var(--text-subtle); }
+.metric { font-size: 36px; font-weight: 700; line-height: 1.05; letter-spacing: -0.6px; color: var(--text); }
+.text-accent { color: var(--accent); }
+.text-muted  { color: var(--text-muted); }
+.text-subtle { color: var(--text-subtle); }
+.text-positive { color: var(--positive); font-weight: 600; }
+.text-negative { color: var(--negative); font-weight: 600; }
+.text-warning  { color: var(--warning); font-weight: 600; }
+
+/* ─── Cards ──────────────────────────────────────────────────────────── */
+
+.card {
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border);
+  border-radius: var(--r-md);
+  padding: var(--s5);
+  color: var(--text);
+}
+.card.raised  { background: var(--surface-raised); }
+.card.accent  { background: var(--accent-soft); border-color: var(--accent); }
+.card.plain   { background: var(--surface); border-color: var(--border-neutral); }
+.card.outline { background: transparent; border-color: var(--accent); }
+/* "filled" = the black feature surface: ink fill, white text, accent for one
+   highlight inside. */
+.card.filled  { background: var(--text); border-color: var(--text); color: #fff; }
+.card.filled .display, .card.filled .h1, .card.filled .h2, .card.filled .h3,
+.card.filled .body, .card.filled .body-sm, .card.filled .body-xs, .card.filled .caption { color: #fff; }
+.card.success { background: var(--positive-soft); border-color: var(--positive); }
+.card.danger  { background: var(--negative-soft); border-color: var(--negative); }
+.card.warning { background: var(--warning-soft);  border-color: var(--warning); }
+
+/* List/overview card internals. */
+.card-stat { display: flex; flex-direction: column; gap: var(--s3); }
+.card-stat-head { display: flex; justify-content: space-between; align-items: flex-start; }
+.card-stat-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); }
+.card-stat-row strong { color: var(--text); font-weight: 600; }
+.card-stat-link { font-size: 12px; color: var(--accent); text-decoration: none; font-weight: 700; border-top: var(--border-w) solid var(--accent-soft); padding-top: var(--s3); margin-top: var(--s2); }
+.health-dot { width: 10px; height: 10px; border-radius: var(--r-pill); margin-top: 4px; }
+.health-dot.ok { background: var(--positive); } .health-dot.warn { background: var(--warning); } .health-dot.error { background: var(--negative); }
+
+/* ─── Stats / metrics ─────────────────────────────────────────────────── */
+
+.stat-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s4); }
+.stat {
+  background: var(--surface);
+  border: var(--border-w) solid var(--card-border); border-radius: var(--r-md);
+  padding: var(--s5); min-height: 132px;
+  display: flex; flex-direction: column; gap: var(--s2);
+}
+.stat .stat-label { font-size: 11px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.stat .stat-value { font-size: 44px; font-weight: 800; letter-spacing: -2px; line-height: 0.9; margin-top: auto; color: var(--text); }
+.stat .stat-value small { font-size: 20px; color: var(--text-subtle); letter-spacing: 0; font-weight: 700; }
+.stat .stat-sub { font-size: 12px; color: var(--text-subtle); }
+.stat.feature { background: var(--text); border-color: var(--text); }
+.stat.feature .stat-label, .stat.feature .stat-sub { color: rgba(255, 255, 255, 0.6); }
+.stat.feature .stat-value { color: var(--accent); }
+
+.metric-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3); }
+.metric-card { background: var(--surface); border: var(--border-w) solid var(--card-border); border-radius: var(--r-md); padding: var(--s4); }
+.metric-card.accent { background: var(--text); border-color: var(--text); }
+.metric-card.accent .metric { color: var(--accent); }
+.metric-card.accent .caption { color: rgba(255, 255, 255, 0.6); }
+
+/* ─── Buttons ─────────────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 9px 16px;
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  border-radius: var(--r-pill); cursor: pointer;
+  border: var(--border-w) solid transparent; text-decoration: none; white-space: nowrap;
+  transition: filter 0.15s ease, transform 0.05s ease, background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.18s ease;
+}
+.btn:hover { text-decoration: none; }
+.btn:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn-primary   { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+.btn-primary:hover:not(:disabled) { filter: brightness(0.90); color: var(--accent-on); }
+.btn-secondary { background: var(--surface); color: var(--text); border-color: var(--border-neutral); }
+.btn-secondary:hover:not(:disabled) { background: var(--surface-sunken); }
+.btn-ghost { background: var(--surface); color: var(--text); border-color: var(--border-neutral); padding: 6px 10px; }
+.btn-ghost:hover:not(:disabled) { background: var(--surface-sunken); }
+.btn-danger { background: var(--negative); color: #fff; border-color: var(--negative); }
+.btn-danger:hover:not(:disabled) { filter: brightness(0.92); color: #fff; }
+
+/* ─── Chips ───────────────────────────────────────────────────────────── */
+
+.chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; font-size: 11px; font-weight: 600; border-radius: var(--r-pill); border: var(--border-w) solid var(--border-neutral); background: var(--surface); color: var(--text); }
+.chip-neutral { background: var(--surface-sunken); color: var(--text-muted); border-color: var(--surface-sunken); }
+.chip-accent  { background: var(--accent); color: var(--accent-on); border-color: var(--accent); font-weight: 700; }
+.chip-outline { background: transparent; color: var(--accent); border-color: var(--accent); }
+.chip-success { background: var(--positive-soft); color: var(--positive); border-color: var(--positive); }
+.chip-warning { background: var(--warning-soft);  color: var(--warning);  border-color: var(--warning); }
+.chip-danger  { background: var(--negative-soft); color: var(--negative); border-color: var(--negative); }
+
+/* ─── Callouts ────────────────────────────────────────────────────────── */
+
+.callout { padding: var(--s3) var(--s4); border-radius: var(--r-sm); border: var(--border-w) solid var(--accent); background: var(--accent-soft); color: var(--text); font-size: 13px; line-height: 1.5; }
+.callout-danger  { border-color: var(--negative); background: var(--negative-soft); color: var(--negative); }
+.callout-warning { border-color: var(--warning);  background: var(--warning-soft);  color: var(--warning); }
+.callout-success { border-color: var(--positive); background: var(--positive-soft); color: var(--positive); }
+
+/* ─── Tables ──────────────────────────────────────────────────────────── */
+
+.table { width: 100%; border-collapse: collapse; }
+.table th { text-align: left; padding: 14px var(--s3); font-size: 12px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text); border-bottom: var(--border-w) solid var(--text); }
+.table td { padding: 14px var(--s3); font-size: 14px; color: var(--text); border-bottom: 1px solid var(--card-border); }
+.table tr:last-child td { border-bottom: none; }
+.table td.num, .table th.num { text-align: right; }
+.table td.strong { color: var(--text); font-weight: 700; }
+
+/* ─── Empty state ─────────────────────────────────────────────────────── */
+
+.empty { text-align: center; padding: var(--s9) var(--s5); background: var(--surface); border: var(--border-w) solid var(--card-border); border-radius: var(--r-md); }
+.empty-icon { width: 64px; height: 64px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-subtle); display: inline-flex; align-items: center; justify-content: center; font-size: 28px; margin-bottom: var(--s4); border: var(--border-w) solid var(--card-border); }
+
+/* ─── Tabs ────────────────────────────────────────────────────────────── */
+
+.tabs { display: flex; gap: var(--s6); border-bottom: var(--border-w) solid var(--text); margin: var(--s5) 0 var(--s6); }
+.tab { background: none; border: none; padding: var(--s3) 0; border-bottom: var(--border-w) solid transparent; margin-bottom: calc(var(--border-w) * -1); color: var(--text-muted); font-size: 16px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ─── Form controls ───────────────────────────────────────────────────── */
+
+.input, .select, .textarea { width: 100%; padding: 10px var(--s3); background: var(--surface); color: var(--text); border: var(--border-w) solid var(--card-border); border-radius: var(--r-sm); font-size: 14px; font-family: inherit; }
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); }
+.input::placeholder, .textarea::placeholder { color: var(--text-subtle); }
+.textarea { min-height: 80px; resize: vertical; }
+.field { margin-bottom: var(--s4); }
+.field-label { display: block; margin-bottom: 6px; font-size: 11px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-subtle); }
+
+/* ─── Layout primitives ───────────────────────────────────────────────── */
+
+.grid { display: grid; gap: var(--s4); }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.row { display: flex; gap: var(--s3); }
+.row.center { align-items: center; } .row.between { justify-content: space-between; } .row.end { justify-content: flex-end; } .row.wrap { flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; } .stack > * + * { margin-top: var(--s3); }
+.spacer { flex: 1; }
+
+/* ─── Modal ───────────────────────────────────────────────────────────── */
+
+.modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: var(--s4); background: rgba(15, 15, 18, 0.4); backdrop-filter: blur(6px) saturate(1.05); -webkit-backdrop-filter: blur(6px) saturate(1.05); }
+.modal { background: var(--surface); border: var(--border-w) solid var(--accent); border-radius: var(--r-lg); padding: var(--s7); width: 560px; max-width: 92vw; max-height: 90vh; overflow: auto; box-shadow: var(--shadow-lg); }
+.modal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--s5); }
+.modal-close { background: none; border: none; color: var(--text-muted); font-size: 22px; cursor: pointer; }
+.modal-close:hover { color: var(--accent); }
+
+/* ─── Depth & polish ──────────────────────────────────────────────────────
+   The lift layer. Soft elevation on surfaces, a frosted feel on overlays, a
+   touch of warmth on the canvas, and a hover lift on interactive things.
+   Tune the shadow tokens (top of file) + the wash alpha to dial up/down. */
+
+/* Canvas warmth — apply .oc-canvas to the top-level scrolling container
+   (the element that paints the page background). */
+.oc-canvas {
+  background:
+    radial-gradient(1100px 640px at 6% -10%, rgba(231, 205, 65, 0.11), transparent 58%),
+    radial-gradient(1000px 720px at 100% 0%, rgba(231, 205, 65, 0.07), transparent 55%),
+    var(--page-bg);
+  background-attachment: fixed;
+}
+
+/* Dark chrome gradient — apply .oc-rail to a sidebar/nav for dimensionality. */
+.oc-rail { background: linear-gradient(180deg, #1a1a1f 0%, #0b0b0c 55%, #050506 100%); }
+
+/* Soft elevation on surfaces. */
+.card, .stat, .metric-card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease;
+}
+
+/* Hover lift for interactive surfaces — add .oc-lift (or wrap card in <a>). */
+.oc-lift, .card-stat { transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease; }
+.oc-lift:hover, a:hover > .card-stat, .card-stat:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--text); }
+
+/* Primary button glow. */
+.btn-primary { background: linear-gradient(180deg, #efda6a 0%, var(--accent) 100%); box-shadow: var(--shadow-accent); }
+.btn-primary:hover:not(:disabled) { filter: brightness(0.97); box-shadow: 0 4px 16px rgba(231, 205, 65, 0.4); transform: translateY(-1px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .oc-lift:hover, .card-stat:hover, .btn-primary:hover:not(:disabled) { transform: none; }
+}
