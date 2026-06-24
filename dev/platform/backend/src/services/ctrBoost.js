@@ -110,7 +110,7 @@ Return ONLY the JSON object. No prose, no markdown fences.`;
 
   const reply = await claudeService.callClaude({
     max_tokens: 1024,
-    system: 'You are an SEO copywriter specialising in title tags and meta descriptions that earn clicks. British English. Output JSON only.' + playbooks.systemSuffix(['copywriting']),
+    system: 'You are an SEO copywriter specialising in title tags and meta descriptions that earn clicks. British English. Output JSON only.' + playbooks.systemSuffix(['copywriting', 'ad-copy']),
     user: prompt,
   });
   const cleaned = reply.replace(/^```(?:json)?\s*/i, '').replace(/```\s*$/, '').trim();
