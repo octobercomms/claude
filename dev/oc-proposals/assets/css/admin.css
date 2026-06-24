@@ -1,0 +1,35 @@
+/* October Proposals — admin styling. Uses the shared OMI design tokens
+   (--ocp-*) injected inline from OCP_Settings::css_root(). */
+
+.ocp-wrap{ font-family: var(--ocp-font, sans-serif); color: var(--ocp-ink, #1a1a1a); max-width: 1100px; }
+.ocp-h1{ font-weight: 600; letter-spacing: -.01em; }
+.ocp-lede{ color: var(--ocp-muted, #555); font-size: 14px; max-width: 60ch; }
+.ocp-muted{ color: var(--ocp-muted, #555); }
+
+.ocp-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+.ocp-card{ background: var(--ocp-surface, #fff); border: 2px solid var(--ocp-card, #e3e2db);
+	border-radius: 14px; padding: 20px 22px; }
+.ocp-card h2{ font-size: 16px; margin: 0 0 6px; }
+.ocp-card--accent{ border-color: var(--ocp-ink, #1a1a1a); }
+
+.ocp-chip{ display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
+	background: var(--ocp-card, #e3e2db); color: var(--ocp-ink, #1a1a1a); }
+
+.ocp-btn{ display: inline-block; background: var(--ocp-accent, #E7CD41); color: var(--ocp-accent-on, #1a1a1a);
+	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 10px; padding: 9px 18px; font-weight: 700;
+	text-decoration: none; }
+.ocp-btn:hover{ filter: brightness(.97); color: var(--ocp-accent-on, #1a1a1a); }
+
+.ocp-foot{ margin-top: 24px; font-size: 12px; }
+
+/* CRM pipeline board */
+.ocp-board{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 12px; }
+.ocp-col{ background: var(--ocp-page, #faf9f5); border: 2px solid var(--ocp-card, #e3e2db); border-radius: 12px; padding: 10px; min-height: 120px; }
+.ocp-col h3{ font-size: 13px; margin: 4px 6px 10px; display: flex; justify-content: space-between; align-items: center; }
+.ocp-count{ background: var(--ocp-card, #e3e2db); border-radius: 999px; font-size: 11px; padding: 1px 8px; }
+.ocp-lead{ display: block; background: var(--ocp-surface, #fff); border: 1px solid var(--ocp-card, #e3e2db); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; text-decoration: none; color: var(--ocp-ink, #1a1a1a); }
+.ocp-lead:hover{ border-color: var(--ocp-ink, #1a1a1a); }
+.ocp-lead strong{ display: block; font-size: 13px; }
+.ocp-lead span{ display: block; font-size: 11px; color: var(--ocp-muted, #555); }
+.ocp-lead em{ display: block; font-size: 11px; color: #b86e00; font-style: normal; }
+@media (max-width: 1100px){ .ocp-board{ grid-template-columns: 1fr 1fr; } }

@@ -1,0 +1,93 @@
+/* October Proposals — public portal. OMI design system via --ocp-* tokens
+   (injected inline from OCP_Settings::css_root()). Standalone, not themed. */
+
+*{ box-sizing: border-box; }
+body.ocp-portal{ margin: 0; background: var(--ocp-page, #faf9f5); color: var(--ocp-ink, #1a1a1a);
+	font-family: var(--ocp-font, sans-serif); line-height: 1.55; -webkit-font-smoothing: antialiased; }
+.ocp-doc{ max-width: 920px; margin: 0 auto; padding: 32px 20px 80px; }
+
+h1{ font-size: clamp(28px, 5vw, 44px); letter-spacing: -.01em; margin: .2em 0; }
+h2{ font-size: 24px; margin: 0 0 .3em; }
+h3{ font-size: 18px; margin: 0 0 .3em; }
+.ocp-eyebrow{ font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700; color: var(--ocp-ink); margin-bottom: 8px; }
+
+.ocp-sec{ background: var(--ocp-surface, #fff); border: 2px solid var(--ocp-card, #e3e2db);
+	border-radius: 16px; padding: 28px 30px; margin: 16px 0; }
+.ocp-cover{ text-align: left; padding: 40px 30px; background: var(--ocp-surface, #fff);
+	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 16px; margin-bottom: 16px; }
+.ocp-logo{ height: 30px; width: auto; margin-bottom: 18px; }
+.ocp-cover-client{ font-size: 18px; color: var(--ocp-muted, #555); margin: 0; }
+.ocp-cover-img{ margin-top: 22px; border-radius: 12px; overflow: hidden; border: 1px solid var(--ocp-card); }
+.ocp-cover-img img{ width: 100%; display: block; }
+.ocp-sign{ color: var(--ocp-muted); font-style: italic; }
+
+/* Video (Loom) */
+.ocp-video{ position: relative; padding-bottom: 56.25%; height: 0; border-radius: 12px; overflow: hidden;
+	margin: 16px 0; border: 1px solid var(--ocp-card); }
+.ocp-video iframe{ position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* Proof cards + stats */
+.ocp-cards{ display: grid; gap: 16px; }
+.ocp-card2{ border: 1px solid var(--ocp-card); border-radius: 12px; padding: 18px 20px; }
+.ocp-stats{ display: flex; gap: 28px; flex-wrap: wrap; margin: 10px 0; }
+.ocp-stat b{ display: block; font-size: 26px; line-height: 1; }
+.ocp-stat span{ font-size: 12px; color: var(--ocp-muted); }
+.ocp-link{ color: var(--ocp-ink); font-weight: 700; text-decoration: none; border-bottom: 2px solid var(--ocp-accent); }
+
+/* Plan of work rail */
+.ocp-rail{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 14px; }
+.ocp-stage{ border: 1px solid var(--ocp-card); border-radius: 12px; padding: 16px 12px; text-align: center;
+	opacity: 0; transform: translateY(8px); transition: opacity .5s ease, transform .5s ease; }
+.ocp-stage.in{ opacity: 1; transform: none; }
+.ocp-num{ display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px;
+	border-radius: 50%; background: var(--ocp-ink, #1a1a1a); color: #fff; font-weight: 700; }
+.ocp-stage:last-child .ocp-num{ background: var(--ocp-accent, #E7CD41); color: var(--ocp-accent-on, #1a1a1a); }
+.ocp-stage h4{ margin: 10px 0 0; font-size: 14px; }
+
+/* Investment */
+.ocp-buckets{ display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ocp-bucket{ border: 1px solid var(--ocp-card); border-radius: 12px; padding: 22px 24px; }
+.ocp-kicker{ font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ocp-muted); }
+.ocp-price{ font-size: 40px; font-weight: 600; margin: 6px 0; display: flex; align-items: baseline; gap: 8px; }
+.ocp-per{ font-size: 14px; font-weight: 600; color: var(--ocp-muted); }
+.ocp-incl{ list-style: none; margin: 0; padding: 0; }
+.ocp-incl li{ padding: 6px 0; border-top: 1px dashed var(--ocp-card); font-size: 14px; }
+.ocp-incl li:first-child{ border-top: 0; }
+.ocp-reassure{ margin-top: 14px; color: var(--ocp-muted); font-size: 13px; }
+
+/* Appendix */
+.ocp-appendix{ background: var(--ocp-page); }
+.ocp-testi figure{ margin: 0 0 16px; padding: 0 0 16px; border-bottom: 1px solid var(--ocp-card); }
+.ocp-testi img{ height: 26px; width: auto; margin-bottom: 8px; }
+.ocp-testi blockquote{ margin: 0; font-size: 15px; }
+.ocp-testi figcaption{ color: var(--ocp-muted); font-size: 12px; margin-top: 4px; }
+.ocp-svc{ columns: 2; }
+.ocp-clients{ color: var(--ocp-muted); }
+
+/* Accept / terms */
+.ocp-next h2{ margin-top: 4px; }
+.ocp-terms{ margin: 14px 0; border: 1px solid var(--ocp-card); border-radius: 10px; padding: 10px 14px; }
+.ocp-terms summary{ cursor: pointer; font-weight: 700; }
+.ocp-terms-body{ max-height: 320px; overflow: auto; font-size: 13px; color: var(--ocp-muted); margin-top: 10px; }
+.ocp-accept{ display: grid; gap: 12px; max-width: 420px; margin-top: 12px; }
+.ocp-field span{ display: block; font-size: 13px; margin-bottom: 4px; }
+.ocp-field input{ width: 100%; padding: 10px 12px; border: 2px solid var(--ocp-card); border-radius: 8px; font: inherit; }
+.ocp-check{ font-size: 14px; }
+.ocp-btn{ background: var(--ocp-accent, #E7CD41); color: var(--ocp-accent-on, #1a1a1a);
+	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 10px; padding: 13px 24px; font-weight: 700;
+	font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
+.ocp-accepted{ border-color: var(--ocp-positive, #2e7d32); }
+.ocp-pay-options{ display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0; }
+.ocp-pay-options form{ margin: 0; }
+.ocp-btn--ghost{ background: transparent; color: var(--ocp-ink, #1a1a1a); border: 2px solid var(--ocp-ink, #1a1a1a);
+	border-radius: 10px; padding: 11px 20px; font: inherit; font-weight: 700; cursor: pointer; }
+.ocp-sub{ margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ocp-card, #e3e2db); }
+.ocp-sub form{ display: inline-block; margin: 6px 0; }
+.ocp-pdf-link{ text-align: center; margin: 20px 0; }
+.ocp-pdf-link a{ color: var(--ocp-muted, #555); }
+
+@media (max-width: 720px){
+	.ocp-rail{ grid-template-columns: 1fr 1fr; }
+	.ocp-buckets{ grid-template-columns: 1fr; }
+	.ocp-svc{ columns: 1; }
+}

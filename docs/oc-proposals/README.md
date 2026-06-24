@@ -25,4 +25,6 @@ Code lives in `dev/oc-proposals/` (not yet started). Docs:
   (Plan-of-Work rail + two buckets + ROI anchor + pause note). Open in a browser; prints A4
   landscape.
 
-**Status:** Scope agreed; decisions locked — ready to scaffold the plugin. No code yet.
+**Status:** Built. The plugin lives in `dev/oc-proposals/` (v0.7.0, feature-complete across
+the planned scope). See **[BUILD-STATUS.md](BUILD-STATUS.md)** for what shipped, the
+install-once/update-forever mechanism, and the per-site setup checklist.
