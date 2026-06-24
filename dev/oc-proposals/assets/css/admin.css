@@ -1,0 +1,23 @@
+/* October Proposals — admin styling. Uses the shared OMI design tokens
+   (--ocp-*) injected inline from OCP_Settings::css_root(). */
+
+.ocp-wrap{ font-family: var(--ocp-font, sans-serif); color: var(--ocp-ink, #1a1a1a); max-width: 1100px; }
+.ocp-h1{ font-weight: 600; letter-spacing: -.01em; }
+.ocp-lede{ color: var(--ocp-muted, #555); font-size: 14px; max-width: 60ch; }
+.ocp-muted{ color: var(--ocp-muted, #555); }
+
+.ocp-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
+.ocp-card{ background: var(--ocp-surface, #fff); border: 2px solid var(--ocp-card, #e3e2db);
+	border-radius: 14px; padding: 20px 22px; }
+.ocp-card h2{ font-size: 16px; margin: 0 0 6px; }
+.ocp-card--accent{ border-color: var(--ocp-ink, #1a1a1a); }
+
+.ocp-chip{ display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
+	background: var(--ocp-card, #e3e2db); color: var(--ocp-ink, #1a1a1a); }
+
+.ocp-btn{ display: inline-block; background: var(--ocp-accent, #E7CD41); color: var(--ocp-accent-on, #1a1a1a);
+	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 10px; padding: 9px 18px; font-weight: 700;
+	text-decoration: none; }
+.ocp-btn:hover{ filter: brightness(.97); color: var(--ocp-accent-on, #1a1a1a); }
+
+.ocp-foot{ margin-top: 24px; font-size: 12px; }
