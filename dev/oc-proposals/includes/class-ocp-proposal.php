@@ -199,6 +199,23 @@ class OCP_Proposal {
 		);
 	}
 
+	/**
+	 * Amount due "to start" via Stripe: any one-off total, plus either the first
+	 * milestone (deposit) of the project total, or the whole project if no
+	 * schedule is set.
+	 */
+	public static function start_amount( $proposal_id ) {
+		$p = self::get( $proposal_id );
+		$t = self::totals( $proposal_id );
+		$oneoff  = $t['by_cadence']['oneoff'] ?? 0;
+		$project = $t['by_cadence']['project'] ?? 0;
+		$meta    = ( $p && $p['pricing_meta'] ) ? json_decode( $p['pricing_meta'], true ) : array();
+		if ( is_array( $meta ) && ! empty( $meta['milestones'][0]['pct'] ) ) {
+			$project = $project * (float) $meta['milestones'][0]['pct'] / 100;
+		}
+		return (float) ( $oneoff + $project );
+	}
+
 	/** Format an amount in the proposal's currency (no client-facing VAT wording). */
 	public static function money( $amount, $currency ) {
 		$symbols = array( 'GBP' => '£', 'USD' => '$', 'EUR' => '€' );

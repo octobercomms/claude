@@ -54,6 +54,13 @@ h3{ font-size: 18px; margin: 0 0 .3em; }
 .ocp-incl li{ padding: 6px 0; border-top: 1px dashed var(--ocp-card); font-size: 14px; }
 .ocp-incl li:first-child{ border-top: 0; }
 .ocp-reassure{ margin-top: 14px; color: var(--ocp-muted); font-size: 13px; }
+.ocp-roi{ margin-top: 16px; padding: 16px 18px; border-radius: 12px; background: var(--ocp-accent-soft, rgba(231,205,65,.16)); }
+.ocp-roi .ocp-stats{ margin-top: 8px; }
+.ocp-milestones{ margin-top: 16px; }
+.ocp-milestones ul{ list-style: none; margin: 8px 0 0; padding: 0; }
+.ocp-milestones li{ padding: 7px 0; border-top: 1px dashed var(--ocp-card, #e3e2db); font-size: 14px; }
+.ocp-milestones li:first-child{ border-top: 0; }
+.ocp-book{ margin-top: 12px; }
 
 /* Appendix */
 .ocp-appendix{ background: var(--ocp-page); }

@@ -31,6 +31,7 @@ class OCP_Admin_Proposals {
 		add_action( 'admin_post_ocp_delete_proposal', array( __CLASS__, 'delete' ) );
 		add_action( 'admin_post_ocp_mark_sent', array( __CLASS__, 'mark_sent' ) );
 		add_action( 'admin_post_ocp_ai_assist', array( __CLASS__, 'ai_assist' ) );
+		add_action( 'admin_post_ocp_suggest_pricing', array( __CLASS__, 'suggest_pricing' ) );
 		add_action( 'wp_ajax_ocp_content_chat', array( __CLASS__, 'content_chat' ) );
 		add_action( 'wp_ajax_ocp_content_generate', array( __CLASS__, 'content_generate' ) );
 		add_action( 'wp_ajax_ocp_extract_file', array( __CLASS__, 'extract_file' ) );
@@ -153,6 +154,7 @@ class OCP_Admin_Proposals {
 		echo '</select><p class="description">' . esc_html__( 'US sets USD + US Letter; VAT is handled silently.', 'oc-proposals' ) . '</p></td></tr>';
 
 		self::text( 'sector', __( 'Client sector (drives proof filtering)', 'oc-proposals' ), $p['sector'] );
+		self::text( 'client_contacts', __( 'Client email (for follow-ups)', 'oc-proposals' ), $p['client_contacts'], 'email' );
 		self::text( 'website_url', __( 'Client website URL', 'oc-proposals' ), $p['website_url'], 'url' );
 		self::text( 'website_image', __( 'Client website image URL (so they see themselves)', 'oc-proposals' ), $p['website_image'], 'url' );
 		echo '</table>';
@@ -239,6 +241,15 @@ class OCP_Admin_Proposals {
 	}
 
 	private static function step_pricing( $p ) {
+		// Claude pricing suggestion (band-clamped from the rate card).
+		if ( OCP_Claude::enabled() ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin:0 0 14px">';
+			echo '<input type="hidden" name="action" value="ocp_suggest_pricing" /><input type="hidden" name="id" value="' . esc_attr( $p['id'] ) . '" />';
+			wp_nonce_field( 'ocp_suggest_pricing' );
+			echo '<button class="button" onclick="return confirm(\'' . esc_js( __( 'Replace the current line items with a Claude suggestion (clamped to your rate card)?', 'oc-proposals' ) ) . '\')">' . esc_html__( 'Suggest pricing with Claude', 'oc-proposals' ) . '</button>';
+			echo ' <span class="ocp-muted">' . esc_html__( 'Uses your rate card + this proposal’s type, sector and situation.', 'oc-proposals' ) . '</span></form>';
+		}
+
 		$items = OCP_Proposal::items( $p['id'] );
 		if ( ! $items ) {
 			$items = array( array( 'cadence' => 'oneoff', 'stage' => '', 'label' => '', 'qty' => 1, 'unit_amount' => '', 'hours' => '' ) );
@@ -274,6 +285,24 @@ class OCP_Admin_Proposals {
 			}
 		}
 		echo '</p>';
+
+		// Deposit / milestone schedule (shown for project work).
+		$meta  = $p['pricing_meta'] ? json_decode( $p['pricing_meta'], true ) : array();
+		$mile  = ( is_array( $meta ) && ! empty( $meta['milestones'] ) ) ? $meta['milestones'] : array(
+			array( 'label' => __( 'To start', 'oc-proposals' ), 'pct' => '' ),
+			array( 'label' => __( 'On draft', 'oc-proposals' ), 'pct' => '' ),
+			array( 'label' => __( 'On delivery', 'oc-proposals' ), 'pct' => '' ),
+		);
+		echo '<h3>' . esc_html__( 'Payment schedule (project work)', 'oc-proposals' ) . '</h3>';
+		echo '<p class="description">' . esc_html__( 'Optional. Percentages of the project total — e.g. 40 / 40 / 20. The first row is taken as the deposit “to start”.', 'oc-proposals' ) . '</p>';
+		echo '<table class="widefat" style="max-width:520px"><tbody>';
+		foreach ( array_slice( $mile, 0, 3 ) as $i => $m ) {
+			echo '<tr>';
+			printf( '<td><input type="text" name="ms_label[]" value="%s" placeholder="%s" /></td>', esc_attr( (string) ( $m['label'] ?? '' ) ), esc_attr__( 'Stage label', 'oc-proposals' ) );
+			printf( '<td style="width:120px"><input type="number" step="1" min="0" max="100" name="ms_pct[]" value="%s" /> %%</td>', esc_attr( (string) ( $m['pct'] ?? '' ) ) );
+			echo '</tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	private static function step_publish( $p ) {
@@ -330,13 +359,14 @@ class OCP_Admin_Proposals {
 		switch ( $step ) {
 			case 'details':
 				OCP_Proposal::update( $id, array(
-					'client_name'   => sanitize_text_field( wp_unslash( $_POST['client_name'] ?? '' ) ),
-					'title'         => sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
-					'type'          => sanitize_key( wp_unslash( $_POST['type'] ?? 'retainer' ) ),
-					'region'        => sanitize_key( wp_unslash( $_POST['region'] ?? 'global' ) ),
-					'sector'        => sanitize_text_field( wp_unslash( $_POST['sector'] ?? '' ) ),
-					'website_url'   => esc_url_raw( wp_unslash( $_POST['website_url'] ?? '' ) ),
-					'website_image' => esc_url_raw( wp_unslash( $_POST['website_image'] ?? '' ) ),
+					'client_name'     => sanitize_text_field( wp_unslash( $_POST['client_name'] ?? '' ) ),
+					'title'           => sanitize_text_field( wp_unslash( $_POST['title'] ?? '' ) ),
+					'type'            => sanitize_key( wp_unslash( $_POST['type'] ?? 'retainer' ) ),
+					'region'          => sanitize_key( wp_unslash( $_POST['region'] ?? 'global' ) ),
+					'sector'          => sanitize_text_field( wp_unslash( $_POST['sector'] ?? '' ) ),
+					'client_contacts' => sanitize_email( wp_unslash( $_POST['client_contacts'] ?? '' ) ),
+					'website_url'     => esc_url_raw( wp_unslash( $_POST['website_url'] ?? '' ) ),
+					'website_image'   => esc_url_raw( wp_unslash( $_POST['website_image'] ?? '' ) ),
 				) );
 				break;
 
@@ -390,6 +420,19 @@ class OCP_Admin_Proposals {
 			);
 		}
 		OCP_Proposal::replace_items( $id, $items );
+
+		// Deposit / milestone schedule → pricing_meta.
+		$labels = (array) ( $_POST['ms_label'] ?? array() );
+		$pcts   = (array) ( $_POST['ms_pct'] ?? array() );
+		$mile   = array();
+		foreach ( $labels as $i => $lab ) {
+			$pct = isset( $pcts[ $i ] ) ? (float) $pcts[ $i ] : 0;
+			$lab = sanitize_text_field( wp_unslash( $lab ) );
+			if ( $pct > 0 && '' !== $lab ) {
+				$mile[] = array( 'label' => $lab, 'pct' => $pct );
+			}
+		}
+		OCP_Proposal::update( $id, array( 'pricing_meta' => wp_json_encode( array( 'milestones' => $mile ) ) ) );
 	}
 
 	public static function ai_assist() {
@@ -513,6 +556,26 @@ class OCP_Admin_Proposals {
 
 	private static function save_history( $id, $history ) {
 		OCP_Proposal::set_section( $id, 'discovery', array( 'body' => wp_json_encode( array_slice( $history, -12 ) ) ) );
+	}
+
+	public static function suggest_pricing() {
+		self::guard( 'ocp_suggest_pricing' );
+		$id = (int) ( $_POST['id'] ?? 0 );
+		$p  = OCP_Proposal::get( $id );
+		if ( $p && OCP_Claude::enabled() ) {
+			$sit   = OCP_Proposal::get_section( $id, 'situation' );
+			$brief = array(
+				'type'      => OCP_Types::label( $p['type'] ),
+				'sector'    => $p['sector'],
+				'client'    => $p['client_name'],
+				'situation' => wp_strip_all_tags( (string) ( $sit['body'] ?? '' ) ),
+			);
+			$items = OCP_Claude::suggest_pricing( $brief, OCP_Settings::bands(), (float) OCP_Settings::get( 'hourly_rate', 75 ) );
+			if ( $items ) {
+				OCP_Proposal::replace_items( $id, $items );
+			}
+		}
+		self::redirect_step( $id, 'pricing' );
 	}
 
 	public static function mark_sent() {

@@ -158,7 +158,7 @@ class OCP_Payments {
 		$t      = OCP_Proposal::totals( $p['id'] );
 
 		if ( 'stripe' === $method ) {
-			$amount = ( $t['by_cadence']['oneoff'] ?? 0 ) + ( $t['by_cadence']['project'] ?? 0 );
+			$amount = OCP_Proposal::start_amount( $p['id'] );
 			$url    = self::stripe_checkout( $p, $amount, 'oneoff' );
 		} elseif ( 'gocardless' === $method ) {
 			$url = self::gocardless_flow( $p );

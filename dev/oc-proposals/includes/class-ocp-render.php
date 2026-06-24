@@ -156,8 +156,63 @@ class OCP_Render {
 			$html .= '</ul></div>';
 		}
 		$html .= '</div>';
+
+		// Deposit / milestone schedule for project work.
+		$html .= self::milestones_html( $p, $t );
+
+		// ROI anchor — stats from the first chosen proof case study.
+		$stats = self::roi_stats( $p );
+		if ( $stats ) {
+			$html .= '<div class="ocp-roi"><div class="ocp-eyebrow">' . esc_html__( 'A track record, not a cost', 'oc-proposals' ) . '</div><div class="ocp-stats">';
+			foreach ( $stats as $st ) {
+				$html .= '<div class="ocp-stat"><b>' . esc_html( $st['value'] ) . '</b><span>' . esc_html( $st['label'] ) . '</span></div>';
+			}
+			$html .= '</div></div>';
+		}
+
 		$html .= '<p class="ocp-reassure">' . esc_html__( 'No lock-in. Give 14 days’ notice before any renewal to pause or stop — nothing is taken after that.', 'oc-proposals' ) . '</p>';
 		$html .= '</section>';
+		return $html;
+	}
+
+	/** Up to three ROI stats from the proposal's first proof case study. */
+	public static function roi_stats( array $p ) {
+		$ids = OCP_Proposal::section_ref_ids( $p['id'], 'proof' );
+		if ( ! $ids ) {
+			$ids = wp_list_pluck( OCP_Library::case_studies_for_sector( $p['sector'], 3 ), 'id' );
+		}
+		foreach ( $ids as $id ) {
+			$cs = OCP_Repo::get( OCP_DB::case_studies_table(), $id );
+			if ( $cs && trim( (string) $cs['stats'] ) !== '' ) {
+				return array_slice( OCP_Library::parse_stats( $cs['stats'] ), 0, 3 );
+			}
+		}
+		return array();
+	}
+
+	/** Deposit + milestone schedule from pricing_meta, for project totals. */
+	public static function milestones_html( array $p, $totals ) {
+		$project = $totals['by_cadence']['project'] ?? 0;
+		if ( $project <= 0 ) {
+			return '';
+		}
+		$meta = $p['pricing_meta'] ? json_decode( $p['pricing_meta'], true ) : array();
+		$rows = ( is_array( $meta ) && ! empty( $meta['milestones'] ) ) ? $meta['milestones'] : array();
+		if ( ! $rows ) {
+			return '';
+		}
+		$cur  = $totals['currency'];
+		$html = '<div class="ocp-milestones"><div class="ocp-eyebrow">' . esc_html__( 'Payment schedule', 'oc-proposals' ) . '</div><ul>';
+		foreach ( $rows as $m ) {
+			$pct = (float) ( $m['pct'] ?? 0 );
+			if ( $pct <= 0 ) {
+				continue;
+			}
+			$amt = OCP_Proposal::money( $project * $pct / 100, $cur );
+			$html .= '<li><strong>' . esc_html( rtrim( rtrim( number_format( $pct, 1 ), '0' ), '.' ) ) . '%</strong> · '
+				. esc_html( $m['label'] ?? '' ) . ' — ' . esc_html( $amt ) . '</li>';
+		}
+		$html .= '</ul></div>';
 		return $html;
 	}
 

@@ -102,6 +102,7 @@ class OCP_Portal {
 			$html .= '<p>' . esc_html__( 'Thank you — this proposal has been accepted and a signed copy emailed to you.', 'oc-proposals' ) . '</p>';
 			$html .= self::payment_block( $p );
 			$html .= self::subscription_block( $p );
+			$html .= self::booking_button( __( 'Book your kickoff call', 'oc-proposals' ) );
 			$html .= '</section>';
 			return $html;
 		}
@@ -126,14 +127,26 @@ class OCP_Portal {
 		$html .= '<label class="ocp-field"><span>' . esc_html__( 'Your email', 'oc-proposals' ) . '</span><input type="email" name="signatory_email" required /></label>';
 		$html .= '<label class="ocp-check"><input type="checkbox" name="agree" value="1" required /> ' . esc_html__( 'I agree to the Terms & Conditions.', 'oc-proposals' ) . '</label>';
 		$html .= '<button type="submit" class="ocp-btn">' . esc_html__( 'Accept & sign', 'oc-proposals' ) . '</button>';
-		$html .= '</form></section>';
+		$html .= '</form>';
+		$html .= self::booking_button( __( 'Prefer to talk first? Book a call', 'oc-proposals' ) );
+		$html .= '</section>';
 		return $html;
+	}
+
+	/** "Book a kickoff call" — links to the studio's scheduler when configured. */
+	private static function booking_button( $label ) {
+		$url = OCP_Settings::get( 'booking_url' );
+		if ( ! $url ) {
+			return '';
+		}
+		return '<p class="ocp-book"><a class="ocp-btn--ghost" href="' . esc_url( $url )
+			. '" target="_blank" rel="noopener" data-ocp-book="1">' . esc_html( $label ) . '</a></p>';
 	}
 
 	/** Payment options after acceptance (Stripe one-off / GoCardless Direct Debit). */
 	private static function payment_block( array $p ) {
 		$t       = OCP_Proposal::totals( $p['id'] );
-		$oneoff  = ( $t['by_cadence']['oneoff'] ?? 0 ) + ( $t['by_cadence']['project'] ?? 0 );
+		$oneoff  = OCP_Proposal::start_amount( $p['id'] );
 		$monthly = $t['by_cadence']['monthly'] ?? 0;
 		$post    = admin_url( 'admin-post.php' );
 		$nonce   = wp_nonce_field( 'ocp_pay_' . $p['token'], '_ocp_nonce', true, false );

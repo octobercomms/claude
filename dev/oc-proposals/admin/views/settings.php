@@ -71,6 +71,30 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			?>
 		</table>
 
+		<h2><?php esc_html_e( 'Pricing rate card', 'oc-proposals' ); ?></h2>
+		<p class="description"><?php esc_html_e( 'Grounds the “Suggest pricing with Claude” assistant. It must stay within these bands — so it can never propose an out-of-range fee.', 'oc-proposals' ); ?></p>
+		<table class="form-table" role="presentation">
+			<?php
+			$field( 'hourly_rate', __( 'Hourly rate', 'oc-proposals' ), 'number' );
+			$field( 'band_oneoff_min', __( 'One-off min', 'oc-proposals' ), 'number' );
+			$field( 'band_oneoff_max', __( 'One-off max', 'oc-proposals' ), 'number' );
+			$field( 'band_monthly_min', __( 'Monthly min', 'oc-proposals' ), 'number' );
+			$field( 'band_monthly_max', __( 'Monthly max', 'oc-proposals' ), 'number' );
+			$field( 'band_project_min', __( 'Project min', 'oc-proposals' ), 'number' );
+			$field( 'band_project_max', __( 'Project max', 'oc-proposals' ), 'number' );
+			?>
+		</table>
+
+		<h2><?php esc_html_e( 'Conversion & automation', 'oc-proposals' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<?php
+			$field( 'booking_url', __( 'Kickoff booking URL', 'oc-proposals' ), 'url', __( 'Your scheduler link (Calendly, cal.com, Google). Shown as “Book a kickoff call”.', 'oc-proposals' ) );
+			$field( 'followup_days', __( 'Follow-up after (days)', 'oc-proposals' ), 'number', __( 'Days after sending to email an un-accepted proposal a reminder.', 'oc-proposals' ) );
+			$field( 'followup_enabled', __( 'Follow-ups on (1/0)', 'oc-proposals' ), 'number' );
+			$field( 'report_email_enabled', __( 'Email me monthly/annual reports (1/0)', 'oc-proposals' ), 'number' );
+			?>
+		</table>
+
 		<h2><?php esc_html_e( 'Integrations', 'oc-proposals' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Stored per-site, never committed. The GitHub token (Contents: read on this repo) powers one-click self-updates.', 'oc-proposals' ); ?></p>
 		<table class="form-table" role="presentation">

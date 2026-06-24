@@ -3,7 +3,7 @@
  * Plugin Name: October Proposals
  * Plugin URI: https://octobercomms.com
  * Description: Generates October's client proposals as an on-brand web page (video + animated process + accept/e-sign/pay) and a matching downloadable PDF, from a single source — built as a wizard. 
- * Version: 0.10.0
+ * Version: 0.11.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCP_VERSION', '0.10.0' );
+define( 'OCP_VERSION', '0.11.0' );
 define( 'OCP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCP_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCP_BASENAME', plugin_basename( __FILE__ ) );
@@ -48,6 +48,7 @@ require_once OCP_PATH . 'includes/class-ocp-extract.php';
 require_once OCP_PATH . 'includes/class-ocp-diagnostics.php';
 require_once OCP_PATH . 'includes/class-ocp-analytics.php';
 require_once OCP_PATH . 'includes/class-ocp-builder.php';
+require_once OCP_PATH . 'includes/class-ocp-followups.php';
 
 if ( is_admin() ) {
 	require_once OCP_PATH . 'admin/class-ocp-admin.php';
@@ -77,6 +78,7 @@ function ocp_bootstrap() {
 	OCP_Payments::init();
 	OCP_Subscription::init();
 	OCP_Builder::init();
+	OCP_Followups::init();
 
 	if ( is_admin() ) {
 		OCP_Admin::instance();

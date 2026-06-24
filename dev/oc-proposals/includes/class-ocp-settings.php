@@ -52,6 +52,31 @@ class OCP_Settings {
 			'dataforseo_password' => '',
 			'turnstile_site' => '',
 			'turnstile_secret' => '',
+
+			// Pricing rate card (grounds the Claude pricing agent).
+			'hourly_rate'       => '75',
+			'band_oneoff_min'   => '250',
+			'band_oneoff_max'   => '2000',
+			'band_monthly_min'  => '500',
+			'band_monthly_max'  => '3000',
+			'band_project_min'  => '2000',
+			'band_project_max'  => '15000',
+
+			// Conversion + automation.
+			'booking_url'          => '',
+			'followup_enabled'     => '1',
+			'followup_days'        => '4',
+			'report_email_enabled' => '1',
+		);
+	}
+
+	/** Rate-card bands keyed by cadence, for the pricing agent's clamp. */
+	public static function bands() {
+		$s = self::all();
+		return array(
+			'oneoff'  => array( 'min' => (float) $s['band_oneoff_min'], 'max' => (float) $s['band_oneoff_max'] ),
+			'monthly' => array( 'min' => (float) $s['band_monthly_min'], 'max' => (float) $s['band_monthly_max'] ),
+			'project' => array( 'min' => (float) $s['band_project_min'], 'max' => (float) $s['band_project_max'] ),
 		);
 	}
 
