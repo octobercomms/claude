@@ -177,16 +177,20 @@ needed, A/B different intros, reusable price book, per-type template editor in t
 
 ---
 
-## 9. Decisions for you (before build)
+## 9. Decisions — RESOLVED
 
-1. **PDF approach** — browser print-to-PDF in v1 (recommended), or invest in server-side now?
-2. **Payments/e-sign in v1** — include accept + Stripe deposit in the first build, or defer to
-   Phase 2 and ship the page + PDF first?
-3. **AI draft-assist** — want Claude pre-drafting the Situation/Strategy from bullets in v1,
-   or keep v1 fully hand-written?
-4. **Video hosting** — self-hosted/Bunny/Vimeo/YouTube embeds? (affects the player + privacy).
-5. **URL shape** — `octobercomms.com/proposal/<token>` vs a subpath you prefer.
-6. **Default currency/VAT** — confirm GBP default with per-proposal USD/EUR + VAT toggle.
+These are now answered in **[DECISIONS.md](DECISIONS.md)**. Summary:
+
+1. **PDF** — server-side **mPDF** (Architourian approach), **landscape A4 / US Letter**.
+2. **Payments** — **GoCardless** Direct Debit (recurring) + **Stripe** (one-off), invoice on
+   request, behind one abstraction. E-sign + pause in Phase 2.
+3. **AI** — a grounded **Claude pricing agent** (Phase 3) + public proposal builder.
+4. **Video** — **Loom** embeds.
+5. **URL** — `octobercomms.com/proposal/<token>` confirmed.
+6. **Currency/VAT** — per-proposal; US ⇒ USD + Letter + no VAT; else GBP/chosen + VAT.
+
+Also locked: **no client logos** (name + October logo + a client-website image); **native
+CRM** from the Sales Leads Tracker; **client-controlled pause** with the 14-day notice rule.
 
 ---
 
