@@ -55,3 +55,19 @@ adopting a system you already own and ship.
 
 The pricing-table mockup (`mockups/pricing-table.html`) is already re-skinned to these tokens
 as a worked example.
+
+## Backend adoption (v0.12.0)
+
+The plugin **backend** now follows the October Design System via a portable
+snapshot, `dev/oc-proposals/assets/css/october-ui.css` (tokens + primitives +
+the depth/polish layer), derived from the canonical OMI source
+(`dev/platform/frontend/src/index.css`). It's enqueued before `admin.css`, which
+restyles the admin to the house look: a warm canvas wash (scoped to this
+plugin's screens), soft elevation on cards, a hover lift on clickable cards,
+accent buttons with an accent-tinted shadow, and house-styled core WP controls
+(buttons, inputs, tabs) — all scoped by body class so other admin pages are
+untouched. Two-tone discipline throughout; accent = action only.
+
+The **client-facing proposal page** keeps using the settings-driven tokens
+(`--ocp-*`) so each proposal can be re-skinned per brand — the backend is house
+style, the deliverable is the client's.

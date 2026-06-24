@@ -54,7 +54,8 @@ class OCP_Admin {
 		if ( false === strpos( (string) $hook, self::MENU ) && false === strpos( (string) $hook, 'ocp-' ) ) {
 			return;
 		}
-		wp_enqueue_style( 'ocp-admin', OCP_URL . 'assets/css/admin.css', array(), OCP_VERSION );
+		wp_enqueue_style( 'ocp-october-ui', OCP_URL . 'assets/css/october-ui.css', array(), OCP_VERSION );
+		wp_enqueue_style( 'ocp-admin', OCP_URL . 'assets/css/admin.css', array( 'ocp-october-ui' ), OCP_VERSION );
 		// Inject the live design tokens so the admin previews on-brand.
 		wp_add_inline_style( 'ocp-admin', OCP_Settings::css_root() );
 
