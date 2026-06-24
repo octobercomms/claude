@@ -17,10 +17,16 @@ class OCP_Activator {
 	public static function activate() {
 		self::install_schema();
 		OCP_Settings::seed_defaults();
+		if ( class_exists( 'OCP_Followups' ) ) {
+			OCP_Followups::schedule();
+		}
 	}
 
 	public static function deactivate() {
-		// Non-destructive: keep all data on deactivate/reactivate.
+		// Non-destructive: keep all data on deactivate/reactivate, but clear cron.
+		if ( class_exists( 'OCP_Followups' ) ) {
+			OCP_Followups::unschedule();
+		}
 	}
 
 	/**

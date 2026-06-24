@@ -39,4 +39,7 @@
 	document.querySelectorAll('.ocp-video iframe').forEach(function (f) {
 		f.addEventListener('mouseenter', function () { send('video_intent', '', f.src); }, { once: true });
 	});
+	document.querySelectorAll('[data-ocp-book]').forEach(function (b) {
+		b.addEventListener('click', function () { send('book_click', 'next_step', ''); });
+	});
 })();

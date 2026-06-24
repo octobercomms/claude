@@ -203,7 +203,33 @@ class OCP_PDF {
 			}
 			$html .= '</div></td>';
 		}
-		$html .= '</tr></table><p class="muted">No lock-in. 14 days&rsquo; notice to pause or stop before any renewal.</p></div>';
+		$html .= '</tr></table>';
+
+		// Payment schedule (project milestones).
+		$mile = OCP_Render::milestones_html( $p, $t );
+		if ( $mile ) {
+			$html .= '<p><strong>' . esc_html__( 'Payment schedule', 'oc-proposals' ) . '</strong><br/>';
+			$meta = $p['pricing_meta'] ? json_decode( $p['pricing_meta'], true ) : array();
+			foreach ( (array) ( $meta['milestones'] ?? array() ) as $m ) {
+				if ( (float) ( $m['pct'] ?? 0 ) > 0 ) {
+					$amt = OCP_Proposal::money( ( $t['by_cadence']['project'] ?? 0 ) * (float) $m['pct'] / 100, $cur );
+					$html .= esc_html( (float) $m['pct'] . '% · ' . ( $m['label'] ?? '' ) . ' — ' . $amt ) . '<br/>';
+				}
+			}
+			$html .= '</p>';
+		}
+
+		// ROI anchor.
+		$stats = OCP_Render::roi_stats( $p );
+		if ( $stats ) {
+			$html .= '<table><tr>';
+			foreach ( $stats as $st ) {
+				$html .= '<td><span class="stat">' . esc_html( $st['value'] ) . '</span><br/><span class="muted">' . esc_html( $st['label'] ) . '</span></td>';
+			}
+			$html .= '</tr></table>';
+		}
+
+		$html .= '<p class="muted">No lock-in. 14 days&rsquo; notice to pause or stop before any renewal.</p></div>';
 
 		// Legal footer.
 		$html .= '<p class="muted" style="font-size:9px;">' . esc_html( $s['company_name'] . ' ' . $s['company_legal'] . ' ' . $s['company_address'] ) . '</p>';

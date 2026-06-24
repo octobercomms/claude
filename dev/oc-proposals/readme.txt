@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,20 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.11.0 =
+* Claude pricing agent in the wizard: "Suggest pricing with Claude" on the
+  Pricing step, grounded by a rate card (hourly rate + per-cadence min/max bands
+  in Settings) and hard-clamped so it can't propose out-of-range fees.
+* "Book a kickoff call" CTA on the portal (scheduler URL in Settings), tracked.
+* ROI anchor: stats from the proposal's first proof case study render beside the
+  price on the live page and in the PDF.
+* Deposit / milestone schedule for project work (e.g. 40/40/20) — set per
+  proposal, shown on the page + PDF, and the Stripe "pay to start" uses the
+  deposit.
+* Automation: a daily job expires past-due proposals, emails one follow-up to
+  un-accepted proposals after N days, and emails the studio a monthly/annual
+  engagement report. All toggle in Settings.
 
 = 0.10.0 =
 * Upload PDFs (and Word .docx / text) for AI drafting: the case-study drafter
