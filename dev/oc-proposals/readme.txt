@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,31 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.10.0 =
+* Upload PDFs (and Word .docx / text) for AI drafting: the case-study drafter
+  and the discovery chat now extract text server-side via Smalot PdfParser, so
+  results reports and call transcripts can be dropped in as PDFs.
+
+= 0.9.0 =
+* Preview links on the proposals list and wizard — open the live page (works in
+  Draft) in one click.
+* Pipeline readability: columns cap at 8 cards with a searchable full-list view
+  per stage (so hundreds of Closed-lost leads are usable); "Select One" noise
+  hidden.
+* Admin data screens go full-width; edit forms stay at a readable width.
+* Case studies can be drafted with Claude from pasted or uploaded (.txt/.md)
+  material, then edited.
+* Terms + library rich-text editors forced to dark text (some admin themes bled
+  white into TinyMCE).
+* Dashboard tiles now link to the real screens.
+
+= 0.8.0 =
+* Wizard Content step is now a Claude discovery chat: paste a call transcript or
+  client email, talk it through, then one-click draft the Situation and
+  Objectives & strategy into editable fields that feed the live page and PDF.
+* Chat history + source material are saved on the proposal; everything stays
+  editable before Save & continue.
 
 = 0.7.0 =
 * Claude layer (OCP_Claude): per-proposal re-angle of boilerplate, case-study

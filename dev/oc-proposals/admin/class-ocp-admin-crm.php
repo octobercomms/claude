@@ -26,11 +26,15 @@ class OCP_Admin_CRM {
 			self::render_form();
 		} elseif ( 'import' === $action ) {
 			self::render_import();
+		} elseif ( 'stage' === $action ) {
+			self::render_stage();
 		} else {
 			self::render_board();
 		}
 		echo '</div>';
 	}
+
+	const COLUMN_CAP = 8;
 
 	private static function render_board() {
 		$add    = add_query_arg( array( 'page' => self::PAGE, 'action' => 'add' ), admin_url( 'admin.php' ) );
@@ -44,12 +48,14 @@ class OCP_Admin_CRM {
 		echo '<div class="ocp-board">';
 		foreach ( OCP_Lead::stages() as $stage => $label ) {
 			$leads = OCP_Lead::by_stage( $stage );
-			echo '<div class="ocp-col"><h3>' . esc_html( $label ) . ' <span class="ocp-count">' . count( (array) $leads ) . '</span></h3>';
-			foreach ( (array) $leads as $lead ) {
+			$total = count( (array) $leads );
+			$all   = add_query_arg( array( 'page' => self::PAGE, 'action' => 'stage', 'stage' => $stage ), admin_url( 'admin.php' ) );
+			echo '<div class="ocp-col"><h3><a href="' . esc_url( $all ) . '">' . esc_html( $label ) . '</a> <span class="ocp-count">' . (int) $total . '</span></h3>';
+			foreach ( array_slice( (array) $leads, 0, self::COLUMN_CAP ) as $lead ) {
 				$edit = add_query_arg( array( 'page' => self::PAGE, 'action' => 'edit', 'id' => $lead['id'] ), admin_url( 'admin.php' ) );
 				echo '<a class="ocp-lead" href="' . esc_url( $edit ) . '">';
 				echo '<strong>' . esc_html( $lead['client_name'] ) . '</strong>';
-				if ( $lead['project_type'] ) {
+				if ( $lead['project_type'] && 'Select One' !== $lead['project_type'] ) {
 					echo '<span>' . esc_html( $lead['project_type'] ) . '</span>';
 				}
 				if ( 'closed_lost' === $stage && $lead['lost_reason'] ) {
@@ -57,9 +63,57 @@ class OCP_Admin_CRM {
 				}
 				echo '</a>';
 			}
+			if ( $total > self::COLUMN_CAP ) {
+				echo '<a class="ocp-viewall" href="' . esc_url( $all ) . '">' . esc_html( sprintf( __( 'View all %d →', 'oc-proposals' ), $total ) ) . '</a>';
+			}
 			echo '</div>';
 		}
 		echo '</div>';
+	}
+
+	/** Searchable full list for one stage (so Closed lost's hundreds are usable). */
+	private static function render_stage() {
+		$stage = isset( $_GET['stage'] ) ? sanitize_key( wp_unslash( $_GET['stage'] ) ) : 'lead_in'; // phpcs:ignore WordPress.Security.NonceVerification
+		$term  = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$label = OCP_Lead::stage_label( $stage );
+		$back  = add_query_arg( array( 'page' => self::PAGE ), admin_url( 'admin.php' ) );
+
+		echo '<p><a href="' . esc_url( $back ) . '">&larr; ' . esc_html__( 'Back to board', 'oc-proposals' ) . '</a></p>';
+		echo '<h2>' . esc_html( $label ) . '</h2>';
+
+		echo '<form method="get" style="margin:8px 0"><input type="hidden" name="page" value="' . esc_attr( self::PAGE ) . '" /><input type="hidden" name="action" value="stage" /><input type="hidden" name="stage" value="' . esc_attr( $stage ) . '" />';
+		echo '<input type="search" name="s" value="' . esc_attr( $term ) . '" placeholder="' . esc_attr__( 'Search client / email…', 'oc-proposals' ) . '" class="regular-text" /> ';
+		submit_button( __( 'Search', 'oc-proposals' ), 'secondary', '', false );
+		echo '</form>';
+
+		$leads = OCP_Lead::by_stage( $stage );
+		if ( '' !== $term ) {
+			$needle = strtolower( $term );
+			$leads  = array_filter( (array) $leads, function ( $l ) use ( $needle ) {
+				return false !== strpos( strtolower( $l['client_name'] . ' ' . $l['email'] . ' ' . $l['contact_name'] ), $needle );
+			} );
+		}
+
+		echo '<table class="widefat striped"><thead><tr><th>' . esc_html__( 'Client', 'oc-proposals' ) . '</th><th>' . esc_html__( 'Type', 'oc-proposals' ) . '</th><th>' . esc_html__( 'Source', 'oc-proposals' ) . '</th>';
+		if ( 'closed_lost' === $stage ) {
+			echo '<th>' . esc_html__( 'Reason', 'oc-proposals' ) . '</th>';
+		}
+		echo '<th>' . esc_html__( 'Email', 'oc-proposals' ) . '</th><th></th></tr></thead><tbody>';
+		foreach ( (array) $leads as $lead ) {
+			$edit = add_query_arg( array( 'page' => self::PAGE, 'action' => 'edit', 'id' => $lead['id'] ), admin_url( 'admin.php' ) );
+			echo '<tr><td><strong>' . esc_html( $lead['client_name'] ) . '</strong></td>';
+			echo '<td>' . esc_html( 'Select One' === $lead['project_type'] ? '—' : $lead['project_type'] ) . '</td>';
+			echo '<td>' . esc_html( $lead['lead_source'] ) . '</td>';
+			if ( 'closed_lost' === $stage ) {
+				echo '<td>' . esc_html( OCP_Lead::lost_reasons()[ $lead['lost_reason'] ] ?? '' ) . '</td>';
+			}
+			echo '<td>' . esc_html( $lead['email'] ) . '</td>';
+			echo '<td><a href="' . esc_url( $edit ) . '">' . esc_html__( 'Edit', 'oc-proposals' ) . '</a></td></tr>';
+		}
+		if ( ! $leads ) {
+			echo '<tr><td colspan="6">' . esc_html__( 'Nothing here.', 'oc-proposals' ) . '</td></tr>';
+		}
+		echo '</tbody></table>';
 	}
 
 	private static function render_form() {

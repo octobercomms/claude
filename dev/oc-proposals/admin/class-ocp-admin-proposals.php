@@ -31,6 +31,9 @@ class OCP_Admin_Proposals {
 		add_action( 'admin_post_ocp_delete_proposal', array( __CLASS__, 'delete' ) );
 		add_action( 'admin_post_ocp_mark_sent', array( __CLASS__, 'mark_sent' ) );
 		add_action( 'admin_post_ocp_ai_assist', array( __CLASS__, 'ai_assist' ) );
+		add_action( 'wp_ajax_ocp_content_chat', array( __CLASS__, 'content_chat' ) );
+		add_action( 'wp_ajax_ocp_content_generate', array( __CLASS__, 'content_generate' ) );
+		add_action( 'wp_ajax_ocp_extract_file', array( __CLASS__, 'extract_file' ) );
 	}
 
 	public static function render() {
@@ -75,9 +78,11 @@ class OCP_Admin_Proposals {
 			echo '<td>' . esc_html( OCP_Types::label( $p['type'] ) ) . '</td>';
 			echo '<td><span class="ocp-chip">' . esc_html( OCP_Proposal::status_label( $p['status'] ) ) . '</span></td>';
 			echo '<td>' . esc_html( $p['updated_at'] ) . '</td>';
+			$preview = OCP_Proposal::url( $p['token'] );
 			printf(
-				'<td><a href="%s">%s</a> &nbsp;|&nbsp; <a href="%s" onclick="return confirm(\'%s\')">%s</a></td>',
+				'<td><a href="%s">%s</a> &nbsp;|&nbsp; <a href="%s" target="_blank" rel="noopener">%s</a> &nbsp;|&nbsp; <a href="%s" onclick="return confirm(\'%s\')">%s</a></td>',
 				esc_url( $edit ), esc_html__( 'Edit', 'oc-proposals' ),
+				esc_url( $preview ), esc_html__( 'Preview', 'oc-proposals' ),
 				esc_url( $del ), esc_js( __( 'Delete this proposal?', 'oc-proposals' ) ), esc_html__( 'Delete', 'oc-proposals' )
 			);
 			echo '</tr>';
@@ -106,7 +111,8 @@ class OCP_Admin_Proposals {
 		}
 		$step = self::current_step();
 
-		echo '<h1 class="ocp-h1">' . esc_html( $p['client_name'] ?: __( 'Proposal', 'oc-proposals' ) ) . '</h1>';
+		echo '<h1 class="ocp-h1">' . esc_html( $p['client_name'] ?: __( 'Proposal', 'oc-proposals' ) )
+			. ' <a class="button" style="vertical-align:middle" href="' . esc_url( OCP_Proposal::url( $p['token'] ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Preview', 'oc-proposals' ) . '</a></h1>';
 
 		// Step nav.
 		echo '<h2 class="nav-tab-wrapper">';
@@ -153,34 +159,58 @@ class OCP_Admin_Proposals {
 	}
 
 	private static function step_content( $p ) {
-		$sit = OCP_Proposal::get_section( $p['id'], 'situation' );
-		$obj = OCP_Proposal::get_section( $p['id'], 'objectives' );
-		echo '<p class="description">' . esc_html__( 'The tailored writing. (The AI build adds a one-click “draft with Claude” here.)', 'oc-proposals' ) . '</p>';
+		$sit      = OCP_Proposal::get_section( $p['id'], 'situation' );
+		$obj      = OCP_Proposal::get_section( $p['id'], 'objectives' );
+		$material = OCP_Proposal::get_section( $p['id'], 'source_material' );
+		$chat     = OCP_Proposal::get_section( $p['id'], 'discovery' );
+		$history  = $chat && $chat['body'] ? json_decode( $chat['body'], true ) : array();
+
+		if ( ! OCP_Claude::enabled() ) {
+			echo '<div class="notice notice-warning inline"><p>' . esc_html__( 'Add a Claude API key in Settings to use the discovery chat. You can still write the sections by hand below.', 'oc-proposals' ) . '</p></div>';
+		}
+
+		echo '<p class="description">' . esc_html__( 'Paste the call transcript or the client’s email, then talk it through with Claude. When you’re happy, draft the proposal content — it fills the two sections below, which you can edit before saving.', 'oc-proposals' ) . '</p>';
+
+		// Source material (saved with the step).
+		echo '<p><label><strong>' . esc_html__( 'Call transcript / client email', 'oc-proposals' ) . '</strong>';
+		echo '<textarea name="source_material" id="ocp-source" rows="6" class="large-text" placeholder="' . esc_attr__( 'Paste the transcript or email here — or upload a file below…', 'oc-proposals' ) . '">' . esc_textarea( $material['body'] ?? '' ) . '</textarea></label></p>';
+		if ( OCP_Claude::enabled() ) {
+			echo '<p><input type="file" id="ocp-source-file" accept=".pdf,.doc,.docx,.txt,.md,.csv" /> ';
+			echo '<button type="button" class="button" id="ocp-source-extract">' . esc_html__( 'Add file text', 'oc-proposals' ) . '</button> ';
+			echo '<span class="spinner" id="ocp-source-spin" style="float:none;margin:0"></span> ';
+			echo '<span class="ocp-muted">' . esc_html__( 'PDF, Word or text — its text is added above.', 'oc-proposals' ) . '</span></p>';
+		}
+
+		// Chat panel (AJAX; outside the form submit).
+		echo '<div id="ocp-chat" class="ocp-chat"'
+			. ' data-id="' . esc_attr( $p['id'] ) . '"'
+			. ' data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '"'
+			. ' data-nonce="' . esc_attr( wp_create_nonce( 'ocp_content_chat' ) ) . '">';
+		echo '<div class="ocp-chat-thread" id="ocp-chat-thread">';
+		foreach ( (array) $history as $turn ) {
+			$role = ( 'user' === ( $turn['role'] ?? '' ) ) ? 'me' : 'claude';
+			echo '<div class="ocp-msg ocp-msg--' . esc_attr( $role ) . '">' . wp_kses_post( wpautop( (string) ( $turn['content'] ?? '' ) ) ) . '</div>';
+		}
+		echo '</div>';
+		echo '<div class="ocp-chat-input"><textarea id="ocp-chat-text" rows="2" class="large-text" placeholder="' . esc_attr__( 'Discuss with Claude… (e.g. “draft the situation focusing on their rebrand”)', 'oc-proposals' ) . '"></textarea>';
+		echo '<div class="ocp-chat-actions"><button type="button" class="button button-primary" id="ocp-chat-send">' . esc_html__( 'Send', 'oc-proposals' ) . '</button>';
+		echo '<button type="button" class="button" id="ocp-chat-generate">' . esc_html__( 'Draft Situation & Objectives →', 'oc-proposals' ) . '</button>';
+		echo '<span class="spinner" id="ocp-chat-spin"></span></div></div>';
+		echo '</div>';
+
+		// The two written sections — populated by the chat, still editable.
 		echo '<table class="form-table" role="presentation">';
-		echo '<tr><th>' . esc_html__( 'Your situation', 'oc-proposals' ) . '</th><td><textarea name="situation" rows="6" class="large-text">' . esc_textarea( $sit['body'] ?? '' ) . '</textarea></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Objectives & strategy', 'oc-proposals' ) . '</th><td><textarea name="objectives" rows="6" class="large-text">' . esc_textarea( $obj['body'] ?? '' ) . '</textarea></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Your situation', 'oc-proposals' ) . '</th><td><textarea name="situation" id="ocp-situation" rows="6" class="large-text">' . esc_textarea( $sit['body'] ?? '' ) . '</textarea></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Objectives & strategy', 'oc-proposals' ) . '</th><td><textarea name="objectives" id="ocp-objectives" rows="6" class="large-text">' . esc_textarea( $obj['body'] ?? '' ) . '</textarea></td></tr>';
 		echo '</table>';
 
-		// AI assists (separate forms so they don't submit the step save).
-		$assist = function ( $do, $label, $note ) use ( $p ) {
-			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin:0 8px 8px 0">';
-			echo '<input type="hidden" name="action" value="ocp_ai_assist" />';
-			echo '<input type="hidden" name="id" value="' . esc_attr( $p['id'] ) . '" />';
-			echo '<input type="hidden" name="do" value="' . esc_attr( $do ) . '" />';
-			wp_nonce_field( 'ocp_ai_assist' );
-			echo '<button class="button" title="' . esc_attr( $note ) . '">' . esc_html( $label ) . '</button></form>';
-		};
-		echo '<p>';
+		// Optional one-click diagnostics snapshot into the situation.
 		if ( OCP_Diagnostics::enabled() ) {
-			$assist( 'diagnostics', __( 'Pull current-state SEO snapshot', 'oc-proposals' ), __( 'Uses DataForSEO + the client website URL.', 'oc-proposals' ) );
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin:0 8px 8px 0">';
+			echo '<input type="hidden" name="action" value="ocp_ai_assist" /><input type="hidden" name="id" value="' . esc_attr( $p['id'] ) . '" /><input type="hidden" name="do" value="diagnostics" />';
+			wp_nonce_field( 'ocp_ai_assist' );
+			echo '<button class="button" title="' . esc_attr__( 'Uses DataForSEO + the client website URL.', 'oc-proposals' ) . '">' . esc_html__( 'Add current-state SEO snapshot', 'oc-proposals' ) . '</button></form>';
 		}
-		if ( OCP_Claude::enabled() ) {
-			$assist( 'reangle', __( 'Re-angle with Claude', 'oc-proposals' ), __( 'Tailors the objectives to this client’s sector.', 'oc-proposals' ) );
-		}
-		if ( ! OCP_Diagnostics::enabled() && ! OCP_Claude::enabled() ) {
-			echo '<span class="ocp-muted">' . esc_html__( 'Add a Claude key / DataForSEO login in Settings to enable AI assists.', 'oc-proposals' ) . '</span>';
-		}
-		echo '</p>';
 	}
 
 	private static function step_proof( $p ) {
@@ -313,6 +343,9 @@ class OCP_Admin_Proposals {
 			case 'content':
 				OCP_Proposal::set_section( $id, 'situation', array( 'body' => wp_kses_post( wp_unslash( $_POST['situation'] ?? '' ) ) ) );
 				OCP_Proposal::set_section( $id, 'objectives', array( 'body' => wp_kses_post( wp_unslash( $_POST['objectives'] ?? '' ) ) ) );
+				if ( isset( $_POST['source_material'] ) ) {
+					OCP_Proposal::set_section( $id, 'source_material', array( 'body' => sanitize_textarea_field( wp_unslash( $_POST['source_material'] ) ) ) );
+				}
 				break;
 
 			case 'proof':
@@ -387,6 +420,99 @@ class OCP_Admin_Proposals {
 			}
 		}
 		self::redirect_step( $id, 'content' );
+	}
+
+	/** AJAX: one turn of the discovery chat. Persists history on the proposal. */
+	public static function content_chat() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'oc-proposals' ) ), 403 );
+		}
+		check_ajax_referer( 'ocp_content_chat', 'nonce' );
+
+		$id = (int) ( $_POST['id'] ?? 0 );
+		$p  = OCP_Proposal::get( $id );
+		if ( ! $p ) {
+			wp_send_json_error( array( 'message' => __( 'Proposal not found.', 'oc-proposals' ) ), 404 );
+		}
+		if ( ! OCP_Claude::enabled() ) {
+			wp_send_json_error( array( 'message' => __( 'Add a Claude API key in Settings.', 'oc-proposals' ) ), 400 );
+		}
+
+		$material = sanitize_textarea_field( wp_unslash( $_POST['material'] ?? '' ) );
+		$message  = sanitize_textarea_field( wp_unslash( $_POST['message'] ?? '' ) );
+		OCP_Proposal::set_section( $id, 'source_material', array( 'body' => $material ) );
+
+		$history   = self::history( $id );
+		$history[] = array( 'role' => 'user', 'content' => $message );
+
+		$reply = OCP_Claude::discovery_reply( $history, array(
+			'client_name' => $p['client_name'],
+			'sector'      => $p['sector'],
+			'material'    => $material,
+		) );
+		if ( is_wp_error( $reply ) ) {
+			wp_send_json_error( array( 'message' => $reply->get_error_message() ), 502 );
+		}
+		$history[] = array( 'role' => 'assistant', 'content' => $reply );
+		self::save_history( $id, $history );
+
+		wp_send_json_success( array( 'reply' => $reply ) );
+	}
+
+	/** AJAX: draft the Situation + Objectives from the material + discussion. */
+	public static function content_generate() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'oc-proposals' ) ), 403 );
+		}
+		check_ajax_referer( 'ocp_content_chat', 'nonce' );
+
+		$id = (int) ( $_POST['id'] ?? 0 );
+		$p  = OCP_Proposal::get( $id );
+		if ( ! $p || ! OCP_Claude::enabled() ) {
+			wp_send_json_error( array( 'message' => __( 'Unavailable.', 'oc-proposals' ) ), 400 );
+		}
+		$material = sanitize_textarea_field( wp_unslash( $_POST['material'] ?? '' ) );
+		OCP_Proposal::set_section( $id, 'source_material', array( 'body' => $material ) );
+
+		$out = OCP_Claude::extract_content( $material, self::history( $id ), array(
+			'client_name' => $p['client_name'],
+			'sector'      => $p['sector'],
+		) );
+		if ( empty( $out['situation'] ) && empty( $out['objectives'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'Could not draft the sections — add more detail and try again.', 'oc-proposals' ) ), 502 );
+		}
+		$situation  = wp_kses_post( $out['situation'] ?? '' );
+		$objectives = wp_kses_post( $out['objectives'] ?? '' );
+		OCP_Proposal::set_section( $id, 'situation', array( 'body' => $situation ) );
+		OCP_Proposal::set_section( $id, 'objectives', array( 'body' => $objectives ) );
+
+		wp_send_json_success( array( 'situation' => $situation, 'objectives' => $objectives ) );
+	}
+
+	/** AJAX: extract text from an uploaded transcript/email file (PDF/Word/text). */
+	public static function extract_file() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'oc-proposals' ) ), 403 );
+		}
+		check_ajax_referer( 'ocp_content_chat', 'nonce' );
+		if ( empty( $_FILES['file']['tmp_name'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'No file uploaded.', 'oc-proposals' ) ), 400 );
+		}
+		$ex = OCP_Extract::from_upload( $_FILES['file'] );
+		if ( $ex['error'] ) {
+			wp_send_json_error( array( 'message' => $ex['error'] ), 400 );
+		}
+		wp_send_json_success( array( 'text' => $ex['text'] ) );
+	}
+
+	private static function history( $id ) {
+		$s = OCP_Proposal::get_section( $id, 'discovery' );
+		$h = $s && $s['body'] ? json_decode( $s['body'], true ) : array();
+		return is_array( $h ) ? array_slice( $h, -12 ) : array();
+	}
+
+	private static function save_history( $id, $history ) {
+		OCP_Proposal::set_section( $id, 'discovery', array( 'body' => wp_json_encode( array_slice( $history, -12 ) ) ) );
 	}
 
 	public static function mark_sent() {
