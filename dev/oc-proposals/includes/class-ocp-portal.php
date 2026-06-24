@@ -98,8 +98,12 @@ class OCP_Portal {
 	/** Terms + accept/sign form, or a confirmation once accepted. */
 	private static function accept_block( array $p, $accepted ) {
 		if ( $accepted ) {
-			return '<section class="ocp-sec ocp-accepted"><div class="ocp-eyebrow">' . esc_html__( 'Accepted', 'oc-proposals' ) . '</div>'
-				. '<p>' . esc_html__( 'Thank you — this proposal has been accepted and a signed copy emailed to you. We’ll be in touch to begin.', 'oc-proposals' ) . '</p></section>';
+			$html  = '<section class="ocp-sec ocp-accepted"><div class="ocp-eyebrow">' . esc_html__( 'Accepted', 'oc-proposals' ) . '</div>';
+			$html .= '<p>' . esc_html__( 'Thank you — this proposal has been accepted and a signed copy emailed to you.', 'oc-proposals' ) . '</p>';
+			$html .= self::payment_block( $p );
+			$html .= self::subscription_block( $p );
+			$html .= '</section>';
+			return $html;
 		}
 
 		$terms = OCP_Terms::current();
@@ -123,6 +127,55 @@ class OCP_Portal {
 		$html .= '<label class="ocp-check"><input type="checkbox" name="agree" value="1" required /> ' . esc_html__( 'I agree to the Terms & Conditions.', 'oc-proposals' ) . '</label>';
 		$html .= '<button type="submit" class="ocp-btn">' . esc_html__( 'Accept & sign', 'oc-proposals' ) . '</button>';
 		$html .= '</form></section>';
+		return $html;
+	}
+
+	/** Payment options after acceptance (Stripe one-off / GoCardless Direct Debit). */
+	private static function payment_block( array $p ) {
+		$t       = OCP_Proposal::totals( $p['id'] );
+		$oneoff  = ( $t['by_cadence']['oneoff'] ?? 0 ) + ( $t['by_cadence']['project'] ?? 0 );
+		$monthly = $t['by_cadence']['monthly'] ?? 0;
+		$post    = admin_url( 'admin-post.php' );
+		$nonce   = wp_nonce_field( 'ocp_pay_' . $p['token'], '_ocp_nonce', true, false );
+
+		$html = '<div class="ocp-pay-options">';
+		if ( $oneoff > 0 && OCP_Payments::stripe_enabled() ) {
+			$html .= '<form method="post" action="' . esc_url( $post ) . '"><input type="hidden" name="action" value="ocp_pay" /><input type="hidden" name="token" value="' . esc_attr( $p['token'] ) . '" /><input type="hidden" name="method" value="stripe" />' . $nonce;
+			$html .= '<button class="ocp-btn">' . esc_html( sprintf( __( 'Pay %s to start', 'oc-proposals' ), OCP_Proposal::money( $oneoff, $t['currency'] ) ) ) . '</button></form>';
+		}
+		if ( $monthly > 0 && OCP_Payments::gocardless_enabled() ) {
+			$html .= '<form method="post" action="' . esc_url( $post ) . '"><input type="hidden" name="action" value="ocp_pay" /><input type="hidden" name="token" value="' . esc_attr( $p['token'] ) . '" /><input type="hidden" name="method" value="gocardless" />' . $nonce;
+			$html .= '<button class="ocp-btn ocp-btn--ghost">' . esc_html__( 'Set up Direct Debit for the monthly programme', 'oc-proposals' ) . '</button></form>';
+		}
+		$html .= '</div>';
+		return $html;
+	}
+
+	/** Subscription status + client-controlled pause / resume. */
+	private static function subscription_block( array $p ) {
+		$sub = OCP_Subscription::get( $p['id'] );
+		if ( ! $sub || empty( $sub['status'] ) ) {
+			return '';
+		}
+		$post  = admin_url( 'admin-post.php' );
+		$nonce = wp_nonce_field( 'ocp_pause_' . $p['token'], '_ocp_nonce', true, false );
+		$html  = '<div class="ocp-sub">';
+		if ( 'active' === $sub['status'] ) {
+			$next = $sub['next_charge'] ?? OCP_Subscription::next_charge_date();
+			$html .= '<p class="ocp-muted">' . esc_html( sprintf( __( 'Monthly programme active. Next payment: %s.', 'oc-proposals' ), date_i18n( get_option( 'date_format' ), strtotime( $next ) ) ) ) . '</p>';
+			$html .= '<form method="post" action="' . esc_url( $post ) . '"><input type="hidden" name="action" value="ocp_pause" /><input type="hidden" name="do" value="pause" /><input type="hidden" name="token" value="' . esc_attr( $p['token'] ) . '" />' . $nonce;
+			$html .= '<button class="ocp-btn--ghost">' . esc_html__( 'Pause my subscription', 'oc-proposals' ) . '</button></form>';
+			$html .= '<p class="ocp-muted" style="font-size:12px">' . esc_html__( 'Give 14 days’ notice before a renewal. If you pause inside that window, the next payment still applies and nothing after.', 'oc-proposals' ) . '</p>';
+		} else {
+			$html .= '<p class="ocp-muted">' . esc_html__( 'Your subscription is paused.', 'oc-proposals' );
+			if ( ! empty( $sub['charges_once_more'] ) && ! empty( $sub['final_charge'] ) ) {
+				$html .= ' ' . esc_html( sprintf( __( 'A final payment on %s will still be taken.', 'oc-proposals' ), date_i18n( get_option( 'date_format' ), strtotime( $sub['final_charge'] ) ) ) );
+			}
+			$html .= '</p>';
+			$html .= '<form method="post" action="' . esc_url( $post ) . '"><input type="hidden" name="action" value="ocp_pause" /><input type="hidden" name="do" value="resume" /><input type="hidden" name="token" value="' . esc_attr( $p['token'] ) . '" />' . $nonce;
+			$html .= '<button class="ocp-btn">' . esc_html__( 'Resume', 'oc-proposals' ) . '</button></form>';
+		}
+		$html .= '</div>';
 		return $html;
 	}
 

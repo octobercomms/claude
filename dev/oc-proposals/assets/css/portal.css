@@ -77,6 +77,14 @@ h3{ font-size: 18px; margin: 0 0 .3em; }
 	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 10px; padding: 13px 24px; font-weight: 700;
 	font: inherit; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-block; }
 .ocp-accepted{ border-color: var(--ocp-positive, #2e7d32); }
+.ocp-pay-options{ display: flex; flex-wrap: wrap; gap: 12px; margin: 14px 0; }
+.ocp-pay-options form{ margin: 0; }
+.ocp-btn--ghost{ background: transparent; color: var(--ocp-ink, #1a1a1a); border: 2px solid var(--ocp-ink, #1a1a1a);
+	border-radius: 10px; padding: 11px 20px; font: inherit; font-weight: 700; cursor: pointer; }
+.ocp-sub{ margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--ocp-card, #e3e2db); }
+.ocp-sub form{ display: inline-block; margin: 6px 0; }
+.ocp-pdf-link{ text-align: center; margin: 20px 0; }
+.ocp-pdf-link a{ color: var(--ocp-muted, #555); }
 
 @media (max-width: 720px){
 	.ocp-rail{ grid-template-columns: 1fr 1fr; }

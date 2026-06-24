@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,15 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.6.0 =
+* Payments abstraction: Stripe Checkout for one-off / project / deposit, and
+  GoCardless Direct Debit redirect flow for the monthly retainer; webhooks
+  confirm both; invoice-on-request supported.
+* Client-controlled pause with the 14-day notice rule — pausing inside the
+  window still takes the committed next payment, then nothing after; resume any
+  time; GoCardless mandate paused via API where configured.
+* Portal gains pay + Direct-Debit + pause/resume controls after acceptance.
 
 = 0.5.0 =
 * Server-side PDF via mPDF from the same content model, through an mPDF-safe
