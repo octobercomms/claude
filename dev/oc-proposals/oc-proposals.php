@@ -3,7 +3,7 @@
  * Plugin Name: October Proposals
  * Plugin URI: https://octobercomms.com
  * Description: Generates October's client proposals as an on-brand web page (video + animated process + accept/e-sign/pay) and a matching downloadable PDF, from a single source — built as a wizard. Foundation build.
- * Version: 0.1.0
+ * Version: 0.2.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCP_VERSION', '0.1.0' );
+define( 'OCP_VERSION', '0.2.0' );
 define( 'OCP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCP_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCP_BASENAME', plugin_basename( __FILE__ ) );
@@ -32,9 +32,15 @@ require_once OCP_PATH . 'includes/class-ocp-db.php';
 require_once OCP_PATH . 'includes/class-ocp-activator.php';
 require_once OCP_PATH . 'includes/class-ocp-settings.php';
 require_once OCP_PATH . 'includes/class-ocp-updater.php';
+require_once OCP_PATH . 'includes/class-ocp-repo.php';
+require_once OCP_PATH . 'includes/class-ocp-types.php';
+require_once OCP_PATH . 'includes/class-ocp-library.php';
+require_once OCP_PATH . 'includes/class-ocp-lead.php';
 
 if ( is_admin() ) {
 	require_once OCP_PATH . 'admin/class-ocp-admin.php';
+	require_once OCP_PATH . 'admin/class-ocp-admin-library.php';
+	require_once OCP_PATH . 'admin/class-ocp-admin-crm.php';
 }
 
 register_activation_hook( __FILE__, array( 'OCP_Activator', 'activate' ) );
@@ -54,6 +60,8 @@ function ocp_bootstrap() {
 
 	if ( is_admin() ) {
 		OCP_Admin::instance();
+		OCP_Admin_Library::init();
+		OCP_Admin_CRM::init();
 	}
 
 	// Self-updater (private-repo aware). Only meaningful in admin, but cheap.

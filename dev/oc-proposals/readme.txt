@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.1.0
+Stable tag: 0.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,14 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.2.0 =
+* Reusable content library (case studies with sector/service tags, testimonials,
+  services, awards, showcase clients) with a generic admin.
+* CRM pipeline modelled on the Sales Leads Tracker — board by stage, lead
+  add/edit, and a CSV importer that maps tracker statuses to the pipeline.
+* Proposal-type presets (retainer, website, event) and shared section/cadence
+  vocabulary for the wizard and renderer.
 
 = 0.1.0 =
 * Foundation: plugin scaffold, full database schema, OMI-tokened settings,

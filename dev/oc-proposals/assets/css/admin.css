@@ -21,3 +21,15 @@
 .ocp-btn:hover{ filter: brightness(.97); color: var(--ocp-accent-on, #1a1a1a); }
 
 .ocp-foot{ margin-top: 24px; font-size: 12px; }
+
+/* CRM pipeline board */
+.ocp-board{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 12px; }
+.ocp-col{ background: var(--ocp-page, #faf9f5); border: 2px solid var(--ocp-card, #e3e2db); border-radius: 12px; padding: 10px; min-height: 120px; }
+.ocp-col h3{ font-size: 13px; margin: 4px 6px 10px; display: flex; justify-content: space-between; align-items: center; }
+.ocp-count{ background: var(--ocp-card, #e3e2db); border-radius: 999px; font-size: 11px; padding: 1px 8px; }
+.ocp-lead{ display: block; background: var(--ocp-surface, #fff); border: 1px solid var(--ocp-card, #e3e2db); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; text-decoration: none; color: var(--ocp-ink, #1a1a1a); }
+.ocp-lead:hover{ border-color: var(--ocp-ink, #1a1a1a); }
+.ocp-lead strong{ display: block; font-size: 13px; }
+.ocp-lead span{ display: block; font-size: 11px; color: var(--ocp-muted, #555); }
+.ocp-lead em{ display: block; font-size: 11px; color: #b86e00; font-style: normal; }
+@media (max-width: 1100px){ .ocp-board{ grid-template-columns: 1fr 1fr; } }
