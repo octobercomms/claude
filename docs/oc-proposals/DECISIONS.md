@@ -18,8 +18,8 @@ open product questions. Supersedes the "open decisions" in `PLUGIN-SCOPE.md §9`
 | **Client branding** | **Never use client logos.** Agencies misuse logos / break brand guidelines, and owners fixate on that instead of the proposal. Use **client name (text) + October logo** only, plus **one image pulled from the client's website** so they instantly "see themselves" in the proposal. |
 | **PDF page size** | **A4 landscape** for global, **US Letter landscape** for US clients. Driven by the same currency/region switch (US ⇒ Letter + USD + no VAT). |
 | **PDF engine** | **Server-side**, same approach as the **Architourian PDF generator** → **mPDF**. |
-| **Currency / VAT** | Per-proposal setting. Company is **UK-registered** but has a **USD bank account**. US clients ⇒ USD, no VAT. UK/global ⇒ GBP, VAT as applicable. Stops the GB-VAT-on-USD slip. |
-| **Pricing table** | Keep it mapped to the **Plan of Work** (mirrors the **RIBA Plan of Work** architects know — clients always ask "how do you work"). Make it **clearer** — see mockup `mockups/pricing-table.html`. |
+| **Currency / VAT** | Per-proposal setting, applied **silently** — **no client-facing VAT notice** (clients won't know what "no VAT" means; it just needs to be correct). Currency shows only via the price symbol. Company is **UK-registered** with a **USD bank account**: US ⇒ USD + Letter, no VAT; UK/global ⇒ GBP + A4, VAT as applicable. Stops the GB-VAT-on-USD slip without putting tax wording in front of the client. |
+| **Pricing table** | Mapped to the **Plan of Work** and made **clearer** — see `mockups/pricing-table.html`. **"RIBA Plan of Work" is internal rationale only — never mention RIBA in client-facing copy** (the client just sees "our Plan of Work"). |
 | **Recurring payments** | **GoCardless Direct Debit** for monthly retainers (Daniel's existing method). **Stripe** for one-off / project payments. **Invoice on request.** |
 | **Video hosting** | **Loom** embeds. |
 | **Proposal URL** | `octobercomms.com/proposal/<token>` — confirmed. |
@@ -227,9 +227,18 @@ budget cap makes abuse uneconomic while keeping it frictionless for real prospec
 **Yes — acceptance requires agreeing to your Terms, and a signed copy is emailed for the
 record.** Built into the accept/e-sign step:
 
-- **Versioned Terms** stored in Settings (your standard T&Cs), with optional per-proposal
-  overrides. The proposal **snapshots the terms version at send time**, so later edits never
-  change what a client agreed to.
+- **The Terms document is supplied** — Daniel's standard *Terms & Conditions — October
+  Communications* (5 pages: summary boxes for Scope of Work, Fees & Currency, Additional
+  Expenses, Termination, Point of Note; then 15 numbered clauses — Definitions, October's /
+  Client's obligations, Non-solicitation, Charges & Payment, Third Parties, IP,
+  Confidentiality, Complaints, Liability, Termination, Variations, Governing Law E&W, etc.).
+  Two clauses align with decisions already made: **5.1** "invoice monthly **in the currency**"
+  ⇒ the per-proposal currency model; **12.1** "either party may terminate on **14 days'**
+  written notice" ⇒ the pause/cancel notice rule (§G). It also carries explicit **US/European
+  client** clauses — good, since US clients are in scope.
+- **Versioned Terms** stored in Settings (seeded with the supplied T&Cs), with optional
+  per-proposal overrides. The proposal **snapshots the terms version at send time**, so later
+  edits never change what a client agreed to.
 - **On accept**, the client must **tick "I agree to the Terms"** (terms shown/linked inline)
   and **type their signature name**. We record an **audit trail**: signatory name, email,
   **timestamp, IP/user-agent, proposal + terms version, and a document hash**.
