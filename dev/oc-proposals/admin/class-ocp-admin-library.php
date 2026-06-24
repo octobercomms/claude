@@ -29,8 +29,20 @@ class OCP_Admin_Library {
 			wp_send_json_error( array( 'message' => __( 'Add a Claude API key in Settings.', 'oc-proposals' ) ), 400 );
 		}
 		$material = sanitize_textarea_field( wp_unslash( $_POST['material'] ?? '' ) );
+
+		// Append text extracted from an uploaded file (PDF / Word / text).
+		if ( ! empty( $_FILES['file']['tmp_name'] ) ) {
+			$ex = OCP_Extract::from_upload( $_FILES['file'] );
+			if ( $ex['error'] && '' === trim( $material ) ) {
+				wp_send_json_error( array( 'message' => $ex['error'] ), 400 );
+			}
+			if ( $ex['text'] ) {
+				$material = trim( $material . "\n\n" . $ex['text'] );
+			}
+		}
+
 		if ( '' === trim( $material ) ) {
-			wp_send_json_error( array( 'message' => __( 'Add some material first.', 'oc-proposals' ) ), 400 );
+			wp_send_json_error( array( 'message' => __( 'Add some material or upload a file first.', 'oc-proposals' ) ), 400 );
 		}
 		$cs = OCP_Claude::draft_case_study( $material );
 		if ( ! $cs ) {
@@ -131,9 +143,9 @@ class OCP_Admin_Library {
 		if ( 'case_study' === $key && OCP_Claude::enabled() ) {
 			echo '<div class="ocp-cs-draft" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'ocp_draft_cs' ) ) . '">';
 			echo '<div class="ocp-eyebrow">' . esc_html__( 'Draft with Claude', 'oc-proposals' ) . '</div>';
-			echo '<p class="ocp-muted">' . esc_html__( 'Paste raw material (a results report, coverage list, brief) or upload a .txt/.md file — Claude drafts the case study below for you to edit.', 'oc-proposals' ) . '</p>';
-			echo '<textarea id="ocp-cs-material" rows="5" class="large-text" placeholder="' . esc_attr__( 'Paste raw material here…', 'oc-proposals' ) . '"></textarea>';
-			echo '<p><input type="file" id="ocp-cs-file" accept=".txt,.md,.csv" /> ';
+			echo '<p class="ocp-muted">' . esc_html__( 'Paste raw material (a results report, coverage list, brief) or upload a PDF / Word / text file — Claude drafts the case study below for you to edit.', 'oc-proposals' ) . '</p>';
+			echo '<textarea id="ocp-cs-material" rows="5" class="large-text" placeholder="' . esc_attr__( 'Paste raw material here (optional if you upload a file)…', 'oc-proposals' ) . '"></textarea>';
+			echo '<p><input type="file" id="ocp-cs-file" accept=".pdf,.doc,.docx,.txt,.md,.csv" /> ';
 			echo '<button type="button" class="button button-primary" id="ocp-cs-go">' . esc_html__( 'Draft case study', 'oc-proposals' ) . '</button> <span class="spinner" id="ocp-cs-spin"></span></p>';
 			echo '</div>';
 		}

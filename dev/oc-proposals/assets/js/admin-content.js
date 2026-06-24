@@ -47,6 +47,33 @@
 			.then(function (r) { return r.json(); });
 	}
 
+	// Extract an uploaded transcript/email file into the source box.
+	var sFile = document.getElementById('ocp-source-file');
+	var sBtn = document.getElementById('ocp-source-extract');
+	var sSpin = document.getElementById('ocp-source-spin');
+	if (sBtn) {
+		sBtn.addEventListener('click', function () {
+			var f = sFile && sFile.files && sFile.files[0];
+			if (!f) { sFile.focus(); return; }
+			sSpin.classList.add('is-active'); sBtn.disabled = true;
+			var fd = new FormData();
+			fd.append('action', 'ocp_extract_file');
+			fd.append('nonce', nonce);
+			fd.append('file', f);
+			fetch(ajax, { method: 'POST', body: fd, credentials: 'same-origin' })
+				.then(function (r) { return r.json(); })
+				.then(function (res) {
+					sSpin.classList.remove('is-active'); sBtn.disabled = false;
+					if (res && res.success) {
+						source.value = (source.value ? source.value + '\n\n' : '') + res.data.text;
+					} else {
+						alert((res && res.data && res.data.message) || 'Could not read that file.');
+					}
+				})
+				.catch(function () { sSpin.classList.remove('is-active'); sBtn.disabled = false; alert('Network error.'); });
+		});
+	}
+
 	send.addEventListener('click', function () {
 		var msg = (text.value || '').trim();
 		if (!msg) { return; }

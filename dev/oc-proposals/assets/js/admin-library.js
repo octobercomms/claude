@@ -11,22 +11,14 @@
 	var go = document.getElementById('ocp-cs-go');
 	var spin = document.getElementById('ocp-cs-spin');
 
-	// Read an uploaded text file into the material box.
-	file.addEventListener('change', function () {
-		var f = file.files && file.files[0];
-		if (!f) { return; }
-		var reader = new FileReader();
-		reader.onload = function () { material.value = String(reader.result || ''); };
-		reader.readAsText(f);
-	});
-
 	function setField(name, value) {
 		var el = document.getElementById('f_' + name);
 		if (el) { el.value = value || ''; }
 	}
 
 	go.addEventListener('click', function () {
-		if (!material.value.trim()) { material.focus(); return; }
+		var hasFile = file.files && file.files[0];
+		if (!material.value.trim() && !hasFile) { material.focus(); return; }
 		spin.classList.add('is-active');
 		go.disabled = true;
 
@@ -34,6 +26,7 @@
 		fd.append('action', 'ocp_draft_cs');
 		fd.append('nonce', nonce);
 		fd.append('material', material.value);
+		if (hasFile) { fd.append('file', file.files[0]); }
 
 		fetch(ajax, { method: 'POST', body: fd, credentials: 'same-origin' })
 			.then(function (r) { return r.json(); })

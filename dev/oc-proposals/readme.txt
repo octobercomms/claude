@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.9.0
+Stable tag: 0.10.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,11 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.10.0 =
+* Upload PDFs (and Word .docx / text) for AI drafting: the case-study drafter
+  and the discovery chat now extract text server-side via Smalot PdfParser, so
+  results reports and call transcripts can be dropped in as PDFs.
 
 = 0.9.0 =
 * Preview links on the proposals list and wizard — open the live page (works in

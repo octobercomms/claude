@@ -33,6 +33,7 @@ class OCP_Admin_Proposals {
 		add_action( 'admin_post_ocp_ai_assist', array( __CLASS__, 'ai_assist' ) );
 		add_action( 'wp_ajax_ocp_content_chat', array( __CLASS__, 'content_chat' ) );
 		add_action( 'wp_ajax_ocp_content_generate', array( __CLASS__, 'content_generate' ) );
+		add_action( 'wp_ajax_ocp_extract_file', array( __CLASS__, 'extract_file' ) );
 	}
 
 	public static function render() {
@@ -172,7 +173,13 @@ class OCP_Admin_Proposals {
 
 		// Source material (saved with the step).
 		echo '<p><label><strong>' . esc_html__( 'Call transcript / client email', 'oc-proposals' ) . '</strong>';
-		echo '<textarea name="source_material" id="ocp-source" rows="6" class="large-text" placeholder="' . esc_attr__( 'Paste the transcript or email here…', 'oc-proposals' ) . '">' . esc_textarea( $material['body'] ?? '' ) . '</textarea></label></p>';
+		echo '<textarea name="source_material" id="ocp-source" rows="6" class="large-text" placeholder="' . esc_attr__( 'Paste the transcript or email here — or upload a file below…', 'oc-proposals' ) . '">' . esc_textarea( $material['body'] ?? '' ) . '</textarea></label></p>';
+		if ( OCP_Claude::enabled() ) {
+			echo '<p><input type="file" id="ocp-source-file" accept=".pdf,.doc,.docx,.txt,.md,.csv" /> ';
+			echo '<button type="button" class="button" id="ocp-source-extract">' . esc_html__( 'Add file text', 'oc-proposals' ) . '</button> ';
+			echo '<span class="spinner" id="ocp-source-spin" style="float:none;margin:0"></span> ';
+			echo '<span class="ocp-muted">' . esc_html__( 'PDF, Word or text — its text is added above.', 'oc-proposals' ) . '</span></p>';
+		}
 
 		// Chat panel (AJAX; outside the form submit).
 		echo '<div id="ocp-chat" class="ocp-chat"'
@@ -480,6 +487,22 @@ class OCP_Admin_Proposals {
 		OCP_Proposal::set_section( $id, 'objectives', array( 'body' => $objectives ) );
 
 		wp_send_json_success( array( 'situation' => $situation, 'objectives' => $objectives ) );
+	}
+
+	/** AJAX: extract text from an uploaded transcript/email file (PDF/Word/text). */
+	public static function extract_file() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'oc-proposals' ) ), 403 );
+		}
+		check_ajax_referer( 'ocp_content_chat', 'nonce' );
+		if ( empty( $_FILES['file']['tmp_name'] ) ) {
+			wp_send_json_error( array( 'message' => __( 'No file uploaded.', 'oc-proposals' ) ), 400 );
+		}
+		$ex = OCP_Extract::from_upload( $_FILES['file'] );
+		if ( $ex['error'] ) {
+			wp_send_json_error( array( 'message' => $ex['error'] ), 400 );
+		}
+		wp_send_json_success( array( 'text' => $ex['text'] ) );
 	}
 
 	private static function history( $id ) {

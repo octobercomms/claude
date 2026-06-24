@@ -3,7 +3,8 @@
   "description": "October Proposals — WordPress plugin. Server-side PDF via mPDF.",
   "require": {
     "php": ">=7.4",
-    "mpdf/mpdf": "^8.2"
+    "mpdf/mpdf": "^8.2",
+    "smalot/pdfparser": "^2.0"
   },
   "config": {
     "optimize-autoloader": true,
