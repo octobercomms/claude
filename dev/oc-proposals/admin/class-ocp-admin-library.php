@@ -133,7 +133,7 @@ class OCP_Admin_Library {
 		$id  = isset( $_GET['id'] ) ? (int) $_GET['id'] : 0; // phpcs:ignore WordPress.Security.NonceVerification
 		$row = $id ? OCP_Repo::get( $entity['table'], $id ) : array();
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:760px">';
+		echo '<form class="ocp-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="ocp_save_library" />';
 		echo '<input type="hidden" name="entity" value="' . esc_attr( $key ) . '" />';
 		echo '<input type="hidden" name="id" value="' . esc_attr( $id ) . '" />';

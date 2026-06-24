@@ -68,9 +68,49 @@ body[class*="page_ocp-"] .wrap select:focus,
 body[class*="page_ocp-"] .wrap textarea:focus{
 	border-color: var(--accent, #E7CD41); box-shadow: 0 0 0 1px var(--accent, #E7CD41);
 }
-/* House-style the step/entity tab bars. */
+/* Segmented house tabs — replaces the grey WP nav-tab on our screens. */
+body[class*="oc-proposals"] .wrap .nav-tab-wrapper,
+body[class*="page_ocp-"] .wrap .nav-tab-wrapper{
+	border-bottom: 0; display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px;
+	background: var(--surface, #fff); border: var(--border-w, 2px) solid var(--card-border, #e3e2db);
+	border-radius: var(--r-pill, 999px); box-shadow: var(--shadow-xs); margin: 10px 0 22px;
+}
+body[class*="oc-proposals"] .wrap .nav-tab,
+body[class*="page_ocp-"] .wrap .nav-tab{
+	border: 0; background: transparent; color: var(--text-muted, #555); margin: 0;
+	padding: 8px 18px; font-weight: 700; font-size: 13px; border-radius: var(--r-pill, 999px);
+	transition: background .12s ease, color .12s ease;
+}
+body[class*="oc-proposals"] .wrap .nav-tab:hover,
+body[class*="page_ocp-"] .wrap .nav-tab:hover{ background: var(--surface-sunken, #f3f3f3); color: var(--text, #1a1a1a); }
 body[class*="oc-proposals"] .wrap .nav-tab-active,
-body[class*="page_ocp-"] .wrap .nav-tab-active{ border-bottom: 3px solid var(--accent, #E7CD41); background: var(--surface, #fff); }
+body[class*="oc-proposals"] .wrap .nav-tab-active:focus,
+body[class*="page_ocp-"] .wrap .nav-tab-active,
+body[class*="page_ocp-"] .wrap .nav-tab-active:focus{
+	background: var(--accent, #E7CD41); color: var(--accent-on, #1a1a1a);
+	box-shadow: var(--shadow-accent); border-bottom: 0;
+}
+
+/* Full-width forms: keep the label column sane so wide pages read well. */
+.ocp-wrap .form-table th{ width: 220px; }
+.ocp-wrap .form-table input.regular-text{ max-width: 480px; width: 100%; }
+
+/* Settings as a responsive card grid (full width, multi-column). */
+.ocp-settings-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr));
+	gap: 16px; align-items: start; margin: 12px 0 20px; }
+.ocp-settings-grid .ocp-card{ padding: 4px 22px 16px; }
+.ocp-settings-grid .ocp-card:hover{ transform: none; box-shadow: var(--shadow-sm); }
+.ocp-settings-grid h2{ font-size: 15px; margin: 16px 0 4px; }
+.ocp-settings-grid .form-table{ margin-top: 4px; }
+.ocp-settings-grid .form-table th{ width: 160px; padding: 12px 10px 12px 0; }
+.ocp-settings-grid .form-table td{ padding: 10px 10px; }
+.ocp-settings-grid .form-table input.regular-text{ max-width: none; }
+
+/* Wizard: a comfortable content measure inside the full-width page. */
+.ocp-form{ max-width: 1080px; }
+.ocp-form .form-table input.regular-text{ max-width: 520px; }
+.ocp-fieldgrid{ display: grid; grid-template-columns: repeat(2, minmax(280px, 1fr)); gap: 4px 28px; }
+@media (max-width: 1100px){ .ocp-fieldgrid{ grid-template-columns: 1fr; } }
 
 /* CRM pipeline board */
 .ocp-board{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 12px; }

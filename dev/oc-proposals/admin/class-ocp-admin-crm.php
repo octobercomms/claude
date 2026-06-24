@@ -121,7 +121,7 @@ class OCP_Admin_CRM {
 		$lead = $id ? OCP_Lead::get( $id ) : array();
 		$g    = function ( $k ) use ( $lead ) { return isset( $lead[ $k ] ) ? $lead[ $k ] : ''; };
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:760px">';
+		echo '<form class="ocp-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="ocp_save_lead" />';
 		echo '<input type="hidden" name="id" value="' . esc_attr( $id ) . '" />';
 		wp_nonce_field( 'ocp_save_lead' );
