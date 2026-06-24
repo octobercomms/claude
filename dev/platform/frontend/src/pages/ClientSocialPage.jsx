@@ -1807,7 +1807,10 @@ function PostCard({ post, engagement, media, onChange, onDelete, onPublish, onRe
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.frame ?? i + 1}</td>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.shot}</td>
                   <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.on_screen_text || ''}</td>
-                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>{f.voiceover || ''}</td>
+                  <td style={{ padding: "5px 6px", verticalAlign: "top", fontSize: 11, lineHeight: 1.4 }}>
+                    {f.voiceover || ''}
+                    {f.delivery && <div style={{ marginTop: 4, fontSize: 10, color: 'var(--accent)', fontStyle: 'italic' }}>🎬 {f.delivery}</div>}
+                  </td>
                 </tr>
               ))}
             </tbody>
