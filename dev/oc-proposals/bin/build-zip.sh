@@ -35,6 +35,17 @@ DEST="$STAGE/$PLUGIN_SLUG"
 mkdir -p "$DEST"
 cp -R "$SRC_DIR/." "$DEST/"
 rm -rf "$DEST/bin" "$DEST/tests" "$DEST/node_modules"
+
+# Prune mPDF's bundled font set (~87MB) down to DejaVu + the Free* families we
+# fall back to — keeps the release zip small. Brand fonts (assets/fonts) stay.
+TTF="$DEST/vendor/mpdf/mpdf/ttfonts"
+if [ -d "$TTF" ]; then
+	KEEP='^(DejaVu|FreeMono|FreeSans|FreeSerif)'
+	find "$TTF" -maxdepth 1 \( -name '*.ttf' -o -name '*.otf' \) | while read -r f; do
+		base="$(basename "$f")"
+		echo "$base" | grep -qE "$KEEP" || rm -f "$f"
+	done
+fi
 find "$DEST" -name '.git*' -prune -exec rm -rf {} + 2>/dev/null || true
 find "$DEST" -name '*.zip' -delete 2>/dev/null || true
 find "$DEST" -name '.DS_Store' -delete 2>/dev/null || true

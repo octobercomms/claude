@@ -1,0 +1,15 @@
+{
+  "name": "octobercomms/oc-proposals",
+  "description": "October Proposals — WordPress plugin. Server-side PDF via mPDF.",
+  "require": {
+    "php": ">=7.4",
+    "mpdf/mpdf": "^8.2"
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "preferred-install": "dist",
+    "platform": {
+      "php": "7.4"
+    }
+  }
+}

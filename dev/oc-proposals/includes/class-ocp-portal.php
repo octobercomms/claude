@@ -82,6 +82,9 @@ class OCP_Portal {
 <main class="ocp-doc">
 <?php echo $body; // phpcs:ignore WordPress.Security.EscapeOutput ?>
 <?php echo self::accept_block( $p, $accepted ); // phpcs:ignore WordPress.Security.EscapeOutput ?>
+<?php if ( class_exists( 'OCP_PDF' ) && OCP_PDF::available() ) : ?>
+<p class="ocp-pdf-link"><a href="<?php echo esc_url( OCP_PDF::url( $p['token'] ) ); ?>"><?php esc_html_e( 'Download a PDF copy', 'oc-proposals' ); ?></a></p>
+<?php endif; ?>
 </main>
 <script src="<?php echo esc_url( OCP_URL . 'assets/js/portal.js?v=' . OCP_VERSION ); ?>"
 	data-ajax="<?php echo esc_url( admin_url( 'admin-ajax.php' ) ); ?>"
@@ -186,9 +189,19 @@ class OCP_Portal {
 			__( 'View:', 'oc-proposals' ) . ' ' . OCP_Proposal::url( $p['token'] ),
 		);
 		$body = implode( "\n", $lines );
-		wp_mail( $email, $subject, $body );
+
+		// Attach the signed PDF record where the PDF engine is available.
+		$attachments = array();
+		if ( class_exists( 'OCP_PDF' ) && OCP_PDF::available() ) {
+			$pdf = OCP_PDF::save_to_file( $p );
+			if ( $pdf ) {
+				$attachments[] = $pdf;
+			}
+		}
+
+		wp_mail( $email, $subject, $body, '', $attachments );
 		if ( $studio && $studio !== $email ) {
-			wp_mail( $studio, $subject, $body );
+			wp_mail( $studio, $subject, $body, '', $attachments );
 		}
 	}
 

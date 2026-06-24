@@ -229,7 +229,15 @@ class OCP_Admin_Proposals {
 		$url = OCP_Proposal::url( $p['token'] );
 		echo '<table class="form-table" role="presentation">';
 		echo '<tr><th>' . esc_html__( 'Status', 'oc-proposals' ) . '</th><td><span class="ocp-chip">' . esc_html( OCP_Proposal::status_label( $p['status'] ) ) . '</span></td></tr>';
-		echo '<tr><th>' . esc_html__( 'Private link', 'oc-proposals' ) . '</th><td><code>' . esc_html( $url ) . '</code><p class="description">' . esc_html__( 'The public OMI-styled portal renders here (next build).', 'oc-proposals' ) . '</p></td></tr>';
+		echo '<tr><th>' . esc_html__( 'Private link', 'oc-proposals' ) . '</th><td><a href="' . esc_url( $url ) . '" target="_blank" rel="noopener"><code>' . esc_html( $url ) . '</code></a></td></tr>';
+		$pdf_ready = class_exists( 'OCP_PDF' ) && OCP_PDF::available();
+		echo '<tr><th>' . esc_html__( 'PDF', 'oc-proposals' ) . '</th><td>';
+		if ( $pdf_ready ) {
+			echo '<a class="button" href="' . esc_url( OCP_PDF::url( $p['token'] ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Open PDF (landscape)', 'oc-proposals' ) . '</a>';
+		} else {
+			echo '<span class="ocp-muted">' . esc_html__( 'Run composer install (or use the release zip) to enable PDF.', 'oc-proposals' ) . '</span>';
+		}
+		echo '</td></tr>';
 		echo '<tr><th>' . esc_html__( 'Pricing', 'oc-proposals' ) . '</th><td>';
 		foreach ( OCP_Types::cadences() as $ck => $cl ) {
 			if ( ! empty( $t['by_cadence'][ $ck ] ) ) {
