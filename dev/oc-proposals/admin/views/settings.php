@@ -37,6 +37,8 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 		<input type="hidden" name="action" value="ocp_save_settings" />
 		<?php wp_nonce_field( 'ocp_save_settings' ); ?>
 
+		<div class="ocp-settings-grid">
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Brand & design tokens', 'oc-proposals' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Defaults match the OMI design system. Change fonts and colours to re-skin everything — web, PDF and admin.', 'oc-proposals' ); ?></p>
 		<table class="form-table" role="presentation">
@@ -51,7 +53,9 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'logo_url', __( 'October logo URL', 'oc-proposals' ), 'url' );
 			?>
 		</table>
+		</div>
 
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Company & legal', 'oc-proposals' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<?php
@@ -62,7 +66,9 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'company_site', __( 'Website', 'oc-proposals' ) );
 			?>
 		</table>
+		</div>
 
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Commercial defaults', 'oc-proposals' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<?php
@@ -70,7 +76,9 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'vat_rate', __( 'VAT rate (%)', 'oc-proposals' ), 'number' );
 			?>
 		</table>
+		</div>
 
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Pricing rate card', 'oc-proposals' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Grounds the “Suggest pricing with Claude” assistant. It must stay within these bands — so it can never propose an out-of-range fee.', 'oc-proposals' ); ?></p>
 		<table class="form-table" role="presentation">
@@ -84,7 +92,9 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'band_project_max', __( 'Project max', 'oc-proposals' ), 'number' );
 			?>
 		</table>
+		</div>
 
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Conversion & automation', 'oc-proposals' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<?php
@@ -94,7 +104,9 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'report_email_enabled', __( 'Email me monthly/annual reports (1/0)', 'oc-proposals' ), 'number' );
 			?>
 		</table>
+		</div>
 
+		<div class="ocp-card">
 		<h2><?php esc_html_e( 'Integrations', 'oc-proposals' ); ?></h2>
 		<p class="description"><?php esc_html_e( 'Stored per-site, never committed. The GitHub token (Contents: read on this repo) powers one-click self-updates.', 'oc-proposals' ); ?></p>
 		<table class="form-table" role="presentation">
@@ -109,6 +121,8 @@ $field = function ( $key, $label, $type = 'text', $note = '' ) use ( $s ) {
 			$field( 'turnstile_secret', __( 'Cloudflare Turnstile secret', 'oc-proposals' ), 'password' );
 			?>
 		</table>
+		</div>
+		</div><!-- /.ocp-settings-grid -->
 
 		<?php submit_button( __( 'Save settings', 'oc-proposals' ) ); ?>
 	</form>

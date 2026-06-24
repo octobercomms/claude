@@ -89,7 +89,7 @@ class OCP_Admin {
 			/* translators: %s version number */
 			echo '<p class="ocp-muted">' . esc_html( sprintf( __( 'Current version: %s', 'oc-proposals' ), $current['version'] ) ) . '</p>';
 		}
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:860px">';
+		echo '<form class="ocp-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
 		echo '<input type="hidden" name="action" value="ocp_save_terms" />';
 		wp_nonce_field( 'ocp_save_terms' );
 		wp_editor( $current['body'] ?? '', 'ocp_terms_body', array(

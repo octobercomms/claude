@@ -123,7 +123,7 @@ class OCP_Admin_Proposals {
 		}
 		echo '</h2>';
 
-		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:860px;margin-top:16px">';
+		echo '<form class="ocp-form" method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="margin-top:16px">';
 		echo '<input type="hidden" name="action" value="ocp_save_step" />';
 		echo '<input type="hidden" name="id" value="' . esc_attr( $id ) . '" />';
 		echo '<input type="hidden" name="step" value="' . esc_attr( $step ) . '" />';

@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.12.0
+Stable tag: 0.13.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,15 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.13.0 =
+* Backend layout pass: every admin screen goes full-width, with a comfortable
+  reading measure for edit forms (data tables/boards/analytics use the full
+  width).
+* Tabs redesigned to the house system — a white segmented control with an
+  accent-filled active tab, replacing the grey WP nav-tabs.
+* Settings reorganised into a responsive card grid (Brand, Company, Commercial,
+  Rate card, Automation, Integrations) instead of one long column.
 
 = 0.12.0 =
 * Backend adopts the October Design System: a portable october-ui.css snapshot
