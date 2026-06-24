@@ -30,6 +30,7 @@ class OCP_Admin_Proposals {
 		add_action( 'admin_post_ocp_save_step', array( __CLASS__, 'save_step' ) );
 		add_action( 'admin_post_ocp_delete_proposal', array( __CLASS__, 'delete' ) );
 		add_action( 'admin_post_ocp_mark_sent', array( __CLASS__, 'mark_sent' ) );
+		add_action( 'admin_post_ocp_ai_assist', array( __CLASS__, 'ai_assist' ) );
 	}
 
 	public static function render() {
@@ -159,6 +160,27 @@ class OCP_Admin_Proposals {
 		echo '<tr><th>' . esc_html__( 'Your situation', 'oc-proposals' ) . '</th><td><textarea name="situation" rows="6" class="large-text">' . esc_textarea( $sit['body'] ?? '' ) . '</textarea></td></tr>';
 		echo '<tr><th>' . esc_html__( 'Objectives & strategy', 'oc-proposals' ) . '</th><td><textarea name="objectives" rows="6" class="large-text">' . esc_textarea( $obj['body'] ?? '' ) . '</textarea></td></tr>';
 		echo '</table>';
+
+		// AI assists (separate forms so they don't submit the step save).
+		$assist = function ( $do, $label, $note ) use ( $p ) {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline-block;margin:0 8px 8px 0">';
+			echo '<input type="hidden" name="action" value="ocp_ai_assist" />';
+			echo '<input type="hidden" name="id" value="' . esc_attr( $p['id'] ) . '" />';
+			echo '<input type="hidden" name="do" value="' . esc_attr( $do ) . '" />';
+			wp_nonce_field( 'ocp_ai_assist' );
+			echo '<button class="button" title="' . esc_attr( $note ) . '">' . esc_html( $label ) . '</button></form>';
+		};
+		echo '<p>';
+		if ( OCP_Diagnostics::enabled() ) {
+			$assist( 'diagnostics', __( 'Pull current-state SEO snapshot', 'oc-proposals' ), __( 'Uses DataForSEO + the client website URL.', 'oc-proposals' ) );
+		}
+		if ( OCP_Claude::enabled() ) {
+			$assist( 'reangle', __( 'Re-angle with Claude', 'oc-proposals' ), __( 'Tailors the objectives to this client’s sector.', 'oc-proposals' ) );
+		}
+		if ( ! OCP_Diagnostics::enabled() && ! OCP_Claude::enabled() ) {
+			echo '<span class="ocp-muted">' . esc_html__( 'Add a Claude key / DataForSEO login in Settings to enable AI assists.', 'oc-proposals' ) . '</span>';
+		}
+		echo '</p>';
 	}
 
 	private static function step_proof( $p ) {
@@ -335,6 +357,36 @@ class OCP_Admin_Proposals {
 			);
 		}
 		OCP_Proposal::replace_items( $id, $items );
+	}
+
+	public static function ai_assist() {
+		self::guard( 'ocp_ai_assist' );
+		$id = (int) ( $_POST['id'] ?? 0 );
+		$do = sanitize_key( wp_unslash( $_POST['do'] ?? '' ) );
+		$p  = OCP_Proposal::get( $id );
+		if ( $p ) {
+			if ( 'diagnostics' === $do ) {
+				$text = OCP_Diagnostics::snapshot_text( $p['website_url'] );
+				if ( $text ) {
+					$cur = OCP_Proposal::get_section( $id, 'situation' );
+					$body = trim( ( $cur['body'] ?? '' ) . "\n\n" . $text );
+					OCP_Proposal::set_section( $id, 'situation', array( 'body' => $body ) );
+				}
+			} elseif ( 'reangle' === $do ) {
+				$obj = OCP_Proposal::get_section( $id, 'objectives' );
+				$sit = OCP_Proposal::get_section( $id, 'situation' );
+				if ( $obj && trim( (string) $obj['body'] ) !== '' ) {
+					$new = OCP_Claude::rewrite_section( $obj['body'], array(
+						'sector'    => $p['sector'],
+						'situation' => wp_strip_all_tags( (string) ( $sit['body'] ?? '' ) ),
+					) );
+					if ( $new ) {
+						OCP_Proposal::set_section( $id, 'objectives', array( 'body' => $new ) );
+					}
+				}
+			}
+		}
+		self::redirect_step( $id, 'content' );
 	}
 
 	public static function mark_sent() {

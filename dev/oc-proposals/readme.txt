@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.6.0
+Stable tag: 0.7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,19 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.7.0 =
+* Claude layer (OCP_Claude): per-proposal re-angle of boilerplate, case-study
+  drafting from raw material, band-clamped pricing suggestions, and the
+  engagement report — grounded and guard-railed; every output editable.
+* Engagement analytics screen aggregating first-party events (views, sections,
+  accept rate), complementing Microsoft Clarity.
+* Current-state diagnostics (DataForSEO) with a one-click snapshot into the
+  wizard's situation step; Claude re-angle button on objectives.
+* Public "create your own proposal" builder ([oc_proposal_builder]):
+  options-first indicative ranges, scoped chat agent (Haiku) behind Turnstile +
+  email unlock + per-IP rate limit + monthly budget cap, non-binding disclaimer,
+  seeds the CRM.
 
 = 0.6.0 =
 * Payments abstraction: Stripe Checkout for one-off / project / deposit, and
