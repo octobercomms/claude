@@ -14,6 +14,10 @@ Code lives in `dev/oc-proposals/` (not yet started). Docs:
   landscape A4/Letter, mPDF confidence, GoCardless vs Stripe, the Claude pricing agent, the
   public "create your own proposal" builder, native CRM (from the Sales Leads Tracker), and
   subscription pause.
+- **[AI-PERSONALISATION-AND-ANALYTICS.md](AI-PERSONALISATION-AND-ANALYTICS.md)** — round-3:
+  Claude per-proposal rewriting, case-study library from file uploads, two-tier current-state
+  diagnostics (DataForSEO + OMI API), and engagement analytics (Clarity + Loom events) with a
+  Claude monthly/annual feedback report.
 - **[mockups/pricing-table.html](mockups/pricing-table.html)** — clearer pricing-table concept
   (Plan-of-Work rail + two buckets + ROI anchor + pause note). Open in a browser; prints A4
   landscape.
