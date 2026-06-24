@@ -94,6 +94,10 @@ class OCP_Proposal {
 
 	public static function mark_sent( $id ) {
 		self::update( $id, array( 'status' => 'sent', 'sent_at' => current_time( 'mysql' ) ) );
+		// Snapshot the current Terms version so later edits can't change what was sent.
+		if ( class_exists( 'OCP_Terms' ) ) {
+			OCP_Terms::snapshot_for( $id );
+		}
 	}
 
 	public static function mark_viewed( $id ) {

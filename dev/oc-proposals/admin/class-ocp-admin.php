@@ -28,6 +28,7 @@ class OCP_Admin {
 		add_action( 'admin_menu', array( $this, 'menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
 		add_action( 'admin_post_ocp_save_settings', array( $this, 'save_settings' ) );
+		add_action( 'admin_post_ocp_save_terms', array( $this, 'save_terms' ) );
 	}
 
 	public function menu() {
@@ -44,6 +45,7 @@ class OCP_Admin {
 		add_submenu_page( self::MENU, __( 'Proposals', 'oc-proposals' ), __( 'Proposals', 'oc-proposals' ), self::CAP, OCP_Admin_Proposals::PAGE, array( 'OCP_Admin_Proposals', 'render' ) );
 		add_submenu_page( self::MENU, __( 'Pipeline', 'oc-proposals' ), __( 'Pipeline', 'oc-proposals' ), self::CAP, OCP_Admin_CRM::PAGE, array( 'OCP_Admin_CRM', 'render' ) );
 		add_submenu_page( self::MENU, __( 'Library', 'oc-proposals' ), __( 'Library', 'oc-proposals' ), self::CAP, OCP_Admin_Library::PAGE, array( 'OCP_Admin_Library', 'render' ) );
+		add_submenu_page( self::MENU, __( 'Terms', 'oc-proposals' ), __( 'Terms', 'oc-proposals' ), self::CAP, 'ocp-terms', array( $this, 'render_terms' ) );
 		add_submenu_page( self::MENU, __( 'Settings', 'oc-proposals' ), __( 'Settings', 'oc-proposals' ), self::CAP, 'ocp-settings', array( $this, 'render_settings' ) );
 	}
 
@@ -62,6 +64,35 @@ class OCP_Admin {
 
 	public function render_settings() {
 		require OCP_PATH . 'admin/views/settings.php';
+	}
+
+	public function render_terms() {
+		$current = OCP_Terms::current();
+		echo '<div class="wrap ocp-wrap"><h1 class="ocp-h1">' . esc_html__( 'Terms & Conditions', 'oc-proposals' ) . '</h1>';
+		echo '<p class="ocp-lede">' . esc_html__( 'Paste your standard T&Cs. Each change creates a new version; proposals snapshot the version current when they are sent, so edits never change what a client already signed.', 'oc-proposals' ) . '</p>';
+		if ( ! empty( $_GET['saved'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__( 'Terms saved.', 'oc-proposals' ) . '</p></div>';
+		}
+		if ( $current ) {
+			/* translators: %s version number */
+			echo '<p class="ocp-muted">' . esc_html( sprintf( __( 'Current version: %s', 'oc-proposals' ), $current['version'] ) ) . '</p>';
+		}
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:860px">';
+		echo '<input type="hidden" name="action" value="ocp_save_terms" />';
+		wp_nonce_field( 'ocp_save_terms' );
+		wp_editor( $current['body'] ?? '', 'ocp_terms_body', array( 'textarea_name' => 'terms_body', 'textarea_rows' => 20 ) );
+		submit_button( __( 'Save terms', 'oc-proposals' ) );
+		echo '</form></div>';
+	}
+
+	public function save_terms() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_die( esc_html__( 'Not allowed.', 'oc-proposals' ) );
+		}
+		check_admin_referer( 'ocp_save_terms' );
+		OCP_Terms::save_body( wp_unslash( $_POST['terms_body'] ?? '' ) );
+		wp_safe_redirect( add_query_arg( array( 'page' => 'ocp-terms', 'saved' => 1 ), admin_url( 'admin.php' ) ) );
+		exit;
 	}
 
 	public function save_settings() {

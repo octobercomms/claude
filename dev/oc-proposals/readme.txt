@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.3.0
+Stable tag: 0.4.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,16 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.4.0 =
+* Public client portal: standalone OMI-styled page at ?ocp_proposal=<token>,
+  rendering cover → intro → situation → proof → process (animated Plan of Work)
+  → investment → terms/accept, with Loom embeds and view tracking.
+* Versioned Terms with an admin editor; proposals snapshot the version at send.
+* Accept & e-sign (agree + signature) with an audit trail (name, email, time,
+  IP, UA, terms version, document hash) and an emailed record to client + studio.
+* First-party engagement events (section views, video intent, CTA) + optional
+  Microsoft Clarity embed.
 
 = 0.3.0 =
 * Proposal model (token-addressable, status lifecycle, sections, pricing line
