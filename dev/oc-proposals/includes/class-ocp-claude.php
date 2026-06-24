@@ -125,9 +125,51 @@ class OCP_Claude {
 		return is_wp_error( $out ) ? '' : trim( $out );
 	}
 
+	/**
+	 * Discovery chat — the studio pastes a call transcript / client email and
+	 * talks it through with Claude to shape the proposal. Returns the assistant's
+	 * reply. `context` carries the client name/sector + the source material.
+	 */
+	public static function discovery_reply( $history, array $context ) {
+		$system = 'You are October Communications’ proposal strategist, working WITH Daniel '
+			. '(not the client). He pastes a call transcript or a client email; help him '
+			. 'interrogate it and shape a proposal: surface the client’s real situation, their '
+			. 'objectives, and a sensible strategy in October’s voice. Ask sharp clarifying '
+			. 'questions when something is missing, suggest angles, and keep it concise. British '
+			. 'English. This is an internal working chat — be direct and practical.'
+			. "\n\nClient: " . ( $context['client_name'] ?? '' ) . ' · Sector: ' . ( $context['sector'] ?? '' );
+		if ( ! empty( $context['material'] ) ) {
+			$system .= "\n\nSource material (transcript / email) provided:\n" . $context['material'];
+		}
+		$out = self::message( $system, $history, self::MODEL_DRAFT, 1200 );
+		return is_wp_error( $out ) ? $out : trim( $out );
+	}
+
+	/**
+	 * Turn the source material + discussion into the proposal's two written
+	 * sections. Returns ['situation' => string, 'objectives' => string].
+	 */
+	public static function extract_content( $material, $history, array $context ) {
+		$system = 'From the source material and the working discussion, write two sections of '
+			. 'an October proposal in finished prose (British English, warm and design-literate, '
+			. 'no headings, no preamble). Return STRICT JSON: {"situation":"…","objectives":"…"}. '
+			. '"situation" = a tight "where you are now" for the client. "objectives" = their '
+			. 'objectives plus the strategy to get there. Use only what is supported by the '
+			. 'material/discussion; do not invent specifics.'
+			. "\n\nClient: " . ( $context['client_name'] ?? '' ) . ' · Sector: ' . ( $context['sector'] ?? '' )
+			. "\n\nSource material:\n" . $material;
+		$msgs = is_array( $history ) ? $history : array();
+		$msgs[] = array( 'role' => 'user', 'content' => 'Write the situation and objectives sections now as JSON.' );
+		$out  = self::message( $system, $msgs, self::MODEL_DRAFT, 1600 );
+		if ( is_wp_error( $out ) ) {
+			return array();
+		}
+		$json = json_decode( self::strip_fence( $out ), true );
+		return is_array( $json ) ? $json : array();
+	}
+
 	/** Public builder agent — tightly scoped, cheap model, capped output. */
-	public static function builder_reply( $history, $services_summary ) {
-		$system = 'You are October Communications’ proposal assistant on a public web page. '
+	public static function builder_reply( $history, $services_summary ) {		$system = 'You are October Communications’ proposal assistant on a public web page. '
 			. 'ONLY discuss October’s marketing/PR/website services and help the visitor scope '
 			. 'an indicative proposal. Politely refuse anything off-topic and never answer '
 			. 'general-knowledge questions. Give indicative ranges, never a binding quote, and '

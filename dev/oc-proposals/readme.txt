@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.7.0
+Stable tag: 0.8.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,13 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.8.0 =
+* Wizard Content step is now a Claude discovery chat: paste a call transcript or
+  client email, talk it through, then one-click draft the Situation and
+  Objectives & strategy into editable fields that feed the live page and PDF.
+* Chat history + source material are saved on the proposal; everything stays
+  editable before Save & continue.
 
 = 0.7.0 =
 * Claude layer (OCP_Claude): per-proposal re-angle of boilerplate, case-study

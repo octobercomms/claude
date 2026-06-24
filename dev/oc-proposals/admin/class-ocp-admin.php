@@ -57,6 +57,13 @@ class OCP_Admin {
 		wp_enqueue_style( 'ocp-admin', OCP_URL . 'assets/css/admin.css', array(), OCP_VERSION );
 		// Inject the live design tokens so the admin previews on-brand.
 		wp_add_inline_style( 'ocp-admin', OCP_Settings::css_root() );
+
+		// Discovery-chat JS on the proposal wizard's Content step.
+		$page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$step = isset( $_GET['step'] ) ? sanitize_key( wp_unslash( $_GET['step'] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		if ( OCP_Admin_Proposals::PAGE === $page && 'content' === $step ) {
+			wp_enqueue_script( 'ocp-admin-content', OCP_URL . 'assets/js/admin-content.js', array(), OCP_VERSION, true );
+		}
 	}
 
 	public function render_dashboard() {
