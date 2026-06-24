@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.11.0
+Stable tag: 0.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,14 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.12.0 =
+* Backend adopts the October Design System: a portable october-ui.css snapshot
+  (tokens + primitives + depth/polish) drives the admin — warm canvas wash, soft
+  elevation on cards, hover lift, accent buttons with sheen, two-tone discipline.
+  The core WP controls (buttons, inputs, tabs) are house-styled, scoped to this
+  plugin's screens only. The client-facing proposal page stays re-skinnable per
+  brand via the settings tokens.
 
 = 0.11.0 =
 * Claude pricing agent in the wizard: "Suggest pricing with Claude" on the

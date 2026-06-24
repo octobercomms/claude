@@ -1,0 +1,150 @@
+/* October Design System — portable snapshot for the October Proposals backend.
+ *
+ * Derived from the canonical source, OMI's dev/platform/frontend/src/index.css.
+ * Tokens + the component primitives this admin uses + the depth/polish layer.
+ * Two-tone discipline: white surfaces, black text, one accent (brand yellow);
+ * the only extra hues are positive/negative/warning. Brockmann throughout;
+ * thick 2px borders, chunky radii, soft elevation.
+ *
+ * This styles the studio backend (house style). The client-facing proposal
+ * page stays re-skinnable per brand via the settings tokens (--ocp-*).
+ */
+
+:root {
+	/* Surfaces */
+	--page-bg: #faf9f5;
+	--surface: #ffffff;
+	--surface-raised: #fafafa;
+	--surface-sunken: #f3f3f3;
+
+	/* Ink */
+	--text: #1a1a1a;
+	--text-muted: #555555;
+	--text-subtle: #888888;
+	--border-neutral: #1a1a1a;
+	--card-border: #e3e2db;
+
+	/* Accent — action / active / highlight only, never decoration */
+	--accent: #E7CD41;
+	--accent-soft: rgba(231, 205, 65, 0.12);
+	--accent-on: #1a1a1a;
+
+	/* The only sanctioned extra hues */
+	--positive: #2e7d32;  --positive-soft: rgba(56, 142, 60, 0.10);
+	--negative: #c62828;  --negative-soft: rgba(198, 40, 40, 0.10);
+	--warning:  #b86e00;  --warning-soft:  rgba(255, 187, 6, 0.16);
+
+	/* Type — Brockmann, one typeface */
+	--font: 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+
+	/* Spacing (4pt) */
+	--s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px;
+	--s6: 24px; --s7: 32px; --s8: 40px; --s9: 56px; --s10: 72px;
+
+	/* Chunky radii + thick border */
+	--r-sm: 8px; --r-md: 14px; --r-lg: 20px; --r-pill: 999px;
+	--border-w: 2px;
+
+	/* Depth — soft, low-contrast elevation (depth, not drop-shadow theatrics) */
+	--shadow-xs: 0 1px 3px rgba(20, 20, 20, 0.07);
+	--shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.06), 0 5px 14px rgba(20, 20, 20, 0.09);
+	--shadow-md: 0 4px 10px rgba(20, 20, 20, 0.09), 0 20px 46px rgba(20, 20, 20, 0.14);
+	--shadow-lg: 0 24px 64px rgba(20, 20, 20, 0.20);
+	--shadow-accent: 0 3px 14px rgba(231, 205, 65, 0.42);
+}
+
+/* ── Depth / polish layer ───────────────────────────────────────────── */
+/* Faint warm wash on the page container. */
+.oc-canvas {
+	background-color: var(--page-bg);
+	background-image: radial-gradient(60% 50% at 50% 0%, rgba(231, 205, 65, 0.05), transparent 70%);
+}
+/* Hover lift on interactive cards. */
+.oc-lift { transition: transform .16s ease, box-shadow .16s ease; }
+.oc-lift:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+/* Dark chrome gradient (for a sidebar/rail if ever used). */
+.oc-rail { background: linear-gradient(180deg, #131316 0%, #0b0b0c 100%); }
+
+@media (prefers-reduced-motion: reduce) {
+	.oc-lift { transition: none; }
+	.oc-lift:hover { transform: none; }
+}
+
+/* ── Type primitives ────────────────────────────────────────────────── */
+.oc .display { font-size: 30px; font-weight: 600; letter-spacing: -.01em; }
+.oc .h1 { font-size: 22px; font-weight: 600; }
+.oc .h2 { font-size: 17px; font-weight: 600; }
+.oc .body { font-size: 14px; }
+.oc .body-sm { font-size: 13px; }
+.oc .caption { font-size: 12px; color: var(--text-muted); }
+.oc .metric { font-size: 28px; font-weight: 600; line-height: 1; }
+
+/* ── Cards / bentos ─────────────────────────────────────────────────── */
+.oc-card {
+	background: var(--surface);
+	border: var(--border-w) solid var(--card-border);
+	border-radius: var(--r-md);
+	box-shadow: var(--shadow-sm);
+	padding: var(--s5) var(--s6);
+}
+.oc-card.raised { box-shadow: var(--shadow-md); }
+.oc-card.accent { background: var(--accent-soft); border-color: var(--accent); }
+.oc-card.outline { background: transparent; border-color: var(--accent); box-shadow: none; }
+.oc-card.success { border-color: var(--positive); }
+.oc-card.danger { border-color: var(--negative); }
+.oc-card.warning { border-color: var(--warning); }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.oc-btn {
+	display: inline-flex; align-items: center; gap: var(--s2);
+	font: inherit; font-weight: 700; font-size: 14px; line-height: 1;
+	padding: 10px 18px; border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--border-neutral);
+	background: var(--surface); color: var(--text);
+	cursor: pointer; text-decoration: none; transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+.oc-btn:focus-visible { outline: var(--border-w) solid var(--accent); outline-offset: 2px; }
+.oc-btn-primary {
+	background: var(--accent); color: var(--accent-on); border-color: var(--accent);
+	box-shadow: var(--shadow-accent);
+}
+.oc-btn-primary:hover:not(:disabled) { filter: brightness(.94); transform: translateY(-1px); color: var(--accent-on); }
+.oc-btn-secondary { background: var(--surface); color: var(--text); }
+.oc-btn-secondary:hover:not(:disabled) { background: var(--surface-sunken); }
+.oc-btn-ghost { background: transparent; border-color: transparent; color: var(--text-muted); box-shadow: none; }
+.oc-btn-ghost:hover:not(:disabled) { color: var(--text); background: var(--surface-sunken); }
+.oc-btn-danger { background: var(--negative); color: #fff; border-color: var(--negative); }
+.oc-btn:disabled { opacity: .55; cursor: default; }
+
+/* ── Chips ──────────────────────────────────────────────────────────── */
+.oc-chip {
+	display: inline-flex; align-items: center; gap: 6px;
+	font-size: 11px; font-weight: 700; padding: 4px 10px;
+	border-radius: var(--r-pill); border: 1px solid var(--card-border);
+	background: var(--surface-sunken); color: var(--text);
+}
+.oc-chip.accent { background: var(--accent); color: var(--accent-on); border-color: var(--accent); }
+.oc-chip.success { background: var(--positive-soft); color: var(--positive); border-color: transparent; }
+.oc-chip.warning { background: var(--warning-soft); color: var(--warning); border-color: transparent; }
+
+/* ── Tables ─────────────────────────────────────────────────────────── */
+.oc-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--r-md); overflow: hidden; box-shadow: var(--shadow-sm); }
+.oc-table th, .oc-table td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--card-border); font-size: 13px; }
+.oc-table th { background: var(--surface-raised); font-weight: 700; }
+.oc-table tr:last-child td { border-bottom: 0; }
+
+/* ── Forms ──────────────────────────────────────────────────────────── */
+.oc-input, .oc-select, .oc-textarea {
+	font: inherit; font-size: 14px; width: 100%;
+	padding: 9px 12px; border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--card-border); background: var(--surface); color: var(--text);
+}
+.oc-input:focus, .oc-select:focus, .oc-textarea:focus { outline: none; border-color: var(--accent); box-shadow: var(--shadow-accent); }
+.oc-field { display: block; margin-bottom: var(--s4); }
+.oc-field-label { display: block; font-size: 13px; font-weight: 600; margin-bottom: var(--s1); }
+
+/* ── Empty + tabs + layout helpers ──────────────────────────────────── */
+.oc-empty { text-align: center; color: var(--text-subtle); padding: var(--s8) var(--s4); border: 2px dashed var(--card-border); border-radius: var(--r-md); }
+.oc-grid { display: grid; gap: var(--s4); }
+.oc-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.oc-grid-auto { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }

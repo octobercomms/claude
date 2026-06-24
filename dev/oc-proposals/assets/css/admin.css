@@ -1,58 +1,108 @@
-/* October Proposals — admin styling. Uses the shared OMI design tokens
-   (--ocp-*) injected inline from OCP_Settings::css_root(). */
+/* October Proposals — admin styling. Follows the October Design System
+   (october-ui.css tokens + depth/polish). Backend = house style. */
 
-.ocp-wrap{ font-family: var(--ocp-font, sans-serif); color: var(--ocp-ink, #1a1a1a); max-width: none; }
+/* Warm canvas wash, scoped to this plugin's screens only. */
+body[class*="oc-proposals"] #wpbody-content,
+body[class*="page_ocp-"] #wpbody-content {
+	background-color: var(--page-bg, #faf9f5);
+	background-image: radial-gradient(60% 40% at 50% 0%, rgba(231, 205, 65, 0.05), transparent 70%);
+}
+
+.ocp-wrap{ font-family: var(--font, sans-serif); color: var(--text, #1a1a1a); max-width: none; }
 .ocp-h1{ font-weight: 600; letter-spacing: -.01em; }
-.ocp-lede{ color: var(--ocp-muted, #555); font-size: 14px; max-width: 60ch; }
-.ocp-muted{ color: var(--ocp-muted, #555); }
+.ocp-lede{ color: var(--text-muted, #555); font-size: 14px; max-width: 60ch; }
+.ocp-muted{ color: var(--text-muted, #555); }
 
-.ocp-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin: 20px 0; }
-.ocp-card{ background: var(--ocp-surface, #fff); border: 2px solid var(--ocp-card, #e3e2db);
-	border-radius: 14px; padding: 20px 22px; }
+.ocp-grid{ display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--s4, 16px); margin: 20px 0; }
+.ocp-card{ background: var(--surface, #fff); border: var(--border-w, 2px) solid var(--card-border, #e3e2db);
+	border-radius: var(--r-md, 14px); padding: 20px 22px; box-shadow: var(--shadow-sm);
+	transition: transform .16s ease, box-shadow .16s ease; }
+.ocp-card:hover{ transform: translateY(-2px); box-shadow: var(--shadow-md); }
 .ocp-card h2{ font-size: 16px; margin: 0 0 6px; }
-.ocp-card--accent{ border-color: var(--ocp-ink, #1a1a1a); }
+.ocp-card--accent{ border-color: var(--accent, #E7CD41); background: var(--accent-soft); }
 
-.ocp-chip{ display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
-	background: var(--ocp-card, #e3e2db); color: var(--ocp-ink, #1a1a1a); }
+.ocp-chip{ display: inline-block; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: var(--r-pill, 999px);
+	background: var(--surface-sunken, #f3f3f3); border: 1px solid var(--card-border, #e3e2db); color: var(--text, #1a1a1a); }
 
-.ocp-btn{ display: inline-block; background: var(--ocp-accent, #E7CD41); color: var(--ocp-accent-on, #1a1a1a);
-	border: 2px solid var(--ocp-ink, #1a1a1a); border-radius: 10px; padding: 9px 18px; font-weight: 700;
-	text-decoration: none; }
-.ocp-btn:hover{ filter: brightness(.97); color: var(--ocp-accent-on, #1a1a1a); }
+.ocp-btn{ display: inline-block; background: var(--accent, #E7CD41); color: var(--accent-on, #1a1a1a);
+	border: var(--border-w, 2px) solid var(--accent, #E7CD41); border-radius: var(--r-sm, 8px); padding: 9px 18px; font-weight: 700;
+	text-decoration: none; box-shadow: var(--shadow-accent); transition: transform .12s ease, filter .12s ease; }
+.ocp-btn:hover{ filter: brightness(.94); transform: translateY(-1px); color: var(--accent-on, #1a1a1a); }
 
 .ocp-foot{ margin-top: 24px; font-size: 12px; }
 
+/* House-style the core WP controls on our screens only (scoped by body class). */
+body[class*="oc-proposals"] .wrap .button,
+body[class*="page_ocp-"] .wrap .button{
+	border-radius: var(--r-sm, 8px); border-width: var(--border-w, 2px);
+	border-color: var(--card-border, #e3e2db); font-weight: 700;
+}
+body[class*="oc-proposals"] .wrap .button-primary,
+body[class*="page_ocp-"] .wrap .button-primary{
+	background: var(--accent, #E7CD41); border-color: var(--accent, #E7CD41);
+	color: var(--accent-on, #1a1a1a); text-shadow: none; box-shadow: var(--shadow-accent);
+}
+body[class*="oc-proposals"] .wrap .button-primary:hover,
+body[class*="page_ocp-"] .wrap .button-primary:hover{ filter: brightness(.94); color: var(--accent-on, #1a1a1a); }
+body[class*="oc-proposals"] .wrap input[type="text"],
+body[class*="oc-proposals"] .wrap input[type="email"],
+body[class*="oc-proposals"] .wrap input[type="url"],
+body[class*="oc-proposals"] .wrap input[type="number"],
+body[class*="oc-proposals"] .wrap input[type="search"],
+body[class*="oc-proposals"] .wrap select,
+body[class*="oc-proposals"] .wrap textarea,
+body[class*="page_ocp-"] .wrap input[type="text"],
+body[class*="page_ocp-"] .wrap input[type="email"],
+body[class*="page_ocp-"] .wrap input[type="url"],
+body[class*="page_ocp-"] .wrap input[type="number"],
+body[class*="page_ocp-"] .wrap input[type="search"],
+body[class*="page_ocp-"] .wrap select,
+body[class*="page_ocp-"] .wrap textarea{
+	border-radius: var(--r-sm, 8px); border-color: var(--card-border, #e3e2db);
+}
+body[class*="oc-proposals"] .wrap input:focus,
+body[class*="oc-proposals"] .wrap select:focus,
+body[class*="oc-proposals"] .wrap textarea:focus,
+body[class*="page_ocp-"] .wrap input:focus,
+body[class*="page_ocp-"] .wrap select:focus,
+body[class*="page_ocp-"] .wrap textarea:focus{
+	border-color: var(--accent, #E7CD41); box-shadow: 0 0 0 1px var(--accent, #E7CD41);
+}
+/* House-style the step/entity tab bars. */
+body[class*="oc-proposals"] .wrap .nav-tab-active,
+body[class*="page_ocp-"] .wrap .nav-tab-active{ border-bottom: 3px solid var(--accent, #E7CD41); background: var(--surface, #fff); }
+
 /* CRM pipeline board */
 .ocp-board{ display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-top: 12px; }
-.ocp-col{ background: var(--ocp-page, #faf9f5); border: 2px solid var(--ocp-card, #e3e2db); border-radius: 12px; padding: 10px; min-height: 120px; }
+.ocp-col{ background: var(--page-bg, #faf9f5); border: 2px solid var(--card-border, #e3e2db); border-radius: 12px; padding: 10px; min-height: 120px; }
 .ocp-col h3{ font-size: 13px; margin: 4px 6px 10px; display: flex; justify-content: space-between; align-items: center; }
-.ocp-count{ background: var(--ocp-card, #e3e2db); border-radius: 999px; font-size: 11px; padding: 1px 8px; }
-.ocp-lead{ display: block; background: var(--ocp-surface, #fff); border: 1px solid var(--ocp-card, #e3e2db); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; text-decoration: none; color: var(--ocp-ink, #1a1a1a); }
-.ocp-lead:hover{ border-color: var(--ocp-ink, #1a1a1a); }
+.ocp-count{ background: var(--card-border, #e3e2db); border-radius: 999px; font-size: 11px; padding: 1px 8px; }
+.ocp-lead{ display: block; background: var(--surface, #fff); border: 1px solid var(--card-border, #e3e2db); border-radius: var(--r-sm, 8px); padding: 8px 10px; margin-bottom: 8px; text-decoration: none; color: var(--text, #1a1a1a); box-shadow: var(--shadow-xs); transition: transform .14s ease, box-shadow .14s ease; }
+.ocp-lead:hover{ transform: translateY(-2px); box-shadow: var(--shadow-sm); border-color: var(--accent, #E7CD41); }
 .ocp-lead strong{ display: block; font-size: 13px; }
-.ocp-lead span{ display: block; font-size: 11px; color: var(--ocp-muted, #555); }
+.ocp-lead span{ display: block; font-size: 11px; color: var(--text-muted, #555); }
 .ocp-lead em{ display: block; font-size: 11px; color: #b86e00; font-style: normal; }
 .ocp-col h3 a{ text-decoration: none; color: inherit; }
 .ocp-viewall{ display: block; text-align: center; font-size: 12px; font-weight: 700; padding: 8px; text-decoration: none;
-	color: var(--ocp-muted, #555); border: 1px dashed var(--ocp-card, #e3e2db); border-radius: 8px; }
+	color: var(--text-muted, #555); border: 1px dashed var(--card-border, #e3e2db); border-radius: 8px; }
 @media (max-width: 1100px){ .ocp-board{ grid-template-columns: 1fr 1fr; } }
 
 /* Discovery chat (wizard Content step) */
-.ocp-chat{ max-width: 760px; border: 2px solid var(--ocp-card, #e3e2db); border-radius: 12px; background: var(--ocp-surface, #fff); margin: 12px 0 20px; }
+.ocp-chat{ max-width: 760px; border: 2px solid var(--card-border, #e3e2db); border-radius: 12px; background: var(--surface, #fff); margin: 12px 0 20px; }
 .ocp-chat-thread{ max-height: 360px; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
-.ocp-chat-thread:empty::before{ content: "Paste the transcript/email above, then ask Claude to help shape the proposal."; color: var(--ocp-muted, #888); font-style: italic; }
+.ocp-chat-thread:empty::before{ content: "Paste the transcript/email above, then ask Claude to help shape the proposal."; color: var(--text-muted, #888); font-style: italic; }
 .ocp-msg{ padding: 8px 12px; border-radius: 10px; font-size: 13px; max-width: 85%; }
 .ocp-msg p{ margin: 0 0 .4em; }
 .ocp-msg p:last-child{ margin: 0; }
-.ocp-msg--me{ align-self: flex-end; background: var(--ocp-accent-soft, #f7efc6); border: 1px solid var(--ocp-card, #e3e2db); }
-.ocp-msg--claude{ align-self: flex-start; background: var(--ocp-page, #faf9f5); border: 1px solid var(--ocp-card, #e3e2db); }
-.ocp-chat-input{ border-top: 1px solid var(--ocp-card, #e3e2db); padding: 12px; }
+.ocp-msg--me{ align-self: flex-end; background: var(--accent-soft, #f7efc6); border: 1px solid var(--card-border, #e3e2db); }
+.ocp-msg--claude{ align-self: flex-start; background: var(--page-bg, #faf9f5); border: 1px solid var(--card-border, #e3e2db); }
+.ocp-chat-input{ border-top: 1px solid var(--card-border, #e3e2db); padding: 12px; }
 .ocp-chat-actions{ display: flex; align-items: center; gap: 8px; margin-top: 8px; }
 .ocp-chat-actions .spinner{ float: none; margin: 0; }
 .ocp-chat-actions .spinner.is-active{ visibility: visible; }
 
 /* Case-study draft-with-Claude panel */
-.ocp-cs-draft{ max-width: 760px; border: 2px solid var(--ocp-card, #e3e2db); border-radius: 12px;
-	background: var(--ocp-page, #faf9f5); padding: 14px 16px; margin: 0 0 18px; }
+.ocp-cs-draft{ max-width: 760px; border: 2px solid var(--card-border, #e3e2db); border-radius: 12px;
+	background: var(--page-bg, #faf9f5); padding: 14px 16px; margin: 0 0 18px; }
 .ocp-cs-draft .spinner{ float: none; margin: 0; }
 .ocp-cs-draft .spinner.is-active{ visibility: visible; }

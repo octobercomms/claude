@@ -3,7 +3,7 @@
  * Plugin Name: October Proposals
  * Plugin URI: https://octobercomms.com
  * Description: Generates October's client proposals as an on-brand web page (video + animated process + accept/e-sign/pay) and a matching downloadable PDF, from a single source — built as a wizard. 
- * Version: 0.11.0
+ * Version: 0.12.0
  * Author: October Comms
  * Author URI: https://octobercomms.com
  * License: GPL v2 or later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'OCP_VERSION', '0.11.0' );
+define( 'OCP_VERSION', '0.12.0' );
 define( 'OCP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'OCP_URL', plugin_dir_url( __FILE__ ) );
 define( 'OCP_BASENAME', plugin_basename( __FILE__ ) );
