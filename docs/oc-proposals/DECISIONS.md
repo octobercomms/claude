@@ -5,6 +5,12 @@ open product questions. Supersedes the "open decisions" in `PLUGIN-SCOPE.md §9`
 
 ---
 
+> **Design (round 4):** the plugin **copies the OMI design system** by default (Brockmann
+> font, `#faf9f5` page, thick 2px borders, gold `#E7CD41` accent). Full tokens in
+> **[DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)**; the pricing mockup is re-skinned to it.
+> Round-4 also locks the **public-builder abuse controls (§I)** and **terms-signing +
+> emailed record (§J)** below.
+
 ## A. Locked decisions
 
 | Topic | Decision |
@@ -181,3 +187,57 @@ notice** required before a renewal to pause/stop.
     of Work), mPDF landscape PDF, design tokens, CRM with import, status lifecycle.
   - **P2:** GoCardless + Stripe payments, e-sign, pause, follow-ups, dashboard analytics.
   - **P3:** public proposal builder + Claude pricing agent (grounded on past proposals).
+
+---
+
+## I. Public "Create your own proposal" builder — abuse controls
+
+**Yes, there's a real danger** — a public page wired to the Claude API can be (a) **scraped by
+bots** that burn your API budget, and (b) **abused as a free general-purpose AI** via prompt
+injection ("ignore the proposal, write my essay"). Both are well-controlled with layered
+defences; none of them block a genuine prospect:
+
+1. **Options-first, chat second.** The default experience is the **guided picker** (service,
+   scope, budget band) — deterministic, no model call. Free-text **chat is the secondary
+   path**, so most traffic never hits the API at all.
+2. **Bot wall.** **Cloudflare Turnstile** (invisible CAPTCHA) on the builder + you already run
+   **Cloudflare** in front of the site, so enable **Bot Fight / WAF rules** there too.
+   Honeypot field as a cheap extra.
+3. **Email unlock + verification.** Browsing/estimating can stay open, but **the chat agent
+   and the saved/downloadable proposal unlock after a verified email** — friction for bots, a
+   lead for you (and it feeds the CRM).
+4. **Rate limiting.** Per-IP and per-session caps (reuse the `HGD_Rate_Limit` pattern): max
+   messages/session, max sessions/IP/day, cooldowns.
+5. **Tightly-scoped agent.** A hard system prompt that **only** discusses October's services
+   and scoping; it refuses off-topic requests and never returns general-knowledge answers.
+   Server-side only — the API key is never exposed; output tokens capped per reply.
+6. **Cost ceilings.** Use a **small, cheap model (Haiku)** for the public agent, with a
+   **hard monthly API budget cap** that disables chat (falls back to the picker) if hit.
+   Cache common answers.
+7. **Non-binding by construction.** Show **ranges, not fixed numbers**, with the visible line
+   *"Indicative estimate, not a binding quote; final pricing confirmed on a short call."*
+   The binding artefact is only the later **signed** proposal (§J). Ranges also stop you being
+   anchored to a number you can't honour.
+
+**Net:** options-first + email-unlock + Turnstile + rate limits + a scoped Haiku agent under a
+budget cap makes abuse uneconomic while keeping it frictionless for real prospects.
+
+## J. Terms page — sign on acceptance, email the record
+
+**Yes — acceptance requires agreeing to your Terms, and a signed copy is emailed for the
+record.** Built into the accept/e-sign step:
+
+- **Versioned Terms** stored in Settings (your standard T&Cs), with optional per-proposal
+  overrides. The proposal **snapshots the terms version at send time**, so later edits never
+  change what a client agreed to.
+- **On accept**, the client must **tick "I agree to the Terms"** (terms shown/linked inline)
+  and **type their signature name**. We record an **audit trail**: signatory name, email,
+  **timestamp, IP/user-agent, proposal + terms version, and a document hash**.
+- **A signed PDF record is generated** (the accepted proposal **+** the agreed Terms **+** the
+  signature/audit block) and **emailed to the client and to you (`hello@octobercomms.com`)**,
+  and stored against the CRM record for future reference.
+- Reuses the proposal token + mPDF document machinery (Hillcroft already e-signs + renders
+  on-brand documents); we add the **Terms snapshot, the agree-checkbox gate, and the
+  dual-recipient email**.
+
+This makes acceptance a clean, evidenced contract moment — not just a button click.

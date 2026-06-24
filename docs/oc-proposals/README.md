@@ -18,7 +18,10 @@ Code lives in `dev/oc-proposals/` (not yet started). Docs:
   Claude per-proposal rewriting, case-study library from file uploads, two-tier current-state
   diagnostics (DataForSEO + OMI API), and engagement analytics (Clarity + Loom events) with a
   Claude monthly/annual feedback report.
-- **[mockups/pricing-table.html](mockups/pricing-table.html)** — clearer pricing-table concept
+- **[DESIGN-SYSTEM.md](DESIGN-SYSTEM.md)** — the plugin copies the **OMI design system** by
+  default (Brockmann, warm off-white, thick borders, gold accent) — full token table.
+- **[mockups/pricing-table.html](mockups/pricing-table.html)** — clearer pricing-table concept,
+  re-skinned to the OMI design system
   (Plan-of-Work rail + two buckets + ROI anchor + pause note). Open in a browser; prints A4
   landscape.
 
