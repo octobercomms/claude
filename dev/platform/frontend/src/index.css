@@ -57,6 +57,16 @@
 
   /* Borders are thick everywhere. */
   --border-w: 2px;
+
+  /* Depth — soft, low-contrast shadows for gentle elevation (v3.1 polish).
+     The flat two-tone system stays; these just lift surfaces off the page
+     a touch and give overlays a modern frosted feel. Tuned faint on
+     purpose — depth, not drop-shadow theatrics. */
+  --shadow-xs: 0 1px 2px rgba(20, 20, 20, 0.04);
+  --shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.04), 0 2px 6px rgba(20, 20, 20, 0.05);
+  --shadow-md: 0 2px 4px rgba(20, 20, 20, 0.05), 0 10px 28px rgba(20, 20, 20, 0.08);
+  --shadow-lg: 0 16px 48px rgba(20, 20, 20, 0.14);
+  --shadow-accent: 0 2px 10px rgba(231, 205, 65, 0.28);
 }
 
 /* ─── Suite scopes ───────────────────────────────────────────────── */
@@ -1258,4 +1268,87 @@ select, textarea {
   .client-switcher { top: 64px; right: 16px; }
   .client-switcher-trigger { font-size: 12px; padding: 6px 10px; max-width: 200px; }
   .client-switcher-label { max-width: 140px; }
+}
+
+/* ─── Depth & polish (v3.1) ──────────────────────────────────────────
+   A restrained lift on top of the flat two-tone system: soft elevation
+   on surfaces, a barely-there warm gradient on the canvas, frosted
+   overlays, and gentle hover motion on interactive tiles. No new hues —
+   the accent stays reserved for action. Appended last so it layers over
+   the base rules via the cascade; delete this block to revert entirely. */
+
+/* Canvas — a barely-perceptible warm wash for depth (not a colour field).
+   Applied to the shell + scrolling main since both paint over <body>. */
+.app-shell,
+.app-main {
+  background:
+    radial-gradient(1100px 620px at 8% -8%, rgba(231, 205, 65, 0.05), transparent 60%),
+    radial-gradient(1000px 700px at 100% 0%, rgba(231, 205, 65, 0.035), transparent 55%),
+    var(--page-bg);
+  background-attachment: fixed;
+}
+
+/* Sidebar — a subtle top-to-bottom gradient so the dark chrome has a
+   little dimensionality instead of reading as one flat slab. */
+.app-nav {
+  background: linear-gradient(180deg, #111114 0%, #0b0b0c 58%, #08080a 100%);
+}
+
+/* Surfaces — soft elevation. Cards, stats and status pills now lift a
+   touch off the canvas. Smooth transitions so hover states feel alive. */
+.card,
+.stat,
+.metric-card {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease;
+}
+.suite-status-item { box-shadow: var(--shadow-xs); }
+
+/* Interactive tiles — a gentle lift on hover signals "clickable" without
+   shouting. Only things that actually navigate get the motion. */
+.suite-cap {
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.15s ease;
+}
+.suite-cap:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--text);
+}
+.briefing-card { box-shadow: var(--shadow-xs); }
+.briefing-card:hover { box-shadow: var(--shadow-sm); }
+
+/* Primary button — a faint vertical sheen + soft accent-tinted shadow,
+   and a 1px hover lift. Still yellow fill, black text, pill shape. */
+.btn-primary {
+  background: linear-gradient(180deg, #efda6a 0%, var(--accent) 100%);
+  box-shadow: var(--shadow-accent);
+}
+.btn-primary:hover:not(:disabled) {
+  filter: brightness(0.97);
+  box-shadow: 0 4px 16px rgba(231, 205, 65, 0.4);
+  transform: translateY(-1px);
+}
+
+/* Overlays — frosted glass. The modal backdrop and the client switcher
+   menu blur what's behind them for a modern, layered feel. */
+.modal-backdrop {
+  background: rgba(15, 15, 18, 0.4);
+  backdrop-filter: blur(6px) saturate(1.05);
+  -webkit-backdrop-filter: blur(6px) saturate(1.05);
+}
+.modal { box-shadow: var(--shadow-lg); }
+.client-switcher-trigger { box-shadow: var(--shadow-sm); }
+.client-switcher-menu {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(14px) saturate(1.1);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Respect reduced-motion: drop the hover translations for users who ask
+   for less movement (the elevation/shadows stay). */
+@media (prefers-reduced-motion: reduce) {
+  .suite-cap:hover,
+  .btn-primary:hover:not(:disabled) { transform: none; }
 }
