@@ -64,6 +64,9 @@ class OCP_Admin {
 		if ( OCP_Admin_Proposals::PAGE === $page && 'content' === $step ) {
 			wp_enqueue_script( 'ocp-admin-content', OCP_URL . 'assets/js/admin-content.js', array(), OCP_VERSION, true );
 		}
+		if ( OCP_Admin_Library::PAGE === $page ) {
+			wp_enqueue_script( 'ocp-admin-library', OCP_URL . 'assets/js/admin-library.js', array(), OCP_VERSION, true );
+		}
 	}
 
 	public function render_dashboard() {
@@ -88,7 +91,14 @@ class OCP_Admin {
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="max-width:860px">';
 		echo '<input type="hidden" name="action" value="ocp_save_terms" />';
 		wp_nonce_field( 'ocp_save_terms' );
-		wp_editor( $current['body'] ?? '', 'ocp_terms_body', array( 'textarea_name' => 'terms_body', 'textarea_rows' => 20 ) );
+		wp_editor( $current['body'] ?? '', 'ocp_terms_body', array(
+			'textarea_name' => 'terms_body',
+			'textarea_rows' => 20,
+			'tinymce'       => array(
+				// Force readable dark text — some admin themes bleed white into the editor.
+				'content_style' => 'body{color:#1a1a1a;background:#fff;font-family:sans-serif;font-size:14px;}',
+			),
+		) );
 		submit_button( __( 'Save terms', 'oc-proposals' ) );
 		echo '</form></div>';
 	}

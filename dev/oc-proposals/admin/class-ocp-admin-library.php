@@ -16,6 +16,34 @@ class OCP_Admin_Library {
 	public static function init() {
 		add_action( 'admin_post_ocp_save_library', array( __CLASS__, 'save' ) );
 		add_action( 'admin_post_ocp_delete_library', array( __CLASS__, 'delete' ) );
+		add_action( 'wp_ajax_ocp_draft_cs', array( __CLASS__, 'draft_case_study' ) );
+	}
+
+	/** AJAX: draft a case study from raw material with Claude. */
+	public static function draft_case_study() {
+		if ( ! current_user_can( self::CAP ) ) {
+			wp_send_json_error( array( 'message' => __( 'Not allowed.', 'oc-proposals' ) ), 403 );
+		}
+		check_ajax_referer( 'ocp_draft_cs', 'nonce' );
+		if ( ! OCP_Claude::enabled() ) {
+			wp_send_json_error( array( 'message' => __( 'Add a Claude API key in Settings.', 'oc-proposals' ) ), 400 );
+		}
+		$material = sanitize_textarea_field( wp_unslash( $_POST['material'] ?? '' ) );
+		if ( '' === trim( $material ) ) {
+			wp_send_json_error( array( 'message' => __( 'Add some material first.', 'oc-proposals' ) ), 400 );
+		}
+		$cs = OCP_Claude::draft_case_study( $material );
+		if ( ! $cs ) {
+			wp_send_json_error( array( 'message' => __( 'Could not draft — try adding more detail.', 'oc-proposals' ) ), 502 );
+		}
+		// Normalise stats (array → "value | label" lines) for the textarea.
+		if ( isset( $cs['stats'] ) && is_array( $cs['stats'] ) ) {
+			$cs['stats'] = implode( "\n", array_map( 'strval', $cs['stats'] ) );
+		}
+		if ( isset( $cs['services'] ) && is_array( $cs['services'] ) ) {
+			$cs['services'] = implode( ', ', $cs['services'] );
+		}
+		wp_send_json_success( $cs );
 	}
 
 	/** Resolve the current entity key (default: first registered). */
@@ -99,6 +127,17 @@ class OCP_Admin_Library {
 		echo '<input type="hidden" name="id" value="' . esc_attr( $id ) . '" />';
 		wp_nonce_field( 'ocp_save_library' );
 
+		// Case studies: draft from pasted/uploaded material with Claude.
+		if ( 'case_study' === $key && OCP_Claude::enabled() ) {
+			echo '<div class="ocp-cs-draft" data-ajax="' . esc_url( admin_url( 'admin-ajax.php' ) ) . '" data-nonce="' . esc_attr( wp_create_nonce( 'ocp_draft_cs' ) ) . '">';
+			echo '<div class="ocp-eyebrow">' . esc_html__( 'Draft with Claude', 'oc-proposals' ) . '</div>';
+			echo '<p class="ocp-muted">' . esc_html__( 'Paste raw material (a results report, coverage list, brief) or upload a .txt/.md file — Claude drafts the case study below for you to edit.', 'oc-proposals' ) . '</p>';
+			echo '<textarea id="ocp-cs-material" rows="5" class="large-text" placeholder="' . esc_attr__( 'Paste raw material here…', 'oc-proposals' ) . '"></textarea>';
+			echo '<p><input type="file" id="ocp-cs-file" accept=".txt,.md,.csv" /> ';
+			echo '<button type="button" class="button button-primary" id="ocp-cs-go">' . esc_html__( 'Draft case study', 'oc-proposals' ) . '</button> <span class="spinner" id="ocp-cs-spin"></span></p>';
+			echo '</div>';
+		}
+
 		echo '<table class="form-table" role="presentation">';
 		foreach ( $entity['fields'] as $name => $f ) {
 			$val = isset( $row[ $name ] ) ? $row[ $name ] : '';
@@ -119,7 +158,12 @@ class OCP_Admin_Library {
 				printf( '<textarea id="%s" name="%s" rows="4" class="large-text">%s</textarea>', esc_attr( $id ), esc_attr( $name ), esc_textarea( (string) $val ) );
 				break;
 			case 'richtext':
-				wp_editor( (string) $val, $id, array( 'textarea_name' => $name, 'textarea_rows' => 8, 'media_buttons' => false ) );
+				wp_editor( (string) $val, $id, array(
+					'textarea_name' => $name,
+					'textarea_rows' => 8,
+					'media_buttons' => false,
+					'tinymce'       => array( 'content_style' => 'body{color:#1a1a1a;background:#fff;font-family:sans-serif;font-size:14px;}' ),
+				) );
 				break;
 			default:
 				$type = ( 'url' === $f['type'] ) ? 'url' : ( ( 'number' === $f['type'] ) ? 'number' : 'text' );

@@ -77,9 +77,11 @@ class OCP_Admin_Proposals {
 			echo '<td>' . esc_html( OCP_Types::label( $p['type'] ) ) . '</td>';
 			echo '<td><span class="ocp-chip">' . esc_html( OCP_Proposal::status_label( $p['status'] ) ) . '</span></td>';
 			echo '<td>' . esc_html( $p['updated_at'] ) . '</td>';
+			$preview = OCP_Proposal::url( $p['token'] );
 			printf(
-				'<td><a href="%s">%s</a> &nbsp;|&nbsp; <a href="%s" onclick="return confirm(\'%s\')">%s</a></td>',
+				'<td><a href="%s">%s</a> &nbsp;|&nbsp; <a href="%s" target="_blank" rel="noopener">%s</a> &nbsp;|&nbsp; <a href="%s" onclick="return confirm(\'%s\')">%s</a></td>',
 				esc_url( $edit ), esc_html__( 'Edit', 'oc-proposals' ),
+				esc_url( $preview ), esc_html__( 'Preview', 'oc-proposals' ),
 				esc_url( $del ), esc_js( __( 'Delete this proposal?', 'oc-proposals' ) ), esc_html__( 'Delete', 'oc-proposals' )
 			);
 			echo '</tr>';
@@ -108,7 +110,8 @@ class OCP_Admin_Proposals {
 		}
 		$step = self::current_step();
 
-		echo '<h1 class="ocp-h1">' . esc_html( $p['client_name'] ?: __( 'Proposal', 'oc-proposals' ) ) . '</h1>';
+		echo '<h1 class="ocp-h1">' . esc_html( $p['client_name'] ?: __( 'Proposal', 'oc-proposals' ) )
+			. ' <a class="button" style="vertical-align:middle" href="' . esc_url( OCP_Proposal::url( $p['token'] ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Preview', 'oc-proposals' ) . '</a></h1>';
 
 		// Step nav.
 		echo '<h2 class="nav-tab-wrapper">';
