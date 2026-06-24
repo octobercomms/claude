@@ -80,6 +80,7 @@ const POSTS_TOOL = {
                   shot: { type: 'string', description: 'What the camera sees in this frame.' },
                   on_screen_text: { type: 'string' },
                   voiceover: { type: 'string' },
+                  delivery: { type: 'string', description: 'For talking-to-camera frames (style B) only — a short delivery note for the host: where to hold the lens, where to glance away, where to land a one-second pause. Omit for non-talking-head frames.' },
                   duration_sec: { type: 'number', description: 'Target duration. A: 2-4, B: 10-15, C: 1-2, D: 4-8, E: 5-12, F: 3-6, G: 3-5.' },
                 },
                 required: ['frame', 'shot'],
@@ -184,7 +185,7 @@ Produce exactly nine posts. Mix the platforms in scope. Mix reels + static + car
   const response = await client().messages.create({
     model: MODEL,
     max_tokens: 8192,
-    system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['instagram-ranking'])),
+    system: require('./claude').cacheableSystem(SYSTEM + require('./playbooks').systemSuffix(['instagram-ranking', 'talking-head'])),
     tools: [POSTS_TOOL],
     tool_choice: { type: 'tool', name: 'propose_posts' },
     messages: [{ role: 'user', content: userPrompt }],
