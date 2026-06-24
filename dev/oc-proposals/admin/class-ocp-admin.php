@@ -41,6 +41,7 @@ class OCP_Admin {
 			31
 		);
 		add_submenu_page( self::MENU, __( 'Dashboard', 'oc-proposals' ), __( 'Dashboard', 'oc-proposals' ), self::CAP, self::MENU, array( $this, 'render_dashboard' ) );
+		add_submenu_page( self::MENU, __( 'Proposals', 'oc-proposals' ), __( 'Proposals', 'oc-proposals' ), self::CAP, OCP_Admin_Proposals::PAGE, array( 'OCP_Admin_Proposals', 'render' ) );
 		add_submenu_page( self::MENU, __( 'Pipeline', 'oc-proposals' ), __( 'Pipeline', 'oc-proposals' ), self::CAP, OCP_Admin_CRM::PAGE, array( 'OCP_Admin_CRM', 'render' ) );
 		add_submenu_page( self::MENU, __( 'Library', 'oc-proposals' ), __( 'Library', 'oc-proposals' ), self::CAP, OCP_Admin_Library::PAGE, array( 'OCP_Admin_Library', 'render' ) );
 		add_submenu_page( self::MENU, __( 'Settings', 'oc-proposals' ), __( 'Settings', 'oc-proposals' ), self::CAP, 'ocp-settings', array( $this, 'render_settings' ) );

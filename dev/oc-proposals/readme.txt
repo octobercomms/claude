@@ -3,7 +3,7 @@ Contributors: octobercomms
 Requires at least: 6.0
 Tested up to: 6.5
 Requires PHP: 7.4
-Stable tag: 0.2.0
+Stable tag: 0.3.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,12 @@ self-updater surfaces it on the WordPress Updates screen. Add a fine-grained
 GitHub token (Contents: read) under Proposals → Settings to enable updates.
 
 == Changelog ==
+
+= 0.3.0 =
+* Proposal model (token-addressable, status lifecycle, sections, pricing line
+  items with cadence/stage and currency/VAT-aware totals).
+* Stepped wizard: details → content → proof (auto-filtered by sector) →
+  pricing builder → review & publish, with a private portal link and mark-as-sent.
 
 = 0.2.0 =
 * Reusable content library (case studies with sector/service tags, testimonials,
