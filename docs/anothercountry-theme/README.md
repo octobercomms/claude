@@ -66,6 +66,17 @@ an existing choice. The accordion button handler now calls `openNext()` only whe
 the step wasn't already answered (`is-done`); changing an existing selection keeps
 the current section open so they can keep adjusting it.
 
+### "Customise your order" chip — fixed for variable products
+The made-to-order trust chip ("We can adapt this… Customise your order") is
+gated by `ac_lt_is_made_to_order()`, which checked the **parent** product's stock
+status. For variable products WooCommerce keeps the parent status as `instock`
+whenever variations are purchasable (backorder counts), so a product re-sync —
+e.g. saving Catalog Order onto the parent in the bulk editor — flipped it to
+`instock` and the chip disappeared. The check now inspects the **variations'**
+stock status for variable products (made to order if any variation isn't plainly
+in stock), so it's robust to parent re-syncs. The made-to-order *badge* was
+unaffected (it reads the selected variation).
+
 ## Deploy
 
 1. Upload all three files to the live `merchandiser-child` theme (same paths).
