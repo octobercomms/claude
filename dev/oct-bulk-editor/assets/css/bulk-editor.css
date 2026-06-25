@@ -647,6 +647,53 @@
 	to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Column-toggle header: Show all / Hide all ────────────── */
+.wbe-col-toggle-head {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	align-self: center;
+	padding-right: 6px;
+}
+.wbe-col-showall,
+.wbe-col-hideall {
+	font-size: 11px;
+	color: var(--accent-line);
+	cursor: pointer;
+	text-decoration: underline;
+}
+.wbe-col-sep { color: var(--text-subtle); font-size: 11px; }
+
+/* Clickable group title toggles the whole group */
+.wbe-col-group-title { cursor: pointer; }
+.wbe-col-group-title:hover { color: var(--text); }
+
+/* ── CSV export/import group (now in the top toolbar) ─────── */
+.wbe-io {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	margin-right: 4px;
+	padding-right: 10px;
+	border-right: var(--border-w) solid var(--card-border);
+}
+
+/* ── Sortable column headers ──────────────────────────────── */
+.wbe-table thead th.wbe-sortable { cursor: pointer; user-select: none; }
+.wbe-table thead th.wbe-sortable:hover { background: var(--accent-soft); }
+.wbe-sort-arrow {
+	display: inline-block;
+	width: 0; height: 0;
+	margin-left: 5px;
+	vertical-align: middle;
+	opacity: 0;
+	border-left: 4px solid transparent;
+	border-right: 4px solid transparent;
+	transition: opacity 0.1s;
+}
+.wbe-table thead th.is-sorted-asc .wbe-sort-arrow  { opacity: 1; border-bottom: 5px solid var(--accent-line); }
+.wbe-table thead th.is-sorted-desc .wbe-sort-arrow { opacity: 1; border-top: 5px solid var(--accent-line); }
+
 /* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 960px) {
 	.wbe-float-actions { right: 12px; bottom: 12px; }
