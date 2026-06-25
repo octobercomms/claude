@@ -76,6 +76,8 @@
 			'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
 			'acvs_card_title'    => __( 'Card Title', 'oct-bulk-editor' ),
 			'acvs_catalog_order' => __( 'Catalog Order', 'oct-bulk-editor' ),
+			'manage_stock'   => __( 'Manage Stock', 'oct-bulk-editor' ),
+			'backorders'     => __( 'Backorders', 'oct-bulk-editor' ),
 		];
 		foreach ( $columns as $key => $label ) :
 		?>
@@ -112,6 +114,8 @@
 			<option value="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></option>
 			<option value="acvs_catalog_order"><?php esc_html_e( 'Catalog Order', 'oct-bulk-editor' ); ?></option>
 			<option value="acvs_card_title"><?php esc_html_e( 'Card Title', 'oct-bulk-editor' ); ?></option>
+			<option value="manage_stock"><?php esc_html_e( 'Manage Stock', 'oct-bulk-editor' ); ?></option>
+			<option value="backorders"><?php esc_html_e( 'Backorders', 'oct-bulk-editor' ); ?></option>
 		</select>
 		<span id="wbe-bulk-value"></span>
 		<button id="wbe-bulk-apply" class="button button-secondary"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
@@ -152,12 +156,14 @@
 					<th class="wbe-col-price" data-col="sale_price_usd"><?php esc_html_e( 'Sale $ (USD)', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-cardtitle" data-col="acvs_card_title"><?php esc_html_e( 'Card Title', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-order" data-col="acvs_catalog_order"><?php esc_html_e( 'Catalog Order', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-status" data-col="manage_stock"><?php esc_html_e( 'Manage Stock', 'oct-bulk-editor' ); ?></th>
+					<th class="wbe-col-status" data-col="backorders"><?php esc_html_e( 'Backorders', 'oct-bulk-editor' ); ?></th>
 					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'oct-bulk-editor' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="19">
+					<td colspan="21">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>
