@@ -4,6 +4,7 @@
 // fixes from Claude — the "your ads are fine, your funnel leaks" diagnosis.
 
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
@@ -22,8 +23,6 @@ export default function ClarityCroPanel({ clientId }) {
   const toast = useToast();
   const [config, setConfig] = useState(null);
   const [report, setReport] = useState(null);
-  const [token, setToken] = useState('');
-  const [saving, setSaving] = useState(false);
   const [running, setRunning] = useState(false);
   const [loaded, setLoaded] = useState(false);
 
@@ -38,23 +37,6 @@ export default function ClarityCroPanel({ clientId }) {
     finally { setLoaded(true); }
   }
   useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
-
-  async function saveToken() {
-    if (!token.trim()) { toast('Paste your Clarity API token.', 'error'); return; }
-    setSaving(true);
-    try {
-      const c = await api.post(`/clarity/clients/${clientId}/config`, { token });
-      setConfig(c); setToken('');
-      toast('Microsoft Clarity connected.', 'success');
-    } catch (e) { toast(e.message, 'error'); }
-    finally { setSaving(false); }
-  }
-
-  async function disconnect() {
-    if (!window.confirm('Disconnect Microsoft Clarity for this client?')) return;
-    try { await api.delete(`/clarity/clients/${clientId}/config`); setConfig({ connected: false }); }
-    catch (e) { toast(e.message, 'error'); }
-  }
 
   async function runScan() {
     setRunning(true);
@@ -77,18 +59,10 @@ export default function ClarityCroPanel({ clientId }) {
       </p>
 
       {!config?.connected ? (
-        <div className="card">
-          <div className="caption" style={{ marginBottom: 6 }}>Connect Microsoft Clarity</div>
-          <p className="body-sm text-muted" style={{ marginBottom: 10 }}>
-            In Clarity, open <strong>Settings → Data Export</strong>, generate an API token, and paste it here.
-            Clarity itself is free; the export API allows 10 pulls/day. (Make sure the Clarity tracking tag is installed on the client's site —
-            via Google Tag Manager is easiest.)
-          </p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input className="input" style={{ flex: 1 }} type="password" placeholder="Clarity API token"
-              value={token} onChange={e => setToken(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveToken(); }} />
-            <button className="btn btn-primary" onClick={saveToken} disabled={saving}>{saving ? 'Connecting…' : 'Connect'}</button>
-          </div>
+        <div className="callout">
+          <strong>Microsoft Clarity isn't connected yet.</strong> Connect it under{' '}
+          <Link to={`/clients/${clientId}?tab=connectors`} style={{ textDecoration: 'underline', fontWeight: 700 }}>Setup → Connectors</Link>
+          {' '}(Behaviour Analytics), then come back here to run the CRO scan.
         </div>
       ) : (
         <>
@@ -101,7 +75,6 @@ export default function ClarityCroPanel({ clientId }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
-              <button className="btn btn-secondary btn-sm" onClick={disconnect}>Disconnect</button>
               <button className="btn btn-primary" onClick={runScan} disabled={running}>{running ? 'Scanning…' : (report ? 'Re-scan funnel' : 'Run CRO scan')}</button>
             </div>
           </div>
