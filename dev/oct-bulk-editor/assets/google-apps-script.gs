@@ -82,11 +82,11 @@ function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    // Use /catalog (NOT /products): the store caches "products" URLs and served
-    // them stale. /catalog dodges that rule; the unique /<cb> path segment also
-    // defeats any path-keyed cache, so every request reads live data.
-    const cb = '' + new Date().getTime() + page + Math.floor(Math.random() * 1e6);
-    const data = octwbeApi_('/catalog/' + cb + '?per_page=100&page=' + page, 'get');
+    // Use /catalog (NOT /products) with a QUERY-STRING cache-buster — exactly the
+    // mechanism /diag uses, which has defeated the store's cache every time. (A
+    // /catalog/<cb> PATH segment got normalised and cached as a pretty-permalink
+    // pattern; the query-string form does not.)
+    const data = octwbeApi_('/catalog?per_page=100&page=' + page + '&' + cacheBust_(), 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;
