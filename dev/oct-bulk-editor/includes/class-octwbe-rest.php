@@ -80,7 +80,22 @@ class OCTWBE_REST {
 	// Endpoints
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Mark the current response uncacheable. The sync MUST read live data, but
+	 * page caches (this store runs LiteSpeed Cache) cache REST API GET responses
+	 * by default — which served a stale product list straight from cache without
+	 * ever running PHP, so the pull kept returning an old, short variation set.
+	 * Send the standard no-cache headers and fire LiteSpeed's own no-cache signal
+	 * (a no-op when LiteSpeed isn't active). The Apps Script also appends a unique
+	 * cache-buster per request, so existing cache entries are bypassed too.
+	 */
+	private function no_cache(): void {
+		nocache_headers();
+		do_action( 'litespeed_control_set_nocache', 'OctoberComms Bulk Editor sync must read live data' );
+	}
+
 	public function ping(): WP_REST_Response {
+		$this->no_cache();
 		return new WP_REST_Response( [
 			'ok'             => true,
 			'store'          => get_bloginfo( 'name' ),
@@ -92,6 +107,7 @@ class OCTWBE_REST {
 	}
 
 	public function get_products( WP_REST_Request $req ): WP_REST_Response {
+		$this->no_cache();
 		$page     = max( 1, (int) $req->get_param( 'page' ) );
 		$per_page = min( 100, max( 1, (int) ( $req->get_param( 'per_page' ) ?: 100 ) ) );
 		$search   = sanitize_text_field( (string) $req->get_param( 'search' ) );

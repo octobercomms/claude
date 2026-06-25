@@ -53,15 +53,22 @@ function octwbeApi_(path, method, payload) {
   return JSON.parse(body);
 }
 
+// A unique value per request, appended as &_cb=... so a page cache (the store
+// runs LiteSpeed, which caches REST GETs) can't serve a stale copy — every call
+// is a fresh cache miss that actually runs the server code.
+function cacheBust_() {
+  return '_cb=' + new Date().getTime() + '_' + Math.floor(Math.random() * 1e6);
+}
+
 function config_() {
-  return octwbeApi_('/ping', 'get'); // { columns, editable, stock_readonly, ... }
+  return octwbeApi_('/ping?' + cacheBust_(), 'get'); // { columns, editable, stock_readonly, ... }
 }
 
 function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    const data = octwbeApi_('/products?per_page=100&page=' + page, 'get');
+    const data = octwbeApi_('/products?per_page=100&page=' + page + '&' + cacheBust_(), 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;
