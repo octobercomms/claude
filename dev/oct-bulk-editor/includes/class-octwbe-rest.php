@@ -147,9 +147,31 @@ class OCTWBE_REST {
 		$product  = $pid ? wc_get_product( $pid ) : null;
 		$children = ( $product && $product->is_type( 'variable' ) ) ? count( $product->get_children() ) : null;
 
+		// Run the ACTUAL pull code for this one product, so we see exactly how many
+		// rows get_products() would emit for it right now — and where 384 might
+		// become 6. variation_ids() is the same function the pull uses; hydrated is
+		// how many of those IDs wc_get_product() successfully loads; rows_built is
+		// the final row count after the real per-variation loop.
+		$ids       = $product ? OctBulkEditor::variation_ids( $product ) : [];
+		$hydrated  = 0;
+		$rows_built = 0;
+		foreach ( $ids as $vid ) {
+			$v = wc_get_product( $vid );
+			if ( $v ) {
+				$hydrated++;
+				$rows_built++;
+			}
+		}
+		$is_variable = $product ? ( $product->is_type( 'variable' ) ? 'yes' : $product->get_type() ) : 'no-product';
+
 		return new WP_REST_Response( [
 			'version'              => OCTWBE_VERSION,
 			'product'              => $pid,
+			'is_variable'          => $is_variable,
+			'variation_ids_count'  => count( $ids ),     // what the pull's own lookup returns
+			'variation_ids_sample' => array_slice( array_map( 'intval', $ids ), 0, 8 ),
+			'hydrated_products'    => $hydrated,          // how many wc_get_product() loaded
+			'rows_built'           => $rows_built,        // rows the pull would emit
 			'count_default_read'   => $count_default,   // replica, if any
 			'count_forced_primary' => $count_primary,   // primary
 			'count_get_children'   => $children,        // WC's cached children list
