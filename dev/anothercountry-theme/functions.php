@@ -2479,7 +2479,24 @@ function ac_lt_is_made_to_order( $product ) {
 		return false;
 	}
 	$furniture_cats = array( 'armadillo', 'furniture', 'rose-cottage', 'outdoor-tables', 'outdoor-furniture', 'outdoor-benches', 'outdoor', 'office', 'living-room-furniture', 'kids-furniture', 'in-stock-furniture', 'dining-tables', 'dining-room', 'dining-chairs', 'desks', 'day-beds', 'console-tables', 'coffee-tables', 'chests', 'benches', 'beds', 'bedroom', 'armchairs', 'chairs-benches', 'task-chairs', 'tables', 'stools', 'sofas-armchairs-day-beds', 'sofas', 'sofa-beds', 'sideboard', 'side-tables', 'shelving' );
-	return has_term( $furniture_cats, 'product_cat', $product->get_id() ) && 'instock' !== $product->get_stock_status();
+	if ( ! has_term( $furniture_cats, 'product_cat', $product->get_id() ) ) {
+		return false;
+	}
+	// Variable products report the PARENT stock status as 'instock' whenever any
+	// variation is purchasable (and "on backorder" is purchasable), so the parent
+	// status hides made-to-order products — and a product re-sync (e.g. saving it)
+	// flips it back to 'instock'. Inspect the variations instead: made to order if
+	// any variation isn't plainly in stock. Reads the stock-status meta directly
+	// (cheap) and exits on the first match.
+	if ( $product->is_type( 'variable' ) ) {
+		foreach ( $product->get_children() as $variation_id ) {
+			if ( 'instock' !== get_post_meta( $variation_id, '_stock_status', true ) ) {
+				return true;
+			}
+		}
+		return false;
+	}
+	return 'instock' !== $product->get_stock_status();
 }
 
 /** Expose each variation's resolved lead time to the variations JSON so the
