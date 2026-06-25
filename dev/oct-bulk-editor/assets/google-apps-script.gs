@@ -82,7 +82,10 @@ function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    const data = octwbeApi_('/products?per_page=100&page=' + page + '&' + cacheBust_(), 'get');
+    // Unique value in the URL PATH (not the query string) so a path-keyed page
+    // cache can't serve a stale copy — every request is a brand-new URL.
+    const cb = '' + new Date().getTime() + page + Math.floor(Math.random() * 1e6);
+    const data = octwbeApi_('/products/' + cb + '?per_page=100&page=' + page, 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;

@@ -33,11 +33,18 @@ class OCTWBE_REST {
 			'permission_callback' => [ $this, 'authorize' ],
 		] );
 
-		register_rest_route( self::NS, '/products', [
+		$products_route = [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_products' ],
 			'permission_callback' => [ $this, 'authorize' ],
-		] );
+		];
+		register_rest_route( self::NS, '/products', $products_route );
+		// Same endpoint with a throwaway path segment (…/products/<unique>). The
+		// store's page cache was caching /products keyed by PATH, ignoring the
+		// ?_cb= query-string buster — so it kept serving an old response. A unique
+		// segment in the PATH is a brand-new URL every request, which no path-keyed
+		// cache can match, forcing a live read. The cb value itself is unused.
+		register_rest_route( self::NS, '/products/(?P<cb>[A-Za-z0-9_-]+)', $products_route );
 
 		register_rest_route( self::NS, '/push', [
 			'methods'             => 'POST',
