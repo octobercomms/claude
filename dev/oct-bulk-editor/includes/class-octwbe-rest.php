@@ -2,21 +2,27 @@
 /**
  * REST API for the Google Sheets sync.
  *
- * Endpoints (namespace wbe/v1), all token-authenticated:
+ * Endpoints (namespace octwbe/v1), all token-authenticated:
  *   GET  /ping     — connectivity + store settings probe
- *   GET  /products — products & variations in spreadsheet-friendly rows
+ *   GET  /products — products & variations as spreadsheet rows (CSV columns)
  *   POST /push     — apply edits, with server-side conflict detection
  *
- * @package WooBulkEditor
+ * Writes go through OctBulkEditor::set_field_value() so the sync saves exactly
+ * like the in-app editor and CSV import.
+ *
+ * @package OctBulkEditor
  */
 
 defined( 'ABSPATH' ) || exit;
 
-class WBE_REST {
+class OCTWBE_REST {
 
-	const NS = 'wbe/v1';
+	const NS = 'octwbe/v1';
 
-	public function __construct() {
+	private OctBulkEditor $editor;
+
+	public function __construct( OctBulkEditor $editor ) {
+		$this->editor = $editor;
 		add_action( 'rest_api_init', [ $this, 'register_routes' ] );
 	}
 
@@ -45,12 +51,12 @@ class WBE_REST {
 	// -------------------------------------------------------------------------
 
 	public function authorize( WP_REST_Request $req ): bool|WP_Error {
-		$stored = (string) get_option( 'wbe_sync_token', '' );
+		$stored = (string) get_option( 'octwbe_sync_token', '' );
 		if ( $stored === '' ) {
-			return new WP_Error( 'wbe_disabled', 'Sheets sync is not enabled on this store.', [ 'status' => 403 ] );
+			return new WP_Error( 'octwbe_disabled', 'Sheets sync is not enabled on this store.', [ 'status' => 403 ] );
 		}
 
-		$sent = (string) $req->get_header( 'x_wbe_token' );
+		$sent = (string) $req->get_header( 'x_octwbe_token' );
 
 		if ( $sent === '' ) {
 			$auth = (string) $req->get_header( 'authorization' );
@@ -64,7 +70,7 @@ class WBE_REST {
 		}
 
 		if ( $sent === '' || ! hash_equals( $stored, $sent ) ) {
-			return new WP_Error( 'wbe_bad_token', 'Invalid sync token.', [ 'status' => 401 ] );
+			return new WP_Error( 'octwbe_bad_token', 'Invalid sync token.', [ 'status' => 401 ] );
 		}
 
 		return true;
@@ -79,8 +85,9 @@ class WBE_REST {
 			'ok'             => true,
 			'store'          => get_bloginfo( 'name' ),
 			'currency'       => get_woocommerce_currency(),
-			'stock_readonly' => (bool) get_option( 'wbe_sync_stock_readonly', 1 ),
-			'columns'        => WBE_Fields::sheet_fields(),
+			'stock_readonly' => (bool) get_option( 'octwbe_sync_stock_readonly', 1 ),
+			'columns'        => OCTWBE_Fields::columns(),
+			'editable'       => array_keys( OCTWBE_Fields::editable_map() ),
 		] );
 	}
 
@@ -121,12 +128,19 @@ class WBE_REST {
 			}
 
 			if ( $product->is_type( 'variable' ) ) {
-				// Variations are independently priced, so export one row each.
-				foreach ( $product->get_children() as $variation_id ) {
-					$variation = wc_get_product( $variation_id );
+				// Variations are independently priced; export one row each, sorted
+				// alphabetically by attribute label like the grid and CSV export.
+				$variations = [];
+				foreach ( $product->get_children() as $vid ) {
+					$variation = wc_get_product( $vid );
 					if ( $variation ) {
-						$rows[] = $this->row( $variation, $product );
+						$variations[] = $variation;
 					}
+				}
+				usort( $variations, static fn( $a, $b ) =>
+					strnatcasecmp( OCTWBE_Fields::read( $a, 'variation' ), OCTWBE_Fields::read( $b, 'variation' ) ) );
+				foreach ( $variations as $variation ) {
+					$rows[] = $this->row( $variation, $product );
 				}
 			} else {
 				$rows[] = $this->row( $product );
@@ -143,36 +157,23 @@ class WBE_REST {
 
 	private function row( WC_Product $p, ?WC_Product $parent = null ): array {
 		$row = [];
-		foreach ( WBE_Fields::sheet_fields() as $field ) {
-			$row[ $field ] = WBE_Fields::current( $p, $field );
+		foreach ( OCTWBE_Fields::columns() as $column ) {
+			$row[ $column ] = OCTWBE_Fields::read( $p, $column, $parent );
 		}
-
-		if ( $parent ) {
-			$attrs = [];
-			foreach ( $p->get_variation_attributes() as $key => $val ) {
-				$label   = wc_attribute_label( str_replace( 'attribute_', '', $key ) );
-				$attrs[] = $label . ': ' . ( $val !== '' ? $val : 'Any' );
-			}
-			$suffix          = implode( ' / ', $attrs ) ?: ( '#' . $p->get_id() );
-			$row['name']     = $parent->get_name() . ' — ' . $suffix;
-			$row['parent_id'] = $parent->get_id();
-		} else {
-			$row['parent_id'] = 0;
-		}
-
 		return $row;
 	}
 
 	/**
-	 * Apply edits. Each change carries the value the sheet last saw
-	 * (`baseline`); if the live store value no longer matches that baseline,
-	 * the field changed in WooCommerce since the last pull and we report a
-	 * conflict instead of overwriting — unless `force` is set.
+	 * Apply edits. Each change carries the value the sheet last saw (`baseline`);
+	 * if the live store value no longer matches that baseline, the field changed
+	 * in WooCommerce since the last pull and we report a conflict instead of
+	 * overwriting — unless `force` is set.
 	 */
 	public function push( WP_REST_Request $req ): WP_REST_Response {
-		$force     = filter_var( $req->get_param( 'force' ), FILTER_VALIDATE_BOOLEAN );
-		$changes   = $req->get_param( 'changes' );
-		$stock_ro  = (bool) get_option( 'wbe_sync_stock_readonly', 1 );
+		$force    = filter_var( $req->get_param( 'force' ), FILTER_VALIDATE_BOOLEAN );
+		$changes  = $req->get_param( 'changes' );
+		$stock_ro = (bool) get_option( 'octwbe_sync_stock_readonly', 1 );
+		$map      = OCTWBE_Fields::editable_map();
 
 		if ( ! is_array( $changes ) || ! $changes ) {
 			return new WP_REST_Response( [ 'saved' => [], 'conflicts' => [], 'errors' => [ 'No changes provided.' ] ] );
@@ -185,20 +186,20 @@ class WBE_REST {
 
 		foreach ( $changes as $c ) {
 			$id       = (int) ( $c['id'] ?? 0 );
-			$field    = sanitize_key( $c['field'] ?? '' );
+			$column   = sanitize_key( $c['column'] ?? '' );
 			$value    = isset( $c['value'] ) ? (string) $c['value'] : '';
 			$baseline = isset( $c['baseline'] ) ? (string) $c['baseline'] : '';
 
-			if ( ! $id || $field === '' ) {
+			if ( ! $id || $column === '' ) {
 				continue;
 			}
 
-			if ( ! in_array( $field, WBE_Fields::editable_fields(), true ) ) {
-				$errors[] = "Field '{$field}' is not editable.";
+			if ( ! isset( $map[ $column ] ) ) {
+				$errors[] = "Column '{$column}' is not editable.";
 				continue;
 			}
 
-			if ( $field === 'stock_qty' && $stock_ro ) {
+			if ( $column === 'stock_qty' && $stock_ro ) {
 				$errors[] = "Stock is read-only on this store; skipped for product {$id}.";
 				continue;
 			}
@@ -209,12 +210,12 @@ class WBE_REST {
 				continue;
 			}
 
-			$live = WBE_Fields::current( $product, $field );
+			$live = OCTWBE_Fields::read( $product, $column );
 
-			if ( ! $force && ! WBE_Fields::matches( $field, $live, $baseline ) ) {
+			if ( ! $force && ! OCTWBE_Fields::matches( $column, $live, $baseline ) ) {
 				$conflicts[] = [
 					'id'        => $id,
-					'field'     => $field,
+					'column'    => $column,
 					'baseline'  => $baseline,
 					'current'   => $live,
 					'attempted' => $value,
@@ -222,7 +223,7 @@ class WBE_REST {
 				continue;
 			}
 
-			$result = WBE_Fields::apply( $product, $field, $value );
+			$result = $this->editor->set_field_value( $product, $map[ $column ], $value );
 			if ( is_wp_error( $result ) ) {
 				$errors[] = $result->get_error_message();
 				continue;
