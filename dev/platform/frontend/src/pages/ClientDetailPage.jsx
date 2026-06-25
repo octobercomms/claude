@@ -6,6 +6,7 @@ import AIDraftModal from '../components/AIDraftModal';
 import ReportTemplateChat from '../components/ReportTemplateChat';
 import FormsTab from '../components/FormsTab';
 import SuiteOverview from '../components/SuiteOverview';
+import ClarityConnectorCard from '../components/ClarityConnectorCard';
 import SetupReadinessPanel from '../components/SetupReadinessPanel';
 import ClientStrategyPanel from '../components/ClientStrategyPanel';
 import SuiteTabs from '../components/SuiteTabs';
@@ -491,6 +492,7 @@ export default function ClientDetailPage() {
               </div>
             );
           })}
+          <ClarityConnectorCard clientId={id} />
         </div>
       )}
 
