@@ -1,44 +1,96 @@
 /* ============================================================
-   WooCommerce Bulk Editor – Admin Styles
+   OctoberComms Bulk Editor — Admin Styles
+   Restyled to the October design system (OMI): two-tone (white
+   surface + black text + one yellow accent reserved for action/
+   active), Brockmann type, 2px borders, chunky radii, sanctioned
+   semantic colours, soft depth. Tokens are scoped to .wbe-wrap so
+   nothing leaks into the rest of wp-admin.
    ============================================================ */
 
-/* Layout */
 .wbe-wrap {
+	/* ── October design tokens (scoped) ───────────────────── */
+	--page-bg: #faf9f5;
+	--surface: #ffffff;
+	--surface-raised: #fafafa;
+	--surface-sunken: #f5f5f2;
+	--text: #1a1a1a;
+	--text-muted: #555555;
+	--text-subtle: #888888;
+	--card-border: #e3e2db;
+	--ink-border: #1a1a1a;
+
+	--accent: #e7cd41;
+	--accent-soft: rgba(231, 205, 65, 0.16);
+	--accent-line: #d9bd2a;
+	--accent-on: #1a1a1a;
+
+	--positive: #2e7d32;
+	--positive-soft: rgba(56, 142, 60, 0.10);
+	--negative: #c62828;
+	--negative-soft: rgba(198, 40, 40, 0.10);
+	--warning: #b86e00;
+	--warning-soft: rgba(255, 187, 6, 0.18);
+
+	--font: 'Brockmann', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+	--r-sm: 8px;
+	--r-md: 14px;
+	--r-pill: 999px;
+	--border-w: 2px;
+	--shadow-xs: 0 1px 3px rgba(20, 20, 20, 0.07);
+	--shadow-sm: 0 1px 2px rgba(20, 20, 20, 0.06), 0 5px 14px rgba(20, 20, 20, 0.09);
+	--shadow-md: 0 4px 10px rgba(20, 20, 20, 0.09), 0 18px 40px rgba(20, 20, 20, 0.14);
+
 	margin-top: 20px;
+	font-family: var(--font);
+	color: var(--text);
 }
 
+.wbe-wrap * { box-sizing: border-box; }
+
+/* ── Header ───────────────────────────────────────────────── */
 .wbe-header {
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	margin-bottom: 16px;
-	font-size: 1.5rem;
+	margin-bottom: 18px;
+	font-size: 28px;
+	font-weight: 700;
+	letter-spacing: -0.4px;
+	color: var(--text);
 }
 
 .wbe-badge {
 	font-size: 11px;
-	font-weight: 600;
-	background: #7f54b3;
-	color: #fff;
-	padding: 2px 8px;
-	border-radius: 20px;
+	font-weight: 700;
+	background: var(--accent-soft);
+	color: var(--accent-on);
+	border: var(--border-w) solid var(--accent-line);
+	padding: 2px 10px;
+	border-radius: var(--r-pill);
 	text-transform: uppercase;
-	letter-spacing: 0.5px;
+	letter-spacing: 0.6px;
 	vertical-align: middle;
 }
 
-/* Toolbar */
+/* ── Shared surface card for control bars ─────────────────── */
+.wbe-toolbar,
+.wbe-groupby-bar,
+.wbe-bulkedit,
+.wbe-col-toggle {
+	background: var(--surface);
+	border: var(--border-w) solid var(--card-border);
+	border-radius: var(--r-md);
+	box-shadow: var(--shadow-xs);
+	margin-bottom: 12px;
+}
+
 .wbe-toolbar {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
 	flex-wrap: wrap;
 	gap: 12px;
-	background: #fff;
-	border: 1px solid #e0e0e0;
-	border-radius: 6px;
-	padding: 12px 16px;
-	margin-bottom: 10px;
+	padding: 14px 16px;
 }
 
 .wbe-filters {
@@ -54,121 +106,181 @@
 	gap: 8px;
 }
 
+/* ── Inputs ───────────────────────────────────────────────── */
 .wbe-input {
-	height: 34px;
-	border-radius: 4px;
-	border: 1px solid #8c8f94;
+	height: 36px;
+	border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--card-border);
+	background: var(--surface);
 	padding: 0 10px;
 	font-size: 13px;
+	font-family: var(--font);
+	color: var(--text);
 	min-width: 200px;
 }
 
 .wbe-input:focus {
-	border-color: #7f54b3;
-	box-shadow: 0 0 0 2px rgba(127, 84, 179, 0.25);
+	border-color: var(--ink-border);
+	box-shadow: 0 0 0 3px var(--accent-soft);
 	outline: none;
 }
 
+/* ── Buttons (October primitives, mapped onto WP button classes) ── */
+.wbe-wrap .button,
+.wbe-wrap .button-secondary {
+	height: 36px;
+	display: inline-flex;
+	align-items: center;
+	border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--ink-border);
+	background: var(--surface);
+	color: var(--text);
+	font-weight: 600;
+	font-size: 13px;
+	padding: 0 14px;
+	transition: transform 0.08s ease, box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.wbe-wrap .button:hover {
+	background: var(--surface-sunken);
+	transform: translateY(-1px);
+}
+
+.wbe-wrap .button-primary {
+	border-color: var(--accent-line);
+	background: var(--accent);
+	color: var(--accent-on);
+	box-shadow: var(--shadow-xs);
+}
+
+.wbe-wrap .button-primary:hover {
+	background: var(--accent);
+	transform: translateY(-1px);
+	box-shadow: 0 3px 14px rgba(231, 205, 65, 0.42);
+}
+
+.wbe-wrap .button-primary:disabled {
+	opacity: 0.45;
+	box-shadow: none;
+	transform: none;
+}
+
+.wbe-wrap .button-link {
+	border: none;
+	background: none;
+	color: var(--text-muted);
+	text-decoration: underline;
+	padding: 0 4px;
+	height: auto;
+}
+
+/* Unsaved-changes badge → amber "warning", an attention state */
 .wbe-change-badge {
-	background: #e67e22;
-	color: #fff;
+	background: var(--warning-soft);
+	color: var(--warning);
 	font-size: 12px;
 	font-weight: 700;
-	padding: 3px 9px;
-	border-radius: 12px;
+	padding: 4px 10px;
+	border-radius: var(--r-pill);
+	border: var(--border-w) solid rgba(184, 110, 0, 0.35);
 }
 
-/* Status bar */
+/* ── Status bar ───────────────────────────────────────────── */
 .wbe-status {
-	padding: 10px 14px;
-	border-radius: 4px;
+	padding: 11px 14px;
+	border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--card-border);
 	font-size: 13px;
-	margin-bottom: 10px;
+	font-weight: 500;
+	margin-bottom: 12px;
 }
-.wbe-status.is-success {
-	background: #edfaee;
-	border: 1px solid #5cb85c;
-	color: #2d6a2d;
-}
-.wbe-status.is-error {
-	background: #fdecea;
-	border: 1px solid #d9534f;
-	color: #8a1a1a;
-}
-.wbe-status.is-info {
-	background: #edf4fd;
-	border: 1px solid #5b9bd5;
-	color: #1a4a7a;
-}
+.wbe-status.is-success { background: var(--positive-soft); border-color: rgba(46, 125, 50, 0.4);  color: var(--positive); }
+.wbe-status.is-error   { background: var(--negative-soft); border-color: rgba(198, 40, 40, 0.4);  color: var(--negative); }
+.wbe-status.is-info    { background: var(--accent-soft);   border-color: var(--accent-line);      color: var(--text); }
 
-/* Column toggles */
+/* ── Column toggles, grouped ──────────────────────────────── */
 .wbe-col-toggle {
 	display: flex;
-	align-items: center;
-	gap: 14px;
+	align-items: flex-start;
 	flex-wrap: wrap;
+	gap: 8px 18px;
 	font-size: 12px;
-	margin-bottom: 10px;
-	color: #555;
+	padding: 12px 16px;
+	color: var(--text-muted);
 }
+
+.wbe-col-toggle > strong {
+	align-self: center;
+	font-size: 11px;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+	color: var(--text-subtle);
+	margin-right: 4px;
+}
+
+/* Each labelled section of related columns */
+.wbe-col-group {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 0 14px 0 0;
+	border-right: 1px solid var(--card-border);
+}
+.wbe-col-group:last-child { border-right: none; }
+
+.wbe-col-group-title {
+	font-size: 10px;
+	font-weight: 700;
+	letter-spacing: 0.8px;
+	text-transform: uppercase;
+	color: var(--accent-line);
+}
+
+.wbe-col-group-items {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px 12px;
+}
+
 .wbe-col-label {
 	cursor: pointer;
 	user-select: none;
+	white-space: nowrap;
+	color: var(--text);
 }
-.wbe-col-label input {
-	margin-right: 3px;
-}
+.wbe-col-label input { margin-right: 4px; accent-color: var(--accent-line); }
 
-/* Selection checkbox column */
-.wbe-col-check {
-	width: 34px;
-	min-width: 34px;
-	text-align: center;
-	padding: 0 6px !important;
-}
-
-.wbe-col-check input {
-	margin: 0;
-	cursor: pointer;
-}
-
-.wbe-bulk-selcount {
-	font-size: 12px;
-	font-weight: 600;
-	color: #7f54b3;
-}
-
-/* Bulk edit bar */
+/* ── Bulk edit bar ────────────────────────────────────────── */
 .wbe-bulkedit {
 	display: flex;
 	align-items: center;
 	gap: 8px;
 	flex-wrap: wrap;
-	background: #f3effe;
-	border: 1px solid #e0d8f5;
-	border-radius: 6px;
-	padding: 8px 12px;
-	margin-bottom: 10px;
+	padding: 10px 14px;
 	font-size: 13px;
 }
 
-.wbe-bulkedit .wbe-input {
-	height: 30px;
-	min-width: 0;
-	margin: 0;
+.wbe-bulkedit > strong {
+	font-size: 11px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: var(--text-subtle);
 }
 
-.wbe-bulkedit #wbe-bulk-field {
-	min-width: 150px;
-}
+.wbe-bulkedit .wbe-input { height: 32px; min-width: 0; }
+.wbe-bulkedit #wbe-bulk-field,
+.wbe-bulkedit #wbe-bulk-value-input { min-width: 160px; }
 
-.wbe-bulkedit #wbe-bulk-value-input {
-	min-width: 150px;
-}
+.wbe-bulkedit-hint { color: var(--text-subtle); font-size: 12px; }
 
-.wbe-bulkedit-hint {
-	color: #777;
+.wbe-bulk-selcount {
 	font-size: 12px;
+	font-weight: 700;
+	color: var(--accent-on);
+	background: var(--accent-soft);
+	border: var(--border-w) solid var(--accent-line);
+	padding: 2px 8px;
+	border-radius: var(--r-pill);
 }
 
 .wbe-ie {
@@ -177,89 +289,91 @@
 	gap: 8px;
 	margin-left: auto;
 	padding-left: 12px;
-	border-left: 1px solid #d9cef0;
+	border-left: var(--border-w) solid var(--card-border);
 }
 
-.wbe-import-label {
-	position: relative;
-	overflow: hidden;
-	cursor: pointer;
-}
-
+.wbe-import-label { position: relative; overflow: hidden; cursor: pointer; }
 .wbe-import-label input[type="file"] {
-	position: absolute;
-	inset: 0;
-	opacity: 0;
-	cursor: pointer;
-	font-size: 0;
+	position: absolute; inset: 0; opacity: 0; cursor: pointer; font-size: 0;
 }
 
-/* Table wrapper – horizontal scroll */
+/* ── Group-by bar ─────────────────────────────────────────── */
+.wbe-groupby-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	flex-wrap: wrap;
+	padding: 10px 14px;
+	font-size: 13px;
+}
+.wbe-groupby-bar > strong {
+	font-size: 11px;
+	letter-spacing: 1px;
+	text-transform: uppercase;
+	color: var(--text-subtle);
+}
+.wbe-groupby-bar .wbe-input { height: 32px; min-width: 180px; }
+
+/* ── Table ────────────────────────────────────────────────── */
 .wbe-table-wrapper {
 	overflow-x: auto;
-	border: 1px solid #e0e0e0;
-	border-radius: 6px;
+	border: var(--border-w) solid var(--card-border);
+	border-radius: var(--r-md);
+	box-shadow: var(--shadow-xs);
+	background: var(--surface);
 }
 
-/* Spreadsheet table */
 .wbe-table {
 	border-collapse: collapse;
 	width: 100%;
 	font-size: 13px;
-	/* auto layout: columns size to their content, so hiding columns reclaims the
-	   freed space and the table expands to fill the width — keeping each variation
-	   row on a single line. */
+	/* auto layout: hidden columns return their width to the grid so each
+	   variation stays on one line. */
 	table-layout: auto;
 }
 
 .wbe-table thead th {
-	background: #f6f6f6;
-	border-bottom: 2px solid #ddd;
-	padding: 10px 12px;
+	background: var(--surface-sunken);
+	border-bottom: var(--border-w) solid var(--ink-border);
+	padding: 11px 12px;
 	text-align: left;
-	font-weight: 600;
+	font-weight: 700;
+	font-size: 11px;
+	letter-spacing: 0.4px;
+	text-transform: uppercase;
+	color: var(--text);
 	white-space: nowrap;
 	position: sticky;
 	top: 0;
 	z-index: 2;
 }
 
-.wbe-table tbody tr {
-	transition: background 0.1s;
-}
-
-.wbe-table tbody tr:nth-child(even) {
-	background: #fafafa;
-}
-
-.wbe-table tbody tr:hover {
-	background: #f0f0ff;
-}
+.wbe-table tbody tr { transition: background 0.1s; }
+.wbe-table tbody tr:nth-child(even) { background: var(--surface-raised); }
+.wbe-table tbody tr:hover { background: var(--accent-soft); }
 
 /* Row types */
 .wbe-table tr.wbe-row-parent {
-	background: #f3effe !important;
-	font-weight: 600;
+	background: var(--surface-sunken) !important;
+	font-weight: 700;
+	border-top: var(--border-w) solid var(--card-border);
 }
 
 .wbe-table tr.wbe-row-variation td.wbe-col-name {
-	padding-left: 32px;
-	color: #555;
+	padding-left: 30px;
+	color: var(--text-muted);
 }
-
 .wbe-table tr.wbe-row-variation td.wbe-col-name::before {
 	content: "↳ ";
-	color: #aaa;
+	color: var(--text-subtle);
 }
 
-.wbe-table tr.wbe-row-simple {
-	font-weight: 500;
-}
+.wbe-table tr.wbe-row-simple { font-weight: 600; }
 
 /* Cells */
 .wbe-table td {
 	padding: 0;
-	border-bottom: 1px solid #eee;
+	border-bottom: 1px solid var(--card-border);
 	vertical-align: middle;
 	position: relative;
 }
@@ -272,12 +386,14 @@
 
 .wbe-table td.wbe-col-actions {
 	padding: 6px 10px;
-	width: 60px;
+	width: 56px;
 	text-align: center;
 	white-space: nowrap;
 }
+.wbe-table td.wbe-col-actions a { color: var(--text-muted); }
+.wbe-table td.wbe-col-actions a:hover { color: var(--accent-line); }
 
-/* Editable cell */
+/* Editable text cell */
 .wbe-cell {
 	display: block;
 	width: 100%;
@@ -291,22 +407,20 @@
 	line-height: 20px;
 	transition: background 0.1s;
 }
-
-.wbe-cell:hover {
-	background: rgba(127, 84, 179, 0.06);
-}
-
+.wbe-cell:hover { background: var(--accent-soft); }
 .wbe-cell:focus {
 	outline: none;
-	background: #fff;
-	box-shadow: inset 0 0 0 2px #7f54b3;
+	background: var(--surface);
+	box-shadow: inset 0 0 0 var(--border-w) var(--ink-border);
 	z-index: 1;
 }
 
-/* Modified cell highlight */
-.wbe-cell.is-dirty {
-	background: #fffbea;
-	box-shadow: inset 2px 0 0 #f0ad00;
+/* Unsaved (dirty) state → amber, consistent across cell types */
+.wbe-cell.is-dirty,
+.wbe-cell-select.is-dirty,
+.wbe-col-catalog.is-dirty {
+	background: var(--warning-soft);
+	box-shadow: inset 3px 0 0 var(--warning);
 }
 
 /* Select cells */
@@ -315,33 +429,29 @@
 	height: 36px;
 	border: none;
 	background: transparent;
-	padding: 0 12px;
+	padding: 0 10px;
 	font-size: 13px;
+	font-family: var(--font);
+	color: var(--text);
 	cursor: pointer;
 	box-sizing: border-box;
 	appearance: auto;
 }
-
 .wbe-cell-select:focus {
-	outline: 2px solid #7f54b3;
-	background: #fff;
+	outline: var(--border-w) solid var(--ink-border);
+	background: var(--surface);
 }
 
-.wbe-cell-select.is-dirty {
-	background: #fffbea;
-	box-shadow: inset 2px 0 0 #f0ad00;
-}
-
-/* Stock status colours */
-.wbe-cell-select[data-field="stock_status"] option[value="instock"]     { color: #2d6a2d; }
-.wbe-cell-select[data-field="stock_status"] option[value="outofstock"]  { color: #8a1a1a; }
-.wbe-cell-select[data-field="stock_status"] option[value="onbackorder"] { color: #7a5a00; }
+/* Stock status semantics */
+.wbe-cell-select[data-field="stock_status"] option[value="instock"]     { color: var(--positive); }
+.wbe-cell-select[data-field="stock_status"] option[value="outofstock"]  { color: var(--negative); }
+.wbe-cell-select[data-field="stock_status"] option[value="onbackorder"] { color: var(--warning); }
 
 /* Placeholder row */
 .wbe-placeholder td {
 	text-align: center;
-	color: #888;
-	padding: 30px;
+	color: var(--text-subtle);
+	padding: 32px;
 	font-size: 14px;
 }
 
@@ -359,34 +469,20 @@
 	justify-content: center;
 	width: 48px;
 	height: 48px;
-	border-radius: 4px;
+	border-radius: var(--r-sm);
 	cursor: pointer;
 	position: relative;
 	transition: box-shadow 0.15s;
 }
-
-.wbe-img-wrap:hover {
-	box-shadow: 0 0 0 2px #7f54b3;
-}
-
-.wbe-img-wrap.is-dirty {
-	box-shadow: 0 0 0 2px #f0ad00;
-}
-
-.wbe-img-wrap.is-drag-over {
-	box-shadow: 0 0 0 2px #5b9bd5;
-	background: #edf4fd;
-}
-
-.wbe-img-wrap.is-uploading {
-	cursor: wait;
-}
+.wbe-img-wrap:hover { box-shadow: 0 0 0 var(--border-w) var(--accent-line); }
+.wbe-img-wrap.is-dirty { box-shadow: 0 0 0 var(--border-w) var(--warning); }
+.wbe-img-wrap.is-drag-over { box-shadow: 0 0 0 var(--border-w) var(--ink-border); background: var(--accent-soft); }
+.wbe-img-wrap.is-uploading { cursor: wait; }
 
 .wbe-img-thumb {
-	width: 48px;
-	height: 48px;
+	width: 48px; height: 48px;
 	object-fit: cover;
-	border-radius: 3px;
+	border-radius: 6px;
 	display: block;
 }
 
@@ -394,52 +490,45 @@
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	width: 48px;
-	height: 48px;
-	border: 2px dashed #ccc;
-	border-radius: 4px;
-	color: #bbb;
+	width: 48px; height: 48px;
+	border: var(--border-w) dashed var(--card-border);
+	border-radius: var(--r-sm);
+	color: var(--text-subtle);
 	font-size: 18px;
 	transition: border-color 0.15s, color 0.15s;
 }
-
-.wbe-img-wrap:hover .wbe-img-placeholder {
-	border-color: #7f54b3;
-	color: #7f54b3;
-}
+.wbe-img-wrap:hover .wbe-img-placeholder { border-color: var(--accent-line); color: var(--accent-line); }
 
 .wbe-img-spinner {
-	position: absolute;
-	inset: 0;
-	background: rgba(255,255,255,0.8);
-	border-radius: 4px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	position: absolute; inset: 0;
+	background: rgba(255, 255, 255, 0.8);
+	border-radius: var(--r-sm);
+	display: flex; align-items: center; justify-content: center;
 }
-
 .wbe-img-spinner::after {
 	content: '';
-	width: 16px;
-	height: 16px;
-	border: 2px solid #ccc;
-	border-top-color: #7f54b3;
+	width: 16px; height: 16px;
+	border: 2px solid var(--card-border);
+	border-top-color: var(--accent-line);
 	border-radius: 50%;
 	animation: wbe-spin 0.6s linear infinite;
 }
+@keyframes wbe-spin { to { transform: rotate(360deg); } }
 
-@keyframes wbe-spin {
-	to { transform: rotate(360deg); }
+/* Selection checkbox column */
+.wbe-col-check {
+	width: 34px; min-width: 34px;
+	text-align: center;
+	padding: 0 6px !important;
 }
+.wbe-col-check input { margin: 0; cursor: pointer; accent-color: var(--accent-line); }
 
-/* Variant Showcase: "On Category Page" checkbox column */
+/* "On Category Page" checkbox column */
 .wbe-col-catalog {
-	width: 110px;
-	min-width: 110px;
+	width: 110px; min-width: 110px;
 	text-align: center;
 	padding: 6px 8px !important;
 }
-
 .wbe-col-catalog .wbe-check {
 	display: inline-flex;
 	align-items: center;
@@ -447,58 +536,38 @@
 	cursor: pointer;
 	min-height: 36px;
 }
+.wbe-cell-check { margin: 0; cursor: pointer; transform: scale(1.2); accent-color: var(--accent-line); }
 
-.wbe-cell-check {
-	margin: 0;
-	cursor: pointer;
-	transform: scale(1.2);
-}
+/* Subtle neutral tint to set the Variant Showcase / multi-currency columns apart
+   (decoration, so a faint neutral — never the accent). */
+.wbe-col-lifestyle,
+.wbe-col-fabricgroup,
+.wbe-col-cardtitle,
+.wbe-col-order { background: var(--surface-sunken); }
 
-.wbe-col-catalog.is-dirty {
-	background: #fffbea;
-	box-shadow: inset 2px 0 0 #f0ad00;
-}
+/* Column min-widths */
+.wbe-col-fabricgroup { min-width: 150px; }
+.wbe-col-cardtitle { min-width: 180px; }
+.wbe-col-order { min-width: 90px; }
+.wbe-col-price { min-width: 120px; }
+.wbe-col-sku { min-width: 130px; }
+.wbe-col-stock { min-width: 100px; }
+.wbe-col-status { min-width: 130px; }
 
-/* Variant Showcase: lifestyle image column gets a subtle tint to set it apart */
-.wbe-col-lifestyle {
-	background: rgba(127, 84, 179, 0.035);
-}
-
-/* Group-by bar */
-.wbe-groupby-bar {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	flex-wrap: wrap;
-	background: #fff;
-	border: 1px solid #e0e0e0;
-	border-radius: 6px;
-	padding: 8px 12px;
-	margin-bottom: 10px;
-	font-size: 13px;
-}
-
-.wbe-groupby-bar .wbe-input {
-	height: 30px;
-	min-width: 180px;
-}
-
-/* Variation group header row */
+/* ── Variation group header row ───────────────────────────── */
 .wbe-table tr.wbe-row-group {
-	background: #efeafc !important;
-	border-top: 2px solid #d8cef3;
+	background: var(--accent-soft) !important;
+	border-top: var(--border-w) solid var(--accent-line);
 }
-
-.wbe-table tr.wbe-row-group:hover {
-	background: #e8e0fb !important;
-}
+.wbe-table tr.wbe-row-group:hover { background: rgba(231, 205, 65, 0.24) !important; }
 
 .wbe-table td.wbe-col-grouphdr {
-	padding: 8px 12px;
+	padding: 9px 12px;
 	cursor: pointer;
 	user-select: none;
 	white-space: nowrap;
-	color: #4a3a78;
+	color: var(--text);
+	font-weight: 700;
 }
 
 .wbe-group-caret {
@@ -508,85 +577,26 @@
 	margin-right: 4px;
 	transition: transform 0.12s;
 }
+.wbe-table tr.wbe-row-group.is-collapsed .wbe-group-caret { transform: rotate(-90deg); }
 
-.wbe-table tr.wbe-row-group.is-collapsed .wbe-group-caret {
-	transform: rotate(-90deg);
-}
+.wbe-group-count { color: var(--text-muted); font-weight: 500; font-size: 12px; margin-left: 4px; }
 
-.wbe-group-count {
-	color: #7a6aa8;
-	font-weight: 400;
-	font-size: 12px;
-	margin-left: 4px;
-}
-
-/* "Set Fabric Group for the whole group" control, right-aligned in the bar */
-.wbe-group-fg {
-	float: right;
-	font-weight: 400;
-	color: #4a3a78;
-	cursor: default;
-}
-
-.wbe-group-fg label {
-	font-size: 12px;
-	margin-right: 4px;
-}
-
+.wbe-group-fg { float: right; font-weight: 500; color: var(--text); cursor: default; }
+.wbe-group-fg label { font-size: 12px; margin-right: 4px; color: var(--text-muted); }
 .wbe-group-fg-select {
-	height: 26px;
-	border-radius: 4px;
-	border: 1px solid #b9a8e8;
-	background: #fff;
+	height: 28px;
+	border-radius: var(--r-sm);
+	border: var(--border-w) solid var(--card-border);
+	background: var(--surface);
 	font-size: 12px;
 	padding: 0 6px;
 	cursor: pointer;
 }
 
-/* Group header image wrap: dashed accent so it reads as a "fill the group" action */
-.wbe-img-wrap.is-group {
-	box-shadow: 0 0 0 1px #b9a8e8;
-}
+.wbe-img-wrap.is-group { box-shadow: 0 0 0 1px var(--accent-line); }
+.wbe-img-wrap.is-group:hover { box-shadow: 0 0 0 var(--border-w) var(--ink-border); }
 
-.wbe-img-wrap.is-group:hover {
-	box-shadow: 0 0 0 2px #7f54b3;
-}
-
-/* Fabric Group column (per-variation drawer category) */
-.wbe-col-fabricgroup {
-	min-width: 150px;
-	background: rgba(127, 84, 179, 0.035);
-}
-
-/* Catalogue card title + order columns (Variant Showcase) */
-.wbe-col-cardtitle {
-	min-width: 180px;
-	background: rgba(127, 84, 179, 0.035);
-}
-
-.wbe-col-order {
-	min-width: 90px;
-	background: rgba(127, 84, 179, 0.035);
-}
-
-/* Price currency prefix */
-.wbe-col-price {
-	min-width: 120px;
-}
-
-.wbe-col-sku {
-	min-width: 130px;
-}
-
-.wbe-col-stock {
-	min-width: 100px;
-}
-
-.wbe-col-status {
-	min-width: 130px;
-}
-
-/* Pagination */
+/* ── Pagination ───────────────────────────────────────────── */
 .wbe-pagination {
 	display: flex;
 	align-items: center;
@@ -594,36 +604,28 @@
 	justify-content: center;
 	margin-top: 16px;
 	font-size: 13px;
+	color: var(--text-muted);
 }
 
-/* Loading spinner overlay */
-.wbe-loading-overlay {
-	position: relative;
-}
-
+/* ── Loading overlay ──────────────────────────────────────── */
+.wbe-loading-overlay { position: relative; }
 .wbe-loading-overlay::after {
 	content: '';
 	position: absolute;
 	inset: 0;
-	background: rgba(255,255,255,0.6);
+	background: rgba(255, 255, 255, 0.6);
 	z-index: 10;
 }
 
-/* Row save indicator */
-.wbe-row-saving td {
-	opacity: 0.5;
-}
-
-.wbe-row-saved td {
-	animation: wbe-flash 0.5s ease;
-}
-
+/* Row save indicators */
+.wbe-row-saving td { opacity: 0.5; }
+.wbe-row-saved td { animation: wbe-flash 0.6s ease; }
 @keyframes wbe-flash {
-	0%   { background-color: #d4edda; }
+	0%   { background-color: var(--positive-soft); }
 	100% { background-color: transparent; }
 }
 
-/* Floating save bar — fixed bottom-right, visible only with unsaved changes */
+/* ── Floating save bar ────────────────────────────────────── */
 .wbe-float-actions {
 	position: fixed;
 	right: 24px;
@@ -632,31 +634,26 @@
 	display: flex;
 	align-items: center;
 	gap: 10px;
-	background: #fff;
-	border: 1px solid #dcdcde;
-	border-radius: 8px;
+	background: var(--surface);
+	border: var(--border-w) solid var(--ink-border);
+	border-radius: var(--r-md);
 	padding: 10px 14px;
-	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+	box-shadow: var(--shadow-md);
 	animation: wbe-float-in 0.18s ease;
 }
-
-.wbe-float-actions .wbe-change-badge {
-	display: inline-block;
-}
-
+.wbe-float-actions .wbe-change-badge { display: inline-block; }
 @keyframes wbe-float-in {
 	from { opacity: 0; transform: translateY(8px); }
 	to   { opacity: 1; transform: translateY(0); }
 }
 
-/* Responsive adjustments */
+/* ── Responsive ───────────────────────────────────────────── */
 @media (max-width: 960px) {
-	.wbe-float-actions {
-		right: 12px;
-		bottom: 12px;
-	}
-	.wbe-toolbar {
-		flex-direction: column;
-		align-items: flex-start;
-	}
+	.wbe-float-actions { right: 12px; bottom: 12px; }
+	.wbe-toolbar { flex-direction: column; align-items: flex-start; }
+	.wbe-col-group { border-right: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.wbe-wrap * { transition: none !important; animation: none !important; }
 }

@@ -55,36 +55,53 @@
 	<!-- Status bar -->
 	<div id="wbe-status" class="wbe-status" style="display:none"></div>
 
-	<!-- Column visibility -->
+	<!-- Column visibility, grouped by purpose so the (many) columns are easy to find -->
 	<div class="wbe-col-toggle">
-		<strong><?php esc_html_e( 'Columns:', 'oct-bulk-editor' ); ?></strong>
+		<strong><?php esc_html_e( 'Columns', 'oct-bulk-editor' ); ?></strong>
 		<?php
-		$columns = [
-			'image'         => __( 'Image', 'oct-bulk-editor' ),
-			'acvs_lifestyle'=> __( 'Lifestyle Image', 'oct-bulk-editor' ),
-			'acvs_catalog'  => __( 'On Category Page', 'oct-bulk-editor' ),
-			'sku'          => __( 'SKU', 'oct-bulk-editor' ),
-			'regular_price'=> __( 'Regular Price', 'oct-bulk-editor' ),
-			'sale_price'   => __( 'Sale Price', 'oct-bulk-editor' ),
-			'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
-			'stock_status' => __( 'Stock Status', 'oct-bulk-editor' ),
-			'status'       => __( 'Publish Status', 'oct-bulk-editor' ),
-			'fabric_group' => __( 'Fabric Group', 'oct-bulk-editor' ),
-			'price_eur'      => __( 'Regular € (EUR)', 'oct-bulk-editor' ),
-			'sale_price_eur' => __( 'Sale € (EUR)', 'oct-bulk-editor' ),
-			'price_usd'      => __( 'Regular $ (USD)', 'oct-bulk-editor' ),
-			'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
-			'acvs_card_title'    => __( 'Card Title', 'oct-bulk-editor' ),
-			'acvs_catalog_order' => __( 'Catalog Order', 'oct-bulk-editor' ),
-			'manage_stock'   => __( 'Manage Stock', 'oct-bulk-editor' ),
-			'backorders'     => __( 'Backorders', 'oct-bulk-editor' ),
+		$column_groups = [
+			__( 'Core', 'oct-bulk-editor' ) => [
+				'image'  => __( 'Image', 'oct-bulk-editor' ),
+				'sku'    => __( 'SKU', 'oct-bulk-editor' ),
+				'status' => __( 'Publish Status', 'oct-bulk-editor' ),
+			],
+			__( 'Pricing', 'oct-bulk-editor' ) => [
+				'regular_price'  => __( 'Regular Price', 'oct-bulk-editor' ),
+				'sale_price'     => __( 'Sale Price', 'oct-bulk-editor' ),
+				'price_eur'      => __( 'Regular € (EUR)', 'oct-bulk-editor' ),
+				'sale_price_eur' => __( 'Sale € (EUR)', 'oct-bulk-editor' ),
+				'price_usd'      => __( 'Regular $ (USD)', 'oct-bulk-editor' ),
+				'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
+			],
+			__( 'Stock', 'oct-bulk-editor' ) => [
+				'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
+				'stock_status' => __( 'Stock Status', 'oct-bulk-editor' ),
+				'manage_stock' => __( 'Manage Stock', 'oct-bulk-editor' ),
+				'backorders'   => __( 'Backorders', 'oct-bulk-editor' ),
+			],
+			__( 'Catalogue', 'oct-bulk-editor' ) => [
+				'acvs_lifestyle'     => __( 'Lifestyle Image', 'oct-bulk-editor' ),
+				'acvs_catalog'       => __( 'On Category Page', 'oct-bulk-editor' ),
+				'acvs_card_title'    => __( 'Card Title', 'oct-bulk-editor' ),
+				'acvs_catalog_order' => __( 'Catalog Order', 'oct-bulk-editor' ),
+			],
+			__( 'Fabric', 'oct-bulk-editor' ) => [
+				'fabric_group' => __( 'Fabric Group', 'oct-bulk-editor' ),
+			],
 		];
-		foreach ( $columns as $key => $label ) :
+		foreach ( $column_groups as $group_label => $cols ) :
 		?>
-		<label class="wbe-col-label">
-			<input type="checkbox" class="wbe-col-toggle-cb" data-col="<?php echo esc_attr( $key ); ?>" checked />
-			<?php echo esc_html( $label ); ?>
-		</label>
+		<div class="wbe-col-group">
+			<span class="wbe-col-group-title"><?php echo esc_html( $group_label ); ?></span>
+			<div class="wbe-col-group-items">
+				<?php foreach ( $cols as $key => $label ) : ?>
+				<label class="wbe-col-label">
+					<input type="checkbox" class="wbe-col-toggle-cb" data-col="<?php echo esc_attr( $key ); ?>" checked />
+					<?php echo esc_html( $label ); ?>
+				</label>
+				<?php endforeach; ?>
+			</div>
+		</div>
 		<?php endforeach; ?>
 	</div>
 
