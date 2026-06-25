@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order; merge products; export/import via CSV.
- * Version:     1.9.2
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders; merge products; export/import via CSV.
+ * Version:     1.10.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.9.2' );
+define( 'OCTWBE_VERSION', '1.10.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -228,6 +228,8 @@ class OctBulkEditor {
 			'sale_price_usd'       => isset( $sale['USD'] ) ? $sale['USD'] : '',
 			'acvs_card_title'      => (string) $p->get_meta( '_acvs_card_title' ),
 			'acvs_catalog_order'   => $catalog_order,
+			'manage_stock'         => $p->get_manage_stock() ? 'yes' : 'no',
+			'backorders'           => $p->get_backorders() ?: 'no',
 		];
 	}
 
@@ -372,7 +374,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order', 'manage_stock', 'backorders' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -401,6 +403,27 @@ class OctBulkEditor {
 		}
 		$product->save();
 		return true;
+	}
+
+	/**
+	 * When a product manages its own stock, derive its stock status from the live
+	 * quantity + backorder setting (qty>0 = in stock; qty<=0 with backorders =
+	 * on backorder; otherwise out of stock). Called after manage-stock / qty /
+	 * backorder edits so "manage stock + qty 0 + notify" lands on backorder
+	 * (made-to-order) without the user also touching the Stock Status column.
+	 */
+	private function recalc_stock_status( WC_Product $product ): void {
+		if ( ! $product->get_manage_stock() ) {
+			return;
+		}
+		$qty = (int) $product->get_stock_quantity();
+		if ( $qty > 0 ) {
+			$product->set_stock_status( 'instock' );
+		} elseif ( in_array( $product->get_backorders(), [ 'notify', 'yes' ], true ) ) {
+			$product->set_stock_status( 'onbackorder' );
+		} else {
+			$product->set_stock_status( 'outofstock' );
+		}
 	}
 
 	/** Set a single field on the product object without saving (caller saves). */
@@ -435,9 +458,24 @@ class OctBulkEditor {
 					}
 					$product->set_manage_stock( true );
 					$product->set_stock_quantity( (float) $value );
+					$this->recalc_stock_status( $product );
 				} else {
 					$product->set_manage_stock( false );
 				}
+				break;
+
+			case 'manage_stock':
+				$product->set_manage_stock( $value === 'yes' );
+				$this->recalc_stock_status( $product );
+				break;
+
+			case 'backorders':
+				$allowed = [ 'no', 'notify', 'yes' ];
+				if ( ! in_array( $value, $allowed, true ) ) {
+					return new WP_Error( 'invalid', "Invalid backorders value '{$value}'." );
+				}
+				$product->set_backorders( $value );
+				$this->recalc_stock_status( $product );
 				break;
 
 			case 'stock_status':
@@ -701,7 +739,7 @@ class OctBulkEditor {
 		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order' ] );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order', 'manage_stock', 'backorders' ] );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
 			$product = wc_get_product( $post->ID );
@@ -788,6 +826,8 @@ class OctBulkEditor {
 			$sale['USD'] ?? '',
 			(string) $p->get_meta( '_acvs_card_title' ),
 			$is_variation ? (string) $p->get_meta( '_acvs_catalog_order' ) : ( $p->get_menu_order() ?: '' ),
+			$p->get_manage_stock() ? 'yes' : 'no',
+			$p->get_backorders() ?: 'no',
 		] );
 	}
 
@@ -838,6 +878,8 @@ class OctBulkEditor {
 			'sale_price_usd'     => 'sale_price_usd',
 			'card_title'         => 'acvs_card_title',
 			'catalog_order'      => 'acvs_catalog_order',
+			'manage_stock'       => 'manage_stock',
+			'backorders'         => 'backorders',
 		];
 
 		$updated = 0;

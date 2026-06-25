@@ -287,6 +287,17 @@
 		showStatus('Applied image to ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
 	}
 
+	// Stock-management option sets (shared by row cells and the bulk-edit bar).
+	const MANAGE_STOCK_OPTIONS = [
+		{ value: 'no',  label: 'No (inherit)' },
+		{ value: 'yes', label: 'Yes' },
+	];
+	const BACKORDER_OPTIONS = [
+		{ value: 'no',     label: 'Do not allow' },
+		{ value: 'notify', label: 'Allow, but notify' },
+		{ value: 'yes',    label: 'Allow' },
+	];
+
 	// -------------------------------------------------------------------------
 	// Build table rows from server data
 	// -------------------------------------------------------------------------
@@ -352,6 +363,8 @@
 			});
 			$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
 			$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
+			$tr.append(buildSelectCell(row.id, 'manage_stock', row.manage_stock || 'no', MANAGE_STOCK_OPTIONS, 'wbe-col-status'));
+			$tr.append(buildSelectCell(row.id, 'backorders', row.backorders || 'no', BACKORDER_OPTIONS, 'wbe-col-status'));
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
 		}
@@ -404,6 +417,11 @@
 		// Variant Showcase: custom catalogue card title + catalogue sort order.
 		$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
 		$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
+
+		// Stock management: manage own stock + backorders (made-to-order = manage
+		// stock yes, qty 0, backorders "notify" → resolves to On backorder server-side).
+		$tr.append(buildSelectCell(row.id, 'manage_stock', row.manage_stock || 'no', MANAGE_STOCK_OPTIONS, 'wbe-col-status'));
+		$tr.append(buildSelectCell(row.id, 'backorders', row.backorders || 'no', BACKORDER_OPTIONS, 'wbe-col-status'));
 
 		// Actions
 		$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit in WooCommerce" style="text-decoration:none;color:#555"></a></td>`);
@@ -480,7 +498,7 @@
 	// click away in the Columns row.
 	// -------------------------------------------------------------------------
 	const COL_PREF_KEY      = 'octwbe_columns_v1';
-	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order'];
+	const COL_DEFAULT_HIDDEN = ['acvs_lifestyle', 'acvs_catalog', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order', 'manage_stock', 'backorders'];
 
 	function loadColPrefs() {
 		try { return JSON.parse(localStorage.getItem(COL_PREF_KEY)) || {}; }
@@ -596,7 +614,7 @@
 		const category = $('#wbe-category').val();
 
 		showStatus(octwbe.i18n.loading, 'info');
-		$tbody.html('<tr class="wbe-placeholder"><td colspan="19">Loading…</td></tr>');
+		$tbody.html('<tr class="wbe-placeholder"><td colspan="21">Loading…</td></tr>');
 		$('.wbe-table-wrapper').addClass('wbe-loading-overlay');
 
 		$.post(octwbe.ajaxUrl, {
@@ -634,7 +652,7 @@
 		$tbody.empty();
 
 		if (!rows.length) {
-			$tbody.html('<tr class="wbe-placeholder"><td colspan="19">No products found.</td></tr>');
+			$tbody.html('<tr class="wbe-placeholder"><td colspan="21">No products found.</td></tr>');
 			return;
 		}
 
@@ -747,7 +765,7 @@
 		// Label spans the remaining 14 columns.
 		const caret = '<span class="wbe-group-caret dashicons dashicons-arrow-down-alt2"></span>';
 		$tr.append(
-			'<td class="wbe-col-grouphdr" colspan="16">' + caret +
+			'<td class="wbe-col-grouphdr" colspan="18">' + caret +
 			'<strong>' + esc(attrLabel) + ': ' + esc(g.label) + '</strong> ' +
 			'<span class="wbe-group-count">(' + g.rows.length + ' variation' + (g.rows.length !== 1 ? 's' : '') + ')</span>' +
 			fgControl + '</td>'
@@ -1059,6 +1077,8 @@
 		acvs_fabric_group: { type: 'text', placeholder: 'Fabric group key (e.g. outdoor)' },
 		acvs_catalog_order: { type: 'number' },
 		acvs_card_title:    { type: 'text', placeholder: 'Card title' },
+		manage_stock:  { type: 'select', options: [ [ 'no', 'No (inherit)' ], [ 'yes', 'Yes' ] ] },
+		backorders:    { type: 'select', options: [ [ 'no', 'Do not allow' ], [ 'notify', 'Allow, but notify' ], [ 'yes', 'Allow' ] ] },
 	};
 
 	function renderBulkValue() {
