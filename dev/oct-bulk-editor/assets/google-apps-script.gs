@@ -1,30 +1,19 @@
 /**
- * WooCommerce Bulk Editor — Google Sheets sync
+ * OctoberComms Bulk Editor — Google Sheets sync
  *
  * Paste this into your Google Sheet under Extensions ▸ Apps Script, Save, then
- * reload the sheet. A "WooCommerce" menu appears with Pull / Check / Push.
+ * reload the sheet. A "Bulk Editor" menu appears with Pull / Check / Push.
  *
  * The store URL and token below are filled in for your store. Treat the token
- * like a password.
+ * like a password. Columns are read live from the store, so the sheet always
+ * matches the editor (prices, EUR/USD prices, stock, Variant Showcase, etc.).
  */
 
 const API_BASE = '__API_BASE__';
 const TOKEN    = '__TOKEN__';
 
 const SHEET_NAME    = 'Products';      // tab the catalogue lives in
-const BASELINE_NAME = '_wbe_baseline'; // hidden tab: snapshot of the last pull
-
-// Columns the store sends, in order. Mirrors WBE_Fields::sheet_fields().
-const COLUMNS = [
-  'id', 'type', 'name', 'sku', 'regular_price', 'sale_price',
-  'stock_qty', 'stock_status', 'status', 'date_on_sale_from', 'date_on_sale_to'
-];
-
-// Columns the sheet may push back. id / type / name are read-only.
-const EDITABLE = [
-  'sku', 'regular_price', 'sale_price', 'stock_qty',
-  'stock_status', 'status', 'date_on_sale_from', 'date_on_sale_to'
-];
+const BASELINE_NAME = '_octwbe_base';  // hidden tab: snapshot of the last pull
 
 const COLOR_EDIT  = '#cfe3ff'; // blue  — your unsaved edit
 const COLOR_WOO   = '#ffe2b8'; // amber — changed in the store since last pull
@@ -33,12 +22,12 @@ const COLOR_CLEAR = '#ffffff';
 
 function onOpen() {
   SpreadsheetApp.getUi()
-    .createMenu('WooCommerce')
-    .addItem('⬇  Pull products from store', 'wbePull')
-    .addItem('🔍  Check for changes in store', 'wbeCheck')
+    .createMenu('Bulk Editor')
+    .addItem('⬇  Pull products from store', 'octwbePull')
+    .addItem('🔍  Check for changes in store', 'octwbeCheck')
     .addSeparator()
-    .addItem('⬆  Push my changes', 'wbePush')
-    .addItem('⚠  Push & overwrite conflicts', 'wbePushForce')
+    .addItem('⬆  Push my changes', 'octwbePush')
+    .addItem('⚠  Push & overwrite conflicts', 'octwbePushForce')
     .addToUi();
 }
 
@@ -46,11 +35,11 @@ function onOpen() {
 // HTTP
 // ---------------------------------------------------------------------------
 
-function wbeApi_(path, method, payload) {
+function octwbeApi_(path, method, payload) {
   const opts = {
     method: method || 'get',
     muteHttpExceptions: true,
-    headers: { 'X-WBE-Token': TOKEN },
+    headers: { 'X-OCTWBE-Token': TOKEN },
     contentType: 'application/json'
   };
   if (payload) opts.payload = JSON.stringify(payload);
@@ -64,11 +53,15 @@ function wbeApi_(path, method, payload) {
   return JSON.parse(body);
 }
 
+function config_() {
+  return octwbeApi_('/ping', 'get'); // { columns, editable, stock_readonly, ... }
+}
+
 function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    const data = wbeApi_('/products?per_page=100&page=' + page, 'get');
+    const data = octwbeApi_('/products?per_page=100&page=' + page, 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;
@@ -87,19 +80,17 @@ function sheet_(name) {
   return sh;
 }
 
-function rowsToGrid_(rows) {
-  const grid = [COLUMNS.slice()];
+function rowsToGrid_(rows, columns) {
+  const grid = [columns.slice()];
   rows.forEach(function (r) {
-    grid.push(COLUMNS.map(function (c) { return r[c] != null ? r[c] : ''; }));
+    grid.push(columns.map(function (c) { return r[c] != null ? r[c] : ''; }));
   });
   return grid;
 }
 
 function writeGrid_(sh, grid) {
   sh.clearContents();
-  if (grid.length) {
-    sh.getRange(1, 1, grid.length, grid[0].length).setValues(grid);
-  }
+  if (grid.length) sh.getRange(1, 1, grid.length, grid[0].length).setValues(grid);
 }
 
 function readGrid_(sh) {
@@ -121,48 +112,51 @@ function gridToMap_(grid) {
   return map;
 }
 
-// Do two values for a column mean the same thing?
-function same_(col, a, b) {
+// Do two values mean the same thing? Numeric when both look numeric.
+function same_(a, b) {
   a = a == null ? '' : String(a).trim();
   b = b == null ? '' : String(b).trim();
-  if (col === 'regular_price' || col === 'sale_price' || col === 'stock_qty') {
-    if (a === '' || b === '') return a === b;
+  if (a === b) return true;
+  if (a !== '' && b !== '' && !isNaN(Number(a)) && !isNaN(Number(b))) {
     return Number(a) === Number(b);
   }
-  return a === b;
+  return false;
 }
 
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------
 
-function wbePull() { SpreadsheetApp.getUi().alert('Pulled ' + pullCore_() + ' products from the store.'); }
+function octwbePull() { SpreadsheetApp.getUi().alert('Pulled ' + pullCore_() + ' products from the store.'); }
 
 function pullCore_() {
-  const rows = fetchAllProducts_();
-  const grid = rowsToGrid_(rows);
+  const cfg     = config_();
+  const columns = cfg.columns;
+  const grid    = rowsToGrid_(fetchAllProducts_(), columns);
 
   const sh = sheet_(SHEET_NAME);
   writeGrid_(sh, grid);
   sh.getDataRange().setBackground(COLOR_CLEAR);
-  sh.getRange(1, 1, 1, COLUMNS.length).setFontWeight('bold');
+  sh.getRange(1, 1, 1, columns.length).setFontWeight('bold');
   sh.setFrozenRows(1);
 
   const base = sheet_(BASELINE_NAME);
   writeGrid_(base, grid);
   base.hideSheet();
 
-  return rows.length;
+  return grid.length - 1;
 }
 
-function wbeCheck() {
+function octwbeCheck() {
   const ui = SpreadsheetApp.getUi();
   const sh = sheet_(SHEET_NAME);
   const visible = readGrid_(sh);
   if (visible.length < 2) { ui.alert('Pull products first.'); return; }
 
-  const baseMap = gridToMap_(readGrid_(sheet_(BASELINE_NAME)));
+  const editable = {};
+  config_().editable.forEach(function (c) { editable[c] = true; });
 
+  const baseMap = gridToMap_(readGrid_(sheet_(BASELINE_NAME)));
   const current = {};
   fetchAllProducts_().forEach(function (r) { current[String(r.id)] = r; });
 
@@ -179,9 +173,9 @@ function wbeCheck() {
 
     for (let j = 0; j < head.length; j++) {
       const col = head[j];
-      if (EDITABLE.indexOf(col) < 0) continue;
-      const edited     = !same_(col, visible[i][j], b[col]);
-      const wooChanged = cur ? !same_(col, cur[col], b[col]) : false;
+      if (!editable[col]) continue;
+      const edited     = !same_(visible[i][j], b[col]);
+      const wooChanged = cur ? !same_(cur[col], b[col]) : false;
       if (edited && wooChanged) { colors[j] = COLOR_BOTH; conflicts++; }
       else if (wooChanged)      { colors[j] = COLOR_WOO;  woo++; }
       else if (edited)          { colors[j] = COLOR_EDIT; edits++; }
@@ -198,14 +192,17 @@ function wbeCheck() {
   );
 }
 
-function wbePush()      { pushChanges_(false); }
-function wbePushForce() { pushChanges_(true); }
+function octwbePush()      { pushChanges_(false); }
+function octwbePushForce() { pushChanges_(true); }
 
 function pushChanges_(force) {
   const ui = SpreadsheetApp.getUi();
   const sh = sheet_(SHEET_NAME);
   const visible = readGrid_(sh);
   if (visible.length < 2) { ui.alert('Pull products first.'); return; }
+
+  const editable = {};
+  config_().editable.forEach(function (c) { editable[c] = true; });
 
   const head    = visible[0];
   const idCol   = head.indexOf('id');
@@ -218,11 +215,11 @@ function pushChanges_(force) {
     const b = baseMap[id] || {};
     for (let j = 0; j < head.length; j++) {
       const col = head[j];
-      if (EDITABLE.indexOf(col) < 0) continue;
-      if (same_(col, visible[i][j], b[col])) continue;
+      if (!editable[col]) continue;
+      if (same_(visible[i][j], b[col])) continue;
       changes.push({
         id: Number(id),
-        field: col,
+        column: col,
         value: String(visible[i][j]),
         baseline: b[col] == null ? '' : String(b[col])
       });
@@ -236,8 +233,8 @@ function pushChanges_(force) {
     if (ok !== ui.Button.OK) return;
   }
 
-  const result = wbeApi_('/push', 'post', { force: force, changes: changes });
-  const saved  = (result.saved || []).length;
+  const result     = octwbeApi_('/push', 'post', { force: force, changes: changes });
+  const saved      = (result.saved || []).length;
   const unresolved = !force && result.conflicts && result.conflicts.length;
 
   if (unresolved) {
@@ -266,7 +263,7 @@ function highlightConflicts_(sh, head, idCol, conflicts) {
 
   conflicts.forEach(function (c) {
     const r   = rowById[String(c.id)];
-    const col = head.indexOf(c.field);
+    const col = head.indexOf(c.column);
     if (r && col >= 0) sh.getRange(r, col + 1).setBackground(COLOR_BOTH);
   });
 }

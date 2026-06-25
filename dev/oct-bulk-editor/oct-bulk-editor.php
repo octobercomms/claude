@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders; merge products; export/import via CSV.
- * Version:     1.10.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
+ * Version:     1.11.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.10.0' );
+define( 'OCTWBE_VERSION', '1.11.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -426,8 +426,11 @@ class OctBulkEditor {
 		}
 	}
 
-	/** Set a single field on the product object without saving (caller saves). */
-	private function set_field_value( WC_Product $product, string $field, string $value ): bool|WP_Error {
+	/**
+	 * Set a single field on the product object without saving (caller saves).
+	 * Public so the Google Sheets sync (OCTWBE_REST) writes through the same path.
+	 */
+	public function set_field_value( WC_Product $product, string $field, string $value ): bool|WP_Error {
 		switch ( $field ) {
 			case 'regular_price':
 				if ( $value !== '' && ! is_numeric( $value ) ) {
@@ -925,6 +928,9 @@ class OctBulkEditor {
 }
 
 require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-merge.php';
+require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-fields.php';
+require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-rest.php';
+require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-sync-page.php';
 
 // Bootstrap
 add_action( 'plugins_loaded', function () {
@@ -937,6 +943,8 @@ add_action( 'plugins_loaded', function () {
 		return;
 	}
 
-	new OctBulkEditor();
+	$editor = new OctBulkEditor();
 	new OctWBE_Merge();
+	new OCTWBE_REST( $editor );
+	new OCTWBE_Sync_Page();
 } );
