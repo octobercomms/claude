@@ -24,6 +24,7 @@ class OCTWBE_Fields {
 			'on_category', 'lifestyle_image_id', 'fabric_group',
 			'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd',
 			'card_title', 'catalog_order', 'manage_stock', 'backorders',
+			'sale_from', 'sale_to',
 		];
 	}
 
@@ -47,6 +48,8 @@ class OCTWBE_Fields {
 			'catalog_order'      => 'acvs_catalog_order',
 			'manage_stock'       => 'manage_stock',
 			'backorders'         => 'backorders',
+			'sale_from'          => 'sale_from',
+			'sale_to'            => 'sale_to',
 		];
 	}
 
@@ -93,6 +96,8 @@ class OCTWBE_Fields {
 					: ( $p->get_menu_order() ? (string) $p->get_menu_order() : '' );
 			case 'manage_stock':  return $p->get_manage_stock() ? 'yes' : 'no';
 			case 'backorders':    return $p->get_backorders() ?: 'no';
+			case 'sale_from':     return $p->get_date_on_sale_from() ? $p->get_date_on_sale_from()->date( 'Y-m-d H:i' ) : '';
+			case 'sale_to':       return $p->get_date_on_sale_to() ? $p->get_date_on_sale_to()->date( 'Y-m-d H:i' ) : '';
 		}
 		return '';
 	}

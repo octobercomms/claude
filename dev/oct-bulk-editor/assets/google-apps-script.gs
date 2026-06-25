@@ -90,7 +90,17 @@ function rowsToGrid_(rows, columns) {
 
 function writeGrid_(sh, grid) {
   sh.clearContents();
-  if (grid.length) sh.getRange(1, 1, grid.length, grid[0].length).setValues(grid);
+  if (!grid.length) return;
+  var rowsNeeded = grid.length;
+  var colsNeeded = grid[0].length;
+  // A sheet defaults to 1000 rows; setValues() throws (and writes nothing) if the
+  // grid is bigger. Grow the sheet to fit so large catalogues import in full —
+  // this is what previously "capped out" pulls on stores with many variations.
+  var maxRows = sh.getMaxRows();
+  var maxCols = sh.getMaxColumns();
+  if (maxRows < rowsNeeded) sh.insertRowsAfter(maxRows, rowsNeeded - maxRows);
+  if (maxCols < colsNeeded) sh.insertColumnsAfter(maxCols, colsNeeded - maxCols);
+  sh.getRange(1, 1, rowsNeeded, colsNeeded).setValues(grid);
 }
 
 function readGrid_(sh) {

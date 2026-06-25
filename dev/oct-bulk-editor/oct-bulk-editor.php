@@ -2,8 +2,8 @@
 /**
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
- * Version:     1.13.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders, sale start/end schedule; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
+ * Version:     1.14.0
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.13.0' );
+define( 'OCTWBE_VERSION', '1.14.0' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -230,6 +230,8 @@ class OctBulkEditor {
 			'acvs_catalog_order'   => $catalog_order,
 			'manage_stock'         => $p->get_manage_stock() ? 'yes' : 'no',
 			'backorders'           => $p->get_backorders() ?: 'no',
+			'sale_from'            => $p->get_date_on_sale_from() ? $p->get_date_on_sale_from()->date( 'Y-m-d H:i' ) : '',
+			'sale_to'              => $p->get_date_on_sale_to() ? $p->get_date_on_sale_to()->date( 'Y-m-d H:i' ) : '',
 		];
 	}
 
@@ -374,7 +376,7 @@ class OctBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order', 'manage_stock', 'backorders' ];
+			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status', 'image', 'acvs_mode', 'acvs_show', 'acvs_lifestyle', 'acvs_fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'acvs_card_title', 'acvs_catalog_order', 'manage_stock', 'backorders', 'sale_from', 'sale_to' ];
 			if ( ! in_array( $field, $allowed_fields, true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
@@ -591,6 +593,17 @@ class OctBulkEditor {
 					$product->set_menu_order( $value === '' ? 0 : (int) $value );
 				}
 				break;
+
+			case 'sale_from':
+			case 'sale_to':
+				// Sale schedule. Accepts 'YYYY-MM-DD' or 'YYYY-MM-DD HH:MM'
+				// (store timezone); blank clears that end of the window.
+				if ( $value !== '' && strtotime( $value ) === false ) {
+					return new WP_Error( 'invalid', "Invalid {$field} date '{$value}' for product {$product->get_id()}." );
+				}
+				$setter = $field === 'sale_from' ? 'set_date_on_sale_from' : 'set_date_on_sale_to';
+				$product->{$setter}( $value === '' ? '' : strtotime( $value ) );
+				break;
 		}
 
 		return true;
@@ -742,7 +755,7 @@ class OctBulkEditor {
 		header( 'Content-Disposition: attachment; filename="products-' . gmdate( 'Ymd-His' ) . '.csv"' );
 
 		$out = fopen( 'php://output', 'w' );
-		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order', 'manage_stock', 'backorders' ] );
+		fputcsv( $out, [ 'id', 'type', 'parent_id', 'product', 'variation', 'sku', 'regular_price', 'sale_price', 'stock_qty', 'stock_status', 'status', 'on_category', 'lifestyle_image_id', 'fabric_group', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'card_title', 'catalog_order', 'manage_stock', 'backorders', 'sale_from', 'sale_to' ] );
 
 		foreach ( ( new WP_Query( $args ) )->posts as $post ) {
 			$product = wc_get_product( $post->ID );
@@ -831,6 +844,8 @@ class OctBulkEditor {
 			$is_variation ? (string) $p->get_meta( '_acvs_catalog_order' ) : ( $p->get_menu_order() ?: '' ),
 			$p->get_manage_stock() ? 'yes' : 'no',
 			$p->get_backorders() ?: 'no',
+			$p->get_date_on_sale_from() ? $p->get_date_on_sale_from()->date( 'Y-m-d H:i' ) : '',
+			$p->get_date_on_sale_to() ? $p->get_date_on_sale_to()->date( 'Y-m-d H:i' ) : '',
 		] );
 	}
 
@@ -883,6 +898,8 @@ class OctBulkEditor {
 			'catalog_order'      => 'acvs_catalog_order',
 			'manage_stock'       => 'manage_stock',
 			'backorders'         => 'backorders',
+			'sale_from'          => 'sale_from',
+			'sale_to'            => 'sale_to',
 		];
 
 		$updated = 0;

@@ -84,6 +84,8 @@
 				'sale_price_eur' => __( 'Sale € (EUR)', 'oct-bulk-editor' ),
 				'price_usd'      => __( 'Regular $ (USD)', 'oct-bulk-editor' ),
 				'sale_price_usd' => __( 'Sale $ (USD)', 'oct-bulk-editor' ),
+				'sale_from'      => __( 'Sale Start', 'oct-bulk-editor' ),
+				'sale_to'        => __( 'Sale End', 'oct-bulk-editor' ),
 			],
 			__( 'Stock', 'oct-bulk-editor' ) => [
 				'stock_qty'    => __( 'Stock Qty', 'oct-bulk-editor' ),
@@ -145,6 +147,8 @@
 			<option value="acvs_card_title"><?php esc_html_e( 'Card Title', 'oct-bulk-editor' ); ?></option>
 			<option value="manage_stock"><?php esc_html_e( 'Manage Stock', 'oct-bulk-editor' ); ?></option>
 			<option value="backorders"><?php esc_html_e( 'Backorders', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_from"><?php esc_html_e( 'Sale Start', 'oct-bulk-editor' ); ?></option>
+			<option value="sale_to"><?php esc_html_e( 'Sale End', 'oct-bulk-editor' ); ?></option>
 		</select>
 		<span id="wbe-bulk-value"></span>
 		<button id="wbe-bulk-apply" class="button button-secondary" title="<?php esc_attr_e( 'Set the chosen field to the chosen value on every loaded row (or just the ticked rows)', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Apply to all rows', 'oct-bulk-editor' ); ?></button>
@@ -184,12 +188,14 @@
 					<th class="wbe-col-order wbe-sortable" data-col="acvs_catalog_order" data-sort="acvs_catalog_order" title="<?php esc_attr_e( 'Position on the category page (lower shows first). Click to sort.', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Catalog Order', 'oct-bulk-editor' ); ?><?php echo $sort_arrow; // phpcs:ignore ?></th>
 					<th class="wbe-col-status wbe-sortable" data-col="manage_stock" data-sort="manage_stock" title="<?php esc_attr_e( 'Whether this row manages its own stock. Click to sort.', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Manage Stock', 'oct-bulk-editor' ); ?><?php echo $sort_arrow; // phpcs:ignore ?></th>
 					<th class="wbe-col-status wbe-sortable" data-col="backorders" data-sort="backorders" title="<?php esc_attr_e( 'Backorders: do not allow / allow & notify / allow. Click to sort.', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Backorders', 'oct-bulk-editor' ); ?><?php echo $sort_arrow; // phpcs:ignore ?></th>
+					<th class="wbe-col-date wbe-sortable" data-col="sale_from" data-sort="sale_from" title="<?php esc_attr_e( 'Sale start date/time (YYYY-MM-DD HH:MM, store timezone; blank = no start). Click to sort.', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Sale Start', 'oct-bulk-editor' ); ?><?php echo $sort_arrow; // phpcs:ignore ?></th>
+					<th class="wbe-col-date wbe-sortable" data-col="sale_to" data-sort="sale_to" title="<?php esc_attr_e( 'Sale end date/time (YYYY-MM-DD HH:MM, store timezone; blank = no end). Click to sort.', 'oct-bulk-editor' ); ?>"><?php esc_html_e( 'Sale End', 'oct-bulk-editor' ); ?><?php echo $sort_arrow; // phpcs:ignore ?></th>
 					<th class="wbe-col-actions"><?php esc_html_e( 'Actions', 'oct-bulk-editor' ); ?></th>
 				</tr>
 			</thead>
 			<tbody id="wbe-tbody">
 				<tr class="wbe-placeholder">
-					<td colspan="21">
+					<td colspan="23">
 						<?php esc_html_e( 'Use the filters above and click "Load Products" to begin editing.', 'oct-bulk-editor' ); ?>
 					</td>
 				</tr>
