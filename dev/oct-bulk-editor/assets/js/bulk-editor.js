@@ -287,11 +287,7 @@
 		showStatus('Applied image to ' + n + ' variation' + (n !== 1 ? 's' : '') + ' in this group. Review, then Save All Changes.', 'info');
 	}
 
-	// Stock-management option sets (shared by row cells and the bulk-edit bar).
-	const MANAGE_STOCK_OPTIONS = [
-		{ value: 'no',  label: 'No (inherit)' },
-		{ value: 'yes', label: 'Yes' },
-	];
+	// Backorder options (shared by the row cell and the bulk-edit bar).
 	const BACKORDER_OPTIONS = [
 		{ value: 'no',     label: 'Do not allow' },
 		{ value: 'notify', label: 'Allow, but notify' },
@@ -363,7 +359,7 @@
 			});
 			$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
 			$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
-			$tr.append(buildSelectCell(row.id, 'manage_stock', row.manage_stock || 'no', MANAGE_STOCK_OPTIONS, 'wbe-col-status'));
+			$tr.append(buildCheckboxCell(row.id, row.manage_stock === 'yes', 'manage_stock', 'wbe-col-status', 'manage_stock'));
 			$tr.append(buildSelectCell(row.id, 'backorders', row.backorders || 'no', BACKORDER_OPTIONS, 'wbe-col-status'));
 			$tr.append(`<td class="wbe-col-actions"><a href="${esc(row.edit_url)}" target="_blank" class="dashicons dashicons-edit" title="Edit product" style="text-decoration:none;color:#555"></a></td>`);
 			return $tr;
@@ -418,9 +414,10 @@
 		$tr.append(buildTextCell(row.id, 'acvs_card_title', row.acvs_card_title, 'wbe-col-cardtitle'));
 		$tr.append(buildTextCell(row.id, 'acvs_catalog_order', row.acvs_catalog_order, 'wbe-col-order', 'number'));
 
-		// Stock management: manage own stock + backorders (made-to-order = manage
-		// stock yes, qty 0, backorders "notify" → resolves to On backorder server-side).
-		$tr.append(buildSelectCell(row.id, 'manage_stock', row.manage_stock || 'no', MANAGE_STOCK_OPTIONS, 'wbe-col-status'));
+		// Stock management: manage own stock (checkbox) + backorders (made-to-order
+		// = manage stock on, qty 0, backorders "notify" → resolves to On backorder
+		// server-side).
+		$tr.append(buildCheckboxCell(row.id, row.manage_stock === 'yes', 'manage_stock', 'wbe-col-status', 'manage_stock'));
 		$tr.append(buildSelectCell(row.id, 'backorders', row.backorders || 'no', BACKORDER_OPTIONS, 'wbe-col-status'));
 
 		// Actions
@@ -451,14 +448,17 @@
 		return buildTextCell(id, field, formatPrice(value), colClass, 'number');
 	}
 
-	function buildCheckboxCell(id, checked) {
-		const $td = $('<td>').addClass('wbe-col-catalog').attr('data-col', 'acvs_catalog');
+	function buildCheckboxCell(id, checked, field, colClass, colKey) {
+		field    = field    || 'acvs_show';
+		colClass = colClass || 'wbe-col-catalog';
+		colKey   = colKey   || 'acvs_catalog';
+		const $td = $('<td>').addClass(colClass).attr('data-col', colKey);
 		const $label = $('<label>').addClass('wbe-check');
 		const $cb = $('<input type="checkbox">')
 			.addClass('wbe-cell-check')
 			.attr({
 				'data-id':       id,
-				'data-field':    'acvs_show',
+				'data-field':    field,
 				'data-original': checked ? 'yes' : 'no',
 			});
 		if (checked) $cb.prop('checked', true);
