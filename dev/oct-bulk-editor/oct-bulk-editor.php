@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders, sale start/end schedule; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
- * Version:     1.14.2
+ * Version:     1.14.3
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.14.2' );
+define( 'OCTWBE_VERSION', '1.14.3' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -429,31 +429,33 @@ class OctBulkEditor {
 	}
 
 	/**
-	 * Every variation ID of a variable product, queried straight from the posts
-	 * table.
+	 * Every variation ID of a variable product, read straight from the posts table
+	 * with a direct SQL query.
 	 *
-	 * We deliberately do NOT use WC_Product_Variable::get_children() here: that
-	 * returns a value cached in the `wc_product_children_<id>` transient, which on
-	 * stores with a persistent object cache (Redis/Memcache) can go stale and
-	 * report only a handful of variations long after more were added — and it can
-	 * be trimmed by third-party `woocommerce_get_children` filters. A direct query
-	 * is immune to both, so a product with hundreds of variations always exports
-	 * in full. Used by the in-app grid, the CSV export, and the Sheets sync so all
-	 * three agree.
+	 * We deliberately bypass both WC_Product_Variable::get_children() AND WP_Query
+	 * here. get_children() caches its result in the `wc_product_children_<id>`
+	 * transient; WP_Query caches the ID list in the object cache keyed by query
+	 * hash. On a store with a persistent object cache (Redis/Memcache), either can
+	 * go stale when variations are bulk-generated or imported in a way that skips
+	 * WordPress's cache invalidation — so the sync was handing back an old, short
+	 * set (e.g. 6 size-only variations) long after 384 were generated. A raw $wpdb
+	 * query is immune to every cache layer and to third-party `get_children`
+	 * filters, so the full, current variation set is always returned. Used by the
+	 * in-app grid, the CSV export, and the Sheets sync so all three agree.
 	 *
 	 * @return int[] Variation post IDs, in menu order.
 	 */
 	public static function variation_ids( WC_Product $product ): array {
-		return get_posts( [
-			'post_type'      => 'product_variation',
-			'post_parent'    => $product->get_id(),
-			'post_status'    => [ 'publish', 'private' ],
-			'posts_per_page' => -1,
-			'orderby'        => 'menu_order',
-			'order'          => 'ASC',
-			'fields'         => 'ids',
-			'no_found_rows'  => true,
-		] );
+		global $wpdb;
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			"SELECT ID FROM {$wpdb->posts}
+			  WHERE post_parent = %d
+			    AND post_type = 'product_variation'
+			    AND post_status IN ( 'publish', 'private' )
+			  ORDER BY menu_order ASC, ID ASC",
+			$product->get_id()
+		) );
+		return array_map( 'intval', $ids );
 	}
 
 	/**
