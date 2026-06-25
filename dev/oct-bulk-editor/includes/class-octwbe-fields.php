@@ -65,11 +65,6 @@ class OCTWBE_Fields {
 	 * display columns (product / variation).
 	 */
 	public static function read( WC_Product $p, string $column, ?WC_Product $parent = null ): string {
-		$reg  = $p->get_meta( '_regular_currency_prices' );
-		$sale = $p->get_meta( '_sale_currency_prices' );
-		$reg  = is_array( $reg ) ? $reg : [];
-		$sale = is_array( $sale ) ? $sale : [];
-
 		switch ( $column ) {
 			case 'id':            return (string) $p->get_id();
 			case 'type':          return $p->is_type( 'variation' ) ? 'variation' : 'simple';
@@ -85,10 +80,10 @@ class OCTWBE_Fields {
 			case 'on_category':   return $p->get_meta( OCTWBE_ACVS_SHOW ) === 'yes' ? 'yes' : 'no';
 			case 'lifestyle_image_id': return (string) ( (int) $p->get_meta( OCTWBE_ACVS_LIFESTYLE ) ?: '' );
 			case 'fabric_group':  return (string) $p->get_meta( '_ac_fabric_group_key' );
-			case 'price_eur':      return isset( $reg['EUR'] )  ? (string) $reg['EUR']  : '';
-			case 'sale_price_eur': return isset( $sale['EUR'] ) ? (string) $sale['EUR'] : '';
-			case 'price_usd':      return isset( $reg['USD'] )  ? (string) $reg['USD']  : '';
-			case 'sale_price_usd': return isset( $sale['USD'] ) ? (string) $sale['USD'] : '';
+			case 'price_eur':      return self::currency_price( $p, '_regular_currency_prices', 'EUR' );
+			case 'sale_price_eur': return self::currency_price( $p, '_sale_currency_prices', 'EUR' );
+			case 'price_usd':      return self::currency_price( $p, '_regular_currency_prices', 'USD' );
+			case 'sale_price_usd': return self::currency_price( $p, '_sale_currency_prices', 'USD' );
 			case 'card_title':    return (string) $p->get_meta( '_acvs_card_title' );
 			case 'catalog_order':
 				return $p->is_type( 'variation' )
@@ -100,6 +95,12 @@ class OCTWBE_Fields {
 			case 'sale_to':       return $p->get_date_on_sale_to() ? $p->get_date_on_sale_to()->date( 'Y-m-d H:i' ) : '';
 		}
 		return '';
+	}
+
+	/** One currency's price from an Aelia serialized price map (e.g. EUR / USD). */
+	private static function currency_price( WC_Product $p, string $meta_key, string $currency ): string {
+		$prices = $p->get_meta( $meta_key );
+		return is_array( $prices ) && isset( $prices[ $currency ] ) ? (string) $prices[ $currency ] : '';
 	}
 
 	/** The "Attr: value / …" label used in the CSV variation column. */

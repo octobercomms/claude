@@ -130,8 +130,18 @@ class OCTWBE_REST {
 			if ( $product->is_type( 'variable' ) ) {
 				// Variations are independently priced; export one row each, sorted
 				// alphabetically by attribute label like the grid and CSV export.
+				$variation_ids = OctBulkEditor::variation_ids( $product );
+
+				// Bulk-prime the post + meta caches for every variation up front, so
+				// hydrating hundreds of them costs a couple of queries instead of a
+				// few per variation. This is what keeps a large catalogue under the
+				// Apps Script 6-minute execution limit on pull.
+				if ( $variation_ids ) {
+					_prime_post_caches( $variation_ids, false, true );
+				}
+
 				$variations = [];
-				foreach ( OctBulkEditor::variation_ids( $product ) as $vid ) {
+				foreach ( $variation_ids as $vid ) {
 					$variation = wc_get_product( $vid );
 					if ( $variation ) {
 						$variations[] = $variation;
