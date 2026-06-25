@@ -28,7 +28,21 @@ function onOpen() {
     .addSeparator()
     .addItem('⬆  Push my changes', 'octwbePush')
     .addItem('⚠  Push & overwrite conflicts', 'octwbePushForce')
+    .addSeparator()
+    .addItem('🩺  Diagnose a product', 'octwbeDiag')
     .addToUi();
+}
+
+// Diagnostic: ask the store what it actually sees for one product, so a stale
+// read-replica (or read/write DB split) shows up plainly.
+function octwbeDiag() {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.prompt('Diagnose a product', 'Enter the product ID (e.g. 179423 for the sofa):', ui.ButtonSet.OK_CANCEL);
+  if (resp.getSelectedButton() !== ui.Button.OK) return;
+  const pid = resp.getResponseText().trim();
+  if (!pid) return;
+  const data = octwbeApi_('/diag?product=' + encodeURIComponent(pid) + '&' + cacheBust_(), 'get');
+  ui.alert('Diagnostics for product ' + pid, JSON.stringify(data, null, 2), ui.ButtonSet.OK);
 }
 
 // ---------------------------------------------------------------------------

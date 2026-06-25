@@ -44,6 +44,12 @@ class OCTWBE_REST {
 			'callback'            => [ $this, 'push' ],
 			'permission_callback' => [ $this, 'authorize' ],
 		] );
+
+		register_rest_route( self::NS, '/diag', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'diag' ],
+			'permission_callback' => [ $this, 'authorize' ],
+		] );
 	}
 
 	// -------------------------------------------------------------------------
@@ -94,6 +100,74 @@ class OCTWBE_REST {
 		do_action( 'litespeed_control_set_nocache', 'OctoberComms Bulk Editor sync must read live data' );
 	}
 
+	/**
+	 * Pin database reads to the primary server for the rest of this request.
+	 *
+	 * Some hosts route SELECTs to a read replica that can lag behind — here it was
+	 * serving a days-stale variation set to the REST API (the replica) while
+	 * wp-admin and the CSV export read the primary and saw all 384. LudicrousDB /
+	 * HyperDB expose send_reads_to_masters() to force the primary; it's a harmless
+	 * no-op on stacks without read/write splitting. Belt-and-braces, we also hint
+	 * the common SQL-comment-based proxies (ProxySQL/MaxScale) on the actual read.
+	 */
+	private function force_primary_db(): void {
+		global $wpdb;
+		if ( method_exists( $wpdb, 'send_reads_to_masters' ) ) {
+			$wpdb->send_reads_to_masters();
+		}
+	}
+
+	/**
+	 * Diagnostics: what does THIS request's DB connection actually see? Compares
+	 * the default read (possibly a replica) against a primary-forced read for a
+	 * product's variation count, and reports the DB identity + caching setup so a
+	 * stale-replica or read/write-split situation is unambiguous.
+	 */
+	public function diag( WP_REST_Request $req ): WP_REST_Response {
+		$this->no_cache();
+		global $wpdb;
+
+		$pid = (int) $req->get_param( 'product' );
+
+		$server_default = $wpdb->get_var( 'SELECT @@hostname' );
+		$count_default  = $this->count_variations( $pid );
+
+		$this->force_primary_db();
+
+		$server_primary = $wpdb->get_var( 'SELECT @@hostname' );
+		$count_primary  = $this->count_variations( $pid );
+
+		$product  = $pid ? wc_get_product( $pid ) : null;
+		$children = ( $product && $product->is_type( 'variable' ) ) ? count( $product->get_children() ) : null;
+
+		return new WP_REST_Response( [
+			'version'              => OCTWBE_VERSION,
+			'product'              => $pid,
+			'count_default_read'   => $count_default,   // replica, if any
+			'count_forced_primary' => $count_primary,   // primary
+			'count_get_children'   => $children,        // WC's cached children list
+			'has_force_primary'    => method_exists( $wpdb, 'send_reads_to_masters' ),
+			'ext_object_cache'     => function_exists( 'wp_using_ext_object_cache' ) ? wp_using_ext_object_cache() : null,
+			'db_host_default'      => $server_default,
+			'db_host_primary'      => $server_primary,
+		] );
+	}
+
+	/** Variation count for a product, read with whatever DB connection is active. */
+	private function count_variations( int $pid ): int {
+		global $wpdb;
+		if ( ! $pid ) {
+			return 0;
+		}
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts}
+			  WHERE post_parent = %d
+			    AND post_type = 'product_variation'
+			    AND post_status IN ( 'publish', 'private' )",
+			$pid
+		) );
+	}
+
 	public function ping(): WP_REST_Response {
 		$this->no_cache();
 		return new WP_REST_Response( [
@@ -108,6 +182,7 @@ class OCTWBE_REST {
 
 	public function get_products( WP_REST_Request $req ): WP_REST_Response {
 		$this->no_cache();
+		$this->force_primary_db();
 		$page     = max( 1, (int) $req->get_param( 'page' ) );
 		$per_page = min( 100, max( 1, (int) ( $req->get_param( 'per_page' ) ?: 100 ) ) );
 		$search   = sanitize_text_field( (string) $req->get_param( 'search' ) );
