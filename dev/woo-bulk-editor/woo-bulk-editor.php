@@ -2,8 +2,8 @@
 /**
  * Plugin Name: WooCommerce Bulk Editor
  * Plugin URI:  https://github.com/octobercomms/claude
- * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs and more without clicking one by one.
- * Version:     1.0.0
+ * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs and more without clicking one by one. Includes two-way Google Sheets sync with conflict detection.
+ * Version:     1.1.0
  * Author:      OctoberComms
  * Text Domain: woo-bulk-editor
  * Requires at least: 6.0
@@ -13,9 +13,13 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'WBE_VERSION', '1.0.0' );
+define( 'WBE_VERSION', '1.1.0' );
 define( 'WBE_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WBE_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+
+require_once WBE_PLUGIN_DIR . 'includes/class-wbe-fields.php';
+require_once WBE_PLUGIN_DIR . 'includes/class-wbe-rest.php';
+require_once WBE_PLUGIN_DIR . 'includes/class-wbe-sync-page.php';
 
 class WooBulkEditor {
 
@@ -236,8 +240,7 @@ class WooBulkEditor {
 				continue;
 			}
 
-			$allowed_fields = [ 'regular_price', 'sale_price', 'sku', 'stock_qty', 'stock_status', 'status' ];
-			if ( ! in_array( $field, $allowed_fields, true ) ) {
+			if ( ! in_array( $field, WBE_Fields::editable_fields(), true ) ) {
 				$errors[] = "Field '{$field}' is not editable.";
 				continue;
 			}
@@ -259,56 +262,9 @@ class WooBulkEditor {
 	}
 
 	private function apply_field( WC_Product $product, string $field, string $value ): true|WP_Error {
-		switch ( $field ) {
-			case 'regular_price':
-				if ( $value !== '' && ! is_numeric( $value ) ) {
-					return new WP_Error( 'invalid', "Invalid regular price for product {$product->get_id()}." );
-				}
-				$product->set_regular_price( $value );
-				break;
-
-			case 'sale_price':
-				if ( $value !== '' && ! is_numeric( $value ) ) {
-					return new WP_Error( 'invalid', "Invalid sale price for product {$product->get_id()}." );
-				}
-				$product->set_sale_price( $value );
-				break;
-
-			case 'sku':
-				try {
-					$product->set_sku( $value );
-				} catch ( WC_Data_Exception $e ) {
-					return new WP_Error( 'sku', $e->getMessage() );
-				}
-				break;
-
-			case 'stock_qty':
-				if ( $value !== '' ) {
-					if ( ! is_numeric( $value ) ) {
-						return new WP_Error( 'invalid', "Invalid stock qty for product {$product->get_id()}." );
-					}
-					$product->set_manage_stock( true );
-					$product->set_stock_quantity( (float) $value );
-				} else {
-					$product->set_manage_stock( false );
-				}
-				break;
-
-			case 'stock_status':
-				$allowed = [ 'instock', 'outofstock', 'onbackorder' ];
-				if ( ! in_array( $value, $allowed, true ) ) {
-					return new WP_Error( 'invalid', "Invalid stock status '{$value}'." );
-				}
-				$product->set_stock_status( $value );
-				break;
-
-			case 'status':
-				$allowed = [ 'publish', 'draft', 'private', 'pending' ];
-				if ( ! in_array( $value, $allowed, true ) ) {
-					return new WP_Error( 'invalid', "Invalid status '{$value}'." );
-				}
-				$product->set_status( $value );
-				break;
+		$result = WBE_Fields::apply( $product, $field, $value );
+		if ( is_wp_error( $result ) ) {
+			return $result;
 		}
 
 		$product->save();
@@ -329,4 +285,6 @@ add_action( 'plugins_loaded', function () {
 	}
 
 	new WooBulkEditor();
+	new WBE_REST();
+	new WBE_Sync_Page();
 } );
