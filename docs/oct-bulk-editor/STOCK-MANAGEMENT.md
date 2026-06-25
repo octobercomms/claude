@@ -5,10 +5,10 @@ flipping a whole product's variations to **made-to-order** without WooCommerce's
 native variations screen (which renders every variation form in the browser and
 chokes on products with hundreds of variations).
 
-| Column | Applies to | Writes | Options |
+| Column | Applies to | Writes | Control |
 |--------|-----------|--------|---------|
-| **Manage Stock** | products + variations | `set_manage_stock()` | No (inherit) / Yes |
-| **Backorders** | products + variations | `set_backorders()` | Do not allow / Allow, but notify / Allow |
+| **Manage Stock** | products + variations | `set_manage_stock()` | Checkbox (ticked = manage own stock), matching WooCommerce's "Manage stock?" |
+| **Backorders** | products + variations | `set_backorders()` | Dropdown: Do not allow / Allow, but notify / Allow |
 
 ## Made-to-order in one pass
 
