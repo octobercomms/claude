@@ -131,7 +131,7 @@ class OCTWBE_REST {
 				// Variations are independently priced; export one row each, sorted
 				// alphabetically by attribute label like the grid and CSV export.
 				$variations = [];
-				foreach ( $product->get_children() as $vid ) {
+				foreach ( OctBulkEditor::variation_ids( $product ) as $vid ) {
 					$variation = wc_get_product( $vid );
 					if ( $variation ) {
 						$variations[] = $variation;

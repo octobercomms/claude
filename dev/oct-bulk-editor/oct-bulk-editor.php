@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders, sale start/end schedule; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
- * Version:     1.14.0
+ * Version:     1.14.1
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.14.0' );
+define( 'OCTWBE_VERSION', '1.14.1' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -154,7 +154,7 @@ class OctBulkEditor {
 				// like sits with like (all of a size together, then filling, leg,
 				// fabric) instead of WooCommerce's stored menu order.
 				$vrows = [];
-				foreach ( $product->get_children() as $variation_id ) {
+				foreach ( self::variation_ids( $product ) as $variation_id ) {
 					$variation = wc_get_product( $variation_id );
 					if ( $variation ) {
 						$vrows[] = $this->format_variation_row( $variation, $product );
@@ -426,6 +426,34 @@ class OctBulkEditor {
 		} else {
 			$product->set_stock_status( 'outofstock' );
 		}
+	}
+
+	/**
+	 * Every variation ID of a variable product, queried straight from the posts
+	 * table.
+	 *
+	 * We deliberately do NOT use WC_Product_Variable::get_children() here: that
+	 * returns a value cached in the `wc_product_children_<id>` transient, which on
+	 * stores with a persistent object cache (Redis/Memcache) can go stale and
+	 * report only a handful of variations long after more were added — and it can
+	 * be trimmed by third-party `woocommerce_get_children` filters. A direct query
+	 * is immune to both, so a product with hundreds of variations always exports
+	 * in full. Used by the in-app grid, the CSV export, and the Sheets sync so all
+	 * three agree.
+	 *
+	 * @return int[] Variation post IDs, in menu order.
+	 */
+	public static function variation_ids( WC_Product $product ): array {
+		return get_posts( [
+			'post_type'      => 'product_variation',
+			'post_parent'    => $product->get_id(),
+			'post_status'    => [ 'publish', 'private' ],
+			'posts_per_page' => -1,
+			'orderby'        => 'menu_order',
+			'order'          => 'ASC',
+			'fields'         => 'ids',
+			'no_found_rows'  => true,
+		] );
 	}
 
 	/**
@@ -765,7 +793,7 @@ class OctBulkEditor {
 			if ( $product->is_type( 'variable' ) ) {
 				// Match the grid: variations sorted alphabetically by attribute name.
 				$variations = [];
-				foreach ( $product->get_children() as $vid ) {
+				foreach ( self::variation_ids( $product ) as $vid ) {
 					$variation = wc_get_product( $vid );
 					if ( $variation ) {
 						$variations[] = $variation;
