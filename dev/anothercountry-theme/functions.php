@@ -26,11 +26,18 @@ function child_theme_scripts(){
 //Update 09/06/2023
 //wp_enqueue_script( 'custom-js', get_stylesheet_directory_uri() . '/js/custom.min.js', array('jquery'), null, true);
 wp_enqueue_script( 'custom-js', get_stylesheet_directory_uri() . '/js/custom.js', array('jquery'), null, true);
-  wp_enqueue_style( 'scss', get_stylesheet_directory_uri() . '/css/style.css', array(), time() );
-  wp_enqueue_style( 'scss-2022', get_stylesheet_directory_uri() . '/css-2022/style.css', array(), time() );
-    wp_enqueue_script( 'ls_custom', get_stylesheet_directory_uri() . '/js/lscustom.js', array("jquery"), time() , true);
-    wp_enqueue_style( 'ac-fabric-drawer', get_stylesheet_directory_uri() . '/css/fabric-drawer.css', array(), time() );
-    wp_enqueue_script( 'ac-fabric-drawer', get_stylesheet_directory_uri() . '/js/fabric-drawer.js', array("jquery"), time() , true);
+  // Asset version helper: filemtime() is stable across requests (it only changes
+  // when the file changes), so browser/CDN/page caches keep working. Using time()
+  // here previously cache-busted every CSS/JS on EVERY page load, sitewide.
+  $ac_ver = function( $rel ) {
+    $f = get_stylesheet_directory() . $rel;
+    return file_exists( $f ) ? filemtime( $f ) : null;
+  };
+  wp_enqueue_style( 'scss', get_stylesheet_directory_uri() . '/css/style.css', array(), $ac_ver( '/css/style.css' ) );
+  wp_enqueue_style( 'scss-2022', get_stylesheet_directory_uri() . '/css-2022/style.css', array(), $ac_ver( '/css-2022/style.css' ) );
+    wp_enqueue_script( 'ls_custom', get_stylesheet_directory_uri() . '/js/lscustom.js', array("jquery"), $ac_ver( '/js/lscustom.js' ) , true);
+    wp_enqueue_style( 'ac-fabric-drawer', get_stylesheet_directory_uri() . '/css/fabric-drawer.css', array(), $ac_ver( '/css/fabric-drawer.css' ) );
+    wp_enqueue_script( 'ac-fabric-drawer', get_stylesheet_directory_uri() . '/js/fabric-drawer.js', array("jquery"), $ac_ver( '/js/fabric-drawer.js' ) , true);
    global $wp_query;
       // Capture all query variables
       $original_query_params = $wp_query->query_vars;
@@ -57,8 +64,11 @@ wp_enqueue_script( 'custom-js', get_stylesheet_directory_uri() . '/js/custom.js'
         );
    //Update 09/06/2023
     //if(is_product()){
-      wp_enqueue_style( 'select2-stylesheet', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css', array() ,time() );
-      wp_enqueue_script( 'select2',  'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.12/js/select2.full.min.js', array('jquery'),time() );
+      // Use the real library versions, not time() — these are versioned CDN URLs
+      // that never change, so cache-busting them on every load just forced an
+      // uncached re-fetch of both external files every page view.
+      wp_enqueue_style( 'select2-stylesheet', 'https://cdn.jsdelivr.net/npm/select2@4.0.13/dist/css/select2.min.css', array(), '4.0.13' );
+      wp_enqueue_script( 'select2',  'https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.12/js/select2.full.min.js', array('jquery'), '4.0.12' );
     //}
 }
 add_action( 'wp_enqueue_scripts', 'child_theme_scripts',20);
@@ -2478,25 +2488,44 @@ function ac_lt_is_made_to_order( $product ) {
 	if ( ! $product ) {
 		return false;
 	}
+
+	// Memoize per product for the rest of the request: this is called up to twice
+	// per PDP (trust chips + the inline badge in the footer) and, for a variable
+	// product, loops every variation's stock-status meta. On the 384-variation
+	// sofa that's an expensive scan we only want to run once.
+	static $cache = array();
+	$pid = $product->get_id();
+	if ( isset( $cache[ $pid ] ) ) {
+		return $cache[ $pid ];
+	}
+
 	$furniture_cats = array( 'armadillo', 'furniture', 'rose-cottage', 'outdoor-tables', 'outdoor-furniture', 'outdoor-benches', 'outdoor', 'office', 'living-room-furniture', 'kids-furniture', 'in-stock-furniture', 'dining-tables', 'dining-room', 'dining-chairs', 'desks', 'day-beds', 'console-tables', 'coffee-tables', 'chests', 'benches', 'beds', 'bedroom', 'armchairs', 'chairs-benches', 'task-chairs', 'tables', 'stools', 'sofas-armchairs-day-beds', 'sofas', 'sofa-beds', 'sideboard', 'side-tables', 'shelving' );
-	if ( ! has_term( $furniture_cats, 'product_cat', $product->get_id() ) ) {
-		return false;
+	if ( ! has_term( $furniture_cats, 'product_cat', $pid ) ) {
+		return $cache[ $pid ] = false;
 	}
 	// Variable products report the PARENT stock status as 'instock' whenever any
 	// variation is purchasable (and "on backorder" is purchasable), so the parent
 	// status hides made-to-order products — and a product re-sync (e.g. saving it)
 	// flips it back to 'instock'. Inspect the variations instead: made to order if
-	// any variation isn't plainly in stock. Reads the stock-status meta directly
-	// (cheap) and exits on the first match.
+	// any variation isn't plainly in stock. One indexed query instead of a
+	// per-variation meta read, exiting as soon as one non-'instock' row is found.
 	if ( $product->is_type( 'variable' ) ) {
-		foreach ( $product->get_children() as $variation_id ) {
-			if ( 'instock' !== get_post_meta( $variation_id, '_stock_status', true ) ) {
-				return true;
-			}
+		$children = $product->get_children();
+		if ( empty( $children ) ) {
+			return $cache[ $pid ] = false;
 		}
-		return false;
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $children ), '%d' ) );
+		$found = $wpdb->get_var( $wpdb->prepare(
+			"SELECT 1 FROM {$wpdb->postmeta}
+			 WHERE meta_key = '_stock_status' AND meta_value <> 'instock'
+			   AND post_id IN ( {$placeholders} )
+			 LIMIT 1",
+			$children
+		) );
+		return $cache[ $pid ] = (bool) $found;
 	}
-	return 'instock' !== $product->get_stock_status();
+	return $cache[ $pid ] = ( 'instock' !== $product->get_stock_status() );
 }
 
 /** Expose each variation's resolved lead time to the variations JSON so the
