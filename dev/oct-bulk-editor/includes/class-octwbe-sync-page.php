@@ -47,10 +47,30 @@ class OCTWBE_Sync_Page {
 
 		update_option( 'octwbe_sync_stock_readonly', isset( $_POST['stock_readonly'] ) ? 1 : 0 );
 
-		wp_safe_redirect( add_query_arg(
-			[ 'page' => self::SLUG, 'updated' => 1 ],
-			admin_url( 'admin.php' )
-		) );
+		// Auto-update GitHub token (fine-grained, Contents: read on the repo).
+		if ( isset( $_POST['github_token'] ) ) {
+			$gh = trim( (string) wp_unslash( $_POST['github_token'] ) );
+			if ( $gh === '' ) {
+				delete_option( 'octwbe_github_token' );
+			} else {
+				update_option( 'octwbe_github_token', sanitize_text_field( $gh ) );
+			}
+		}
+
+		$args = [ 'page' => self::SLUG, 'updated' => 1 ];
+
+		// "Test connection" runs the updater's diagnostic and reports the result.
+		if ( $action === 'test_update' ) {
+			$token = (string) get_option( 'octwbe_github_token', '' );
+			$repo  = (string) get_option( 'octwbe_github_repo', 'octobercomms/claude' );
+			require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-updater.php';
+			$updater = new OCTWBE_Updater( OCTWBE_BASENAME, OCTWBE_VERSION, $repo, $token, 'octwbe-v' );
+			$result  = $updater->diagnose();
+			set_transient( 'octwbe_update_test', $result, 60 );
+			$args['tested'] = 1;
+		}
+
+		wp_safe_redirect( add_query_arg( $args, admin_url( 'admin.php' ) ) );
 		exit;
 	}
 
@@ -59,10 +79,13 @@ class OCTWBE_Sync_Page {
 			wp_die( esc_html__( 'You do not have permission to access this page.', 'oct-bulk-editor' ) );
 		}
 
-		$token    = (string) get_option( 'octwbe_sync_token', '' );
-		$stock_ro = (bool) get_option( 'octwbe_sync_stock_readonly', 1 );
-		$api_base = untrailingslashit( rest_url( OCTWBE_REST::NS ) );
-		$script   = $token !== '' ? $this->build_script( $api_base, $token ) : '';
+		$token        = (string) get_option( 'octwbe_sync_token', '' );
+		$stock_ro     = (bool) get_option( 'octwbe_sync_stock_readonly', 1 );
+		$api_base     = untrailingslashit( rest_url( OCTWBE_REST::NS ) );
+		$script       = $token !== '' ? $this->build_script( $api_base, $token ) : '';
+		$github_token = (string) get_option( 'octwbe_github_token', '' );
+		$update_test  = get_transient( 'octwbe_update_test' );
+		delete_transient( 'octwbe_update_test' );
 
 		include OCTWBE_PLUGIN_DIR . 'includes/sync-page-view.php';
 	}

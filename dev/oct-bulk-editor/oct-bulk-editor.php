@@ -3,7 +3,7 @@
  * Plugin Name: OctoberComms Bulk Editor for WooCommerce
  * Plugin URI:  https://github.com/octobercomms/claude
  * Description: Spreadsheet-style bulk editor for WooCommerce products and variants. Edit prices, stock, SKUs, images, Variant Showcase settings, per-variation Fabric Group, EUR/USD (Aelia) prices, group-by-attribute image fill, custom catalogue card titles + order, per-variation manage-stock + backorders, sale start/end schedule; merge products; export/import via CSV; two-way Google Sheets sync with conflict detection.
- * Version:     1.14.7
+ * Version:     1.14.8
  * Author:      OctoberComms
  * Text Domain: oct-bulk-editor
  * Requires at least: 6.0
@@ -13,7 +13,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'OCTWBE_VERSION', '1.14.7' );
+define( 'OCTWBE_VERSION', '1.14.8' );
 
 /*
  * Variant Showcase meta keys (kept as literals so this editor stays decoupled
@@ -978,6 +978,21 @@ require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-merge.php';
 require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-fields.php';
 require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-rest.php';
 require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-sync-page.php';
+require_once OCTWBE_PLUGIN_DIR . 'includes/class-octwbe-updater.php';
+
+define( 'OCTWBE_BASENAME', plugin_basename( __FILE__ ) );
+
+// Self-updater: once a GitHub token is saved (Bulk Editor → Sheets Sync), new
+// releases published from the repo appear as one-click updates on the WordPress
+// Updates screen — no more manual re-uploads per site. Runs independently of
+// WooCommerce so updates work even if WC is temporarily inactive.
+add_action( 'plugins_loaded', function () {
+	$token = (string) get_option( 'octwbe_github_token', '' );
+	if ( $token !== '' ) {
+		$repo = (string) get_option( 'octwbe_github_repo', 'octobercomms/claude' );
+		new OCTWBE_Updater( OCTWBE_BASENAME, OCTWBE_VERSION, $repo, $token, 'octwbe-v' );
+	}
+} );
 
 // Bootstrap
 add_action( 'plugins_loaded', function () {
