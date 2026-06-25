@@ -38,12 +38,17 @@ class OCTWBE_REST {
 			'callback'            => [ $this, 'get_products' ],
 			'permission_callback' => [ $this, 'authorize' ],
 		];
+		// IMPORTANT: the live endpoint is /catalog, NOT /products. The store's
+		// cache layer (LiteSpeed/host on this Krystal stack) has a rule that
+		// caches any URL containing "products" and serves it stale to the sync —
+		// proven by /diag (no "products" in the path) always returning live data
+		// while every variant of /products did not, even with cache-busting and a
+		// LiteSpeed exclude. /catalog dodges that rule entirely. The throwaway
+		// /<cb> path segment additionally defeats any path-keyed cache. The old
+		// /products routes are kept only for backward compatibility.
+		register_rest_route( self::NS, '/catalog', $products_route );
+		register_rest_route( self::NS, '/catalog/(?P<cb>[A-Za-z0-9_-]+)', $products_route );
 		register_rest_route( self::NS, '/products', $products_route );
-		// Same endpoint with a throwaway path segment (…/products/<unique>). The
-		// store's page cache was caching /products keyed by PATH, ignoring the
-		// ?_cb= query-string buster — so it kept serving an old response. A unique
-		// segment in the PATH is a brand-new URL every request, which no path-keyed
-		// cache can match, forcing a live read. The cb value itself is unused.
 		register_rest_route( self::NS, '/products/(?P<cb>[A-Za-z0-9_-]+)', $products_route );
 
 		register_rest_route( self::NS, '/push', [
