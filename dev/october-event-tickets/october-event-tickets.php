@@ -3,7 +3,7 @@
  * Plugin Name: Event Tickets by October Communications
  * Plugin URI:  https://octobercommunications.com
  * Description: Complete event ticketing solution with Stripe, PayPal Pay Later, Brevo email, QR code tickets, and mobile check-in PWA.
- * Version:     1.0.0
+ * Version:     1.2.5
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
@@ -17,7 +17,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('OCT_TICKETS_VERSION', '1.0.0');
+define('OCT_TICKETS_VERSION', '1.2.5');
 define('OCT_TICKETS_FILE', __FILE__);
 define('OCT_TICKETS_DIR', plugin_dir_path(__FILE__));
 define('OCT_TICKETS_URL', plugin_dir_url(__FILE__));
@@ -50,6 +50,7 @@ register_activation_hook(__FILE__, function (): void {
     \OctoberTickets\DB::create_tables();
     \OctoberTickets\DB::set_version();
     \OctoberTickets\DailyReport::schedule();
+    \OctoberTickets\EventReminder::schedule();
     // Register rewrite rules so we can flush them
     \OctoberTickets\Plugin::get_instance()->register_rewrite_rules();
     flush_rewrite_rules();
@@ -57,6 +58,7 @@ register_activation_hook(__FILE__, function (): void {
 
 register_deactivation_hook(__FILE__, function (): void {
     \OctoberTickets\DailyReport::unschedule();
+    \OctoberTickets\EventReminder::unschedule();
     flush_rewrite_rules();
 });
 

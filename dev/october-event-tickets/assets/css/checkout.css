@@ -2,11 +2,19 @@
    October Event Tickets — Checkout Styles
    ========================================================================== */
 
+/* ---------- CSS custom properties — override these to retheme ---------- */
 .oct-checkout {
-  max-width: 600px;
-  margin: 0 auto;
+  --oct-accent:    #d14900;   /* brand highlight (buttons, focus rings, active borders) */
+  --oct-text:      #222222;   /* primary text */
+  --oct-border:    #222222;   /* ticket row dividers */
+  --oct-row-hover: #f5f5f5;   /* hovered / selected row background */
+  --oct-btn-bg:    #d14900;   /* primary button background */
+  --oct-btn-text:  #ffffff;   /* primary button text */
+  --oct-radius:    50px;      /* primary button corner radius */
+
+  width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  color: #1a1a1a;
+  color: var(--oct-text);
   line-height: 1.5;
 }
 
@@ -16,156 +24,184 @@
 }
 
 .oct-section__title {
-  font-size: 15px;
+  font-size: 1.5em;
   font-weight: 700;
-  color: #1a1a1a;
+  color: var(--oct-text);
   margin-bottom: 14px;
-  letter-spacing: 0.2px;
-}
-
-/* ---------- Ticket type cards ---------- */
-.oct-ticket-types {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.oct-ticket-card {
-  display: block;
-  border: 2px solid #e0e0e0;
-  border-radius: 10px;
-  padding: 16px 18px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  position: relative;
-  background: #fff;
-}
-
-.oct-ticket-card:hover {
-  border-color: #C8A96E;
-  background: #fefcf7;
-}
-
-.oct-ticket-card--selected {
-  border-color: #C8A96E;
-  background: #fefcf7;
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
-}
-
-.oct-ticket-card--selected::after {
-  content: '✓';
-  position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 22px;
-  height: 22px;
-  background: #C8A96E;
-  color: #fff;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  letter-spacing: -1px;
   line-height: 1;
-  text-align: center;
-  padding-top: 1px;
 }
 
-.oct-ticket-card__top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+/* ---------- Ticket type rows ---------- */
+.oct-ticket-list {
+  width: 100%;
 }
 
-.oct-ticket-card__name {
-  font-size: 15px;
-  font-weight: 700;
+.oct-ticket-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  padding: 20px !important;
+  border-bottom: 3px solid var(--oct-border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.oct-ticket-row:first-child {
+  border-top: 3px solid var(--oct-border);
+}
+
+.oct-ticket-row:hover:not(.oct-ticket-row--unavailable),
+.oct-ticket-row--selected {
+  background: var(--oct-row-hover);
+}
+
+.oct-ticket-row--selected .oct-ticket-row__name {
+  font-weight: 800;
+}
+
+.oct-ticket-row--unavailable {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.oct-ticket-row__info {
   flex: 1;
+  min-width: 0;
 }
 
-.oct-ticket-card__price {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+.oct-ticket-row__name {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--oct-text);
+  line-height: 1;
 }
 
-.oct-price-old {
+.oct-ticket-row__desc {
   font-size: 13px;
-  color: #999;
-  text-decoration: line-through;
+  color: #555;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__admissions {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__price {
+  text-align: right;
+  flex-shrink: 0;
+  line-height: 1.2;
 }
 
 .oct-price-current {
-  font-size: 18px;
-  font-weight: 800;
-  color: #C8A96E;
-}
-
-.oct-ticket-card__desc {
-  font-size: 13px;
-  color: #666;
-  margin-top: 6px;
-}
-
-.oct-ticket-card__note {
-  font-size: 12px;
-  color: #C8A96E;
+  display: block !important;
+  font-size: 3em !important;
   font-weight: 600;
-  margin-top: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  color: var(--oct-text);
 }
 
-/* ---------- Quantity ---------- */
-.oct-qty-control {
-  display: inline-flex;
-  align-items: center;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.oct-qty-btn {
-  background: #f8f8f8;
-  border: none;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
-  font-weight: 400;
-  cursor: pointer;
-  color: #1a1a1a;
-  transition: background 0.1s;
+.oct-price-old {
+  display: block !important;
+  font-size: 1.5em !important;
+  color: #999;
+  text-decoration: line-through !important;
   line-height: 1;
 }
 
-.oct-qty-btn:hover {
-  background: #eee;
+.oct-ticket-row__status {
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
 }
 
-.oct-qty-btn:disabled {
-  opacity: 0.4;
-  cursor: default;
+/* ---------- Inline qty per ticket row ---------- */
+.oct-ticket-row__qty {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  border: 1px solid #ccc !important;
+  border-radius: 0 !important;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #fff;
 }
 
-.oct-qty-input {
-  width: 56px;
-  border: none;
-  border-left: 1px solid #e0e0e0;
-  border-right: 1px solid #e0e0e0;
-  text-align: center;
-  font-size: 16px;
-  font-weight: 700;
-  height: 44px;
+.oct-ticket-row__qty .oct-qty-btn {
+  background: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  color: #1a1a1a !important;
+  transition: background 0.1s;
+  line-height: 36px !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  box-shadow: none !important;
   outline: none;
-  -moz-appearance: textfield;
+  user-select: none;
 }
 
-.oct-qty-input::-webkit-inner-spin-button,
-.oct-qty-input::-webkit-outer-spin-button {
-  -webkit-appearance: none;
+.oct-ticket-row__qty .oct-qty-btn:hover {
+  background: #eee !important;
+}
+
+.oct-ticket-row__qty .oct-qty-val {
+  min-width: 36px;
+  text-align: center !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1a1a1a;
+  border-left: 1px solid #f5f5f5 !important;
+  border-right: 0 !important;
+  padding: 0 4px;
+  line-height: 36px !important;
+  display: inline-block !important;
+}
+
+.oct-ticket-row--selected .oct-ticket-row__qty {
+  border-color: var(--oct-accent) !important;
+}
+
+/* ---------- Terms & Conditions ---------- */
+.oct-terms-section {
+  padding: 16px 0 4px;
+}
+
+.oct-terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.oct-terms-checkbox {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-top: 2px;
+  accent-color: var(--oct-accent);
+  cursor: pointer;
+}
+
+.oct-terms-label a {
+  color: var(--oct-accent);
+  text-decoration: underline;
 }
 
 /* ---------- Labels & inputs ---------- */
@@ -190,8 +226,8 @@
 
 .oct-input {
   width: 100%;
-  border: 2px solid #e0e0e0;
-  border-radius: 8px;
+  border: 1px solid;
+  border-radius: 0;
   padding: 11px 14px;
   font-size: 15px;
   color: #1a1a1a;
@@ -202,8 +238,8 @@
 }
 
 .oct-input:focus {
-  border-color: #C8A96E;
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+  border-color: var(--oct-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oct-accent) 20%, transparent);
 }
 
 .oct-input.error {
@@ -225,10 +261,20 @@
 .oct-promo-row {
   display: flex;
   gap: 10px;
+  align-items: center;
+  width: 100%;
 }
 
 .oct-promo-row .oct-input {
   flex: 1;
+}
+
+/* Promo section: title + field on one line */
+.oct-section--promo .oct-promo-row .oct-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .oct-promo-message {
@@ -251,11 +297,17 @@
   border: 1px solid #fca5a5;
 }
 
+/* ---------- Section dividers ---------- */
+.oct-section + .oct-section {
+  border-top: 0;
+  padding-top: 20px;
+}
+
 /* ---------- Order summary ---------- */
 .oct-summary {
-  background: #f9f9f9;
-  border: 1px solid #eee;
-  border-radius: 10px;
+  background: #f5f5f5;
+  border: 0;
+  border-radius: 0;
   padding: 16px 20px;
 }
 
@@ -289,6 +341,32 @@
   color: #2d9e44;
 }
 
+/* ---------- Your Details: background + 50/50 label / field ---------- */
+.oct-section--details {
+  background: #f5f5f5;
+  padding: 0 20px;
+}
+
+.oct-section--details .oct-field-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-top: 12px;
+}
+
+.oct-section--details .oct-label {
+  width: 50%;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding-top: 11px;
+}
+
+.oct-field-input {
+  flex: 1;
+  min-width: 0;
+}
+
 /* ---------- Payment tabs ---------- */
 .oct-payment-tabs {
   display: flex;
@@ -319,7 +397,7 @@
 .oct-tab--active {
   background: #fff;
   color: #1a1a1a;
-  box-shadow: inset 0 -2px 0 #C8A96E;
+  box-shadow: inset 0 -2px 0 var(--oct-accent);
 }
 
 /* ---------- Stripe Elements ---------- */
@@ -333,8 +411,8 @@
 }
 
 .oct-stripe-elements.focused {
-  border-color: #C8A96E;
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+  border-color: var(--oct-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oct-accent) 20%, transparent);
 }
 
 .oct-stripe-badge {
@@ -353,7 +431,7 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 2px solid transparent;
+  border: 0;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 700;
@@ -367,14 +445,16 @@
 }
 
 .oct-btn--primary {
-  background: #1a1a1a;
-  color: #fff;
-  border-color: #1a1a1a;
+  background: var(--oct-btn-bg);
+  color: var(--oct-btn-text);
+  border: 0;
+  border-radius: var(--oct-radius);
+  font-size: 1.2em;
+  padding: 10px 30px;
 }
 
 .oct-btn--primary:hover:not(:disabled) {
-  background: #333;
-  border-color: #333;
+  background: color-mix(in srgb, var(--oct-btn-bg) 75%, #000);
 }
 
 .oct-btn--primary:disabled {
@@ -383,14 +463,19 @@
 }
 
 .oct-btn--secondary {
-  background: #fff;
-  color: #1a1a1a;
-  border-color: #e0e0e0;
+  background: #222222;
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  padding: 7.5px 20px;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1;
 }
 
 .oct-btn--secondary:hover {
-  border-color: #C8A96E;
-  color: #C8A96E;
+  background: var(--oct-accent);
+  color: #fff;
 }
 
 .oct-btn--full {
@@ -418,7 +503,7 @@
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: #C8A96E;
+  background: var(--oct-accent);
   color: #fff;
   font-size: 36px;
   display: flex;
@@ -484,6 +569,60 @@
   font-size: 14px;
 }
 
+/* ---------- Waitlist ---------- */
+.oct-btn-waitlist {
+  background: none;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #1a1a1a;
+  margin-top: 6px;
+  display: block;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.oct-btn-waitlist:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+.oct-ticket-row__status--soldout {
+  color: #e53935;
+  font-weight: 600;
+  font-style: normal;
+}
+.oct-waitlist-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.oct-waitlist-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.oct-waitlist-modal__box {
+  position: relative;
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.oct-waitlist-modal__sub {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
 /* ---------- PayPal container ---------- */
 #oct-paypal-buttons {
   margin-bottom: 10px;
@@ -505,12 +644,26 @@
   to { transform: rotate(360deg); }
 }
 
+/* ---------- Tax row ---------- */
+.oct-summary-row.oct-summary-tax {
+  color: #555;
+}
+
+/* ---------- Free registration button ---------- */
+#oct-free-section {
+  padding-top: 4px;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 480px) {
-  .oct-ticket-card__top {
+  .oct-ticket-row {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+
+  .oct-ticket-row__price {
+    text-align: left;
   }
 
   .oct-payment-tabs {
@@ -524,5 +677,23 @@
 
   .oct-tab:last-child {
     border-bottom: none;
+  }
+
+  .oct-section--promo .oct-promo-row {
+    flex-wrap: wrap;
+  }
+
+  .oct-section--promo .oct-promo-row .oct-label {
+    width: 100%;
+  }
+
+  .oct-section--details .oct-field-group {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .oct-section--details .oct-label {
+    width: 100%;
+    padding-top: 0;
   }
 }

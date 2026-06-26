@@ -129,7 +129,7 @@ class EventMetaBox {
                 <input type="text"
                        name="oct_checkin_pin"
                        id="oct_checkin_pin"
-                       value="<?php echo esc_attr((string) $checkin_pin); ?>"
+                       value="<?php echo esc_attr($checkin_pin !== '' && $checkin_pin !== false ? (string) $checkin_pin : (string) $post->ID); ?>"
                        maxlength="6"
                        pattern="[0-9]{4,6}"
                        placeholder="e.g. 1234"

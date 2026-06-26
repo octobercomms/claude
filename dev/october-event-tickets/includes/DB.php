@@ -11,7 +11,7 @@ defined('ABSPATH') || exit;
 class DB {
 
     const VERSION_OPTION = 'oct_tickets_db_version';
-    const DB_VERSION     = '1.0.0';
+    const DB_VERSION     = '1.2.0';
 
     public static function create_tables(): void {
         global $wpdb;
@@ -31,6 +31,7 @@ class DB {
             unit_price decimal(10,2) NOT NULL,
             promo_code varchar(50) DEFAULT NULL,
             discount_amount decimal(10,2) DEFAULT 0.00,
+            tax_amount decimal(10,2) DEFAULT 0.00,
             total decimal(10,2) NOT NULL,
             currency varchar(3) DEFAULT 'USD',
             payment_method enum('stripe','paypal') NOT NULL,
@@ -92,10 +93,25 @@ class DB {
             KEY event_id (event_id)
         ) $charset_collate;";
 
+        // Waitlist table
+        $sql_waitlist = "CREATE TABLE {$wpdb->prefix}oct_waitlist (
+            id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+            event_id bigint(20) unsigned NOT NULL,
+            ticket_type_key varchar(100) NOT NULL DEFAULT '',
+            name varchar(255) DEFAULT '',
+            email varchar(200) NOT NULL,
+            created_at datetime NOT NULL,
+            notified_at datetime DEFAULT NULL,
+            PRIMARY KEY (id),
+            UNIQUE KEY ux_email_event_type (email(191), event_id, ticket_type_key(100)),
+            KEY k_event_type (event_id, ticket_type_key(100))
+        ) $charset_collate;";
+
         dbDelta($sql_orders);
         dbDelta($sql_tickets);
         dbDelta($sql_checkins);
         dbDelta($sql_promos);
+        dbDelta($sql_waitlist);
     }
 
     public static function set_version(): void {
@@ -104,6 +120,23 @@ class DB {
 
     public static function needs_upgrade(): bool {
         return get_option(self::VERSION_OPTION, '0') !== self::DB_VERSION;
+    }
+
+    public static function upgrade(): void {
+        global $wpdb;
+        $stored = get_option(self::VERSION_OPTION, '0');
+
+        if (version_compare($stored, '1.1.0', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}oct_orders MODIFY COLUMN payment_method ENUM('stripe','paypal','free') NOT NULL");
+            self::create_tables();
+        }
+
+        if (version_compare($stored, '1.2.0', '<')) {
+            $wpdb->query("ALTER TABLE {$wpdb->prefix}oct_orders ADD COLUMN IF NOT EXISTS tax_amount decimal(10,2) DEFAULT 0.00 AFTER discount_amount");
+            self::create_tables();
+        }
+
+        self::set_version();
     }
 
     // -------------------------------------------------------------------------
@@ -514,5 +547,72 @@ class DB {
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}oct_tickets");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}oct_orders");
         $wpdb->query("DROP TABLE IF EXISTS {$wpdb->prefix}oct_promo_codes");
+    }
+
+    // -------------------------------------------------------------------------
+    // Waitlist
+    // -------------------------------------------------------------------------
+
+    public static function add_to_waitlist(int $event_id, string $ticket_type_key, string $email, string $name): bool {
+        global $wpdb;
+        $result = $wpdb->insert(
+            $wpdb->prefix . 'oct_waitlist',
+            [
+                'event_id'        => $event_id,
+                'ticket_type_key' => $ticket_type_key,
+                'email'           => $email,
+                'name'            => $name,
+                'created_at'      => current_time('mysql'),
+            ]
+        );
+        return $result !== false;
+    }
+
+    public static function is_on_waitlist(int $event_id, string $ticket_type_key, string $email): bool {
+        global $wpdb;
+        $count = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}oct_waitlist WHERE event_id = %d AND ticket_type_key = %s AND email = %s",
+                $event_id, $ticket_type_key, $email
+            )
+        );
+        return (int) $count > 0;
+    }
+
+    public static function get_waitlist(int $event_id, string $ticket_type_key = ''): array {
+        global $wpdb;
+        if ($ticket_type_key) {
+            return (array) $wpdb->get_results(
+                $wpdb->prepare(
+                    "SELECT * FROM {$wpdb->prefix}oct_waitlist WHERE event_id = %d AND ticket_type_key = %s ORDER BY created_at ASC",
+                    $event_id, $ticket_type_key
+                )
+            );
+        }
+        return (array) $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}oct_waitlist WHERE event_id = %d ORDER BY created_at ASC",
+                $event_id
+            )
+        );
+    }
+
+    public static function mark_waitlist_notified(int $event_id, string $ticket_type_key): void {
+        global $wpdb;
+        $wpdb->update(
+            $wpdb->prefix . 'oct_waitlist',
+            ['notified_at' => current_time('mysql')],
+            ['event_id' => $event_id, 'ticket_type_key' => $ticket_type_key]
+        );
+    }
+
+    public static function get_waitlist_count(int $event_id, string $ticket_type_key): int {
+        global $wpdb;
+        return (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}oct_waitlist WHERE event_id = %d AND ticket_type_key = %s",
+                $event_id, $ticket_type_key
+            )
+        );
     }
 }
