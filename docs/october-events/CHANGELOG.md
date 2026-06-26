@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.58.0 — volunteer: branded emails, grouped shifts, auto-confirm
+
+- **Branded volunteer emails.** The signup / confirmed / declined / reminder
+  emails now use the same print-first design as the ticket confirmation — a logo
+  header (the linked event's logo when set, else the brand logo), a bordered
+  shift-detail block (Opportunity / Shift / Location), and a "View details"
+  button. New `Transactional::volunteer_email_html()`.
+- **Shifts grouped by day.** The public signup widget now groups shifts under
+  **day headers** (e.g. "Saturday, October 3") and shows just the **time range**
+  per row, so days vs times are clear. Sorted by start time.
+- **Auto-confirm.** Public signups are now **confirmed on signup** (no longer
+  Pending) and the volunteer is notified immediately; staff can still
+  decline/no-show from the Volunteers screen.
+
 ## 1.57.4 — fix: volunteer signup rejected ("Error")
 
 The `/volunteer-signup` route still required the old single `shift_id`

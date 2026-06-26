@@ -304,21 +304,49 @@
         });
     }
 
+    // Parse a stored "Y-m-d H:i" (or any clear datetime) to a Date, or null.
+    function parseDT(v) {
+        if (!v) { return null; }
+        var d = new Date(String(v).replace(' ', 'T'));
+        return isNaN(d.getTime()) ? null : d;
+    }
+    function dayLabel(d) { return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }); }
+    function timeLabel(s) {
+        var a = parseDT(s.start), b = parseDT(s.end);
+        if (!a) { return s.label; } // fall back to the freeform label
+        var t = function (x) { return x.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }); };
+        return b ? t(a) + ' – ' + t(b) : t(a);
+    }
+
     function paint(shifts) {
         var allFull = shifts.length > 0 && shifts.every(function (s) { return s.full; });
-        var rows = shifts.map(function (s) {
+        // Sort by start so days group cleanly (undated shifts sink to the end).
+        var ordered = shifts.slice().sort(function (a, b) {
+            var x = parseDT(a.start), y = parseDT(b.start);
+            if (!x && !y) { return 0; } if (!x) { return 1; } if (!y) { return -1; }
+            return x - y;
+        });
+        // Group rows under a day header.
+        var rows = '', lastDay = null;
+        ordered.forEach(function (s) {
+            var d = parseDT(s.start);
+            var key = d ? d.toDateString() : '~';
+            if (key !== lastDay) {
+                lastDay = key;
+                rows += '<tr class="oe-vol-day"><th colspan="3">' + esc(d ? dayLabel(d) : 'Shifts') + '</th></tr>';
+            }
             var status = s.full
                 ? '<span class="oe-vol-full">Full</span>'
                 : '<span class="oe-vol-open">' + s.spots_left + ' spot' + (s.spots_left === 1 ? '' : 's') + ' left</span>';
             // Checkboxes so a volunteer can pick more than one shift in one go.
             var pick = s.full ? '' :
                 '<label class="oe-vol-pick"><input type="checkbox" name="shift" value="' + esc(s.id) + '"> Choose</label>';
-            return '<tr><td>' + esc(s.label) + '</td><td>' + status + '</td><td>' + pick + '</td></tr>';
-        }).join('');
+            rows += '<tr><td>' + esc(timeLabel(s)) + '</td><td>' + status + '</td><td>' + pick + '</td></tr>';
+        });
 
         var banner = allFull ? '<p class="oe-vol-soldout">Fully booked — all shifts are full. Thank you!</p>' : '';
         var table =
-            '<table class="oe-table oe-vol-table"><thead><tr><th>Shift</th><th>Availability</th><th></th></tr></thead><tbody>' +
+            '<table class="oe-table oe-vol-table"><thead><tr><th>Time</th><th>Availability</th><th></th></tr></thead><tbody>' +
             rows + '</tbody></table>';
         // No form when there's nothing left to book.
         var form = allFull ? '' :
