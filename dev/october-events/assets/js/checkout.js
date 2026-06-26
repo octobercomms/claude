@@ -2,7 +2,7 @@
    steppers, attendee names, T&Cs, sold-out waitlist) and extended to a true
    MULTI-LINE cart (mix ticket types in one order). Wired to oe/v1 + Stripe.
    Keeps the original .oct- markup so the look matches the live design exactly. */
-/* global jQuery, Stripe */
+/* global jQuery, Stripe, paypal */
 (function ($) {
   'use strict';
 
@@ -41,6 +41,7 @@
     bindTicketRows();
     bindPromo();
     initStripe();
+    initPayPal();
     bindFreeRegistration();
     bindWaitlist();
     updateSummary();
@@ -237,6 +238,43 @@
   }
   function showCardError(m) { $('#oct-card-errors').text(m).show(); }
   function hideCardError() { $('#oct-card-errors').hide().text(''); }
+
+  /* ---- PayPal ---- */
+  function paypalError(m) { $('#oct-paypal-errors').text(m).show(); }
+  function clearPaypalError() { $('#oct-paypal-errors').hide().text(''); }
+  // Shared gate before any paid checkout: valid email, a cart, and T&Cs.
+  function validateForPayment(showErr) {
+    var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
+    if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); showErr('Please enter a valid email address.'); return null; }
+    if (!readCart().length) { showErr('Please choose at least one ticket.'); return null; }
+    if (!checkTerms()) { showErr('Please agree to the Terms & Conditions.'); return null; }
+    return { email: email, name: name };
+  }
+  function initPayPal() {
+    if (!cfg.paypalEnabled || typeof paypal === 'undefined') { return; }
+    paypal.Buttons({
+      style: { layout: 'vertical', color: 'gold', shape: 'pill', label: 'paypal', tagline: false },
+      // Server prices the cart fresh and stashes it; we only return the order id.
+      createOrder: function () {
+        clearPaypalError();
+        var buyer = validateForPayment(paypalError);
+        if (!buyer) { return Promise.reject(new Error('validation')); }
+        return rest('/paypal-create', payload(buyer.name, buyer.email)).then(function (res) {
+          if (res.ok && res.body.paypal_order_id) { return res.body.paypal_order_id; }
+          paypalError(res.body.error === 'amount_too_low' ? 'This order is free — use “Complete Registration”.' : (res.body.error || 'Could not start PayPal checkout.'));
+          throw new Error('create-failed');
+        });
+      },
+      // Capture happens server-side (trusted); we just show the tickets.
+      onApprove: function (data) {
+        return rest('/paypal-capture', { paypal_order_id: data.orderID }).then(function (res) {
+          if (res.ok && res.body.ok) { showSuccess(res.body.tickets); }
+          else { paypalError(res.body.error || 'Payment captured but order creation failed — please contact us, do not pay again.'); }
+        });
+      },
+      onError: function () { paypalError('Something went wrong with PayPal. Please try again or pay by card.'); }
+    }).render('#oct-paypal-buttons');
+  }
 
   /* ---- Waitlist (sold out) ---- */
   function bindWaitlist() {

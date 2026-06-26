@@ -11,6 +11,7 @@ defined('ABSPATH') || exit;
 
 $sym       = $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$');
 $has_stripe = \OE\Connectors\StripeConnector::is_ready();
+$has_paypal = \OE\Connectors\PayPalConnector::is_ready();
 $terms_url = (string) \OE\Settings::get('checkout_terms_url', '');
 $first_label = $types[0]['label'] ?? '';
 $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
@@ -183,7 +184,15 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
             <?php esc_html_e('Secured by Stripe. We never store your card details.', 'october-events'); ?>
           </div>
         </div>
-      <?php else : ?>
+      <?php endif; ?>
+      <?php if ($has_paypal) : ?>
+        <?php if ($has_stripe) : ?><div class="oct-pay-or"><span><?php esc_html_e('or', 'october-events'); ?></span></div><?php endif; ?>
+        <div class="oct-payment-panel" id="panel-paypal" role="tabpanel">
+          <div id="oct-paypal-buttons"></div>
+          <div id="oct-paypal-errors" class="oct-payment-error" role="alert" style="display:none"></div>
+        </div>
+      <?php endif; ?>
+      <?php if (! $has_stripe && ! $has_paypal) : ?>
         <p class="oct-error"><?php esc_html_e('No payment method configured. Please contact the organiser.', 'october-events'); ?></p>
       <?php endif; ?>
     </div>

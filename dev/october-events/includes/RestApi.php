@@ -98,6 +98,17 @@ final class RestApi {
             'callback'            => [$this, 'ticket_confirm'],
             'permission_callback' => '__return_true',
         ]);
+        // PayPal: create an approved order, then capture + issue tickets.
+        register_rest_route(self::NS, '/paypal-create', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'paypal_create'],
+            'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/paypal-capture', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'paypal_capture'],
+            'permission_callback' => '__return_true',
+        ]);
         register_rest_route(self::NS, '/waitlist-join', [
             'methods'             => 'POST',
             'callback'            => [$this, 'waitlist_join'],
@@ -504,6 +515,83 @@ final class RestApi {
         return new \WP_REST_Response(['ok' => true, 'tickets' => $result['tickets']], 200);
     }
 
+    /**
+     * Create a PayPal order for the priced cart. The cart + buyer + attendees are
+     * stashed server-side (a transient keyed by the PayPal order id) so capture
+     * can rebuild the order from trusted data — PayPal's custom_id is too small to
+     * carry it, unlike Stripe's PaymentIntent metadata.
+     */
+    public function paypal_create(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('paypal_create', 15)) {
+            return $this->too_many();
+        }
+        if (! \OE\Connectors\PayPalConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'paypal_unavailable'], 503);
+        }
+        $priced = $this->price_checkout($req);
+        if (is_wp_error($priced)) {
+            return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
+        }
+        $cents = (int) round($priced['total'] * 100);
+        if ($cents < 50) {
+            // Free/comp orders don't go through PayPal.
+            return new \WP_REST_Response(['error' => 'amount_too_low'], 400);
+        }
+        $currency = (string) \OE\Settings::get('currency', 'usd');
+        $order_id = \OE\Connectors\PayPalConnector::create_order($cents, $currency, 'event-' . $priced['event_id']);
+        if ($order_id === '') {
+            return new \WP_REST_Response(['error' => 'paypal_init_failed'], 502);
+        }
+        // Stash the trusted order shape for capture (server-set, never the body).
+        set_transient('oe_pp_' . $order_id, [
+            'event_id'  => $priced['event_id'],
+            'cart'      => $this->cart_meta($priced['lines']),
+            'email'     => sanitize_email((string) $req->get_param('email')),
+            'name'      => sanitize_text_field((string) $req->get_param('name')),
+            'promo'     => $priced['promo']['code'] ?? '',
+            'attendees' => $this->attendee_names_param($req),
+        ], HOUR_IN_SECONDS);
+
+        return new \WP_REST_Response(['paypal_order_id' => $order_id], 200);
+    }
+
+    /**
+     * Capture an approved PayPal order and issue tickets. Trust comes from
+     * PayPal's capture response (status + amount actually taken), not the request
+     * body; the cart is the one we stashed at /paypal-create. Idempotent.
+     */
+    public function paypal_capture(\WP_REST_Request $req): \WP_REST_Response {
+        if (! \OE\Connectors\PayPalConnector::is_ready()) {
+            return new \WP_REST_Response(['error' => 'paypal_unavailable'], 503);
+        }
+        $order_id = sanitize_text_field((string) $req->get_param('paypal_order_id'));
+        $pending  = $order_id !== '' ? get_transient('oe_pp_' . $order_id) : false;
+        if (! is_array($pending)) {
+            return new \WP_REST_Response(['error' => 'unknown_order'], 400);
+        }
+        $cap = \OE\Connectors\PayPalConnector::capture_order($order_id);
+        if (($cap['status'] ?? '') !== 'COMPLETED' || $cap['capture_id'] === '') {
+            return new \WP_REST_Response(['error' => 'payment_incomplete'], 402);
+        }
+        // Rebuild meta in the same shape create_ticket_order_from_meta expects.
+        $meta = [
+            'kind'      => 'ticket',
+            'event_id'  => (int) ($pending['event_id'] ?? 0),
+            'cart'      => (string) ($pending['cart'] ?? ''),
+            'email'     => (string) ($pending['email'] ?? ''),
+            'name'      => (string) ($pending['name'] ?? ''),
+            'promo'     => (string) ($pending['promo'] ?? ''),
+            'attendees' => wp_json_encode($pending['attendees'] ?? []) ?: '[]',
+        ];
+        // Idempotency + refunds key on the capture id (what we can refund later).
+        $result = $this->create_ticket_order_from_meta($cap['capture_id'], $meta, (int) $cap['amount_cents'], 'paypal');
+        if (! is_array($result)) {
+            return new \WP_REST_Response(['error' => 'order_failed'], 400);
+        }
+        delete_transient('oe_pp_' . $order_id);
+        return new \WP_REST_Response(['ok' => true, 'tickets' => $result['tickets']], 200);
+    }
+
     /* ----------------------------------------------------------------- *
      * Check-in PWA
      * ----------------------------------------------------------------- */
@@ -666,7 +754,7 @@ final class RestApi {
      *                         must not exceed it (ADF-01 anti-tampering guard).
      * @return array{order_id:int,tickets:array}|null
      */
-    private function create_ticket_order_from_meta(string $intent_id, array $meta, int $amount_paid = -1): ?array {
+    private function create_ticket_order_from_meta(string $intent_id, array $meta, int $amount_paid = -1, string $method = 'stripe'): ?array {
         if ($intent_id === '') {
             return null;
         }
@@ -724,7 +812,7 @@ final class RestApi {
         }
         $buyer = ['email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? ''))];
 
-        $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, 'stripe', 'public', $promo, $attendees, $discount);
+        $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, $method, 'public', $promo, $attendees, $discount);
         return is_wp_error($order) ? null : $order;
     }
 

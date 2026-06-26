@@ -196,6 +196,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             'stripe_publishable_key' => __('Stripe publishable key', 'october-events'),
             'stripe_secret_key'      => __('Stripe secret key', 'october-events'),
             'stripe_webhook_secret'  => __('Stripe webhook secret', 'october-events'),
+            'paypal_client_secret'   => __('PayPal client secret', 'october-events'),
             'claude_api_key'         => __('Claude API key', 'october-events'),
             'google_maps_key'        => __('Google Maps key', 'october-events'),
         ];
@@ -210,6 +211,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 '<code>' . esc_html($webhook_url) . '</code>',
                 '<code>payment_intent.succeeded</code>, <code>charge.refunded</code>'
             ),
+            'paypal_client_secret'   => __('PayPal Developer dashboard → your app → “Secret”. Used server-side to capture & refund. Enable PayPal and set the Client ID / environment under the Tickets section.', 'october-events'),
             'claude_api_key'         => __('console.anthropic.com → API keys (starts sk-ant-). Powers the staff assistant, the email co-pilot and the customer support chat.', 'october-events'),
             'google_maps_key'        => __('Google Cloud Console → APIs & Services → Credentials → API key, with “Maps JavaScript API” enabled. Used by the [oe_design_map] shortcode.', 'october-events'),
         ];
@@ -267,6 +269,20 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                     <p style="margin:8px 0 0"><label><?php esc_html_e('Send', 'october-events'); ?>
                         <input type="number" name="attendee_reminder_hours" min="1" max="168" value="<?php echo esc_attr((string) ($cfg['attendee_reminder_hours'] ?? 24)); ?>" style="width:70px"> <?php esc_html_e('hours before the start time.', 'october-events'); ?></label></p>
                     <p class="description"><?php esc_html_e('Sent once per event to everyone with an active ticket, with an “add to calendar” file attached. Requires the event’s start date to be set (or mapped under Event field mapping).', 'october-events'); ?></p>
+                </td>
+            </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('PayPal', 'october-events'); ?></th>
+                <td>
+                    <label><input type="checkbox" name="paypal_enabled" value="1" <?php checked((bool) ($cfg['paypal_enabled'] ?? false)); ?>> <?php esc_html_e('Offer PayPal at checkout (alongside card)', 'october-events'); ?></label>
+                    <p style="margin:8px 0 0"><label><?php esc_html_e('Environment', 'october-events'); ?>
+                        <select name="paypal_env">
+                            <option value="sandbox" <?php selected(($cfg['paypal_env'] ?? 'sandbox'), 'sandbox'); ?>><?php esc_html_e('Sandbox (testing)', 'october-events'); ?></option>
+                            <option value="live" <?php selected(($cfg['paypal_env'] ?? 'sandbox'), 'live'); ?>><?php esc_html_e('Live', 'october-events'); ?></option>
+                        </select></label></p>
+                    <p style="margin:8px 0 0"><label><?php esc_html_e('Client ID', 'october-events'); ?><br>
+                        <input type="text" name="paypal_client_id" value="<?php echo esc_attr((string) ($cfg['paypal_client_id'] ?? '')); ?>" class="regular-text code" autocomplete="off" spellcheck="false"></label></p>
+                    <p class="description"><?php esc_html_e('From the PayPal Developer dashboard (matching the environment above). Add the Client secret under the API keys section. Until all three are set, PayPal stays hidden and card checkout is unaffected.', 'october-events'); ?></p>
                 </td>
             </tr>
         </tbody></table>
