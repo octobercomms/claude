@@ -132,17 +132,25 @@ final class Settings {
      * Read a secret (wp-config.php constant first for security, then the value
      * entered in admin settings), or a non-secret config value.
      */
+    /** In-process memo of the merged settings, so we don't rebuild the ~60-key
+     *  defaults array on every get() (called ~20×/request via Brand + Features). */
+    private static ?array $merged = null;
+
+    private static function merged(): array {
+        return self::$merged ??= wp_parse_args(get_option(self::OPTION, []), self::defaults());
+    }
+
     public static function get(string $key, $default = null) {
         if (isset(self::SECRET_CONSTANTS[$key])) {
             $const = self::SECRET_CONSTANTS[$key];
             if (defined($const) && (string) constant($const) !== '') {
                 return constant($const);
             }
-            $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
+            $all = self::merged();
             // Secrets are stored encrypted at rest (ADF-05); decrypt transparently.
             return Crypto::decrypt((string) ($all[$key] ?? ($default ?? '')));
         }
-        $all = wp_parse_args(get_option(self::OPTION, []), self::defaults());
+        $all = self::merged();
         return $all[$key] ?? $default;
     }
 
@@ -161,12 +169,15 @@ final class Settings {
     }
 
     public static function all(): array {
-        return wp_parse_args(get_option(self::OPTION, []), self::defaults());
+        return self::merged();
     }
 
     public static function update(array $values): void {
         $current = self::all();
-        update_option(self::OPTION, array_merge($current, $values));
+        // Not autoloaded — it's a big option only read on plugin paths, not every
+        // front-end request.
+        update_option(self::OPTION, array_merge($current, $values), false);
+        self::$merged = null; // bust the in-process memo
     }
 
     /**

@@ -201,6 +201,8 @@ final class TicketsAdmin {
         $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
         $where = $event_filter ? $wpdb->prepare('WHERE event_id = %d', $event_filter) : '';
         $orders = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " {$where} ORDER BY id DESC LIMIT 500");
+        // One query to load every event title the rows need (vs one per row).
+        self::prime_event_titles($orders);
 
         // Events that have ticket types, for the manual-add form + filter.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
@@ -258,6 +260,7 @@ final class TicketsAdmin {
 
     public function render_promos(): void {
         $promos = Promo::all();
+        self::prime_event_titles($promos);
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
         // Editing an existing code? (?edit=<id>)
         $edit_id = isset($_GET['edit']) ? absint($_GET['edit']) : 0;
@@ -278,6 +281,7 @@ final class TicketsAdmin {
         $stats   = Orders::stats();
         $daily   = Orders::daily_sales(30);
         $events  = Orders::event_summary();
+        self::prime_event_titles($events);
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         require OE_DIR . 'admin/views/sales.php';
     }
@@ -289,6 +293,7 @@ final class TicketsAdmin {
     public function render_waitlist(): void {
         $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
         $entries = \OE\Ticketing\Waitlist::all($event_filter);
+        self::prime_event_titles($entries);
         $events  = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
         require OE_DIR . 'admin/views/waitlist.php';
     }
@@ -318,6 +323,7 @@ final class TicketsAdmin {
         $offset       = ($paged - 1) * $per_page;
 
         $rows  = \OE\Ticketing\CheckIn::log($event_filter, $per_page, $offset);
+        self::prime_event_titles($rows);
         $total = \OE\Ticketing\CheckIn::log_total($event_filter);
         $stats = $event_filter ? \OE\Ticketing\CheckIn::stats($event_filter) : null;
         $pages = (int) ceil($total / $per_page);
@@ -438,6 +444,20 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ */
+
+    /** Load every event title a result set references in one query, not one per row. */
+    private static function prime_event_titles(array $rows): void {
+        $ids = [];
+        foreach ($rows as $r) {
+            $id = (int) ($r->event_id ?? 0);
+            if ($id) {
+                $ids[$id] = $id;
+            }
+        }
+        if ($ids) {
+            _prime_post_caches(array_values($ids), false, false);
+        }
+    }
 
     private function guard(string $action): void {
         if (! current_user_can('manage_options')) {

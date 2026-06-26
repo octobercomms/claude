@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.63.0 — performance: quick wins (P1/P2/P4)
+
+- **`/stats` dashboard endpoint:** primes the postmeta cache in one query before
+  reading each event's status — ~500 individual `SELECT`s → 1–2 on the most-hit
+  KPI endpoint (backs both dashboards).
+- **Settings option:** no longer **autoloaded** (it's a large, plugin-path-only
+  option), and `Settings::get()/all()` now **memoize** the merged array in-process
+  instead of rebuilding the ~60-key defaults on every call (~20×/request via the
+  brand + feature lookups). `Features::all()` reads the map once.
+- **Admin ticket tables** (Registrations, Sales, Waitlist, Check-in log, Promo
+  codes) prime the post cache for their event column — N per-row title queries
+  → 1 per screen.
+
 ## 1.62.0 — security: stop echoing saved secrets in Settings (S2)
 
 The Settings page no longer renders your **decrypted** API keys back into the

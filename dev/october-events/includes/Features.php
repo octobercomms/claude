@@ -39,9 +39,10 @@ final class Features {
 
     /** @return array<string,bool> every feature key => enabled */
     public static function all(): array {
+        $f = (array) Settings::get('features', []);
         $out = [];
         foreach (array_keys(self::FEATURES) as $k) {
-            $out[$k] = self::enabled($k);
+            $out[$k] = ($f[$k] ?? '1') !== '0';
         }
         return $out;
     }
