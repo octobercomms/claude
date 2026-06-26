@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.0 — performance: collapse the volunteer N+1 (P3)
+
+The volunteer read models and the admin Volunteers screen ran a `COUNT(*)` (and
+more) **per shift** — an opportunity with 5 shifts was ~17 queries, and the admin
+list multiplied that across every opportunity. Now each opportunity loads its
+signups in **one query** and tallies filled / pending / spots-left per shift in
+PHP. `opportunity_summary`/`opportunity_detail` and `admin/views/volunteers.php`
+go from O×(1+shifts) queries to ~1 per opportunity.
+
 ## 1.65.0 — security: hardening bundle (S6)
 
 Small, safe hardening from the audit:

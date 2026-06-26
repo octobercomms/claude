@@ -32,6 +32,15 @@ function oe_vol_action_url(int $signup_id, string $status): string {
         if (! $shifts) {
             continue;
         }
+        // One signups query per opportunity, grouped by shift (was 2 per shift).
+        $by_shift = [];
+        $active   = [];
+        foreach (VolunteerSignups::for_opportunity($opp->ID) as $row) {
+            $by_shift[$row->shift_id][] = $row;
+            if ($row->status === VolunteerSignups::STATUS_PENDING || $row->status === VolunteerSignups::STATUS_CONFIRMED) {
+                $active[$row->shift_id] = ($active[$row->shift_id] ?? 0) + 1;
+            }
+        }
     ?>
         <h2 style="margin-top:28px">
             <a href="<?php echo esc_url(get_edit_post_link($opp->ID)); ?>"><?php echo esc_html(get_the_title($opp)); ?></a>
@@ -39,8 +48,8 @@ function oe_vol_action_url(int $signup_id, string $status): string {
         </h2>
 
         <?php foreach ($shifts as $shift) :
-            $signups = VolunteerSignups::for_shift($opp->ID, $shift['id']);
-            $left    = Volunteers::spots_left($opp->ID, $shift['id']);
+            $signups = $by_shift[$shift['id']] ?? [];
+            $left    = max(0, (int) $shift['capacity'] - ($active[$shift['id']] ?? 0));
         ?>
             <h3 style="margin:12px 0 4px"><?php echo esc_html($shift['label']); ?>
                 <span class="description">— <?php echo (int) $left; ?>/<?php echo (int) $shift['capacity']; ?> <?php esc_html_e('open', 'october-events'); ?></span>
