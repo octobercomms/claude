@@ -25,31 +25,54 @@ function parseJson(raw) {
   catch { throw new Error('Clarity CRO returned malformed JSON.'); }
 }
 
-async function getConfig(clientId) {
-  const { rows } = await pool.query('SELECT updated_at FROM client_clarity WHERE client_id = $1', [clientId]);
-  return { connected: rows.length > 0, updated_at: rows[0]?.updated_at || null };
+// A client can connect several Clarity sites, each a row in client_clarity with
+// its own label (mirrors Shopify store_label). Tokens never leave the server.
+async function listSites(clientId) {
+  const { rows } = await pool.query(
+    'SELECT id, label, updated_at FROM client_clarity WHERE client_id = $1 ORDER BY id', [clientId]
+  );
+  return rows;
 }
 
-async function setToken(clientId, token) {
+async function addSite(clientId, label, token) {
   const t = String(token || '').trim();
   if (!t) badRequest('A Clarity API token is required.');
+  const lbl = String(label || '').trim() || 'Main site';
   const enc = encrypt(t);
-  await pool.query(
-    `INSERT INTO client_clarity (client_id, token_encrypted) VALUES ($1, $2)
-     ON CONFLICT (client_id) DO UPDATE SET token_encrypted = $2, updated_at = NOW()`,
-    [clientId, JSON.stringify(enc)]
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO client_clarity (client_id, label, token_encrypted) VALUES ($1, $2, $3)
+       RETURNING id, label, updated_at`,
+      [clientId, lbl, JSON.stringify(enc)]
+    );
+    return rows[0];
+  } catch (e) {
+    if (e.code === '23505') badRequest(`A Clarity site labelled "${lbl}" already exists for this client. Use a different label.`);
+    throw e;
+  }
+}
+
+async function updateLabel(clientId, siteId, label) {
+  const lbl = String(label || '').trim();
+  if (!lbl) badRequest('A label is required.');
+  const { rows } = await pool.query(
+    'UPDATE client_clarity SET label = $1, updated_at = NOW() WHERE id = $2 AND client_id = $3 RETURNING id, label, updated_at',
+    [lbl, siteId, clientId]
   );
-  return getConfig(clientId);
+  if (!rows[0]) { const e = new Error('Clarity site not found.'); e.status = 404; throw e; }
+  return rows[0];
 }
 
-async function clearToken(clientId) {
-  await pool.query('DELETE FROM client_clarity WHERE client_id = $1', [clientId]);
+async function removeSite(clientId, siteId) {
+  await pool.query('DELETE FROM client_clarity WHERE id = $1 AND client_id = $2', [siteId, clientId]);
 }
 
-async function loadToken(clientId) {
-  const { rows } = await pool.query('SELECT token_encrypted FROM client_clarity WHERE client_id = $1', [clientId]);
-  if (!rows.length) badRequest('Connect a Microsoft Clarity API token first.');
-  return decrypt(rows[0].token_encrypted);
+async function loadSite(clientId, siteId) {
+  const { rows } = await pool.query(
+    'SELECT id, label, token_encrypted FROM client_clarity WHERE id = $1 AND client_id = $2', [siteId, clientId]
+  );
+  if (!rows.length) badRequest('That Clarity site is not connected.');
+  return { id: rows[0].id, label: rows[0].label, token: decrypt(rows[0].token_encrypted) };
 }
 
 // One call covers all metrics for the chosen dimension. We key by URL so the
@@ -88,9 +111,9 @@ Rules:
 - Fixes must be specific and execution-ready (no generic advice like "improve UX").`;
 }
 
-async function runReport(clientId) {
-  const token = await loadToken(clientId);
-  const raw = await fetchInsights(token, { numOfDays: 3, dimension1: 'URL' });
+async function runReport(clientId, siteId) {
+  const site = await loadSite(clientId, siteId);
+  const raw = await fetchInsights(site.token, { numOfDays: 3, dimension1: 'URL' });
   // Compact: metric name + the top rows of each breakdown (bounds the prompt).
   const metrics = raw.map(m => ({ metric: m.metricName || m.metric || 'metric', rows: (m.information || []).slice(0, 15) }));
   const hasData = metrics.some(m => m.rows.length);
@@ -107,18 +130,24 @@ async function runReport(clientId) {
       })).filter(f => f.issue || f.fix).slice(0, 12)
     : [];
   const { rows } = await pool.query(
-    `INSERT INTO clarity_cro_reports (client_id, summary, signals, findings)
-     VALUES ($1, $2, $3, $4) RETURNING *`,
-    [clientId, out.summary || null, JSON.stringify(metrics), JSON.stringify(findings)]
+    `INSERT INTO clarity_cro_reports (client_id, clarity_id, site_label, summary, signals, findings)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [clientId, site.id, site.label, out.summary || null, JSON.stringify(metrics), JSON.stringify(findings)]
   );
   return rows[0];
 }
 
-async function latestReport(clientId) {
+// Latest report for each connected site (one row per site, newest first by
+// site). Sites with no scan yet simply don't appear.
+async function latestReports(clientId) {
   const { rows } = await pool.query(
-    'SELECT * FROM clarity_cro_reports WHERE client_id = $1 ORDER BY generated_at DESC LIMIT 1', [clientId]
+    `SELECT DISTINCT ON (clarity_id) *
+       FROM clarity_cro_reports
+      WHERE client_id = $1 AND clarity_id IS NOT NULL
+      ORDER BY clarity_id, generated_at DESC`,
+    [clientId]
   );
-  return rows[0] || null;
+  return rows;
 }
 
 // Toggle the `done` flag on one finding of a report. Scoped to the client id
@@ -142,4 +171,7 @@ async function setFindingDone(clientId, reportId, index, done) {
   return upd[0];
 }
 
-module.exports = { getConfig, setToken, clearToken, runReport, latestReport, setFindingDone };
+module.exports = {
+  listSites, addSite, updateLabel, removeSite,
+  runReport, latestReports, setFindingDone,
+};

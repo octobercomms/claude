@@ -52,7 +52,7 @@ const TOOLS = [
   },
   {
     name: 'get_cro_findings',
-    description: 'Get the latest Microsoft Clarity CRO / funnel analysis: an overall funnel-health summary plus prioritised on-page findings — each with the page URL, the behaviour issue (citing the Clarity signal: rage clicks, dead clicks, excessive scroll, quick-backs, scroll depth, JS errors), the concrete fix, a severity (critical/high/medium), and whether the team has marked it done. Use for any question about conversion, funnel leaks, on-page UX problems, or a specific page or product (e.g. "how are the sofa pages doing?" — filter findings by matching the URL). Returns nothing if no CRO scan has been run yet.',
+    description: 'Get the latest Microsoft Clarity CRO / funnel analysis, grouped by connected site (a client may have several, e.g. "DTC" and "Trade"). Each site has a funnel-health summary plus prioritised on-page findings — page URL, the behaviour issue (citing the Clarity signal: rage clicks, dead clicks, excessive scroll, quick-backs, scroll depth, JS errors), the concrete fix, a severity (critical/high/medium), and whether the team marked it done. Use for any question about conversion, funnel leaks, on-page UX problems, or a specific page/product/site (e.g. "how are the sofa pages doing?" — match the URL; name the site when there are several). Returns available:false if no scan has been run yet.',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -498,21 +498,26 @@ async function toolGetSeoRankings(clientId) {
 }
 
 async function toolGetCroFindings(clientId) {
-  const report = await clarity.latestReport(clientId);
-  if (!report) return { available: false, note: 'No Microsoft Clarity CRO scan has been run for this client yet (Sales & Traffic → CRO / Funnel).' };
-  const findings = Array.isArray(report.findings) ? report.findings : [];
+  const reports = await clarity.latestReports(clientId);
+  if (!reports.length) return { available: false, note: 'No Microsoft Clarity CRO scan has been run for this client yet (Sales & Traffic → CRO / Funnel).' };
   return {
     available: true,
-    generated_at: report.generated_at,
-    summary: report.summary,
-    counts: {
-      total: findings.length,
-      critical: findings.filter(f => f.priority === 'critical').length,
-      high: findings.filter(f => f.priority === 'high').length,
-      medium: findings.filter(f => f.priority === 'medium').length,
-      done: findings.filter(f => f.done).length,
-    },
-    findings: findings.map(f => ({ priority: f.priority, url: f.url, issue: f.issue, fix: f.fix, done: !!f.done })),
+    sites: reports.map(report => {
+      const findings = Array.isArray(report.findings) ? report.findings : [];
+      return {
+        site: report.site_label || 'Main site',
+        generated_at: report.generated_at,
+        summary: report.summary,
+        counts: {
+          total: findings.length,
+          critical: findings.filter(f => f.priority === 'critical').length,
+          high: findings.filter(f => f.priority === 'high').length,
+          medium: findings.filter(f => f.priority === 'medium').length,
+          done: findings.filter(f => f.done).length,
+        },
+        findings: findings.map(f => ({ priority: f.priority, url: f.url, issue: f.issue, fix: f.fix, done: !!f.done })),
+      };
+    }),
   };
 }
 
