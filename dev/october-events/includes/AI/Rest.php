@@ -22,7 +22,7 @@ final class Rest {
     }
 
     public static function can(): bool {
-        return current_user_can('edit_posts');
+        return \OE\Access::can_manage();
     }
 
     public static function register_routes(): void {
@@ -35,6 +35,10 @@ final class Rest {
     }
 
     public static function ask(\WP_REST_Request $req): \WP_REST_Response {
+        // Each turn runs a paid Claude tool-loop; cap per user to avoid cost-DoS.
+        if (! \OE\Access::throttle('ai_assistant', 30)) {
+            return new \WP_REST_Response(['ok' => false, 'reply' => __('You\'re sending messages too fast — give it a moment.', 'october-events')], 429);
+        }
         if (! Assistant::is_ready()) {
             return new \WP_REST_Response([
                 'ok'    => false,

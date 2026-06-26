@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.64.0 — security: management APIs require admin + AI throttle (S3/S4)
+
+- **Staff/management REST APIs now require an administrative capability.** The
+  contact CRM, campaigns (incl. send), tasks, volunteers, reports and the staff
+  AI assistant were gated at `edit_posts` — which Contributors/Authors hold. They
+  now require `manage_options` via a shared, **filterable** check
+  (`OE\Access::can_manage()`); grant a non-admin staff role access with
+  `add_filter('oe_manage_cap', fn() => 'oe_manage')`.
+- **AI endpoints throttled.** The staff assistant (`/assistant`) and the email
+  co-pilot (`/campaigns/copilot`) — each a paid Claude tool-loop — are now capped
+  at 30 requests/user/min (`OE\Access::throttle()`), so a single account can't
+  run up the bill.
+
 ## 1.63.0 — performance: quick wins (P1/P2/P4)
 
 - **`/stats` dashboard endpoint:** primes the postmeta cache in one query before

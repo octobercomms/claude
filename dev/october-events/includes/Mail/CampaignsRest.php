@@ -18,7 +18,7 @@ final class CampaignsRest {
     }
 
     public static function can(): bool {
-        return current_user_can('edit_posts');
+        return \OE\Access::can_manage();
     }
 
     public static function register_routes(): void {
@@ -47,6 +47,9 @@ final class CampaignsRest {
     }
 
     public static function copilot(\WP_REST_Request $req): \WP_REST_Response {
+        if (! \OE\Access::throttle('ai_copilot', 30)) {
+            return new \WP_REST_Response(['ok' => false, 'error' => __('Too many requests — give it a moment.', 'october-events')], 429);
+        }
         $brief   = (string) $req->get_param('brief');
         $blocks  = $req->get_param('blocks');
         $history = $req->get_param('history');
