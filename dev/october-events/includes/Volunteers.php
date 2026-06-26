@@ -534,13 +534,16 @@ final class Volunteers {
     public static function opportunity_summary(int $id): array {
         $shifts   = self::shifts($id);
         $capacity = 0;
-        $filled   = 0;
         foreach ($shifts as $s) {
             $capacity += (int) $s['capacity'];
-            $filled   += VolunteerSignups::count_for_shift($id, $s['id']);
         }
+        // One query for all signups, tallied in PHP — was a COUNT(*) per shift.
+        $filled = 0;
         $pending = 0;
         foreach (VolunteerSignups::for_opportunity($id) as $row) {
+            if ($row->status === VolunteerSignups::STATUS_PENDING || $row->status === VolunteerSignups::STATUS_CONFIRMED) {
+                $filled++;
+            }
             if ($row->status === VolunteerSignups::STATUS_PENDING) {
                 $pending++;
             }
@@ -566,26 +569,53 @@ final class Volunteers {
      * @return array<string,mixed>
      */
     public static function opportunity_detail(int $id): array {
-        $summary  = self::opportunity_summary($id);
+        // Single signups query; group + tally per shift in PHP (was the summary's
+        // query plus a spots_left + shift_full COUNT for every shift).
         $by_shift = [];
+        $active   = [];
+        $filled   = 0;
+        $pending  = 0;
         foreach (VolunteerSignups::for_opportunity($id) as $row) {
             $by_shift[$row->shift_id][] = self::signup_dto($row);
+            if ($row->status === VolunteerSignups::STATUS_PENDING || $row->status === VolunteerSignups::STATUS_CONFIRMED) {
+                $active[$row->shift_id] = ($active[$row->shift_id] ?? 0) + 1;
+                $filled++;
+            }
+            if ($row->status === VolunteerSignups::STATUS_PENDING) {
+                $pending++;
+            }
         }
-        $shifts = [];
-        foreach (self::shifts($id) as $s) {
-            $shifts[] = [
+        $capacity = 0;
+        $shifts   = self::shifts($id);
+        $detail   = [];
+        foreach ($shifts as $s) {
+            $cap   = (int) $s['capacity'];
+            $left  = max(0, $cap - ($active[$s['id']] ?? 0));
+            $capacity += $cap;
+            $detail[] = [
                 'id'         => $s['id'],
                 'label'      => $s['label'],
                 'start'      => $s['start'],
                 'end'        => $s['end'],
-                'capacity'   => (int) $s['capacity'],
-                'spots_left' => self::spots_left($id, $s['id']),
-                'full'       => self::shift_full($id, $s['id']),
+                'capacity'   => $cap,
+                'spots_left' => $left,
+                'full'       => $left === 0,
                 'signups'    => $by_shift[$s['id']] ?? [],
             ];
         }
-        $summary['shifts_detail'] = $shifts;
-        return $summary;
+        return [
+            'id'            => $id,
+            'title'         => get_the_title($id) ?: '(untitled)',
+            'role'          => (string) get_post_meta($id, '_oe_role', true),
+            'location'      => self::location($id),
+            'event_id'      => self::linked_event($id),
+            'open'          => get_post_meta($id, '_oe_signups_open', true) !== '0',
+            'shifts'        => count($shifts),
+            'capacity'      => $capacity,
+            'filled'        => $filled,
+            'pending'       => $pending,
+            'shifts_detail' => $detail,
+        ];
     }
 
     /** @return array<string,mixed> */
