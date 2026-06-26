@@ -5,6 +5,11 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.45.1 — Dashboard "Scan tickets" points to the clean /checkin URL
+
+The Dashboard's **Scan tickets** button fell back to `/?oe_checkin=1`; it now uses
+the clean **`/checkin`** permalink (a custom scanner page still wins if set).
+
 ## 1.45.0 — checkout rebuilt to match Event Tickets v1.2.5 exactly
 
 The earlier restyle was copied from a **stale v1.0.0** of the old plugin in the
