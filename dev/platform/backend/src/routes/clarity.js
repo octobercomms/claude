@@ -12,28 +12,35 @@ router.use(authenticate);
 router.use(loadVisibleClientIds);
 router.use(requireClientAccess({ paramNames: ['clientId'] }));
 
-router.get('/clients/:clientId/config', async (req, res) => {
-  try { res.json(await clarity.getConfig(req.params.clientId)); }
+// --- Sites (a client may connect several Clarity projects, each labelled) ---
+router.get('/clients/:clientId/sites', async (req, res) => {
+  try { res.json({ sites: await clarity.listSites(req.params.clientId) }); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-router.post('/clients/:clientId/config', async (req, res) => {
-  try { res.json(await clarity.setToken(req.params.clientId, req.body?.token)); }
+router.post('/clients/:clientId/sites', async (req, res) => {
+  try { res.status(201).json(await clarity.addSite(req.params.clientId, req.body?.label, req.body?.token)); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-router.delete('/clients/:clientId/config', async (req, res) => {
-  try { await clarity.clearToken(req.params.clientId); res.status(204).end(); }
+router.patch('/clients/:clientId/sites/:siteId', async (req, res) => {
+  try { res.json(await clarity.updateLabel(req.params.clientId, parseInt(req.params.siteId, 10), req.body?.label)); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-router.get('/clients/:clientId/report', async (req, res) => {
-  try { res.json({ report: await clarity.latestReport(req.params.clientId) }); }
+router.delete('/clients/:clientId/sites/:siteId', async (req, res) => {
+  try { await clarity.removeSite(req.params.clientId, parseInt(req.params.siteId, 10)); res.status(204).end(); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 
-router.post('/clients/:clientId/report/run', async (req, res) => {
-  try { res.status(201).json({ report: await clarity.runReport(req.params.clientId) }); }
+// --- Reports (latest per site; scan runs against one site) ---
+router.get('/clients/:clientId/reports', async (req, res) => {
+  try { res.json({ reports: await clarity.latestReports(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
+router.post('/clients/:clientId/sites/:siteId/report/run', async (req, res) => {
+  try { res.status(201).json({ report: await clarity.runReport(req.params.clientId, parseInt(req.params.siteId, 10)) }); }
   catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
