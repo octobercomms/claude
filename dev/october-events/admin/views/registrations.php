@@ -84,9 +84,9 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                 <td><?php echo esc_html($o->source); ?></td>
                 <td>
                     <?php if (in_array($o->status, ['paid', 'pending'], true)) : ?>
-                        <a class="button button-small" href="<?php echo esc_url($cancel); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel this order?', 'october-events')); ?>')"><?php esc_html_e('Cancel', 'october-events'); ?></a>
+                        <a class="button button-small" href="<?php echo esc_url($cancel); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel this order and void its tickets? The customer will be emailed.', 'october-events')); ?>')"><?php esc_html_e('Cancel', 'october-events'); ?></a>
                         <?php if ($o->payment_id) : ?>
-                            <a class="button button-small" href="<?php echo esc_url($refund); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel AND refund via Stripe?', 'october-events')); ?>')"><?php esc_html_e('Refund', 'october-events'); ?></a>
+                            <a class="button button-small" href="<?php echo esc_url($refund); ?>" onclick="return confirm('<?php echo esc_js(__('Refund this order via Stripe and void its tickets? The customer will be emailed their refund.', 'october-events')); ?>')"><?php esc_html_e('Refund', 'october-events'); ?></a>
                         <?php endif; ?>
                     <?php else : ?>—<?php endif; ?>
                 </td>

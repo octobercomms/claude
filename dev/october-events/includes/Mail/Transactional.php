@@ -29,6 +29,8 @@ final class Transactional {
         'volunteer_declined'         => 'About your volunteer signup',
         'volunteer_reminder'         => 'Your volunteer shift is coming up',
         'event_reminder'             => 'Reminder: %2$s is coming up',
+        'order_refunded'             => 'Your refund for %2$s',
+        'order_cancelled'            => 'Your order has been cancelled',
         'sales_report'               => 'Daily ticket sales',
     ];
 
@@ -102,6 +104,17 @@ final class Transactional {
 
             case 'event_reminder':
                 return self::event_reminder_body($hi, $params);
+
+            case 'order_refunded':
+                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled and refunded.', 'october-events'),
+                    '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>'
+                    . (! empty($params['amount']) ? '<p><strong>' . esc_html__('Refund amount:', 'october-events') . '</strong> ' . esc_html((string) $params['amount']) . '</p>' : '')
+                    . '<p>' . esc_html__('The refund goes back to your original payment method and usually appears within 5–10 business days. Your tickets are no longer valid.', 'october-events') . '</p>';
+
+            case 'order_cancelled':
+                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled, and the tickets are no longer valid.', 'october-events'),
+                    '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>'
+                    . '<p>' . esc_html__('If you believe this was a mistake, please get in touch and we\'ll be glad to help.', 'october-events') . '</p>';
         }
 
         // Generic fallback: greeting + any scalar params.
