@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.49.0 — QR code in the ticket confirmation email
+
+Each ticket in the confirmation email now shows a **scannable QR code** (plus the
+"view" link), so attendees can be checked in straight from the email without
+opening the ticket page. Rendered via a QR image service so it displays in every
+email client.
+
 ## 1.48.0 — waitlist auto-notifies when a seat frees up
 
 When an order is **cancelled or refunded**, everyone still waiting for that event

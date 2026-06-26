@@ -227,6 +227,7 @@ final class Orders {
             'tickets'     => array_map(static fn($t) => [
                 'number' => $t->ticket_number . '/' . $t->total_in_order,
                 'url'    => self::ticket_url($t->token),
+                'token'  => (string) $t->token,
             ], $tickets),
         ]);
     }
