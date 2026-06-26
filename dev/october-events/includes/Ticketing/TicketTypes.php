@@ -18,6 +18,23 @@ final class TicketTypes {
     public const META_SALE_UNTIL = '_oe_tickets_sale_until';
     public const META_VENUES     = '_oe_checkin_venues';
     public const META_PIN        = '_oe_checkin_pin';
+    public const META_LOGO       = '_oe_ticket_logo'; // attachment id for the per-event ticket/email logo
+
+    /**
+     * Logo shown top-left on the ticket page and confirmation email for an
+     * event. Per-event upload first, then the global brand logo, else ''.
+     */
+    public static function logo_url(int $event_id): string {
+        $id = $event_id ? (int) get_post_meta($event_id, self::META_LOGO, true) : 0;
+        if ($id) {
+            $url = wp_get_attachment_image_url($id, 'medium');
+            if ($url) {
+                return (string) $url;
+            }
+        }
+        $brand = (string) \OE\Settings::get('theme_logo_light', '');
+        return $brand !== '' ? $brand : (string) \OE\Settings::get('theme_logo_dark', '');
+    }
 
     /** @return array<int,array<string,mixed>> */
     public static function types(int $event_id): array {

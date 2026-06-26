@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.56.0 — redesigned ticket & confirmation email (+ per-event logo)
+
+The printable ticket and the confirmation email are redesigned in a clean,
+print-first style — square corners, near-monochrome, the brand accent used only
+on the numbered badge.
+
+- **Per-event logo.** Each event's **Tickets & check-in** box now has a
+  **Ticket & email logo** picker. That logo appears top-left on the printable
+  ticket and at the top of the confirmation email. Falls back to your global
+  brand logo, then to the brand name, if none is set. (`TicketTypes::logo_url()`,
+  meta `_oe_ticket_logo`.)
+- **Ticket page** (`/?oe_ticket=…`): black "Print and bring this ticket" bar, a
+  bordered card with the logo + QR, a divider, the event title, **date/time
+  range**, ticket type, description &amp; price, attendee name, a **Valid /
+  Checked-in** status, and a numbered accent badge. No barcode.
+- **Confirmation email**: matching language — logo header with the order number,
+  a bordered **event summary** (date/venue + the add-to-calendar note for the
+  attached `.ics`), and one monochrome **ticket card** per admission (QR +
+  attendee + type + a "View ticket" button). New `Transactional::ticket_email_html()`;
+  `send()` gained a `$wrap` flag for self-styled documents.
+
 ## 1.55.0 — PayPal checkout (alongside card)
 
 Buyers can now pay with **PayPal** as well as card. PayPal appears on the

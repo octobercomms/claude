@@ -232,25 +232,31 @@ final class Orders {
         if (! $order || $order->email === '') {
             return;
         }
-        $tickets = self::tickets($order_id);
+        $tickets  = self::tickets($order_id);
+        $event_id = (int) $order->event_id;
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
         // Attach an "add to calendar" invite (.ics) when the event has a date.
-        $ics = Ics::tempfile((int) $order->event_id);
+        $ics    = Ics::tempfile($event_id);
+        $params = [
+            'event_name' => get_the_title($event_id),
+            'order_id'   => $order_id,
+            'when'       => $event_id ? Ics::when_label($event_id) : '',
+            'location'   => $event_id ? (string) \OE\Planning\Events::get($event_id, 'location', '') : '',
+            'logo'       => TicketTypes::logo_url($event_id),
+            'tickets'    => array_map(static fn($t) => [
+                'number'   => $t->ticket_number . ' / ' . $t->total_in_order,
+                'attendee' => (string) $t->attendee_name,
+                'type'     => (string) $t->ticket_type_label,
+                'url'      => self::ticket_url($t->token),
+                'token'    => (string) $t->token,
+            ], $tickets),
+        ];
+        // Branded, self-styled document (matches the printable ticket); $wrap=false.
+        $html = \OE\Mail\Transactional::ticket_email_html(array_merge($params, ['name' => (string) $order->name]));
         \OE\Mail\Transactional::send('ticket_delivery', [
             'email' => $order->email,
             'name'  => $order->name,
-        ], [
-            'event_name'  => get_the_title((int) $order->event_id),
-            'order_id'    => $order_id,
-            'ticket_type' => $order->ticket_type_label,
-            'qty'         => count($tickets),
-            'total'       => $order->total,
-            'tickets'     => array_map(static fn($t) => [
-                'number' => $t->ticket_number . '/' . $t->total_in_order,
-                'url'    => self::ticket_url($t->token),
-                'token'  => (string) $t->token,
-            ], $tickets),
-        ], '', '', $ics !== '' ? [$ics] : []);
+        ], $params, '', $html, $ics !== '' ? [$ics] : [], false);
         if ($ics !== '') {
             Ics::cleanup($ics);
         }

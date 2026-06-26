@@ -48,6 +48,7 @@ final class TicketsAdmin {
 
     public function render_event_meta_box(\WP_Post $post): void {
         wp_nonce_field('oe_save_tickets', 'oe_tickets_nonce');
+        wp_enqueue_media(); // for the per-event logo picker below
         $types  = TicketTypes::types($post->ID);
         $venues = TicketTypes::venues($post->ID);
         ?>
@@ -78,6 +79,44 @@ final class TicketsAdmin {
         <p><label><strong><?php esc_html_e('Check-in PIN', 'october-events'); ?></strong>
             <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($manual_pin); ?>" placeholder="<?php echo esc_attr((string) $post->ID); ?>" maxlength="6" size="8"></label>
             <span class="description"><?php echo esc_html(sprintf(__('Leave blank to auto-use this event\'s ID (%d) as the PIN. Or set your own 4–6 digits for door staff.', 'october-events'), (int) $post->ID)); ?></span></p>
+
+        <?php
+        $logo_id  = (int) get_post_meta($post->ID, TicketTypes::META_LOGO, true);
+        $logo_url = $logo_id ? (string) wp_get_attachment_image_url($logo_id, 'medium') : '';
+        ?>
+        <p><strong><?php esc_html_e('Ticket & email logo', 'october-events'); ?></strong> —
+            <span class="description"><?php esc_html_e('shown top-left on the printable ticket and the confirmation email. Falls back to your brand logo if left empty.', 'october-events'); ?></span></p>
+        <div id="oe-logo-field" style="margin:6px 0 4px">
+            <input type="hidden" name="oe_ticket_logo" id="oe-ticket-logo" value="<?php echo esc_attr((string) $logo_id); ?>">
+            <img id="oe-ticket-logo-preview" src="<?php echo esc_url($logo_url); ?>" alt="" style="max-height:64px;max-width:240px;display:<?php echo $logo_url ? 'block' : 'none'; ?>;margin-bottom:8px;background:#fff;padding:4px;border:1px solid #dcdcde">
+            <button type="button" class="button" id="oe-ticket-logo-pick"><?php echo $logo_url ? esc_html__('Change logo', 'october-events') : esc_html__('Choose logo', 'october-events'); ?></button>
+            <button type="button" class="button-link" id="oe-ticket-logo-clear" style="<?php echo $logo_url ? '' : 'display:none'; ?>;color:#b32d2e;margin-left:6px"><?php esc_html_e('Remove', 'october-events'); ?></button>
+        </div>
+        <script>
+        (function(){
+            var frame, pick=document.getElementById('oe-ticket-logo-pick'),
+                clr=document.getElementById('oe-ticket-logo-clear'),
+                input=document.getElementById('oe-ticket-logo'),
+                prev=document.getElementById('oe-ticket-logo-preview');
+            pick.addEventListener('click', function(e){
+                e.preventDefault();
+                if (frame) { frame.open(); return; }
+                frame = wp.media({ title: '<?php echo esc_js(__('Select ticket logo', 'october-events')); ?>', button: { text: '<?php echo esc_js(__('Use this logo', 'october-events')); ?>' }, library: { type: 'image' }, multiple: false });
+                frame.on('select', function(){
+                    var a = frame.state().get('selection').first().toJSON();
+                    var url = (a.sizes && a.sizes.medium) ? a.sizes.medium.url : a.url;
+                    input.value = a.id; prev.src = url; prev.style.display = 'block';
+                    clr.style.display = ''; pick.textContent = '<?php echo esc_js(__('Change logo', 'october-events')); ?>';
+                });
+                frame.open();
+            });
+            clr.addEventListener('click', function(e){
+                e.preventDefault();
+                input.value = ''; prev.src = ''; prev.style.display = 'none';
+                clr.style.display = 'none'; pick.textContent = '<?php echo esc_js(__('Choose logo', 'october-events')); ?>';
+            });
+        })();
+        </script>
 
         <script type="text/html" id="oe-tt-tpl"><?php $this->type_row(9999, []); ?></script>
         <script>
@@ -146,6 +185,7 @@ final class TicketsAdmin {
         $venues = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_venues'] ?? ''))));
         update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => sanitize_text_field($n)], $venues)));
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
+        update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
     }
 
     /* ------------------------------------------------------------------ *
