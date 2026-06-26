@@ -1,6 +1,7 @@
 /* October Events — event checkout. Ported from Event Tickets v1.2.5 (per-row qty
-   steppers, attendee names, T&Cs, sold-out waitlist), wired to the oe/v1 REST API
-   and Stripe. Keeps the original .oct- markup/behaviour so the look matches exactly. */
+   steppers, attendee names, T&Cs, sold-out waitlist) and extended to a true
+   MULTI-LINE cart (mix ticket types in one order). Wired to oe/v1 + Stripe.
+   Keeps the original .oct- markup so the look matches the live design exactly. */
 /* global jQuery, Stripe */
 (function ($) {
   'use strict';
@@ -11,13 +12,12 @@
   var currencySymbol = cfg.currencySymbol || '$';
 
   var state = {
-    eventId: 0, ticketTypes: [], selectedType: null, qty: 0,
+    eventId: 0, ticketTypes: [], cart: [],
     promoCode: '', discountAmount: 0, promoValid: false,
     subtotal: 0, total: 0, stripe: null, cardElement: null,
     processing: false, hasTerms: false,
   };
 
-  /* REST helper — always resolves {ok, body}. */
   function rest(path, body) {
     return new Promise(function (resolve) {
       $.ajax({
@@ -29,6 +29,7 @@
   }
   function isValidEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
   function typePrice(t) { return parseFloat(t.effective != null ? t.effective : t.price) || 0; }
+  function escHtml(s) { return $('<div>').text(s == null ? '' : s).html(); }
 
   function init() {
     var $checkout = $('.oct-checkout');
@@ -45,54 +46,59 @@
     updateSummary();
   }
 
-  /* ---- Ticket rows with inline qty ---- */
+  /* ---- Cart: every row with qty > 0 is a line. Rows are independent. ---- */
+  function typeFor(key) {
+    for (var i = 0; i < state.ticketTypes.length; i++) { if (state.ticketTypes[i].key === key) { return state.ticketTypes[i]; } }
+    return null;
+  }
+  function readCart() {
+    var cart = [];
+    $('.oct-ticket-row').each(function () {
+      var $row = $(this);
+      if ($row.hasClass('oct-ticket-row--unavailable')) { return; }
+      var qty = parseInt($row.find('.oct-qty-val').text(), 10) || 0;
+      if (qty < 1) { return; }
+      var type = typeFor($row.data('key'));
+      if (type) { cart.push({ key: $row.data('key'), qty: qty, type: type }); }
+    });
+    return cart;
+  }
+  function setRowQty($row, n) {
+    n = Math.max(0, Math.min(10, n));
+    $row.find('.oct-qty-val').text(n);
+    $row.toggleClass('oct-ticket-row--selected', n > 0);
+    resetPromo();      // any cart change invalidates a previously-applied code
+    updateSummary();
+  }
+  function resetPromo() {
+    state.promoCode = ''; state.discountAmount = 0; state.promoValid = false;
+    $('#oct-promo').val(''); $('#oct-promo-message').hide().removeClass('success error');
+  }
   function bindTicketRows() {
+    // Clicking the row body (not the qty control) adds one if none yet.
     $(document).on('click', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
       if ($(e.target).closest('.oct-ticket-row__qty').length) { return; }
       var $row = $(this);
-      resetOtherRows($row);
-      var current = parseInt($row.find('.oct-qty-val').text(), 10) || 0;
-      if (current === 0) { $row.find('.oct-qty-val').text(1); state.qty = 1; } else { state.qty = current; }
-      selectRow($row);
+      if ((parseInt($row.find('.oct-qty-val').text(), 10) || 0) === 0) { setRowQty($row, 1); }
     });
     $(document).on('keypress', '.oct-ticket-row:not(.oct-ticket-row--unavailable)', function (e) {
       if (e.which === 13 || e.which === 32) { e.preventDefault(); $(this).trigger('click'); }
     });
   }
-  function resetOtherRows($currentRow) {
-    $('.oct-ticket-row').not($currentRow).each(function () {
-      $(this).removeClass('oct-ticket-row--selected');
-      $(this).find('.oct-qty-val').text(0);
-      $(this).find('input[type="radio"]').prop('checked', false);
-    });
-  }
-  function selectRow($row) {
-    $('.oct-ticket-row').removeClass('oct-ticket-row--selected');
-    $row.addClass('oct-ticket-row--selected');
-    $row.find('input[type="radio"]').prop('checked', true);
-    var key = $row.data('key');
-    state.selectedType = null;
-    for (var i = 0; i < state.ticketTypes.length; i++) {
-      if (state.ticketTypes[i].key === key) { state.selectedType = state.ticketTypes[i]; break; }
-    }
-    state.promoCode = ''; state.discountAmount = 0; state.promoValid = false;
-    $('#oct-promo').val(''); $('#oct-promo-message').hide();
-    updateSummary();
-  }
 
-  /* ---- Attendee names ---- */
-  function updateAttendeeNames() {
+  /* ---- Attendee names (across the whole cart, in row order) ---- */
+  function updateAttendeeNames(cart) {
     var $section = $('#oct-attendee-names-section'), $fields = $('#oct-attendee-names-fields');
-    if (!state.selectedType || state.qty < 1) { $section.hide(); return; }
-    var per = parseInt(state.selectedType.admits, 10) || 1;
-    var total = state.qty * per;
+    var total = 0;
+    cart.forEach(function (c) { total += c.qty * (parseInt(c.type.admits, 10) || 1); });
+    if (total < 1) { $section.hide(); return; }
     if ($fields.find('.oct-attendee-name').length === total) { $section.show(); return; }
     $fields.empty();
     for (var i = 1; i <= total; i++) {
       var label = total === 1 ? 'Attendee Name' : 'Attendee ' + i + ' Name';
       $('<div class="oct-field-group"></div>')
         .append('<label class="oct-label">' + label + '</label>')
-        .append('<input type="text" class="oct-input oct-attendee-name" data-index="' + i + '" placeholder="Full name (optional)" autocomplete="off">')
+        .append('<input type="text" class="oct-input oct-attendee-name" placeholder="Full name (optional)" autocomplete="off">')
         .appendTo($fields);
     }
     $section.show();
@@ -117,13 +123,15 @@
     $('#oct-promo').on('keypress', function (e) { if (e.which === 13) { e.preventDefault(); applyPromo(); } });
     $('#oct-promo').on('input', function () { $(this).val($(this).val().toUpperCase()); });
   }
+  function cartParam() { return readCart().map(function (c) { return { type_key: c.key, qty: c.qty }; }); }
   function applyPromo() {
     var code = $('#oct-promo').val().trim().toUpperCase();
-    if (!code || !state.selectedType) { return; }
+    var cart = cartParam();
+    if (!code || !cart.length) { return; }
     var $msg = $('#oct-promo-message');
     $msg.removeClass('success error').text('Validating…').show();
     $('#oct-apply-promo').prop('disabled', true);
-    rest('/ticket-promo', { event_id: state.eventId, type_key: state.selectedType.key, qty: state.qty, promo_code: code }).then(function (res) {
+    rest('/ticket-promo', { event_id: state.eventId, cart: cart, promo_code: code }).then(function (res) {
       $('#oct-apply-promo').prop('disabled', false);
       if (res.ok) {
         state.promoCode = code; state.discountAmount = parseFloat(res.body.discount) || 0; state.promoValid = true;
@@ -137,23 +145,26 @@
   }
 
   /* ---- Summary ---- */
-  function getSubtotal() {
-    if (!state.selectedType || state.qty <= 0) { return 0; }
-    return Math.round(typePrice(state.selectedType) * state.qty * 100) / 100;
-  }
   function updateSummary() {
-    var subtotal = getSubtotal();
+    var cart = readCart();
+    var subtotal = 0;
+    cart.forEach(function (c) { subtotal += typePrice(c.type) * c.qty; });
+    subtotal = Math.round(subtotal * 100) / 100;
     var discount = state.promoValid ? state.discountAmount : 0;
     var total = Math.max(0, Math.round((subtotal - discount) * 100) / 100);
-    state.subtotal = subtotal; state.total = total;
+    state.subtotal = subtotal; state.total = total; state.cart = cart;
 
-    if (state.selectedType && state.qty > 0) {
-      $('#oct-summary-type').text(state.selectedType.label);
-      $('#oct-summary-count').text('×' + state.qty);
-      $('#oct-summary-subtotal').text(currencySymbol + subtotal.toFixed(2));
+    var $lines = $('#oct-summary-lines').empty();
+    if (cart.length) {
+      cart.forEach(function (c) {
+        $lines.append(
+          '<div class="oct-summary-row"><span class="oct-summary-label">' + escHtml(c.type.label) + '</span>' +
+          '<span class="oct-summary-label">×' + c.qty + '</span>' +
+          '<span class="oct-summary-price">' + currencySymbol + (typePrice(c.type) * c.qty).toFixed(2) + '</span></div>'
+        );
+      });
     } else {
-      $('#oct-summary-type').text('—'); $('#oct-summary-count').text('');
-      $('#oct-summary-subtotal').text(currencySymbol + '0.00');
+      $lines.append('<div class="oct-summary-row"><span class="oct-summary-label">—</span><span class="oct-summary-label"></span><span class="oct-summary-price">' + currencySymbol + '0.00</span></div>');
     }
     if (discount > 0) {
       $('#oct-discount-row').show();
@@ -162,9 +173,9 @@
 
     $('#oct-summary-total').text(currencySymbol + total.toFixed(2));
     $('#oct-card-btn-amount').text(currencySymbol + total.toFixed(2));
-    updateAttendeeNames();
+    updateAttendeeNames(cart);
 
-    var isFree = state.selectedType && state.qty > 0 && total === 0;
+    var isFree = cart.length > 0 && total === 0;
     $('#oct-payment-section').toggle(!isFree);
     $('#oct-free-section').toggle(!!isFree);
   }
@@ -175,7 +186,7 @@
     if (state.processing) { return; }
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); $('#oct-free-errors').text('Please enter a valid email address.').show(); return; }
-    if (!state.selectedType || state.qty <= 0) { $('#oct-free-errors').text('Please select a ticket type.').show(); return; }
+    if (!readCart().length) { $('#oct-free-errors').text('Please choose at least one ticket.').show(); return; }
     if (!checkTerms()) { return; }
     $('#oct-free-errors').hide(); setProcessing(true, '#oct-register-free');
     rest('/ticket-intent', payload(name, email)).then(function (res) {
@@ -199,13 +210,13 @@
     $('#oct-pay-card').on('click', handleCard);
   }
   function payload(name, email) {
-    return { event_id: state.eventId, type_key: state.selectedType.key, qty: state.qty, promo_code: state.promoCode, name: name, email: email, attendee_names: getAttendeeNames() };
+    return { event_id: state.eventId, cart: cartParam(), promo_code: state.promoCode, name: name, email: email, attendee_names: getAttendeeNames() };
   }
   function handleCard() {
     if (state.processing) { return; }
     var email = $('#oct-email').val().trim(), name = $('#oct-name').val().trim();
     if (!email || !isValidEmail(email)) { $('#oct-email').addClass('error').focus(); showCardError('Please enter a valid email address.'); return; }
-    if (!state.selectedType || state.qty <= 0) { showCardError('Please select a ticket type.'); return; }
+    if (!readCart().length) { showCardError('Please choose at least one ticket.'); return; }
     if (!checkTerms()) { showCardError('Please agree to the Terms & Conditions.'); return; }
     hideCardError(); setProcessing(true, '#oct-pay-card');
 
@@ -272,21 +283,13 @@
     else { $btn.prop('disabled', false); if ($btn.data('html')) { $btn.html($btn.data('html')); } }
   }
 
-  /* ---- Inline qty handler (called by the buttons' onclick) ---- */
+  /* ---- Inline qty handler (called by the buttons' onclick) — per row ---- */
   window.octHandleQty = function (btn, action) {
     if (!state.eventId) { state.eventId = parseInt($('.oct-checkout').data('event-id'), 10) || 0; state.ticketTypes = cfg.types || []; }
     var $row = $(btn).closest('.oct-ticket-row');
     if (!$row.length || $row.hasClass('oct-ticket-row--unavailable')) { return; }
     var current = parseInt($row.find('.oct-qty-val').text(), 10) || 0;
-    if (action === 'plus') {
-      if (current >= 10) { return; }
-      resetOtherRows($row); $row.find('.oct-qty-val').text(current + 1); state.qty = current + 1; selectRow($row);
-    } else {
-      if (current <= 0) { return; }
-      $row.find('.oct-qty-val').text(current - 1); state.qty = current - 1;
-      if (state.qty === 0) { $row.removeClass('oct-ticket-row--selected'); state.selectedType = null; updateSummary(); }
-      else { selectRow($row); }
-    }
+    setRowQty($row, action === 'plus' ? current + 1 : current - 1);
   };
 
   $(document).ready(init);

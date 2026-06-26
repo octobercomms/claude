@@ -116,10 +116,13 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
 
     <div class="oct-section oct-section--summary oct-summary" id="oct-summary">
       <h6 class="oct-section__title"><?php esc_html_e('Order Summary', 'october-events'); ?></h6>
-      <div class="oct-summary-row">
-        <span class="oct-summary-label" id="oct-summary-type"><?php echo esc_html($first_label); ?></span>
-        <span class="oct-summary-label" id="oct-summary-count"></span>
-        <span class="oct-summary-price" id="oct-summary-subtotal"><?php echo esc_html($sym . '0.00'); ?></span>
+      <!-- One row per ticket line in the cart (filled by checkout.js) -->
+      <div id="oct-summary-lines">
+        <div class="oct-summary-row">
+          <span class="oct-summary-label">&mdash;</span>
+          <span class="oct-summary-label"></span>
+          <span class="oct-summary-price"><?php echo esc_html($sym . '0.00'); ?></span>
+        </div>
       </div>
       <div class="oct-summary-row" id="oct-discount-row" style="display:none">
         <span class="oct-summary-label oct-discount-label"><?php esc_html_e('Discount', 'october-events'); ?></span>
