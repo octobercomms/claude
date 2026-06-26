@@ -33,6 +33,8 @@ final class TicketsAdmin {
         add_action('admin_post_oe_cancel_order', [$this, 'handle_cancel_order']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
+        add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
+        add_action('admin_post_oe_waitlist_remove', [$this, 'handle_waitlist_remove']);
         add_action('admin_init', [$this, 'maybe_export_orders']);
     }
 
@@ -208,6 +210,31 @@ final class TicketsAdmin {
             }
         }
         require OE_DIR . 'admin/views/promos.php';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Waitlist
+     * ------------------------------------------------------------------ */
+
+    public function render_waitlist(): void {
+        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $entries = \OE\Ticketing\Waitlist::all($event_filter);
+        $events  = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        require OE_DIR . 'admin/views/waitlist.php';
+    }
+
+    public function handle_waitlist_promote(): void {
+        $this->guard('oe_waitlist_promote');
+        \OE\Ticketing\Waitlist::promote(absint($_REQUEST['id'] ?? 0));
+        wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=waitlist'));
+        exit;
+    }
+
+    public function handle_waitlist_remove(): void {
+        $this->guard('oe_waitlist_remove');
+        \OE\Ticketing\Waitlist::remove(absint($_REQUEST['id'] ?? 0));
+        wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=oe-tickets&tab=waitlist'));
+        exit;
     }
 
     /* ------------------------------------------------------------------ *

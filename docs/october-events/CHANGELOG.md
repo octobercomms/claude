@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.44.0 — event waitlist
+
+Closes the last ticketing-parity gap. When a ticket type is **sold out**, the
+checkout now offers **"Join the waitlist"** (name + email) instead of a dead end.
+
+- New `wp_oe_waitlist` table + `OE\Ticketing\Waitlist` model (DB → v10).
+- Checkout: sold-out types stay selectable and swap the buy flow for a waitlist
+  join form; `POST /waitlist-join` records it (rate-limited, de-duped).
+- New **Waitlist** tab on the Tickets screen: everyone waiting, in queue order,
+  filterable by event, with **Notify** (emails them a checkout link and marks
+  them notified) and **Remove**.
+- New `waitlist_spot` transactional email ("a spot opened up — get your tickets").
+
 ## 1.43.0 — check-in app: pretty /checkin URL + original dark design
 
 The door check-in app now lives at a clean **`/checkin`** URL (volunteers can find

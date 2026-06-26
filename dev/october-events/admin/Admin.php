@@ -214,17 +214,20 @@ final class Admin {
             TicketsAdmin::get_instance()->render_promos();
         } elseif ($tab === 'checkin') {
             TicketsAdmin::get_instance()->render_checkin_log();
+        } elseif ($tab === 'waitlist') {
+            TicketsAdmin::get_instance()->render_waitlist();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
     }
 
-    /** Tab nav shared by the Tickets sub-screens (Registrations / Promo codes / Check-in log). */
+    /** Tab nav shared by the Tickets sub-screens. */
     public static function tickets_tabs(string $active): void {
         $tabs = [
-            'orders'  => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
-            'promos'  => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
-            'checkin' => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
+            'orders'   => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
+            'promos'   => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
+            'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
+            'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
         ];
         echo '<h2 class="nav-tab-wrapper">';
         foreach ($tabs as $key => $t) {

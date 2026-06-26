@@ -98,6 +98,11 @@ final class RestApi {
             'callback'            => [$this, 'ticket_confirm'],
             'permission_callback' => '__return_true',
         ]);
+        register_rest_route(self::NS, '/waitlist-join', [
+            'methods'             => 'POST',
+            'callback'            => [$this, 'waitlist_join'],
+            'permission_callback' => '__return_true',
+        ]);
 
         // Check-in PWA (PIN-gated, not WP-login gated).
         register_rest_route(self::NS, '/checkin-events', [
@@ -369,6 +374,24 @@ final class RestApi {
             'discount' => $priced['discount'],
             'total'    => $priced['total'],
         ], 200);
+    }
+
+    public function waitlist_join(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('waitlist', 20)) {
+            return $this->too_many();
+        }
+        $event_id = absint($req->get_param('event_id'));
+        $type_key = sanitize_key((string) $req->get_param('type_key'));
+        $email    = sanitize_email((string) $req->get_param('email'));
+        $name     = sanitize_text_field((string) $req->get_param('name'));
+        if (! $event_id || ! is_email($email)) {
+            return new \WP_REST_Response(['error' => 'Enter a valid email address.'], 400);
+        }
+        $id = \OE\Ticketing\Waitlist::join($event_id, $type_key, $email, $name);
+        if (! $id) {
+            return new \WP_REST_Response(['error' => 'Could not join the waitlist.'], 400);
+        }
+        return new \WP_REST_Response(['ok' => true], 200);
     }
 
     public function ticket_intent(\WP_REST_Request $req): \WP_REST_Response {

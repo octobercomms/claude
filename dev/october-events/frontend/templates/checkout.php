@@ -45,6 +45,15 @@ defined('ABSPATH') || exit;
         <div class="oe-result" id="oe-co-result"></div>
     </form>
 
+    <div class="oe-co-waitlist" id="oe-co-waitlist" hidden>
+        <h3><?php esc_html_e('Join the waitlist', 'october-events'); ?></h3>
+        <p class="oe-co-wl-note"><?php esc_html_e('This ticket is sold out. Leave your details and we\'ll email you if a spot opens up.', 'october-events'); ?></p>
+        <label><?php esc_html_e('Your name', 'october-events'); ?><input type="text" id="oe-co-wl-name"></label>
+        <label><?php esc_html_e('Email', 'october-events'); ?> *<input type="email" id="oe-co-wl-email" required></label>
+        <button type="button" class="oe-btn oe-btn-primary" id="oe-co-wl-join"><?php esc_html_e('Join waitlist', 'october-events'); ?></button>
+        <div class="oe-result" id="oe-co-wl-msg"></div>
+    </div>
+
     <div class="oe-co-success" id="oe-co-success" hidden>
         <div class="oe-co-success-icon">&#10003;</div>
         <h3><?php esc_html_e('You\'re in!', 'october-events'); ?></h3>

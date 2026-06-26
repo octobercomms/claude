@@ -248,6 +248,15 @@
 .oe-checkout .oe-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
 .oe-checkout #oe-co-result { margin-top: 10px; font-size: 13px; color: #991b1b; }
 
+/* ---------- Waitlist (sold-out) ---------- */
+.oe-checkout .oe-co-waitlist { border: 2px solid var(--oe-co-line); border-radius: 10px; padding: 18px 20px; }
+.oe-checkout .oe-co-waitlist h3 { margin-bottom: 6px; }
+.oe-checkout .oe-co-wl-note { font-size: 13px; color: #666; margin: 0 0 14px; }
+.oe-checkout .oe-co-waitlist label { display: block; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #444; }
+.oe-checkout .oe-co-waitlist input { margin-top: 7px; }
+.oe-checkout .oe-co-type.is-soldout { border-style: dashed; }
+.oe-checkout #oe-co-wl-msg { margin-top: 10px; font-size: 13px; color: #444; }
+
 /* ---------- Success ---------- */
 .oe-checkout .oe-co-success { text-align: center; padding: 48px 24px; }
 .oe-checkout .oe-co-success-icon {

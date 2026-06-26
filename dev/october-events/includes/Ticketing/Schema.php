@@ -19,6 +19,7 @@ final class Schema {
     public static function tickets(): string  { global $wpdb; return $wpdb->prefix . 'oe_tickets'; }
     public static function checkins(): string { global $wpdb; return $wpdb->prefix . 'oe_checkins'; }
     public static function promos(): string   { global $wpdb; return $wpdb->prefix . 'oe_promo_codes'; }
+    public static function waitlist(): string  { global $wpdb; return $wpdb->prefix . 'oe_waitlist'; }
 
     public static function install(): void {
         global $wpdb;
@@ -98,6 +99,23 @@ final class Schema {
             PRIMARY KEY  (id),
             UNIQUE KEY code (code),
             KEY event_id (event_id)
+        ) {$charset};");
+
+        $waitlist = self::waitlist();
+        dbDelta("CREATE TABLE {$waitlist} (
+            id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+            event_id BIGINT UNSIGNED NOT NULL,
+            ticket_type_key VARCHAR(100) NOT NULL DEFAULT '',
+            ticket_type_label VARCHAR(190) NOT NULL DEFAULT '',
+            email VARCHAR(190) NOT NULL,
+            name VARCHAR(190) DEFAULT '',
+            qty SMALLINT UNSIGNED DEFAULT 1,
+            status VARCHAR(20) NOT NULL DEFAULT 'waiting',
+            created_at DATETIME NOT NULL,
+            notified_at DATETIME NULL,
+            PRIMARY KEY  (id),
+            KEY event_id (event_id),
+            KEY status (status)
         ) {$charset};");
     }
 }

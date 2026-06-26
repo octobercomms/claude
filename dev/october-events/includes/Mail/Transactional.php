@@ -84,6 +84,13 @@ final class Transactional {
             case 'ticket_delivery':
                 return self::ticket_body($hi, $params);
 
+            case 'waitlist_spot':
+                return $hi . '<p>' . sprintf(esc_html__('Good news — a spot has opened up for %s.', 'october-events'),
+                    '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>')
+                    . ($params['ticket_type'] ? ' (' . esc_html((string) $params['ticket_type']) . ')' : '') . '</p>'
+                    . '<p>' . esc_html__('Tickets are limited and offered first-come — grab yours now:', 'october-events') . '</p>'
+                    . self::button(__('Get your tickets', 'october-events'), (string) ($params['checkout_url'] ?? ''));
+
             case 'volunteer_confirmed':
             case 'volunteer_declined':
             case 'volunteer_reminder':
