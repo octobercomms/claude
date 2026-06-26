@@ -16,10 +16,19 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <input type="hidden" name="action" value="oe_save_settings">
         <?php wp_nonce_field('oe_save_settings'); ?>
 
-        <div class="oe-settings-cols">
-        <div class="oe-col">
-        <p class="oe-col-head"><?php esc_html_e('This site & content', 'october-events'); ?></p>
+        <div class="oe-set">
+        <nav class="oe-set-nav" id="oe-set-nav">
+            <button type="button" class="is-active" data-tab="general"><?php esc_html_e('General', 'october-events'); ?></button>
+            <button type="button" data-tab="events"><?php esc_html_e('Events', 'october-events'); ?></button>
+            <button type="button" data-tab="ai"><?php esc_html_e('AI', 'october-events'); ?></button>
+            <button type="button" data-tab="theme"><?php esc_html_e('Platform theme', 'october-events'); ?></button>
+            <button type="button" data-tab="keys"><?php esc_html_e('Keys & platform', 'october-events'); ?></button>
+            <button type="button" data-tab="emailsms"><?php esc_html_e('Email & SMS', 'october-events'); ?></button>
+            <button type="button" data-tab="updates"><?php esc_html_e('Updates', 'october-events'); ?></button>
+        </nav>
+        <div class="oe-set-main">
 
+        <section class="oe-set-panel is-active" data-tab="general">
         <details class="oe-acc" id="features" open><summary><?php esc_html_e('Features', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Switch off the modules this site doesn\'t use — they\'ll disappear from the menu, their public forms stop showing, and the platform drops them from its nav. Everything is on by default; nothing is deleted when you turn it off.', 'october-events'); ?></p>
         <?php foreach (\OE\Features::FEATURES as $key => $label) : ?>
@@ -34,6 +43,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <input type="text" name="brand_name" class="regular-text" value="<?php echo esc_attr((string) ($cfg['brand_name'] ?? 'October Events')); ?>"></label></p>
         </div></details>
 
+        </section>
+        <section class="oe-set-panel" data-tab="events">
         <details class="oe-acc" id="readiness"><summary><?php esc_html_e('Event readiness', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('An event can only be confirmed (go green & publish) once these fields are filled.', 'october-events'); ?></p>
         <?php
@@ -90,6 +101,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <?php endforeach; ?>
         </div></details>
 
+        </section>
+        <section class="oe-set-panel" data-tab="ai">
         <details class="oe-acc" id="voice"><summary><?php esc_html_e('AI Stories connector', 'october-events'); ?></summary><div class="oe-acc-body">
         <p><label><?php esc_html_e('Model', 'october-events'); ?><br><input type="text" name="ai_model" class="regular-text" value="<?php echo esc_attr((string) ($cfg['ai_model'] ?? '')); ?>"></label></p>
         <p><label><?php esc_html_e('Source URLs (one per line, RSS preferred)', 'october-events'); ?><br>
@@ -116,6 +129,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        </section>
+        <section class="oe-set-panel" data-tab="theme">
         <details class="oe-acc" id="branding"><summary><?php esc_html_e('Branding (platform theme)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Override the planning platform\'s look for this site. Leave any field blank to use the built-in October defaults (Brockmann + brand yellow). The site display name comes from Brand, above.', 'october-events'); ?></p>
         <table class="form-table" role="presentation"><tbody>
@@ -193,10 +208,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </script>
         </div></details>
 
-        </div><!-- /.oe-col -->
-        <div class="oe-col">
-        <p class="oe-col-head"><?php esc_html_e('Connections & system', 'october-events'); ?></p>
-
+        </section>
+        <section class="oe-set-panel" data-tab="keys">
         <details class="oe-acc" id="api-keys"><summary><?php esc_html_e('API keys', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Enter your keys here, or define them as constants in wp-config.php (a constant always wins and locks the field). Stored keys are encrypted in the database.', 'october-events'); ?></p>
         <?php
@@ -296,6 +309,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        </section>
+        <section class="oe-set-panel" data-tab="emailsms">
         <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
         <?php $ses_active = \OE\Mail\Mailer::ses_active(); $mc = \OE\Mail\EmailLog::counts(); ?>
@@ -346,6 +361,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p><label><?php esc_html_e('Daily ticket sales report to', 'october-events'); ?> <input type="email" name="report_email" value="<?php echo esc_attr((string) ($cfg['report_email'] ?? '')); ?>" class="regular-text" placeholder="<?php echo esc_attr(get_option('admin_email')); ?>"></label> <span class="description"><?php esc_html_e('Blank = site admin. Only sends on days with sales.', 'october-events'); ?></span></p>
         </div></details>
 
+        <?php if (\OE\Features::enabled('volunteers')) : ?>
         <details class="oe-acc" id="reminders"><summary><?php esc_html_e('Volunteer reminders', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Email reminders always send. SMS is optional (see the SMS section) and only goes to volunteers who provided a mobile and opted in.', 'october-events'); ?></p>
         <p><strong><?php esc_html_e('Send reminders:', 'october-events'); ?></strong></p>
@@ -358,6 +374,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <p class="description"><?php esc_html_e('A confirmation always sends immediately on signup.', 'october-events'); ?></p>
         </div></details>
 
+        <?php endif; ?>
         <details class="oe-acc" id="sms"><summary><?php esc_html_e('SMS (AWS End User Messaging)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Optional. Sends volunteer-reminder texts via AWS. Off until enabled and configured. US sending requires a registered 10DLC origination number.', 'october-events'); ?></p>
         <?php $aws_pw_const = \OE\Settings::secret_is_constant('aws_secret_access_key'); ?>
@@ -403,6 +420,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         </tbody></table>
         </div></details>
 
+        </section>
+        <section class="oe-set-panel" data-tab="updates">
         <details class="oe-acc" id="updates"><summary><?php esc_html_e('Updates (GitHub)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('New versions are published as GitHub Releases tagged oe-v<version> and offered in Dashboard → Updates. Provide a fine-grained token with Contents: read (or define OE_GITHUB_TOKEN in wp-config.php).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Repository', 'october-events'); ?> <input type="text" name="github_repo" class="regular-text" value="<?php echo esc_attr((string) ($cfg['github_repo'] ?? 'octobercomms/claude')); ?>"></label></p>
@@ -414,8 +433,9 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             </span></p>
         </div></details>
 
-        </div><!-- /.oe-col -->
-        </div><!-- /.oe-settings-cols -->
+        </section>
+        </div><!-- /.oe-set-main -->
+        </div><!-- /.oe-set -->
 
         <?php submit_button(); ?>
     </form>
@@ -512,6 +532,16 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         .oe-secret-wrap { display: inline-flex; align-items: center; gap: 4px; }
         .oe-secret-toggle { display: inline-flex !important; align-items: center; padding: 0 6px !important; }
         .oe-secret-toggle .dashicons { width: 18px; height: 18px; font-size: 18px; }
+        /* Tabbed settings: left sub-nav + one panel at a time. */
+        .oe-set { display: flex; gap: 24px; align-items: flex-start; margin-top: 12px; }
+        .oe-set-nav { flex: 0 0 190px; position: sticky; top: 46px; display: flex; flex-direction: column; gap: 2px; }
+        .oe-set-nav button { text-align: left; background: none; border: 0; border-left: 3px solid transparent; padding: 9px 12px; font: inherit; font-weight: 600; color: #50575e; cursor: pointer; border-radius: 0 6px 6px 0; }
+        .oe-set-nav button:hover { background: #f0f0f1; color: #1d2327; }
+        .oe-set-nav button.is-active { background: #fff; border-left-color: #2271b1; color: #1d2327; }
+        .oe-set-main { flex: 1 1 auto; min-width: 0; max-width: 760px; }
+        .oe-set-panel { display: none; }
+        .oe-set-panel.is-active { display: block; }
+        @media (max-width: 782px) { .oe-set { flex-direction: column; } .oe-set-nav { flex-direction: row; flex-wrap: wrap; position: static; } .oe-set-nav button { border-left: 0; border-radius: 6px; } }
     </style>
     <script>
     (function () {
@@ -533,6 +563,25 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         }
         window.addEventListener('hashchange', openTarget);
         openTarget();
+
+        // Tabbed settings: show one panel at a time; remember the last tab.
+        var nav = document.getElementById('oe-set-nav');
+        if (nav) {
+            var panels = document.querySelectorAll('.oe-set-panel');
+            var showTab = function (tab) {
+                if (!document.querySelector('.oe-set-panel[data-tab="' + tab + '"]')) { return; }
+                nav.querySelectorAll('button').forEach(function (b) { b.classList.toggle('is-active', b.dataset.tab === tab); });
+                panels.forEach(function (p) { p.classList.toggle('is-active', p.dataset.tab === tab); });
+                try { localStorage.setItem('oeSettingsTab', tab); } catch (e) {}
+            };
+            nav.addEventListener('click', function (e) {
+                var b = e.target.closest('button[data-tab]');
+                if (b) { e.preventDefault(); showTab(b.dataset.tab); }
+            });
+            var saved;
+            try { saved = localStorage.getItem('oeSettingsTab'); } catch (e) {}
+            if (saved) { showTab(saved); }
+        }
     })();
     </script>
 </div>
