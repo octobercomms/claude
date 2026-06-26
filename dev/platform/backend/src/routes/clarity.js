@@ -37,4 +37,15 @@ router.post('/clients/:clientId/report/run', async (req, res) => {
   catch (err) { res.status(err.status || 502).json({ error: err.message }); }
 });
 
+// Mark one finding done / not-done. Persists team-wide so the action list is
+// a shared checklist, not per-browser state.
+router.patch('/clients/:clientId/report/:reportId/findings/:index', async (req, res) => {
+  try {
+    const report = await clarity.setFindingDone(
+      req.params.clientId, req.params.reportId, parseInt(req.params.index, 10), !!req.body.done
+    );
+    res.json({ report });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+
 module.exports = router;

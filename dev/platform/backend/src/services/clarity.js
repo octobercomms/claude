@@ -103,6 +103,7 @@ async function runReport(clientId) {
     ? out.findings.map(f => ({
         priority: ['critical', 'high', 'medium'].includes(f.priority) ? f.priority : 'medium',
         url: f.url || null, issue: f.issue || null, fix: f.fix || null,
+        done: false,   // per-finding completion, toggled from the CRO panel
       })).filter(f => f.issue || f.fix).slice(0, 12)
     : [];
   const { rows } = await pool.query(
@@ -120,4 +121,25 @@ async function latestReport(clientId) {
   return rows[0] || null;
 }
 
-module.exports = { getConfig, setToken, clearToken, runReport, latestReport };
+// Toggle the `done` flag on one finding of a report. Scoped to the client id
+// (the route already enforces client access) so a report can only be touched
+// by someone who can see its client. Rewrites the whole findings array — small
+// (≤12 items) so it's cheaper than a jsonb_set and avoids type assumptions.
+async function setFindingDone(clientId, reportId, index, done) {
+  const { rows } = await pool.query(
+    'SELECT findings FROM clarity_cro_reports WHERE id = $1 AND client_id = $2', [reportId, clientId]
+  );
+  if (!rows[0]) { const e = new Error('Report not found.'); e.status = 404; throw e; }
+  const findings = Array.isArray(rows[0].findings) ? rows[0].findings : [];
+  if (!Number.isInteger(index) || index < 0 || index >= findings.length) {
+    const e = new Error('Finding not found.'); e.status = 404; throw e;
+  }
+  findings[index] = { ...findings[index], done: !!done };
+  const { rows: upd } = await pool.query(
+    'UPDATE clarity_cro_reports SET findings = $1 WHERE id = $2 AND client_id = $3 RETURNING *',
+    [JSON.stringify(findings), reportId, clientId]
+  );
+  return upd[0];
+}
+
+module.exports = { getConfig, setToken, clearToken, runReport, latestReport, setFindingDone };
