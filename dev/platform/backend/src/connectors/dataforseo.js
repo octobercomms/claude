@@ -275,6 +275,22 @@ async function fetchBacklinkData(domain) {
   return data.tasks[0].result[0];
 }
 
+// Domain rank (DataForSEO's 0–1000 backlinks rank — the Domain Authority
+// equivalent) for several domains in one batched call. Used to benchmark a
+// strategy's competitor table with real numbers. Returns { domain: rank|null }.
+async function fetchDomainRanks(domains) {
+  const list = [...new Set((domains || []).map(normalizeDomain).filter(Boolean))].slice(0, 12);
+  if (!list.length) return {};
+  const client = await getClient();
+  const { data } = await client.post('/backlinks/summary/live', list.map(target => ({ target, limit: 1 })));
+  const out = {};
+  for (const task of data.tasks || []) {
+    const r = task.result?.[0];
+    if (r?.target) out[r.target] = (typeof r.rank === 'number') ? r.rank : null;
+  }
+  return out;
+}
+
 // Anchor text distribution — what words are linking TO the client's
 // domain. DFS returns each unique anchor + the backlink count using it
 // + the count of referring domains. Gated like the rest of the
@@ -486,4 +502,4 @@ async function fetchGoogleTrends(keywords, { locationCode = 2826, timeRange = 'p
   };
 }
 
-module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };
+module.exports = { authType, checkTokenValidity, checkRank, checkAIOverview, fetchKeywordsForUrl, fetchTopSerpResults, fetchSearchVolume, fetchBacklinkData, fetchDomainRanks, fetchAnchorTextDistribution, fetchDofollowSplit, fetchDomainAuthority, fetchReviews, fetchLLMVisibility, fetchDomainIntersection, fetchGoogleTrends, fetchData, testCredentials, resolveCreds };

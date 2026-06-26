@@ -56,6 +56,25 @@ function Profile({ profile }) {
         </div>
       )}
 
+      {(p.positioning || !!p.key_messages?.length) && (
+        <div className="card accent">
+          {p.positioning && (
+            <>
+              <div className="caption" style={{ marginBottom: 6 }}>Positioning</div>
+              <p className="body" style={{ margin: '0 0 10px', fontWeight: 600 }}>{p.positioning}</p>
+            </>
+          )}
+          {!!p.key_messages?.length && (
+            <>
+              <div className="caption" style={{ marginBottom: 6 }}>Key messages</div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {p.key_messages.map((m, i) => <li key={i} className="body-sm" style={{ marginBottom: 4 }}>{m}</li>)}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+
       {!!p.objectives?.length && (
         <div>
           <div className="caption" style={{ marginBottom: 8 }}>Objectives</div>
@@ -115,6 +134,81 @@ function Profile({ profile }) {
             <CompetitorCol title="Emotional" blurb="Rival desires / big-ticket spends" items={p.competitors.emotional} />
             <CompetitorCol title="Situational" blurb="Life events that divert spend" items={p.competitors.situational} />
           </div>
+        </div>
+      )}
+
+      {!!p.competitor_table?.length && (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>Competitor benchmark</div>
+          <div className="card" style={{ padding: 0, overflowX: 'auto' }}>
+            <table className="table">
+              <thead><tr><th>Competitor</th><th>Domain</th><th className="num">DA</th><th>How they compete</th></tr></thead>
+              <tbody>
+                {p.competitor_table.map((c, i) => (
+                  <tr key={i}>
+                    <td className="strong">{c.name}</td>
+                    <td>{c.domain ? <a href={`https://${c.domain}`} target="_blank" rel="noreferrer" style={{ color: 'var(--text-subtle)' }}>{c.domain}</a> : '—'}</td>
+                    <td className="num">{c.domain_authority ?? '—'}</td>
+                    <td className="body-sm">{c.note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="body-xs text-subtle" style={{ marginTop: 4 }}>DA = DataForSEO domain rank (0–1000), pulled live where available.</div>
+        </div>
+      )}
+
+      {p.funnel && (p.funnel.attract.length || p.funnel.convert.length || p.funnel.close.length || p.funnel.retain.length) ? (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>Demand funnel — tactics by stage</div>
+          <div className="grid grid-auto">
+            {[['Attract', 'attract'], ['Convert', 'convert'], ['Close', 'close'], ['Retain', 'retain']].map(([label, key], idx) => (
+              p.funnel[key].length ? (
+                <div key={key} className="card" style={{ padding: 'var(--s4)', borderTop: '3px solid var(--accent)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <span style={{ width: 20, height: 20, borderRadius: 999, background: 'var(--text)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800 }}>{idx + 1}</span>
+                    <div className="h3">{label}</div>
+                  </div>
+                  <ul style={{ margin: 0, paddingLeft: 18 }}>{p.funnel[key].map((t, i) => <li key={i} className="body-sm" style={{ marginBottom: 4 }}>{t}</li>)}</ul>
+                </div>
+              ) : null
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {(!!p.target_media?.length || !!p.target_awards?.length) && (
+        <div className="grid grid-2">
+          {!!p.target_media?.length && (
+            <div className="card" style={{ padding: 'var(--s4)' }}>
+              <div className="caption" style={{ marginBottom: 8 }}>Target media</div>
+              <div className="stack stack-sm">
+                {p.target_media.map((m, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="body-sm" style={{ fontWeight: 600 }}>{m.outlet}</div>
+                      {m.topic && <div className="body-xs text-subtle">{m.topic}</div>}
+                    </div>
+                    {m.tier && <span className="chip chip-neutral" style={{ fontSize: 10, flex: '0 0 auto' }}>Tier {m.tier}</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {!!p.target_awards?.length && (
+            <div className="card" style={{ padding: 'var(--s4)' }}>
+              <div className="caption" style={{ marginBottom: 8 }}>Target awards</div>
+              <div className="stack stack-sm">
+                {p.target_awards.map((a, i) => (
+                  <div key={i}>
+                    <div className="body-sm" style={{ fontWeight: 600 }}>🏆 {a.award}</div>
+                    {a.note && <div className="body-xs text-subtle">{a.note}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

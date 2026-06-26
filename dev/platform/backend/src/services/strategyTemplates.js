@@ -5,6 +5,7 @@
 
 const pool = require('../db');
 const claudeService = require('./claude');
+const dataforseo = require('../connectors/dataforseo');
 const crypto = require('crypto');
 
 const BUSINESS_TYPES = [
@@ -428,8 +429,26 @@ function cleanProfile(p) {
     target: String(o.target || ''),
     timeframe: String(o.timeframe || ''),
   })).filter(o => o.metric);
+  const competitor_table = (Array.isArray(p.competitor_table) ? p.competitor_table : []).slice(0, 12).map(x => ({
+    name: String(x.name || ''),
+    domain: String(x.domain || '').replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '').toLowerCase(),
+    domain_authority: x.domain_authority === null || x.domain_authority === undefined || x.domain_authority === '' ? null : String(x.domain_authority),
+    note: String(x.note || ''),
+  })).filter(x => x.name);
+  const target_media = (Array.isArray(p.target_media) ? p.target_media : []).slice(0, 12).map(x => ({
+    outlet: String(x.outlet || ''), topic: String(x.topic || ''), tier: String(x.tier || ''),
+  })).filter(x => x.outlet);
+  const target_awards = (Array.isArray(p.target_awards) ? p.target_awards : []).slice(0, 10).map(x => ({
+    award: String(x.award || ''), note: String(x.note || ''),
+  })).filter(x => x.award);
+  const funnel = {
+    attract: arr(p.funnel?.attract), convert: arr(p.funnel?.convert),
+    close: arr(p.funnel?.close), retain: arr(p.funnel?.retain),
+  };
   return {
     exec_summary: String(p.exec_summary || ''),
+    positioning: String(p.positioning || ''),
+    key_messages: arr(p.key_messages, 6),
     personas,
     swot: {
       strengths: arr(p.swot?.strengths), weaknesses: arr(p.swot?.weaknesses),
@@ -439,8 +458,28 @@ function cleanProfile(p) {
       functional: arr(p.competitors?.functional), emotional: arr(p.competitors?.emotional),
       situational: arr(p.competitors?.situational),
     },
+    competitor_table,
+    funnel,
     objectives,
+    target_media,
+    target_awards,
   };
+}
+
+// Replace AI-estimated competitor DA with DataForSEO's real domain rank where
+// available. Non-fatal: if DFS isn't configured or the call fails, the AI's
+// estimate stands.
+async function enrichCompetitorDA(profile) {
+  const table = profile?.competitor_table || [];
+  const domains = table.map(c => c.domain).filter(Boolean);
+  if (!domains.length) return profile;
+  try {
+    const ranks = await dataforseo.fetchDomainRanks(domains);
+    for (const c of table) {
+      if (c.domain && ranks[c.domain] != null) c.domain_authority = String(ranks[c.domain]);
+    }
+  } catch { /* leave AI estimates in place */ }
+  return profile;
 }
 
 async function tailorWithClaude(clientId) {
@@ -457,7 +496,7 @@ async function tailorWithClaude(clientId) {
 
   const raw = await claudeService.callClaude({
     max_tokens: 5000,
-    system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional = direct alternatives, emotional = rival desires/big-ticket spends, situational = life events that divert spend), and quantified SMART objectives. Specific to THIS client — no generic filler, no copy-paste between clients. British English. JSON only — no prose, no fences.',
+    system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, a positioning statement + key messages, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional/emotional/situational) AND a benchmarked competitor table (real named companies + their domains), tactics mapped to the demand funnel (attract/convert/close/retain), quantified SMART objectives, and PR target media + awards. Specific to THIS client — no generic filler, no copy-paste between clients. For the competitor table give each competitor\'s real website domain (you don\'t need to know their DA — leave it null, we fill it from live data). British English. JSON only — no prose, no fences.',
     user: `Client: ${c.name}${c.domain ? ` (${c.domain})` : ''}
 About: ${c.briefing_field || '(no brief)'}
 This month's focus: ${c.monthly_focus || '(none)'}
@@ -468,7 +507,7 @@ Current SOSTAC checklist:
 ${JSON.stringify(skeleton)}
 
 Tailor the checklist and write the profile. For objectives, give a metric, a baseline (use "TBC from <channel>" if you can't know it), a target, and a timeframe. Return ONLY:
-{"summary":"1–2 sentence tailored strategy summary","phases":[{"title":"keep the phase titles","items":["specific, client-tailored actions"]}],"profile":{"exec_summary":"a confident 3–5 sentence narrative","personas":[{"label":"Primary","who":"…","age":"…","budget":"…","location":"…","values":["…"]}],"swot":{"strengths":["…"],"weaknesses":["…"],"opportunities":["…"],"threats":["…"]},"competitors":{"functional":["…"],"emotional":["…"],"situational":["…"]},"objectives":[{"metric":"…","baseline":"…","target":"…","timeframe":"…"}]}}`,
+{"summary":"1–2 sentence tailored strategy summary","phases":[{"title":"keep the phase titles","items":["specific, client-tailored actions"]}],"profile":{"exec_summary":"a confident 3–5 sentence narrative","positioning":"one positioning statement","key_messages":["3–5 key messages"],"personas":[{"label":"Primary","who":"…","age":"…","budget":"…","location":"…","values":["…"]}],"swot":{"strengths":["…"],"weaknesses":["…"],"opportunities":["…"],"threats":["…"]},"competitors":{"functional":["…"],"emotional":["…"],"situational":["…"]},"competitor_table":[{"name":"Real competitor","domain":"example.com","domain_authority":null,"note":"how they compete"}],"funnel":{"attract":["tactics that build awareness"],"convert":["tactics that turn interest into leads"],"close":["tactics that close the sale"],"retain":["tactics that retain & grow"]},"objectives":[{"metric":"…","baseline":"…","target":"…","timeframe":"…"}],"target_media":[{"outlet":"publication","topic":"angle","tier":"1|2|3"}],"target_awards":[{"award":"award name","note":"category/why"}]}}`,
     feature: 'client_strategy_tailor',
     clientId,
   });
@@ -485,7 +524,8 @@ Tailor the checklist and write the profile. For objectives, give a metric, a bas
       return { id: crypto.randomBytes(6).toString('hex'), text: String(text), done: prev?.done || false, note: prev?.note || '' };
     }),
   }));
-  const profile = cleanProfile(out.profile);
+  let profile = cleanProfile(out.profile);
+  if (profile) profile = await enrichCompetitorDA(profile);
   await pool.query('UPDATE client_strategy SET summary = $2, phases = $3, profile = $4, updated_at = NOW() WHERE client_id = $1',
     [clientId, out.summary || cur.summary, JSON.stringify(phases), profile ? JSON.stringify(profile) : null]);
   return getClientStrategy(clientId);
