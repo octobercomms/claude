@@ -240,7 +240,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <table class="form-table" style="max-width:720px">
             <?php foreach ($secrets as $key => $const) :
                 $is_const = \OE\Settings::secret_is_constant($key);
-                $value    = $is_const ? '' : (string) \OE\Settings::get($key, '');
+                // Never echo the secret back; just whether one is saved.
+                $is_set   = ! $is_const && (string) \OE\Settings::get($key, '') !== '';
                 ?>
                 <tr>
                     <th scope="row"><label for="oe-sec-<?php echo esc_attr($key); ?>"><?php echo esc_html($labels[$key] ?? $key); ?></label></th>
@@ -250,7 +251,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                             <p class="description"><?php printf(/* translators: %s: constant */ esc_html__('Locked — defined by the %s constant in wp-config.php.', 'october-events'), '<code>' . esc_html($const) . '</code>'); ?></p>
                         <?php else : ?>
                             <span class="oe-secret-wrap">
-                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="<?php echo esc_attr($value); ?>" autocomplete="off" spellcheck="false">
+                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="" placeholder="<?php echo $is_set ? esc_attr__('•••••••• saved — leave blank to keep', 'october-events') : ''; ?>" autocomplete="off" spellcheck="false">
                                 <button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>" title="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button>
                             </span>
                         <?php endif; ?>
@@ -335,7 +336,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr>
                 <th scope="row"><label><?php esc_html_e('SMTP password', 'october-events'); ?></label></th>
                 <td><span class="oe-secret-wrap">
-                    <input type="password" name="ses_smtp_password" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['ses_smtp_password'] ?? ''))); ?>" <?php echo $ses_pw_const ? 'disabled placeholder="Set via OE_SES_SMTP_PASSWORD constant"' : ''; ?>>
+                    <input type="password" name="ses_smtp_password" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $ses_pw_const ? 'disabled placeholder="Set via OE_SES_SMTP_PASSWORD constant"' : (trim((string) ($cfg['ses_smtp_password'] ?? '')) !== '' ? 'placeholder="•••••••• saved — leave blank to keep"' : ''); ?>>
                     <?php if (! $ses_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
                 </span></td>
             </tr>
@@ -394,7 +395,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             <tr>
                 <th scope="row"><label><?php esc_html_e('AWS secret access key', 'october-events'); ?></label></th>
                 <td><span class="oe-secret-wrap">
-                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr($aws_pw_const ? '' : \OE\Crypto::decrypt((string) ($cfg['aws_secret_access_key'] ?? ''))); ?>" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : ''; ?>>
+                    <input type="password" name="aws_secret_access_key" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $aws_pw_const ? 'disabled placeholder="Set via OE_AWS_SECRET_ACCESS_KEY constant"' : (trim((string) ($cfg['aws_secret_access_key'] ?? '')) !== '' ? 'placeholder="•••••••• saved — leave blank to keep"' : ''); ?>>
                     <?php if (! $aws_pw_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
                 </span></td>
             </tr>
@@ -428,7 +429,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <?php $token_const = defined('OE_GITHUB_TOKEN') && OE_GITHUB_TOKEN; ?>
         <p><label><?php esc_html_e('GitHub token', 'october-events'); ?></label><br>
             <span class="oe-secret-wrap">
-                <input type="password" name="github_token" class="regular-text oe-secret" autocomplete="off" value="<?php echo esc_attr(\OE\Crypto::decrypt((string) ($cfg['github_token'] ?? ''))); ?>" <?php echo $token_const ? 'disabled placeholder="Set via OE_GITHUB_TOKEN constant"' : ''; ?>>
+                <input type="password" name="github_token" class="regular-text oe-secret" autocomplete="off" value="" <?php echo $token_const ? 'disabled placeholder="Set via OE_GITHUB_TOKEN constant"' : (trim((string) ($cfg['github_token'] ?? '')) !== '' ? 'placeholder="•••••••• saved — leave blank to keep"' : ''); ?>>
                 <?php if (! $token_const) : ?><button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button><?php endif; ?>
             </span></p>
         </div></details>
