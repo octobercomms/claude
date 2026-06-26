@@ -18,7 +18,7 @@ final class Rest {
     }
 
     public static function can_edit(): bool {
-        return current_user_can('edit_posts');
+        return \OE\Access::can_manage();
     }
 
     public static function register_routes(): void {
