@@ -359,13 +359,17 @@
             })
         }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
           .then(function (res) {
-            if (!res.ok) { out.textContent = (res.body && res.body.error) || 'Error'; return; }
+            if (!res.ok) {
+                var b = res.body || {};
+                out.textContent = b.error || b.message || 'Sorry — something went wrong. Please try again.';
+                return;
+            }
             var b = res.body || {};
             var msg = 'You\'re signed up for ' + b.booked + ' shift' + (b.booked === 1 ? '' : 's') + ' — check your email for confirmation.';
             if (b.failed && b.failed.length) { msg += ' Couldn\'t book: ' + b.failed.join('; ') + '.'; }
             out.textContent = msg;
             refresh();
-        });
+        }).catch(function () { out.textContent = 'Network error — please try again.'; });
     }
 
     function refresh() {

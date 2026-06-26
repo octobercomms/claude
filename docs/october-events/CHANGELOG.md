@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.57.4 — fix: volunteer signup rejected ("Error")
+
+The `/volunteer-signup` route still required the old single `shift_id`
+parameter, so multi-shift submissions (which send `shift_ids[]`) were rejected
+by WordPress before the handler ran — surfacing only a generic "Error". Made
+`shift_id` optional at the route (the handler already requires at least one
+shift), so signups go through. The widget now also shows the real server
+message and handles network errors.
+
 ## 1.57.3 — fix: volunteer multi-shift selection not detected
 
 The signup form rejected submissions with "Please choose at least one shift"

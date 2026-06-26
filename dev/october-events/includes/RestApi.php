@@ -70,7 +70,9 @@ final class RestApi {
             'permission_callback' => '__return_true',
             'args'                => [
                 'opportunity_id' => ['required' => true, 'sanitize_callback' => 'absint'],
-                'shift_id'       => ['required' => true, 'sanitize_callback' => 'sanitize_key'],
+                // Single shift_id OR shift_ids[] (multi-select) — the handler
+                // requires at least one, so neither is "required" at the route.
+                'shift_id'       => ['sanitize_callback' => 'sanitize_key'],
             ],
         ]);
 
