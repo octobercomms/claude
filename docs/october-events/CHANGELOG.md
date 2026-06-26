@@ -5,6 +5,26 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.55.0 — PayPal checkout (alongside card)
+
+Buyers can now pay with **PayPal** as well as card. PayPal appears on the
+checkout under the card option (or on its own) whenever it's configured, and is
+completely hidden until then — card checkout is untouched.
+
+- **Same trust model as Stripe (ADF-01).** The server prices the cart, creates
+  the PayPal order, and stashes the trusted cart/buyer/attendees server-side
+  (keyed by the PayPal order id). On approval it **captures via PayPal's API**
+  and issues tickets only for what was actually taken — the browser never
+  dictates price or contents. Idempotent on the capture id.
+- **Refunds included.** The one-click **Refund** button now refunds PayPal
+  orders too (via the capture id), emailing the customer just like Stripe.
+- **Setup:** Settings → Tickets → **PayPal** — enable, pick Sandbox/Live, and
+  paste the **Client ID**; add the **Client secret** under API keys (or pin it
+  with the `OE_PAYPAL_SECRET` constant). Sandbox first, then flip to Live.
+
+New `OE\Connectors\PayPalConnector`; `POST /paypal-create` + `/paypal-capture`;
+`create_ticket_order_from_meta()` now takes the payment method.
+
 ## 1.54.0 — refund/cancel now emails the customer automatically
 
 The one-click **Refund** (Stripe) and **Cancel** actions on Tickets →

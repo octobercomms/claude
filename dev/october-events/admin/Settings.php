@@ -128,6 +128,7 @@ final class Settings {
             'stripe_secret_key'      => 'OE_STRIPE_SECRET_KEY',
             'stripe_publishable_key' => 'OE_STRIPE_PUBLISHABLE_KEY',
             'stripe_webhook_secret'  => 'OE_STRIPE_WEBHOOK_SECRET',
+            'paypal_client_secret'   => 'OE_PAYPAL_SECRET',
             'claude_api_key'         => 'OE_CLAUDE_API_KEY',
             'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         ];
@@ -242,6 +243,10 @@ final class Settings {
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
+            // PayPal gateway (secret handled in the secrets loop above).
+            'paypal_enabled'   => empty($in['paypal_enabled']) ? '0' : '1',
+            'paypal_env'       => (($in['paypal_env'] ?? 'sandbox') === 'live') ? 'live' : 'sandbox',
+            'paypal_client_id' => sanitize_text_field((string) ($in['paypal_client_id'] ?? '')),
             // Pre-event reminder to ticket-holders.
             'attendee_reminder_enabled' => empty($in['attendee_reminder_enabled']) ? '0' : '1',
             'attendee_reminder_hours'   => max(1, min(168, (int) ($in['attendee_reminder_hours'] ?? 24))),

@@ -12,9 +12,10 @@ defined('ABSPATH') || exit;
 /**
  * Public event checkout — `[oe_event_checkout event_id="123"]`.
  *
- * Renders the ticket-type chooser, quantity, promo field, buyer details and a
- * Stripe card element. Hydrated by assets/js/checkout.js against the oe/v1
- * ticket endpoints. Stripe is the only gateway (per the festival's decision).
+ * Renders the ticket-type chooser, quantity, promo field, buyer details and the
+ * payment options. Hydrated by assets/js/checkout.js against the oe/v1 ticket
+ * endpoints. Stripe (card) is the primary gateway; PayPal is offered alongside
+ * it when configured (Settings → Tickets).
  */
 final class Checkout {
 
@@ -64,11 +65,24 @@ final class Checkout {
         wp_enqueue_script('oe-checkout');
         wp_enqueue_script('oe-stripe-js', 'https://js.stripe.com/v3/', [], null, true);
 
-        $currency = strtoupper((string) Settings::get('currency', 'usd'));
+        $currency  = strtoupper((string) Settings::get('currency', 'usd'));
+        $paypal_on = \OE\Connectors\PayPalConnector::is_ready();
+        if ($paypal_on) {
+            // PayPal JS SDK for the smart buttons (capture intent), in this currency.
+            $sdk = add_query_arg([
+                'client-id'  => rawurlencode(\OE\Connectors\PayPalConnector::client_id()),
+                'currency'   => rawurlencode($currency),
+                'intent'     => 'capture',
+                'components' => 'buttons',
+            ], 'https://www.paypal.com/sdk/js');
+            wp_enqueue_script('oe-paypal-js', $sdk, [], null, true);
+        }
+
         wp_localize_script('oe-checkout', 'octCheckout', [
             'restUrl'           => esc_url_raw(rest_url('oe/v1')),
             'nonce'             => wp_create_nonce('wp_rest'),
             'stripePublishable' => (string) Settings::get('stripe_publishable_key', ''),
+            'paypalEnabled'     => $paypal_on,
             'eventId'           => $event_id,
             'currency'          => $currency,
             'currencySymbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),

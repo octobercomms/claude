@@ -25,6 +25,7 @@ final class Settings {
         'stripe_secret_key'      => 'OE_STRIPE_SECRET_KEY',
         'stripe_publishable_key' => 'OE_STRIPE_PUBLISHABLE_KEY',
         'stripe_webhook_secret'  => 'OE_STRIPE_WEBHOOK_SECRET',
+        'paypal_client_secret'   => 'OE_PAYPAL_SECRET',
         'claude_api_key'         => 'OE_CLAUDE_API_KEY',
         'google_maps_key'        => 'OE_GOOGLE_MAPS_KEY',
         'ses_smtp_password'      => 'OE_SES_SMTP_PASSWORD',
@@ -52,6 +53,10 @@ final class Settings {
                 'ad'          => ['featured' => 29900, 'premium' => 49900],
             ],
             'currency'        => 'usd',
+            // PayPal — a second checkout gateway alongside Stripe (off until set up).
+            'paypal_enabled'   => false,
+            'paypal_env'       => 'sandbox',
+            'paypal_client_id' => '',
             // Rejection email copy per listing type (§3.3). Empty => default.
             'rejection_copy'  => [],
             // AI Stories connector source URLs (RSS preferred) (§6).

@@ -193,6 +193,13 @@ final class Orders {
             if ($refund_id) {
                 AuditLog::record('order_refunded', $order_id, 'order', $refund_id);
             }
+        } elseif ($refund && $order->payment_id && $order->payment_method === 'paypal') {
+            // payment_id holds the PayPal capture id, which is what we refund.
+            $refund_id = \OE\Connectors\PayPalConnector::refund((string) $order->payment_id);
+            $status = $refund_id ? 'refunded' : 'cancelled';
+            if ($refund_id) {
+                AuditLog::record('order_refunded', $order_id, 'order', $refund_id);
+            }
         } else {
             $status = 'cancelled';
         }

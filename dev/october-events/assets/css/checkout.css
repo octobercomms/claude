@@ -697,3 +697,9 @@
     padding-top: 0;
   }
 }
+
+/* "or" divider between card and PayPal payment options */
+.oct-pay-or { display: flex; align-items: center; text-align: center; color: #9a8f7a; font-size: 13px; margin: 16px 0; }
+.oct-pay-or::before, .oct-pay-or::after { content: ""; flex: 1; height: 1px; background: #e6dfcf; }
+.oct-pay-or span { padding: 0 12px; text-transform: uppercase; letter-spacing: .08em; }
+#oct-paypal-buttons { margin-top: 4px; }
