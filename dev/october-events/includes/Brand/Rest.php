@@ -54,6 +54,8 @@ final class Rest {
                 $out[$key] = $val;
             }
         }
+        // Per-site feature toggles, so the platform hides modules a site doesn't use.
+        $out['features'] = \OE\Features::all();
         $res = new \WP_REST_Response($out, 200);
         $res->header('Cache-Control', 'public, max-age=300');
         return $res;

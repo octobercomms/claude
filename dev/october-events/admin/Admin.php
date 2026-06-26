@@ -52,14 +52,17 @@ final class Admin {
         // Events: the readiness board IS the events screen (raw CPT list merged in).
         add_submenu_page('october-events', 'Events', 'Events', $cap, 'oe-planning', [PlanningAdmin::get_instance(), 'render_list']);
         // Tickets: registrations + promo codes live here as tabs.
-        add_submenu_page('october-events', 'Tickets', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']);
-        add_submenu_page('october-events', 'Directory', 'Directory', $cap, 'oe-directory', fn() => $this->page_listing('directory'));
-        add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination'));
-        add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product'));
-        add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story'));
-        add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']);
-        add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']);
-        add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']);
+        // Per-site feature toggles (Settings → Features) hide the modules a site
+        // doesn't use. Dashboard, Events and Settings are always available.
+        $f = static fn(string $key): bool => \OE\Features::enabled($key);
+        if ($f('tickets'))      { add_submenu_page('october-events', 'Tickets', 'Tickets', $cap, 'oe-tickets', [$this, 'page_tickets']); }
+        if ($f('directory'))    { add_submenu_page('october-events', 'Directory', 'Directory', $cap, 'oe-directory', fn() => $this->page_listing('directory')); }
+        if ($f('destinations')) { add_submenu_page('october-events', 'Destinations', 'Destinations', $cap, 'oe-destinations', fn() => $this->page_listing('destination')); }
+        if ($f('products'))     { add_submenu_page('october-events', 'Products', 'Products', $cap, 'oe-products', fn() => $this->page_listing('product')); }
+        if ($f('stories'))      { add_submenu_page('october-events', 'Stories', 'Stories', $cap, 'oe-stories', fn() => $this->page_listing('story')); }
+        if ($f('accounts'))     { add_submenu_page('october-events', 'Accounts', 'Accounts', $cap, 'oe-accounts', [$this, 'page_accounts']); }
+        if ($f('volunteers'))   { add_submenu_page('october-events', 'Volunteers', 'Volunteers', $cap, 'oe-volunteers', [$this, 'page_volunteers']); }
+        if ($f('contacts'))     { add_submenu_page('october-events', 'Contacts', 'Contacts', $cap, 'oe-contacts', [$this, 'page_contacts']); }
         add_submenu_page('october-events', 'Settings', 'Settings', $cap, 'oe-settings', [Settings::get_instance(), 'render']);
         // Tasks moved to the platform (staff ops); its data + REST remain. The raw
         // Events list and the standalone Promo Codes screen are merged above.

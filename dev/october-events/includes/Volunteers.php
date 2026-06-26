@@ -28,6 +28,11 @@ final class Volunteers {
 
     public function init(): void {
         add_action('init', [$this, 'register_meta'], 30);
+
+        // Whole module can be switched off per-site (Settings → Features).
+        if (! Features::enabled('volunteers')) {
+            return;
+        }
         // Front-end signup widget for the opportunity page (hybrid: Elementor
         // renders the listing, this shortcode provides the signup table).
         add_shortcode('oe_volunteer_signup', [$this, 'render_signup_widget']);

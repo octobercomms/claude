@@ -36,6 +36,9 @@ final class Checkout {
     }
 
     public function render(array $atts = []): string {
+        if (! \OE\Features::enabled('tickets')) {
+            return '';
+        }
         $atts = shortcode_atts(['event_id' => get_the_ID()], $atts, 'oe_event_checkout');
         $event_id = (int) $atts['event_id'];
         if (! $event_id || get_post_type($event_id) !== PostTypes::slug('event')) {

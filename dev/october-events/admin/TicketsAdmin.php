@@ -44,6 +44,9 @@ final class TicketsAdmin {
      * ------------------------------------------------------------------ */
 
     public function add_meta_boxes(): void {
+        if (! \OE\Features::enabled('tickets')) {
+            return;
+        }
         add_meta_box('oe_ticket_types', __('Tickets & check-in', 'october-events'), [$this, 'render_event_meta_box'], PostTypes::slug('event'), 'normal', 'high');
     }
 

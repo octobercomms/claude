@@ -243,6 +243,8 @@ final class Settings {
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
+            // Per-site feature toggles (Settings → Features).
+            'features'          => \OE\Features::sanitize((array) ($in['features'] ?? [])),
             // PayPal gateway (secret handled in the secrets loop above).
             'paypal_enabled'   => empty($in['paypal_enabled']) ? '0' : '1',
             'paypal_env'       => (($in['paypal_env'] ?? 'sandbox') === 'live') ? 'live' : 'sandbox',
