@@ -309,6 +309,38 @@ final class Orders {
      *
      * @return array<int,object>
      */
+    /**
+     * Tickets sold + revenue per day for the last $days (oldest → newest), as a
+     * complete series (zero-filled). For the sales chart.
+     *
+     * @return array<int,array{date:string,tickets:int,revenue:float}>
+     */
+    public static function daily_sales(int $days = 30): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $days  = max(1, min(120, $days));
+        $since = gmdate('Y-m-d', time() - ($days - 1) * DAY_IN_SECONDS);
+        $trows = $wpdb->get_results($wpdb->prepare(
+            "SELECT DATE(ti.created_at) d, COUNT(*) n FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.status='paid' AND ti.status='active' AND ti.created_at >= %s GROUP BY DATE(ti.created_at)",
+            $since . ' 00:00:00'
+        )) ?: [];
+        $rrows = $wpdb->get_results($wpdb->prepare(
+            "SELECT DATE(created_at) d, COALESCE(SUM(total),0) r FROM {$o}
+             WHERE status='paid' AND created_at >= %s GROUP BY DATE(created_at)",
+            $since . ' 00:00:00'
+        )) ?: [];
+        $tmap = []; foreach ($trows as $r) { $tmap[$r->d] = (int) $r->n; }
+        $rmap = []; foreach ($rrows as $r) { $rmap[$r->d] = (float) $r->r; }
+        $out = [];
+        for ($i = $days - 1; $i >= 0; $i--) {
+            $day = gmdate('Y-m-d', time() - $i * DAY_IN_SECONDS);
+            $out[] = ['date' => $day, 'tickets' => $tmap[$day] ?? 0, 'revenue' => $rmap[$day] ?? 0.0];
+        }
+        return $out;
+    }
+
     public static function event_summary(): array {
         global $wpdb;
         $o = Schema::orders();
