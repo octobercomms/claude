@@ -92,6 +92,43 @@ final class CheckIn {
     }
 
     /**
+     * Paginated check-in log (most recent first), optionally for one event.
+     * Joined with the ticket for attendee/type/number context.
+     *
+     * @return array<int,object>
+     */
+    public static function log(int $event_id = 0, int $limit = 50, int $offset = 0): array {
+        global $wpdb;
+        $c = Schema::checkins();
+        $t = Schema::tickets();
+        $cols = "c.id, c.event_id, c.venue_name, c.scanned_at, c.ticket_id,
+                 t.attendee_name, t.ticket_type_label, t.ticket_number, t.total_in_order";
+        $sql = "SELECT {$cols} FROM {$c} c LEFT JOIN {$t} t ON t.id = c.ticket_id ";
+        $limit  = max(1, min(200, $limit));
+        $offset = max(0, $offset);
+        if ($event_id > 0) {
+            return $wpdb->get_results($wpdb->prepare(
+                $sql . "WHERE c.event_id = %d ORDER BY c.id DESC LIMIT %d OFFSET %d",
+                $event_id, $limit, $offset
+            )) ?: [];
+        }
+        return $wpdb->get_results($wpdb->prepare(
+            $sql . "ORDER BY c.id DESC LIMIT %d OFFSET %d",
+            $limit, $offset
+        )) ?: [];
+    }
+
+    /** Total number of recorded scans (optionally for one event). */
+    public static function log_total(int $event_id = 0): int {
+        global $wpdb;
+        $c = Schema::checkins();
+        if ($event_id > 0) {
+            return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM {$c} WHERE event_id = %d", $event_id));
+        }
+        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$c}");
+    }
+
+    /**
      * @return array{unique:int,venues:array<int,array{venue:string,count:int}>}
      */
     public static function stats(int $event_id): array {

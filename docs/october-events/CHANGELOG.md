@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.41.3 — Check-in Log admin screen
+
+Restores the old plugin's **Check-in Log**. A new **Check-in log** tab on the
+Tickets screen lists every recorded door scan — attendee, ticket type, ticket
+number, door/venue and time — filterable by event and paginated. Picking an event
+also shows that event's per-venue scan breakdown and unique-attendee count. (The
+data was already being recorded in `wp_oe_checkins`; this exposes it in wp-admin.)
+
 ## 1.41.2 — keep the old [oct_checkout] checkout pages working
 
 The retired "Event Tickets" plugin's live checkout pages use `[oct_checkout

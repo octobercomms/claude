@@ -209,19 +209,22 @@ final class Admin {
     }
 
     public function page_tickets(): void {
-        $tab = (isset($_GET['tab']) && $_GET['tab'] === 'promos') ? 'promos' : 'orders';
+        $tab = isset($_GET['tab']) ? sanitize_key((string) $_GET['tab']) : 'orders';
         if ($tab === 'promos') {
             TicketsAdmin::get_instance()->render_promos();
+        } elseif ($tab === 'checkin') {
+            TicketsAdmin::get_instance()->render_checkin_log();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
     }
 
-    /** Tab nav shared by the Tickets sub-screens (Registrations / Promo codes). */
+    /** Tab nav shared by the Tickets sub-screens (Registrations / Promo codes / Check-in log). */
     public static function tickets_tabs(string $active): void {
         $tabs = [
-            'orders' => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
-            'promos' => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
+            'orders'  => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
+            'promos'  => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
+            'checkin' => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],
         ];
         echo '<h2 class="nav-tab-wrapper">';
         foreach ($tabs as $key => $t) {
