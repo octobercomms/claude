@@ -49,7 +49,13 @@ final class Rest {
 
         $confirmed = 0;
         $total = 0;
-        foreach (Events::all_event_ids(500) as $id) {
+        $ids = Events::all_event_ids(500);
+        // Prime the postmeta cache in one query so Events::status() (a per-event
+        // get_post_meta) doesn't fire ~500 individual SELECTs on this KPI endpoint.
+        if ($ids) {
+            update_meta_cache('post', $ids);
+        }
+        foreach ($ids as $id) {
             $total++;
             if (Events::status($id) === 'confirmed') {
                 $confirmed++;

@@ -21,9 +21,9 @@ final class Activator {
         self::install_tables();
         Cron::schedule();
 
-        // Seed default settings if absent.
+        // Seed default settings if absent (not autoloaded — plugin-path only).
         if (get_option(Settings::OPTION) === false) {
-            update_option(Settings::OPTION, Settings::defaults());
+            add_option(Settings::OPTION, Settings::defaults(), '', false);
         }
 
         flush_rewrite_rules();
