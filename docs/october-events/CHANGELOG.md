@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.43.0 — check-in app: pretty /checkin URL + original dark design
+
+The door check-in app now lives at a clean **`/checkin`** URL (volunteers can find
+it easily) and is restyled to match the original Event Tickets check-in app:
+
+- **`/checkin`** pretty permalink (rewrite rule, auto-flushed once per version) —
+  `/?oe_checkin=1` still works as a fallback.
+- **Dark, full-screen PWA** ported from the original: app header with a live
+  scan-count badge, **event cards**, a big **PIN keypad** with dot display,
+  **venue cards**, and a camera **scanner with the framed overlay** + green/amber/red
+  result flashes and live per-venue stats. Self-contained `assets/css/checkin.css`,
+  scoped under `.oe-checkin`.
+
 ## 1.42.0 — checkout restyled to match the original Event Tickets design
 
 The `[oe_event_checkout]` page now carries over the carefully-styled look of the

@@ -40,25 +40,59 @@
         b.addEventListener('click', function () { go(b.dataset.back); });
     });
 
+    function listItem(cls, data, icon, title) {
+        return '<button class="list-item ' + cls + '" ' + data + '>' +
+            '<span class="list-item__icon">' + icon + '</span>' +
+            '<span class="list-item__body"><span class="list-item__title">' + esc(title) + '</span></span>' +
+            '<span class="list-item__arrow">›</span></button>';
+    }
+
     /* ---- Events ---- */
     get('/checkin-events', {}).then(function (events) {
         var box = document.getElementById('oe-ci-events');
-        box.innerHTML = (events || []).map(function (e) {
-            return '<button class="oe-btn oe-ci-event" data-id="' + e.id + '">' + esc(e.title) + '</button>';
-        }).join('') || '<p>No events with tickets.</p>';
+        if (!events || !events.length) { box.innerHTML = '<div class="list-item">No events with tickets yet.</div>'; return; }
+        box.innerHTML = events.map(function (e) {
+            return listItem('oe-ci-event', 'data-id="' + e.id + '"', '🎟', e.title);
+        }).join('');
         box.querySelectorAll('.oe-ci-event').forEach(function (btn) {
-            btn.addEventListener('click', function () { state.eventId = parseInt(btn.dataset.id, 10); go('pin'); });
+            btn.addEventListener('click', function () {
+                state.eventId = parseInt(btn.dataset.id, 10);
+                document.getElementById('oe-ci-pin-event').textContent = btn.querySelector('.list-item__title').textContent;
+                resetPin();
+                go('pin');
+            });
         });
     });
 
-    /* ---- PIN ---- */
+    /* ---- PIN keypad ---- */
+    function renderPinDisplay() {
+        var n = state.pin.length, slots = Math.max(4, n), out = '';
+        for (var i = 0; i < slots; i++) { out += (i < n ? '●' : '○'); }
+        document.getElementById('oe-ci-pin-display').textContent = out;
+    }
+    function resetPin() {
+        state.pin = '';
+        document.getElementById('oe-ci-pin').value = '';
+        document.getElementById('oe-ci-pin-msg').textContent = '';
+        renderPinDisplay();
+    }
+    root.querySelectorAll('.pin-btn[data-digit]').forEach(function (b) {
+        b.addEventListener('click', function () {
+            if (state.pin.length >= 6) { return; }
+            state.pin += b.dataset.digit;
+            document.getElementById('oe-ci-pin').value = state.pin;
+            renderPinDisplay();
+        });
+    });
+    document.getElementById('oe-ci-pin-clear').addEventListener('click', resetPin);
+
     document.getElementById('oe-ci-pin-go').addEventListener('click', function () {
-        var pin = document.getElementById('oe-ci-pin').value.trim();
         var msg = document.getElementById('oe-ci-pin-msg');
+        if (state.pin.length < 4) { msg.textContent = 'Enter the 4–6 digit PIN.'; return; }
         msg.textContent = 'Checking…';
-        get('/checkin-venues', { event_id: state.eventId, pin: pin }).then(function (res) {
-            if (res.error) { msg.textContent = 'Wrong PIN.'; return; }
-            state.pin = pin; msg.textContent = '';
+        get('/checkin-venues', { event_id: state.eventId, pin: state.pin }).then(function (res) {
+            if (res.error) { msg.textContent = 'Incorrect PIN. Try again.'; return; }
+            msg.textContent = '';
             renderVenues(res);
             go('venue');
         });
@@ -68,7 +102,7 @@
         var box = document.getElementById('oe-ci-venues');
         var list = (venues && venues.length) ? venues : ['Main door'];
         box.innerHTML = list.map(function (v) {
-            return '<button class="oe-btn oe-ci-venue" data-v="' + esc(v) + '">' + esc(v) + '</button>';
+            return listItem('oe-ci-venue', 'data-v="' + esc(v) + '"', '📍', v);
         }).join('');
         box.querySelectorAll('.oe-ci-venue').forEach(function (btn) {
             btn.addEventListener('click', function () {

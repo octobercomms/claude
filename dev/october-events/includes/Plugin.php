@@ -73,6 +73,26 @@ final class Plugin {
 
         // Ticket view + invoice download routing.
         add_action('template_redirect', [$this, 'handle_public_routes']);
+
+        // Pretty /checkin URL for the door check-in app (volunteers find it easily).
+        add_action('init', [$this, 'register_checkin_route']);
+        add_filter('query_vars', [$this, 'add_query_vars']);
+    }
+
+    public function register_checkin_route(): void {
+        add_rewrite_rule('^checkin/?$', 'index.php?oe_checkin=1', 'top');
+        // Flush once per plugin version (covers self-updates, where no activation
+        // hook fires) so /checkin resolves without re-saving permalinks.
+        if (get_option('oe_rewrite_v') !== OE_VERSION) {
+            flush_rewrite_rules(false);
+            update_option('oe_rewrite_v', OE_VERSION);
+        }
+    }
+
+    /** @param array<int,string> $vars */
+    public function add_query_vars(array $vars): array {
+        $vars[] = 'oe_checkin';
+        return $vars;
     }
 
     public function register_assets(): void {
@@ -154,9 +174,8 @@ final class Plugin {
             exit;
         }
 
-        // Always-on door check-in app (so there's a working URL without having to
-        // place the [oe_checkin] shortcode on a page): /?oe_checkin=1
-        if (isset($_GET['oe_checkin'])) {
+        // Door check-in app at the pretty URL /checkin (or /?oe_checkin=1).
+        if (isset($_GET['oe_checkin']) || get_query_var('oe_checkin')) {
             $this->render_checkin();
             exit;
         }
