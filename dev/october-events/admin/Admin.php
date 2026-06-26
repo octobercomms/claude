@@ -216,6 +216,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_checkin_log();
         } elseif ($tab === 'waitlist') {
             TicketsAdmin::get_instance()->render_waitlist();
+        } elseif ($tab === 'sales') {
+            TicketsAdmin::get_instance()->render_sales();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
@@ -225,6 +227,7 @@ final class Admin {
     public static function tickets_tabs(string $active): void {
         $tabs = [
             'orders'   => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
+            'sales'    => [__('Sales', 'october-events'),         admin_url('admin.php?page=oe-tickets&tab=sales')],
             'promos'   => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
             'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
             'checkin'  => [__('Check-in log', 'october-events'),  admin_url('admin.php?page=oe-tickets&tab=checkin')],

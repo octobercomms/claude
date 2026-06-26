@@ -213,6 +213,18 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ *
+     * Sales dashboard
+     * ------------------------------------------------------------------ */
+
+    public function render_sales(): void {
+        $stats   = Orders::stats();
+        $daily   = Orders::daily_sales(30);
+        $events  = Orders::event_summary();
+        $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
+        require OE_DIR . 'admin/views/sales.php';
+    }
+
+    /* ------------------------------------------------------------------ *
      * Waitlist
      * ------------------------------------------------------------------ */
 

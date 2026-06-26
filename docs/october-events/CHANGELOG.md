@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.50.0 — Ticket Sales dashboard (30-day chart)
+
+A new **Sales** tab on the Tickets screen: KPI cards (tickets & revenue, all-time
+and today), a **30-day tickets-sold bar chart** (hover a bar for that day's count
++ revenue), and a **sales-by-event** table linking through to each event's
+registrations. New `Orders::daily_sales(30)`.
+
 ## 1.49.0 — QR code in the ticket confirmation email
 
 Each ticket in the confirmation email now shows a **scannable QR code** (plus the
