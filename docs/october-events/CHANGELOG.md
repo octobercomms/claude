@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.41.2 — keep the old [oct_checkout] checkout pages working
+
+The retired "Event Tickets" plugin's live checkout pages use `[oct_checkout
+event_id="…"]`. October Events only aliased the older `adf_*` tags, so with that
+plugin switched off those pages rendered nothing. Added an `oct_checkout →
+oe_event_checkout` shortcode alias so existing published checkout pages keep
+working unchanged. (See `docs/october-events/TICKETING-PARITY.md` for the full
+old-vs-new ticketing audit.)
+
 ## 1.41.1 — Check-in PIN column on the Events list
 
 The Events planning list now shows each event's **Check-in PIN** as a column, so
