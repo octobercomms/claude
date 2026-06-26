@@ -21,6 +21,10 @@ final class Compat {
         'adf_event_checkout'    => 'oe_event_checkout',
         'adf_checkin'           => 'oe_checkin',
         'adf_design_map'        => 'oe_design_map',
+        // The previous "Event Tickets" (oct_) plugin's live checkout shortcode.
+        // Published pages use [oct_checkout event_id="…"]; keep them rendering
+        // now that that plugin is retired.
+        'oct_checkout'          => 'oe_event_checkout',
     ];
 
     public static function init(): void {
