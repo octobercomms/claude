@@ -108,6 +108,26 @@ final class Ics {
         return self::ts((string) Events::get($event_id, 'start_datetime', ''));
     }
 
+    /**
+     * Human "when" line for an event, e.g. "September 28, 2025 10:00 AM –
+     * October 5, 2025 4:00 PM". Falls back to the raw start value if unparseable,
+     * '' if there's none.
+     */
+    public static function when_label(int $event_id): string {
+        $raw = (string) Events::get($event_id, 'start_datetime', '');
+        $s = self::ts($raw);
+        if (! $s) {
+            return $raw;
+        }
+        $fmt = 'F j, Y g:i A';
+        $out = wp_date($fmt, $s);
+        $e   = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        if ($e && $e > $s) {
+            $out .= ' – ' . wp_date($fmt, $e);
+        }
+        return $out;
+    }
+
     /** Parse a local datetime string (site timezone) to a UTC timestamp, 0 if unparseable. */
     private static function ts(string $val): int {
         $val = trim($val);

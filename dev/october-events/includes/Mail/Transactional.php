@@ -38,7 +38,7 @@ final class Transactional {
      * @param array{email:string,name?:string} $to
      * @param array<int,string> $attachments File paths to attach (e.g. an .ics).
      */
-    public static function send(string $trigger, array $to, array $params = [], string $subject = '', string $html = '', array $attachments = []): bool {
+    public static function send(string $trigger, array $to, array $params = [], string $subject = '', string $html = '', array $attachments = [], bool $wrap = true): bool {
         $email = (string) ($to['email'] ?? '');
         if (! is_email($email)) {
             return false;
@@ -48,7 +48,9 @@ final class Transactional {
         $tmpl  = (string) (self::SUBJECTS[$trigger] ?? ucwords(str_replace('_', ' ', $trigger)));
         $subject = $subject !== '' ? $subject : sprintf($tmpl, $brand, (string) ($params['event_name'] ?? ''));
         $inner = $html !== '' ? $html : self::body($trigger, $to, $params);
-        $body  = self::wrap($brand, $inner);
+        // $wrap = false lets a caller pass a complete, self-styled document
+        // (e.g. the branded ticket email) without the generic brand chrome.
+        $body  = $wrap ? self::wrap($brand, $inner) : $inner;
         return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8'], $attachments);
     }
 
@@ -87,8 +89,8 @@ final class Transactional {
                 // The full message copy is pre-composed by Submission::rejection_copy().
                 return $hi . '<p>' . nl2br(esc_html((string) ($params['copy'] ?? ''))) . '</p>';
 
-            case 'ticket_delivery':
-                return self::ticket_body($hi, $params);
+            // ticket_delivery is sent as a full self-styled document via
+            // ticket_email_html() + send(..., $wrap=false); no body() case needed.
 
             case 'waitlist_spot':
                 return $hi . '<p>' . sprintf(esc_html__('Good news — a spot has opened up for %s.', 'october-events'),
@@ -127,26 +129,87 @@ final class Transactional {
         return $hi . ($rows ?: '<p>' . esc_html__('See your dashboard for details.', 'october-events') . '</p>');
     }
 
-    private static function ticket_body(string $hi, array $params): string {
-        $out = $hi . '<p>' . sprintf(esc_html__('Here are your tickets for %s.', 'october-events'),
-            '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>';
+    /**
+     * The complete, self-styled ticket confirmation email (print-first language:
+     * square corners, near-monochrome, the event logo top-left). Sent with
+     * $wrap = false so it isn't re-wrapped in the generic brand chrome.
+     *
+     * @param array $params event_name, when, location, order_id, logo, brand,
+     *                       tickets[{number,attendee,type,url,token}]
+     */
+    public static function ticket_email_html(array $params): string {
+        $name  = (string) ($params['contact_name'] ?? $params['name'] ?? '');
+        $event = (string) ($params['event_name'] ?? '');
+        $when  = (string) ($params['when'] ?? '');
+        $where = (string) ($params['location'] ?? '');
+        $order = (string) ($params['order_id'] ?? '');
+        $logo  = (string) ($params['logo'] ?? '');
+        $brand = (string) ($params['brand'] ?? Settings::get('brand_name', 'October Events'));
+        $home  = esc_url(home_url('/'));
+        $host  = esc_html((string) wp_parse_url($home, PHP_URL_HOST));
         $tickets = is_array($params['tickets'] ?? null) ? $params['tickets'] : [];
+
+        $head_left = $logo !== ''
+            ? '<img src="' . esc_url($logo) . '" alt="' . esc_attr($brand) . '" style="max-height:46px;max-width:240px;display:block">'
+            : '<span style="font-weight:800;font-size:17px;color:#111">' . esc_html($brand) . '</span>';
+        $head_right = $order !== ''
+            ? '<span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#888">' . esc_html(sprintf(__('Order #%s', 'october-events'), $order)) . '</span>'
+            : '';
+
+        $rows = '';
         foreach ($tickets as $t) {
-            $num   = esc_html((string) ($t['number'] ?? ''));
+            $tnum  = esc_html((string) ($t['number'] ?? ''));
+            $att   = (string) ($t['attendee'] ?? '');
+            $ttype = (string) ($t['type'] ?? '');
             $url   = (string) ($t['url'] ?? '');
             $token = (string) ($t['token'] ?? '');
-            $out .= '<div style="margin:16px 0;padding:14px;border:1px solid #eee;border-radius:8px;text-align:center">';
-            $out .= '<p style="margin:0 0 8px"><strong>' . esc_html__('Ticket', 'october-events') . ' ' . $num . '</strong></p>';
-            if ($token !== '') {
-                // Scannable QR embedded in the email (in case they don't open the
-                // ticket page) — rendered by a QR image service so it shows in
-                // every email client.
-                $qr = 'https://api.qrserver.com/v1/create-qr-code/?size=170x170&qzone=1&data=' . rawurlencode($token);
-                $out .= '<img src="' . esc_url($qr) . '" alt="' . esc_attr__('Ticket QR code', 'october-events') . '" width="170" height="170" style="display:block;margin:0 auto 8px">';
-            }
-            $out .= '<p style="margin:0">' . self::link(__('view / add to wallet', 'october-events'), $url) . '</p></div>';
+            $qr    = $token !== '' ? 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&qzone=1&data=' . rawurlencode($token) : '';
+            $sub   = trim($ttype . ($tnum !== '' ? ' · ' . sprintf(__('Ticket %s', 'october-events'), $tnum) : ''), ' ·');
+            $rows .= '<tr><td style="padding:0 0 12px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111"><tr>'
+                . '<td width="108" style="padding:12px" valign="middle">'
+                . ($qr !== '' ? '<img src="' . esc_url($qr) . '" alt="' . esc_attr__('Ticket QR code', 'october-events') . '" width="84" height="84" style="display:block">' : '')
+                . '</td>'
+                . '<td style="padding:12px 12px 12px 0" valign="middle">'
+                . ($att !== '' ? '<div style="font-weight:800;font-size:15px;color:#111">' . esc_html($att) . '</div>' : '')
+                . '<div style="font-size:13px;color:#555;margin:2px 0 10px">' . esc_html($sub) . '</div>'
+                . ($url !== '' ? '<a href="' . esc_url($url) . '" style="display:inline-block;background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:9px 16px">' . esc_html__('View ticket', 'october-events') . '</a>' : '')
+                . '</td></tr></table></td></tr>';
         }
-        return $out;
+
+        $count   = count($tickets);
+        $intro   = $count === 1
+            ? esc_html__('You\'re all set — here is your ticket. Bring the QR code (printed or on your phone) to the event.', 'october-events')
+            : esc_html(sprintf(__('You\'re all set — here are your %d tickets. Bring the QR codes (printed or on your phone) to the event.', 'october-events'), $count));
+        $hi      = $name !== '' ? '<p style="margin:0 0 12px;font-size:15px;color:#222">' . sprintf(esc_html__('Hi %s,', 'october-events'), esc_html($name)) . '</p>' : '';
+        $ev_meta = trim($when . ($where !== '' ? ($when !== '' ? '<br>' : '') . esc_html($where) : ''));
+        if ($when !== '') { $ev_meta = esc_html($when) . ($where !== '' ? '<br>' . esc_html($where) : ''); }
+
+        return '<!doctype html><html><body style="margin:0;background:#eceae6">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae6;padding:24px;font-family:Arial,Helvetica,sans-serif">'
+            . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:2px solid #111">'
+            // header
+            . '<tr><td style="padding:16px 22px;border-bottom:3px solid #111"><table role="presentation" width="100%"><tr>'
+            . '<td valign="middle">' . $head_left . '</td>'
+            . '<td align="right" valign="middle">' . $head_right . '</td>'
+            . '</tr></table></td></tr>'
+            // body
+            . '<tr><td style="padding:22px">'
+            . $hi
+            . '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#222">' . $intro . '</p>'
+            // event summary block
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;margin:0 0 18px"><tr><td style="padding:14px 16px">'
+            . '<div style="font-size:18px;font-weight:800;color:#111;line-height:1.2;margin-bottom:' . ($ev_meta !== '' ? '6px' : '0') . '">' . esc_html($event) . '</div>'
+            . ($ev_meta !== '' ? '<div style="font-size:13px;color:#444;line-height:1.5">' . $ev_meta . '</div>' : '')
+            . '<div style="margin-top:10px;font-size:13px;font-weight:700;color:#111;text-decoration:underline">' . esc_html__('Add to calendar (.ics attached)', 'october-events') . '</div>'
+            . '</td></tr></table>'
+            // tickets
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $rows . '</table>'
+            . '</td></tr>'
+            // footer
+            . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
+            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
+            . '</td></tr>'
+            . '</table></td></tr></table></body></html>';
     }
 
     private static function event_reminder_body(string $hi, array $params): string {
