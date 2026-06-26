@@ -10,6 +10,7 @@
 	const state = {
 		changes: {},   // { "productId:field": { id, field, value, originalValue } }
 		rows: [],      // last-loaded server rows, kept so grouping can re-render
+		sort: { field: null, dir: 1 }, // active column sort (within each product/group)
 		page: 1,
 		totalPages: 1,
 		loading: false,
@@ -532,6 +533,55 @@
 		saveColPrefs(prefs);
 	});
 
+	// Show all / Hide all columns at once.
+	function setAllColumns(visible) {
+		const prefs = loadColPrefs();
+		$('.wbe-col-toggle-cb').each(function () {
+			this.checked = visible;
+			const col = $(this).data('col');
+			$('#wbe-table [data-col="' + col + '"]').toggle(visible);
+			prefs[col] = visible;
+		});
+		saveColPrefs(prefs);
+	}
+	$(document).on('click', '.wbe-col-showall', function (e) { e.preventDefault(); setAllColumns(true); });
+	$(document).on('click', '.wbe-col-hideall', function (e) { e.preventDefault(); setAllColumns(false); });
+
+	// Click a group title to toggle just that group's columns (on if any are off).
+	$(document).on('click', '.wbe-col-group-title', function () {
+		const $cbs = $(this).closest('.wbe-col-group').find('.wbe-col-toggle-cb');
+		const turnOn = $cbs.filter(':not(:checked)').length > 0;
+		$cbs.prop('checked', turnOn).trigger('change');
+	});
+
+	// -------------------------------------------------------------------------
+	// Sort by a column header (within each product / group). Click to sort, click
+	// again to reverse. Keeps the product → variation structure intact.
+	// -------------------------------------------------------------------------
+	$(document).on('click', '#wbe-table thead th.wbe-sortable', function () {
+		const field = $(this).data('sort');
+		if (!field) return;
+		if (state.sort.field === field) {
+			state.sort.dir = -state.sort.dir;
+		} else {
+			state.sort.field = field;
+			state.sort.dir = 1;
+		}
+		updateSortIndicators();
+		if (state.rows && state.rows.length) {
+			renderRows(state.rows);
+			reapplyChanges();
+		}
+	});
+
+	function updateSortIndicators() {
+		$('#wbe-table thead th.wbe-sortable').removeClass('is-sorted-asc is-sorted-desc');
+		if (state.sort.field) {
+			$('#wbe-table thead th[data-sort="' + state.sort.field + '"]')
+				.addClass(state.sort.dir === 1 ? 'is-sorted-asc' : 'is-sorted-desc');
+		}
+	}
+
 	// -------------------------------------------------------------------------
 	// Group variations by attribute (e.g. Fabric) — re-renders the loaded rows
 	// with collapsible group headers. Edits in progress are preserved because we
@@ -689,12 +739,35 @@
 		updateSelectionUI();
 	}
 
+	// Sort a list of rows by the active column (within a product / group), leaving
+	// the server's alphabetical order when no column sort is active. Numbers sort
+	// numerically; blanks always sink to the bottom.
+	const NUMERIC_SORT = ['regular_price', 'sale_price', 'price_eur', 'sale_price_eur', 'price_usd', 'sale_price_usd', 'stock_qty', 'acvs_catalog_order'];
+	function sortRows(rows) {
+		const field = state.sort.field;
+		if (!field) return rows;
+		const dir     = state.sort.dir;
+		const numeric = NUMERIC_SORT.indexOf(field) !== -1;
+		return rows.slice().sort((a, b) => {
+			let va = a[field], vb = b[field];
+			va = (va === undefined || va === null) ? '' : String(va);
+			vb = (vb === undefined || vb === null) ? '' : String(vb);
+			if (va === '' && vb === '') return 0;
+			if (va === '') return 1;   // blanks last, regardless of direction
+			if (vb === '') return -1;
+			let cmp;
+			if (numeric) cmp = (parseFloat(va) || 0) - (parseFloat(vb) || 0);
+			else cmp = va.localeCompare(vb, undefined, { numeric: true, sensitivity: 'base' });
+			return cmp * dir;
+		});
+	}
+
 	// Render a parent's variations — flat, or grouped under headers when a
 	// group-by attribute is active and these variations carry it.
 	function renderVariations(parent, vars, groupBy) {
 		const hasAttr = groupBy && vars.some(v => (v.attributes || []).some(a => a.name === groupBy));
 		if (!hasAttr) {
-			vars.forEach(v => $tbody.append(buildRow(v)));
+			sortRows(vars).forEach(v => $tbody.append(buildRow(v)));
 			return;
 		}
 
@@ -715,7 +788,7 @@
 		order.forEach(key => {
 			const g = groups[key];
 			$tbody.append(buildGroupHeader(parent.id, attrLabel, g));
-			g.rows.forEach(v => {
+			sortRows(g.rows).forEach(v => {
 				const $vr = buildRow(v);
 				$vr.attr('data-parent-id', parent.id).attr('data-group-value', key);
 				$tbody.append($vr);
