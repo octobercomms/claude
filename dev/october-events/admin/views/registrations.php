@@ -25,10 +25,14 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     <?php \OE\Admin\Admin::tickets_tabs('orders'); ?>
 
     <?php if (! empty($_GET['oe_msg'])) :
-        $m = sanitize_key((string) $_GET['oe_msg']); ?>
-        <div class="notice notice-<?php echo $m === 'created' ? 'success' : 'error'; ?> is-dismissible"><p>
-            <?php echo $m === 'created' ? esc_html__('Order created and tickets issued.', 'october-events') : esc_html__('Could not create that order — check the event has a ticket type.', 'october-events'); ?>
-        </p></div>
+        $m = sanitize_key((string) $_GET['oe_msg']);
+        $messages = [
+            'created'       => ['success', __('Order created and tickets issued.', 'october-events')],
+            'resent'        => ['success', __('Confirmation email re-sent to the buyer.', 'october-events')],
+            'resend_failed' => ['error', __('Could not re-send — that order has no email address.', 'october-events')],
+        ];
+        $note = $messages[$m] ?? ['error', __('Could not create that order — check the event has a ticket type.', 'october-events')]; ?>
+        <div class="notice notice-<?php echo esc_attr($note[0]); ?> is-dismissible"><p><?php echo esc_html($note[1]); ?></p></div>
     <?php endif; ?>
 
     <h2><?php esc_html_e('Add a registration manually', 'october-events'); ?></h2>
@@ -72,7 +76,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         <?php if (! $orders) : ?><tr><td colspan="9"><?php esc_html_e('No registrations yet.', 'october-events'); ?></td></tr><?php endif; ?>
         <?php foreach (($orders ?: []) as $o) :
             $cancel = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&id=' . $o->id), 'oe_cancel_order');
-            $refund = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&refund=1&id=' . $o->id), 'oe_cancel_order'); ?>
+            $refund = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&refund=1&id=' . $o->id), 'oe_cancel_order');
+            $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_resend_confirmation&id=' . $o->id), 'oe_resend_confirmation'); ?>
             <tr>
                 <td><?php echo (int) $o->id; ?></td>
                 <td><?php echo esc_html(get_the_title((int) $o->event_id)); ?></td>
@@ -83,6 +88,9 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                 <td><span class="oe-status oe-status-<?php echo esc_attr($o->status); ?>"><?php echo esc_html($o->status); ?></span></td>
                 <td><?php echo esc_html($o->source); ?></td>
                 <td>
+                    <?php if ($o->status === 'paid' && $o->email) : ?>
+                        <a class="button button-small" href="<?php echo esc_url($resend); ?>" title="<?php esc_attr_e('Email the buyer their tickets again', 'october-events'); ?>"><?php esc_html_e('Resend', 'october-events'); ?></a>
+                    <?php endif; ?>
                     <?php if (in_array($o->status, ['paid', 'pending'], true)) : ?>
                         <a class="button button-small" href="<?php echo esc_url($cancel); ?>" onclick="return confirm('<?php echo esc_js(__('Cancel this order and void its tickets? The customer will be emailed.', 'october-events')); ?>')"><?php esc_html_e('Cancel', 'october-events'); ?></a>
                         <?php if ($o->payment_id) : ?>
