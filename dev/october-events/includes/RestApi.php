@@ -181,12 +181,15 @@ final class RestApi {
 
     /** Best-effort client IP for rate limiting (hashed before storage). */
     private function client_ip(): string {
-        foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_X_REAL_IP', 'REMOTE_ADDR'] as $k) {
-            if (! empty($_SERVER[$k])) {
-                return trim(explode(',', (string) wp_unslash($_SERVER[$k]))[0]);
-            }
+        // Cloudflare sets CF-Connecting-IP and overwrites any client-supplied
+        // value, so it's trustworthy behind CF. Do NOT trust the generic
+        // X-Forwarded-For / X-Real-IP headers — a client can forge them to rotate
+        // a fresh "IP" per request and evade every rate limiter (incl. the
+        // check-in PIN brute-force throttle). REMOTE_ADDR is the safe floor.
+        if (! empty($_SERVER['HTTP_CF_CONNECTING_IP'])) {
+            return trim((string) wp_unslash($_SERVER['HTTP_CF_CONNECTING_IP']));
         }
-        return 'unknown';
+        return ! empty($_SERVER['REMOTE_ADDR']) ? trim((string) wp_unslash($_SERVER['REMOTE_ADDR'])) : 'unknown';
     }
 
     /**

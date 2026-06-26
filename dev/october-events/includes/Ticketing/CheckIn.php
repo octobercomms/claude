@@ -127,9 +127,9 @@ final class CheckIn {
         if ($event_id === self::TEST_EVENT_ID) {
             return [
                 'tickets'    => [[
-                    'token'    => self::TEST_TOKEN,
-                    'attendee' => __('Test Attendee', 'october-events'),
-                    'type'     => __('Test ticket', 'october-events'),
+                    'token_hash' => self::token_hash(self::TEST_TOKEN),
+                    'attendee'   => __('Test Attendee', 'october-events'),
+                    'type'       => __('Test ticket', 'october-events'),
                 ]],
                 'checked_in' => [],
                 'generated'  => current_time('mysql', true),
@@ -142,21 +142,29 @@ final class CheckIn {
             "SELECT token, attendee_name, ticket_type_label FROM {$t} WHERE event_id = %d AND status = 'active'",
             $event_id
         )) ?: [];
+        // Tokens are the admission credential, so the manifest ships only their
+        // SHA-256 hash — the scanner hashes the scanned QR and matches locally.
+        // A leaked manifest can no longer forge/clone tickets.
         $tickets = array_map(static fn($r) => [
-            'token'    => (string) $r->token,
-            'attendee' => (string) $r->attendee_name,
-            'type'     => (string) $r->ticket_type_label,
+            'token_hash' => self::token_hash((string) $r->token),
+            'attendee'   => (string) $r->attendee_name,
+            'type'       => (string) $r->ticket_type_label,
         ], $rows);
-        // Tokens already scanned anywhere — lets an offline device flag repeats.
+        // Hashes of tokens already scanned anywhere — lets an offline device flag repeats.
         $checked = $wpdb->get_col($wpdb->prepare(
             "SELECT DISTINCT t.token FROM {$c} c INNER JOIN {$t} t ON t.id = c.ticket_id WHERE c.event_id = %d",
             $event_id
         )) ?: [];
         return [
             'tickets'    => $tickets,
-            'checked_in' => array_map('strval', $checked),
+            'checked_in' => array_map([self::class, 'token_hash'], array_map('strval', $checked)),
             'generated'  => current_time('mysql', true),
         ];
+    }
+
+    /** SHA-256 of a ticket token, hex — matches the scanner's crypto.subtle hash. */
+    public static function token_hash(string $token): string {
+        return hash('sha256', $token);
     }
 
     /**
