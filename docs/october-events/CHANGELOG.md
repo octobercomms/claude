@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.56.1 — resend confirmation / tickets
+
+A **Resend** button on each paid registration (Tickets → Registrations)
+re-sends the buyer their confirmation email — tickets, QR codes and the `.ics`
+— for when they've lost or never received the original. Reuses the same
+branded email; a notice confirms it went.
+
 ## 1.56.0 — redesigned ticket & confirmation email (+ per-event logo)
 
 The printable ticket and the confirmation email are redesigned in a clean,

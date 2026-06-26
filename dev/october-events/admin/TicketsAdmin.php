@@ -31,6 +31,7 @@ final class TicketsAdmin {
 
         add_action('admin_post_oe_create_order', [$this, 'handle_create_order']);
         add_action('admin_post_oe_cancel_order', [$this, 'handle_cancel_order']);
+        add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
         add_action('admin_post_oe_waitlist_promote', [$this, 'handle_waitlist_promote']);
@@ -231,6 +232,20 @@ final class TicketsAdmin {
         $refund   = ! empty($_REQUEST['refund']);
         Orders::cancel($order_id, $refund);
         wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=oe-tickets'));
+        exit;
+    }
+
+    /** Re-send the confirmation email + tickets (for when a buyer loses theirs). */
+    public function handle_resend_confirmation(): void {
+        $this->guard('oe_resend_confirmation');
+        $order_id = absint($_REQUEST['id'] ?? 0);
+        $order    = $order_id ? Orders::get($order_id) : null;
+        $sent     = $order && (string) $order->email !== '';
+        if ($sent) {
+            Orders::send_confirmation($order_id);
+        }
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
+        wp_safe_redirect(add_query_arg('oe_msg', $sent ? 'resent' : 'resend_failed', remove_query_arg('oe_msg', $back)));
         exit;
     }
 
