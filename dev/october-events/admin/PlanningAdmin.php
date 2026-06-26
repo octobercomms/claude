@@ -57,6 +57,11 @@ final class PlanningAdmin {
                 <?php endforeach; ?>
             </ul>
 
+            <?php if (! Events::field_map()) : ?>
+            <!-- No event-builder mapping configured: the planner is the source of
+                 truth, so offer the fields here. When a field map IS set (e.g. a
+                 JetEngine event builder), these are hidden to avoid duplicating it
+                 — readiness simply checks the mapped fields. -->
             <table class="form-table">
                 <tr><th><?php esc_html_e('Event title', 'october-events'); ?></th><td><input type="text" name="oe_plan[name]" class="regular-text" value="<?php echo $g('name'); ?>" placeholder="<?php echo esc_attr(get_the_title($post)); ?>"></td></tr>
                 <tr><th><?php esc_html_e('Dates & times', 'october-events'); ?></th><td>
@@ -78,6 +83,9 @@ final class PlanningAdmin {
                 }
                 echo esc_textarea(implode("\n", $lines));
             ?></textarea>
+            <?php else : ?>
+            <p class="description" style="margin:0 0 4px"><?php esc_html_e('Readiness is checked against your event-builder fields (mapped in Settings → Event field mapping) — no need to re-enter them here.', 'october-events'); ?></p>
+            <?php endif; ?>
 
             <p style="margin-top:12px">
                 <?php if ($status !== Gating::STATUS_CONFIRMED) :
@@ -102,21 +110,27 @@ final class PlanningAdmin {
         if ((defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) || ! current_user_can('edit_post', $post_id)) {
             return;
         }
-        Events::save_fields($post_id, (array) wp_unslash($_POST['oe_plan'] ?? []));
-
-        $sessions = [];
-        foreach (preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_plan_sessions'] ?? '')) as $line) {
-            $parts = array_map('trim', explode('|', $line));
-            if (($parts[0] ?? '') === '') {
-                continue;
-            }
-            $sessions[] = [
-                'title'    => $parts[0],
-                'time'     => $parts[1] ?? '',
-                'speakers' => array_filter(array_map('trim', explode(',', $parts[2] ?? ''))),
-            ];
+        // Only persist the planner fields/sessions when they were actually on the
+        // form — when an event-builder mapping is set they're hidden, and saving
+        // absent inputs would wipe existing values.
+        if (isset($_POST['oe_plan'])) {
+            Events::save_fields($post_id, (array) wp_unslash($_POST['oe_plan']));
         }
-        Events::set_sessions($post_id, $sessions);
+        if (isset($_POST['oe_plan_sessions'])) {
+            $sessions = [];
+            foreach (preg_split('/\r\n|\r|\n/', (string) wp_unslash($_POST['oe_plan_sessions'])) as $line) {
+                $parts = array_map('trim', explode('|', $line));
+                if (($parts[0] ?? '') === '') {
+                    continue;
+                }
+                $sessions[] = [
+                    'title'    => $parts[0],
+                    'time'     => $parts[1] ?? '',
+                    'speakers' => array_filter(array_map('trim', explode(',', $parts[2] ?? ''))),
+                ];
+            }
+            Events::set_sessions($post_id, $sessions);
+        }
     }
 
     /* ---- Confirm / unconfirm actions ---- */
