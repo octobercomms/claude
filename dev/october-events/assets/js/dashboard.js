@@ -309,19 +309,21 @@
             var status = s.full
                 ? '<span class="oe-vol-full">Full — sign-ups closed</span>'
                 : '<span class="oe-vol-open">' + s.spots_left + ' spot' + (s.spots_left === 1 ? '' : 's') + ' left</span>';
-            var radio = s.full ? '' :
-                '<label class="oe-vol-pick"><input type="radio" name="shift" value="' + esc(s.id) + '"> Choose</label>';
-            return '<tr><td>' + esc(s.label) + '</td><td>' + status + '</td><td>' + radio + '</td></tr>';
+            // Checkboxes so a volunteer can pick more than one shift in one go.
+            var pick = s.full ? '' :
+                '<label class="oe-vol-pick"><input type="checkbox" name="shift" value="' + esc(s.id) + '"> Choose</label>';
+            return '<tr><td>' + esc(s.label) + '</td><td>' + status + '</td><td>' + pick + '</td></tr>';
         }).join('');
 
         mount.innerHTML =
             '<table class="oe-table oe-vol-table"><thead><tr><th>Shift</th><th>Availability</th><th></th></tr></thead><tbody>' +
             rows + '</tbody></table>' +
+            '<p class="oe-vol-hint">Choose one or more shifts.</p>' +
             '<form id="oe-vol-form" class="oe-form">' +
             '<label>Name <input type="text" name="name" required></label>' +
             '<label>Email <input type="email" name="email" required></label>' +
             '<label>Mobile (for reminders) <input type="tel" name="phone"></label>' +
-            '<label class="oe-checkbox"><input type="checkbox" name="sms_opt_in" value="1"> Text me shift reminders</label>' +
+            '<p class="oe-vol-note">We\'ll send you email and text reminders before your shift so you don\'t forget.</p>' +
             '<button type="submit" class="oe-btn oe-btn-primary">Sign up</button>' +
             '<div class="oe-result" id="oe-vol-result"></div></form>';
 
@@ -332,8 +334,9 @@
         e.preventDefault();
         var form = e.target;
         var out = document.getElementById('oe-vol-result');
-        var shift = form.querySelector('input[name="shift"]:checked');
-        if (!shift) { out.textContent = 'Please choose a shift.'; return; }
+        var picked = Array.prototype.slice.call(form.querySelectorAll('input[name="shift"]:checked'))
+            .map(function (c) { return c.value; });
+        if (!picked.length) { out.textContent = 'Please choose at least one shift.'; return; }
         out.textContent = '…';
 
         fetch(vol.restUrl + '/volunteer-signup', {
@@ -341,16 +344,18 @@
             headers: { 'X-WP-Nonce': vol.nonce, 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 opportunity_id: vol.opportunityId,
-                shift_id: shift.value,
+                shift_ids: picked,
                 name: form.name.value,
                 email: form.email.value,
-                phone: form.phone.value,
-                sms_opt_in: form.sms_opt_in.checked ? 1 : 0
+                phone: form.phone.value
             })
         }).then(function (r) { return r.json().then(function (b) { return { ok: r.ok, body: b }; }); })
           .then(function (res) {
             if (!res.ok) { out.textContent = (res.body && res.body.error) || 'Error'; return; }
-            out.textContent = 'You are signed up — check your email for confirmation.';
+            var b = res.body || {};
+            var msg = 'You\'re signed up for ' + b.booked + ' shift' + (b.booked === 1 ? '' : 's') + ' — check your email for confirmation.';
+            if (b.failed && b.failed.length) { msg += ' Couldn\'t book: ' + b.failed.join('; ') + '.'; }
+            out.textContent = msg;
             refresh();
         });
     }

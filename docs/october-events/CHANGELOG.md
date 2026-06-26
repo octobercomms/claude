@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.57.1 — volunteer signup: multi-shift + always-on reminders
+
+Two tweaks to the public volunteer signup widget:
+
+- **Pick more than one shift.** The shift chooser is now **checkboxes**, so a
+  volunteer can sign up for several sessions in one submission. The endpoint
+  accepts `shift_ids[]` (still back-compatible with a single `shift_id`), books
+  each, and reports how many went through (and any it couldn't, e.g. a shift
+  that filled up).
+- **Reminders are no longer optional.** Removed the "Text me shift reminders"
+  opt-out — everyone gets email reminders, and **providing a mobile opts that
+  number into SMS reminders** (with a clear note on the form). Cuts no-shows.
+- **Chrome-free widget.** The signup widget now renders **transparent** (no card
+  background, header fill, rounding or row lines) so you can place it on your own
+  background and border. Input field borders are kept for usability.
+
 ## 1.57.0 — link volunteer opportunities to events
 
 Volunteer opportunities stay their own rich listings (a single event can have

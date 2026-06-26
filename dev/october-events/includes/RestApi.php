@@ -311,23 +311,44 @@ final class RestApi {
             return $this->too_many();
         }
         $account_id = is_user_logged_in() ? Account::ensure(get_current_user_id()) : 0;
+        $opp        = (int) $req->get_param('opportunity_id');
 
-        $result = Volunteers::signup(
-            (int) $req->get_param('opportunity_id'),
-            (string) $req->get_param('shift_id'),
-            [
-                'name'       => $req->get_param('name'),
-                'email'      => $req->get_param('email'),
-                'phone'      => $req->get_param('phone'),
-                'sms_opt_in' => $req->get_param('sms_opt_in'),
-            ],
-            $account_id
-        );
-
-        if (is_wp_error($result)) {
-            return new \WP_REST_Response(['error' => $result->get_error_message()], 400);
+        // Accept a single shift_id (back-compat) or shift_ids[] (multi-select).
+        $ids = $req->get_param('shift_ids');
+        if (! is_array($ids) || ! $ids) {
+            $single = (string) $req->get_param('shift_id');
+            $ids = $single !== '' ? [$single] : [];
         }
-        return new \WP_REST_Response(['ok' => true, 'id' => $result], 200);
+        if (! $ids) {
+            return new \WP_REST_Response(['error' => __('Please choose at least one shift.', 'october-events')], 400);
+        }
+
+        $person = [
+            'name'  => $req->get_param('name'),
+            'email' => $req->get_param('email'),
+            'phone' => $req->get_param('phone'),
+        ];
+        $booked = [];
+        $failed = [];
+        foreach (array_slice($ids, 0, 10) as $sid) {
+            $sid = sanitize_text_field((string) $sid);
+            if ($sid === '') {
+                continue;
+            }
+            $res = Volunteers::signup($opp, $sid, $person, $account_id);
+            if (is_wp_error($res)) {
+                $shift    = Volunteers::shift($opp, $sid);
+                $failed[] = ($shift['label'] ?? $sid) . ': ' . $res->get_error_message();
+            } else {
+                $booked[] = (int) $res;
+            }
+        }
+
+        // All requested shifts failed — surface why (e.g. all full).
+        if (! $booked) {
+            return new \WP_REST_Response(['error' => $failed ? implode('; ', $failed) : __('Could not sign you up.', 'october-events')], 400);
+        }
+        return new \WP_REST_Response(['ok' => true, 'booked' => count($booked), 'ids' => $booked, 'failed' => $failed], 200);
     }
 
     public function volunteer_shifts(\WP_REST_Request $req): \WP_REST_Response {
