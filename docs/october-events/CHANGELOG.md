@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.61.0 — security: harden door check-in (S1)
+
+Closes the highest-risk finding from the security audit:
+
+- **Random per-event PIN.** The check-in PIN is no longer the event's post ID
+  (which is public and guessable). Each event gets a **random 6-digit PIN**,
+  generated and stored on first use and shown in the same Tickets & check-in
+  box. Events still on the old default regenerate automatically.
+- **Brute-force throttle now keys off the real client IP** (`CF-Connecting-IP`
+  behind Cloudflare, else `REMOTE_ADDR`) instead of the spoofable
+  `X-Forwarded-For` — so an attacker can't rotate a fake IP per request to evade
+  it. Hardens every rate limiter, not just check-in.
+- **Manifest ships token *hashes*, not raw tokens.** Ticket tokens are the
+  admission credential; the offline scanner now hashes the scanned QR
+  (SHA-256, via the same secure context it needs for the camera) and matches
+  locally, so a leaked manifest can no longer forge or clone tickets.
+
 ## 1.60.0 — settings page reorganised into tabs
 
 The Settings screen was a wall of ~20 accordions in two vague columns. It's now a

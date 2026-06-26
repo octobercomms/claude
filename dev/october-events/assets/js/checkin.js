@@ -101,11 +101,22 @@
     }
 
     /* ---- Manifest (valid tokens) cache ---- */
+    // SHA-256 hex of a string (matches the server's token_hash). Needs a secure
+    // context — which the scanner already requires for camera access.
+    function sha256hex(str) {
+        if (!(window.crypto && crypto.subtle)) { return Promise.reject(new Error('no-subtle')); }
+        return crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)).then(function (buf) {
+            var out = '', b = new Uint8Array(buf);
+            for (var i = 0; i < b.length; i++) { out += ('0' + b[i].toString(16)).slice(-2); }
+            return out;
+        });
+    }
     function manifestFromData(data) {
+        // The manifest carries token *hashes*, not raw tokens.
         var tokens = {};
-        (data.tickets || []).forEach(function (t) { tokens[t.token] = { attendee: t.attendee, type: t.type }; });
+        (data.tickets || []).forEach(function (t) { tokens[t.token_hash] = { attendee: t.attendee, type: t.type }; });
         var checked = {};
-        (data.checked_in || []).forEach(function (tok) { checked[tok] = true; });
+        (data.checked_in || []).forEach(function (h) { checked[h] = true; });
         return { tokens: tokens, checked: checked, generated: data.generated || '' };
     }
     function loadManifest() {
@@ -292,19 +303,19 @@
         if (t) { submit(t); document.getElementById('oe-ci-manual').value = ''; }
     });
 
-    /* Validate a token against the cached manifest, with no network. */
+    /* Validate a token against the cached manifest, with no network. The manifest
+       holds token hashes, so hash the scanned token and match on that. */
     function scanOffline(token) {
-        if (!manifest) {
-            overlay('offline', {});
-            return;
-        }
-        var t = manifest.tokens[token];
-        if (!t) { overlay('invalid', {}); return; }
-        var already = !!manifest.checked[token];
-        manifest.checked[token] = true; // remember locally so a repeat flags here too
-        enqueue(token);
-        if (!already) { state.count++; document.getElementById('oe-ci-count').textContent = state.count; }
-        overlay(already ? 'already' : 'valid', { attendee: t.attendee, type: t.type, offline: true });
+        if (!manifest) { overlay('offline', {}); return; }
+        sha256hex(token).then(function (h) {
+            var t = manifest.tokens[h];
+            if (!t) { overlay('invalid', {}); return; }
+            var already = !!manifest.checked[h];
+            manifest.checked[h] = true; // remember locally so a repeat flags here too
+            enqueue(token);             // queue the RAW token; the server re-validates on sync
+            if (!already) { state.count++; document.getElementById('oe-ci-count').textContent = state.count; }
+            overlay(already ? 'already' : 'valid', { attendee: t.attendee, type: t.type, offline: true });
+        }).catch(function () { overlay('invalid', {}); });
     }
 
     function submit(token) {
@@ -315,7 +326,8 @@
                 overlay(s.status, s);
                 if (s.status === 'valid') {
                     state.count++; document.getElementById('oe-ci-count').textContent = state.count;
-                    if (manifest) { manifest.checked[token] = true; }
+                    // Keep the local (hash-keyed) checked set current in case we drop offline.
+                    if (manifest) { sha256hex(token).then(function (h) { manifest.checked[h] = true; }).catch(function () {}); }
                 }
                 refreshStats();
             })

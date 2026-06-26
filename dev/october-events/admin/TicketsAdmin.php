@@ -81,8 +81,8 @@ final class TicketsAdmin {
             <textarea name="oe_venues" rows="3" class="large-text"><?php echo esc_textarea(implode("\n", array_map(static fn($v) => (string) ($v['name'] ?? ''), $venues))); ?></textarea></label></p>
         <?php $manual_pin = (string) get_post_meta($post->ID, TicketTypes::META_PIN, true); ?>
         <p><label><strong><?php esc_html_e('Check-in PIN', 'october-events'); ?></strong>
-            <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($manual_pin); ?>" placeholder="<?php echo esc_attr((string) $post->ID); ?>" maxlength="6" size="8"></label>
-            <span class="description"><?php echo esc_html(sprintf(__('Leave blank to auto-use this event\'s ID (%d) as the PIN. Or set your own 4–6 digits for door staff.', 'october-events'), (int) $post->ID)); ?></span></p>
+            <input type="text" name="oe_checkin_pin" value="<?php echo esc_attr($manual_pin); ?>" placeholder="<?php esc_attr_e('auto', 'october-events'); ?>" maxlength="6" size="8"></label>
+            <span class="description"><?php esc_html_e('Leave blank to auto-generate a secure random PIN. Or set your own 4–6 digits for door staff.', 'october-events'); ?></span></p>
 
         <?php
         $logo_id  = (int) get_post_meta($post->ID, TicketTypes::META_LOGO, true);
