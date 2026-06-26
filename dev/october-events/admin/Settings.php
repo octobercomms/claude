@@ -241,6 +241,7 @@ final class Settings {
             // Platform + check-in links surfaced in wp-admin.
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
+            'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
             // Public AI support chat.
             'support_chat_enabled'  => empty($in['support_chat_enabled']) ? '0' : '1',
             // Live chat (Chatwoot).

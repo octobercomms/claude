@@ -413,7 +413,7 @@ final class RestApi {
                 'event_id' => $priced['event_id'], 'type' => $priced['type'], 'qty' => $priced['qty'],
                 'email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name')),
                 'unit_price' => $priced['unit'], 'discount' => $priced['discount'], 'total' => $priced['total'],
-                'promo' => $priced['promo'],
+                'promo' => $priced['promo'], 'attendee_names' => $this->attendee_names_param($req),
             ], '', 'free', 'public');
             if (is_wp_error($order)) {
                 return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
@@ -421,14 +421,21 @@ final class RestApi {
             return new \WP_REST_Response(['free' => true, 'tickets' => $order['tickets']], 200);
         }
 
+        // Attendee names ride along in the PaymentIntent metadata (server-set =
+        // trusted), JSON-encoded and trimmed to fit Stripe's 500-char limit.
+        $attendees = $this->attendee_names_param($req);
+        $att_json  = wp_json_encode($attendees) ?: '[]';
+        while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
+
         $intent = \OE\Connectors\StripeConnector::create_payment_intent($cents, (string) \OE\Settings::get('currency', 'usd'), '', [
-            'kind'     => 'ticket',
-            'event_id' => $priced['event_id'],
-            'type_key' => $priced['type']['key'],
-            'qty'      => $priced['qty'],
-            'email'    => sanitize_email((string) $req->get_param('email')),
-            'name'     => sanitize_text_field((string) $req->get_param('name')),
-            'promo'    => $priced['promo']['code'] ?? '',
+            'kind'      => 'ticket',
+            'event_id'  => $priced['event_id'],
+            'type_key'  => $priced['type']['key'],
+            'qty'       => $priced['qty'],
+            'email'     => sanitize_email((string) $req->get_param('email')),
+            'name'      => sanitize_text_field((string) $req->get_param('name')),
+            'promo'     => $priced['promo']['code'] ?? '',
+            'attendees' => $att_json,
         ]);
         if (($intent['id'] ?? '') === '') {
             return new \WP_REST_Response(['error' => 'payment_init_failed'], 502);
@@ -596,13 +603,32 @@ final class RestApi {
             return null;
         }
 
+        $attendees = [];
+        if (! empty($meta['attendees'])) {
+            $decoded = json_decode((string) $meta['attendees'], true);
+            if (is_array($decoded)) { $attendees = array_map('sanitize_text_field', $decoded); }
+        }
+
         $order = \OE\Ticketing\Orders::create([
             'event_id' => $event_id, 'type' => $type, 'qty' => $qty,
             'email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? '')),
             'unit_price' => $unit, 'discount' => $discount, 'total' => $total,
-            'promo' => $promo,
+            'promo' => $promo, 'attendee_names' => $attendees,
         ], $intent_id, 'stripe', 'public');
         return is_wp_error($order) ? null : $order;
+    }
+
+    /** @return array<int,string> sanitized attendee names from the request (capped) */
+    private function attendee_names_param(\WP_REST_Request $req): array {
+        $raw = $req->get_param('attendee_names');
+        if (! is_array($raw)) {
+            return [];
+        }
+        $out = [];
+        foreach (array_slice($raw, 0, 50) as $n) {
+            $out[] = sanitize_text_field((string) $n);
+        }
+        return $out;
     }
 
     /* ----------------------------------------------------------------- *

@@ -31,7 +31,7 @@ final class Checkout {
 
     public function register_assets(): void {
         wp_register_style('oe-checkout', OE_URL . 'assets/css/checkout.css', [], OE_VERSION);
-        wp_register_script('oe-checkout', OE_URL . 'assets/js/checkout.js', [], OE_VERSION, true);
+        wp_register_script('oe-checkout', OE_URL . 'assets/js/checkout.js', ['jquery'], OE_VERSION, true);
     }
 
     public function render(array $atts = []): string {
@@ -65,14 +65,15 @@ final class Checkout {
         wp_enqueue_script('oe-stripe-js', 'https://js.stripe.com/v3/', [], null, true);
 
         $currency = strtoupper((string) Settings::get('currency', 'usd'));
-        wp_localize_script('oe-checkout', 'OE_CHECKOUT', [
-            'restUrl'   => esc_url_raw(rest_url('oe/v1')),
-            'nonce'     => wp_create_nonce('wp_rest'),
-            'stripeKey' => (string) Settings::get('stripe_publishable_key', ''),
-            'eventId'   => $event_id,
-            'currency'  => $currency,
-            'symbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),
-            'types'     => $types,
+        wp_localize_script('oe-checkout', 'octCheckout', [
+            'restUrl'           => esc_url_raw(rest_url('oe/v1')),
+            'nonce'             => wp_create_nonce('wp_rest'),
+            'stripePublishable' => (string) Settings::get('stripe_publishable_key', ''),
+            'eventId'           => $event_id,
+            'currency'          => $currency,
+            'currencySymbol'    => $currency === 'GBP' ? '£' : ($currency === 'EUR' ? '€' : '$'),
+            'termsUrl'          => (string) Settings::get('checkout_terms_url', ''),
+            'types'             => $types,
         ]);
 
         ob_start();
