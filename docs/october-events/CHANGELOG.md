@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.50.1 — check-in app: home-screen icon & title
+
+The `/checkin` web app now carries proper add-to-home-screen metadata, so saving
+it to an iPhone/Android home screen uses **your site icon and name** (with a
+"— Check-in" title) instead of a generic "Door check-in" label. Adds
+`apple-touch-icon`/`icon` from the site icon, `apple-mobile-web-app-title`,
+status-bar + theme-color (`#0f0f0f`), and `viewport-fit=cover` for notched
+phones.
+
 ## 1.50.0 — Ticket Sales dashboard (30-day chart)
 
 A new **Sales** tab on the Tickets screen: KPI cards (tickets & revenue, all-time
