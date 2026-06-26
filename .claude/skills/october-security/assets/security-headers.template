@@ -1,0 +1,21 @@
+# Cloudflare Pages `_headers` — security headers for a static SPA.
+# Drop this in the app's publish root (e.g. dev/october-platform/_headers).
+# Cloudflare Pages serves these on every response. Tune the CSP source lists
+# to the app: too tight and the app breaks, too loose and CSP buys you nothing.
+#
+# CSP notes for the October Events / ADF app specifically:
+#   - script-src 'self'         → all JS (incl. vendored GrapesJS) is local. Good.
+#                                  Do NOT add 'unsafe-inline' to script-src.
+#   - connect-src 'self' https: → the app fetches arbitrary connected WordPress
+#                                  REST APIs, so https: is required here.
+#   - style-src needs 'unsafe-inline' only if the app/GrapesJS injects inline
+#                                  styles; drop it if you can.
+#   - img-src data: https:      → WP media + data-URI previews.
+
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=()
+  Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
