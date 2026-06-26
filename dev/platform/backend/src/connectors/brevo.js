@@ -16,7 +16,20 @@ async function checkTokenValidity(credentials) {
   } catch (err) {
     const detail = err.response?.data?.message || err.response?.data?.error || err.message;
     const status = err.response?.status;
-    if (status === 401) throw new Error("Brevo API key is invalid or unauthorised (401) — use a v3 API key from Brevo → Settings → API Keys, not an SMTP key");
+    if (status === 401) {
+      const msg = typeof detail === 'string' ? detail : JSON.stringify(detail);
+      const key = (credentials.api_key || '').trim();
+      // A correct, brand-new v3 key that still 401s is almost never an SMTP key
+      // — it's usually an IP allowlist or an unactivated account. Surface
+      // Brevo's own reason and detect the common cases instead of guessing.
+      if (/^xsmtpsib-/i.test(key)) {
+        throw new Error('That looks like an SMTP key (starts "xsmtpsib-"). Use a v3 API key (starts "xkeysib-") from Brevo → Settings → API Keys.');
+      }
+      if (/\bip\b|whitelist|allowlist|authorised ip|authorized ip/i.test(msg)) {
+        throw new Error(`Brevo blocked this server's IP (401). In Brevo → Settings → Security → Authorised IPs, either disable IP restriction or allowlist OMI's outbound IP. Brevo said: "${msg}"`);
+      }
+      throw new Error(`Brevo rejected the key (401): "${msg}". Check it's a v3 key (starts "xkeysib-") from Settings → API Keys, that the account is fully activated, and that Settings → Security → Authorised IPs permits this server.`);
+    }
     throw new Error(`Brevo error (${status || 'network'}): ${typeof detail === 'string' ? detail : JSON.stringify(detail)}`);
   }
 }
