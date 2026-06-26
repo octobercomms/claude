@@ -1,11 +1,125 @@
 // Client dashboard — Marketing strategy. Set the client's business type +
-// lifecycle stage to auto-assign the matching strategy playbook, then work
-// through its phased checklist (checkboxes + notes + progress). "Tailor with
-// Claude" adapts the checklist to this client. Backed by /api/strategy.
+// lifecycle stage to auto-assign the matching SOSTAC playbook, then "Tailor
+// with Claude" to adapt it and generate a visual strategic profile — exec
+// summary, personas, SWOT, competitor map and quantified objectives — modelled
+// on October's hand-written agency strategies. Backed by /api/strategy.
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
+
+const SOSTAC_NUM = { 'Situation Analysis': 1, 'Objectives': 2, 'Strategy': 3, 'Tactics': 4, 'Action': 5, 'Control': 6 };
+
+function Chips({ items }) {
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+      {items.map((v, i) => <span key={i} className="chip chip-neutral" style={{ fontSize: 10 }}>{v}</span>)}
+    </div>
+  );
+}
+
+function SwotQuad({ title, items, cls }) {
+  if (!items?.length) return null;
+  return (
+    <div className={`card ${cls}`} style={{ padding: 'var(--s4)' }}>
+      <div className="caption" style={{ marginBottom: 8 }}>{title}</div>
+      <ul style={{ margin: 0, paddingLeft: 18 }}>
+        {items.map((it, i) => <li key={i} className="body-sm" style={{ marginBottom: 4 }}>{it}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function CompetitorCol({ title, blurb, items }) {
+  if (!items?.length) return null;
+  return (
+    <div className="card" style={{ padding: 'var(--s4)' }}>
+      <div className="caption" style={{ marginBottom: 2 }}>{title}</div>
+      <div className="body-xs text-subtle" style={{ marginBottom: 8 }}>{blurb}</div>
+      <ul style={{ margin: 0, paddingLeft: 18 }}>
+        {items.map((it, i) => <li key={i} className="body-sm" style={{ marginBottom: 4 }}>{it}</li>)}
+      </ul>
+    </div>
+  );
+}
+
+function Profile({ profile }) {
+  const p = profile;
+  const hasSwot = p.swot && (p.swot.strengths.length || p.swot.weaknesses.length || p.swot.opportunities.length || p.swot.threats.length);
+  const hasComp = p.competitors && (p.competitors.functional.length || p.competitors.emotional.length || p.competitors.situational.length);
+  return (
+    <div className="stack stack-lg" style={{ marginBottom: 'var(--s7)' }}>
+      {p.exec_summary && (
+        <div className="card filled">
+          <div className="caption" style={{ marginBottom: 8 }}>Executive summary</div>
+          <p className="body" style={{ margin: 0 }}>{p.exec_summary}</p>
+        </div>
+      )}
+
+      {!!p.objectives?.length && (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>Objectives</div>
+          <div className="metric-grid">
+            {p.objectives.map((o, i) => (
+              <div key={i} className="card" style={{ padding: 'var(--s4)' }}>
+                <div className="body-sm" style={{ fontWeight: 700 }}>{o.metric}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                  {o.baseline && <span className="body-xs text-subtle">{o.baseline}</span>}
+                  {o.baseline && o.target && <span className="text-subtle">→</span>}
+                  {o.target && <span className="metric" style={{ fontSize: 22 }}>{o.target}</span>}
+                </div>
+                {o.timeframe && <div className="body-xs text-subtle" style={{ marginTop: 4 }}>{o.timeframe}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!!p.personas?.length && (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>Audience</div>
+          <div className="grid grid-auto">
+            {p.personas.map((pe, i) => (
+              <div key={i} className="card">
+                <span className="chip chip-accent" style={{ fontSize: 10 }}>{pe.label}</span>
+                {pe.who && <p className="body-sm" style={{ margin: '8px 0 0' }}>{pe.who}</p>}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 8 }}>
+                  {pe.age && <span className="chip chip-neutral" style={{ fontSize: 10 }}>🎂 {pe.age}</span>}
+                  {pe.budget && <span className="chip chip-neutral" style={{ fontSize: 10 }}>💷 {pe.budget}</span>}
+                  {pe.location && <span className="chip chip-neutral" style={{ fontSize: 10 }}>📍 {pe.location}</span>}
+                </div>
+                {!!pe.values?.length && <Chips items={pe.values} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasSwot && (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>SWOT</div>
+          <div className="grid grid-2">
+            <SwotQuad title="Strengths" items={p.swot.strengths} cls="success" />
+            <SwotQuad title="Weaknesses" items={p.swot.weaknesses} cls="warning" />
+            <SwotQuad title="Opportunities" items={p.swot.opportunities} cls="accent" />
+            <SwotQuad title="Threats" items={p.swot.threats} cls="danger" />
+          </div>
+        </div>
+      )}
+
+      {hasComp && (
+        <div>
+          <div className="caption" style={{ marginBottom: 8 }}>Competitor landscape</div>
+          <div className="grid grid-3">
+            <CompetitorCol title="Functional" blurb="Direct alternatives" items={p.competitors.functional} />
+            <CompetitorCol title="Emotional" blurb="Rival desires / big-ticket spends" items={p.competitors.emotional} />
+            <CompetitorCol title="Situational" blurb="Life events that divert spend" items={p.competitors.situational} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ClientStrategyPanel({ clientId }) {
   const toast = useToast();
@@ -37,7 +151,7 @@ export default function ClientStrategyPanel({ clientId }) {
     try {
       const r = await api.put(`/strategy/clients/${clientId}/strategy`, { business_type: bType, lifecycle_stage: stage });
       setStrat(r.strategy); setPicking(false);
-      toast('Strategy assigned.', 'success');
+      toast('Strategy assigned. Tailor it to generate the full profile.', 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setBusy(false); }
   }
@@ -51,7 +165,7 @@ export default function ClientStrategyPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
   }
   async function tailor() {
-    if (!window.confirm('Tailor this checklist to the client with Claude? It rewrites the items (your ticks are kept where the wording is unchanged).')) return;
+    if (!window.confirm('Tailor this strategy to the client with Claude? It rewrites the checklist and (re)generates the exec summary, personas, SWOT, competitor map and objectives. Your ticks are kept where wording is unchanged.')) return;
     setBusy(true);
     try { const r = await api.post(`/strategy/clients/${clientId}/strategy/tailor`, {}); setStrat(r.strategy); toast('Tailored to the client.', 'success'); }
     catch (e) { toast(e.message, 'error'); }
@@ -69,7 +183,7 @@ export default function ClientStrategyPanel({ clientId }) {
         {strat && !picking && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             <span className="body-xs text-subtle">{strat.progress.done}/{strat.progress.total} done</span>
-            <button className="btn btn-secondary btn-sm" onClick={tailor} disabled={busy}>{busy ? '…' : '✦ Tailor with Claude'}</button>
+            <button className="btn btn-secondary btn-sm" onClick={tailor} disabled={busy}>{busy ? '…' : (strat.profile ? '✦ Re-tailor' : '✦ Tailor with Claude')}</button>
             <button className="btn btn-secondary btn-sm" onClick={() => setPicking(true)}>Change</button>
           </div>
         )}
@@ -78,7 +192,7 @@ export default function ClientStrategyPanel({ clientId }) {
       {showPicker ? (
         <div style={{ marginTop: 10 }}>
           <p className="body-sm text-muted" style={{ marginBottom: 10 }}>
-            Set the client's business type and lifecycle stage — we assign the matching strategy playbook.
+            Set the client's business type and lifecycle stage — we assign the matching strategy playbook, then Tailor builds the full profile.
           </p>
           <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
             <select className="input" style={{ flex: '1 1 200px' }} value={bType} onChange={e => setBType(e.target.value)}>
@@ -95,20 +209,34 @@ export default function ClientStrategyPanel({ clientId }) {
         </div>
       ) : (
         <>
-          <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: '10px 0' }}>
+          <div style={{ height: 6, background: 'var(--surface-raised)', borderRadius: 999, overflow: 'hidden', margin: '10px 0 16px' }}>
             <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? 'var(--positive, #1a7f37)' : 'var(--accent)' }} />
           </div>
-          <div className="body" style={{ fontWeight: 600, marginBottom: 2 }}>{strat.template_name}</div>
-          {strat.summary && <p className="body-sm text-muted" style={{ marginBottom: 12 }}>{strat.summary}</p>}
 
-          <div className="stack stack-lg">
+          {strat.profile && <Profile profile={strat.profile} />}
+
+          {!strat.profile && (
+            <div className="callout" style={{ marginBottom: 'var(--s5)' }}>
+              <strong>{strat.template_name}</strong>{strat.summary ? ` — ${strat.summary}` : ''}<br />
+              <span className="body-sm">Hit <strong>✦ Tailor with Claude</strong> to adapt this to the client and generate the exec summary, personas, SWOT, competitor map and objectives.</span>
+            </div>
+          )}
+
+          {/* SOSTAC phases as numbered cards with the working checklist */}
+          <div className="caption" style={{ marginBottom: 8 }}>Plan</div>
+          <div className="stack stack-sm">
             {(strat.phases || []).map((ph, pi) => (
-              <div key={pi}>
-                <div className="caption" style={{ marginBottom: 6 }}>{ph.title}</div>
+              <div key={pi} className="card" style={{ padding: 'var(--s4)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                  <span style={{ width: 24, height: 24, borderRadius: 999, background: 'var(--accent)', color: 'var(--accent-on)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flex: '0 0 auto' }}>
+                    {SOSTAC_NUM[ph.title] || pi + 1}
+                  </span>
+                  <div className="h3">{ph.title}</div>
+                </div>
                 <div className="stack stack-sm">
                   {(ph.items || []).map(it => (
                     <div key={it.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                      <input type="checkbox" checked={!!it.done} onChange={e => toggle(it.id, e.target.checked)} style={{ marginTop: 3 }} />
+                      <input type="checkbox" checked={!!it.done} onChange={e => toggle(it.id, e.target.checked)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div className="body-sm" style={{ textDecoration: it.done ? 'line-through' : 'none', color: it.done ? 'var(--text-subtle)' : 'var(--text)' }}>{it.text}</div>
                         <input

@@ -410,26 +410,65 @@ function parseJson(raw) {
 
 // Adapt the client's checklist to their specifics. Preserves checked state for
 // items whose text is unchanged; new/edited items start unchecked.
+// Sanitise the AI profile to a known shape (defensive — the model can drift).
+function cleanProfile(p) {
+  if (!p || typeof p !== 'object') return null;
+  const arr = (v, n = 8) => (Array.isArray(v) ? v.map(x => String(x)).filter(Boolean).slice(0, n) : []);
+  const personas = (Array.isArray(p.personas) ? p.personas : []).slice(0, 4).map(x => ({
+    label: String(x.label || 'Persona'),
+    who: String(x.who || ''),
+    age: String(x.age || ''),
+    budget: String(x.budget || ''),
+    location: String(x.location || ''),
+    values: arr(x.values, 6),
+  })).filter(x => x.who || x.values.length);
+  const objectives = (Array.isArray(p.objectives) ? p.objectives : []).slice(0, 6).map(o => ({
+    metric: String(o.metric || ''),
+    baseline: String(o.baseline || ''),
+    target: String(o.target || ''),
+    timeframe: String(o.timeframe || ''),
+  })).filter(o => o.metric);
+  return {
+    exec_summary: String(p.exec_summary || ''),
+    personas,
+    swot: {
+      strengths: arr(p.swot?.strengths), weaknesses: arr(p.swot?.weaknesses),
+      opportunities: arr(p.swot?.opportunities), threats: arr(p.swot?.threats),
+    },
+    competitors: {
+      functional: arr(p.competitors?.functional), emotional: arr(p.competitors?.emotional),
+      situational: arr(p.competitors?.situational),
+    },
+    objectives,
+  };
+}
+
 async function tailorWithClaude(clientId) {
   const cur = await getClientStrategy(clientId);
   if (!cur) { const e = new Error('Assign a strategy first.'); e.status = 400; throw e; }
   const { rows } = await pool.query('SELECT name, briefing_field, monthly_focus, domain FROM clients WHERE id = $1', [clientId]);
   const c = rows[0] || {};
+  // Ground objectives in the client's real channels.
+  const { rows: conn } = await pool.query(
+    "SELECT DISTINCT connector_type FROM connectors WHERE client_id = $1 AND status = 'active'", [clientId]
+  );
+  const channels = conn.map(r => r.connector_type).join(', ') || '(none connected yet)';
   const skeleton = (cur.phases || []).map(p => ({ title: p.title, items: (p.items || []).map(i => i.text) }));
 
   const raw = await claudeService.callClaude({
-    max_tokens: 3000,
-    system: 'You adapt a marketing-strategy checklist to a specific client. Keep the phase structure and the strategic intent; make each item concrete and specific to this client (their offer, audience, channels). Don\'t add generic filler. British English. JSON only — no prose, no fences.',
+    max_tokens: 5000,
+    system: 'You are a senior marketing strategist at October, a UK agency, writing a client strategy in the style of the firm\'s hand-crafted SOSTAC plans. Adapt the checklist to the specific client AND produce a structured strategic profile: a confident narrative exec summary, concrete primary/secondary personas (age, budget, location, values), a real SWOT, a competitor map (functional = direct alternatives, emotional = rival desires/big-ticket spends, situational = life events that divert spend), and quantified SMART objectives. Specific to THIS client — no generic filler, no copy-paste between clients. British English. JSON only — no prose, no fences.',
     user: `Client: ${c.name}${c.domain ? ` (${c.domain})` : ''}
 About: ${c.briefing_field || '(no brief)'}
 This month's focus: ${c.monthly_focus || '(none)'}
 Strategy: ${cur.template_name || ''} — ${cur.summary || ''}
+Connected data channels: ${channels}
 
-Current checklist:
+Current SOSTAC checklist:
 ${JSON.stringify(skeleton)}
 
-Tailor it to this client. Return ONLY:
-{"summary":"a 1–2 sentence strategy summary tailored to this client","phases":[{"title":"keep the phase titles","items":["specific, client-tailored actions"]}]}`,
+Tailor the checklist and write the profile. For objectives, give a metric, a baseline (use "TBC from <channel>" if you can't know it), a target, and a timeframe. Return ONLY:
+{"summary":"1–2 sentence tailored strategy summary","phases":[{"title":"keep the phase titles","items":["specific, client-tailored actions"]}],"profile":{"exec_summary":"a confident 3–5 sentence narrative","personas":[{"label":"Primary","who":"…","age":"…","budget":"…","location":"…","values":["…"]}],"swot":{"strengths":["…"],"weaknesses":["…"],"opportunities":["…"],"threats":["…"]},"competitors":{"functional":["…"],"emotional":["…"],"situational":["…"]},"objectives":[{"metric":"…","baseline":"…","target":"…","timeframe":"…"}]}}`,
     feature: 'client_strategy_tailor',
     clientId,
   });
@@ -446,8 +485,9 @@ Tailor it to this client. Return ONLY:
       return { id: crypto.randomBytes(6).toString('hex'), text: String(text), done: prev?.done || false, note: prev?.note || '' };
     }),
   }));
-  await pool.query('UPDATE client_strategy SET summary = $2, phases = $3, updated_at = NOW() WHERE client_id = $1',
-    [clientId, out.summary || cur.summary, JSON.stringify(phases)]);
+  const profile = cleanProfile(out.profile);
+  await pool.query('UPDATE client_strategy SET summary = $2, phases = $3, profile = $4, updated_at = NOW() WHERE client_id = $1',
+    [clientId, out.summary || cur.summary, JSON.stringify(phases), profile ? JSON.stringify(profile) : null]);
   return getClientStrategy(clientId);
 }
 
