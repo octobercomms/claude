@@ -290,14 +290,19 @@ final class Volunteers {
             }
         }
 
+        // Reminders are mandatory (to cut no-shows): everyone gets email, and
+        // providing a mobile opts that number into SMS reminders too.
+        $phone = sanitize_text_field((string) ($person['phone'] ?? ''));
+        $sms   = $phone !== '' ? 1 : 0;
+
         $id = VolunteerSignups::insert([
             'opportunity_id' => $opportunity_id,
             'shift_id'       => $shift_id,
             'account_id'     => $account_id ?: null,
             'name'           => $name,
             'email'          => $email,
-            'phone'          => sanitize_text_field((string) ($person['phone'] ?? '')),
-            'sms_opt_in'     => ! empty($person['sms_opt_in']) ? 1 : 0,
+            'phone'          => $phone,
+            'sms_opt_in'     => $sms,
             'status'         => VolunteerSignups::STATUS_PENDING,
             'shift_start'    => self::normalise_datetime((string) $shift['start']),
             'reminders_sent' => '',
@@ -308,8 +313,8 @@ final class Volunteers {
         // Native contacts (the Brevo replacement).
         \OE\Mail\Contacts::capture($email, [
             'name'       => $name,
-            'phone'      => (string) ($person['phone'] ?? ''),
-            'sms_opt_in' => ! empty($person['sms_opt_in']) ? 1 : 0,
+            'phone'      => $phone,
+            'sms_opt_in' => $sms,
             'source'     => 'volunteer',
         ]);
 
