@@ -154,6 +154,13 @@ final class Plugin {
             exit;
         }
 
+        // Always-on door check-in app (so there's a working URL without having to
+        // place the [oe_checkin] shortcode on a page): /?oe_checkin=1
+        if (isset($_GET['oe_checkin'])) {
+            $this->render_checkin();
+            exit;
+        }
+
         $ticket_token = isset($_GET['oe_ticket']) ? sanitize_text_field(wp_unslash($_GET['oe_ticket'])) : '';
         if ($ticket_token !== '') {
             $this->render_ticket($ticket_token);
@@ -165,6 +172,27 @@ final class Plugin {
             $this->render_invoice($invoice_listing);
             exit;
         }
+    }
+
+    /** Render the door check-in PWA as a standalone full page. */
+    private function render_checkin(): void {
+        nocache_headers();
+        $app = \OE\Frontend\CheckInApp::get_instance();
+        $app->register_assets();        // register handles now (template_redirect is before wp_enqueue_scripts)
+        $body = $app->render();         // enqueues styles/scripts (+ localize) and returns the shell markup
+        ?><!doctype html>
+<html <?php language_attributes(); ?>>
+<head>
+<meta charset="<?php echo esc_attr(get_bloginfo('charset')); ?>">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title><?php esc_html_e('Door check-in', 'october-events'); ?></title>
+<?php wp_print_styles(); ?>
+</head>
+<body class="oe-checkin-route">
+<?php echo $body; // built from an escaped template ?>
+<?php wp_print_footer_scripts(); ?>
+</body>
+</html><?php
     }
 
     private function render_ticket(string $token): void {

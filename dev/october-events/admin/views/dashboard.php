@@ -7,7 +7,9 @@ use OE\Fields;
 use OE\Account;
 
 $platform  = Admin::platform_url();
+// Custom scanner page if set, else the always-on built-in check-in route.
 $checkin   = (string) \OE\Settings::get('checkin_page_url', '');
+if ($checkin === '') { $checkin = home_url('/?oe_checkin=1'); }
 $event_new = admin_url('post-new.php?post_type=' . PostTypes::slug('event'));
 ?>
 <div class="wrap oe-admin">

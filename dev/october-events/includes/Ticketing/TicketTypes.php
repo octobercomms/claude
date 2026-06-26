@@ -118,7 +118,13 @@ final class TicketTypes {
         return is_array($decoded) ? array_values($decoded) : [];
     }
 
+    /**
+     * The event's check-in PIN. Defaults to the event's post ID, so every event
+     * has a working PIN automatically (no manual setup); a PIN typed into the
+     * meta box overrides it.
+     */
     public static function pin(int $event_id): string {
-        return (string) get_post_meta($event_id, self::META_PIN, true);
+        $pin = (string) get_post_meta($event_id, self::META_PIN, true);
+        return $pin !== '' ? $pin : (string) $event_id;
     }
 }
