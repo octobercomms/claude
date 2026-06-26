@@ -137,6 +137,16 @@ class OCTWBE_REST {
 	 */
 	public function diag( WP_REST_Request $req ): WP_REST_Response {
 		$this->no_cache();
+
+		// The pull rides on THIS endpoint. /catalog and /products are cached stale
+		// by the store's CDN (it caches e-commerce-keyword URLs), but /diag has
+		// proven fresh on every single request — so the Apps Script fetches the
+		// catalogue via /diag?pull=1 to guarantee live data. Delegates to the exact
+		// same row builder as /catalog.
+		if ( $req->get_param( 'pull' ) ) {
+			return $this->get_products( $req );
+		}
+
 		global $wpdb;
 
 		$pid = (int) $req->get_param( 'product' );

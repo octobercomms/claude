@@ -82,11 +82,11 @@ function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    // Use /catalog (NOT /products) with a QUERY-STRING cache-buster — exactly the
-    // mechanism /diag uses, which has defeated the store's cache every time. (A
-    // /catalog/<cb> PATH segment got normalised and cached as a pretty-permalink
-    // pattern; the query-string form does not.)
-    const data = octwbeApi_('/catalog?per_page=100&page=' + page + '&' + cacheBust_(), 'get');
+    // Pull via /diag?pull=1 — NOT /catalog or /products. The store's CDN caches
+    // e-commerce-keyword URLs (products, catalog, shop…) and served them stale no
+    // matter what we did; /diag is a neutral path the cache ignores, and has
+    // returned live data on every request. It delegates to the same row builder.
+    const data = octwbeApi_('/diag?pull=1&per_page=100&page=' + page + '&' + cacheBust_(), 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;
