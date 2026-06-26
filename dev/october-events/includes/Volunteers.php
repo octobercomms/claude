@@ -75,11 +75,7 @@ final class Volunteers {
             'order'          => 'ASC',
         ]);
         $event_loc = $linked ? (string) \OE\Planning\Events::get($linked, 'location', '') : '';
-
-        $lines = [];
-        foreach (self::shifts($post->ID) as $s) {
-            $lines[] = implode(' | ', [$s['label'], $s['start'], $s['end'], $s['capacity']]);
-        }
+        $shifts    = self::shifts($post->ID);
         ?>
         <p><label><strong><?php esc_html_e('Linked event', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('optional; reuses the event\'s location and shows a “Volunteer” call-out on the event page', 'october-events'); ?></span><br>
             <select name="oe_linked_event" class="widefat">
@@ -94,10 +90,63 @@ final class Volunteers {
             <input type="text" name="oe_location" class="widefat" value="<?php echo esc_attr($location); ?>" placeholder="<?php echo $event_loc !== '' ? esc_attr(sprintf(__('Inherits from event: %s', 'october-events'), $event_loc)) : ''; ?>"></label>
             <?php if ($event_loc !== '') : ?><span class="description"><?php esc_html_e('Leave blank to use the linked event\'s location.', 'october-events'); ?></span><?php endif; ?></p>
         <p><label><input type="checkbox" name="oe_signups_open" value="1" <?php checked($open, 1); ?>> <?php esc_html_e('Signups open', 'october-events'); ?></label></p>
-        <p><label><strong><?php esc_html_e('Shifts', 'october-events'); ?></strong> — <?php esc_html_e('one per line:', 'october-events'); ?>
-            <code>Label | start datetime | end datetime | capacity</code></label></p>
-        <textarea name="oe_shifts" rows="5" class="widefat" placeholder="Sun Sept 28 — 10:30am–1:00pm | 2026-09-28 10:30 | 2026-09-28 13:00 | 3"><?php echo esc_textarea(implode("\n", $lines)); ?></textarea>
-        <p class="description"><?php esc_html_e('Start/end accept any clear date-time (used to schedule reminders). Changing a shift label keeps existing signups attached.', 'october-events'); ?></p>
+
+        <p><strong><?php esc_html_e('Shifts', 'october-events'); ?></strong></p>
+        <table class="widefat" id="oe-shift-table">
+            <thead><tr>
+                <th><?php esc_html_e('Label', 'october-events'); ?></th>
+                <th><?php esc_html_e('Start', 'october-events'); ?></th>
+                <th><?php esc_html_e('End', 'october-events'); ?></th>
+                <th style="width:80px"><?php esc_html_e('Capacity', 'october-events'); ?></th>
+                <th></th>
+            </tr></thead>
+            <tbody>
+            <?php foreach (($shifts ?: [[]]) as $i => $s) { $this->shift_row((int) $i, $s); } ?>
+            </tbody>
+        </table>
+        <p><button type="button" class="button" id="oe-shift-add"><?php esc_html_e('+ Add another shift', 'october-events'); ?></button></p>
+        <p class="description"><?php esc_html_e('Capacity is how many volunteers each shift needs. Changing a shift label keeps existing signups attached.', 'october-events'); ?></p>
+
+        <script type="text/html" id="oe-shift-tpl"><?php $this->shift_row(9999, []); ?></script>
+        <script>
+        (function(){
+            var idx = <?php echo (int) max(1, count($shifts)); ?>;
+            document.getElementById('oe-shift-add').addEventListener('click', function(){
+                var html = document.getElementById('oe-shift-tpl').innerHTML.replace(/9999/g, idx++);
+                document.querySelector('#oe-shift-table tbody').insertAdjacentHTML('beforeend', html);
+            });
+            document.querySelector('#oe-shift-table').addEventListener('click', function(e){
+                if (e.target.classList.contains('oe-shift-del')) { e.target.closest('tr').remove(); }
+            });
+        })();
+        </script>
+        <?php
+    }
+
+    /** One editable shift row in the meta box. */
+    private function shift_row(int $i, array $s): void {
+        // Stored start/end are "Y-m-d H:i" (local) — present them to the
+        // datetime-local input as "Y-m-d\TH:i" without any timezone shift.
+        $to_input = static function (string $v): string {
+            $v = trim($v);
+            if ($v === '') {
+                return '';
+            }
+            if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}/', $v)) {
+                return str_replace(' ', 'T', substr($v, 0, 16));
+            }
+            $t = strtotime($v);
+            return $t ? date('Y-m-d\TH:i', $t) : '';
+        };
+        ?>
+        <tr>
+            <td><input type="text" name="oe_shift[<?php echo $i; ?>][label]" value="<?php echo esc_attr((string) ($s['label'] ?? '')); ?>" placeholder="<?php esc_attr_e('Sat Oct 3 — 10:00am–1:00pm', 'october-events'); ?>" class="widefat">
+                <input type="hidden" name="oe_shift[<?php echo $i; ?>][id]" value="<?php echo esc_attr((string) ($s['id'] ?? '')); ?>"></td>
+            <td><input type="datetime-local" name="oe_shift[<?php echo $i; ?>][start]" value="<?php echo esc_attr($to_input((string) ($s['start'] ?? ''))); ?>"></td>
+            <td><input type="datetime-local" name="oe_shift[<?php echo $i; ?>][end]" value="<?php echo esc_attr($to_input((string) ($s['end'] ?? ''))); ?>"></td>
+            <td><input type="number" min="0" name="oe_shift[<?php echo $i; ?>][capacity]" value="<?php echo esc_attr((string) ($s['capacity'] ?? '')); ?>" style="width:70px"></td>
+            <td><button type="button" class="button-link oe-shift-del" title="<?php esc_attr_e('Remove', 'october-events'); ?>">✕</button></td>
+        </tr>
         <?php
     }
 
@@ -117,33 +166,33 @@ final class Volunteers {
         update_post_meta($post_id, '_oe_signups_open', empty($_POST['oe_signups_open']) ? '0' : '1');
         update_post_meta($post_id, '_oe_linked_event', absint($_POST['oe_linked_event'] ?? 0));
 
-        // Preserve shift ids by matching labels to the existing set.
+        // Structured shift rows. Each carries its id (hidden field) so signups
+        // stay attached even if the label changes; fall back to a label match for
+        // rows migrated from the old textarea, else mint a new id.
         $existing = [];
         foreach (self::shifts($post_id) as $s) {
             $existing[$s['label']] = $s['id'];
         }
-
-        $raw = (string) wp_unslash($_POST['oe_shifts'] ?? '');
+        $rows   = (array) ($_POST['oe_shift'] ?? []);
         $shifts = [];
-        foreach (preg_split('/\r\n|\r|\n/', $raw) as $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-            $parts = array_map('trim', explode('|', $line));
-            $label = $parts[0] ?? '';
+        foreach ($rows as $r) {
+            $label = sanitize_text_field((string) ($r['label'] ?? ''));
             if ($label === '') {
                 continue;
             }
+            $id = sanitize_key((string) ($r['id'] ?? ''));
             $shifts[] = [
-                'id'       => $existing[$label] ?? wp_generate_password(8, false),
+                'id'       => $id !== '' ? $id : ($existing[$label] ?? wp_generate_password(8, false)),
                 'label'    => $label,
-                'start'    => $parts[1] ?? '',
-                'end'      => $parts[2] ?? '',
-                'capacity' => (int) ($parts[3] ?? 0),
+                // datetime-local posts "Y-m-d\TH:i" — store as "Y-m-d H:i".
+                'start'    => str_replace('T', ' ', sanitize_text_field((string) ($r['start'] ?? ''))),
+                'end'      => str_replace('T', ' ', sanitize_text_field((string) ($r['end'] ?? ''))),
+                'capacity' => max(0, (int) ($r['capacity'] ?? 0)),
             ];
         }
         self::set_shifts($post_id, $shifts);
+        // Re-evaluate the fully-booked flag (capacity may have changed).
+        self::sync_fully_booked($post_id);
     }
 
     public function register_meta(): void {
@@ -253,6 +302,36 @@ final class Volunteers {
     }
 
     /* ------------------------------------------------------------------ *
+     * Fully-booked state
+     * ------------------------------------------------------------------ */
+
+    /** True when every shift is full (and there's real capacity to fill). */
+    public static function is_fully_booked(int $opportunity_id): bool {
+        $shifts = self::shifts($opportunity_id);
+        if (! $shifts) {
+            return false;
+        }
+        $capacity = 0;
+        $left     = 0;
+        foreach ($shifts as $s) {
+            $capacity += (int) $s['capacity'];
+            $left     += self::spots_left($opportunity_id, $s['id']);
+        }
+        return $capacity > 0 && $left === 0;
+    }
+
+    /**
+     * Mirror the fully-booked state onto the `fully-booked` switcher meta (a
+     * JetEngine field on the opportunity) so it flips on/off automatically as
+     * signups fill or free up. JetEngine switchers default to 'true'/'false';
+     * override with the `oe_fully_booked_values` filter if yours differ.
+     */
+    public static function sync_fully_booked(int $opportunity_id): void {
+        $vals = apply_filters('oe_fully_booked_values', ['on' => 'true', 'off' => 'false'], $opportunity_id);
+        update_post_meta($opportunity_id, 'fully-booked', self::is_fully_booked($opportunity_id) ? $vals['on'] : $vals['off']);
+    }
+
+    /* ------------------------------------------------------------------ *
      * Signups
      * ------------------------------------------------------------------ */
 
@@ -320,6 +399,7 @@ final class Volunteers {
 
         // "On signup" confirmation + schedule the rest (§reminders).
         Reminders::on_signup($id);
+        self::sync_fully_booked($opportunity_id);
 
         return $id;
     }
@@ -342,6 +422,7 @@ final class Volunteers {
         }
         AuditLog::record('volunteer_declined', (int) $s->opportunity_id, 'volunteer');
         \OE\Mail\Transactional::send('volunteer_declined', ['email' => $s->email, 'name' => $s->name], self::email_params($s));
+        self::sync_fully_booked((int) $s->opportunity_id); // a spot just freed
     }
 
     public static function mark_no_show(int $signup_id): void {
@@ -367,8 +448,12 @@ final class Volunteers {
 
     public static function delete_signup(int $signup_id): void {
         global $wpdb;
+        $row = VolunteerSignups::get($signup_id);
         $wpdb->delete(VolunteerSignups::table(), ['id' => $signup_id]);
         AuditLog::record('volunteer_signup_removed', $signup_id, 'volunteer');
+        if ($row) {
+            self::sync_fully_booked((int) $row->opportunity_id); // a spot may have freed
+        }
     }
 
     /**
@@ -414,6 +499,7 @@ final class Volunteers {
 
         AuditLog::record('volunteer_signup_manual', $opportunity_id, 'volunteer', 'shift:' . $shift_id);
         Reminders::on_signup($id);
+        self::sync_fully_booked($opportunity_id);
         return $id;
     }
 

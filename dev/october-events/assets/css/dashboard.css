@@ -126,6 +126,7 @@
 .oe-vol-signup form { margin-top: 18px; }
 .oe-vol-hint { margin: 10px 0 0; font-size: 13px; color: #6f6a60; }
 .oe-vol-note { margin: 6px 0 4px; font-size: 13px; color: #6f6a60; }
+.oe-vol-soldout { margin: 0 0 12px; font-weight: 800; font-size: 16px; color: #b23218; }
 /* Chrome-free: render transparent (no card background, header fill, rounding or
    row lines) so the [oe_volunteer_signup] widget sits on a page-supplied
    background/border. Input field borders are kept for usability. */
