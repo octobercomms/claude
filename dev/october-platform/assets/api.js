@@ -29,7 +29,7 @@ export function getSites() {
 }
 export function activeId() { return localStorage.getItem(ACTIVE) || ''; }
 export function getCreds() { const list = getSites(); return list.find((s) => s.id === activeId()) || list[0] || null; }
-export function setActiveSite(id) { localStorage.setItem(ACTIVE, id); }
+export function setActiveSite(id) { localStorage.setItem(ACTIVE, id); bust(); /* drop the previous site's cached data */ }
 export function setSiteLabel(id, label) { const list = getSites(); const s = list.find((x) => x.id === id); if (s && label) { s.label = label; saveSites(list); } }
 
 /** Add or update a connection and make it active (used by the login form). */
@@ -78,63 +78,91 @@ async function call(ns, path, opts = {}) {
 function request(path, opts) { return call('/oe/v1', path, opts); }   // plugin API
 function requestWP(path, opts) { return call('/wp/v2', path, opts); } // core WP API
 
+/* ---- GET cache + in-flight dedup ----------------------------------------
+   A short-lived memo so the dashboard and a per-section view don't refetch the
+   same list, and so simultaneous reads share one in-flight request instead of
+   firing N identical ones. Writes bust the relevant prefix so the next read is
+   fresh. Keyed by full path (incl. query string). */
+const GET_TTL = 30000;
+const getCache = new Map(); // path -> { at, promise }
+function cachedGet(req, path) {
+  const hit = getCache.get(path);
+  if (hit && (Date.now() - hit.at) < GET_TTL) { return hit.promise; }
+  const promise = req(path).catch((err) => { getCache.delete(path); throw err; });
+  getCache.set(path, { at: Date.now(), promise });
+  return promise;
+}
+/** Drop cached GETs whose path starts with any of these prefixes. */
+export function bust(...prefixes) {
+  if (!prefixes.length) { getCache.clear(); return; }
+  for (const k of getCache.keys()) {
+    if (prefixes.some((p) => k.indexOf(p) === 0)) { getCache.delete(k); }
+  }
+}
+/** Run a write, then bust the caches it invalidates. */
+function afterWrite(promise, prefixes) {
+  return promise.then((r) => { bust(...prefixes); return r; });
+}
+const cget = (path) => cachedGet(request, path);     // cached oe/v1 GET
+const cgetWP = (path) => cachedGet(requestWP, path); // cached wp/v2 GET
+
 export const api = {
   /** Per-site branding/theme (public endpoint; safe to call once connected). */
-  getBrand: () => request('/brand'),
-  /** Validate credentials by hitting a protected endpoint. */
+  getBrand: () => cget('/brand'),
+  /** Validate credentials by hitting a protected endpoint (never cached). */
   ping: () => request('/planning/events'),
-  listEvents: () => request('/planning/events'),
-  getEvent: (id) => request('/planning/event/' + id),
-  updateEvent: (id, payload) => request('/planning/event/' + id, { method: 'POST', body: JSON.stringify(payload) }),
-  confirmEvent: (id) => request('/planning/event/' + id + '/confirm', { method: 'POST' }),
+  listEvents: () => cget('/planning/events'),
+  getEvent: (id) => cget('/planning/event/' + id),
+  updateEvent: (id, payload) => afterWrite(request('/planning/event/' + id, { method: 'POST', body: JSON.stringify(payload) }), ['/planning', '/stats']),
+  confirmEvent: (id) => afterWrite(request('/planning/event/' + id + '/confirm', { method: 'POST' }), ['/planning', '/stats']),
 
   /* Shared tasks (oe/v1/tasks) — the team's department-grouped board. */
-  tasksMeta: () => request('/tasks/meta'),
-  listTasks: () => request('/tasks'),
-  createTask: (payload) => request('/tasks', { method: 'POST', body: JSON.stringify(payload) }),
-  updateTask: (id, payload) => request('/task/' + id, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteTask: (id) => request('/task/' + id, { method: 'DELETE' }),
+  tasksMeta: () => cget('/tasks/meta'),
+  listTasks: () => cget('/tasks'),
+  createTask: (payload) => afterWrite(request('/tasks', { method: 'POST', body: JSON.stringify(payload) }), ['/task']),
+  updateTask: (id, payload) => afterWrite(request('/task/' + id, { method: 'POST', body: JSON.stringify(payload) }), ['/task']),
+  deleteTask: (id) => afterWrite(request('/task/' + id, { method: 'DELETE' }), ['/task']),
 
   /* Volunteer management (oe/v1/volunteers) — opportunities, shifts, signups. */
-  listOpportunities: () => request('/volunteers/opportunities'),
-  getOpportunity: (id) => request('/volunteers/opportunity/' + id),
-  addSignup: (id, payload) => request('/volunteers/opportunity/' + id + '/signup', { method: 'POST', body: JSON.stringify(payload) }),
-  updateSignup: (id, payload) => request('/volunteers/signup/' + id, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteSignup: (id) => request('/volunteers/signup/' + id, { method: 'DELETE' }),
+  listOpportunities: () => cget('/volunteers/opportunities'),
+  getOpportunity: (id) => cget('/volunteers/opportunity/' + id),
+  addSignup: (id, payload) => afterWrite(request('/volunteers/opportunity/' + id + '/signup', { method: 'POST', body: JSON.stringify(payload) }), ['/volunteers', '/stats']),
+  updateSignup: (id, payload) => afterWrite(request('/volunteers/signup/' + id, { method: 'POST', body: JSON.stringify(payload) }), ['/volunteers', '/stats']),
+  deleteSignup: (id) => afterWrite(request('/volunteers/signup/' + id, { method: 'DELETE' }), ['/volunteers', '/stats']),
 
   /* Email campaigns (oe/v1/campaigns). */
-  listCampaigns: () => request('/campaigns'),
-  getCampaign: (id) => request('/campaigns/' + id),
-  createCampaign: (payload) => request('/campaigns', { method: 'POST', body: JSON.stringify(payload) }),
-  updateCampaign: (id, payload) => request('/campaigns/' + id, { method: 'POST', body: JSON.stringify(payload) }),
-  deleteCampaign: (id) => request('/campaigns/' + id, { method: 'DELETE' }),
+  listCampaigns: () => cget('/campaigns'),
+  getCampaign: (id) => cget('/campaigns/' + id),
+  createCampaign: (payload) => afterWrite(request('/campaigns', { method: 'POST', body: JSON.stringify(payload) }), ['/campaigns']),
+  updateCampaign: (id, payload) => afterWrite(request('/campaigns/' + id, { method: 'POST', body: JSON.stringify(payload) }), ['/campaigns']),
+  deleteCampaign: (id) => afterWrite(request('/campaigns/' + id, { method: 'DELETE' }), ['/campaigns']),
   testCampaign: (id, email) => request('/campaigns/' + id + '/test', { method: 'POST', body: JSON.stringify({ email }) }),
-  sendCampaign: (id) => request('/campaigns/' + id + '/send', { method: 'POST' }),
-  audiences: () => request('/audiences'),
+  sendCampaign: (id) => afterWrite(request('/campaigns/' + id + '/send', { method: 'POST' }), ['/campaigns']),
+  audiences: () => cget('/audiences'),
   copilot: (payload) => request('/campaigns/copilot', { method: 'POST', body: JSON.stringify(payload) }),
 
   /* Contacts (oe/v1/contacts). */
-  contactsMeta: () => request('/contacts/meta'),
-  contactsGrowth: () => request('/contacts/growth'),
-  listContacts: (search, offset, list) => request('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0) + (list ? '&list=' + list : '')),
-  updateContact: (id, status) => request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }),
-  editContact: (id, fields) => request('/contact/' + id, { method: 'POST', body: JSON.stringify(fields) }),
-  deleteContact: (id) => request('/contact/' + id, { method: 'DELETE' }),
-  contactActivity: (id) => request('/contact/' + id + '/activity'),
+  contactsMeta: () => cget('/contacts/meta'),
+  contactsGrowth: () => cget('/contacts/growth'),
+  listContacts: (search, offset, list) => cget('/contacts?search=' + encodeURIComponent(search || '') + '&offset=' + (offset || 0) + (list ? '&list=' + list : '')),
+  updateContact: (id, status) => afterWrite(request('/contact/' + id, { method: 'POST', body: JSON.stringify({ status }) }), ['/contact', '/stats']),
+  editContact: (id, fields) => afterWrite(request('/contact/' + id, { method: 'POST', body: JSON.stringify(fields) }), ['/contact']),
+  deleteContact: (id) => afterWrite(request('/contact/' + id, { method: 'DELETE' }), ['/contact', '/stats']),
+  contactActivity: (id) => cget('/contact/' + id + '/activity'),
 
   /* Lists (oe/v1/lists). */
-  listLists: () => request('/lists'),
-  createList: (name, description) => request('/lists', { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }),
-  updateList: (id, name, description) => request('/lists/' + id, { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }),
-  deleteList: (id) => request('/lists/' + id, { method: 'DELETE' }),
-  listMember: (id, contactId, action) => request('/lists/' + id + '/members', { method: 'POST', body: JSON.stringify({ contact_id: contactId, action }) }),
+  listLists: () => cget('/lists'),
+  createList: (name, description) => afterWrite(request('/lists', { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }), ['/lists']),
+  updateList: (id, name, description) => afterWrite(request('/lists/' + id, { method: 'POST', body: JSON.stringify({ name, description: description || '' }) }), ['/lists']),
+  deleteList: (id) => afterWrite(request('/lists/' + id, { method: 'DELETE' }), ['/lists']),
+  listMember: (id, contactId, action) => afterWrite(request('/lists/' + id + '/members', { method: 'POST', body: JSON.stringify({ contact_id: contactId, action }) }), ['/lists', '/contact']),
 
   /* Headline KPIs for the dashboard (oe/v1/stats). */
-  stats: () => request('/stats'),
+  stats: () => cget('/stats'),
 
   /* Staff AI assistant (oe/v1/assistant) — tool-use over live festival data. */
   assistant: (messages) => request('/assistant', { method: 'POST', body: JSON.stringify({ messages }) }),
 
   /* WordPress media library (core REST) for the email image picker. */
-  listMedia: () => requestWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
+  listMedia: () => cgetWP('/media?media_type=image&per_page=30&_fields=id,source_url,alt_text,title'),
 };
