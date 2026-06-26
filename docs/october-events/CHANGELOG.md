@@ -17,6 +17,9 @@ Two tweaks to the public volunteer signup widget:
 - **Reminders are no longer optional.** Removed the "Text me shift reminders"
   opt-out — everyone gets email reminders, and **providing a mobile opts that
   number into SMS reminders** (with a clear note on the form). Cuts no-shows.
+- **Chrome-free widget.** The signup widget now renders **transparent** (no card
+  background, header fill, rounding or row lines) so you can place it on your own
+  background and border. Input field borders are kept for usability.
 
 ## 1.57.0 — link volunteer opportunities to events
 
