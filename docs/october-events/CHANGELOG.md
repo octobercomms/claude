@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.60.0 — settings page reorganised into tabs
+
+The Settings screen was a wall of ~20 accordions in two vague columns. It's now a
+**left sub-nav with one panel at a time**: **General · Events · AI · Platform
+theme · Keys & platform · Email & SMS · Updates**. The last-used tab is
+remembered. Sections for **switched-off features are hidden** (e.g. the Volunteer
+reminders section disappears when Volunteers is off). All fields, keys and the
+test tools are unchanged — only the layout moved.
+
 ## 1.59.0 — per-site feature toggles
 
 The plugin runs on several sites that don't all use the same modules. **Settings

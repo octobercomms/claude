@@ -3,7 +3,7 @@
  * Plugin Name: October Events
  * Plugin URI:  https://atlantadesignfestival.net
  * Description: Festival & events operations platform — accounts, listings (directory, destinations, products, events, stories), submission/approval, Stripe payments, native email (Amazon SES) with contacts, campaigns and a Claude co-pilot, ticketing + QR check-in, volunteers, and the AI Stories editorial connector. Runs on multiple sites (e.g. Atlanta Design Festival, Architecture Tours) with a per-site brand. (Ads are handled by the standalone oc-ad-manager plugin.)
- * Version:     1.59.0
+ * Version:     1.60.0
  * Author:      October Communications
  * Author URI:  https://octobercommunications.com
  * License:     GPL-2.0-or-later
@@ -31,7 +31,7 @@ declare(strict_types=1);
 
 defined('ABSPATH') || exit;
 
-define('OE_VERSION', '1.59.0');
+define('OE_VERSION', '1.60.0');
 // Bump when the DB schema changes so tables auto-(re)build on upgrade without a
 // manual deactivate/reactivate. dbDelta makes the install routines idempotent.
 define('OE_DB_VERSION', '10');
