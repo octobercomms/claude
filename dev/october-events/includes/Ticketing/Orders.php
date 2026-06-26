@@ -200,6 +200,18 @@ final class Orders {
         $wpdb->update(Schema::tickets(), ['status' => 'cancelled'], ['order_id' => $order_id]);
         AuditLog::record('order_cancelled', $order_id, 'order', $status);
 
+        // Let the buyer know — refund confirmation or cancellation notice.
+        if ($order->email !== '') {
+            $refunded = ($status === 'refunded');
+            \OE\Mail\Transactional::send($refunded ? 'order_refunded' : 'order_cancelled', [
+                'email' => (string) $order->email,
+                'name'  => (string) $order->name,
+            ], [
+                'event_name' => get_the_title((int) $order->event_id),
+                'amount'     => $refunded ? trim((string) $order->total . ' ' . strtoupper((string) $order->currency)) : '',
+            ]);
+        }
+
         // A seat just freed up — let the event's waitlist race for it.
         if ((int) $order->event_id) {
             Waitlist::notify_all_for_event((int) $order->event_id);

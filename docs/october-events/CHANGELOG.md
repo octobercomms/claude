@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.54.0 — refund/cancel now emails the customer automatically
+
+The one-click **Refund** (Stripe) and **Cancel** actions on Tickets →
+Registrations now **notify the buyer automatically**:
+
+- **Refund** → emails a refund confirmation (with the amount and a note that it
+  takes 5–10 business days and the tickets are now void).
+- **Cancel** (no refund) → emails a cancellation notice.
+
+No extra clicks — it's still one button with a confirm step (the confirm text
+now spells out that the customer will be emailed). The existing Stripe refund
+and waitlist auto-notify are unchanged. New `order_refunded` /
+`order_cancelled` transactional emails.
+
 ## 1.53.0 — attendee CSV export (the door list)
 
 The Tickets → Registrations screen now exports **two** CSVs:
