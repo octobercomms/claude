@@ -85,6 +85,8 @@ final class Orders {
 
         $email = sanitize_email((string) ($data['email'] ?? ''));
         $name  = sanitize_text_field((string) ($data['name'] ?? ''));
+        // Optional per-admission attendee names (in order); fall back to the buyer.
+        $attendees = array_map('sanitize_text_field', (array) ($data['attendee_names'] ?? []));
         $unit  = (float) ($data['unit_price'] ?? TicketTypes::effective_price($type));
         $disc  = (float) ($data['discount'] ?? 0);
         $total = (float) ($data['total'] ?? max(0, $unit * $qty - $disc));
@@ -130,7 +132,7 @@ final class Orders {
                 'order_id'          => $order_id,
                 'event_id'          => $event_id,
                 'ticket_type_label' => (string) $type['label'],
-                'attendee_name'     => $name,
+                'attendee_name'     => ($attendees[$i - 1] ?? '') !== '' ? $attendees[$i - 1] : $name,
                 'token'             => $token,
                 'ticket_number'     => $i,
                 'total_in_order'    => $total_t,

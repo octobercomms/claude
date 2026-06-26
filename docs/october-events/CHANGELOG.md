@@ -5,6 +5,27 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.45.0 — checkout rebuilt to match Event Tickets v1.2.5 exactly
+
+The earlier restyle was copied from a **stale v1.0.0** of the old plugin in the
+repo. Recovered the real **v1.2.5** from git history and ported its checkout
+**verbatim** — the design that was actually live and perfected:
+
+- The **699-line v1.2.5 `checkout.css` copied unchanged**, plus its exact markup
+  (kept the original `.oct-` classes): full-width ticket rows with inline **± qty
+  steppers**, struck-through sale prices, the order-summary box, two-column
+  **Your Details**, the **Stripe "Pay Securely"** button + badge, and the orange
+  primary buttons.
+- **Per-attendee name fields** (appear when the quantity > 1, respecting
+  `qty_per_purchase`) — threaded through to each issued ticket's `attendee_name`
+  (free orders directly; paid orders via the PaymentIntent metadata).
+- **Terms & Conditions** checkbox (when a *Settings → Checkout Terms & Conditions
+  URL* is set) gating payment.
+- **Sold-out → "Join Waitlist"** modal wired to `/waitlist-join`.
+- **"Complete Registration"** path for free (\$0) tickets.
+
+Wired to the existing `oe/v1` ticket endpoints + Stripe; no payment-flow change.
+
 ## 1.44.0 — event waitlist
 
 Closes the last ticketing-parity gap. When a ticket type is **sold out**, the

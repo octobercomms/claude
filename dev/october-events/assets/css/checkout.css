@@ -1,183 +1,321 @@
 /* ==========================================================================
-   October Events — event checkout. Ported from the original Event Tickets
-   plugin's checkout design (gold accent, dark buttons, ticket cards) so the
-   new [oe_event_checkout] looks exactly like the carefully-styled original.
-   Scoped under .oe-checkout so it never touches the rest of the page.
+   October Event Tickets — Checkout Styles
    ========================================================================== */
 
-.oe-checkout {
-  --oe-co-accent: #C8A96E;
-  --oe-co-ink: #1a1a1a;
-  --oe-co-line: #e0e0e0;
-  max-width: 600px;
-  margin: 0 auto;
+/* ---------- CSS custom properties — override these to retheme ---------- */
+.oct-checkout {
+  --oct-accent:    #d14900;   /* brand highlight (buttons, focus rings, active borders) */
+  --oct-text:      #222222;   /* primary text */
+  --oct-border:    #222222;   /* ticket row dividers */
+  --oct-row-hover: #f5f5f5;   /* hovered / selected row background */
+  --oct-btn-bg:    #d14900;   /* primary button background */
+  --oct-btn-text:  #ffffff;   /* primary button text */
+  --oct-radius:    50px;      /* primary button corner radius */
+
+  width: 100%;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-  color: var(--oe-co-ink);
+  color: var(--oct-text);
   line-height: 1.5;
 }
 
 /* ---------- Sections ---------- */
-.oe-checkout .oe-co-step { margin-bottom: 28px; }
-.oe-checkout h3 {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--oe-co-ink);
-  margin: 0 0 14px;
-  letter-spacing: 0.2px;
+.oct-section {
+  margin-bottom: 28px;
 }
-.oe-checkout label { display: block; }
-.oe-checkout .oe-co-label,
-.oe-checkout .oe-co-step > label {
+
+.oct-section__title {
+  font-size: 1.5em;
+  font-weight: 700;
+  color: var(--oct-text);
+  margin-bottom: 14px;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+
+/* ---------- Ticket type rows ---------- */
+.oct-ticket-list {
+  width: 100%;
+}
+
+.oct-ticket-row {
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 20px !important;
+  padding: 20px !important;
+  border-bottom: 3px solid var(--oct-border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.oct-ticket-row:first-child {
+  border-top: 3px solid var(--oct-border);
+}
+
+.oct-ticket-row:hover:not(.oct-ticket-row--unavailable),
+.oct-ticket-row--selected {
+  background: var(--oct-row-hover);
+}
+
+.oct-ticket-row--selected .oct-ticket-row__name {
+  font-weight: 800;
+}
+
+.oct-ticket-row--unavailable {
+  cursor: default;
+  opacity: 0.55;
+}
+
+.oct-ticket-row__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.oct-ticket-row__name {
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--oct-text);
+  line-height: 1;
+}
+
+.oct-ticket-row__desc {
+  font-size: 13px;
+  color: #555;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__admissions {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.oct-ticket-row__price {
+  text-align: right;
+  flex-shrink: 0;
+  line-height: 1.2;
+}
+
+.oct-price-current {
+  display: block !important;
+  font-size: 3em !important;
+  font-weight: 600;
+  color: var(--oct-text);
+}
+
+.oct-price-old {
+  display: block !important;
+  font-size: 1.5em !important;
+  color: #999;
+  text-decoration: line-through !important;
+  line-height: 1;
+}
+
+.oct-ticket-row__status {
+  font-size: 13px;
+  color: #888;
+  font-style: italic;
+}
+
+/* ---------- Inline qty per ticket row ---------- */
+.oct-ticket-row__qty {
+  display: flex !important;
+  align-items: center !important;
+  gap: 0 !important;
+  border: 1px solid #ccc !important;
+  border-radius: 0 !important;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #fff;
+}
+
+.oct-ticket-row__qty .oct-qty-btn {
+  background: #fff !important;
+  border: none !important;
+  border-radius: 0 !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  font-size: 18px !important;
+  font-weight: 600 !important;
+  cursor: pointer !important;
+  color: #1a1a1a !important;
+  transition: background 0.1s;
+  line-height: 36px !important;
+  flex-shrink: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: auto !important;
+  box-shadow: none !important;
+  outline: none;
+  user-select: none;
+}
+
+.oct-ticket-row__qty .oct-qty-btn:hover {
+  background: #eee !important;
+}
+
+.oct-ticket-row__qty .oct-qty-val {
+  min-width: 36px;
+  text-align: center !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  color: #1a1a1a;
+  border-left: 1px solid #f5f5f5 !important;
+  border-right: 0 !important;
+  padding: 0 4px;
+  line-height: 36px !important;
+  display: inline-block !important;
+}
+
+.oct-ticket-row--selected .oct-ticket-row__qty {
+  border-color: var(--oct-accent) !important;
+}
+
+/* ---------- Terms & Conditions ---------- */
+.oct-terms-section {
+  padding: 16px 0 4px;
+}
+
+.oct-terms-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.oct-terms-checkbox {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  margin-top: 2px;
+  accent-color: var(--oct-accent);
+  cursor: pointer;
+}
+
+.oct-terms-label a {
+  color: var(--oct-accent);
+  text-decoration: underline;
+}
+
+/* ---------- Labels & inputs ---------- */
+.oct-label {
+  display: block;
   font-size: 13px;
   font-weight: 600;
   color: #444;
+  margin-bottom: 7px;
   letter-spacing: 0.1px;
 }
 
-/* ---------- Ticket type cards (rendered by checkout.js into #oe-co-types) -- */
-#oe-co-types { display: flex; flex-direction: column; gap: 10px; }
-
-.oe-checkout .oe-co-type {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  border: 2px solid var(--oe-co-line);
-  border-radius: 10px;
-  padding: 16px 18px;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
-  position: relative;
-  background: #fff;
-}
-.oe-checkout .oe-co-type:hover { border-color: var(--oe-co-accent); background: #fefcf7; }
-.oe-checkout .oe-co-type input[type="radio"] { position: absolute; opacity: 0; pointer-events: none; }
-
-/* Selected state — the radio inside the label drives it. */
-.oe-checkout .oe-co-type:has(input:checked) {
-  border-color: var(--oe-co-accent);
-  background: #fefcf7;
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
-}
-.oe-checkout .oe-co-type:has(input:checked)::after {
-  content: '✓';
-  position: absolute;
-  top: 12px;
-  right: 14px;
-  width: 22px;
-  height: 22px;
-  background: var(--oe-co-accent);
-  color: #fff;
-  border-radius: 50%;
+.oct-optional {
+  font-weight: 400;
+  color: #999;
   font-size: 12px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
 }
 
-.oe-checkout .oe-co-type-main { flex: 1; font-size: 15px; }
-.oe-checkout .oe-co-type-main strong { font-weight: 700; }
-.oe-checkout .oe-co-desc { font-size: 13px; color: #666; }
-.oe-checkout .oe-co-admits {
-  display: inline-block;
-  margin-left: 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--oe-co-accent);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+.oct-required {
+  color: #e53935;
 }
-.oe-checkout .oe-co-type-price {
-  flex-shrink: 0;
-  text-align: right;
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--oe-co-accent);
-}
-.oe-checkout .oe-co-type-price s { font-size: 13px; font-weight: 400; color: #999; margin-right: 4px; }
-.oe-checkout .oe-co-type-price em { display: block; font-size: 11px; font-weight: 600; font-style: normal; color: #999; text-transform: uppercase; }
-.oe-checkout .oe-co-type.is-disabled { opacity: 0.55; cursor: default; }
-.oe-checkout .oe-co-type.is-disabled:hover { border-color: var(--oe-co-line); background: #fff; }
 
-/* ---------- Quantity stepper ---------- */
-.oe-checkout .oe-co-qtyrow { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
-.oe-checkout .oe-qty {
-  display: inline-flex;
-  align-items: center;
-  border: 2px solid var(--oe-co-line);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.oe-checkout .oe-qty-btn {
-  background: #f8f8f8;
-  border: none;
-  width: 44px;
-  height: 44px;
-  font-size: 20px;
-  cursor: pointer;
-  color: var(--oe-co-ink);
-  transition: background 0.1s;
-  line-height: 1;
-}
-.oe-checkout .oe-qty-btn:hover { background: #eee; }
-.oe-checkout .oe-qty-btn:disabled { opacity: 0.4; cursor: default; }
-.oe-checkout #oe-co-qty {
-  width: 56px;
-  border: none;
-  border-left: 1px solid var(--oe-co-line);
-  border-right: 1px solid var(--oe-co-line);
-  text-align: center;
-  font-size: 16px;
-  font-weight: 700;
-  height: 44px;
-  outline: none;
-  -moz-appearance: textfield;
-}
-.oe-checkout #oe-co-qty::-webkit-inner-spin-button,
-.oe-checkout #oe-co-qty::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-
-/* ---------- Inputs ---------- */
-.oe-checkout input[type="text"],
-.oe-checkout input[type="email"],
-.oe-checkout #oe-co-promo {
+.oct-input {
   width: 100%;
-  border: 2px solid var(--oe-co-line);
-  border-radius: 8px;
+  border: 1px solid;
+  border-radius: 0;
   padding: 11px 14px;
   font-size: 15px;
-  color: var(--oe-co-ink);
+  color: #1a1a1a;
   background: #fff;
   transition: border-color 0.15s, box-shadow 0.15s;
   outline: none;
   font-family: inherit;
 }
-.oe-checkout input[type="text"]:focus,
-.oe-checkout input[type="email"]:focus,
-.oe-checkout #oe-co-promo:focus {
-  border-color: var(--oe-co-accent);
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
-}
-.oe-checkout .oe-form label { margin-bottom: 16px; font-size: 13px; font-weight: 600; color: #444; }
-.oe-checkout .oe-form input { margin-top: 7px; }
 
-/* ---------- Promo ---------- */
-.oe-checkout .oe-co-promo { display: flex; gap: 10px; margin-top: 7px; }
-.oe-checkout .oe-co-promo #oe-co-promo { flex: 1; text-transform: uppercase; }
-.oe-checkout #oe-co-promo-msg { display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 600; }
-.oe-checkout #oe-co-promo-msg.is-ok { color: #065f46; }
-.oe-checkout #oe-co-promo-msg.is-err { color: #991b1b; }
+.oct-input:focus {
+  border-color: var(--oct-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oct-accent) 20%, transparent);
+}
+
+.oct-input.error {
+  border-color: #e53935;
+}
+
+.oct-field-group {
+  margin-bottom: 16px;
+}
+
+.oct-field-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 4px;
+  display: block;
+}
+
+/* ---------- Promo code ---------- */
+.oct-promo-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+}
+
+.oct-promo-row .oct-input {
+  flex: 1;
+}
+
+/* Promo section: title + field on one line */
+.oct-section--promo .oct-promo-row .oct-label {
+  margin-bottom: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.oct-promo-message {
+  margin-top: 8px;
+  font-size: 13px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.oct-promo-message.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #6ee7b7;
+}
+
+.oct-promo-message.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fca5a5;
+}
+
+/* ---------- Section dividers ---------- */
+.oct-section + .oct-section {
+  border-top: 0;
+  padding-top: 20px;
+}
 
 /* ---------- Order summary ---------- */
-.oe-checkout .oe-co-summary {
-  background: #f9f9f9;
-  border: 1px solid #eee;
-  border-radius: 10px;
-  padding: 14px 20px;
-  margin-bottom: 28px;
+.oct-summary {
+  background: #f5f5f5;
+  border: 0;
+  border-radius: 0;
+  padding: 16px 20px;
 }
-.oe-checkout .oe-co-line {
+
+.oct-summary .oct-section__title {
+  margin-bottom: 12px;
+}
+
+.oct-summary-row {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
@@ -185,85 +323,187 @@
   font-size: 14px;
   color: #444;
 }
-.oe-checkout .oe-co-total {
-  border-top: 1px solid var(--oe-co-line);
+
+.oct-summary-row.oct-summary-total {
+  border-top: 1px solid #e0e0e0;
   margin-top: 8px;
   padding-top: 10px;
   font-size: 16px;
   font-weight: 700;
-  color: var(--oe-co-ink);
+  color: #1a1a1a;
 }
 
-/* ---------- Payment (Stripe) ---------- */
-.oe-checkout .oe-payment { margin: 4px 0 16px; }
-.oe-checkout #oe-co-card {
-  border: 2px solid var(--oe-co-line);
+.oct-summary-price {
+  font-weight: 600;
+}
+
+.oct-discount-value {
+  color: #2d9e44;
+}
+
+/* ---------- Your Details: background + 50/50 label / field ---------- */
+.oct-section--details {
+  background: #f5f5f5;
+  padding: 0 20px;
+}
+
+.oct-section--details .oct-field-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+  padding-top: 12px;
+}
+
+.oct-section--details .oct-label {
+  width: 50%;
+  flex-shrink: 0;
+  margin-bottom: 0;
+  padding-top: 11px;
+}
+
+.oct-field-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---------- Payment tabs ---------- */
+.oct-payment-tabs {
+  display: flex;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.oct-tab {
+  flex: 1;
+  padding: 11px 16px;
+  border: none;
+  background: #f8f8f8;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+  border-right: 1px solid #e0e0e0;
+}
+
+.oct-tab:last-child {
+  border-right: none;
+}
+
+.oct-tab--active {
+  background: #fff;
+  color: #1a1a1a;
+  box-shadow: inset 0 -2px 0 var(--oct-accent);
+}
+
+/* ---------- Stripe Elements ---------- */
+.oct-stripe-elements {
+  border: 2px solid #e0e0e0;
   border-radius: 8px;
   padding: 14px;
+  margin-bottom: 14px;
+  transition: border-color 0.15s;
   background: #fff;
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
-.oe-checkout #oe-co-card.StripeElement--focus {
-  border-color: var(--oe-co-accent);
-  box-shadow: 0 0 0 3px rgba(200, 169, 110, 0.15);
+
+.oct-stripe-elements.focused {
+  border-color: var(--oct-accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oct-accent) 20%, transparent);
 }
-.oe-checkout #oe-co-card-errors { color: #991b1b; font-size: 13px; margin-top: 8px; }
-.oe-checkout .oe-co-badge {
+
+.oct-stripe-badge {
   display: flex;
   align-items: center;
   gap: 6px;
   font-size: 12px;
   color: #999;
   margin-top: 10px;
+  margin-bottom: 16px;
 }
 
 /* ---------- Buttons ---------- */
-.oe-checkout .oe-btn {
+.oct-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  border: 2px solid var(--oe-co-line);
+  border: 0;
   border-radius: 8px;
   font-size: 15px;
   font-weight: 700;
-  padding: 11px 22px;
+  padding: 12px 24px;
   cursor: pointer;
   transition: all 0.15s;
   font-family: inherit;
   letter-spacing: 0.2px;
-  background: #fff;
-  color: var(--oe-co-ink);
+  text-decoration: none;
   white-space: nowrap;
 }
-.oe-checkout .oe-btn:hover { border-color: var(--oe-co-accent); color: var(--oe-co-accent); }
-.oe-checkout .oe-btn-primary {
-  background: var(--oe-co-ink);
-  color: #fff;
-  border-color: var(--oe-co-ink);
-  width: 100%;
-  margin-top: 4px;
+
+.oct-btn--primary {
+  background: var(--oct-btn-bg);
+  color: var(--oct-btn-text);
+  border: 0;
+  border-radius: var(--oct-radius);
+  font-size: 1.2em;
+  padding: 10px 30px;
 }
-.oe-checkout .oe-btn-primary:hover { background: #333; border-color: #333; color: #fff; }
-.oe-checkout .oe-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-.oe-checkout #oe-co-result { margin-top: 10px; font-size: 13px; color: #991b1b; }
 
-/* ---------- Waitlist (sold-out) ---------- */
-.oe-checkout .oe-co-waitlist { border: 2px solid var(--oe-co-line); border-radius: 10px; padding: 18px 20px; }
-.oe-checkout .oe-co-waitlist h3 { margin-bottom: 6px; }
-.oe-checkout .oe-co-wl-note { font-size: 13px; color: #666; margin: 0 0 14px; }
-.oe-checkout .oe-co-waitlist label { display: block; margin-bottom: 14px; font-size: 13px; font-weight: 600; color: #444; }
-.oe-checkout .oe-co-waitlist input { margin-top: 7px; }
-.oe-checkout .oe-co-type.is-soldout { border-style: dashed; }
-.oe-checkout #oe-co-wl-msg { margin-top: 10px; font-size: 13px; color: #444; }
+.oct-btn--primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--oct-btn-bg) 75%, #000);
+}
 
-/* ---------- Success ---------- */
-.oe-checkout .oe-co-success { text-align: center; padding: 48px 24px; }
-.oe-checkout .oe-co-success-icon {
+.oct-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.oct-btn--secondary {
+  background: #222222;
+  color: #ffffff;
+  border: none;
+  border-radius: 50px;
+  padding: 7.5px 20px;
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.oct-btn--secondary:hover {
+  background: var(--oct-accent);
+  color: #fff;
+}
+
+.oct-btn--full {
+  width: 100%;
+}
+
+/* ---------- Payment error ---------- */
+.oct-payment-error {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  color: #991b1b;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* ---------- Success state ---------- */
+.oct-success {
+  text-align: center;
+  padding: 48px 24px;
+}
+
+.oct-success__icon {
   width: 72px;
   height: 72px;
   border-radius: 50%;
-  background: var(--oe-co-accent);
+  background: var(--oct-accent);
   color: #fff;
   font-size: 36px;
   display: flex;
@@ -272,20 +512,30 @@
   margin: 0 auto 20px;
   font-weight: 700;
 }
-.oe-checkout .oe-co-success h3 { font-size: 24px; font-weight: 800; margin-bottom: 10px; }
-.oe-checkout .oe-co-success p { color: #666; margin-bottom: 24px; }
-.oe-checkout #oe-co-tickets {
-  list-style: none;
-  margin: 0 auto;
-  padding: 0;
+
+.oct-success h2 {
+  font-size: 24px;
+  font-weight: 800;
+  color: #1a1a1a;
+  margin-bottom: 10px;
+}
+
+.oct-success p {
+  color: #666;
+  margin-bottom: 24px;
+}
+
+.oct-ticket-links {
   display: flex;
   flex-direction: column;
   gap: 10px;
   max-width: 340px;
+  margin: 0 auto;
 }
-.oe-checkout #oe-co-tickets a {
+
+.oct-ticket-link {
   display: block;
-  background: var(--oe-co-ink);
+  background: #1a1a1a;
   color: #fff;
   text-decoration: none;
   padding: 12px 20px;
@@ -294,9 +544,156 @@
   font-size: 14px;
   transition: background 0.15s;
 }
-.oe-checkout #oe-co-tickets a:hover { background: #333; }
 
+.oct-ticket-link:hover {
+  background: #333;
+  color: #fff;
+}
+
+/* ---------- Error / notice ---------- */
+.oct-error {
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+.oct-notice {
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+}
+
+/* ---------- Waitlist ---------- */
+.oct-btn-waitlist {
+  background: none;
+  border: 1px solid #1a1a1a;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #1a1a1a;
+  margin-top: 6px;
+  display: block;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+}
+.oct-btn-waitlist:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+.oct-ticket-row__status--soldout {
+  color: #e53935;
+  font-weight: 600;
+  font-style: normal;
+}
+.oct-waitlist-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.oct-waitlist-modal__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+}
+.oct-waitlist-modal__box {
+  position: relative;
+  background: #fff;
+  border-radius: 10px;
+  padding: 28px;
+  width: 100%;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.oct-waitlist-modal__sub {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 20px;
+}
+
+/* ---------- PayPal container ---------- */
+#oct-paypal-buttons {
+  margin-bottom: 10px;
+}
+
+/* ---------- Spinner ---------- */
+.oct-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: oct-spin 0.65s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes oct-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ---------- Tax row ---------- */
+.oct-summary-row.oct-summary-tax {
+  color: #555;
+}
+
+/* ---------- Free registration button ---------- */
+#oct-free-section {
+  padding-top: 4px;
+}
+
+/* ---------- Responsive ---------- */
 @media (max-width: 480px) {
-  .oe-checkout .oe-co-type { flex-direction: column; align-items: flex-start; gap: 6px; }
-  .oe-checkout .oe-co-type-price { text-align: left; }
+  .oct-ticket-row {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 8px;
+  }
+
+  .oct-ticket-row__price {
+    text-align: left;
+  }
+
+  .oct-payment-tabs {
+    flex-direction: column;
+  }
+
+  .oct-tab {
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+  }
+
+  .oct-tab:last-child {
+    border-bottom: none;
+  }
+
+  .oct-section--promo .oct-promo-row {
+    flex-wrap: wrap;
+  }
+
+  .oct-section--promo .oct-promo-row .oct-label {
+    width: 100%;
+  }
+
+  .oct-section--details .oct-field-group {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .oct-section--details .oct-label {
+    width: 100%;
+    padding-top: 0;
+  }
 }
