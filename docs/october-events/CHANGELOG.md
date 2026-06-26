@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.41.4 — auto check-in PIN, a built-in check-in page, promo editing
+
+Ticketing fixes following the parity review:
+
+- **Check-in PIN auto-derived from the event's post ID.** Every event now has a
+  working PIN automatically (the post ID); the Events list column and the
+  check-in app use it. A PIN typed into the event's meta box still overrides it.
+- **Built-in check-in page** at `/?oe_checkin=1` — a guaranteed door check-in URL
+  (PIN → venue → scan) without having to place the `[oe_checkin]` shortcode on a
+  page. The Dashboard's **"Scan tickets ↗"** button now always appears (using the
+  scanner page if set, otherwise this built-in route). Works with zero setup —
+  the venue step defaults to "Main door".
+- **Promo codes can be edited** — each code has an **Edit** button that loads it
+  into the form (the save path already supported updates).
+
 ## 1.41.3 — Check-in Log admin screen
 
 Restores the old plugin's **Check-in Log**. A new **Check-in log** tab on the
