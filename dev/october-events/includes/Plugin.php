@@ -187,6 +187,9 @@ final class Plugin {
 
         // Door check-in app at the pretty URL /checkin (or /?oe_checkin=1).
         if (isset($_GET['oe_checkin']) || get_query_var('oe_checkin')) {
+            if (! Features::enabled('tickets')) {
+                return; // ticketing off for this site
+            }
             $this->render_checkin();
             exit;
         }

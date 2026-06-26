@@ -152,7 +152,15 @@ async function boot() {
   }
 }
 
+/* A feature is on unless the site's brand payload explicitly disables it. */
+function featOn(key) { return !(theme.features && theme.features[key] === false); }
+/* Map a route to the feature that gates it (unlisted routes are always on). */
+const ROUTE_FEATURE = { volunteers: 'volunteers', email: 'contacts', contacts: 'contacts' };
+function routeAllowed(r) { return !ROUTE_FEATURE[r] || featOn(ROUTE_FEATURE[r]); }
+
 function render() {
+  // A disabled module's route falls back to the dashboard.
+  if (!routeAllowed(route)) { route = 'overview'; }
   if (route === 'tasks') { return renderTasks(); }
   if (route === 'volunteers') { return renderVolunteers(); }
   if (route === 'events') { return renderBoard(); }
@@ -181,9 +189,9 @@ function shell(active) {
           ${link('overview', 'Dashboard')}
           ${link('events', 'Events')}
           ${link('tasks', 'Tasks')}
-          ${link('volunteers', 'Volunteers')}
-          ${link('email', 'Email')}
-          ${link('contacts', 'Contacts')}
+          ${featOn('volunteers') ? link('volunteers', 'Volunteers') : ''}
+          ${featOn('contacts') ? link('email', 'Email') : ''}
+          ${featOn('contacts') ? link('contacts', 'Contacts') : ''}
           ${link('assistant', 'Assistant')}
         </nav>
         <div class="oe-side-foot">
@@ -860,8 +868,10 @@ async function renderOverview() {
     [[green + '/' + total, 'confirmed'], [prog, 'in progress']]));
   mods.appendChild(moduleCard('tasks', 'Tasks', blocked ? 'amber' : 'green', tasks,
     [[openTasks, 'open'], [doneTasks, 'done']]));
-  mods.appendChild(moduleCard('volunteers', 'Volunteers', shortfall ? 'amber' : 'green', opps,
-    [[filled + '/' + capacity, 'filled'], [pending, 'to review']]));
+  if (featOn('volunteers')) {
+    mods.appendChild(moduleCard('volunteers', 'Volunteers', shortfall ? 'amber' : 'green', opps,
+      [[filled + '/' + capacity, 'filled'], [pending, 'to review']]));
+  }
   main.appendChild(mods);
 
   main.querySelectorAll('[data-goto]').forEach((c) =>

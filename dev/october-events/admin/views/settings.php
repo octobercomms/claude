@@ -20,6 +20,14 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <div class="oe-col">
         <p class="oe-col-head"><?php esc_html_e('This site & content', 'october-events'); ?></p>
 
+        <details class="oe-acc" id="features" open><summary><?php esc_html_e('Features', 'october-events'); ?></summary><div class="oe-acc-body">
+        <p class="description"><?php esc_html_e('Switch off the modules this site doesn\'t use — they\'ll disappear from the menu, their public forms stop showing, and the platform drops them from its nav. Everything is on by default; nothing is deleted when you turn it off.', 'october-events'); ?></p>
+        <?php foreach (\OE\Features::FEATURES as $key => $label) : ?>
+            <p style="margin:6px 0"><label><input type="checkbox" name="features[<?php echo esc_attr($key); ?>]" value="1" <?php checked(\OE\Features::enabled($key)); ?>> <strong><?php echo esc_html($label); ?></strong></label></p>
+        <?php endforeach; ?>
+        <p class="description"><?php esc_html_e('Dashboard, Events and Settings are always available.', 'october-events'); ?></p>
+        </div></details>
+
         <details class="oe-acc" id="brand"><summary><?php esc_html_e('Brand', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Shown as this site\'s menu name and in the UI (this plugin runs on multiple sites).', 'october-events'); ?></p>
         <p><label><?php esc_html_e('Brand / site name', 'october-events'); ?>

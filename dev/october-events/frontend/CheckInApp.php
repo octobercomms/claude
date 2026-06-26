@@ -34,6 +34,9 @@ final class CheckInApp {
     }
 
     public function render(array $atts = []): string {
+        if (! \OE\Features::enabled('tickets')) {
+            return '';
+        }
         wp_enqueue_style('oe-checkin');
         wp_enqueue_script('oe-checkin');
         wp_localize_script('oe-checkin', 'OE_CHECKIN', [

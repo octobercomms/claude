@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.59.0 — per-site feature toggles
+
+The plugin runs on several sites that don't all use the same modules. **Settings
+→ Features** now lets each site switch modules off — **Tickets, Directory,
+Destinations, Products, Stories, Accounts, Volunteers, Contacts & email**.
+Everything is on by default; switching one off:
+
+- **hides its wp-admin menu** (and its event meta boxes),
+- makes its **public shortcodes / routes inert** (e.g. an unused ticket checkout,
+  the `/checkin` app, or the volunteer signup form stop rendering),
+- and tells the **companion platform** to drop it from the nav (served via the
+  `oe/v1/brand` endpoint, which now includes a `features` map).
+
+Non-destructive — nothing is deleted; flip it back on and it returns. Dashboard,
+Events and Settings are always available. New `OE\Features`.
+
 ## 1.58.0 — volunteer: branded emails, grouped shifts, auto-confirm
 
 - **Branded volunteer emails.** The signup / confirmed / declined / reminder
