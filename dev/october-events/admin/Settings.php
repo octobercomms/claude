@@ -143,13 +143,15 @@ final class Settings {
 
         $in = wp_unslash($_POST);
 
-        // API keys: store any that aren't pinned by a wp-config.php constant.
+        // API keys: store any that aren't pinned by a wp-config.php constant. The
+        // form never echoes saved secrets back, so a BLANK field means "keep the
+        // existing value" — only overwrite when a new value was actually entered.
         $secrets = [];
         foreach (array_keys(Config::secret_keys()) as $key) {
             if (Config::secret_is_constant($key)) {
                 continue;
             }
-            if (array_key_exists('secret_' . $key, $in)) {
+            if (isset($in['secret_' . $key]) && trim((string) $in['secret_' . $key]) !== '') {
                 // ADF-05: encrypt at rest.
                 $secrets[$key] = \OE\Crypto::encrypt(sanitize_text_field((string) $in['secret_' . $key]));
             }
@@ -157,6 +159,9 @@ final class Settings {
         if ($secrets) {
             Config::update($secrets);
         }
+        // Existing (encrypted) values, so the non-constant secrets below can also
+        // honour "blank = keep" instead of wiping on every save.
+        $existing = Config::all();
 
         // Pricing (dollars in the form -> cents stored).
         $pricing = [];
@@ -215,7 +220,7 @@ final class Settings {
             'sms_sender'       => sanitize_text_field((string) ($in['sms_sender'] ?? (Config::all()['sms_sender'] ?? 'ADF'))),
             'reminder_offsets' => $offsets,
             'github_repo'      => sanitize_text_field((string) ($in['github_repo'] ?? 'octobercomms/claude')),
-            'github_token'     => \OE\Crypto::encrypt(trim((string) ($in['github_token'] ?? ''))),
+            'github_token'     => self::keep_secret($in['github_token'] ?? '', $existing['github_token'] ?? ''),
             'platform_origins' => self::parse_origins((string) ($in['platform_origins'] ?? '')),
             'theme_accent'      => self::clean_color((string) ($in['theme_accent'] ?? '')),
             'theme_accent_on'   => self::clean_color((string) ($in['theme_accent_on'] ?? '')),
@@ -230,13 +235,13 @@ final class Settings {
             'ses_enabled'       => ! empty($in['ses_enabled']),
             'ses_region'        => sanitize_text_field((string) ($in['ses_region'] ?? 'us-east-1')),
             'ses_smtp_user'     => sanitize_text_field((string) ($in['ses_smtp_user'] ?? '')),
-            'ses_smtp_password' => \OE\Crypto::encrypt(trim((string) ($in['ses_smtp_password'] ?? ''))),
+            'ses_smtp_password' => self::keep_secret($in['ses_smtp_password'] ?? '', $existing['ses_smtp_password'] ?? ''),
             'mail_from_email'   => sanitize_email((string) ($in['mail_from_email'] ?? '')),
             'mail_from_name'    => sanitize_text_field((string) ($in['mail_from_name'] ?? '')),
             'mail_footer_address' => sanitize_textarea_field((string) ($in['mail_footer_address'] ?? '')),
             // SMS (AWS End User Messaging).
             'aws_access_key_id'     => sanitize_text_field((string) ($in['aws_access_key_id'] ?? '')),
-            'aws_secret_access_key' => \OE\Crypto::encrypt(trim((string) ($in['aws_secret_access_key'] ?? ''))),
+            'aws_secret_access_key' => self::keep_secret($in['aws_secret_access_key'] ?? '', $existing['aws_secret_access_key'] ?? ''),
             'sms_region'            => sanitize_text_field((string) ($in['sms_region'] ?? 'us-east-1')),
             'sms_origination'       => sanitize_text_field((string) ($in['sms_origination'] ?? '')),
             // Platform + check-in links surfaced in wp-admin.
@@ -277,6 +282,16 @@ final class Settings {
         }
         $hex = sanitize_hex_color($raw);
         return is_string($hex) ? $hex : '';
+    }
+
+    /**
+     * Encrypt a newly-entered secret, or keep the existing (already-encrypted)
+     * value when the field was left blank — the settings form never echoes
+     * secrets back, so blank means "unchanged", not "clear".
+     */
+    private static function keep_secret($submitted, $existing): string {
+        $submitted = trim((string) $submitted);
+        return $submitted !== '' ? \OE\Crypto::encrypt($submitted) : (string) $existing;
     }
 
     private static function parse_origins(string $raw): array {

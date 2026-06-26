@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.62.0 — security: stop echoing saved secrets in Settings (S2)
+
+The Settings page no longer renders your **decrypted** API keys back into the
+page HTML. Saved secrets (Stripe, PayPal, Claude, Maps, SES, AWS, GitHub) now
+show a **"•••••••• saved — leave blank to keep"** placeholder instead of the
+real value, so they're never exposed to the browser / extensions / cached DOM.
+Saving with a field left blank **keeps the existing key**; only a newly-typed
+value overwrites it (`Settings::keep_secret()`). Keys are still encrypted at
+rest and wp-config constants still win.
+
 ## 1.61.0 — security: harden door check-in (S1)
 
 Closes the highest-risk finding from the security audit:
