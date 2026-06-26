@@ -340,7 +340,9 @@
         e.preventDefault();
         var form = e.target;
         var out = document.getElementById('oe-vol-result');
-        var picked = Array.prototype.slice.call(form.querySelectorAll('input[name="shift"]:checked'))
+        // The shift checkboxes live in the table, a sibling of the <form>, so
+        // query the whole widget (mount), not just the form.
+        var picked = Array.prototype.slice.call(mount.querySelectorAll('input[name="shift"]:checked'))
             .map(function (c) { return c.value; });
         if (!picked.length) { out.textContent = 'Please choose at least one shift.'; return; }
         out.textContent = '…';

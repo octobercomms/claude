@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.57.3 — fix: volunteer multi-shift selection not detected
+
+The signup form rejected submissions with "Please choose at least one shift"
+even when shifts were ticked: the shift checkboxes render in the table (a
+sibling of the `<form>`), so the query scoped to the form found none. Now the
+whole widget is queried, so selected shifts are picked up.
+
 ## 1.57.2 — easier shift editor + automatic "fully booked"
 
 - **Shift editor is now proper fields.** The opportunity's shifts are entered as
