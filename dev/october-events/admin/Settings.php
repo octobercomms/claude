@@ -242,6 +242,9 @@ final class Settings {
             'platform_url'      => esc_url_raw(trim((string) ($in['platform_url'] ?? ''))),
             'checkin_page_url'  => esc_url_raw(trim((string) ($in['checkin_page_url'] ?? ''))),
             'checkout_terms_url' => esc_url_raw(trim((string) ($in['checkout_terms_url'] ?? ''))),
+            // Pre-event reminder to ticket-holders.
+            'attendee_reminder_enabled' => empty($in['attendee_reminder_enabled']) ? '0' : '1',
+            'attendee_reminder_hours'   => max(1, min(168, (int) ($in['attendee_reminder_hours'] ?? 24))),
             // Public AI support chat.
             'support_chat_enabled'  => empty($in['support_chat_enabled']) ? '0' : '1',
             // Live chat (Chatwoot).

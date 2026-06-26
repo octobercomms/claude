@@ -215,6 +215,8 @@ final class Orders {
         }
         $tickets = self::tickets($order_id);
         \OE\Mail\Contacts::capture($order->email, ['name' => (string) $order->name, 'source' => 'ticket']);
+        // Attach an "add to calendar" invite (.ics) when the event has a date.
+        $ics = Ics::tempfile((int) $order->event_id);
         \OE\Mail\Transactional::send('ticket_delivery', [
             'email' => $order->email,
             'name'  => $order->name,
@@ -229,7 +231,10 @@ final class Orders {
                 'url'    => self::ticket_url($t->token),
                 'token'  => (string) $t->token,
             ], $tickets),
-        ]);
+        ], '', '', $ics !== '' ? [$ics] : []);
+        if ($ics !== '') {
+            Ics::cleanup($ics);
+        }
     }
 
     /**
@@ -248,6 +253,25 @@ final class Orders {
              WHERE o.account_id = %d AND t.status = 'active'
              ORDER BY t.id DESC",
             $account_id
+        )) ?: [];
+    }
+
+    /**
+     * Distinct ticket-holders for an event (one row per email), for the
+     * pre-event reminder. Only paid orders with at least one active ticket.
+     *
+     * @return array<int,object> {email, name}
+     */
+    public static function attendees_for_event(int $event_id): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        return $wpdb->get_results($wpdb->prepare(
+            "SELECT o.email AS email, MAX(o.name) AS name
+             FROM {$o} o INNER JOIN {$t} ti ON ti.order_id = o.id AND ti.status = 'active'
+             WHERE o.event_id = %d AND o.status = 'paid' AND o.email <> ''
+             GROUP BY o.email",
+            $event_id
         )) ?: [];
     }
 

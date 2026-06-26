@@ -5,6 +5,25 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.52.0 — calendar invite + pre-event reminder email
+
+Two no-show reducers for ticketing:
+
+- **"Add to calendar" (.ics).** Every ticket confirmation email now carries a
+  calendar invite for the event (title, start/end, location, link), so buyers
+  can drop it straight into Apple/Google/Outlook calendars. Built from the
+  event's planning fields (`start_datetime`/`end_datetime`/`location`, with the
+  JetEngine field-map fallback); if an event has no date the email still sends,
+  just without the file. New `OE\Ticketing\Ics`.
+- **Pre-event reminder.** An hourly scan emails everyone with an active ticket a
+  short "see you soon" a configurable number of hours before the start (default
+  **24h**), with the same calendar invite attached. Sent **once per event**
+  (idempotent post-meta flag, so a duplicated cron never double-emails). Toggle
+  + lead-time live under **Settings → Tickets → Pre-event reminder**. New
+  `OE\Ticketing\AttendeeReminders`, run from the hourly cron.
+
+`Transactional::send()` now accepts attachments; new `event_reminder` email.
+
 ## 1.51.0 — check-in works offline (Wi-Fi-proof door scanning)
 
 The door scanner no longer depends on a live connection. If the venue Wi-Fi

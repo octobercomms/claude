@@ -74,6 +74,8 @@ final class Cron {
      */
     public function run_hourly(): void {
         Reminders::run_due();
+        // Pre-event reminder to ticket-holders (default 24h before, once per event).
+        \OE\Ticketing\AttendeeReminders::run_due();
         // Chip away at contact CleanUp (names + company) for any new contacts.
         \OE\Mail\Enrich::backfill(1000);
     }

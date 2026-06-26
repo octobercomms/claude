@@ -260,6 +260,15 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <td><input type="url" name="checkout_terms_url" value="<?php echo esc_attr((string) ($cfg['checkout_terms_url'] ?? '')); ?>" placeholder="https://your-site.com/terms/" class="regular-text">
                     <p class="description"><?php esc_html_e('When set, the ticket checkout shows an “I agree to the Terms & Conditions” checkbox linking here.', 'october-events'); ?></p></td>
             </tr>
+            <tr>
+                <th scope="row"><?php esc_html_e('Pre-event reminder', 'october-events'); ?></th>
+                <td>
+                    <label><input type="checkbox" name="attendee_reminder_enabled" value="1" <?php checked((bool) ($cfg['attendee_reminder_enabled'] ?? true)); ?>> <?php esc_html_e('Email ticket-holders a reminder before the event', 'october-events'); ?></label>
+                    <p style="margin:8px 0 0"><label><?php esc_html_e('Send', 'october-events'); ?>
+                        <input type="number" name="attendee_reminder_hours" min="1" max="168" value="<?php echo esc_attr((string) ($cfg['attendee_reminder_hours'] ?? 24)); ?>" style="width:70px"> <?php esc_html_e('hours before the start time.', 'october-events'); ?></label></p>
+                    <p class="description"><?php esc_html_e('Sent once per event to everyone with an active ticket, with an “add to calendar” file attached. Requires the event’s start date to be set (or mapped under Event field mapping).', 'october-events'); ?></p>
+                </td>
+            </tr>
         </tbody></table>
         </div></details>
 
