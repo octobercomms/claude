@@ -81,6 +81,10 @@ final class Plugin {
 
     public function register_checkin_route(): void {
         add_rewrite_rule('^checkin/?$', 'index.php?oe_checkin=1', 'top');
+        // The service worker is served from the site root so it can claim the
+        // /checkin scope (a worker under /wp-content/ couldn't). Lets the app open
+        // and keep scanning with no signal.
+        add_rewrite_rule('^checkin-sw\.js$', 'index.php?oe_checkin_sw=1', 'top');
         // Flush once per plugin version (covers self-updates, where no activation
         // hook fires) so /checkin resolves without re-saving permalinks.
         if (get_option('oe_rewrite_v') !== OE_VERSION) {
@@ -92,6 +96,7 @@ final class Plugin {
     /** @param array<int,string> $vars */
     public function add_query_vars(array $vars): array {
         $vars[] = 'oe_checkin';
+        $vars[] = 'oe_checkin_sw';
         return $vars;
     }
 
@@ -174,6 +179,12 @@ final class Plugin {
             exit;
         }
 
+        // Service worker for the check-in app (served from root for /checkin scope).
+        if (isset($_GET['oe_checkin_sw']) || get_query_var('oe_checkin_sw')) {
+            $this->render_checkin_sw();
+            exit;
+        }
+
         // Door check-in app at the pretty URL /checkin (or /?oe_checkin=1).
         if (isset($_GET['oe_checkin']) || get_query_var('oe_checkin')) {
             $this->render_checkin();
@@ -221,8 +232,97 @@ final class Plugin {
 <body class="oe-checkin-route">
 <?php echo $body; // built from an escaped template ?>
 <?php wp_print_footer_scripts(); ?>
+<script>
+/* Register the offline service worker. It's served from the site root so it can
+   also cache the plugin's assets (under /wp-content/), and it only ever
+   intercepts its own shell/assets — a transparent passthrough for everything
+   else. Best-effort: the app still works online if registration fails. */
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('<?php echo esc_url_raw(home_url('/checkin-sw.js')); ?>')
+        .catch(function () {});
+}
+</script>
 </body>
 </html><?php
+    }
+
+    /**
+     * The check-in app's service worker. Served from the site root (via the
+     * /checkin-sw.js rewrite) so it can take the /checkin scope. It precaches the
+     * app shell + its assets so the scanner opens and runs with no connectivity,
+     * and is otherwise a transparent passthrough — it only intercepts its own
+     * shell/assets, never the rest of the site or the REST calls.
+     */
+    private function render_checkin_sw(): void {
+        nocache_headers();
+        header('Content-Type: application/javascript; charset=utf-8');
+        header('Service-Worker-Allowed: /'); // allow the /checkin scope from a root script
+        $shell  = home_url('/checkin');
+        $assets = [
+            OE_URL . 'assets/css/checkin.css?ver=' . OE_VERSION,
+            OE_URL . 'assets/js/html5-qrcode.min.js?ver=' . OE_VERSION,
+            OE_URL . 'assets/js/checkin.js?ver=' . OE_VERSION,
+        ];
+        $cache = 'oe-checkin-' . OE_VERSION;
+        ?>
+const CACHE = <?php echo wp_json_encode($cache); ?>;
+const SHELL = <?php echo wp_json_encode($shell); ?>;
+const ASSETS = <?php echo wp_json_encode($assets); ?>;
+const ASSET_PATHS = ASSETS.map(function (u) { return new URL(u, self.location).pathname; });
+
+self.addEventListener('install', function (e) {
+    e.waitUntil((async function () {
+        const c = await caches.open(CACHE);
+        try { await c.addAll([SHELL].concat(ASSETS)); } catch (err) {}
+        await self.skipWaiting();
+    })());
+});
+
+self.addEventListener('activate', function (e) {
+    e.waitUntil((async function () {
+        const keys = await caches.keys();
+        await Promise.all(keys.filter(function (k) {
+            return k.indexOf('oe-checkin-') === 0 && k !== CACHE;
+        }).map(function (k) { return caches.delete(k); }));
+        await self.clients.claim();
+    })());
+});
+
+self.addEventListener('fetch', function (e) {
+    const req = e.request;
+    if (req.method !== 'GET') { return; }
+    const url = new URL(req.url);
+    const path = url.pathname.replace(/\/$/, '');
+    const isShell = path.endsWith('/checkin');
+    const isAsset = ASSET_PATHS.indexOf(url.pathname) !== -1;
+    if (!isShell && !isAsset) { return; } // transparent for everything else
+
+    e.respondWith((async function () {
+        const cache = await caches.open(CACHE);
+        if (isShell) {
+            // Network-first so updates flow; fall back to the cached shell offline.
+            try {
+                const fresh = await fetch(req);
+                cache.put(SHELL, fresh.clone());
+                return fresh;
+            } catch (err) {
+                const cached = await cache.match(SHELL, { ignoreSearch: true });
+                return cached || Response.error();
+            }
+        }
+        // Assets are versioned — cache-first.
+        const cached = await cache.match(req, { ignoreSearch: true });
+        if (cached) { return cached; }
+        try {
+            const fresh = await fetch(req);
+            if (fresh && fresh.ok) { cache.put(req, fresh.clone()); }
+            return fresh;
+        } catch (err) {
+            return Response.error();
+        }
+    })());
+});
+<?php
     }
 
     private function render_ticket(string $token): void {

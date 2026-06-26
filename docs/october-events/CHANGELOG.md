@@ -5,6 +5,28 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.51.0 — check-in works offline (Wi-Fi-proof door scanning)
+
+The door scanner no longer depends on a live connection. If the venue Wi-Fi
+drops mid-shift, scanning keeps working and **nothing is lost**:
+
+- **Token manifest cached on PIN entry.** When staff unlock an event, the app
+  downloads every valid ticket token (+ who's already in) and stores it in
+  IndexedDB. Offline scans validate against that cache — recognised, wrong, or
+  already-scanned — with no server round-trip. Tiny even at ~1,000 tickets.
+- **Persistent scan queue.** Offline check-ins are written to device storage and
+  **survive the app being closed** — they sync automatically the moment
+  connectivity returns, *including the next time the app is opened*. Each carries
+  its real scan time, so the log shows when people actually arrived. The server
+  re-validates and dedupes on sync (two offline doors reconcile — first kept,
+  repeats flagged).
+- **Service worker** caches the app shell so `/checkin` opens with no signal. It
+  only intercepts its own shell/assets — transparent for the rest of the site.
+- **Clear status.** A header pill (🟡 Offline · N queued / 🔄 Syncing) and an
+  offline banner reassure staff that tickets still scan and will sync later.
+
+New `CheckIn::manifest()` + `GET /checkin-manifest` and `POST /checkin-sync`.
+
 ## 1.50.1 — check-in app: home-screen icon & title
 
 The `/checkin` web app now carries proper add-to-home-screen metadata, so saving

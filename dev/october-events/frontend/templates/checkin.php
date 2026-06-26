@@ -9,7 +9,16 @@ $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
     <div class="app-header">
         <button type="button" class="ci-home" id="oe-ci-home" data-back="event" hidden>&larr; <?php esc_html_e('All events', 'october-events'); ?></button>
         <h1><?php echo esc_html($brand); ?> · <?php esc_html_e('Check-in', 'october-events'); ?></h1>
+        <span class="oe-ci-net" id="oe-ci-net" hidden></span>
         <div class="scan-count-badge"><span id="oe-ci-count">0</span></div>
+    </div>
+
+    <!-- Offline notice — shown whenever there's no connection. Reassures staff that
+         scanning still works and will sync automatically. -->
+    <div class="oe-ci-offline" id="oe-ci-offline" hidden>
+        <strong><?php esc_html_e('You\'re offline.', 'october-events'); ?></strong>
+        <?php esc_html_e('Tickets still scan and check people in.', 'october-events'); ?>
+        <span class="oe-ci-offline-q"></span>
     </div>
 
     <!-- Step: event -->
