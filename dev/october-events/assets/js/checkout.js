@@ -65,7 +65,14 @@
     function resetPromo() {
         state.discount = 0; state.promo = '';
         document.getElementById('oe-co-promo').value = '';
-        document.getElementById('oe-co-promo-msg').textContent = '';
+        var m = document.getElementById('oe-co-promo-msg');
+        m.textContent = ''; m.className = '';
+    }
+
+    function setQty(n) {
+        state.qty = Math.max(1, Math.min(10, n || 1));
+        document.getElementById('oe-co-qty').value = state.qty;
+        resetPromo(); updateSummary();
     }
 
     function updateSummary() {
@@ -100,16 +107,17 @@
         msg.textContent = '…';
         api('/ticket-promo', { event_id: cfg.eventId, type_key: state.typeKey, qty: state.qty, promo_code: code })
             .then(function (res) {
-                if (!res.ok) { state.discount = 0; state.promo = ''; msg.textContent = res.body.error || 'Invalid code'; }
-                else { state.discount = res.body.discount; state.promo = code; msg.textContent = 'Code applied.'; }
+                if (!res.ok) { state.discount = 0; state.promo = ''; msg.textContent = res.body.error || 'Invalid code'; msg.className = 'is-err'; }
+                else { state.discount = res.body.discount; state.promo = code; msg.textContent = 'Code applied.'; msg.className = 'is-ok'; }
                 updateSummary();
             });
     });
 
     document.getElementById('oe-co-qty').addEventListener('change', function (e) {
-        state.qty = Math.max(1, Math.min(10, parseInt(e.target.value, 10) || 1));
-        e.target.value = state.qty; resetPromo(); updateSummary();
+        setQty(parseInt(e.target.value, 10));
     });
+    document.getElementById('oe-co-qty-minus').addEventListener('click', function () { setQty(state.qty - 1); });
+    document.getElementById('oe-co-qty-plus').addEventListener('click', function () { setQty(state.qty + 1); });
 
     /* ---- Submit ---- */
     document.getElementById('oe-co-form').addEventListener('submit', function (e) {

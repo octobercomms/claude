@@ -30,6 +30,7 @@ final class Checkout {
     }
 
     public function register_assets(): void {
+        wp_register_style('oe-checkout', OE_URL . 'assets/css/checkout.css', [], OE_VERSION);
         wp_register_script('oe-checkout', OE_URL . 'assets/js/checkout.js', [], OE_VERSION, true);
     }
 
@@ -59,7 +60,7 @@ final class Checkout {
             return '<p>' . esc_html__('Tickets are not on sale for this event yet.', 'october-events') . '</p>';
         }
 
-        wp_enqueue_style('oe-dashboard');
+        wp_enqueue_style('oe-checkout');
         wp_enqueue_script('oe-checkout');
         wp_enqueue_script('oe-stripe-js', 'https://js.stripe.com/v3/', [], null, true);
 
