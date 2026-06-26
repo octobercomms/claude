@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.41.1 — Check-in PIN column on the Events list
+
+The Events planning list now shows each event's **Check-in PIN** as a column, so
+staff can see every event's door PIN at a glance instead of opening each event.
+(The check-in scanner link stays a single "Scan tickets ↗" button on the
+Dashboard/Tickets — one link, per-event PINs.)
+
 ## 1.41.0 — subscriber growth graph
 
 A **Growth** tab on the platform Contacts screen charts **new contacts per month**
