@@ -293,6 +293,11 @@ final class Cron {
      * @return array<int,array{guid:string,link:string,content:string}>
      */
     private function fetch_feed_items(string $url): array {
+        // Block SSRF to localhost / link-local / private ranges (cloud metadata).
+        if (! wp_http_validate_url($url)) {
+            Logger::log('AI source feed rejected (invalid/unsafe URL)', ['url' => $url]);
+            return [];
+        }
         if (! function_exists('fetch_feed')) {
             include_once ABSPATH . WPINC . '/feed.php';
         }

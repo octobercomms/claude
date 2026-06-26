@@ -28,6 +28,10 @@ final class MigrateTickets {
         global $wpdb;
         $dry_run = isset($assoc['dry-run']);
         $prefix  = $assoc['prefix'] ?? $wpdb->prefix;
+        // The prefix is interpolated into table names — allow only safe chars.
+        if (! preg_match('/^[A-Za-z0-9_]+$/', (string) $prefix)) {
+            \WP_CLI::error('Invalid --prefix: use letters, numbers and underscores only.');
+        }
 
         $o_t = $prefix . 'oct_orders';
         $t_t = $prefix . 'oct_tickets';

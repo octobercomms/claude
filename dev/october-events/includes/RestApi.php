@@ -521,6 +521,9 @@ final class RestApi {
     }
 
     public function ticket_confirm(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('ticket_confirm', 30)) {
+            return $this->too_many();
+        }
         $intent_id = sanitize_text_field((string) $req->get_param('intent_id'));
         $pi = \OE\Connectors\StripeConnector::retrieve_payment_intent($intent_id);
         if (($pi['status'] ?? '') !== 'succeeded') {
@@ -587,6 +590,9 @@ final class RestApi {
      * body; the cart is the one we stashed at /paypal-create. Idempotent.
      */
     public function paypal_capture(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('paypal_capture', 30)) {
+            return $this->too_many();
+        }
         if (! \OE\Connectors\PayPalConnector::is_ready()) {
             return new \WP_REST_Response(['error' => 'paypal_unavailable'], 503);
         }
