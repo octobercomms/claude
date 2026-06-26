@@ -112,9 +112,19 @@ final class Transactional {
             '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>';
         $tickets = is_array($params['tickets'] ?? null) ? $params['tickets'] : [];
         foreach ($tickets as $t) {
-            $num = esc_html((string) ($t['number'] ?? ''));
-            $url = (string) ($t['url'] ?? '');
-            $out .= '<p>' . esc_html__('Ticket', 'october-events') . ' ' . $num . ' — ' . self::link(__('view / add to wallet', 'october-events'), $url) . '</p>';
+            $num   = esc_html((string) ($t['number'] ?? ''));
+            $url   = (string) ($t['url'] ?? '');
+            $token = (string) ($t['token'] ?? '');
+            $out .= '<div style="margin:16px 0;padding:14px;border:1px solid #eee;border-radius:8px;text-align:center">';
+            $out .= '<p style="margin:0 0 8px"><strong>' . esc_html__('Ticket', 'october-events') . ' ' . $num . '</strong></p>';
+            if ($token !== '') {
+                // Scannable QR embedded in the email (in case they don't open the
+                // ticket page) — rendered by a QR image service so it shows in
+                // every email client.
+                $qr = 'https://api.qrserver.com/v1/create-qr-code/?size=170x170&qzone=1&data=' . rawurlencode($token);
+                $out .= '<img src="' . esc_url($qr) . '" alt="' . esc_attr__('Ticket QR code', 'october-events') . '" width="170" height="170" style="display:block;margin:0 auto 8px">';
+            }
+            $out .= '<p style="margin:0">' . self::link(__('view / add to wallet', 'october-events'), $url) . '</p></div>';
         }
         return $out;
     }
