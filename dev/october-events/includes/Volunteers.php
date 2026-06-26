@@ -382,7 +382,8 @@ final class Volunteers {
             'email'          => $email,
             'phone'          => $phone,
             'sms_opt_in'     => $sms,
-            'status'         => VolunteerSignups::STATUS_PENDING,
+            // Auto-confirmed on signup; staff can still decline/no-show later.
+            'status'         => VolunteerSignups::STATUS_CONFIRMED,
             'shift_start'    => self::normalise_datetime((string) $shift['start']),
             'reminders_sent' => '',
         ]);
@@ -602,13 +603,15 @@ final class Volunteers {
      * ------------------------------------------------------------------ */
 
     public static function email_params(object $signup): array {
-        $shift = self::shift((int) $signup->opportunity_id, $signup->shift_id);
+        $oid   = (int) $signup->opportunity_id;
+        $shift = self::shift($oid, $signup->shift_id);
         return [
-            'name'        => $signup->name,
-            'opportunity' => get_the_title((int) $signup->opportunity_id),
-            'shift'       => $shift['label'] ?? '',
-            'location'    => self::location((int) $signup->opportunity_id),
-            'url'         => get_permalink((int) $signup->opportunity_id),
+            'name'           => $signup->name,
+            'opportunity'    => get_the_title($oid),
+            'opportunity_id' => $oid,
+            'shift'          => $shift['label'] ?? '',
+            'location'       => self::location($oid),
+            'url'            => get_permalink($oid),
         ];
     }
 

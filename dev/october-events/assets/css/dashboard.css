@@ -127,6 +127,12 @@
 .oe-vol-hint { margin: 10px 0 0; font-size: 13px; color: #6f6a60; }
 .oe-vol-note { margin: 6px 0 4px; font-size: 13px; color: #6f6a60; }
 .oe-vol-soldout { margin: 0 0 12px; font-weight: 800; font-size: 16px; color: #b23218; }
+/* Day group headers in the shift table. */
+.oe-vol-table .oe-vol-day th {
+  text-align: left; padding: 18px 14px 6px; font-size: 14px; font-weight: 800;
+  text-transform: none; letter-spacing: 0; color: #111; background: transparent;
+}
+.oe-vol-table .oe-vol-day:first-child th { padding-top: 6px; }
 /* Chrome-free: render transparent (no card background, header fill, rounding or
    row lines) so the [oe_volunteer_signup] widget sits on a page-supplied
    background/border. Input field borders are kept for usability. */

@@ -47,10 +47,17 @@ final class Transactional {
         // Subject templates may reference %1$s = brand, %2$s = event name.
         $tmpl  = (string) (self::SUBJECTS[$trigger] ?? ucwords(str_replace('_', ' ', $trigger)));
         $subject = $subject !== '' ? $subject : sprintf($tmpl, $brand, (string) ($params['event_name'] ?? ''));
-        $inner = $html !== '' ? $html : self::body($trigger, $to, $params);
-        // $wrap = false lets a caller pass a complete, self-styled document
-        // (e.g. the branded ticket email) without the generic brand chrome.
-        $body  = $wrap ? self::wrap($brand, $inner) : $inner;
+        // Volunteer emails render as branded, self-styled documents (matching
+        // the ticket confirmation), unless the caller supplied its own $html.
+        $volunteer_doc = $html === '' && in_array($trigger, ['volunteer_confirmed', 'volunteer_declined', 'volunteer_reminder'], true);
+        if ($volunteer_doc) {
+            $body = self::volunteer_email_html($trigger, $params);
+        } else {
+            $inner = $html !== '' ? $html : self::body($trigger, $to, $params);
+            // $wrap = false lets a caller pass a complete, self-styled document
+            // (e.g. the branded ticket email) without the generic brand chrome.
+            $body = $wrap ? self::wrap($brand, $inner) : $inner;
+        }
         return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8'], $attachments);
     }
 
@@ -230,6 +237,65 @@ final class Transactional {
             $out .= self::button(__('View event details', 'october-events'), (string) $params['event_url']);
         }
         return $out;
+    }
+
+    /**
+     * Branded volunteer email (same print-first language as the ticket
+     * confirmation): logo header, a bordered shift-detail block and a button.
+     * Sent for confirmed / declined / reminder, with copy varying by trigger.
+     */
+    public static function volunteer_email_html(string $trigger, array $params): string {
+        $name  = (string) ($params['name'] ?? $params['contact_name'] ?? '');
+        $opp   = (string) ($params['opportunity'] ?? '');
+        $shift = (string) ($params['shift'] ?? '');
+        $where = (string) ($params['location'] ?? '');
+        $url   = (string) ($params['url'] ?? '');
+        $ctx   = (string) ($params['context'] ?? '');
+        $brand = (string) Settings::get('brand_name', 'October Events');
+        // Reuse the linked event's logo when there is one, else the brand logo.
+        $oid   = (int) ($params['opportunity_id'] ?? 0);
+        $logo  = $oid ? \OE\Ticketing\TicketTypes::logo_url(\OE\Volunteers::linked_event($oid)) : '';
+        $home  = esc_url(home_url('/'));
+        $host  = esc_html((string) wp_parse_url($home, PHP_URL_HOST));
+
+        if ($trigger === 'volunteer_declined') {
+            $intro = esc_html__('Thanks for offering to help. This shift didn\'t go ahead for you this time — we hope to see you at another. Here\'s what you signed up for:', 'october-events');
+        } elseif ($trigger === 'volunteer_confirmed') {
+            $intro = esc_html__('Your volunteer shift is confirmed — thank you! Here are the details:', 'october-events');
+        } elseif ($ctx === 'on_signup') {
+            $intro = esc_html__('Thanks for volunteering — you\'re all set! Here are your shift details:', 'october-events');
+        } else {
+            $intro = esc_html__('Just a reminder — your volunteer shift is coming up. Here are the details:', 'october-events');
+        }
+
+        $head_left = $logo !== ''
+            ? '<img src="' . esc_url($logo) . '" alt="' . esc_attr($brand) . '" style="max-height:46px;max-width:240px;display:block">'
+            : '<span style="font-weight:800;font-size:17px;color:#111">' . esc_html($brand) . '</span>';
+
+        $row = static function (string $label, string $value): string {
+            return $value === '' ? '' : '<tr><td style="padding:4px 0;font-size:13px;color:#777;width:110px;vertical-align:top">' . esc_html($label) . '</td>'
+                . '<td style="padding:4px 0;font-size:14px;font-weight:700;color:#111">' . esc_html($value) . '</td></tr>';
+        };
+
+        return '<!doctype html><html><body style="margin:0;background:#eceae6">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae6;padding:24px;font-family:Arial,Helvetica,sans-serif">'
+            . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:2px solid #111">'
+            . '<tr><td style="padding:16px 22px;border-bottom:3px solid #111">' . $head_left . '</td></tr>'
+            . '<tr><td style="padding:22px">'
+            . ($name !== '' ? '<p style="margin:0 0 12px;font-size:15px;color:#222">' . sprintf(esc_html__('Hi %s,', 'october-events'), esc_html($name)) . '</p>' : '')
+            . '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#222">' . $intro . '</p>'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;margin:0 0 18px"><tr><td style="padding:14px 16px">'
+            . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">'
+            . $row(__('Opportunity', 'october-events'), $opp)
+            . $row(__('Shift', 'october-events'), $shift)
+            . $row(__('Location', 'october-events'), $where)
+            . '</table></td></tr></table>'
+            . ($url !== '' ? '<a href="' . esc_url($url) . '" style="display:inline-block;background:#111;color:#fff;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;text-decoration:none;padding:11px 18px">' . esc_html__('View details', 'october-events') . '</a>' : '')
+            . '</td></tr>'
+            . '<tr><td style="padding:16px 22px;border-top:2px solid #111;font-size:12px;color:#777">'
+            . esc_html($brand) . ' · <a href="' . $home . '" style="color:#777">' . $host . '</a> · ' . esc_html__('Questions? Just reply to this email.', 'october-events')
+            . '</td></tr>'
+            . '</table></td></tr></table></body></html>';
     }
 
     private static function volunteer_body(string $trigger, string $hi, array $params): string {
