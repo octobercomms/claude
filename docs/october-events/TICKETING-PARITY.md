@@ -29,11 +29,12 @@ parity as the old plugin is switched off.
    (event filter, per-venue stats, who/when/where). New plugin records the same
    data (`wp_oe_checkins`, `CheckIn::stats()`) but exposes no admin screen — only
    in-PWA stats. Add an admin screen (Tickets → Check-in log).
-3. **Waitlist — TODO (build fresh).** The repo copy of the old plugin (v1.0.0) has
-   **no waitlist code**, though the live site shows a Waitlist menu — so the live
-   build is newer than the repo. Needs building from scratch: join form/shortcode,
-   capacity trigger, admin screen, promote-to-order flow. (If the newer old-plugin
-   zip surfaces, match it exactly instead.)
+3. **Waitlist — DONE (1.44.0, built fresh).** The repo copy of the old plugin
+   (v1.0.0) had no waitlist code, so this was built from scratch: `wp_oe_waitlist`
+   table + `Waitlist` model, a checkout "Join the waitlist" form on sold-out ticket
+   types (`POST /waitlist-join`), a **Waitlist** admin tab (queue order, Notify +
+   Remove), and a `waitlist_spot` email. Promotion is manual (admin "Notify") for
+   now; an automatic capacity trigger on cancel/refund could follow.
 
 ## Minor / optional differences
 

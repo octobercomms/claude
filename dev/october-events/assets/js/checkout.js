@@ -35,8 +35,11 @@
     function renderTypes() {
         var box = document.getElementById('oe-co-types');
         box.innerHTML = cfg.types.map(function (t) {
-            var avail = t.state !== 'available';
-            var note = t.state === 'sold_out' ? 'Sold out'
+            // Sold-out types stay selectable so the buyer can join the waitlist;
+            // other unavailable states (coming soon / closed) are disabled.
+            var soldout = t.state === 'sold_out';
+            var disabled = (t.state !== 'available' && !soldout);
+            var note = soldout ? 'Sold out · join the waitlist'
                 : t.state === 'coming_soon' ? 'Coming soon'
                 : t.state === 'sale_ended' ? 'Sales closed'
                 : t.state === 'unavailable' ? 'Unavailable' : '';
@@ -44,8 +47,8 @@
                 ? '<s>' + money(t.price) + '</s> ' + money(t.effective)
                 : money(t.effective);
             var admits = t.admits > 1 ? ' <span class="oe-co-admits">Admits ' + t.admits + '</span>' : '';
-            return '<label class="oe-co-type' + (avail ? ' is-disabled' : '') + '">' +
-                '<input type="radio" name="oe-co-type" value="' + esc(t.key) + '"' + (avail ? ' disabled' : '') + '>' +
+            return '<label class="oe-co-type' + (disabled ? ' is-disabled' : '') + (soldout ? ' is-soldout' : '') + '">' +
+                '<input type="radio" name="oe-co-type" value="' + esc(t.key) + '"' + (disabled ? ' disabled' : '') + '>' +
                 '<span class="oe-co-type-main"><strong>' + esc(t.label) + '</strong>' + admits +
                 (t.desc ? '<br><span class="oe-co-desc">' + esc(t.desc) + '</span>' : '') + '</span>' +
                 '<span class="oe-co-type-price">' + price + (note ? '<br><em>' + note + '</em>' : '') + '</span></label>';
@@ -54,7 +57,8 @@
         box.querySelectorAll('input[name="oe-co-type"]').forEach(function (r) {
             r.addEventListener('change', function () { state.typeKey = r.value; resetPromo(); updateSummary(); });
         });
-        var first = cfg.types.filter(function (t) { return t.state === 'available'; })[0];
+        var first = cfg.types.filter(function (t) { return t.state === 'available'; })[0]
+            || cfg.types.filter(function (t) { return t.state === 'sold_out'; })[0];
         if (first) {
             state.typeKey = first.key;
             var input = box.querySelector('input[value="' + first.key + '"]');
@@ -78,6 +82,18 @@
     function updateSummary() {
         var t = selectedType();
         var sum = document.getElementById('oe-co-summary');
+        var wl = document.getElementById('oe-co-waitlist');
+        var form = document.getElementById('oe-co-form');
+        // Sold out → swap the buy flow for the waitlist join form.
+        if (t && t.state === 'sold_out') {
+            if (wl) { wl.hidden = false; }
+            if (form) { form.style.display = 'none'; }
+            sum.style.display = 'none';
+            return;
+        }
+        if (wl) { wl.hidden = true; }
+        if (form) { form.style.display = ''; }
+        sum.style.display = '';
         if (!t) { sum.innerHTML = ''; return; }
         var subtotal = t.effective * state.qty;
         var total = Math.max(0, subtotal - state.discount);
@@ -112,6 +128,25 @@
                 updateSummary();
             });
     });
+
+    /* ---- Waitlist (shown when the selected type is sold out) ---- */
+    var wlJoin = document.getElementById('oe-co-wl-join');
+    if (wlJoin) {
+        wlJoin.addEventListener('click', function () {
+            var email = document.getElementById('oe-co-wl-email').value.trim();
+            var name = document.getElementById('oe-co-wl-name').value.trim();
+            var msg = document.getElementById('oe-co-wl-msg');
+            if (!email) { msg.textContent = 'Enter your email.'; return; }
+            if (!state.typeKey) { return; }
+            wlJoin.disabled = true; msg.textContent = 'Adding you…';
+            api('/waitlist-join', { event_id: cfg.eventId, type_key: state.typeKey, email: email, name: name })
+                .then(function (res) {
+                    if (!res.ok) { msg.textContent = res.body.error || 'Could not join.'; wlJoin.disabled = false; return; }
+                    document.getElementById('oe-co-waitlist').innerHTML =
+                        '<h3>You’re on the list</h3><p>We’ll email you if a spot opens up.</p>';
+                });
+        });
+    }
 
     document.getElementById('oe-co-qty').addEventListener('change', function (e) {
         setQty(parseInt(e.target.value, 10));
