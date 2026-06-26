@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.53.0 — attendee CSV export (the door list)
+
+The Tickets → Registrations screen now exports **two** CSVs:
+
+- **Export attendees** — one row per ticket: event, **attendee name**, ticket
+  type, ticket number, buyer name/email, order #, ticket status, and **live
+  check-in status** (checked in Yes/No, time, and door). This is the roll-call
+  list staff actually want at the door.
+- **Export orders** — the existing financial view (one row per order).
+
+Both now **respect the event filter** (`?event=`), so you can export just one
+event's list, and both ship a UTF-8 BOM so Excel renders accented names
+correctly.
+
 ## 1.52.0 — calendar invite + pre-event reminder email
 
 Two no-show reducers for ticketing:

@@ -296,22 +296,87 @@ final class TicketsAdmin {
      * ------------------------------------------------------------------ */
 
     public function maybe_export_orders(): void {
-        if (empty($_GET['oe_export']) || $_GET['oe_export'] !== 'orders' || ! current_user_can('manage_options')) {
+        $type = isset($_GET['oe_export']) ? sanitize_key((string) $_GET['oe_export']) : '';
+        if (! in_array($type, ['orders', 'attendees'], true) || ! current_user_can('manage_options')) {
             return;
         }
         check_admin_referer('oe_export');
+        $event = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        if ($type === 'attendees') {
+            $this->export_attendees($event);
+        } else {
+            $this->export_orders($event);
+        }
+    }
+
+    /** One row per order (financial view). Honours the event filter. */
+    private function export_orders(int $event): void {
         global $wpdb;
-        $rows = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " ORDER BY id DESC");
-        nocache_headers();
-        header('Content-Type: text/csv; charset=utf-8');
-        header('Content-Disposition: attachment; filename=oe-registrations.csv');
-        $out = fopen('php://output', 'w');
+        $where = $event ? $wpdb->prepare('WHERE event_id = %d', $event) : '';
+        $rows  = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " {$where} ORDER BY id DESC");
+        $out   = $this->csv_headers('orders', $event);
         fputcsv($out, ['Order', 'Event', 'Email', 'Name', 'Type', 'Qty', 'Total', 'Currency', 'Method', 'Status', 'Source', 'Date']);
         foreach (($rows ?: []) as $o) {
             fputcsv($out, [$o->id, get_the_title((int) $o->event_id), $o->email, $o->name, $o->ticket_type_label, $o->qty, $o->total, $o->currency, $o->payment_method, $o->status, $o->source, $o->created_at]);
         }
         fclose($out);
         exit;
+    }
+
+    /**
+     * One row per ticket — the attendee list staff actually want at the door:
+     * each admission with its name, type, buyer, and live check-in status.
+     * Honours the event filter.
+     */
+    private function export_attendees(int $event): void {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $c = Schema::checkins();
+        $where = $event ? $wpdb->prepare('AND o.event_id = %d', $event) : '';
+        $rows = $wpdb->get_results(
+            "SELECT ti.id, ti.attendee_name, ti.ticket_type_label, ti.ticket_number, ti.total_in_order,
+                    ti.token, ti.status AS ticket_status, o.id AS order_id, o.event_id, o.email, o.name AS buyer,
+                    o.status AS order_status, o.created_at,
+                    (SELECT COUNT(*) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS scans,
+                    (SELECT MIN(ck.scanned_at) FROM {$c} ck WHERE ck.ticket_id = ti.id) AS first_scan,
+                    (SELECT ck.venue_name FROM {$c} ck WHERE ck.ticket_id = ti.id ORDER BY ck.id ASC LIMIT 1) AS venue
+             FROM {$t} ti INNER JOIN {$o} o ON ti.order_id = o.id
+             WHERE o.status = 'paid' {$where}
+             ORDER BY o.event_id ASC, ti.id ASC"
+        );
+        $out = $this->csv_headers('attendees', $event);
+        fputcsv($out, ['Event', 'Attendee', 'Ticket type', 'Ticket #', 'Buyer name', 'Buyer email', 'Order', 'Ticket status', 'Checked in', 'Check-in time', 'Door', 'Order date']);
+        foreach (($rows ?: []) as $r) {
+            fputcsv($out, [
+                get_the_title((int) $r->event_id),
+                $r->attendee_name,
+                $r->ticket_type_label,
+                $r->ticket_number . '/' . $r->total_in_order,
+                $r->buyer,
+                $r->email,
+                $r->order_id,
+                $r->ticket_status,
+                ((int) $r->scans > 0) ? 'Yes' : 'No',
+                (string) $r->first_scan,
+                (string) $r->venue,
+                $r->created_at,
+            ]);
+        }
+        fclose($out);
+        exit;
+    }
+
+    /** Emit CSV download headers and return the output handle. */
+    private function csv_headers(string $kind, int $event)
+    {
+        nocache_headers();
+        $suffix = $event ? ('-event-' . $event) : '';
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename=oe-' . $kind . $suffix . '.csv');
+        $out = fopen('php://output', 'w');
+        fwrite($out, "\xEF\xBB\xBF"); // UTF-8 BOM so Excel reads accents correctly
+        return $out;
     }
 
     /* ------------------------------------------------------------------ */

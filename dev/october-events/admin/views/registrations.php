@@ -9,12 +9,18 @@
  */
 defined('ABSPATH') || exit;
 use OE\Ticketing\Orders;
-$export = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=orders'), 'oe_export');
+$ev_arg          = $event_filter ? ('&event=' . (int) $event_filter) : '';
+$export_orders   = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=orders' . $ev_arg), 'oe_export');
+$export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=attendees' . $ev_arg), 'oe_export');
 ?>
 <div class="wrap oe-admin">
     <h1><?php esc_html_e('Tickets', 'october-events'); ?>
-        <a href="<?php echo esc_url($export); ?>" class="page-title-action"><?php esc_html_e('Export CSV', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_attendee); ?>" class="page-title-action"><?php esc_html_e('Export attendees', 'october-events'); ?></a>
+        <a href="<?php echo esc_url($export_orders); ?>" class="page-title-action"><?php esc_html_e('Export orders', 'october-events'); ?></a>
     </h1>
+    <?php if ($event_filter) : ?>
+        <p class="description" style="margin:4px 0 0"><?php echo esc_html(sprintf(__('Exports are filtered to: %s', 'october-events'), get_the_title($event_filter) ?: ('#' . $event_filter))); ?></p>
+    <?php endif; ?>
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('orders'); ?>
 
