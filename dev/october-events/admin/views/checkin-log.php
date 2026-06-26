@@ -31,6 +31,8 @@ $base = admin_url('admin.php?page=oe-tickets&tab=checkin');
                 <li><?php printf(esc_html__('Choose %1$s, enter PIN %2$s, pick %3$s.', 'october-events'), '“🧪 Test (scanner check)”', '<code>' . esc_html(\OE\Ticketing\CheckIn::TEST_PIN) . '</code>', '“Test door”'); ?></li>
                 <li><?php esc_html_e('Scan this QR — you should see a green “✓ Welcome, Test Attendee”.', 'october-events'); ?></li>
             </ol>
+            <p style="margin:8px 0 0"><a class="button button-small" href="<?php echo esc_url(home_url('/?oe_ticket=' . \OE\Ticketing\CheckIn::TEST_TOKEN)); ?>" target="_blank" rel="noopener"><?php esc_html_e('Open the test ticket ↗', 'october-events'); ?></a>
+                <span class="description"><?php esc_html_e('A real ticket page you can open on another phone and scan.', 'october-events'); ?></span></p>
         </div>
     </div>
     <script src="<?php echo esc_url(OE_URL . 'assets/js/qrcode.min.js'); ?>"></script>

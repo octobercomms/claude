@@ -215,6 +215,18 @@ final class Plugin {
     }
 
     private function render_ticket(string $token): void {
+        // The built-in test ticket — viewable like a real one (open on a phone,
+        // scan with another running /checkin). Not in the DB.
+        if ($token === \OE\Ticketing\CheckIn::TEST_TOKEN) {
+            $ticket = (object) [
+                'id' => 0, 'token' => $token, 'ticket_number' => 1, 'total_in_order' => 1,
+                'event_id' => 0, 'event_label' => '🧪 ' . __('Test ticket', 'october-events'),
+                'attendee_name' => __('Test Attendee', 'october-events'),
+                'ticket_type_label' => __('Scanner check', 'october-events'), 'status' => 'active',
+            ];
+            require OE_DIR . 'frontend/templates/ticket.php';
+            return;
+        }
         $ticket = \OE\Ticketing\Orders::ticket_by_token($token);
         if (! $ticket || $ticket->status !== 'active') {
             wp_die(esc_html__('Ticket not found.', 'october-events'), '', ['response' => 404]);

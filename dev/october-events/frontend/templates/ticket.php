@@ -8,7 +8,7 @@ defined('ABSPATH') || exit;
 use OE\Ticketing\Orders;
 
 $number  = (string) $ticket->ticket_number . ' / ' . (string) $ticket->total_in_order;
-$event   = get_the_title((int) $ticket->event_id);
+$event   = get_the_title((int) $ticket->event_id) ?: (string) ($ticket->event_label ?? '');
 $name    = (string) $ticket->attendee_name;
 $type    = (string) $ticket->ticket_type_label;
 $payload = Orders::ticket_url($ticket->token);
