@@ -1,0 +1,134 @@
+/* ==========================================================================
+   October Events — door check-in PWA. Ported from the original Event Tickets
+   plugin's check-in app: dark theme, gold accent, big PIN keypad, scanner
+   overlay + live stats. Scoped under .oe-checkin; the standalone /checkin route
+   renders <body class="oe-checkin-route"> for a full-screen app.
+   ========================================================================== */
+
+body.oe-checkin-route { margin: 0; background: #0f0f0f; }
+
+.oe-checkin {
+  --bg: #0f0f0f; --surface: #1a1a1a; --border: #2a2a2a; --accent: #C8A96E;
+  --text: #f0f0f0; --muted: #888; --green: #22c55e; --amber: #f59e0b; --red: #ef4444;
+  --radius: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.oe-checkin * { box-sizing: border-box; }
+
+/* ---- Header ---- */
+.oe-checkin .app-header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  min-height: 56px;
+}
+.oe-checkin .app-header h1 { font-size: 16px; font-weight: 700; color: var(--text); margin: 0; }
+.oe-checkin .scan-count-badge {
+  background: var(--accent); color: #1a1a1a;
+  font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;
+}
+
+/* ---- Screens ---- */
+.oe-checkin .oe-ci-step { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 24px 20px; }
+.oe-checkin .oe-ci-step.is-active { display: flex; flex-direction: column; }
+.oe-checkin .oe-ci-step.scan-screen { padding: 0; position: relative; }
+.oe-checkin .screen-title { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.oe-checkin .screen-sub { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+
+/* ---- Lists (events / venues) ---- */
+.oe-checkin .list-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.oe-checkin .list-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; text-align: left;
+  padding: 16px 20px; cursor: pointer;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  color: var(--text); font-size: 15px; transition: background 0.15s;
+}
+.oe-checkin .list-item:last-child { border-bottom: none; }
+.oe-checkin .list-item:hover, .oe-checkin .list-item:active { background: #222; }
+.oe-checkin .list-item__icon {
+  width: 40px; height: 40px; border-radius: 10px; background: #252525;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; color: var(--accent);
+}
+.oe-checkin .list-item__body { flex: 1; }
+.oe-checkin .list-item__title { font-size: 15px; font-weight: 600; }
+.oe-checkin .list-item__arrow { color: var(--muted); font-size: 18px; }
+
+/* ---- PIN keypad ---- */
+.oe-checkin .pin-display {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  text-align: center; padding: 20px; font-size: 32px; letter-spacing: 12px;
+  color: var(--accent); margin-bottom: 20px; min-height: 72px;
+  display: flex; align-items: center; justify-content: center;
+}
+.oe-checkin .pin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 12px; }
+.oe-checkin .pin-btn {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: var(--text); font-size: 22px; font-weight: 600; padding: 18px 0; cursor: pointer;
+  transition: background 0.1s; -webkit-tap-highlight-color: transparent;
+}
+.oe-checkin .pin-btn:active { background: #333; }
+.oe-checkin .pin-btn.clear { color: var(--red); font-size: 16px; }
+.oe-checkin .pin-btn.enter { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+.oe-checkin .pin-error { color: var(--red); text-align: center; font-size: 14px; min-height: 18px; }
+
+/* ---- Back link ---- */
+.oe-checkin .ci-back {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  margin-top: 14px; align-self: flex-start;
+}
+
+/* ---- Scanner ---- */
+.oe-checkin #oe-ci-reader { width: 100%; flex: 1; background: #000; position: relative; overflow: hidden; min-height: 60vh; }
+.oe-checkin #oe-ci-reader video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.oe-checkin .scanner-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; z-index: 10; }
+.oe-checkin .scan-frame { width: 240px; height: 240px; position: relative; }
+.oe-checkin .scan-frame > i { position: absolute; width: 40px; height: 40px; border-color: var(--accent); border-style: solid; }
+.oe-checkin .scan-frame .tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-radius: 6px 0 0 0; }
+.oe-checkin .scan-frame .tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-radius: 0 6px 0 0; }
+.oe-checkin .scan-frame .bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-radius: 0 0 0 6px; }
+.oe-checkin .scan-frame .br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-radius: 0 0 6px 0; }
+.oe-checkin .scan-line { position: absolute; left: 4px; right: 4px; height: 2px; background: var(--accent); opacity: 0.8; animation: oe-ci-scan 2s ease-in-out infinite; }
+@keyframes oe-ci-scan { 0% { top: 4px; } 50% { top: calc(100% - 4px); } 100% { top: 4px; } }
+.oe-checkin .scanner-label { margin-top: 20px; color: #fff; font-size: 14px; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+
+/* Scanner bottom bar (stats + manual entry + change venue) */
+.oe-checkin .scanner-bar {
+  background: var(--surface); border-top: 1px solid var(--border);
+  padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+  flex-shrink: 0; z-index: 20;
+}
+.oe-checkin .scanner-bar #oe-ci-stats { flex: 1 1 100%; font-size: 13px; color: var(--muted); }
+.oe-checkin .scanner-bar #oe-ci-stats strong { color: var(--accent); }
+.oe-checkin .scanner-bar .ci-venue { font-size: 13px; font-weight: 700; color: var(--accent); }
+.oe-checkin .scanner-bar input {
+  flex: 1; min-width: 120px; background: #252525; border: 1px solid var(--border);
+  color: var(--text); padding: 10px 12px; border-radius: 8px; font-size: 14px;
+}
+.oe-checkin .scanner-bar button {
+  background: #252525; border: 1px solid var(--border); color: var(--text);
+  padding: 10px 16px; border-radius: 8px; font-size: 13px; cursor: pointer; white-space: nowrap;
+}
+.oe-checkin .scanner-bar .ci-go { background: var(--accent); color: #1a1a1a; border-color: var(--accent); font-weight: 700; }
+
+/* ---- Result overlay ---- */
+.oe-checkin .oe-ci-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 30; padding: 24px; text-align: center; }
+.oe-checkin .oe-ci-overlay[hidden] { display: none; }
+.oe-checkin .oe-ci-overlay.oe-ci-ok { background: rgba(34,197,94,0.94); }
+.oe-checkin .oe-ci-overlay.oe-ci-warn { background: rgba(245,158,11,0.94); }
+.oe-checkin .oe-ci-overlay.oe-ci-bad { background: rgba(239,68,68,0.94); }
+.oe-checkin .oe-ci-overlay-inner { color: #fff; }
+.oe-checkin .oe-ci-big { font-size: 30px; font-weight: 900; margin-bottom: 8px; }

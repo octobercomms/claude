@@ -26,6 +26,7 @@ final class CheckInApp {
     }
 
     public function register_assets(): void {
+        wp_register_style('oe-checkin', OE_URL . 'assets/css/checkin.css', [], OE_VERSION);
         // Local QR scanner library (no external CDN for core, §12). Drop a build
         // of html5-qrcode here; the app falls back to manual token entry if absent.
         wp_register_script('oe-qr-scanner', OE_URL . 'assets/js/html5-qrcode.min.js', [], OE_VERSION, true);
@@ -33,7 +34,7 @@ final class CheckInApp {
     }
 
     public function render(array $atts = []): string {
-        wp_enqueue_style('oe-dashboard');
+        wp_enqueue_style('oe-checkin');
         wp_enqueue_script('oe-checkin');
         wp_localize_script('oe-checkin', 'OE_CHECKIN', [
             'restUrl' => esc_url_raw(rest_url('oe/v1')),
