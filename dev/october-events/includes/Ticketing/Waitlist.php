@@ -95,6 +95,26 @@ final class Waitlist {
         return true;
     }
 
+    /**
+     * Notify everyone still waiting for an event that a spot opened — first come,
+     * first served. Each is emailed a checkout link and marked notified (so a
+     * later opening won't email them twice). Returns how many were notified.
+     */
+    public static function notify_all_for_event(int $event_id): int {
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM " . Schema::waitlist() . " WHERE event_id = %d AND status = 'waiting' ORDER BY id ASC",
+            $event_id
+        )) ?: [];
+        $n = 0;
+        foreach ($ids as $id) {
+            if (self::promote((int) $id)) {
+                $n++;
+            }
+        }
+        return $n;
+    }
+
     public static function remove(int $id): void {
         global $wpdb;
         $wpdb->delete(Schema::waitlist(), ['id' => $id]);

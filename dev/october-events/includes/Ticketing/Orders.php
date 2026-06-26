@@ -199,6 +199,11 @@ final class Orders {
         $wpdb->update(Schema::orders(), ['status' => $status, 'updated_at' => current_time('mysql', true)], ['id' => $order_id]);
         $wpdb->update(Schema::tickets(), ['status' => 'cancelled'], ['order_id' => $order_id]);
         AuditLog::record('order_cancelled', $order_id, 'order', $status);
+
+        // A seat just freed up — let the event's waitlist race for it.
+        if ((int) $order->event_id) {
+            Waitlist::notify_all_for_event((int) $order->event_id);
+        }
     }
 
     /* ------------------------------------------------------------------ */
