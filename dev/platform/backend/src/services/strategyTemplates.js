@@ -173,6 +173,54 @@ const SEED = [
       ['Monitor retention, average spend & rankings', 'Review the expansion pilot vs targets', 'Scale what works; cut what doesn’t'],
     ),
   },
+  {
+    name: 'Retail · Established', business_type: 'retail', lifecycle_stage: 'established',
+    summary: 'SOSTAC plan to optimise a proven store: get more from the traffic and customers you already have — conversion, AOV, retention and efficiency — before chasing fresh growth.',
+    phases: sostac(
+      ['Audit funnel conversion, AOV & repeat-purchase rate by cohort', 'Review channel efficiency (ROAS/CAC) and wasted spend', 'Map where the best customers come from and why they stay'],
+      ['Set targets: conversion %, AOV, repeat rate, LTV:CAC', 'Set a retention / churn-reduction goal', 'Agree a margin / paid-efficiency target'],
+      ['Make CRO + retention the priority over net-new acquisition', 'Lifecycle & loyalty strategy to lift repeat revenue', 'Reallocate budget from weak channels to proven ones'],
+      ['Run a structured CRO programme (PDP, cart, checkout)', 'Optimise lifecycle flows (welcome, abandonment, win-back, replenishment)', 'Launch or refine a loyalty / subscription motion', 'Trim paid waste and scale the best-ROAS campaigns'],
+      ['Prioritise a test backlog by effort vs impact', 'Set the weekly experiment + reporting cadence', 'Assign owners for CRO, lifecycle and paid'],
+      ['Weekly review: conversion, AOV, repeat rate, LTV:CAC', 'Keep a win/loss log for experiments', 'Reinvest the efficiency gains into the next test'],
+    ),
+  },
+  {
+    name: 'Service · Established', business_type: 'service', lifecycle_stage: 'established',
+    summary: 'SOSTAC plan to optimise a proven service business: lift conversion and average value, retain & expand existing clients, and make lead-gen more efficient.',
+    phases: sostac(
+      ['Review close rate & average deal value by source', 'Assess client retention, churn & referral rate', 'Audit which services & niches are most profitable'],
+      ['Set conversion-rate and average-deal-value targets', 'Set a retention / repeat-revenue goal', 'Define a cost-per-acquired-client target'],
+      ['Optimise the sales funnel before adding new channels', 'Account growth: upsell, retainers & cross-sell', 'Double down on the most profitable niche'],
+      ['Sharpen the consult → proposal → close process', 'Add nurture + reactivation sequences for old leads', 'Formalise referrals & case studies as a channel', 'Improve landing pages & proof for the best service lines'],
+      ['Set follow-up SLAs and a pipeline review rhythm', 'Build the upsell / QBR motion for existing clients', 'Resource the proof & content engine'],
+      ['Monthly review of close rate, deal value & retention', 'Track referral & repeat revenue', 'Cut the weakest lead source; reinvest in the best'],
+    ),
+  },
+  {
+    name: 'B2B · Established', business_type: 'b2b', lifecycle_stage: 'established',
+    summary: 'SOSTAC plan to optimise a proven B2B engine: improve pipeline conversion and deal size, retain & expand accounts, and tighten marketing–sales efficiency.',
+    phases: sostac(
+      ['Audit funnel conversion by stage (MQL→SQL→win)', 'Review net revenue retention, churn & expansion', 'Assess ICP fit & CAC payback by segment/channel'],
+      ['Set pipeline-conversion & average-contract-value targets', 'Set a net-revenue-retention / expansion goal', 'Agree a CAC-payback / efficiency target'],
+      ['Prioritise conversion & ABM efficiency over net-new volume', 'Account expansion: land-and-expand & upsell', 'Tighten the marketing→sales handoff & lead scoring'],
+      ['Optimise the demo/trial → close funnel & nurture', 'Run targeted ABM into best-fit accounts', 'Build customer marketing: case studies, QBRs, expansion plays', 'Refine attribution & lead scoring with sales'],
+      ['Agree SLAs & a shared pipeline review with sales', 'Resource the ABM + customer-marketing programmes', 'Set the reporting cadence on pipeline & NRR'],
+      ['Monthly review: conversion by stage, ACV, NRR, CAC payback', 'Joint sales/marketing pipeline review', 'Reallocate to the highest-ROI segments & plays'],
+    ),
+  },
+  {
+    name: 'Local · Established', business_type: 'local', lifecycle_stage: 'established',
+    summary: 'SOSTAC plan to optimise a proven local business: convert more nearby demand, lift repeat visits & reviews, and run efficient local marketing.',
+    phases: sostac(
+      ['Audit local search visibility & Google Business Profile', 'Review repeat-visit / repeat-booking rate & reviews', 'Assess which services & locations are most profitable'],
+      ['Set targets: calls/bookings, repeat rate, review volume & rating', 'Set a retention / repeat-visit goal', 'Agree an efficient cost-per-enquiry target'],
+      ['Own local search + reputation as the priority', 'Retention: loyalty, reminders, repeat bookings', 'Focus spend on the highest-value services & areas'],
+      ['Optimise GBP + local landing pages for conversion', 'Run a review-generation engine', 'Add reminder / loyalty SMS-email for repeat visits', 'Tighten local paid (radius, peak times) for efficiency'],
+      ['Build the review-ask into the customer journey', 'Schedule local promos around peak periods', 'Assign owners for GBP, reviews & retention'],
+      ['Monthly review: enquiries, repeat rate, review rating', 'Track cost-per-enquiry by channel', 'Cut waste; reinvest in what drives bookings'],
+    ),
+  },
 ];
 
 // Additive seeding: insert any seed type×stage combo that isn't present yet, so
