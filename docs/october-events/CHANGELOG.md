@@ -5,6 +5,15 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.42.0 — checkout restyled to match the original Event Tickets design
+
+The `[oe_event_checkout]` page now carries over the carefully-styled look of the
+old Event Tickets plugin: gold-accented **ticket cards** with a selected ✓ state,
+a **± quantity stepper**, a clean **order summary**, the **"Secured by Stripe"**
+badge, and a **success screen** with the gold check icon. Ported as a dedicated,
+self-contained `assets/css/checkout.css` (scoped under `.oe-checkout`, so it
+touches nothing else), with matching markup in the template and `checkout.js`.
+
 ## 1.41.4 — auto check-in PIN, a built-in check-in page, promo editing
 
 Ticketing fixes following the parity review:
