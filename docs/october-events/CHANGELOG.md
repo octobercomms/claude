@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.46.0 — checkout: buy a mix of ticket types in one order
+
+The checkout is now a true **multi-line cart**. Previously picking one ticket type
+cleared the others (single-type only); now each row keeps its own quantity, so a
+buyer can take e.g. 2× Single + 1× Student in a single order/payment.
+
+- Each ticket row's ± stepper is independent; the Order Summary lists **one line
+  per type** and sums the total. Promo discount applies to the whole subtotal.
+- Attendee-name fields cover **every admission across all lines**.
+- Backend: checkout endpoints accept a `cart` ([{type_key, qty}]); the cart is
+  priced server-side and issues **one order per line under a single Stripe
+  payment** (`Orders::create_cart`), with cart-level idempotency. Single
+  `type_key`/`qty` requests still work (back-compat).
+
 ## 1.45.1 — Dashboard "Scan tickets" points to the clean /checkin URL
 
 The Dashboard's **Scan tickets** button fell back to `/?oe_checkin=1`; it now uses

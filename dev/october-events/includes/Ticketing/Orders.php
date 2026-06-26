@@ -56,11 +56,13 @@ final class Orders {
      * @param array $data ['event_id','email','name','type'(array),'qty','promo'(?array),'unit_price','discount','total']
      * @return array{order_id:int,tickets:array}|\WP_Error
      */
-    public static function create(array $data, string $payment_id = '', string $method = 'stripe', string $source = 'public') {
+    public static function create(array $data, string $payment_id = '', string $method = 'stripe', string $source = 'public', bool $skip_idem = false) {
         global $wpdb;
 
-        // Idempotency: a webhook + a client confirm can both arrive.
-        if ($payment_id !== '' && ($existing = self::by_payment($payment_id))) {
+        // Idempotency: a webhook + a client confirm can both arrive. Skipped for
+        // cart lines, which legitimately create several orders under one payment
+        // (the cart-level guard in create_cart handles idempotency there).
+        if (! $skip_idem && $payment_id !== '' && ($existing = self::by_payment($payment_id))) {
             return ['order_id' => (int) $existing->id, 'tickets' => self::ticket_dtos(self::tickets((int) $existing->id))];
         }
 
@@ -319,8 +321,64 @@ final class Orders {
      * @return array<int,array<string,mixed>>
      */
     public static function ticket_dtos_for(string $payment_id): array {
-        $order = self::by_payment($payment_id);
-        return $order ? self::ticket_dtos(self::tickets((int) $order->id)) : [];
+        global $wpdb;
+        if ($payment_id === '') {
+            return [];
+        }
+        // A cart pays once but issues several orders — gather tickets across all.
+        $ids = $wpdb->get_col($wpdb->prepare('SELECT id FROM ' . Schema::orders() . ' WHERE payment_id = %s ORDER BY id ASC', $payment_id));
+        $tickets = [];
+        foreach ($ids as $oid) {
+            $tickets = array_merge($tickets, self::tickets((int) $oid));
+        }
+        return self::ticket_dtos($tickets);
+    }
+
+    /**
+     * Create a cart: several ticket lines bought together in one transaction.
+     * Issues one order per line (the schema is single-type per order), all under
+     * the same payment id. The promo discount is applied to the first line, and
+     * attendee names are distributed across the lines in order.
+     *
+     * @param array<int,array{type:array,qty:int}> $lines
+     * @param array{email:string,name:string} $buyer
+     * @return array{tickets:array}|\WP_Error
+     */
+    public static function create_cart(int $event_id, array $lines, array $buyer, string $payment_id = '', string $method = 'stripe', string $source = 'public', ?array $promo = null, array $attendee_names = [], float $discount = 0.0) {
+        // Cart-level idempotency: if this payment already produced orders, reuse.
+        if ($payment_id !== '' && self::by_payment($payment_id)) {
+            return ['tickets' => self::ticket_dtos_for($payment_id)];
+        }
+        $tickets = [];
+        $offset  = 0;
+        $first   = true;
+        foreach ($lines as $line) {
+            $type = (array) $line['type'];
+            $qty  = max(1, (int) $line['qty']);
+            $per  = max(1, (int) ($type['qty_per_purchase'] ?? 1));
+            $count = $qty * $per;
+            $unit  = TicketTypes::effective_price($type);
+            $line_disc = $first ? $discount : 0.0;
+            $res = self::create([
+                'event_id'       => $event_id,
+                'type'           => $type,
+                'qty'            => $qty,
+                'email'          => $buyer['email'] ?? '',
+                'name'           => $buyer['name'] ?? '',
+                'unit_price'     => $unit,
+                'discount'       => $line_disc,
+                'total'          => max(0, round($unit * $qty - $line_disc, 2)),
+                'promo'          => $first ? $promo : null,
+                'attendee_names' => array_slice($attendee_names, $offset, $count),
+            ], $payment_id, $method, $source, true);
+            if (is_wp_error($res)) {
+                return $res;
+            }
+            $tickets = array_merge($tickets, $res['tickets'] ?? []);
+            $offset += $count;
+            $first   = false;
+        }
+        return ['tickets' => $tickets];
     }
 
     /** @return array<int,array<string,mixed>> */

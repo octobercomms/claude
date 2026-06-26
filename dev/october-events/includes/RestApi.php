@@ -330,22 +330,47 @@ final class RestApi {
      * Resolve + price a checkout request. Returns [type, qty, unit, subtotal,
      * discount, total, promo] or a \WP_Error.
      */
+    /**
+     * Price a checkout — a cart of one or more ticket lines. Accepts either a
+     * `cart` param ([{type_key, qty}, …]) or a single `type_key`/`qty` pair
+     * (back-compat). Returns event_id, priced lines, subtotal, discount, total,
+     * promo. Promo discount applies once to the cart subtotal.
+     */
     private function price_checkout(\WP_REST_Request $req) {
         $event_id = absint($req->get_param('event_id'));
-        $type_key = sanitize_key((string) $req->get_param('type_key'));
-        $qty      = max(1, min(10, (int) $req->get_param('qty')));
-
-        $type = \OE\Ticketing\TicketTypes::type($event_id, $type_key);
-        if (! $type) {
-            return new \WP_Error('oe_bad_type', __('Unknown ticket type.', 'october-events'), ['status' => 400]);
-        }
-        $avail = \OE\Ticketing\TicketTypes::availability($event_id, $type);
-        if ($avail['state'] !== 'available') {
-            return new \WP_Error('oe_unavailable', __('Those tickets are not currently on sale.', 'october-events'), ['status' => 409]);
+        $cart_in  = $req->get_param('cart');
+        $raw      = [];
+        if (is_array($cart_in) && $cart_in) {
+            foreach ($cart_in as $c) {
+                $raw[] = ['type_key' => sanitize_key((string) ($c['type_key'] ?? '')), 'qty' => max(0, min(10, (int) ($c['qty'] ?? 0)))];
+            }
+        } else {
+            $raw[] = ['type_key' => sanitize_key((string) $req->get_param('type_key')), 'qty' => max(1, min(10, (int) $req->get_param('qty')))];
         }
 
-        $unit     = \OE\Ticketing\TicketTypes::effective_price($type);
-        $subtotal = round($unit * $qty, 2);
+        $lines = [];
+        $subtotal = 0.0;
+        foreach ($raw as $li) {
+            if ($li['qty'] < 1) {
+                continue;
+            }
+            $type = \OE\Ticketing\TicketTypes::type($event_id, $li['type_key']);
+            if (! $type) {
+                return new \WP_Error('oe_bad_type', __('Unknown ticket type.', 'october-events'), ['status' => 400]);
+            }
+            $avail = \OE\Ticketing\TicketTypes::availability($event_id, $type);
+            if ($avail['state'] !== 'available') {
+                return new \WP_Error('oe_unavailable', __('Those tickets are not currently on sale.', 'october-events'), ['status' => 409]);
+            }
+            $unit = \OE\Ticketing\TicketTypes::effective_price($type);
+            $subtotal += round($unit * $li['qty'], 2);
+            $lines[] = ['type' => $type, 'qty' => $li['qty'], 'unit' => $unit];
+        }
+        if (! $lines) {
+            return new \WP_Error('oe_empty_cart', __('Please choose at least one ticket.', 'october-events'), ['status' => 400]);
+        }
+        $subtotal = round($subtotal, 2);
+
         $discount = 0.0;
         $promo    = null;
         $code     = trim((string) $req->get_param('promo_code'));
@@ -359,7 +384,13 @@ final class RestApi {
         }
         $total = max(0, round($subtotal - $discount, 2));
 
-        return compact('event_id', 'type', 'qty', 'unit', 'subtotal', 'discount', 'total', 'promo');
+        return compact('event_id', 'lines', 'subtotal', 'discount', 'total', 'promo');
+    }
+
+    /** A cart's lines as a compact [{type_key, qty}] list for PI metadata. */
+    private function cart_meta(array $lines): string {
+        $out = array_map(static fn($l) => ['type_key' => (string) $l['type']['key'], 'qty' => (int) $l['qty']], $lines);
+        return wp_json_encode($out) ?: '[]';
     }
 
     public function ticket_promo(\WP_REST_Request $req): \WP_REST_Response {
@@ -406,23 +437,21 @@ final class RestApi {
             return new \WP_REST_Response(['error' => $priced->get_error_message()], (int) ($priced->get_error_data()['status'] ?? 400));
         }
 
+        $cart  = array_map(static fn($l) => ['type' => $l['type'], 'qty' => $l['qty']], $priced['lines']);
+        $buyer = ['email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name'))];
+
         $cents = (int) round($priced['total'] * 100);
         if ($cents < 50) {
             // Free/comp orders skip Stripe — create immediately.
-            $order = \OE\Ticketing\Orders::create([
-                'event_id' => $priced['event_id'], 'type' => $priced['type'], 'qty' => $priced['qty'],
-                'email' => sanitize_email((string) $req->get_param('email')), 'name' => sanitize_text_field((string) $req->get_param('name')),
-                'unit_price' => $priced['unit'], 'discount' => $priced['discount'], 'total' => $priced['total'],
-                'promo' => $priced['promo'], 'attendee_names' => $this->attendee_names_param($req),
-            ], '', 'free', 'public');
+            $order = \OE\Ticketing\Orders::create_cart($priced['event_id'], $cart, $buyer, '', 'free', 'public', $priced['promo'], $this->attendee_names_param($req), $priced['discount']);
             if (is_wp_error($order)) {
                 return new \WP_REST_Response(['error' => $order->get_error_message()], 400);
             }
             return new \WP_REST_Response(['free' => true, 'tickets' => $order['tickets']], 200);
         }
 
-        // Attendee names ride along in the PaymentIntent metadata (server-set =
-        // trusted), JSON-encoded and trimmed to fit Stripe's 500-char limit.
+        // Cart + attendee names ride along in the PaymentIntent metadata
+        // (server-set = trusted), JSON-encoded and trimmed to Stripe's limits.
         $attendees = $this->attendee_names_param($req);
         $att_json  = wp_json_encode($attendees) ?: '[]';
         while (strlen($att_json) > 480 && $attendees) { array_pop($attendees); $att_json = wp_json_encode($attendees) ?: '[]'; }
@@ -430,10 +459,9 @@ final class RestApi {
         $intent = \OE\Connectors\StripeConnector::create_payment_intent($cents, (string) \OE\Settings::get('currency', 'usd'), '', [
             'kind'      => 'ticket',
             'event_id'  => $priced['event_id'],
-            'type_key'  => $priced['type']['key'],
-            'qty'       => $priced['qty'],
-            'email'     => sanitize_email((string) $req->get_param('email')),
-            'name'      => sanitize_text_field((string) $req->get_param('name')),
+            'cart'      => $this->cart_meta($priced['lines']),
+            'email'     => $buyer['email'],
+            'name'      => $buyer['name'],
             'promo'     => $priced['promo']['code'] ?? '',
             'attendees' => $att_json,
         ]);
@@ -575,21 +603,40 @@ final class RestApi {
         if ($intent_id === '') {
             return null;
         }
-        if (($existing = \OE\Ticketing\Orders::by_payment($intent_id))) {
-            return ['order_id' => (int) $existing->id, 'tickets' => \OE\Ticketing\Orders::ticket_dtos_for($intent_id)];
+        if (\OE\Ticketing\Orders::by_payment($intent_id)) {
+            return ['tickets' => \OE\Ticketing\Orders::ticket_dtos_for($intent_id)];
         }
         $event_id = (int) ($meta['event_id'] ?? 0);
-        $type = \OE\Ticketing\TicketTypes::type($event_id, (string) ($meta['type_key'] ?? ''));
-        if (! $type) {
+
+        // Rebuild the cart from metadata (single type_key/qty for older intents).
+        $raw = [];
+        if (! empty($meta['cart'])) {
+            $decoded = json_decode((string) $meta['cart'], true);
+            if (is_array($decoded)) {
+                foreach ($decoded as $c) { $raw[] = ['type_key' => (string) ($c['type_key'] ?? ''), 'qty' => (int) ($c['qty'] ?? 0)]; }
+            }
+        } elseif (! empty($meta['type_key'])) {
+            $raw[] = ['type_key' => (string) $meta['type_key'], 'qty' => (int) ($meta['qty'] ?? 1)];
+        }
+
+        $lines = [];
+        $subtotal = 0.0;
+        foreach ($raw as $li) {
+            if ($li['qty'] < 1) { continue; }
+            $type = \OE\Ticketing\TicketTypes::type($event_id, $li['type_key']);
+            if (! $type) { return null; }
+            $unit = \OE\Ticketing\TicketTypes::effective_price($type);
+            $subtotal += round($unit * $li['qty'], 2);
+            $lines[] = ['type' => $type, 'qty' => $li['qty']];
+        }
+        if (! $lines) {
             return null;
         }
-        $qty      = max(1, (int) ($meta['qty'] ?? 1));
-        $unit     = \OE\Ticketing\TicketTypes::effective_price($type);
-        $subtotal = round($unit * $qty, 2);
+
         $discount = 0.0;
         $promo    = null;
         if (! empty($meta['promo'])) {
-            $res = \OE\Ticketing\Promo::validate((string) $meta['promo'], $event_id, $subtotal);
+            $res = \OE\Ticketing\Promo::validate((string) $meta['promo'], $event_id, round($subtotal, 2));
             if (! is_wp_error($res)) {
                 $discount = (float) $res['discount_amount'];
                 $promo    = ['code' => strtoupper((string) $meta['promo']), 'promo_id' => $res['promo_id']];
@@ -597,7 +644,7 @@ final class RestApi {
         }
         $total = max(0, round($subtotal - $discount, 2));
 
-        // ADF-01: never issue an order worth more than was actually captured.
+        // ADF-01: never issue tickets worth more than was actually captured.
         if ($amount_paid >= 0 && (int) round($total * 100) > $amount_paid) {
             \OE\Logger::log('Ticket order rejected — amount mismatch', ['intent' => $intent_id, 'total_cents' => (int) round($total * 100), 'paid' => $amount_paid]);
             return null;
@@ -608,13 +655,9 @@ final class RestApi {
             $decoded = json_decode((string) $meta['attendees'], true);
             if (is_array($decoded)) { $attendees = array_map('sanitize_text_field', $decoded); }
         }
+        $buyer = ['email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? ''))];
 
-        $order = \OE\Ticketing\Orders::create([
-            'event_id' => $event_id, 'type' => $type, 'qty' => $qty,
-            'email' => sanitize_email((string) ($meta['email'] ?? '')), 'name' => sanitize_text_field((string) ($meta['name'] ?? '')),
-            'unit_price' => $unit, 'discount' => $discount, 'total' => $total,
-            'promo' => $promo, 'attendee_names' => $attendees,
-        ], $intent_id, 'stripe', 'public');
+        $order = \OE\Ticketing\Orders::create_cart($event_id, $lines, $buyer, $intent_id, 'stripe', 'public', $promo, $attendees, $discount);
         return is_wp_error($order) ? null : $order;
     }
 
