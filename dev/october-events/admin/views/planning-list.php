@@ -24,11 +24,12 @@ defined('ABSPATH') || exit;
             <th><?php esc_html_e('Status', 'october-events'); ?></th>
             <th><?php esc_html_e('Still needs', 'october-events'); ?></th>
             <th><?php esc_html_e('Live', 'october-events'); ?></th>
+            <th><?php esc_html_e('Check-in PIN', 'october-events'); ?></th>
             <th></th>
         </tr></thead>
         <tbody>
         <?php if (! $events) : ?>
-            <tr><td colspan="6"><?php esc_html_e('No events yet.', 'october-events'); ?></td></tr>
+            <tr><td colspan="7"><?php esc_html_e('No events yet.', 'october-events'); ?></td></tr>
         <?php endif; ?>
         <?php foreach ($events as $e) : ?>
             <tr>
@@ -42,6 +43,8 @@ defined('ABSPATH') || exit;
                 <td><span class="oe-status oe-status-<?php echo esc_attr($e['status']); ?>"><?php echo esc_html(ucwords(str_replace('_', ' ', $e['status']))); ?></span></td>
                 <td><?php echo $e['missing'] ? esc_html(implode(', ', $e['missing'])) : '—'; ?></td>
                 <td><?php echo $e['live'] ? '✓' : '—'; ?></td>
+                <?php $pin = \OE\Ticketing\TicketTypes::pin((int) $e['id']); ?>
+                <td><?php echo $pin !== '' ? '<code>' . esc_html($pin) . '</code>' : '<span class="description">—</span>'; ?></td>
                 <td><a class="button button-small" href="<?php echo esc_url($e['edit_url']); ?>"><?php esc_html_e('Open', 'october-events'); ?></a></td>
             </tr>
         <?php endforeach; ?>
