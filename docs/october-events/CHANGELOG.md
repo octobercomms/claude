@@ -5,6 +5,13 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.47.1 — the test ticket is now a viewable ticket page
+
+The built-in test ticket now opens as a **real ticket page** at
+`/?oe_ticket=OE-TEST-TICKET` (with the QR) — open it on one phone and scan it
+from another running `/checkin` for a realistic "scan someone in" demo. The
+**Tickets → Check-in log** test panel links straight to it.
+
 ## 1.47.0 — built-in check-in test + "All events" nav
 
 - **Always-available test** for demoing/verifying the door scanner. The check-in
