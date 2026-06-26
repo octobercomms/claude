@@ -27,6 +27,12 @@ $enabled = $token !== '';
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'oct-bulk-editor' ); ?></p></div>
 	<?php endif; ?>
 
+	<?php if ( isset( $_GET['tested'] ) && is_array( $update_test ) ) : ?>
+		<div class="notice notice-<?php echo $update_test['ok'] ? 'success' : 'error'; ?> is-dismissible">
+			<p><strong><?php esc_html_e( 'Auto-update:', 'oct-bulk-editor' ); ?></strong> <?php echo esc_html( $update_test['message'] ); ?></p>
+		</div>
+	<?php endif; ?>
+
 	<p style="max-width:760px">
 		<?php esc_html_e( 'Edit prices, sale prices, per-currency (EUR/USD) prices and product data from a Google Sheet. Pull the catalogue into a sheet, edit it like a spreadsheet, then push your changes back so they go live. Rows that changed in WooCommerce since your last pull are flagged so you always know what you would overwrite. The columns match the CSV export/import exactly.', 'oct-bulk-editor' ); ?>
 	</p>
@@ -61,10 +67,22 @@ $enabled = $token !== '';
 					<p class="description"><?php esc_html_e( 'Live inventory changes constantly as orders come in. Leaving this on protects stock counts from being clobbered by a stale sheet. Untick only if the sheet is your source of truth for stock.', 'oct-bulk-editor' ); ?></p>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Auto-update token', 'oct-bulk-editor' ); ?></th>
+				<td>
+					<input type="password" name="github_token" class="regular-text code" autocomplete="off" style="width:420px"
+						value="<?php echo esc_attr( $github_token ); ?>"
+						placeholder="github_pat_…" />
+					<p class="description" style="max-width:620px">
+						<?php esc_html_e( 'Paste a GitHub fine-grained personal access token with "Contents: read" on the octobercomms/claude repo. With it saved, new plugin versions appear as one-click updates on Dashboard → Updates — no more manual re-uploads on each site. Leave blank to disable auto-updates.', 'oct-bulk-editor' ); ?>
+					</p>
+				</td>
+			</tr>
 		</table>
 
 		<p class="submit">
 			<button type="submit" name="octwbe_action" value="save" class="button button-primary"><?php esc_html_e( 'Save settings', 'oct-bulk-editor' ); ?></button>
+			<button type="submit" name="octwbe_action" value="test_update" class="button button-secondary"><?php esc_html_e( 'Save & test auto-update', 'oct-bulk-editor' ); ?></button>
 			<button type="submit" name="octwbe_action" value="generate" class="button button-secondary">
 				<?php echo $enabled ? esc_html__( 'Regenerate token', 'oct-bulk-editor' ) : esc_html__( 'Generate token & enable', 'oct-bulk-editor' ); ?>
 			</button>

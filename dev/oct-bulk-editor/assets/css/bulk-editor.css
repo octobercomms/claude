@@ -543,12 +543,14 @@
 .wbe-col-lifestyle,
 .wbe-col-fabricgroup,
 .wbe-col-cardtitle,
+.wbe-col-date,
 .wbe-col-order { background: var(--surface-sunken); }
 
 /* Column min-widths */
 .wbe-col-fabricgroup { min-width: 150px; }
 .wbe-col-cardtitle { min-width: 180px; }
 .wbe-col-order { min-width: 90px; }
+.wbe-col-date { min-width: 140px; }
 .wbe-col-price { min-width: 120px; }
 .wbe-col-sku { min-width: 130px; }
 .wbe-col-stock { min-width: 100px; }

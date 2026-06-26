@@ -28,7 +28,21 @@ function onOpen() {
     .addSeparator()
     .addItem('⬆  Push my changes', 'octwbePush')
     .addItem('⚠  Push & overwrite conflicts', 'octwbePushForce')
+    .addSeparator()
+    .addItem('🩺  Diagnose a product', 'octwbeDiag')
     .addToUi();
+}
+
+// Diagnostic: ask the store what it actually sees for one product, so a stale
+// read-replica (or read/write DB split) shows up plainly.
+function octwbeDiag() {
+  const ui = SpreadsheetApp.getUi();
+  const resp = ui.prompt('Diagnose a product', 'Enter the product ID (e.g. 179423 for the sofa):', ui.ButtonSet.OK_CANCEL);
+  if (resp.getSelectedButton() !== ui.Button.OK) return;
+  const pid = resp.getResponseText().trim();
+  if (!pid) return;
+  const data = octwbeApi_('/diag?product=' + encodeURIComponent(pid) + '&' + cacheBust_(), 'get');
+  ui.alert('Diagnostics for product ' + pid, JSON.stringify(data, null, 2), ui.ButtonSet.OK);
 }
 
 // ---------------------------------------------------------------------------
@@ -53,15 +67,26 @@ function octwbeApi_(path, method, payload) {
   return JSON.parse(body);
 }
 
+// A unique value per request, appended as &_cb=... so a page cache (the store
+// runs LiteSpeed, which caches REST GETs) can't serve a stale copy — every call
+// is a fresh cache miss that actually runs the server code.
+function cacheBust_() {
+  return '_cb=' + new Date().getTime() + '_' + Math.floor(Math.random() * 1e6);
+}
+
 function config_() {
-  return octwbeApi_('/ping', 'get'); // { columns, editable, stock_readonly, ... }
+  return octwbeApi_('/ping?' + cacheBust_(), 'get'); // { columns, editable, stock_readonly, ... }
 }
 
 function fetchAllProducts_() {
   let rows = [];
   let page = 1;
   while (true) {
-    const data = octwbeApi_('/products?per_page=100&page=' + page, 'get');
+    // Pull via /diag?pull=1 — NOT /catalog or /products. The store's CDN caches
+    // e-commerce-keyword URLs (products, catalog, shop…) and served them stale no
+    // matter what we did; /diag is a neutral path the cache ignores, and has
+    // returned live data on every request. It delegates to the same row builder.
+    const data = octwbeApi_('/diag?pull=1&per_page=100&page=' + page + '&' + cacheBust_(), 'get');
     rows = rows.concat(data.rows || []);
     if (page >= (data.total_pages || 1)) break;
     page++;
@@ -90,7 +115,17 @@ function rowsToGrid_(rows, columns) {
 
 function writeGrid_(sh, grid) {
   sh.clearContents();
-  if (grid.length) sh.getRange(1, 1, grid.length, grid[0].length).setValues(grid);
+  if (!grid.length) return;
+  var rowsNeeded = grid.length;
+  var colsNeeded = grid[0].length;
+  // A sheet defaults to 1000 rows; setValues() throws (and writes nothing) if the
+  // grid is bigger. Grow the sheet to fit so large catalogues import in full —
+  // this is what previously "capped out" pulls on stores with many variations.
+  var maxRows = sh.getMaxRows();
+  var maxCols = sh.getMaxColumns();
+  if (maxRows < rowsNeeded) sh.insertRowsAfter(maxRows, rowsNeeded - maxRows);
+  if (maxCols < colsNeeded) sh.insertColumnsAfter(maxCols, colsNeeded - maxCols);
+  sh.getRange(1, 1, rowsNeeded, colsNeeded).setValues(grid);
 }
 
 function readGrid_(sh) {

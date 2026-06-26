@@ -33,15 +33,33 @@ class OCTWBE_REST {
 			'permission_callback' => [ $this, 'authorize' ],
 		] );
 
-		register_rest_route( self::NS, '/products', [
+		$products_route = [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'get_products' ],
 			'permission_callback' => [ $this, 'authorize' ],
-		] );
+		];
+		// IMPORTANT: the live endpoint is /catalog, NOT /products. The store's
+		// cache layer (LiteSpeed/host on this Krystal stack) has a rule that
+		// caches any URL containing "products" and serves it stale to the sync —
+		// proven by /diag (no "products" in the path) always returning live data
+		// while every variant of /products did not, even with cache-busting and a
+		// LiteSpeed exclude. /catalog dodges that rule entirely. The throwaway
+		// /<cb> path segment additionally defeats any path-keyed cache. The old
+		// /products routes are kept only for backward compatibility.
+		register_rest_route( self::NS, '/catalog', $products_route );
+		register_rest_route( self::NS, '/catalog/(?P<cb>[A-Za-z0-9_-]+)', $products_route );
+		register_rest_route( self::NS, '/products', $products_route );
+		register_rest_route( self::NS, '/products/(?P<cb>[A-Za-z0-9_-]+)', $products_route );
 
 		register_rest_route( self::NS, '/push', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'push' ],
+			'permission_callback' => [ $this, 'authorize' ],
+		] );
+
+		register_rest_route( self::NS, '/diag', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'diag' ],
 			'permission_callback' => [ $this, 'authorize' ],
 		] );
 	}
@@ -80,7 +98,122 @@ class OCTWBE_REST {
 	// Endpoints
 	// -------------------------------------------------------------------------
 
+	/**
+	 * Mark the current response uncacheable. The sync MUST read live data, but
+	 * page caches (this store runs LiteSpeed Cache) cache REST API GET responses
+	 * by default — which served a stale product list straight from cache without
+	 * ever running PHP, so the pull kept returning an old, short variation set.
+	 * Send the standard no-cache headers and fire LiteSpeed's own no-cache signal
+	 * (a no-op when LiteSpeed isn't active). The Apps Script also appends a unique
+	 * cache-buster per request, so existing cache entries are bypassed too.
+	 */
+	private function no_cache(): void {
+		nocache_headers();
+		do_action( 'litespeed_control_set_nocache', 'OctoberComms Bulk Editor sync must read live data' );
+	}
+
+	/**
+	 * Pin database reads to the primary server for the rest of this request.
+	 *
+	 * Some hosts route SELECTs to a read replica that can lag behind — here it was
+	 * serving a days-stale variation set to the REST API (the replica) while
+	 * wp-admin and the CSV export read the primary and saw all 384. LudicrousDB /
+	 * HyperDB expose send_reads_to_masters() to force the primary; it's a harmless
+	 * no-op on stacks without read/write splitting. Belt-and-braces, we also hint
+	 * the common SQL-comment-based proxies (ProxySQL/MaxScale) on the actual read.
+	 */
+	private function force_primary_db(): void {
+		global $wpdb;
+		if ( method_exists( $wpdb, 'send_reads_to_masters' ) ) {
+			$wpdb->send_reads_to_masters();
+		}
+	}
+
+	/**
+	 * Diagnostics: what does THIS request's DB connection actually see? Compares
+	 * the default read (possibly a replica) against a primary-forced read for a
+	 * product's variation count, and reports the DB identity + caching setup so a
+	 * stale-replica or read/write-split situation is unambiguous.
+	 */
+	public function diag( WP_REST_Request $req ): WP_REST_Response {
+		$this->no_cache();
+
+		// The pull rides on THIS endpoint. /catalog and /products are cached stale
+		// by the store's CDN (it caches e-commerce-keyword URLs), but /diag has
+		// proven fresh on every single request — so the Apps Script fetches the
+		// catalogue via /diag?pull=1 to guarantee live data. Delegates to the exact
+		// same row builder as /catalog.
+		if ( $req->get_param( 'pull' ) ) {
+			return $this->get_products( $req );
+		}
+
+		global $wpdb;
+
+		$pid = (int) $req->get_param( 'product' );
+
+		$server_default = $wpdb->get_var( 'SELECT @@hostname' );
+		$count_default  = $this->count_variations( $pid );
+
+		$this->force_primary_db();
+
+		$server_primary = $wpdb->get_var( 'SELECT @@hostname' );
+		$count_primary  = $this->count_variations( $pid );
+
+		$product  = $pid ? wc_get_product( $pid ) : null;
+		$children = ( $product && $product->is_type( 'variable' ) ) ? count( $product->get_children() ) : null;
+
+		// Run the ACTUAL pull code for this one product, so we see exactly how many
+		// rows get_products() would emit for it right now — and where 384 might
+		// become 6. variation_ids() is the same function the pull uses; hydrated is
+		// how many of those IDs wc_get_product() successfully loads; rows_built is
+		// the final row count after the real per-variation loop.
+		$ids       = $product ? OctBulkEditor::variation_ids( $product ) : [];
+		$hydrated  = 0;
+		$rows_built = 0;
+		foreach ( $ids as $vid ) {
+			$v = wc_get_product( $vid );
+			if ( $v ) {
+				$hydrated++;
+				$rows_built++;
+			}
+		}
+		$is_variable = $product ? ( $product->is_type( 'variable' ) ? 'yes' : $product->get_type() ) : 'no-product';
+
+		return new WP_REST_Response( [
+			'version'              => OCTWBE_VERSION,
+			'product'              => $pid,
+			'is_variable'          => $is_variable,
+			'variation_ids_count'  => count( $ids ),     // what the pull's own lookup returns
+			'variation_ids_sample' => array_slice( array_map( 'intval', $ids ), 0, 8 ),
+			'hydrated_products'    => $hydrated,          // how many wc_get_product() loaded
+			'rows_built'           => $rows_built,        // rows the pull would emit
+			'count_default_read'   => $count_default,   // replica, if any
+			'count_forced_primary' => $count_primary,   // primary
+			'count_get_children'   => $children,        // WC's cached children list
+			'has_force_primary'    => method_exists( $wpdb, 'send_reads_to_masters' ),
+			'ext_object_cache'     => function_exists( 'wp_using_ext_object_cache' ) ? wp_using_ext_object_cache() : null,
+			'db_host_default'      => $server_default,
+			'db_host_primary'      => $server_primary,
+		] );
+	}
+
+	/** Variation count for a product, read with whatever DB connection is active. */
+	private function count_variations( int $pid ): int {
+		global $wpdb;
+		if ( ! $pid ) {
+			return 0;
+		}
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$wpdb->posts}
+			  WHERE post_parent = %d
+			    AND post_type = 'product_variation'
+			    AND post_status IN ( 'publish', 'private' )",
+			$pid
+		) );
+	}
+
 	public function ping(): WP_REST_Response {
+		$this->no_cache();
 		return new WP_REST_Response( [
 			'ok'             => true,
 			'store'          => get_bloginfo( 'name' ),
@@ -92,37 +225,67 @@ class OCTWBE_REST {
 	}
 
 	public function get_products( WP_REST_Request $req ): WP_REST_Response {
+		$this->no_cache();
+		$this->force_primary_db();
 		$page     = max( 1, (int) $req->get_param( 'page' ) );
 		$per_page = min( 100, max( 1, (int) ( $req->get_param( 'per_page' ) ?: 100 ) ) );
 		$search   = sanitize_text_field( (string) $req->get_param( 'search' ) );
 		$category = (int) $req->get_param( 'category' );
 
-		$args = [
-			'post_type'      => 'product',
-			'post_status'    => 'any',
-			'posts_per_page' => $per_page,
-			'paged'          => $page,
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		];
+		global $wpdb;
 
-		if ( $search !== '' ) {
-			$args['s'] = $search;
+		if ( $search === '' && $category === 0 ) {
+			// Enumerate top-level products with a DIRECT DB query, NOT WP_Query.
+			//
+			// A front-end product-query filter was rewriting what the sync saw:
+			// Variant Showcase hooks the product query to HIDE a variable parent
+			// and surface its "show on category page" variations as standalone
+			// cards. Through WP_Query that filter fired on the sync too — so the
+			// sofa parent (179423) and its 384 variations vanished from the pull,
+			// replaced by the 6 showcased variations as parent-less "products"
+			// (the tell: type=variation with an empty parent_id). A raw query is
+			// immune to pre_get_posts / woocommerce_product_query, so the sync
+			// reads the true catalogue. The in-app grid (search/category) still
+			// uses WP_Query below.
+			$status_sql = "post_type = 'product' AND post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )";
+			$offset      = ( $page - 1 ) * $per_page;
+			$product_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE {$status_sql} ORDER BY post_title ASC, ID ASC LIMIT %d OFFSET %d",
+				$per_page,
+				$offset
+			) ) );
+			$total       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE {$status_sql}" );
+			$total_pages = (int) ceil( $total / $per_page );
+		} else {
+			$args = [
+				'post_type'      => 'product',
+				'post_status'    => 'any',
+				'posts_per_page' => $per_page,
+				'paged'          => $page,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'fields'         => 'ids',
+			];
+			if ( $search !== '' ) {
+				$args['s'] = $search;
+			}
+			if ( $category > 0 ) {
+				$args['tax_query'] = [ [
+					'taxonomy' => 'product_cat',
+					'field'    => 'term_id',
+					'terms'    => $category,
+				] ];
+			}
+			$query       = new WP_Query( $args );
+			$product_ids = array_map( 'intval', $query->posts );
+			$total       = (int) $query->found_posts;
+			$total_pages = (int) $query->max_num_pages;
 		}
 
-		if ( $category > 0 ) {
-			$args['tax_query'] = [ [
-				'taxonomy' => 'product_cat',
-				'field'    => 'term_id',
-				'terms'    => $category,
-			] ];
-		}
+		$rows = [];
 
-		$query = new WP_Query( $args );
-		$rows  = [];
-
-		foreach ( $query->posts as $post ) {
-			$product = wc_get_product( $post->ID );
+		foreach ( $product_ids as $product_id ) {
+			$product = wc_get_product( $product_id );
 			if ( ! $product ) {
 				continue;
 			}
@@ -130,8 +293,18 @@ class OCTWBE_REST {
 			if ( $product->is_type( 'variable' ) ) {
 				// Variations are independently priced; export one row each, sorted
 				// alphabetically by attribute label like the grid and CSV export.
+				$variation_ids = OctBulkEditor::variation_ids( $product );
+
+				// Bulk-prime the post + meta caches for every variation up front, so
+				// hydrating hundreds of them costs a couple of queries instead of a
+				// few per variation. This is what keeps a large catalogue under the
+				// Apps Script 6-minute execution limit on pull.
+				if ( $variation_ids ) {
+					_prime_post_caches( $variation_ids, false, true );
+				}
+
 				$variations = [];
-				foreach ( $product->get_children() as $vid ) {
+				foreach ( $variation_ids as $vid ) {
 					$variation = wc_get_product( $vid );
 					if ( $variation ) {
 						$variations[] = $variation;
@@ -150,8 +323,8 @@ class OCTWBE_REST {
 		return new WP_REST_Response( [
 			'rows'        => $rows,
 			'page'        => $page,
-			'total_pages' => (int) $query->max_num_pages,
-			'total'       => (int) $query->found_posts,
+			'total_pages' => $total_pages,
+			'total'       => $total,
 		] );
 	}
 
