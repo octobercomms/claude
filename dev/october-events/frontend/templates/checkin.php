@@ -7,6 +7,7 @@ $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
 <div class="oe-checkin" id="oe-checkin">
 
     <div class="app-header">
+        <button type="button" class="ci-home" id="oe-ci-home" data-back="event" hidden>&larr; <?php esc_html_e('All events', 'october-events'); ?></button>
         <h1><?php echo esc_html($brand); ?> · <?php esc_html_e('Check-in', 'october-events'); ?></h1>
         <div class="scan-count-badge"><span id="oe-ci-count">0</span></div>
     </div>

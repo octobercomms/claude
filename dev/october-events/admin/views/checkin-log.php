@@ -20,6 +20,22 @@ $base = admin_url('admin.php?page=oe-tickets&tab=checkin');
     <?php \OE\Admin\Admin::bento('tickets'); ?>
     <?php \OE\Admin\Admin::tickets_tabs('checkin'); ?>
 
+    <?php $test_url = home_url('/checkin'); ?>
+    <div class="oe-panel" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px 18px;margin:16px 0;display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+        <div id="oe-test-qr" style="width:150px;height:150px;flex:none"></div>
+        <div style="flex:1;min-width:260px">
+            <strong>🧪 <?php esc_html_e('Test the scanner', 'october-events'); ?></strong>
+            <p class="description" style="margin:6px 0"><?php esc_html_e('A safe, always-available demo — great for showing the team. Nothing is recorded.', 'october-events'); ?></p>
+            <ol style="margin:0 0 0 18px;font-size:13px;line-height:1.6">
+                <li><?php printf(esc_html__('On a phone, open %s', 'october-events'), '<a href="' . esc_url($test_url) . '" target="_blank" rel="noopener">' . esc_html($test_url) . '</a>'); ?></li>
+                <li><?php printf(esc_html__('Choose %1$s, enter PIN %2$s, pick %3$s.', 'october-events'), '“🧪 Test (scanner check)”', '<code>' . esc_html(\OE\Ticketing\CheckIn::TEST_PIN) . '</code>', '“Test door”'); ?></li>
+                <li><?php esc_html_e('Scan this QR — you should see a green “✓ Welcome, Test Attendee”.', 'october-events'); ?></li>
+            </ol>
+        </div>
+    </div>
+    <script src="<?php echo esc_url(OE_URL . 'assets/js/qrcode.min.js'); ?>"></script>
+    <script>(function(){ var el=document.getElementById('oe-test-qr'); if(el&&window.QRCode){ new QRCode(el,{ text: <?php echo wp_json_encode(\OE\Ticketing\CheckIn::TEST_TOKEN); ?>, width:150, height:150 }); } else if(el){ el.textContent=<?php echo wp_json_encode(\OE\Ticketing\CheckIn::TEST_TOKEN); ?>; } })();</script>
+
     <form method="get" style="margin:16px 0">
         <input type="hidden" name="page" value="oe-tickets">
         <input type="hidden" name="tab" value="checkin">

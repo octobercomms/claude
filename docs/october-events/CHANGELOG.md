@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.47.0 — built-in check-in test + "All events" nav
+
+- **Always-available test** for demoing/verifying the door scanner. The check-in
+  app lists a **🧪 Test (scanner check)** event first; PIN `0000`, a "Test door",
+  and scanning the **test QR** returns a green "✓ Welcome, Test Attendee". It's
+  virtual — nothing is written to the DB, and there's no public/indexed event.
+  The scannable **test-ticket QR + instructions** appear on **Tickets → Check-in
+  log**. (For a full purchase→ticket→scan demo, add a comp registration on a real
+  event and scan its emailed ticket.)
+- **Check-in nav:** an **"← All events"** link in the app header on every step
+  after the first, so staff can jump back to the event picker any time.
+
 ## 1.46.1 — Event readiness no longer duplicates the event builder
 
 On the event editor, the **Event readiness** box kept its own copy of the event
