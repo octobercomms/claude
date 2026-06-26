@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.65.0 — security: hardening bundle (S6)
+
+Small, safe hardening from the audit:
+
+- **Rate-limit `/ticket-confirm` and `/paypal-capture`** (30/IP/min) so an
+  attacker can't amplify calls into Stripe/PayPal.
+- **Validate AI Stories feed URLs** with `wp_http_validate_url()` before
+  fetching, blocking SSRF to localhost / link-local / private ranges (cloud
+  metadata) even from an admin-supplied URL.
+- **Validate the WP-CLI migration `--prefix`** (letters/numbers/underscore only)
+  before it's used in table names.
+
+(Deferred, noted in the audit: the promo `max_uses` atomic-decrement and
+`UNIQUE` constraints on `payment_id`/`token` — both need a small flow/DB-version
+change and are Low severity.)
+
 ## 1.64.0 — security: management APIs require admin + AI throttle (S3/S4)
 
 - **Staff/management REST APIs now require an administrative capability.** The
