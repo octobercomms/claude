@@ -5,6 +5,26 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.57.0 — link volunteer opportunities to events
+
+Volunteer opportunities stay their own rich listings (a single event can have
+several roles, plus festival-wide roles), but can now **optionally link to an
+event** so you stop re-typing details:
+
+- **"Linked event"** picker on the opportunity editor. When set, the opportunity
+  **inherits the event's location** (leave Location blank to use it).
+- **On the event editor**, a new **Volunteers** box lists the opportunities
+  linked to that event — role, coverage (filled/capacity), and how many signups
+  need a decision — with a **"+ New volunteer opportunity"** button that
+  pre-links the new opportunity to the event.
+- **`[oe_event_volunteers]`** shortcode surfaces an event's open opportunities on
+  its public page (cards linking to each, with live spots-left), so attendees
+  can volunteer straight from the event.
+
+New `Volunteers::linked_event()` / `location()` / `for_event()`; opportunity
+summaries now carry the linked `event_id`. No change to the existing signup
+flow, CPT, or data — the link is purely additive.
+
 ## 1.56.1 — resend confirmation / tickets
 
 A **Resend** button on each paid registration (Tickets → Registrations)
