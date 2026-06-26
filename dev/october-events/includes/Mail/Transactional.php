@@ -28,22 +28,26 @@ final class Transactional {
         'volunteer_confirmed'        => 'Your volunteer shift is confirmed',
         'volunteer_declined'         => 'About your volunteer signup',
         'volunteer_reminder'         => 'Your volunteer shift is coming up',
+        'event_reminder'             => 'Reminder: %2$s is coming up',
         'sales_report'               => 'Daily ticket sales',
     ];
 
     /**
      * @param array{email:string,name?:string} $to
+     * @param array<int,string> $attachments File paths to attach (e.g. an .ics).
      */
-    public static function send(string $trigger, array $to, array $params = [], string $subject = '', string $html = ''): bool {
+    public static function send(string $trigger, array $to, array $params = [], string $subject = '', string $html = '', array $attachments = []): bool {
         $email = (string) ($to['email'] ?? '');
         if (! is_email($email)) {
             return false;
         }
         $brand = (string) Settings::get('brand_name', 'October Events');
-        $subject = $subject !== '' ? $subject : sprintf((string) (self::SUBJECTS[$trigger] ?? ucwords(str_replace('_', ' ', $trigger))), $brand);
+        // Subject templates may reference %1$s = brand, %2$s = event name.
+        $tmpl  = (string) (self::SUBJECTS[$trigger] ?? ucwords(str_replace('_', ' ', $trigger)));
+        $subject = $subject !== '' ? $subject : sprintf($tmpl, $brand, (string) ($params['event_name'] ?? ''));
         $inner = $html !== '' ? $html : self::body($trigger, $to, $params);
         $body  = self::wrap($brand, $inner);
-        return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8']);
+        return wp_mail($email, $subject, $body, ['Content-Type: text/html; charset=UTF-8'], $attachments);
     }
 
     /** SMS via AWS End User Messaging (no-op until configured in Settings). */
@@ -95,6 +99,9 @@ final class Transactional {
             case 'volunteer_declined':
             case 'volunteer_reminder':
                 return self::volunteer_body($trigger, $hi, $params);
+
+            case 'event_reminder':
+                return self::event_reminder_body($hi, $params);
         }
 
         // Generic fallback: greeting + any scalar params.
@@ -125,6 +132,26 @@ final class Transactional {
                 $out .= '<img src="' . esc_url($qr) . '" alt="' . esc_attr__('Ticket QR code', 'october-events') . '" width="170" height="170" style="display:block;margin:0 auto 8px">';
             }
             $out .= '<p style="margin:0">' . self::link(__('view / add to wallet', 'october-events'), $url) . '</p></div>';
+        }
+        return $out;
+    }
+
+    private static function event_reminder_body(string $hi, array $params): string {
+        $event = (string) ($params['event_name'] ?? '');
+        $when  = (string) ($params['when'] ?? '');
+        $where = (string) ($params['location'] ?? '');
+        $out = $hi . '<p>' . sprintf(esc_html__('Just a reminder — %s is almost here. We look forward to seeing you!', 'october-events'),
+            '<strong>' . esc_html($event) . '</strong>') . '</p>';
+        $rows = [
+            __('When', 'october-events')  => $when,
+            __('Where', 'october-events') => $where,
+        ];
+        foreach ($rows as $label => $val) {
+            if ($val !== '') { $out .= '<p><strong>' . esc_html((string) $label) . ':</strong> ' . esc_html($val) . '</p>'; }
+        }
+        $out .= '<p>' . esc_html__('Your ticket QR codes are in your original confirmation email — have them ready at the door.', 'october-events') . '</p>';
+        if (! empty($params['event_url'])) {
+            $out .= self::button(__('View event details', 'october-events'), (string) $params['event_url']);
         }
         return $out;
     }
