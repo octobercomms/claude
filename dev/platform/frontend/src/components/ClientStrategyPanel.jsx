@@ -8,7 +8,16 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
 import { useToast } from '../context/ToastContext';
 
-const SOSTAC_NUM = { 'Situation Analysis': 1, 'Objectives': 2, 'Strategy': 3, 'Tactics': 4, 'Action': 5, 'Control': 6 };
+// Each SOSTAC phase gets its own colour so the six sections read as distinct
+// chapters — a tinted header, a coloured number + title, a coloured spine.
+const SOSTAC = {
+  'Situation Analysis': { n: 1, color: '#2f6fb0', tint: 'rgba(47,111,176,0.08)' },
+  'Objectives':         { n: 2, color: '#2e7d57', tint: 'rgba(46,125,87,0.08)' },
+  'Strategy':           { n: 3, color: '#7e57c2', tint: 'rgba(126,87,194,0.08)' },
+  'Tactics':            { n: 4, color: '#d2823d', tint: 'rgba(210,130,61,0.08)' },
+  'Action':             { n: 5, color: '#c0556b', tint: 'rgba(192,85,107,0.09)' },
+  'Control':            { n: 6, color: '#4f7d7d', tint: 'rgba(79,125,125,0.08)' },
+};
 
 function Chips({ items }) {
   return (
@@ -316,36 +325,37 @@ export default function ClientStrategyPanel({ clientId }) {
             </div>
           )}
 
-          {/* SOSTAC phases as numbered cards with the working checklist */}
-          <div className="caption" style={{ marginBottom: 8 }}>Plan</div>
-          <div className="stack stack-sm">
-            {(strat.phases || []).map((ph, pi) => (
-              <div key={pi} className="card" style={{ padding: 'var(--s4)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ width: 24, height: 24, borderRadius: 999, background: 'var(--accent)', color: 'var(--accent-on)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, flex: '0 0 auto' }}>
-                    {SOSTAC_NUM[ph.title] || pi + 1}
-                  </span>
-                  <div className="h3">{ph.title}</div>
-                </div>
-                <div className="stack stack-sm">
-                  {(ph.items || []).map(it => (
-                    <div key={it.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                      <input type="checkbox" checked={!!it.done} onChange={e => toggle(it.id, e.target.checked)} style={{ marginTop: 3, accentColor: 'var(--accent)' }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div className="body-sm" style={{ textDecoration: it.done ? 'line-through' : 'none', color: it.done ? 'var(--text-subtle)' : 'var(--text)' }}>{it.text}</div>
-                        <input
-                          className="input"
-                          style={{ marginTop: 4, fontSize: 12, padding: '4px 8px' }}
-                          placeholder="Add a note…"
-                          defaultValue={it.note || ''}
-                          onBlur={e => { if (e.target.value !== (it.note || '')) saveNote(it.id, e.target.value); }}
-                        />
+          {/* SOSTAC phases — each a colour-coded chapter with the working checklist */}
+          <div className="caption" style={{ marginBottom: 10 }}>The SOSTAC plan</div>
+          <div className="stack stack-lg">
+            {(strat.phases || []).map((ph, pi) => {
+              const s = SOSTAC[ph.title] || { n: pi + 1, color: 'var(--accent)', tint: 'var(--accent-soft)' };
+              return (
+                <div key={pi} className="card" style={{ padding: 0, overflow: 'hidden', borderLeft: `5px solid ${s.color}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px', background: s.tint, borderBottom: '1px solid var(--card-border)' }}>
+                    <span style={{ width: 34, height: 34, borderRadius: 999, background: s.color, color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, flex: '0 0 auto' }}>{s.n}</span>
+                    <div className="h2" style={{ color: s.color, margin: 0 }}>{ph.title}</div>
+                  </div>
+                  <div className="stack stack-sm" style={{ padding: '16px 18px' }}>
+                    {(ph.items || []).map(it => (
+                      <div key={it.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                        <input type="checkbox" checked={!!it.done} onChange={e => toggle(it.id, e.target.checked)} style={{ marginTop: 3, accentColor: s.color }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="body-sm" style={{ textDecoration: it.done ? 'line-through' : 'none', color: it.done ? 'var(--text-subtle)' : 'var(--text)' }}>{it.text}</div>
+                          <input
+                            className="input"
+                            style={{ marginTop: 4, fontSize: 12, padding: '4px 8px' }}
+                            placeholder="Add a note…"
+                            defaultValue={it.note || ''}
+                            onBlur={e => { if (e.target.value !== (it.note || '')) saveNote(it.id, e.target.value); }}
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}
