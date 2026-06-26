@@ -232,32 +232,60 @@ class OCTWBE_REST {
 		$search   = sanitize_text_field( (string) $req->get_param( 'search' ) );
 		$category = (int) $req->get_param( 'category' );
 
-		$args = [
-			'post_type'      => 'product',
-			'post_status'    => 'any',
-			'posts_per_page' => $per_page,
-			'paged'          => $page,
-			'orderby'        => 'title',
-			'order'          => 'ASC',
-		];
+		global $wpdb;
 
-		if ( $search !== '' ) {
-			$args['s'] = $search;
+		if ( $search === '' && $category === 0 ) {
+			// Enumerate top-level products with a DIRECT DB query, NOT WP_Query.
+			//
+			// A front-end product-query filter was rewriting what the sync saw:
+			// Variant Showcase hooks the product query to HIDE a variable parent
+			// and surface its "show on category page" variations as standalone
+			// cards. Through WP_Query that filter fired on the sync too — so the
+			// sofa parent (179423) and its 384 variations vanished from the pull,
+			// replaced by the 6 showcased variations as parent-less "products"
+			// (the tell: type=variation with an empty parent_id). A raw query is
+			// immune to pre_get_posts / woocommerce_product_query, so the sync
+			// reads the true catalogue. The in-app grid (search/category) still
+			// uses WP_Query below.
+			$status_sql = "post_type = 'product' AND post_status NOT IN ( 'trash', 'auto-draft', 'inherit' )";
+			$offset      = ( $page - 1 ) * $per_page;
+			$product_ids = array_map( 'intval', $wpdb->get_col( $wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE {$status_sql} ORDER BY post_title ASC, ID ASC LIMIT %d OFFSET %d",
+				$per_page,
+				$offset
+			) ) );
+			$total       = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->posts} WHERE {$status_sql}" );
+			$total_pages = (int) ceil( $total / $per_page );
+		} else {
+			$args = [
+				'post_type'      => 'product',
+				'post_status'    => 'any',
+				'posts_per_page' => $per_page,
+				'paged'          => $page,
+				'orderby'        => 'title',
+				'order'          => 'ASC',
+				'fields'         => 'ids',
+			];
+			if ( $search !== '' ) {
+				$args['s'] = $search;
+			}
+			if ( $category > 0 ) {
+				$args['tax_query'] = [ [
+					'taxonomy' => 'product_cat',
+					'field'    => 'term_id',
+					'terms'    => $category,
+				] ];
+			}
+			$query       = new WP_Query( $args );
+			$product_ids = array_map( 'intval', $query->posts );
+			$total       = (int) $query->found_posts;
+			$total_pages = (int) $query->max_num_pages;
 		}
 
-		if ( $category > 0 ) {
-			$args['tax_query'] = [ [
-				'taxonomy' => 'product_cat',
-				'field'    => 'term_id',
-				'terms'    => $category,
-			] ];
-		}
+		$rows = [];
 
-		$query = new WP_Query( $args );
-		$rows  = [];
-
-		foreach ( $query->posts as $post ) {
-			$product = wc_get_product( $post->ID );
+		foreach ( $product_ids as $product_id ) {
+			$product = wc_get_product( $product_id );
 			if ( ! $product ) {
 				continue;
 			}
@@ -295,8 +323,8 @@ class OCTWBE_REST {
 		return new WP_REST_Response( [
 			'rows'        => $rows,
 			'page'        => $page,
-			'total_pages' => (int) $query->max_num_pages,
-			'total'       => (int) $query->found_posts,
+			'total_pages' => $total_pages,
+			'total'       => $total,
 		] );
 	}
 
