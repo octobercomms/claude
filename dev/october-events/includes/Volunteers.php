@@ -31,9 +31,12 @@ final class Volunteers {
         // Front-end signup widget for the opportunity page (hybrid: Elementor
         // renders the listing, this shortcode provides the signup table).
         add_shortcode('oe_volunteer_signup', [$this, 'render_signup_widget']);
+        // Surfaces an event's linked volunteer opportunities on its public page.
+        add_shortcode('oe_event_volunteers', [$this, 'render_event_volunteers']);
 
         if (is_admin()) {
             add_action('add_meta_boxes', [$this, 'add_meta_box']);
+            add_action('add_meta_boxes', [$this, 'add_event_meta_box']);
             add_action('save_post_' . self::slug(), [$this, 'save_meta']);
         }
     }
@@ -59,16 +62,37 @@ final class Volunteers {
         $location = (string) get_post_meta($post->ID, '_oe_location', true);
         $open     = get_post_meta($post->ID, '_oe_signups_open', true);
         $open     = ($open === '' || $open === '1') ? 1 : 0;
+        // Linked event — default from ?oe_link_event when creating from an event.
+        $linked = self::linked_event($post->ID);
+        if (! $linked && isset($_GET['oe_link_event'])) {
+            $linked = absint($_GET['oe_link_event']);
+        }
+        $events = get_posts([
+            'post_type'      => \OE\PostTypes::slug('event'),
+            'post_status'    => ['publish', 'draft', 'pending', 'private'],
+            'posts_per_page' => 200,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]);
+        $event_loc = $linked ? (string) \OE\Planning\Events::get($linked, 'location', '') : '';
 
         $lines = [];
         foreach (self::shifts($post->ID) as $s) {
             $lines[] = implode(' | ', [$s['label'], $s['start'], $s['end'], $s['capacity']]);
         }
         ?>
+        <p><label><strong><?php esc_html_e('Linked event', 'october-events'); ?></strong> — <span class="description"><?php esc_html_e('optional; reuses the event\'s location and shows a “Volunteer” call-out on the event page', 'october-events'); ?></span><br>
+            <select name="oe_linked_event" class="widefat">
+                <option value="0"><?php esc_html_e('— Not linked to an event —', 'october-events'); ?></option>
+                <?php foreach ($events as $ev) : ?>
+                    <option value="<?php echo (int) $ev->ID; ?>" <?php selected($linked, (int) $ev->ID); ?>><?php echo esc_html(get_the_title($ev)); ?></option>
+                <?php endforeach; ?>
+            </select></label></p>
         <p><label><strong><?php esc_html_e('Role', 'october-events'); ?></strong><br>
             <input type="text" name="oe_role" class="widefat" value="<?php echo esc_attr($role); ?>" placeholder="e.g. Meet &amp; Greet Host"></label></p>
         <p><label><strong><?php esc_html_e('Location', 'october-events'); ?></strong><br>
-            <input type="text" name="oe_location" class="widefat" value="<?php echo esc_attr($location); ?>"></label></p>
+            <input type="text" name="oe_location" class="widefat" value="<?php echo esc_attr($location); ?>" placeholder="<?php echo $event_loc !== '' ? esc_attr(sprintf(__('Inherits from event: %s', 'october-events'), $event_loc)) : ''; ?>"></label>
+            <?php if ($event_loc !== '') : ?><span class="description"><?php esc_html_e('Leave blank to use the linked event\'s location.', 'october-events'); ?></span><?php endif; ?></p>
         <p><label><input type="checkbox" name="oe_signups_open" value="1" <?php checked($open, 1); ?>> <?php esc_html_e('Signups open', 'october-events'); ?></label></p>
         <p><label><strong><?php esc_html_e('Shifts', 'october-events'); ?></strong> — <?php esc_html_e('one per line:', 'october-events'); ?>
             <code>Label | start datetime | end datetime | capacity</code></label></p>
@@ -91,6 +115,7 @@ final class Volunteers {
         update_post_meta($post_id, '_oe_role', sanitize_text_field((string) ($_POST['oe_role'] ?? '')));
         update_post_meta($post_id, '_oe_location', sanitize_text_field((string) ($_POST['oe_location'] ?? '')));
         update_post_meta($post_id, '_oe_signups_open', empty($_POST['oe_signups_open']) ? '0' : '1');
+        update_post_meta($post_id, '_oe_linked_event', absint($_POST['oe_linked_event'] ?? 0));
 
         // Preserve shift ids by matching labels to the existing set.
         $existing = [];
@@ -127,9 +152,51 @@ final class Volunteers {
             '_oe_role'         => 'string',
             '_oe_location'     => 'string',
             '_oe_signups_open' => 'boolean',
+            '_oe_linked_event' => 'integer',
         ] as $key => $type) {
             register_post_meta($slug, $key, ['type' => $type, 'single' => true, 'show_in_rest' => true]);
         }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Optional link to an event — so an opportunity reuses the event's
+     * location (and surfaces a "volunteer" call-out on the event page)
+     * instead of re-keying it. Opportunities stay their own rich listings.
+     * ------------------------------------------------------------------ */
+
+    /** The event this opportunity is attached to (0 if none). */
+    public static function linked_event(int $opportunity_id): int {
+        return (int) get_post_meta($opportunity_id, '_oe_linked_event', true);
+    }
+
+    /**
+     * Display location for an opportunity: its own `_oe_location`, falling back to
+     * the linked event's location so staff don't re-type it.
+     */
+    public static function location(int $opportunity_id): string {
+        $loc = trim((string) get_post_meta($opportunity_id, '_oe_location', true));
+        if ($loc !== '') {
+            return $loc;
+        }
+        $event = self::linked_event($opportunity_id);
+        return $event ? (string) \OE\Planning\Events::get($event, 'location', '') : '';
+    }
+
+    /** @return array<int,int> opportunity ids linked to a given event (newest first). */
+    public static function for_event(int $event_id): array {
+        if ($event_id <= 0) {
+            return [];
+        }
+        return array_map('intval', get_posts([
+            'post_type'      => self::slug(),
+            'post_status'    => ['publish', 'draft', 'pending', 'private'],
+            'posts_per_page' => -1,
+            'fields'         => 'ids',
+            'meta_key'       => '_oe_linked_event',
+            'meta_value'     => $event_id,
+            'orderby'        => 'title',
+            'order'          => 'ASC',
+        ]));
     }
 
     /* ------------------------------------------------------------------ *
@@ -385,7 +452,8 @@ final class Volunteers {
             'id'         => $id,
             'title'      => get_the_title($id) ?: '(untitled)',
             'role'       => (string) get_post_meta($id, '_oe_role', true),
-            'location'   => (string) get_post_meta($id, '_oe_location', true),
+            'location'   => self::location($id),
+            'event_id'   => self::linked_event($id),
             'open'       => get_post_meta($id, '_oe_signups_open', true) !== '0',
             'shifts'     => count($shifts),
             'capacity'   => $capacity,
@@ -448,7 +516,7 @@ final class Volunteers {
             'name'        => $signup->name,
             'opportunity' => get_the_title((int) $signup->opportunity_id),
             'shift'       => $shift['label'] ?? '',
-            'location'    => (string) get_post_meta((int) $signup->opportunity_id, '_oe_location', true),
+            'location'    => self::location((int) $signup->opportunity_id),
             'url'         => get_permalink((int) $signup->opportunity_id),
         ];
     }
@@ -506,6 +574,93 @@ final class Volunteers {
         ]);
 
         return '<div class="oe-vol-signup" id="oe-vol-signup" data-opportunity="' . esc_attr((string) $opportunity_id) . '"></div>';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Event integration — manage/surface opportunities from the event
+     * ------------------------------------------------------------------ */
+
+    public function add_event_meta_box(): void {
+        add_meta_box(
+            'oe_event_volunteers',
+            __('Volunteers', 'october-events'),
+            [$this, 'render_event_meta_box'],
+            \OE\PostTypes::slug('event'),
+            'side',
+            'default'
+        );
+    }
+
+    /** On the event editor: list linked opportunities + a button to add one. */
+    public function render_event_meta_box(\WP_Post $post): void {
+        $opps = self::for_event($post->ID);
+        if ($opps) {
+            echo '<ul style="margin:0 0 10px">';
+            foreach ($opps as $oid) {
+                $s = self::opportunity_summary($oid);
+                printf(
+                    '<li style="margin:0 0 8px;padding-bottom:8px;border-bottom:1px solid #f0f0f1"><a href="%1$s"><strong>%2$s</strong></a><br><span class="description">%3$s · %4$d/%5$d %6$s%7$s</span></li>',
+                    esc_url(get_edit_post_link($oid)),
+                    esc_html($s['title']),
+                    esc_html($s['role'] ?: __('Volunteer', 'october-events')),
+                    (int) $s['filled'],
+                    (int) $s['capacity'],
+                    esc_html__('filled', 'october-events'),
+                    $s['pending'] ? ' · ' . esc_html(sprintf(_n('%d to review', '%d to review', $s['pending'], 'october-events'), $s['pending'])) : ''
+                );
+            }
+            echo '</ul>';
+        } else {
+            echo '<p class="description">' . esc_html__('No volunteer opportunities linked to this event yet.', 'october-events') . '</p>';
+        }
+        $new = add_query_arg(['post_type' => self::slug(), 'oe_link_event' => $post->ID], admin_url('post-new.php'));
+        echo '<a href="' . esc_url($new) . '" class="button">' . esc_html__('+ New volunteer opportunity', 'october-events') . '</a>';
+    }
+
+    /**
+     * Public call-out for an event page: lists the event's volunteer
+     * opportunities with a link to each. Place `[oe_event_volunteers]` on the
+     * event template (defaults to the current event).
+     */
+    public function render_event_volunteers(array $atts = []): string {
+        $atts = shortcode_atts(['event_id' => get_the_ID(), 'title' => __('Volunteer at this event', 'october-events')], $atts, 'oe_event_volunteers');
+        $event_id = (int) $atts['event_id'];
+        $opps = self::for_event($event_id);
+        // Only show published opportunities that are open for signups.
+        $cards = '';
+        foreach ($opps as $oid) {
+            if (get_post_status($oid) !== 'publish') {
+                continue;
+            }
+            $s = self::opportunity_summary($oid);
+            $left = max(0, (int) $s['capacity'] - (int) $s['filled']);
+            $meta = $s['role'] ? esc_html($s['role']) : '';
+            $avail = $s['open'] && $left > 0
+                ? esc_html(sprintf(_n('%d spot left', '%d spots left', $left, 'october-events'), $left))
+                : esc_html__('Full', 'october-events');
+            $cards .= '<a class="oe-evol-card" href="' . esc_url(get_permalink($oid)) . '">'
+                . '<span class="oe-evol-title">' . esc_html($s['title']) . '</span>'
+                . ($meta ? '<span class="oe-evol-role">' . $meta . '</span>' : '')
+                . '<span class="oe-evol-avail">' . $avail . '</span></a>';
+        }
+        if ($cards === '') {
+            return '';
+        }
+        static $css_done = false;
+        $css = '';
+        if (! $css_done) {
+            $css_done = true;
+            $css = '<style>'
+                . '.oe-evol{margin:24px 0}.oe-evol-h{font-size:18px;font-weight:800;margin:0 0 12px}'
+                . '.oe-evol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}'
+                . '.oe-evol-card{display:block;border:2px solid #111;padding:14px;text-decoration:none;color:#111;background:#fff}'
+                . '.oe-evol-card:hover{background:#faf7ee}'
+                . '.oe-evol-title{display:block;font-weight:800;font-size:15px;line-height:1.25}'
+                . '.oe-evol-role{display:block;font-size:13px;color:#555;margin-top:3px}'
+                . '.oe-evol-avail{display:inline-block;margin-top:8px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}'
+                . '</style>';
+        }
+        return $css . '<div class="oe-evol"><h3 class="oe-evol-h">' . esc_html((string) $atts['title']) . '</h3><div class="oe-evol-grid">' . $cards . '</div></div>';
     }
 
     /**
