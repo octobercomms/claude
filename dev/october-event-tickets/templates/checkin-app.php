@@ -1,12 +1,13 @@
 <?php
 /**
- * Check-in PWA — served at /oct-checkin/
+ * Check-in PWA — served at /checkin/
  * Full-screen single-page app, dark theme.
  */
 defined('ABSPATH') || exit;
 
 $api_base   = esc_url(rest_url('oct-tickets/v1'));
 $site_name  = get_bloginfo('name');
+$logo_url   = \OctoberTickets\Settings::get_instance()->get('checkin_logo_url');
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo esc_attr(get_locale()); ?>">
@@ -65,6 +66,12 @@ $site_name  = get_bloginfo('name');
     font-size: 16px;
     font-weight: 700;
     color: var(--text);
+  }
+
+  .app-header-logo {
+    height: 36px;
+    width: auto;
+    object-fit: contain;
   }
 
   .app-header .back-btn {
@@ -390,7 +397,11 @@ $site_name  = get_bloginfo('name');
 
   <div class="app-header">
     <button class="back-btn" id="back-btn">&#8592; <?php esc_html_e('Back', 'october-event-tickets'); ?></button>
-    <h1 id="app-title"><?php echo esc_html($site_name); ?> <?php esc_html_e('Check-in', 'october-event-tickets'); ?></h1>
+    <?php if ($logo_url) : ?>
+      <img src="<?php echo esc_url($logo_url); ?>" alt="<?php echo esc_attr($site_name); ?>" class="app-header-logo">
+    <?php else : ?>
+      <h1 id="app-title"><?php echo esc_html($site_name . ' ' . __('Check-in', 'october-event-tickets')); ?></h1>
+    <?php endif; ?>
     <div class="scan-count-badge" id="scan-badge">0</div>
   </div>
 

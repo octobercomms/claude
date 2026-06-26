@@ -55,7 +55,8 @@ class TicketGenerator {
 
         $subtotal        = $effective_price * $qty_purchased;
         $discount_amount = (float) ($order_data['discount_amount'] ?? 0);
-        $total           = max(0, $subtotal - $discount_amount);
+        $tax_amount      = (float) ($order_data['tax_amount'] ?? 0);
+        $total           = max(0, $subtotal - $discount_amount + $tax_amount);
 
         $currency = strtoupper(Settings::get_instance()->get('currency', 'USD'));
 
@@ -70,6 +71,7 @@ class TicketGenerator {
             'unit_price'        => $effective_price,
             'promo_code'        => !empty($order_data['promo_code']) ? strtoupper(sanitize_text_field($order_data['promo_code'])) : null,
             'discount_amount'   => $discount_amount,
+            'tax_amount'        => $tax_amount,
             'total'             => $total,
             'currency'          => $currency,
             'payment_method'    => $payment_method,
@@ -81,16 +83,25 @@ class TicketGenerator {
             return new \WP_Error('db_error', __('Failed to create order record.', 'october-event-tickets'));
         }
 
+        // Build per-ticket attendee names array (indexed 0-based by ticket number)
+        $attendee_names_raw = $order_data['attendee_names'] ?? [];
+        $default_name       = sanitize_text_field($order_data['name'] ?? '');
+
         // Insert individual tickets
         $tickets = [];
         for ($i = 1; $i <= $total_tickets; $i++) {
             $token = bin2hex(random_bytes(32));
 
+            // Use per-ticket name if provided, else fall back to order name
+            $ticket_name = isset($attendee_names_raw[$i - 1]) && $attendee_names_raw[$i - 1] !== ''
+                ? sanitize_text_field($attendee_names_raw[$i - 1])
+                : $default_name;
+
             $ticket_id = DB::insert_ticket([
                 'order_id'          => $order_id,
                 'event_id'          => (int) $order_data['event_id'],
                 'ticket_type_label' => sanitize_text_field($ticket_type['label']),
-                'attendee_name'     => sanitize_text_field($order_data['name'] ?? ''),
+                'attendee_name'     => $ticket_name,
                 'token'             => $token,
                 'ticket_number'     => $i,
                 'total_in_order'    => $total_tickets,

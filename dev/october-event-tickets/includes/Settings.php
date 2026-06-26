@@ -29,6 +29,7 @@ class Settings {
     public function init(): void {
         add_action('admin_menu', [$this, 'add_menu_page']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_enqueue_scripts', [$this, 'enqueue_settings_assets']);
     }
 
     public function get(string $key, string $default = ''): string {
@@ -170,11 +171,15 @@ class Settings {
 
         add_settings_field(
             'report_email',
-            __('Report Email Address', 'october-event-tickets'),
-            [$this, 'render_text_field'],
+            __('Report Recipients', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('report_email'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[report_email]');
+                echo '<input type="text" name="' . $name . '" value="' . $value . '" class="regular-text" />';
+                echo '<p class="description">' . esc_html__('Comma-separated email addresses. Leave blank to disable.', 'october-event-tickets') . '</p>';
+            },
             'oct-tickets-settings',
-            'oct_report',
-            ['key' => 'report_email', 'type' => 'email']
+            'oct_report'
         );
 
         // Currency section
@@ -202,6 +207,76 @@ class Settings {
                 ],
             ]
         );
+
+        // Check-in App section
+        add_settings_section(
+            'oct_checkin_app',
+            __('Check-in App', 'october-event-tickets'),
+            null,
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'checkin_logo_url',
+            __('Logo Image', 'october-event-tickets'),
+            [$this, 'render_logo_field'],
+            'oct-tickets-settings',
+            'oct_checkin_app'
+        );
+
+        // Terms & Conditions section
+        add_settings_section(
+            'oct_terms',
+            __('Terms &amp; Conditions', 'october-event-tickets'),
+            function() {
+                echo '<p>' . esc_html__('When set, buyers must tick a T&Cs checkbox at checkout before purchasing.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'terms_url',
+            __('T&Cs Page URL', 'october-event-tickets'),
+            [$this, 'render_text_field'],
+            'oct-tickets-settings',
+            'oct_terms',
+            ['key' => 'terms_url', 'type' => 'url']
+        );
+
+        // Tax / VAT section
+        add_settings_section(
+            'oct_tax',
+            __('Tax / VAT', 'october-event-tickets'),
+            function() {
+                echo '<p>' . esc_html__('Leave rate at 0 to disable tax display entirely.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings'
+        );
+
+        add_settings_field(
+            'tax_rate',
+            __('Tax Rate (%)', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('tax_rate', '0'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[tax_rate]');
+                echo '<input type="number" name="' . $name . '" value="' . $value . '" min="0" max="100" step="0.01" style="width:80px;" /> %';
+                echo '<p class="description">' . esc_html__('e.g. 20 for 20% VAT. Applied to subtotal after any discount.', 'october-event-tickets') . '</p>';
+            },
+            'oct-tickets-settings',
+            'oct_tax'
+        );
+
+        add_settings_field(
+            'tax_label',
+            __('Tax Label', 'october-event-tickets'),
+            function() {
+                $value = esc_attr(Settings::get_instance()->get('tax_label', 'VAT'));
+                $name  = esc_attr(Settings::OPTION_KEY . '[tax_label]');
+                echo '<input type="text" name="' . $name . '" value="' . $value . '" class="regular-text" placeholder="VAT" />';
+            },
+            'oct-tickets-settings',
+            'oct_tax'
+        );
     }
 
     public function sanitize_settings(array $input): array {
@@ -221,14 +296,23 @@ class Settings {
             $clean[$key] = sanitize_text_field($input[$key] ?? '');
         }
 
-        $clean['from_email']    = sanitize_email($input['from_email'] ?? '');
-        $clean['report_email']  = sanitize_email($input['report_email'] ?? '');
+        $clean['from_email']   = sanitize_email($input['from_email'] ?? '');
+
+        // Comma-separated list of email addresses
+        $raw_emails = $input['report_email'] ?? '';
+        $emails     = array_filter(array_map('trim', explode(',', $raw_emails)));
+        $clean['report_email'] = implode(',', array_map('sanitize_email', $emails));
         $clean['paypal_mode']   = in_array($input['paypal_mode'] ?? '', ['sandbox', 'live'], true)
             ? $input['paypal_mode']
             : 'sandbox';
         $clean['currency']      = in_array($input['currency'] ?? '', ['USD', 'GBP', 'EUR', 'AUD', 'CAD'], true)
             ? $input['currency']
             : 'USD';
+        $clean['checkin_logo_url'] = esc_url_raw($input['checkin_logo_url'] ?? '');
+        $clean['terms_url']        = esc_url_raw($input['terms_url'] ?? '');
+        $tax_rate = floatval($input['tax_rate'] ?? 0);
+        $clean['tax_rate']         = (string) max(0, min(100, $tax_rate));
+        $clean['tax_label']        = sanitize_text_field($input['tax_label'] ?? 'VAT');
 
         return $clean;
     }
@@ -256,6 +340,39 @@ class Settings {
         echo '</select>';
     }
 
+    public function render_logo_field(): void {
+        $url  = esc_attr($this->get('checkin_logo_url'));
+        $name = esc_attr(self::OPTION_KEY . '[checkin_logo_url]');
+        echo '<div style="display:flex;align-items:center;gap:12px;">';
+        echo '<input type="url" id="oct_checkin_logo_url" name="' . $name . '" value="' . $url . '" class="regular-text" placeholder="https://" />';
+        echo '<button type="button" class="button" id="oct_logo_upload_btn">' . esc_html__('Choose Image', 'october-event-tickets') . '</button>';
+        echo '</div>';
+        if ($url) {
+            echo '<div style="margin-top:8px;"><img src="' . esc_url($url) . '" style="max-height:60px;border-radius:4px;border:1px solid #ddd;" /></div>';
+        }
+        echo '<p class="description">' . esc_html__('Logo shown in the check-in app header. Recommended height: 40px.', 'october-event-tickets') . '</p>';
+    }
+
+    public function enqueue_settings_assets(string $hook): void {
+        if ($hook !== 'settings_page_oct-tickets-settings') {
+            return;
+        }
+        wp_enqueue_media();
+        wp_add_inline_script('jquery-core', "
+            jQuery(function($) {
+                $('#oct_logo_upload_btn').on('click', function(e) {
+                    e.preventDefault();
+                    var frame = wp.media({ title: 'Choose Logo', button: { text: 'Use this image' }, multiple: false });
+                    frame.on('select', function() {
+                        var att = frame.state().get('selection').first().toJSON();
+                        $('#oct_checkin_logo_url').val(att.url);
+                    });
+                    frame.open();
+                });
+            });
+        ");
+    }
+
     public function render_settings_page(): void {
         if (!current_user_can('manage_options')) {
             return;
@@ -281,14 +398,14 @@ class Settings {
             <hr>
             <h2><?php esc_html_e('Shortcode', 'october-event-tickets'); ?></h2>
             <p><?php esc_html_e('Add the checkout form to any page:', 'october-event-tickets'); ?></p>
-            <code>[oct_checkout]</code>
+            <code>[event_checkout]</code>
             <p><?php esc_html_e('Or specify an event ID:', 'october-event-tickets'); ?></p>
-            <code>[oct_checkout event_id="123"]</code>
+            <code>[event_checkout event_id="123"]</code>
 
             <hr>
             <h2><?php esc_html_e('Check-in App', 'october-event-tickets'); ?></h2>
             <p><?php esc_html_e('Access the mobile check-in app at:', 'october-event-tickets'); ?></p>
-            <code><?php echo esc_url(home_url('/oct-checkin/')); ?></code>
+            <code><?php echo esc_url(home_url('/checkin/')); ?></code>
         </div>
         <?php
     }
