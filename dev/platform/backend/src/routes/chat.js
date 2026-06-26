@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { loadVisibleClientIds, requireClientAccess } = require('../middleware/clientAccess');
 const { decrypt } = require('../utils/encryption');
 const connectorFactory = require('../connectors');
+const clarity = require('../services/clarity');
 const Anthropic = require('@anthropic-ai/sdk');
 
 const router = express.Router();
@@ -47,6 +48,11 @@ const TOOLS = [
   {
     name: 'get_seo_rankings',
     description: 'Get current SEO keyword rankings with position history (current, 7d ago, 30d ago, best ever). Shows improvements, declines, and top performers.',
+    input_schema: { type: 'object', properties: {} },
+  },
+  {
+    name: 'get_cro_findings',
+    description: 'Get the latest Microsoft Clarity CRO / funnel analysis: an overall funnel-health summary plus prioritised on-page findings — each with the page URL, the behaviour issue (citing the Clarity signal: rage clicks, dead clicks, excessive scroll, quick-backs, scroll depth, JS errors), the concrete fix, a severity (critical/high/medium), and whether the team has marked it done. Use for any question about conversion, funnel leaks, on-page UX problems, or a specific page or product (e.g. "how are the sofa pages doing?" — filter findings by matching the URL). Returns nothing if no CRO scan has been run yet.',
     input_schema: { type: 'object', properties: {} },
   },
   {
@@ -491,6 +497,25 @@ async function toolGetSeoRankings(clientId) {
   };
 }
 
+async function toolGetCroFindings(clientId) {
+  const report = await clarity.latestReport(clientId);
+  if (!report) return { available: false, note: 'No Microsoft Clarity CRO scan has been run for this client yet (Sales & Traffic → CRO / Funnel).' };
+  const findings = Array.isArray(report.findings) ? report.findings : [];
+  return {
+    available: true,
+    generated_at: report.generated_at,
+    summary: report.summary,
+    counts: {
+      total: findings.length,
+      critical: findings.filter(f => f.priority === 'critical').length,
+      high: findings.filter(f => f.priority === 'high').length,
+      medium: findings.filter(f => f.priority === 'medium').length,
+      done: findings.filter(f => f.done).length,
+    },
+    findings: findings.map(f => ({ priority: f.priority, url: f.url, issue: f.issue, fix: f.fix, done: !!f.done })),
+  };
+}
+
 async function toolGetReports(clientId, limit = 10) {
   const { rows } = await pool.query(
     `SELECT report_type, period_start, period_end, status, generated_at, sent_at, error_log
@@ -644,6 +669,7 @@ async function executeTool(name, input, clientId) {
     case 'get_client_info':       return toolGetClientInfo(clientId);
     case 'get_connector_data':    return toolGetConnectorData(clientId, input);
     case 'get_seo_rankings':      return toolGetSeoRankings(clientId);
+    case 'get_cro_findings':      return toolGetCroFindings(clientId);
     case 'get_reports':           return toolGetReports(clientId, input.limit);
     case 'detect_anomalies':      return toolDetectAnomalies(clientId);
     case 'get_context_log':       return toolGetContextLog(clientId, input.status);
@@ -664,7 +690,7 @@ function buildSystemPrompt(client, connectors) {
 
   return `You are a performance marketing analyst working directly with October Communications on the ${client.name} account.
 
-You have tools to read live data, check SEO rankings, view reports, detect anomalies, and maintain a persistent context log. Use them proactively — don't wait to be asked to check data if it would make your answer more useful.
+You have tools to read live data, check SEO rankings, read the Microsoft Clarity CRO / funnel analysis (on-page conversion issues per page), view reports, detect anomalies, and maintain a persistent context log. Use them proactively — don't wait to be asked to check data if it would make your answer more useful.
 
 Your responsibilities:
 1. Investigate performance questions by pulling actual data, not estimating
