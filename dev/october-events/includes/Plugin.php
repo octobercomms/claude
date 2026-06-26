@@ -198,13 +198,24 @@ final class Plugin {
         nocache_headers();
         $app = \OE\Frontend\CheckInApp::get_instance();
         $app->register_assets();        // register handles now (template_redirect is before wp_enqueue_scripts)
-        $body = $app->render();         // enqueues styles/scripts (+ localize) and returns the shell markup
+        $body  = $app->render();        // enqueues styles/scripts (+ localize) and returns the shell markup
+        $brand = (string) \OE\Settings::get('brand_name', get_bloginfo('name'));
+        $icon  = function_exists('get_site_icon_url') ? get_site_icon_url(180) : '';
+        $fav   = function_exists('get_site_icon_url') ? get_site_icon_url(32) : '';
         ?><!doctype html>
 <html <?php language_attributes(); ?>>
 <head>
 <meta charset="<?php echo esc_attr(get_bloginfo('charset')); ?>">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title><?php esc_html_e('Door check-in', 'october-events'); ?></title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title><?php echo esc_html($brand . ' — ' . __('Check-in', 'october-events')); ?></title>
+<!-- Add-to-home-screen: a useful label + the site icon instead of "Door check-in". -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="<?php echo esc_attr($brand); ?>">
+<meta name="theme-color" content="#0f0f0f">
+<?php if ($icon) : ?><link rel="apple-touch-icon" href="<?php echo esc_url($icon); ?>"><?php endif; ?>
+<?php if ($fav) : ?><link rel="icon" href="<?php echo esc_url($fav); ?>"><?php endif; ?>
 <?php wp_print_styles(); ?>
 </head>
 <body class="oe-checkin-route">
