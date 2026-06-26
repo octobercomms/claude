@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.46.1 — Event readiness no longer duplicates the event builder
+
+On the event editor, the **Event readiness** box kept its own copy of the event
+fields (title, dates, price, location, …) — duplicating a JetEngine-style event
+builder. Now, when an **event field mapping is configured** (Settings → Event
+field mapping), the readiness box shows just the **status + checklist + Confirm**
+(checking the mapped builder fields) and hides the duplicate inputs. Sites with no
+builder/mapping still get the planner fields, so nothing breaks. (Saving is guarded
+so hidden fields are never wiped.)
+
 ## 1.46.0 — checkout: buy a mix of ticket types in one order
 
 The checkout is now a true **multi-line cart**. Previously picking one ticket type
