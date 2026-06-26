@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.48.0 — waitlist auto-notifies when a seat frees up
+
+When an order is **cancelled or refunded**, everyone still waiting for that event
+is now **emailed automatically** — first come, first served — instead of waiting
+for staff to hit "Notify". Each person is marked notified so a later cancellation
+won't email them twice. (`Waitlist::notify_all_for_event`, called from
+`Orders::cancel`.)
+
 ## 1.47.1 — the test ticket is now a viewable ticket page
 
 The built-in test ticket now opens as a **real ticket page** at
