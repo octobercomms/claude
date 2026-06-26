@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.57.2 — easier shift editor + automatic "fully booked"
+
+- **Shift editor is now proper fields.** The opportunity's shifts are entered as
+  **Label / Start / End / Capacity** inputs (start &amp; end are date-time
+  pickers) with a **"+ Add another shift"** button and a remove ✕ per row —
+  replacing the error-prone pipe-delimited textarea. Existing signups stay
+  attached (each row keeps its shift id).
+- **"Fully booked" everywhere.** When every shift is full, the public signup
+  widget shows a **"Fully booked"** notice (and hides the form), and the
+  opportunity's **`fully-booked` switcher field flips on automatically** — and
+  back off when a spot frees up (decline/remove). Driven by
+  `Volunteers::sync_fully_booked()` on every signup change. (Switcher values
+  default to JetEngine's `true`/`false`; override via the `oe_fully_booked_values`
+  filter if yours differ.)
+
 ## 1.57.1 — volunteer signup: multi-shift + always-on reminders
 
 Two tweaks to the public volunteer signup widget:

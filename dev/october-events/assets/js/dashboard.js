@@ -305,9 +305,10 @@
     }
 
     function paint(shifts) {
+        var allFull = shifts.length > 0 && shifts.every(function (s) { return s.full; });
         var rows = shifts.map(function (s) {
             var status = s.full
-                ? '<span class="oe-vol-full">Full — sign-ups closed</span>'
+                ? '<span class="oe-vol-full">Full</span>'
                 : '<span class="oe-vol-open">' + s.spots_left + ' spot' + (s.spots_left === 1 ? '' : 's') + ' left</span>';
             // Checkboxes so a volunteer can pick more than one shift in one go.
             var pick = s.full ? '' :
@@ -315,9 +316,12 @@
             return '<tr><td>' + esc(s.label) + '</td><td>' + status + '</td><td>' + pick + '</td></tr>';
         }).join('');
 
-        mount.innerHTML =
+        var banner = allFull ? '<p class="oe-vol-soldout">Fully booked — all shifts are full. Thank you!</p>' : '';
+        var table =
             '<table class="oe-table oe-vol-table"><thead><tr><th>Shift</th><th>Availability</th><th></th></tr></thead><tbody>' +
-            rows + '</tbody></table>' +
+            rows + '</tbody></table>';
+        // No form when there's nothing left to book.
+        var form = allFull ? '' :
             '<p class="oe-vol-hint">Choose one or more shifts.</p>' +
             '<form id="oe-vol-form" class="oe-form">' +
             '<label>Name <input type="text" name="name" required></label>' +
@@ -327,7 +331,9 @@
             '<button type="submit" class="oe-btn oe-btn-primary">Sign up</button>' +
             '<div class="oe-result" id="oe-vol-result"></div></form>';
 
-        document.getElementById('oe-vol-form').addEventListener('submit', submit);
+        mount.innerHTML = banner + table + form;
+        var formEl = document.getElementById('oe-vol-form');
+        if (formEl) { formEl.addEventListener('submit', submit); }
     }
 
     function submit(e) {
