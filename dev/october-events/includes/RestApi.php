@@ -117,6 +117,14 @@ final class RestApi {
         register_rest_route(self::NS, '/checkin-stats', [
             'methods' => 'GET', 'callback' => [$this, 'checkin_stats'], 'permission_callback' => '__return_true',
         ]);
+        // Offline support: cache the valid-token manifest on PIN entry, then flush
+        // queued scans back when connectivity returns.
+        register_rest_route(self::NS, '/checkin-manifest', [
+            'methods' => 'GET', 'callback' => [$this, 'checkin_manifest'], 'permission_callback' => '__return_true',
+        ]);
+        register_rest_route(self::NS, '/checkin-sync', [
+            'methods' => 'POST', 'callback' => [$this, 'checkin_sync'], 'permission_callback' => '__return_true',
+        ]);
 
         // Public map feed for Elementor/JetEngine or the fallback shortcode.
         register_rest_route(self::NS, '/map', [
@@ -546,6 +554,65 @@ final class RestApi {
             return new \WP_REST_Response(['error' => 'bad_pin'], 403);
         }
         return new \WP_REST_Response(\OE\Ticketing\CheckIn::stats($event_id), 200);
+    }
+
+    public function checkin_manifest(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        return new \WP_REST_Response(\OE\Ticketing\CheckIn::manifest($event_id), 200);
+    }
+
+    /**
+     * Flush a batch of scans recorded offline. Each carries its real scan time so
+     * the log reflects when the attendee actually arrived, not when Wi-Fi
+     * returned. The server is the source of truth, so it re-validates every token
+     * and dedupes — two offline doors that scanned the same ticket reconcile here
+     * (first kept, repeats flagged "already").
+     */
+    public function checkin_sync(\WP_REST_Request $req): \WP_REST_Response {
+        $event_id = $this->checkin_pin_guard($req);
+        if (! $event_id) {
+            return new \WP_REST_Response(['error' => 'bad_pin'], 403);
+        }
+        $scans = $req->get_param('scans');
+        if (! is_array($scans)) {
+            $scans = [];
+        }
+        $results = [];
+        foreach (array_slice($scans, 0, 2000) as $s) {
+            if (! is_array($s)) {
+                continue;
+            }
+            $token = sanitize_text_field((string) ($s['token'] ?? ''));
+            if ($token === '') {
+                continue;
+            }
+            $res = \OE\Ticketing\CheckIn::scan(
+                $token,
+                $event_id,
+                (string) ($s['venue'] ?? ''),
+                $this->coerce_utc_datetime((string) ($s['scanned_at'] ?? ''))
+            );
+            $res['token'] = $token;
+            $results[] = $res;
+        }
+        return new \WP_REST_Response(['results' => $results], 200);
+    }
+
+    /** Coerce a client timestamp (ISO 8601) to a UTC MySQL datetime, or null. */
+    private function coerce_utc_datetime(string $s): ?string {
+        $ts = strtotime($s);
+        if (! $ts) {
+            return null; // fall back to "now" in the model
+        }
+        // Ignore clock skew into the future (a phone with a wrong clock).
+        $now = time();
+        if ($ts > $now + 300) {
+            $ts = $now;
+        }
+        return gmdate('Y-m-d H:i:s', $ts);
     }
 
 

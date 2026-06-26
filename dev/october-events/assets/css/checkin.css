@@ -134,3 +134,23 @@ body.oe-checkin-route { margin: 0; background: #0f0f0f; }
 .oe-checkin .oe-ci-overlay.oe-ci-bad { background: rgba(239,68,68,0.94); }
 .oe-checkin .oe-ci-overlay-inner { color: #fff; }
 .oe-checkin .oe-ci-big { font-size: 30px; font-weight: 900; margin-bottom: 8px; }
+
+/* ---- Offline status (header pill + banner) ---- */
+.oe-checkin .oe-ci-net {
+  font-size: 11px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
+  white-space: nowrap; margin-left: auto;
+}
+.oe-checkin .oe-ci-net[hidden] { display: none; }
+.oe-checkin .oe-ci-net.off { background: rgba(245,158,11,0.18); color: var(--amber); border: 1px solid rgba(245,158,11,0.4); }
+.oe-checkin .oe-ci-net.sync { background: rgba(200,169,110,0.16); color: var(--accent); border: 1px solid rgba(200,169,110,0.4); }
+/* Keep the count badge hard-right when the pill is present. */
+.oe-checkin .app-header .oe-ci-net + .scan-count-badge { margin-left: 10px; }
+
+.oe-checkin .oe-ci-offline {
+  background: rgba(245,158,11,0.12); border-bottom: 1px solid rgba(245,158,11,0.4);
+  color: #f3d9a6; font-size: 13px; line-height: 1.4; padding: 10px 16px; text-align: center;
+  flex-shrink: 0; z-index: 25;
+}
+.oe-checkin .oe-ci-offline[hidden] { display: none; }
+.oe-checkin .oe-ci-offline strong { color: var(--amber); }
+.oe-checkin .oe-ci-offline .oe-ci-offline-q { display: block; opacity: 0.85; margin-top: 2px; }
