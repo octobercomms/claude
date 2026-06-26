@@ -24,6 +24,9 @@
         root.querySelectorAll('.oe-ci-step').forEach(function (s) {
             s.classList.toggle('is-active', s.dataset.step === step);
         });
+        // "← All events" in the header on every step except the first.
+        var home = document.getElementById('oe-ci-home');
+        if (home) { home.hidden = (step === 'event'); }
         if (step !== 'scan') { stopScanner(); }
     }
     function get(path, params) {

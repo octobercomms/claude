@@ -17,6 +17,16 @@ defined('ABSPATH') || exit;
  */
 final class CheckIn {
 
+    /**
+     * A built-in, always-available test event so staff can verify the scanner
+     * any time without real tickets. It is virtual — never written to the DB and
+     * never public/indexed: scanning the test QR just returns a green "valid".
+     * The id is a high sentinel that won't collide with a real event post.
+     */
+    public const TEST_EVENT_ID = 9999999;
+    public const TEST_PIN      = '0000';
+    public const TEST_TOKEN    = 'OE-TEST-TICKET';
+
     /** Events that have ticket types (for the PWA event picker). */
     public static function events(): array {
         $events = get_posts([
@@ -26,7 +36,8 @@ final class CheckIn {
             'orderby'        => 'title',
             'order'          => 'ASC',
         ]);
-        $out = [];
+        // Test event always first, so there's a standing scanner check.
+        $out = [['id' => self::TEST_EVENT_ID, 'title' => '🧪 ' . __('Test (scanner check)', 'october-events')]];
         foreach ($events as $ev) {
             if (TicketTypes::types($ev->ID)) {
                 $out[] = ['id' => $ev->ID, 'title' => get_the_title($ev)];
@@ -36,12 +47,18 @@ final class CheckIn {
     }
 
     public static function pin_ok(int $event_id, string $pin): bool {
+        if ($event_id === self::TEST_EVENT_ID) {
+            return trim($pin) === self::TEST_PIN;
+        }
         $stored = TicketTypes::pin($event_id);
         return $stored !== '' && hash_equals($stored, trim($pin));
     }
 
     /** @return string[] */
     public static function venues(int $event_id): array {
+        if ($event_id === self::TEST_EVENT_ID) {
+            return ['Test door'];
+        }
         return array_values(array_filter(array_map(
             static fn($v) => (string) ($v['name'] ?? ''),
             TicketTypes::venues($event_id)
@@ -54,6 +71,12 @@ final class CheckIn {
      * @return array{status:string,attendee?:string,type?:string,count?:int}
      */
     public static function scan(string $token, int $event_id, string $venue): array {
+        // Built-in test event: validate the test QR, record nothing.
+        if ($event_id === self::TEST_EVENT_ID) {
+            return $token === self::TEST_TOKEN
+                ? ['status' => 'valid', 'attendee' => __('Test Attendee', 'october-events'), 'type' => __('Test ticket', 'october-events'), 'count' => 1]
+                : ['status' => 'invalid'];
+        }
         $ticket = Orders::ticket_by_token($token);
         if (! $ticket || $ticket->status !== 'active') {
             return ['status' => 'invalid'];
@@ -132,6 +155,9 @@ final class CheckIn {
      * @return array{unique:int,venues:array<int,array{venue:string,count:int}>}
      */
     public static function stats(int $event_id): array {
+        if ($event_id === self::TEST_EVENT_ID) {
+            return ['unique' => 0, 'venues' => []];
+        }
         global $wpdb;
         $c = Schema::checkins();
         $unique = (int) $wpdb->get_var($wpdb->prepare(
