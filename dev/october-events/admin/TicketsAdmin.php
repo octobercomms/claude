@@ -201,6 +201,26 @@ final class TicketsAdmin {
         require OE_DIR . 'admin/views/promos.php';
     }
 
+    /* ------------------------------------------------------------------ *
+     * Check-in log
+     * ------------------------------------------------------------------ */
+
+    public function render_checkin_log(): void {
+        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $paged        = max(1, isset($_GET['paged']) ? absint($_GET['paged']) : 1);
+        $per_page     = 50;
+        $offset       = ($paged - 1) * $per_page;
+
+        $rows  = \OE\Ticketing\CheckIn::log($event_filter, $per_page, $offset);
+        $total = \OE\Ticketing\CheckIn::log_total($event_filter);
+        $stats = $event_filter ? \OE\Ticketing\CheckIn::stats($event_filter) : null;
+        $pages = (int) ceil($total / $per_page);
+
+        // Events that have ticket types, for the filter dropdown.
+        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        require OE_DIR . 'admin/views/checkin-log.php';
+    }
+
     public function handle_save_promo(): void {
         $this->guard('oe_save_promo');
         Promo::save([
