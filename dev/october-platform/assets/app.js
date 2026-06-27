@@ -266,23 +266,28 @@ const GUIDES = {
 function pageGuide(key) {
   const g = GUIDES[key];
   if (!g) { return document.createComment('no-guide'); }
-  if (localStorage.getItem('oe_guide_' + key) === '1') {
-    const strip = el('<button class="oe-guide-show">ⓘ What you can do on this page</button>');
-    strip.addEventListener('click', () => { localStorage.removeItem('oe_guide_' + key); render(); });
-    return strip;
+  // Self-replacing: toggling collapsed/expanded swaps just this node in place,
+  // rather than re-rendering the whole page.
+  function build() {
+    if (localStorage.getItem('oe_guide_' + key) === '1') {
+      const strip = el('<button class="oe-guide-show">ⓘ What you can do on this page</button>');
+      strip.addEventListener('click', () => { localStorage.removeItem('oe_guide_' + key); strip.replaceWith(build()); });
+      return strip;
+    }
+    const steps = g.steps.map((s, i) =>
+      `<div class="oe-guide-step"><span class="n">${i + 1}</span><span class="l">${esc(s[0])}</span><span class="d">${esc(s[1])}</span></div>`).join('');
+    const node = el(`
+      <section class="oe-guide">
+        <button class="oe-guide-x" title="Hide">×</button>
+        <div class="oe-guide-kicker">What you can do here</div>
+        <h2>${esc(g.title)}</h2>
+        <p>${esc(g.text)}</p>
+        <div class="oe-guide-steps">${steps}</div>
+      </section>`);
+    node.querySelector('.oe-guide-x').addEventListener('click', () => { localStorage.setItem('oe_guide_' + key, '1'); node.replaceWith(build()); });
+    return node;
   }
-  const steps = g.steps.map((s, i) =>
-    `<div class="oe-guide-step"><span class="n">${i + 1}</span><span class="l">${esc(s[0])}</span><span class="d">${esc(s[1])}</span></div>`).join('');
-  const node = el(`
-    <section class="oe-guide">
-      <button class="oe-guide-x" title="Hide">×</button>
-      <div class="oe-guide-kicker">What you can do here</div>
-      <h2>${esc(g.title)}</h2>
-      <p>${esc(g.text)}</p>
-      <div class="oe-guide-steps">${steps}</div>
-    </section>`);
-  node.querySelector('.oe-guide-x').addEventListener('click', () => { localStorage.setItem('oe_guide_' + key, '1'); render(); });
-  return node;
+  return build();
 }
 
 /* Page header: small-caps overline + big title + today's date. */
@@ -1783,6 +1788,22 @@ function renderAssistant() {
   const input = panel.querySelector('#chat-input');
   const send = panel.querySelector('#chat-send');
 
+  function bubble(role, content) {
+    const who = role === 'assistant' ? 'ai' : 'me';
+    const b = el(`<div class="oe-msg oe-msg-${who}"><div class="oe-msg-body"></div></div>`);
+    b.querySelector('.oe-msg-body').innerHTML =
+      role === 'assistant' ? assistantFormat(content) : '<p>' + esc(content) + '</p>';
+    return b;
+  }
+  // Append one bubble (clearing the intro if it's still showing) — avoids
+  // repainting and re-formatting the whole transcript on every message.
+  function appendMsg(role, content) {
+    const intro = log.querySelector('.oe-chat-empty');
+    if (intro) { intro.remove(); }
+    log.appendChild(bubble(role, content));
+    log.scrollTop = log.scrollHeight;
+  }
+  // Full render — only used on entering the view (intro, or replay an existing thread).
   function paint() {
     log.innerHTML = '';
     if (!assistantThread.length) {
@@ -1800,13 +1821,7 @@ function renderAssistant() {
       log.appendChild(intro);
       return;
     }
-    assistantThread.forEach((m) => {
-      const who = m.role === 'assistant' ? 'ai' : 'me';
-      const bubble = el(`<div class="oe-msg oe-msg-${who}"><div class="oe-msg-body"></div></div>`);
-      bubble.querySelector('.oe-msg-body').innerHTML =
-        m.role === 'assistant' ? assistantFormat(m.content) : '<p>' + esc(m.content) + '</p>';
-      log.appendChild(bubble);
-    });
+    assistantThread.forEach((m) => log.appendChild(bubble(m.role, m.content)));
     log.scrollTop = log.scrollHeight;
   }
 
@@ -1819,20 +1834,25 @@ function renderAssistant() {
     input.value = '';
     send.disabled = true;
     assistantThread.push({ role: 'user', content: q });
-    paint();
+    appendMsg('user', q);
     const thinking = el('<div class="oe-msg oe-msg-ai"><div class="oe-msg-body oe-typing"><span></span><span></span><span></span></div></div>');
     log.appendChild(thinking);
     log.scrollTop = log.scrollHeight;
     try {
       const r = await api.assistant(assistantThread);
-      assistantThread.push({ role: 'assistant', content: (r && r.reply) || 'Sorry — no answer came back.' });
+      const reply = (r && r.reply) || 'Sorry — no answer came back.';
+      assistantThread.push({ role: 'assistant', content: reply });
+      thinking.remove();
+      appendMsg('assistant', reply);
     } catch (e) {
+      thinking.remove();
       if (e.status === 401 || e.status === 403) { return renderLogin('Session expired — sign in again.'); }
-      assistantThread.push({ role: 'assistant', content: 'Sorry — I hit an error (' + esc(e.message || 'request failed') + ').' });
+      const msg = 'Sorry — I hit an error (' + (e.message || 'request failed') + ').';
+      assistantThread.push({ role: 'assistant', content: msg });
+      appendMsg('assistant', msg);
     } finally {
       busy = false;
       send.disabled = false;
-      paint();
       input.focus();
     }
   }
