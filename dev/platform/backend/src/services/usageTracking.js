@@ -85,10 +85,26 @@ const POLLERS = [
     async poll() {
       const key = await getSetting('SERPER_API_KEY');
       if (!key) return null;
-      // Serper doesn't have a stable balance endpoint at this writing;
-      // fall back to "credentials present" status without numbers. We
-      // still snapshot so the UI shows the provider is configured.
-      return { raw: { note: 'No public balance endpoint — track via dashboard.' } };
+      // Serper has no balance endpoint. Estimate from a checkpoint: the AM types
+      // their current dashboard credit balance (SERPER_CREDITS) and we subtract
+      // the searches OMI has logged since they set it. Exact if OMI is the only
+      // consumer of the key.
+      const checkpoint = parseInt(await getSetting('SERPER_CREDITS'), 10);
+      const asOf = await getSetting('SERPER_CREDITS_AS_OF');
+      if (!Number.isFinite(checkpoint) || !asOf) {
+        return { raw: { note: 'Set your Serper credit balance in Settings to track it here.' } };
+      }
+      const { rows } = await pool.query(
+        "SELECT count(*)::int AS used FROM api_cost_events WHERE provider = 'serper' AND ts >= $1", [asOf]
+      );
+      const used = rows[0]?.used || 0;
+      const remaining = Math.max(0, checkpoint - used);
+      // Render via units (not balance_remaining, which the card formats as money)
+      // → "2,300 / 2,500 credits left".
+      return {
+        units_used: remaining, units_limit: checkpoint, unit_label: 'credits left',
+        raw: { checkpoint, used, set_at: asOf },
+      };
     },
   },
   {
