@@ -6,6 +6,7 @@ import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
+import AiModelsPanel from '../components/AiModelsPanel';
 import IntegrationsPage from './IntegrationsPage';
 
 const KEY_GROUPS = [
@@ -424,6 +425,7 @@ export default function SettingsPage() {
       <div className="tabs">
         {[
           { key: 'general', label: 'General' },
+          { key: 'aimodels', label: 'AI models' },
           { key: 'integrations', label: 'Integrations' },
           { key: 'contacts', label: 'Contacts' },
           { key: 'publications', label: 'Publications' },
@@ -439,6 +441,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'aimodels' && <AiModelsPanel />}
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'publications' && <PublicationsPanel />}
