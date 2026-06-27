@@ -68,6 +68,14 @@ export default function ClientChatPage() {
   const [contextLog, setContextLog] = useState([]);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
+  const [model, setModel] = useState(() => localStorage.getItem('oc_analyst_model') || 'claude-sonnet-4-6');
+  useEffect(() => { localStorage.setItem('oc_analyst_model', model); }, [model]);
+  const CHAT_MODELS = [
+    { id: 'claude-fable-5',    label: 'Fable',    hint: 'Fastest Claude · quick lookups' },
+    { id: 'claude-sonnet-4-6', label: 'Sonnet',   hint: 'Balanced · default' },
+    { id: 'claude-opus-4-8',   label: 'Opus',     hint: 'Deepest analysis' },
+    { id: 'deepseek-chat',     label: 'DeepSeek', hint: '⚠ cheap, but sends this client\'s pulled data to DeepSeek — non-sensitive questions only' },
+  ];
   const [loading, setLoading] = useState(true);
   const [clearing, setClearing] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
@@ -170,6 +178,7 @@ export default function ClientChatPage() {
       const reply = await api.post(`/chat/${id}`, {
         message: text,
         image: imageData,
+        model,
         ...(range ? { start_date: range.start, end_date: range.end } : {}),
       });
       setMessages(prev => [...prev, reply]);
@@ -370,6 +379,19 @@ export default function ClientChatPage() {
           {/^\/report(\s|$)/i.test(input) && (
             <div className="body-xs text-subtle mt-2" style={{ paddingLeft: 4 }}>📄 Report mode — reply will format as a structured doc with downloadable PDF + Word.</div>
           )}
+          {/* Model — pick the brain per question. Claude family for analysis on
+              real client data; DeepSeek for cheap, non-sensitive questions. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 4 }}>
+            <span className="caption" style={{ color: 'var(--text-subtle)' }}>🧠 Model</span>
+            <select className="input" style={{ width: 'auto', fontSize: 12, padding: '4px 8px' }}
+              value={model} onChange={e => setModel(e.target.value)} disabled={sending}>
+              {CHAT_MODELS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+            </select>
+            <span className="caption" style={{ color: model === 'deepseek-chat' ? 'var(--warning)' : 'var(--text-subtle)' }}>
+              {CHAT_MODELS.find(m => m.id === model)?.hint}
+            </span>
+          </div>
+
           {/* Data window — pins the date range the analyst pulls data for.
               "Auto" sends no range so the analyst chooses per question. */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingLeft: 4 }}>
