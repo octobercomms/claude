@@ -15,7 +15,16 @@ const sid = (req) => parseInt(req.params.searchId, 10);
 
 // ── Searches ──
 router.get('/clients/:clientId/searches', async (req, res) => {
-  try { res.json({ searches: await ig.listSearches(req.params.clientId) }); }
+  try {
+    const [searches, unassigned] = await Promise.all([
+      ig.listSearches(req.params.clientId),
+      ig.countUnassigned(req.params.clientId),
+    ]);
+    res.json({ searches, unassigned });
+  } catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
+router.post('/clients/:clientId/searches/:searchId/reclaim', async (req, res) => {
+  try { res.json(await ig.reclaimOrphans(req.params.clientId, sid(req))); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
 router.post('/clients/:clientId/searches', async (req, res) => {

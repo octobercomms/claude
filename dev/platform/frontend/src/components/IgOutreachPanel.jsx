@@ -36,6 +36,7 @@ function exportCsv(prospects, searchName) {
 export default function IgOutreachPanel({ clientId }) {
   const toast = useToast();
   const [searches, setSearches] = useState([]);
+  const [unassigned, setUnassigned] = useState(0);
   const [selected, setSelected] = useState(null);
   const [prospects, setProspects] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -55,6 +56,7 @@ export default function IgOutreachPanel({ clientId }) {
     const r = await api.get(`/ig-outreach/clients/${clientId}/searches`);
     const list = r.searches || [];
     setSearches(list);
+    setUnassigned(r.unassigned || 0);
     const sel = selId || (list.find(s => s.id === selected)?.id) || list[0]?.id || null;
     setSelected(sel);
     if (sel) await loadProspects(sel); else setProspects([]);
@@ -110,8 +112,12 @@ export default function IgOutreachPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
   }
   async function removeSearch(s) {
-    if (!window.confirm(`Delete the "${s.name}" search? Its discovered profiles stay in the queue.`)) return;
+    if (!window.confirm(`Delete the "${s.name}" search? Its profiles become unassigned — you can reclaim them into another search afterwards.`)) return;
     try { await api.delete(`/ig-outreach/clients/${clientId}/searches/${s.id}`); setSelected(null); await loadSearches(); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+  async function reclaim(searchId) {
+    try { const r = await api.post(`/ig-outreach/clients/${clientId}/searches/${searchId}/reclaim`, {}); await loadSearches(searchId); toast(`Reclaimed ${r.reclaimed} earlier prospect${r.reclaimed === 1 ? '' : 's'}.`, 'success'); }
     catch (e) { toast(e.message, 'error'); }
   }
 
@@ -204,6 +210,13 @@ export default function IgOutreachPanel({ clientId }) {
             <strong>Outreach goal:</strong> {sel.outreach_goal || 'not set — drafts will be a generic intro.'}{' '}
             <button onClick={() => editGoal(sel)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>{sel.outreach_goal ? 'edit' : 'set goal'}</button>
           </div>
+
+          {unassigned > 0 && (
+            <div className="callout callout-warning" style={{ marginBottom: 'var(--s4)' }}>
+              {unassigned} earlier prospect{unassigned === 1 ? '' : 's'} {unassigned === 1 ? "isn't" : "aren't"} attached to any search (from before saved searches, or a deleted one).{' '}
+              <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Add {unassigned === 1 ? 'it' : 'them'} to “{sel.name}”</button>
+            </div>
+          )}
 
           {!prospects.length ? (
             <p className="body-sm text-subtle">No prospects yet — hit Run on this search.</p>
