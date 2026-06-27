@@ -179,6 +179,7 @@ app.use('/api/reports', require('./routes/reports'));
 app.use('/api/rankings', require('./routes/rankings'));
 app.use('/api/seo', require('./routes/seoSuite'));
 app.use('/api/social', require('./routes/social'));
+app.use('/api/ig-outreach', require('./routes/igOutreach'));
 app.use('/api/brand', require('./routes/brandAssets'));
 app.use('/api/ad-creatives', require('./routes/adCreatives'));
 app.use('/api/approvals', require('./routes/approvals'));
