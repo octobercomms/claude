@@ -80,8 +80,8 @@ export default function IgOutreachPanel({ clientId }) {
         <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
           <select className="input" style={{ flex: '0 0 150px' }} value={source} onChange={e => setSource(e.target.value)}>
             <option value="serper">Web search</option>
-            <option value="hashtag">IG hashtag (needs setup)</option>
-            <option value="apollo">Apollo/PDL (soon)</option>
+            <option value="hashtag" disabled>IG hashtag (needs Meta setup)</option>
+            <option value="apollo" disabled>Apollo/PDL (coming soon)</option>
           </select>
           <input className="input" style={{ flex: '2 1 240px' }} placeholder="Roles, e.g. architects, interior designers, landscape architects"
             value={icp} onChange={e => setIcp(e.target.value)} />
