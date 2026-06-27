@@ -86,6 +86,58 @@ async function findBusinessDomains({ industry, location, specialisation }, exclu
   return domains;
 }
 
+// Find public Instagram profiles matching an ICP, via web search (no IG
+// scraping — Google's public index through Serper). Returns deduped handles
+// for the manual-outreach queue. The AM does the actual DMing by hand.
+const IG_RESERVED = new Set(['p', 'reel', 'reels', 'explore', 'stories', 'tv', 'about', 'directory', 'accounts', 'direct', 'legal', 'privacy', 'terms', 'developer', 'web']);
+function handleFromIgUrl(url) {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)instagram\.com$/.test(u.hostname)) return null;
+    const seg = u.pathname.split('/').filter(Boolean)[0];
+    if (!seg) return null;
+    const h = seg.toLowerCase().replace(/[^a-z0-9._]/g, '');
+    if (!h || IG_RESERVED.has(h) || h.length > 30) return null;
+    return h;
+  } catch { return null; }
+}
+async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude = []) {
+  const apiKey = await getSetting('SERPER_API_KEY');
+  if (!apiKey) throw new Error('Serper API key not configured — add it in Settings.');
+  // The ICP can list several roles at once ("architects, interior designers,
+  // landscape architects") — run a query per role so one discovery covers them.
+  const roles = String(icp || '').split(/,|\band\b|\/|&/i).map(s => s.trim()).filter(Boolean).slice(0, 6);
+  const queries = [];
+  for (const role of roles) {
+    queries.push(`site:instagram.com ${role}${location ? ' ' + location : ''}`);
+    queries.push(`"${role}"${location ? ' ' + location : ''} instagram profile`);
+  }
+  (Array.isArray(hashtags) ? hashtags : []).slice(0, 3).forEach(h => queries.push(`site:instagram.com ${String(h).replace(/^#/, '')}`));
+  if (!queries.length) throw new Error('Enter an ICP or some hashtags to search.');
+
+  const ex = new Set((exclude || []).map(s => String(s).toLowerCase()));
+  const found = {};
+  let lastError = null;
+  for (const q of queries) {
+    try {
+      const results = await search(apiKey.trim(), q, 10);
+      for (const r of results) {
+        const h = handleFromIgUrl(r.link || '');
+        if (!h || ex.has(h) || found[h]) continue;
+        found[h] = {
+          username: h,
+          profile_url: `https://www.instagram.com/${h}/`,
+          display_name: String(r.title || '').replace(/\s*[(•|].*$/, '').trim() || h,
+          bio: String(r.snippet || '').slice(0, 400),
+        };
+      }
+    } catch (err) { lastError = err.response?.data?.message || err.message; }
+  }
+  const list = Object.values(found);
+  if (!list.length && lastError) throw new Error(`Serper: ${lastError}`);
+  return list;
+}
+
 // Google News search (PR coverage monitor). Returns normalised hits.
 async function searchNews(apiKey, query, num = 20) {
   const { data } = await axios.post(
@@ -99,4 +151,4 @@ async function searchNews(apiKey, query, num = 20) {
   }));
 }
 
-module.exports = { findBusinessDomains, searchNews };
+module.exports = { findBusinessDomains, searchInstagramProfiles, searchNews };
