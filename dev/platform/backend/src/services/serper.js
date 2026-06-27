@@ -111,13 +111,20 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   // NB: no `site:` operator — Serper's free tier rejects it ("query pattern not
   // allowed"). We use plain queries biased toward Instagram and filter results
   // to instagram.com profile URLs in code (handleFromIgUrl) instead.
+  // Cast a wide net: several angles per role so we surface a big pool of IG
+  // handles in one run (the AM works through them a few a day; autopilot tops
+  // it up). Each query is 1 Serper credit and returns up to `num` results.
   for (const role of roles) {
     const loc = location ? ' ' + location : '';
     queries.push(`${role}${loc} instagram`);
-    queries.push(`"${role}"${loc} instagram profile`);
+    queries.push(`"${role}"${loc} instagram`);
     queries.push(`${role}${loc} instagram account`);
+    queries.push(`best ${role}${loc} instagram`);
+    queries.push(`${role} studio${loc} instagram`);
+    queries.push(`${role} firm${loc} instagram`);
+    queries.push(`top ${role}${loc} instagram`);
   }
-  (Array.isArray(hashtags) ? hashtags : []).slice(0, 3).forEach(h => queries.push(`${String(h).replace(/^#/, '')} instagram`));
+  (Array.isArray(hashtags) ? hashtags : []).slice(0, 4).forEach(h => queries.push(`${String(h).replace(/^#/, '')} instagram`));
   if (!queries.length) throw new Error('Enter an ICP or some hashtags to search.');
 
   const ex = new Set((exclude || []).map(s => String(s).toLowerCase()));
@@ -125,7 +132,7 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   let lastError = null;
   for (const q of queries) {
     try {
-      const results = await search(apiKey.trim(), q, 20);
+      const results = await search(apiKey.trim(), q, 40);
       for (const r of results) {
         const h = handleFromIgUrl(r.link || '');
         if (!h || ex.has(h) || found[h]) continue;
