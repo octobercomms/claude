@@ -132,7 +132,10 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   let lastError = null;
   for (const q of queries) {
     try {
-      const results = await search(apiKey.trim(), q, 40);
+      // num=20: Serper's free tier rejects larger result counts ("query pattern
+      // not allowed for free accounts"). Volume comes from the many query
+      // angles above, not from a bigger num.
+      const results = await search(apiKey.trim(), q, 20);
       for (const r of results) {
         const h = handleFromIgUrl(r.link || '');
         if (!h || ex.has(h) || found[h]) continue;
