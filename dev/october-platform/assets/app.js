@@ -55,8 +55,8 @@ const THEME_DEFAULTS = {
   accent_on: '#1a1a1a',
   sidebar_bg: '#0b0b0c',
   page_bg: '#faf9f5',
-  logo_light: './assets/logo-black.gif',   // for white surfaces (login card)
-  logo_dark: './assets/logo-yellow.gif',   // for the dark sidebar
+  logo_light: '',   // white surfaces (login card) — falls back to a text wordmark
+  logo_dark: '',    // dark sidebar — falls back to a text wordmark
   font_family: '',                          // optional custom family name
   font_css: '',                             // optional stylesheet URL that defines the font
   font_url: '',                             // optional uploaded REGULAR-weight font file (woff2/woff/ttf/otf)
@@ -183,7 +183,9 @@ function shell(active) {
     <div class="oe-shell">
       <aside class="oe-side">
         <div class="oe-brand">
-          <img src="${esc(theme.logo_dark)}" alt="${esc(theme.brand_name)}">
+          ${theme.logo_dark
+            ? `<img src="${esc(theme.logo_dark)}" alt="${esc(theme.brand_name)}">`
+            : `<span class="oe-brand-text">${esc(theme.brand_name)}</span>`}
         </div>
         <nav class="oe-nav">
           ${link('overview', 'Dashboard')}
@@ -314,7 +316,7 @@ function renderLogin(error, addMode) {
   const view = el(`
     <div class="oe-login">
       <div class="oe-login-card">
-        <img class="oe-login-logo" src="${esc(theme.logo_light)}" alt="${esc(theme.brand_name)}">
+        ${theme.logo_light ? `<img class="oe-login-logo" src="${esc(theme.logo_light)}" alt="${esc(theme.brand_name)}">` : ''}
         <h1>${esc(theme.brand_name)}</h1>
         <p class="muted">Planning — sign in with your WordPress account.</p>
         ${error ? `<div class="oe-error">${esc(error)}</div>` : ''}
