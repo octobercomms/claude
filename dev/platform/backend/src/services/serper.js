@@ -108,13 +108,16 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   // landscape architects") — run a query per role so one discovery covers them.
   const roles = String(icp || '').split(/,|\band\b|\/|&/i).map(s => s.trim()).filter(Boolean).slice(0, 6);
   const queries = [];
+  // NB: no `site:` operator — Serper's free tier rejects it ("query pattern not
+  // allowed"). We use plain queries biased toward Instagram and filter results
+  // to instagram.com profile URLs in code (handleFromIgUrl) instead.
   for (const role of roles) {
     const loc = location ? ' ' + location : '';
-    queries.push(`site:instagram.com ${role}${loc}`);
-    queries.push(`"${role}"${loc} instagram profile`);
     queries.push(`${role}${loc} instagram`);
+    queries.push(`"${role}"${loc} instagram profile`);
+    queries.push(`${role}${loc} instagram account`);
   }
-  (Array.isArray(hashtags) ? hashtags : []).slice(0, 3).forEach(h => queries.push(`site:instagram.com ${String(h).replace(/^#/, '')}`));
+  (Array.isArray(hashtags) ? hashtags : []).slice(0, 3).forEach(h => queries.push(`${String(h).replace(/^#/, '')} instagram`));
   if (!queries.length) throw new Error('Enter an ICP or some hashtags to search.');
 
   const ex = new Set((exclude || []).map(s => String(s).toLowerCase()));
