@@ -49,6 +49,20 @@ cron.schedule('0 */12 * * *', async () => {
   try { await require('./prMonitor').runDue(); } catch (e) { console.error('[Scheduler] PR monitor failed:', e.message); }
 });
 
+// Daily at 08:00 — Instagram discovery autopilot. Re-runs each enabled client's
+// saved query and emails a digest of any NEW public profiles found. Discovery
+// only; the AM still sends every DM by hand.
+cron.schedule('0 8 * * *', async () => {
+  console.log('[Scheduler] Running IG discovery autopilot...');
+  try {
+    const results = await require('./igOutreach').runAutopilot();
+    for (const r of results) {
+      try { await emailService.sendIgDiscoveryDigest({ clientName: r.clientName, searchName: r.searchName, prospects: r.newProspects }); }
+      catch (e) { console.error('[Scheduler] IG digest email failed:', e.message); }
+    }
+  } catch (e) { console.error('[Scheduler] IG autopilot failed:', e.message); }
+});
+
 // PR thank-you auto-send ramp: daily at 10:00. For clients on the
 // supervised/auto trust stage, drafts each unthanked published piece and
 // auto-sends those whose Claude confidence clears the stage threshold.

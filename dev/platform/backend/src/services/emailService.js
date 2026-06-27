@@ -825,4 +825,32 @@ async function sendPrEmail({ to, subject, html }) {
   });
 }
 
-module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady };
+// Daily digest of new IG outreach prospects discovered by the autopilot.
+async function sendIgDiscoveryDigest({ clientName, searchName, prospects }) {
+  if (!process.env.ALERT_EMAIL) return;
+  if (!prospects || !prospects.length) return;
+  const rows = prospects.map(p => `
+    <tr>
+      <td style="padding:8px;border:1px solid #ddd;"><strong>@${p.username}</strong>${p.display_name && p.display_name !== p.username ? ` — ${p.display_name}` : ''}<br>
+        <span style="color:#666;font-size:12px;">${(p.bio || '').slice(0, 160)}</span></td>
+      <td style="padding:8px;border:1px solid #ddd;white-space:nowrap;">
+        <a href="https://www.instagram.com/${p.username}/">Profile</a> ·
+        <a href="https://ig.me/m/${p.username}">Open DM</a></td>
+    </tr>`).join('');
+  const label = searchName ? `${clientName} · ${searchName}` : clientName;
+  const html = `
+    <div style="font-family:Arial,sans-serif;max-width:640px;margin:0 auto;padding:20px;">
+      <h2>New Instagram prospects — ${label}</h2>
+      <p>${prospects.length} new public profile${prospects.length === 1 ? '' : 's'} from your "${searchName || 'discovery'}" search. Review in OMI → Social → Discover. Send by hand, keep it personalised.</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">${rows}</table>
+      <p style="color:#666;font-size:12px;">October Marketing Intelligence · discovery only, you send the DMs.</p>
+    </div>`;
+  return getTransporter().sendMail({
+    from: getSenderAddress(),
+    to: process.env.ALERT_EMAIL,
+    subject: `${prospects.length} new IG prospect${prospects.length === 1 ? '' : 's'} — ${label}`,
+    html,
+  });
+}
+
+module.exports = { sendMonthlyReport, sendWeeklyReport, sendMetaTokenAlert, sendConnectorHealthAlert, sendReportReminderEmail, sendWaitlistSignup, sendStrategistBriefing, sendAutopilotDigest, sendErrorDigest, sendPrEmail, sendSecurityAlert, sendVideoReady, sendIgDiscoveryDigest };

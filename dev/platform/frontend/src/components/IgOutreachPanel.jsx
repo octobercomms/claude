@@ -1,8 +1,9 @@
-// Social → Discover. A compliant Instagram outreach cockpit: a discovery engine
-// finds public IG profiles matching the client's ICP (web search today; IG
-// Graph hashtag + Apollo/PDL as pluggable sources), and the AM does the actual
-// DMing BY HAND — each prospect has an "Open DM" deep link and a copy-paste,
-// AI-personalised draft. No automation of the account, no bulk sending.
+// Social → Discover. A compliant Instagram outreach cockpit. A client keeps
+// several named SEARCHES (e.g. "Residential architects · Atlanta", "Commercial
+// architects"), each with its own daily autopilot. A discovery engine finds
+// public IG profiles via web search; the AM works each search's queue BY HAND —
+// Open-DM deep link + AI-personalised copy-paste draft. Optional email
+// enrichment + CSV export feed considered (not bulk) mailing-list outreach.
 
 import React, { useEffect, useState } from 'react';
 import { api } from '../utils/api';
@@ -16,36 +17,87 @@ const STATUS = {
   skipped:  { label: 'Skipped',  cls: 'chip-neutral' },
 };
 
+function exportCsv(prospects, searchName) {
+  const cols = ['username', 'display_name', 'email', 'status', 'profile_url', 'bio', 'found_at', 'messaged_at', 'replied_at'];
+  const esc = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const lines = [cols.join(',')];
+  for (const p of prospects) {
+    lines.push([p.username, p.display_name, p.email, p.status, p.profile_url || `https://instagram.com/${p.username}/`, (p.bio || '').replace(/\s+/g, ' '), p.found_at, p.messaged_at, p.replied_at].map(esc).join(','));
+  }
+  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ig-prospects-${String(searchName || 'export').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function IgOutreachPanel({ clientId }) {
   const toast = useToast();
+  const [searches, setSearches] = useState([]);
+  const [selected, setSelected] = useState(null);
   const [prospects, setProspects] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const [source, setSource] = useState('serper');
+  const [busy, setBusy] = useState(false);
+  const [drafting, setDrafting] = useState(null);
+  const [enriching, setEnriching] = useState(null);
+  // New-search form
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
   const [icp, setIcp] = useState('');
   const [location, setLocation] = useState('');
   const [hashtags, setHashtags] = useState('');
-  const [running, setRunning] = useState(false);
-  const [drafting, setDrafting] = useState(null);
 
-  async function load() {
-    try { const r = await api.get(`/ig-outreach/clients/${clientId}/prospects`); setProspects(r.prospects || []); }
-    catch (e) { toast(e.message, 'error'); }
-    finally { setLoaded(true); }
+  async function loadSearches(selId) {
+    const r = await api.get(`/ig-outreach/clients/${clientId}/searches`);
+    const list = r.searches || [];
+    setSearches(list);
+    const sel = selId || (list.find(s => s.id === selected)?.id) || list[0]?.id || null;
+    setSelected(sel);
+    if (sel) await loadProspects(sel); else setProspects([]);
   }
-  useEffect(() => { load(); /* eslint-disable-line */ }, [clientId]);
+  async function loadProspects(searchId) {
+    const r = await api.get(`/ig-outreach/clients/${clientId}/prospects?searchId=${searchId}`);
+    setProspects(r.prospects || []);
+  }
+  useEffect(() => {
+    (async () => { try { await loadSearches(); } catch (e) { toast(e.message, 'error'); } finally { setLoaded(true); } })();
+    /* eslint-disable-line */
+  }, [clientId]);
 
-  async function discover() {
-    if (source === 'serper' && !icp.trim() && !hashtags.trim()) { toast('Enter an ICP (e.g. "architects, interior designers") or some hashtags.', 'error'); return; }
-    setRunning(true);
+  async function selectSearch(id) { setSelected(id); try { await loadProspects(id); } catch (e) { toast(e.message, 'error'); } }
+
+  async function createAndRun() {
+    if (!icp.trim() && !hashtags.trim()) { toast('Enter roles (e.g. "architects, interior designers") or hashtags.', 'error'); return; }
+    setBusy(true);
     try {
-      const r = await api.post(`/ig-outreach/clients/${clientId}/discover`, {
-        source, icp: icp.trim(), location: location.trim(),
-        hashtags: hashtags.split(',').map(s => s.trim()).filter(Boolean),
-      });
-      setProspects(r.prospects || []);
-      toast(`Found ${r.found}, added ${r.added} new.`, r.added ? 'success' : 'info');
+      const s = await api.post(`/ig-outreach/clients/${clientId}/searches`, { name: name.trim(), icp: icp.trim(), location: location.trim(), hashtags });
+      const r = await api.post(`/ig-outreach/clients/${clientId}/searches/${s.id}/run`, {});
+      setName(''); setIcp(''); setLocation(''); setHashtags(''); setAdding(false);
+      await loadSearches(s.id);
+      toast(`Search created — found ${r.added} new.`, 'success');
     } catch (e) { toast(e.message, 'error'); }
-    finally { setRunning(false); }
+    finally { setBusy(false); }
+  }
+
+  async function runSearch(id) {
+    setBusy(true);
+    try {
+      const r = await api.post(`/ig-outreach/clients/${clientId}/searches/${id}/run`, {});
+      await loadSearches(id);
+      toast(r.added ? `Found ${r.added} new.` : 'No new profiles this run.', r.added ? 'success' : 'info');
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  }
+  async function toggleAutopilot(s) {
+    try { await api.patch(`/ig-outreach/clients/${clientId}/searches/${s.id}`, { enabled: !s.enabled }); await loadSearches(s.id); toast(!s.enabled ? 'Daily autopilot on — new finds emailed each morning.' : 'Autopilot off.', 'info'); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+  async function removeSearch(s) {
+    if (!window.confirm(`Delete the "${s.name}" search? Its discovered profiles stay in the queue.`)) return;
+    try { await api.delete(`/ig-outreach/clients/${clientId}/searches/${s.id}`); setSelected(null); await loadSearches(); }
+    catch (e) { toast(e.message, 'error'); }
   }
 
   async function setStatus(id, status) {
@@ -58,87 +110,118 @@ export default function IgOutreachPanel({ clientId }) {
     catch (e) { toast(e.message, 'error'); }
     finally { setDrafting(null); }
   }
+  async function enrich(id) {
+    setEnriching(id);
+    try { const r = await api.post(`/ig-outreach/clients/${clientId}/prospects/${id}/enrich`, {}); setProspects(prev => prev.map(p => p.id === id ? r : p)); toast('Email found.', 'success'); }
+    catch (e) { toast(e.message, 'info'); }
+    finally { setEnriching(null); }
+  }
   async function copy(text) {
     try { await navigator.clipboard.writeText(text); toast('Copied — paste it in the DM.', 'success'); }
     catch { toast('Copy failed — select and copy manually.', 'error'); }
   }
 
   if (!loaded) return <div className="text-subtle" style={{ padding: 20 }}>Loading…</div>;
-
+  const sel = searches.find(s => s.id === selected);
   const counts = prospects.reduce((a, p) => { a[p.status] = (a[p.status] || 0) + 1; return a; }, {});
 
   return (
     <div>
       <div className="callout" style={{ marginBottom: 'var(--s5)' }}>
-        <strong>Discovery, not automation.</strong> This finds public profiles to approach — <em>you</em> send the DMs by hand from Instagram.
-        Keep it to a few personalised messages a day; it's about good targeting, not volume.
+        <strong>Discovery, not automation.</strong> This finds public profiles to approach — <em>you</em> send the DMs by hand. Keep it to a few personalised messages a day. Emails are for considered outreach with a clear opt-out, not bulk lists.
       </div>
 
-      {/* Discovery controls */}
-      <div className="card" style={{ marginBottom: 'var(--s5)' }}>
-        <div className="caption" style={{ marginBottom: 10 }}>Find prospects</div>
-        <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-          <select className="input" style={{ flex: '0 0 150px' }} value={source} onChange={e => setSource(e.target.value)}>
-            <option value="serper">Web search</option>
-            <option value="hashtag" disabled>IG hashtag (needs Meta setup)</option>
-            <option value="apollo" disabled>Apollo/PDL (coming soon)</option>
-          </select>
-          <input className="input" style={{ flex: '2 1 240px' }} placeholder="Roles, e.g. architects, interior designers, landscape architects"
-            value={icp} onChange={e => setIcp(e.target.value)} />
-          <input className="input" style={{ flex: '1 1 140px' }} placeholder="Location, e.g. Atlanta"
-            value={location} onChange={e => setLocation(e.target.value)} />
-          <input className="input" style={{ flex: '1 1 140px' }} placeholder="Hashtags (optional)"
-            value={hashtags} onChange={e => setHashtags(e.target.value)} />
-          <button className="btn btn-primary" onClick={discover} disabled={running}>{running ? 'Searching…' : 'Run discovery'}</button>
-        </div>
-        <div className="body-xs text-subtle" style={{ marginTop: 8 }}>
-          Several roles at once is fine. New finds are de-duped against everyone already in the queue.
-        </div>
-      </div>
-
-      {/* Queue */}
+      {/* Saved searches */}
       <div className="section-head">
-        <div className="caption">Queue</div>
-        <span className="body-xs text-subtle">
-          {prospects.length} total · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied
-        </span>
+        <div className="caption">Saved searches</div>
+        {!adding && <button className="btn btn-secondary btn-sm" onClick={() => setAdding(true)}>+ New search</button>}
       </div>
 
-      {!prospects.length ? (
-        <p className="body-sm text-subtle">No prospects yet — run a discovery above.</p>
-      ) : (
-        <div className="stack stack-sm">
-          {prospects.map(p => {
-            const st = STATUS[p.status] || STATUS.new;
-            return (
-              <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: p.status === 'skipped' ? 0.55 : 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                  <div style={{ minWidth: 0 }}>
-                    <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
-                    {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
-                    {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
-                  </div>
-                  <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto' }}>{st.label}</span>
-                </div>
-
-                {p.draft && (
-                  <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
-                    <div className="body-sm">{p.draft}</div>
-                    <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => copy(p.draft)}>Copy message</button>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                  <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
-                  <button className="btn btn-secondary btn-sm" onClick={() => draft(p.id)} disabled={drafting === p.id}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
-                  {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
-                  {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
-                  {p.status !== 'skipped' && <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>}
-                </div>
-              </div>
-            );
-          })}
+      {adding && (
+        <div className="card" style={{ marginBottom: 'var(--s4)' }}>
+          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <input className="input" style={{ flex: '1 1 150px' }} placeholder="Name (optional)" value={name} onChange={e => setName(e.target.value)} />
+            <input className="input" style={{ flex: '2 1 240px' }} placeholder="Roles, e.g. architects, interior designers" value={icp} onChange={e => setIcp(e.target.value)} />
+            <input className="input" style={{ flex: '1 1 130px' }} placeholder="Location, e.g. Atlanta" value={location} onChange={e => setLocation(e.target.value)} />
+            <input className="input" style={{ flex: '1 1 130px' }} placeholder="Hashtags (optional)" value={hashtags} onChange={e => setHashtags(e.target.value)} />
+            <button className="btn btn-primary" onClick={createAndRun} disabled={busy}>{busy ? 'Searching…' : 'Create & run'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+          </div>
+          <div className="body-xs text-subtle" style={{ marginTop: 8 }}>Several roles at once is fine. Each search has its own queue + daily autopilot.</div>
         </div>
+      )}
+
+      {!searches.length && !adding ? (
+        <p className="body-sm text-subtle" style={{ marginBottom: 'var(--s5)' }}>No searches yet — create one to start finding prospects.</p>
+      ) : (
+        <div className="stack stack-sm" style={{ marginBottom: 'var(--s6)' }}>
+          {searches.map(s => (
+            <div key={s.id} className="card" style={{ padding: '10px 14px', borderColor: s.id === selected ? 'var(--text)' : 'var(--card-border)', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <button onClick={() => selectSearch(s.id)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                <div className="body-sm" style={{ fontWeight: 700 }}>{s.name}</div>
+                <div className="body-xs text-subtle">{[s.icp, s.location].filter(Boolean).join(' · ')} · {s.prospect_count} found{s.last_run_at ? ` · last run ${new Date(s.last_run_at).toLocaleDateString('en-GB')}` : ''}</div>
+              </button>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }} title="Daily autopilot">
+                <input type="checkbox" checked={!!s.enabled} onChange={() => toggleAutopilot(s)} style={{ accentColor: 'var(--accent)' }} />
+                <span className="body-xs">Autopilot</span>
+              </label>
+              <button className="btn btn-secondary btn-sm" onClick={() => runSearch(s.id)} disabled={busy}>Run</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => removeSearch(s)} title="Delete search">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Queue for the selected search */}
+      {sel && (
+        <>
+          <div className="section-head">
+            <div className="caption">{sel.name} — queue</div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="body-xs text-subtle">{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => exportCsv(prospects, sel.name)} disabled={!prospects.length}>Export CSV</button>
+            </div>
+          </div>
+
+          {!prospects.length ? (
+            <p className="body-sm text-subtle">No prospects yet — hit Run on this search.</p>
+          ) : (
+            <div className="stack stack-sm">
+              {prospects.map(p => {
+                const st = STATUS[p.status] || STATUS.new;
+                return (
+                  <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: p.status === 'skipped' ? 0.55 : 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
+                        {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
+                        {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
+                        {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
+                      </div>
+                      <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto' }}>{st.label}</span>
+                    </div>
+
+                    {p.draft && (
+                      <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                        <div className="body-sm">{p.draft}</div>
+                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => copy(p.draft)}>Copy message</button>
+                      </div>
+                    )}
+
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                      <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
+                      <button className="btn btn-secondary btn-sm" onClick={() => draft(p.id)} disabled={drafting === p.id}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
+                      {!p.email && <button className="btn btn-secondary btn-sm" onClick={() => enrich(p.id)} disabled={enriching === p.id}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
+                      {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
+                      {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
+                      {p.status !== 'skipped' && <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

@@ -109,8 +109,10 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   const roles = String(icp || '').split(/,|\band\b|\/|&/i).map(s => s.trim()).filter(Boolean).slice(0, 6);
   const queries = [];
   for (const role of roles) {
-    queries.push(`site:instagram.com ${role}${location ? ' ' + location : ''}`);
-    queries.push(`"${role}"${location ? ' ' + location : ''} instagram profile`);
+    const loc = location ? ' ' + location : '';
+    queries.push(`site:instagram.com ${role}${loc}`);
+    queries.push(`"${role}"${loc} instagram profile`);
+    queries.push(`${role}${loc} instagram`);
   }
   (Array.isArray(hashtags) ? hashtags : []).slice(0, 3).forEach(h => queries.push(`site:instagram.com ${String(h).replace(/^#/, '')}`));
   if (!queries.length) throw new Error('Enter an ICP or some hashtags to search.');
@@ -120,7 +122,7 @@ async function searchInstagramProfiles({ icp, location, hashtags } = {}, exclude
   let lastError = null;
   for (const q of queries) {
     try {
-      const results = await search(apiKey.trim(), q, 10);
+      const results = await search(apiKey.trim(), q, 20);
       for (const r of results) {
         const h = handleFromIgUrl(r.link || '');
         if (!h || ex.has(h) || found[h]) continue;
