@@ -41,6 +41,7 @@ export default function IgOutreachPanel({ clientId }) {
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(null);
+  const [draftingAll, setDraftingAll] = useState(false);
   const [enriching, setEnriching] = useState(null);
   // New-search form
   const [adding, setAdding] = useState(false);
@@ -48,6 +49,7 @@ export default function IgOutreachPanel({ clientId }) {
   const [icp, setIcp] = useState('');
   const [location, setLocation] = useState('');
   const [hashtags, setHashtags] = useState('');
+  const [goal, setGoal] = useState('');
 
   async function loadSearches(selId) {
     const r = await api.get(`/ig-outreach/clients/${clientId}/searches`);
@@ -72,13 +74,26 @@ export default function IgOutreachPanel({ clientId }) {
     if (!icp.trim() && !hashtags.trim()) { toast('Enter roles (e.g. "architects, interior designers") or hashtags.', 'error'); return; }
     setBusy(true);
     try {
-      const s = await api.post(`/ig-outreach/clients/${clientId}/searches`, { name: name.trim(), icp: icp.trim(), location: location.trim(), hashtags });
+      const s = await api.post(`/ig-outreach/clients/${clientId}/searches`, { name: name.trim(), icp: icp.trim(), location: location.trim(), hashtags, outreach_goal: goal.trim() });
       const r = await api.post(`/ig-outreach/clients/${clientId}/searches/${s.id}/run`, {});
-      setName(''); setIcp(''); setLocation(''); setHashtags(''); setAdding(false);
+      setName(''); setIcp(''); setLocation(''); setHashtags(''); setGoal(''); setAdding(false);
       await loadSearches(s.id);
       toast(`Search created — found ${r.added} new.`, 'success');
     } catch (e) { toast(e.message, 'error'); }
     finally { setBusy(false); }
+  }
+
+  async function editGoal(s) {
+    const next = window.prompt('What are you DMing these people about? (used to draft messages)', s.outreach_goal || '');
+    if (next == null) return;
+    try { await api.patch(`/ig-outreach/clients/${clientId}/searches/${s.id}`, { outreach_goal: next.trim() }); await loadSearches(s.id); toast('Outreach goal saved — redraft to use it.', 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+  }
+  async function draftAll(searchId) {
+    setDraftingAll(true);
+    try { const r = await api.post(`/ig-outreach/clients/${clientId}/searches/${searchId}/draft-all`, {}); setProspects(r.prospects || []); toast(`Drafted ${r.drafted} message${r.drafted === 1 ? '' : 's'}.`, 'success'); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { setDraftingAll(false); }
   }
 
   async function runSearch(id) {
@@ -147,7 +162,9 @@ export default function IgOutreachPanel({ clientId }) {
             <button className="btn btn-primary" onClick={createAndRun} disabled={busy}>{busy ? 'Searching…' : 'Create & run'}</button>
             <button className="btn btn-ghost btn-sm" onClick={() => setAdding(false)}>Cancel</button>
           </div>
-          <div className="body-xs text-subtle" style={{ marginTop: 8 }}>Several roles at once is fine. Each search has its own queue + daily autopilot.</div>
+          <input className="input" style={{ marginTop: 8 }} placeholder="What are you DMing them about? e.g. inviting them to exhibit at Atlanta Design Festival (Sept 26–Oct 4)"
+            value={goal} onChange={e => setGoal(e.target.value)} />
+          <div className="body-xs text-subtle" style={{ marginTop: 8 }}>Several roles at once is fine. The outreach goal drives the drafted messages — and drafts won't invent specifics they can't see.</div>
         </div>
       )}
 
@@ -177,10 +194,15 @@ export default function IgOutreachPanel({ clientId }) {
         <>
           <div className="section-head">
             <div className="caption">{sel.name} — queue</div>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-              <span className="body-xs text-subtle">{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span className="body-xs text-subtle" style={{ marginRight: 4 }}>{prospects.length} · {counts.new || 0} new · {counts.messaged || 0} messaged · {counts.replied || 0} replied</span>
+              <button className="btn btn-secondary btn-sm" onClick={() => draftAll(sel.id)} disabled={draftingAll || !prospects.length}>{draftingAll ? 'Drafting…' : '✦ Draft all'}</button>
               <button className="btn btn-secondary btn-sm" onClick={() => exportCsv(prospects, sel.name)} disabled={!prospects.length}>Export CSV</button>
             </div>
+          </div>
+          <div className="body-xs" style={{ marginBottom: 'var(--s4)', color: sel.outreach_goal ? 'var(--text-muted)' : 'var(--text-subtle)' }}>
+            <strong>Outreach goal:</strong> {sel.outreach_goal || 'not set — drafts will be a generic intro.'}{' '}
+            <button onClick={() => editGoal(sel)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>{sel.outreach_goal ? 'edit' : 'set goal'}</button>
           </div>
 
           {!prospects.length ? (
