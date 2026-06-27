@@ -45,6 +45,9 @@ const SETTINGS_KEYS = [
   'FLARESOLVERR_URL',
   'AMAZON_CLIENT_ID', 'AMAZON_CLIENT_SECRET', 'AMAZON_REDIRECT_URI',
   'HUNTER_API_KEY', 'ICYPEAS_API_KEY', 'ICYPEAS_API_SECRET', 'ICYPEAS_USER_ID', 'SERPER_API_KEY',
+  // Serper has no balance API — the AM types their current dashboard credit
+  // balance here and the cost panel ticks it down by the searches OMI logs.
+  'SERPER_CREDITS',
   'APOLLO_API_KEY', 'PEOPLEDATALABS_API_KEY', 'SERPAPI_API_KEY',
   'OUTREACH_IMAP_HOST', 'OUTREACH_IMAP_PORT', 'OUTREACH_IMAP_USER', 'OUTREACH_IMAP_PASSWORD',
   'N8N_WEBHOOK_BASE_URL',
@@ -155,6 +158,16 @@ router.post('/platform-keys', async (req, res) => {
       );
       process.env[key] = val;
       updates.push(key);
+    }
+    // Stamp when the Serper credit checkpoint was set, so the cost panel can
+    // count searches made *since* and estimate the remaining balance.
+    if (updates.includes('SERPER_CREDITS')) {
+      const stamp = new Date().toISOString();
+      await db.query(
+        `INSERT INTO platform_settings (key, value, updated_at) VALUES ('SERPER_CREDITS_AS_OF', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+        [JSON.stringify(encrypt(stamp))]
+      );
     }
     res.json({ updated: updates, cleared });
   } catch (err) {
