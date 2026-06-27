@@ -34,6 +34,10 @@ router.post('/clients/:clientId/searches/:searchId/run', async (req, res) => {
   try { res.json(await ig.runSearch(req.params.clientId, sid(req))); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
+router.post('/clients/:clientId/searches/:searchId/draft-all', async (req, res) => {
+  try { res.json(await ig.draftAll(req.params.clientId, sid(req))); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
 
 // ── Prospects ──
 router.get('/clients/:clientId/prospects', async (req, res) => {

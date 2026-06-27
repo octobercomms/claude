@@ -26,20 +26,20 @@ async function listSearches(clientId) {
   return rows;
 }
 
-async function createSearch(clientId, { name, icp, location, hashtags, enabled } = {}) {
+async function createSearch(clientId, { name, icp, location, hashtags, enabled, outreach_goal } = {}) {
   if (!String(icp || '').trim() && !String(hashtags || '').trim()) { const e = new Error('Enter an ICP or some hashtags.'); e.status = 400; throw e; }
   const nm = String(name || '').trim() || [String(icp || '').trim(), String(location || '').trim()].filter(Boolean).join(' · ').slice(0, 80) || 'Search';
   const { rows } = await pool.query(
-    `INSERT INTO ig_outreach_searches (client_id, name, icp, location, hashtags, enabled)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [clientId, nm, icp || null, location || null, hashtags || null, !!enabled]
+    `INSERT INTO ig_outreach_searches (client_id, name, icp, location, hashtags, enabled, outreach_goal)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [clientId, nm, icp || null, location || null, hashtags || null, !!enabled, outreach_goal || null]
   );
   return rows[0];
 }
 
 async function updateSearch(clientId, id, patch = {}) {
   const sets = [], vals = [clientId, id];
-  for (const f of ['name', 'icp', 'location', 'hashtags', 'enabled']) {
+  for (const f of ['name', 'icp', 'location', 'hashtags', 'enabled', 'outreach_goal']) {
     if (patch[f] !== undefined) { sets.push(`${f} = $${vals.length + 1}`); vals.push(f === 'enabled' ? !!patch[f] : (patch[f] || null)); }
   }
   if (!sets.length) { const e = new Error('Nothing to update.'); e.status = 400; throw e; }
@@ -109,30 +109,63 @@ async function setStatus(clientId, id, { status, notes }) {
   return rows[0];
 }
 
-// Draft a short, personalised opening DM using the client's DM-bot persona.
+// Context shared by every draft in a client (fetched once for batch drafting).
+async function draftContext(clientId) {
+  const { rows: cr } = await pool.query('SELECT name, briefing_field FROM clients WHERE id = $1', [clientId]);
+  const { rows: pr } = await pool.query('SELECT persona FROM social_dm_bot WHERE client_id = $1', [clientId]);
+  return { client: cr[0] || {}, persona: pr[0]?.persona || '' };
+}
+
+// Draft ONE opening DM. Grounded only in the prospect's bio (the model has NOT
+// seen their posts/projects, so it must not invent specifics) and the search's
+// outreach goal (what we're reaching out about). Persists + returns the draft.
+async function draftOne(clientId, p, ctx, goal) {
+  const c = ctx.client;
+  const draft = (await claudeService.callClaude({
+    max_tokens: 400,
+    system: 'You write one short opening Instagram DM for a brand reaching out to a prospect by hand. '
+      + 'CRITICAL: the only thing you know about the prospect is the bio text provided — you have NOT seen their posts, projects, website or portfolio. '
+      + 'Do NOT mention or invent any specific project, post, building, award or piece of work unless it appears word-for-word in that bio. '
+      + 'Reference their general field/specialism instead, and ground the reason for reaching out in the stated outreach goal. '
+      + 'Warm, specific, human, never salesy, no links, under 45 words, no emoji spam. Output ONLY the message text.',
+    user: `Brand: ${c.name}${c.briefing_field ? ` — ${c.briefing_field}` : ''}
+${ctx.persona ? `Brand DM voice/persona: ${ctx.persona}\n` : ''}Why we're reaching out (outreach goal): ${goal || '(not specified — keep it a warm, genuine intro, no pitch)'}
+Prospect: @${p.username}${p.display_name ? ` (${p.display_name})` : ''}
+Their bio (the ONLY thing you know about them — do not go beyond it): ${p.bio || '(only their handle)'}
+
+Write the opening DM.`,
+    feature: 'ig_outreach_draft',
+    clientId,
+  })).trim();
+  const { rows: upd } = await pool.query('UPDATE ig_outreach_prospects SET draft = $3 WHERE client_id = $1 AND id = $2 RETURNING *', [clientId, p.id, draft]);
+  return upd[0];
+}
+
+async function goalForSearch(searchId) {
+  if (!searchId) return '';
+  const { rows } = await pool.query('SELECT outreach_goal FROM ig_outreach_searches WHERE id = $1', [searchId]);
+  return rows[0]?.outreach_goal || '';
+}
+
 async function draftMessage(clientId, id) {
   const { rows } = await pool.query('SELECT * FROM ig_outreach_prospects WHERE client_id = $1 AND id = $2', [clientId, id]);
   const p = rows[0];
   if (!p) { const e = new Error('Prospect not found.'); e.status = 404; throw e; }
-  const { rows: cr } = await pool.query('SELECT name, briefing_field FROM clients WHERE id = $1', [clientId]);
-  const c = cr[0] || {};
-  const { rows: pr } = await pool.query('SELECT persona FROM social_dm_bot WHERE client_id = $1', [clientId]);
-  const persona = pr[0]?.persona || '';
+  return draftOne(clientId, p, await draftContext(clientId), await goalForSearch(p.search_id));
+}
 
-  const draft = (await claudeService.callClaude({
-    max_tokens: 400,
-    system: 'You write a single, short opening Instagram DM for a brand reaching out to a prospect by hand. Warm, specific, human — reference something real about the prospect. Never salesy, never a template, no links, under 45 words, no emoji spam. Output ONLY the message text, nothing else.',
-    user: `Brand: ${c.name}${c.briefing_field ? ` — ${c.briefing_field}` : ''}
-${persona ? `Brand DM voice/persona: ${persona}\n` : ''}Prospect: @${p.username}${p.display_name ? ` (${p.display_name})` : ''}
-What we know about them: ${p.bio || '(only their handle)'}
-
-Write one genuine opening DM that could start a real conversation.`,
-    feature: 'ig_outreach_draft',
-    clientId,
-  })).trim();
-
-  const { rows: upd } = await pool.query('UPDATE ig_outreach_prospects SET draft = $3 WHERE client_id = $1 AND id = $2 RETURNING *', [clientId, id, draft]);
-  return upd[0];
+// Draft for every not-yet-drafted prospect in a search (capped, sequential).
+async function draftAll(clientId, searchId) {
+  const goal = await goalForSearch(searchId);
+  const ctx = await draftContext(clientId);
+  const { rows: todo } = await pool.query(
+    `SELECT * FROM ig_outreach_prospects WHERE client_id = $1 AND search_id = $2
+       AND (draft IS NULL OR draft = '') AND status NOT IN ('skipped','replied') LIMIT 25`,
+    [clientId, searchId]
+  );
+  let drafted = 0;
+  for (const p of todo) { try { await draftOne(clientId, p, ctx, goal); drafted++; } catch (e) { console.error('[ig-draftAll]', p.id, e.message); } }
+  return { drafted, prospects: await listProspects(clientId, searchId) };
 }
 
 // Best-effort public email: the profile bio, else their website's contact page.
@@ -184,5 +217,5 @@ async function runAutopilot() {
 
 module.exports = {
   listSearches, createSearch, updateSearch, deleteSearch,
-  listProspects, runSearch, setStatus, draftMessage, enrichEmail, runAutopilot,
+  listProspects, runSearch, setStatus, draftMessage, draftAll, enrichEmail, runAutopilot,
 };
