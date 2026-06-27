@@ -52,6 +52,21 @@ async function deleteSearch(clientId, id) {
   await pool.query('DELETE FROM ig_outreach_searches WHERE client_id = $1 AND id = $2', [clientId, id]);
 }
 
+// Prospects not attached to any search (from the pre-saved-search era, or
+// orphaned when a search was deleted) — invisible until reclaimed.
+async function countUnassigned(clientId) {
+  const { rows } = await pool.query('SELECT count(*)::int AS n FROM ig_outreach_prospects WHERE client_id = $1 AND search_id IS NULL', [clientId]);
+  return rows[0]?.n || 0;
+}
+
+// Move all of a client's unassigned prospects into a search so they reappear.
+async function reclaimOrphans(clientId, searchId) {
+  const { rows } = await pool.query('SELECT id FROM ig_outreach_searches WHERE client_id = $1 AND id = $2', [clientId, searchId]);
+  if (!rows[0]) { const e = new Error('Search not found.'); e.status = 404; throw e; }
+  const r = await pool.query('UPDATE ig_outreach_prospects SET search_id = $2 WHERE client_id = $1 AND search_id IS NULL', [clientId, searchId]);
+  return { reclaimed: r.rowCount, prospects: await listProspects(clientId, searchId) };
+}
+
 // ── Prospects ────────────────────────────────────────────────────────────────
 async function listProspects(clientId, searchId) {
   const params = [clientId];
@@ -218,4 +233,5 @@ async function runAutopilot() {
 module.exports = {
   listSearches, createSearch, updateSearch, deleteSearch,
   listProspects, runSearch, setStatus, draftMessage, draftAll, enrichEmail, runAutopilot,
+  countUnassigned, reclaimOrphans,
 };
