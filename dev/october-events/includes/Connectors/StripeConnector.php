@@ -73,9 +73,14 @@ final class StripeConnector {
         }
 
         $intent = self::request('POST', '/payment_intents', $params);
+        $err    = is_array($intent['error'] ?? null) ? $intent['error'] : [];
         return [
             'id'            => (string) ($intent['id'] ?? ''),
             'client_secret' => (string) ($intent['client_secret'] ?? ''),
+            // The Stripe failure reason, surfaced so callers can show the buyer
+            // something actionable instead of a generic error.
+            'error'         => (string) ($err['message'] ?? ''),
+            'error_type'    => (string) ($err['type'] ?? ''),
         ];
     }
 
@@ -180,7 +185,13 @@ final class StripeConnector {
                 return $resp->toArray();
             } catch (\Throwable $e) {
                 Logger::log('Stripe SDK error', ['path' => $path, 'error' => $e->getMessage()]);
-                return [];
+                // Preserve the Stripe error (type + message) like the REST path,
+                // so callers can surface an actionable reason to the buyer.
+                $type = 'api_error';
+                if (method_exists($e, 'getError') && ($se = $e->getError())) {
+                    $type = (string) ($se->type ?? $type);
+                }
+                return ['error' => ['message' => $e->getMessage(), 'type' => $type]];
             }
         }
 

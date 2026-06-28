@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.8 — checkout: plain-English payment errors
+
+Card-payment errors now tell the customer what to actually do, instead of
+showing a raw code like `payment_init_failed`.
+
+- **Bank declines** are translated from Stripe's decline codes into plain
+  English — e.g. insufficient funds, expired card, wrong CVC, or the common
+  "your bank declined this (call the number on the back of your card to approve
+  it, or use a different card)". Most declines are the bank's fraud/security
+  block, not us, so the copy points customers there.
+- **Payment-init failures** now surface the real Stripe reason when it's a card
+  or validation problem the customer can fix; otherwise a friendly fallback
+  (the full reason is still logged server-side for us). The raw error code is no
+  longer shown.
+- The same friendlier handling covers the free-registration and PayPal paths.
+
 ## 1.66.7 — check-in: offline rescans are door-aware
 
 Online, a scan at a **new door** is always a fresh valid check-in; only a repeat

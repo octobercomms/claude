@@ -193,7 +193,7 @@
     rest('/ticket-intent', payload(name, email)).then(function (res) {
       setProcessing(false, '#oct-register-free');
       if (res.ok && res.body.free) { showSuccess(res.body.tickets); }
-      else { $('#oct-free-errors').text(res.body.error || 'Registration failed. Please try again.').show(); }
+      else { $('#oct-free-errors').text(friendlyServerError(res.body, 'Registration failed. Please try again.')).show(); }
     });
   }
 
@@ -222,22 +222,77 @@
     hideCardError(); setProcessing(true, '#oct-pay-card');
 
     rest('/ticket-intent', payload(name, email)).then(function (res) {
-      if (!res.ok) { setProcessing(false, '#oct-pay-card'); showCardError(res.body.error || 'Could not initialise payment.'); return; }
+      if (!res.ok) { setProcessing(false, '#oct-pay-card'); showCardError(friendlyServerError(res.body, 'Could not initialise payment.')); return; }
       if (res.body.free) { setProcessing(false, '#oct-pay-card'); showSuccess(res.body.tickets); return; }
       state.stripe.confirmCardPayment(res.body.client_secret, {
         payment_method: { card: state.cardElement, billing_details: { name: name, email: email } },
       }).then(function (result) {
-        if (result.error) { setProcessing(false, '#oct-pay-card'); showCardError(result.error.message); return; }
+        if (result.error) { setProcessing(false, '#oct-pay-card'); showCardError(friendlyStripeError(result.error)); return; }
         rest('/ticket-confirm', { intent_id: res.body.intent_id }).then(function (c) {
           setProcessing(false, '#oct-pay-card');
           if (c.ok) { showSuccess(c.body.tickets); }
-          else { showCardError(c.body.error || 'Payment confirmed but order creation failed. Please contact us.'); }
+          else { showCardError(friendlyServerError(c.body, 'Payment confirmed but order creation failed. Please contact us.')); }
         });
       });
     });
   }
   function showCardError(m) { $('#oct-card-errors').text(m).show(); }
   function hideCardError() { $('#oct-card-errors').hide().text(''); }
+
+  /* ---- Plain-English payment errors ----
+     Turn Stripe's decline/validation codes (and our own server codes) into
+     something a customer can actually act on — most "declines" are the bank,
+     not us, so we tell them to call their bank or try another card. */
+  var DECLINE_MESSAGES = {
+    insufficient_funds: 'Your card was declined for insufficient funds. Please use a different card.',
+    card_declined: 'Your bank declined this payment. This is usually a security or fraud block on the bank’s side — call the number on the back of your card to approve it, then try again, or use a different card.',
+    do_not_honor: 'Your bank declined this payment without giving a reason. Please call your bank to approve it, or try a different card.',
+    generic_decline: 'Your bank declined this payment. Please call your bank to approve it, or try a different card.',
+    transaction_not_allowed: 'Your bank doesn’t allow this type of payment on this card. Please try a different card or contact your bank.',
+    not_permitted: 'Your bank doesn’t permit this payment on this card. Please try a different card or contact your bank.',
+    fraudulent: 'Your bank flagged this payment as suspicious and blocked it. Please contact your bank, or use a different card.',
+    stolen_card: 'This card was declined by the bank. Please use a different card or contact your bank.',
+    lost_card: 'This card was declined by the bank. Please use a different card or contact your bank.',
+    expired_card: 'Your card has expired. Please use a different card.',
+    incorrect_cvc: 'The card’s security code (CVC) is incorrect. Please check the 3 or 4 digit code and try again.',
+    invalid_cvc: 'The card’s security code (CVC) looks invalid. Please check it and try again.',
+    incorrect_number: 'The card number is incorrect. Please check it and try again.',
+    invalid_number: 'The card number looks invalid. Please check it and try again.',
+    invalid_expiry_month: 'The card’s expiry month is invalid. Please check it and try again.',
+    invalid_expiry_year: 'The card’s expiry year is invalid. Please check it and try again.',
+    incorrect_zip: 'The billing ZIP/postcode doesn’t match your card. Please check it and try again.',
+    card_not_supported: 'This card isn’t supported for this purchase. Please try a different card.',
+    currency_not_supported: 'This card can’t be charged in this currency. Please try a different card.',
+    processing_error: 'There was a temporary problem processing your card. Please wait a moment and try again.',
+    try_again_later: 'Your bank asked us to try again later. Please wait a few minutes and retry, or use a different card.',
+    authentication_required: 'Your bank needs to verify this payment. Please complete the verification step and try again.',
+    withdrawal_count_limit_exceeded: 'This card has hit its limit. Please use a different card or contact your bank.',
+    card_velocity_exceeded: 'This card has hit its limit. Please use a different card or contact your bank.'
+  };
+  function friendlyStripeError(err) {
+    if (!err) { return 'Your payment could not be completed. Please try again or use a different card.'; }
+    var code = err.decline_code || err.code || '';
+    if (DECLINE_MESSAGES[code]) { return DECLINE_MESSAGES[code]; }
+    // Stripe's own message is human-readable for card errors — use it as a fallback.
+    if (err.message) { return err.message; }
+    return 'Your payment could not be completed. Please try again or use a different card.';
+  }
+  var SERVER_MESSAGES = {
+    payment_init_failed: 'We couldn’t start the payment. Please try again in a moment — if it keeps happening, try a different card or contact us.',
+    paypal_init_failed: 'We couldn’t start PayPal checkout. Please try again, or pay by card.',
+    payments_unavailable: 'Card payments are temporarily unavailable. Please try again shortly, or contact us.',
+    amount_too_low: 'This order is free — use “Complete Registration”.'
+  };
+  // The server may send a friendly `message`, a known error code, or (for priced
+  // errors) an already-human sentence — prefer them in that order.
+  function friendlyServerError(body, fallback) {
+    body = body || {};
+    if (body.message) { return body.message; }
+    var code = body.error || '';
+    if (SERVER_MESSAGES[code]) { return SERVER_MESSAGES[code]; }
+    if (code && /\s/.test(code)) { return code; } // already a sentence
+    return fallback || 'Something went wrong. Please try again.';
+  }
 
   /* ---- PayPal ---- */
   function paypalError(m) { $('#oct-paypal-errors').text(m).show(); }
@@ -261,7 +316,7 @@
         if (!buyer) { return Promise.reject(new Error('validation')); }
         return rest('/paypal-create', payload(buyer.name, buyer.email)).then(function (res) {
           if (res.ok && res.body.paypal_order_id) { return res.body.paypal_order_id; }
-          paypalError(res.body.error === 'amount_too_low' ? 'This order is free — use “Complete Registration”.' : (res.body.error || 'Could not start PayPal checkout.'));
+          paypalError(friendlyServerError(res.body, 'Could not start PayPal checkout.'));
           throw new Error('create-failed');
         });
       },
@@ -269,7 +324,7 @@
       onApprove: function (data) {
         return rest('/paypal-capture', { paypal_order_id: data.orderID }).then(function (res) {
           if (res.ok && res.body.ok) { showSuccess(res.body.tickets); }
-          else { paypalError(res.body.error || 'Payment captured but order creation failed — please contact us, do not pay again.'); }
+          else { paypalError(friendlyServerError(res.body, 'Payment captured but order creation failed — please contact us, do not pay again.')); }
         });
       },
       onError: function () { paypalError('Something went wrong with PayPal. Please try again or pay by card.'); }
