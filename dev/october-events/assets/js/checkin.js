@@ -285,7 +285,10 @@
         if (scanning || !window.Html5Qrcode) { return; }
         scanner = new window.Html5Qrcode('oe-ci-reader');
         scanning = true;
-        scanner.start({ facingMode: 'environment' }, { fps: 10, qrbox: 250 }, onDecode, function () {})
+        // No qrbox: scan the whole camera frame. A fixed centred qrbox misaligns
+        // with the CSS object-fit:cover view, so a QR aimed at the on-screen
+        // frame can fall outside the scan region and never decode.
+        scanner.start({ facingMode: 'environment' }, { fps: 10 }, onDecode, function () {})
             .catch(function () { scanning = false; });
     }
     function stopScanner() {
