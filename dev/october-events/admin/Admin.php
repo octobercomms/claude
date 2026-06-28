@@ -223,6 +223,8 @@ final class Admin {
             TicketsAdmin::get_instance()->render_sales();
         } elseif ($tab === 'failed') {
             TicketsAdmin::get_instance()->render_failed_payments();
+        } elseif ($tab === 'transactions') {
+            TicketsAdmin::get_instance()->render_transactions();
         } else {
             TicketsAdmin::get_instance()->render_registrations();
         }
@@ -232,6 +234,7 @@ final class Admin {
     public static function tickets_tabs(string $active): void {
         $tabs = [
             'orders'   => [__('Registrations', 'october-events'), admin_url('admin.php?page=oe-tickets')],
+            'transactions' => [__('Transactions', 'october-events'), admin_url('admin.php?page=oe-tickets&tab=transactions')],
             'sales'    => [__('Sales', 'october-events'),         admin_url('admin.php?page=oe-tickets&tab=sales')],
             'promos'   => [__('Promo codes', 'october-events'),   admin_url('admin.php?page=oe-tickets&tab=promos')],
             'waitlist' => [__('Waitlist', 'october-events'),      admin_url('admin.php?page=oe-tickets&tab=waitlist')],
