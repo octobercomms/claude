@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.2 — fix: ticket numbering, email subject + event date
+
+Three ticket-email fixes:
+
+- **Two tickets bought together both showed "01".** A multi-ticket purchase
+  splits into one order per ticket type, and each order numbered its tickets
+  from 1 — so both tickets read "1 of 1". Tickets are now numbered across the
+  **whole purchase**: buy two and they read "1 of 2" and "2 of 2".
+- **Vague email subject.** "Your tickets" is now
+  **`Ticket: <event> <date> <n/total>`** (e.g. *Ticket: Home Tour March 14,
+  2026 1/2*), so the inbox shows exactly which ticket it is.
+- **Event date showed as a raw timestamp.** Events whose start is stored as a
+  Unix epoch (e.g. `1773446400`) rendered the number verbatim in the email
+  because the date parser couldn't read a bare epoch. It now parses epoch
+  values, so the formatted date appears in both the email body and subject.
+
 ## 1.66.1 — fix: door scanner not detecting + black-band camera
 
 Two check-in scanner bugs:
