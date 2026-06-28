@@ -233,8 +233,9 @@ final class TicketsAdmin {
         $orders = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " {$where} ORDER BY id DESC LIMIT 500");
         // One query to load every event title the rows need (vs one per row).
         self::prime_event_titles($orders);
-        // Active tickets per order (one query) for the inline refund panel.
-        $order_tickets = Orders::active_tickets_for_orders(array_map(static fn($o) => (int) $o->id, (array) ($orders ?: [])));
+        // Active tickets per transaction (one query) for the refund panel — keyed
+        // by payment id so a mixed cart's sibling orders all appear together.
+        $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($o) => (string) $o->payment_id, (array) ($orders ?: [])));
 
         // Events that have ticket types, for the manual-add form + filter.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
@@ -337,6 +338,20 @@ final class TicketsAdmin {
         self::prime_event_titles($events);
         $currency = strtoupper((string) \OE\Settings::get('currency', 'usd'));
         require OE_DIR . 'admin/views/sales.php';
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Transactions (orders grouped by payment)
+     * ------------------------------------------------------------------ */
+
+    public function render_transactions(): void {
+        $event_filter = isset($_GET['event']) ? absint($_GET['event']) : 0;
+        $txns = Orders::transactions($event_filter, 300);
+        self::prime_event_titles($txns);
+        // Active tickets across each transaction, for the refund panel.
+        $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($x) => (string) $x->payment_id, $txns));
+        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
+        require OE_DIR . 'admin/views/transactions.php';
     }
 
     /* ------------------------------------------------------------------ *

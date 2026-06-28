@@ -234,55 +234,80 @@ final class Orders {
     }
 
     /**
-     * Refund specific tickets in a paid Stripe order — partial (some tickets) or
-     * full (all of them). Issues a proportional Stripe refund for the selected
-     * tickets' share of the order total, marks them refunded, flips the order to
-     * "refunded" once nothing active remains, emails the buyer and frees the
-     * seats to the waitlist. $reason is a Stripe enum.
+     * Refund tickets in an order. A cart pays once but issues one order per
+     * ticket type under the same payment, so refunds operate on the whole
+     * transaction — this resolves the order's payment and delegates.
      *
      * @param array<int,int> $ticket_ids
      * @return array{ok:bool,error?:string,refunded?:int,amount?:float}
      */
     public static function refund_tickets(int $order_id, array $ticket_ids, string $reason = ''): array {
-        global $wpdb;
         $order = self::get($order_id);
         if (! $order) {
             return ['ok' => false, 'error' => 'not_found'];
         }
-        if (! $order->payment_id || ! in_array($order->payment_method, ['stripe', 'public'], true)) {
+        if (! $order->payment_id) {
             return ['ok' => false, 'error' => 'not_refundable'];
         }
-        $all = self::tickets($order_id);
-        $total_count = count($all);
-        if ($total_count === 0) {
+        return self::refund_transaction((string) $order->payment_id, $ticket_ids, $reason);
+    }
+
+    /**
+     * Refund selected tickets across a whole transaction — every order that
+     * shares the Stripe payment (a mixed cart = one order per ticket type). One
+     * Stripe refund covers the selected tickets' proportional share of the
+     * transaction total; full = all active tickets. Marks them refunded, flips
+     * each fully-refunded order, emails the buyer once and frees the seats.
+     *
+     * @param array<int,int> $ticket_ids
+     * @return array{ok:bool,error?:string,refunded?:int,amount?:float}
+     */
+    public static function refund_transaction(string $payment_id, array $ticket_ids, string $reason = ''): array {
+        global $wpdb;
+        if ($payment_id === '') {
+            return ['ok' => false, 'error' => 'not_refundable'];
+        }
+        $orders = $wpdb->get_results($wpdb->prepare(
+            'SELECT * FROM ' . Schema::orders() . ' WHERE payment_id = %s ORDER BY id ASC',
+            $payment_id
+        )) ?: [];
+        if (! $orders) {
+            return ['ok' => false, 'error' => 'not_found'];
+        }
+        $first = $orders[0];
+        if (! in_array($first->payment_method, ['stripe', 'public'], true)) {
+            return ['ok' => false, 'error' => 'not_refundable'];
+        }
+
+        $order_ids = array_map(static fn($o) => (int) $o->id, $orders);
+        $in   = implode(',', $order_ids); // ints only
+        $all  = $wpdb->get_results("SELECT id, order_id, status FROM " . Schema::tickets() . " WHERE order_id IN ({$in})") ?: [];
+        $txn_count = count($all);
+        if ($txn_count === 0) {
             return ['ok' => false, 'error' => 'no_tickets'];
         }
-        // Selected tickets that are still active (can't refund an already-refunded one).
         $want = array_map('intval', $ticket_ids);
         $sel  = array_values(array_filter($all, static fn($t) => in_array((int) $t->id, $want, true) && $t->status === 'active'));
         if (! $sel) {
             return ['ok' => false, 'error' => 'none_selected'];
         }
 
-        $k      = count($sel);
-        $total  = (float) $order->total;
-        // Each ticket's proportional share of the order total; the last refund
-        // sweeps any rounding remainder so cumulative refunds match the total.
-        $share  = $total_count > 0 ? $total / $total_count : 0.0;
-        $active_before = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id = %d AND status = 'active'",
-            $order_id
-        ));
+        $k         = count($sel);
+        $txn_total = 0.0;
+        foreach ($orders as $o) {
+            $txn_total += (float) $o->total;
+        }
+        $active_before = count(array_filter($all, static fn($t) => $t->status === 'active'));
+        $share   = $txn_count > 0 ? $txn_total / $txn_count : 0.0;
         $is_full = ($k >= $active_before);
-        $amount  = $is_full
-            ? round($share * $active_before, 2) // remaining active tickets' worth
-            : round($share * $k, 2);
-        $amount  = min($amount, $total);
+        $amount  = $is_full ? round($share * $active_before, 2) : round($share * $k, 2);
+        $amount  = min($amount, $txn_total);
         $cents   = (int) round($amount * 100);
 
         $refund_id = '';
         if ($cents > 0) {
-            $refund_id = StripeConnector::refund((string) $order->payment_id, $is_full ? 0 : $cents, $reason);
+            // amount = 0 tells Stripe to refund the remaining balance (full).
+            $refund_id = StripeConnector::refund((string) $first->payment_id, $is_full ? 0 : $cents, $reason);
             if ($refund_id === '') {
                 return ['ok' => false, 'error' => 'gateway_failed'];
             }
@@ -291,30 +316,35 @@ final class Orders {
         foreach ($sel as $t) {
             $wpdb->update(Schema::tickets(), ['status' => 'refunded'], ['id' => (int) $t->id]);
         }
-        $remaining = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id = %d AND status = 'active'",
-            $order_id
-        ));
-        if ($remaining === 0) {
-            $wpdb->update(Schema::orders(), ['status' => 'refunded', 'updated_at' => current_time('mysql', true)], ['id' => $order_id]);
+        // Flip each order to refunded once it has no active tickets left.
+        foreach ($orders as $o) {
+            $rem = (int) $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id = %d AND status = 'active'",
+                (int) $o->id
+            ));
+            if ($rem === 0 && $o->status !== 'refunded') {
+                $wpdb->update(Schema::orders(), ['status' => 'refunded', 'updated_at' => current_time('mysql', true)], ['id' => (int) $o->id]);
+            }
         }
-        AuditLog::record('order_refunded', $order_id, 'order', ($refund_id ?: 'manual') . ' ×' . $k . ($reason !== '' ? ' (' . $reason . ')' : ''));
+        AuditLog::record('order_refunded', (int) $first->id, 'order', ($refund_id ?: 'manual') . ' ×' . $k . ($reason !== '' ? ' (' . $reason . ')' : ''));
 
-        if ((string) $order->email !== '') {
+        $txn_remaining = (int) $wpdb->get_var("SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id IN ({$in}) AND status = 'active'");
+        if ((string) $first->email !== '') {
             \OE\Mail\Transactional::send('order_refunded', [
-                'email' => (string) $order->email,
-                'name'  => (string) $order->name,
+                'email' => (string) $first->email,
+                'name'  => (string) $first->name,
             ], [
-                'event_name' => get_the_title((int) $order->event_id),
-                'amount'     => trim((string) $amount . ' ' . strtoupper((string) $order->currency)),
-                'partial'    => ($remaining > 0),
+                'event_name' => get_the_title((int) $first->event_id),
+                'amount'     => trim((string) $amount . ' ' . strtoupper((string) $first->currency)),
+                'partial'    => ($txn_remaining > 0),
                 'count'      => $k,
             ]);
         }
-
-        // Freed seats — let the event's waitlist race for them.
-        if ((int) $order->event_id) {
-            Waitlist::notify_all_for_event((int) $order->event_id);
+        // Freed seats — let each event's waitlist race for them.
+        foreach (array_unique(array_map(static fn($o) => (int) $o->event_id, $orders)) as $eid) {
+            if ($eid) {
+                Waitlist::notify_all_for_event($eid);
+            }
         }
 
         return ['ok' => true, 'refunded' => $k, 'amount' => $amount];
@@ -344,6 +374,67 @@ final class Orders {
             $map[(int) $r->order_id][] = $r;
         }
         return $map;
+    }
+
+    /**
+     * Active tickets across whole transactions, grouped by payment id — for the
+     * transaction-wide refund panel (so a mixed cart's orders all appear).
+     *
+     * @param array<int,string> $payment_ids
+     * @return array<string,array<int,object>>
+     */
+    public static function active_tickets_for_payments(array $payment_ids): array {
+        global $wpdb;
+        $pids = array_values(array_unique(array_filter(array_map('strval', $payment_ids))));
+        if (! $pids) {
+            return [];
+        }
+        $t = Schema::tickets();
+        $o = Schema::orders();
+        $place = implode(',', array_fill(0, count($pids), '%s'));
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT t.id, t.order_id, t.ticket_number, t.total_in_order, t.ticket_type_label, t.attendee_name, o.payment_id
+             FROM {$t} t INNER JOIN {$o} o ON t.order_id = o.id
+             WHERE o.payment_id IN ({$place}) AND t.status = 'active'
+             ORDER BY o.payment_id ASC, t.ticket_type_label ASC, t.ticket_number ASC",
+            ...$pids
+        )) ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(string) $r->payment_id][] = $r;
+        }
+        return $map;
+    }
+
+    /**
+     * Transactions — paid orders grouped by Stripe payment (a mixed cart is one
+     * transaction spanning several orders). Newest first, optionally one event.
+     *
+     * @return array<int,object> {payment_id,order_id,name,email,event_id,total,currency,created_at,tickets,active}
+     */
+    public static function transactions(int $event_id = 0, int $limit = 200): array {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        $limit = max(1, min(500, $limit));
+        $where = "o.payment_id <> '' AND o.payment_id IS NOT NULL";
+        $params = [];
+        if ($event_id > 0) {
+            $where .= ' AND o.event_id = %d';
+            $params[] = $event_id;
+        }
+        $params[] = $limit;
+        $sql = "SELECT o.payment_id AS payment_id, MIN(o.id) AS order_id, MAX(o.name) AS name, MAX(o.email) AS email,
+                       MIN(o.event_id) AS event_id, SUM(o.total) AS total, MAX(o.currency) AS currency,
+                       MAX(o.created_at) AS created_at,
+                       COUNT(ti.id) AS tickets,
+                       SUM(CASE WHEN ti.status = 'active' THEN 1 ELSE 0 END) AS active
+                FROM {$o} o LEFT JOIN {$t} ti ON ti.order_id = o.id
+                WHERE {$where}
+                GROUP BY o.payment_id
+                ORDER BY MAX(o.id) DESC
+                LIMIT %d";
+        return $wpdb->get_results($wpdb->prepare($sql, ...$params)) ?: [];
     }
 
     /**

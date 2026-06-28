@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.14 — transaction-wide refunds + a Transactions tab
+
+A cart with several ticket types pays once but is stored as one order per type,
+so the per-order refund only covered one type. Refunds now work across the whole
+**transaction** (everything under one payment).
+
+- The **Refund…** panel on Registrations now lists **every active ticket in the
+  transaction** (all ticket types bought together). All ticked = full refund of
+  the whole purchase; untick for partial. One Stripe refund covers it.
+- New **Transactions** tab: paid orders grouped by payment — one row per
+  purchase, with the buyer, event, ticket count (active / total), amount and a
+  status (Paid / Part refunded / Refunded), each with the same refund panel.
+- Refund amounts are the selected tickets' proportional share of the
+  transaction total; fully-refunded orders flip to "refunded"; the buyer is
+  emailed once and freed seats go to the waitlist.
+
 ## 1.66.13 — capacity is now event-wide, not per ticket type
 
 Capacity has moved off individual ticket types onto the event. An event now has
