@@ -236,26 +236,29 @@ export default function IgOutreachPanel({ clientId }) {
             // — the active list. Nothing is ever removed; it just moves tab.
             const DONE = ['messaged', 'replied', 'skipped'];
             const todoList = prospects.filter(p => !DONE.includes(p.status));
-            // "To work" is this search's queue; "Done" is client-wide (every
-            // worked prospect across ALL searches) so nothing vanishes when
-            // searches are reorganised or deleted.
-            const list = queueTab === 'done' ? worked : todoList;
+            // Each tab is scoped to THIS search: "To work" is its open queue,
+            // "Done" its worked prospects. Worked prospects that got detached
+            // from any search (search_id null) belong to no tab, so they're
+            // surfaced in a safety strip below Done — never invisible.
+            const doneList = prospects.filter(p => DONE.includes(p.status));
+            const detachedWorked = worked.filter(p => !p.search_id);
+            const list = queueTab === 'done' ? doneList : todoList;
+            const doneEmpty = !doneList.length && !detachedWorked.length;
             return (
               <>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
-                  {[['todo', 'To work', todoList.length], ['done', 'Done', worked.length]].map(([key, label, n]) => (
+                  {[['todo', 'To work', todoList.length], ['done', 'Done', doneList.length]].map(([key, label, n]) => (
                     <button key={key} type="button" onClick={() => setQueueTab(key)}
                       className={`btn btn-sm ${queueTab === key ? 'btn-primary' : 'btn-secondary'}`}>
                       {label} ({n})
                     </button>
                   ))}
-                  {queueTab === 'done' && <span className="body-xs text-subtle">across all searches for this client</span>}
                 </div>
 
-                {!list.length ? (
+                {(queueTab === 'done' ? doneEmpty : !list.length) ? (
                   <p className="body-sm text-subtle">
                     {queueTab === 'done'
-                      ? 'Nothing worked yet — everyone you mark messaged, replied or skipped (in any search) collects here.'
+                      ? 'Nothing worked yet — prospects you mark messaged, replied or skipped in this search collect here.'
                       : (prospects.length ? 'All caught up — every prospect in this search has been worked. 🎉 See the Done tab.' : 'No prospects yet — hit Run on this search.')}
                   </p>
                 ) : (
@@ -285,7 +288,6 @@ export default function IgOutreachPanel({ clientId }) {
                           >
                             <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
                             {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
-                            {queueTab === 'done' && <span className="body-xs text-subtle" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>· {p.search_name || 'no search'}</span>}
                             <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
                             <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
                           </div>
@@ -298,7 +300,6 @@ export default function IgOutreachPanel({ clientId }) {
                               <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
                               {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
                               {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
-                              {queueTab === 'done' && <span className="chip chip-outline" style={{ fontSize: 10, marginLeft: 8 }}>{p.search_name || 'no search'}</span>}
                               {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
@@ -329,6 +330,36 @@ export default function IgOutreachPanel({ clientId }) {
                         </div>
                       );
                     })}
+                  </div>
+                )}
+
+                {queueTab === 'done' && detachedWorked.length > 0 && (
+                  <div style={{ marginTop: 'var(--s4)' }}>
+                    <div className="callout callout-warning" style={{ marginBottom: 8 }}>
+                      {detachedWorked.length} worked prospect{detachedWorked.length === 1 ? '' : 's'} {detachedWorked.length === 1 ? "isn't" : "aren't"} attached to any search (from a deleted or reorganised search). They're safe — re-home them here so they show in this search's Done.{' '}
+                      <button onClick={() => reclaim(sel.id)} style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', fontWeight: 700, padding: 0 }}>Attach to “{sel.name}”</button>
+                    </div>
+                    <div className="stack stack-sm">
+                      {detachedWorked.map(p => {
+                        const st = STATUS[p.status] || STATUS.new;
+                        const done = p.status === 'messaged' || p.status === 'replied';
+                        return (
+                          <div key={p.id} style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                            border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                            borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                            background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',
+                            opacity: p.status === 'skipped' ? 0.6 : 1,
+                          }}>
+                            <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</a>
+                            {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
+                            <span className="chip chip-outline" style={{ fontSize: 10, flex: '0 0 auto' }}>no search</span>
+                            <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </>
