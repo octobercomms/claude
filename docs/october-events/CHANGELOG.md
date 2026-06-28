@@ -5,6 +5,18 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.1 — fix: door scanner not detecting + black-band camera
+
+Two check-in scanner bugs:
+
+- **QR codes weren't being detected.** The scanner only looked at a fixed centred
+  `qrbox` region, which misaligned with the `object-fit: cover` video — a QR
+  aimed at the on-screen frame could fall outside the actual scan region. It now
+  scans the **whole camera frame**, so a code is read wherever it's pointed.
+- **Half the camera was black.** html5-qrcode's inline video sizing left a black
+  band below the feed. The video now **absolutely fills** the reader
+  (`object-fit: cover !important`), so it's edge-to-edge.
+
 ## 1.66.0 — performance: collapse the volunteer N+1 (P3)
 
 The volunteer read models and the admin Volunteers screen ran a `COUNT(*)` (and
