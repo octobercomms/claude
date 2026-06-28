@@ -234,6 +234,119 @@ final class Orders {
     }
 
     /**
+     * Refund specific tickets in a paid Stripe order — partial (some tickets) or
+     * full (all of them). Issues a proportional Stripe refund for the selected
+     * tickets' share of the order total, marks them refunded, flips the order to
+     * "refunded" once nothing active remains, emails the buyer and frees the
+     * seats to the waitlist. $reason is a Stripe enum.
+     *
+     * @param array<int,int> $ticket_ids
+     * @return array{ok:bool,error?:string,refunded?:int,amount?:float}
+     */
+    public static function refund_tickets(int $order_id, array $ticket_ids, string $reason = ''): array {
+        global $wpdb;
+        $order = self::get($order_id);
+        if (! $order) {
+            return ['ok' => false, 'error' => 'not_found'];
+        }
+        if (! $order->payment_id || ! in_array($order->payment_method, ['stripe', 'public'], true)) {
+            return ['ok' => false, 'error' => 'not_refundable'];
+        }
+        $all = self::tickets($order_id);
+        $total_count = count($all);
+        if ($total_count === 0) {
+            return ['ok' => false, 'error' => 'no_tickets'];
+        }
+        // Selected tickets that are still active (can't refund an already-refunded one).
+        $want = array_map('intval', $ticket_ids);
+        $sel  = array_values(array_filter($all, static fn($t) => in_array((int) $t->id, $want, true) && $t->status === 'active'));
+        if (! $sel) {
+            return ['ok' => false, 'error' => 'none_selected'];
+        }
+
+        $k      = count($sel);
+        $total  = (float) $order->total;
+        // Each ticket's proportional share of the order total; the last refund
+        // sweeps any rounding remainder so cumulative refunds match the total.
+        $share  = $total_count > 0 ? $total / $total_count : 0.0;
+        $active_before = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id = %d AND status = 'active'",
+            $order_id
+        ));
+        $is_full = ($k >= $active_before);
+        $amount  = $is_full
+            ? round($share * $active_before, 2) // remaining active tickets' worth
+            : round($share * $k, 2);
+        $amount  = min($amount, $total);
+        $cents   = (int) round($amount * 100);
+
+        $refund_id = '';
+        if ($cents > 0) {
+            $refund_id = StripeConnector::refund((string) $order->payment_id, $is_full ? 0 : $cents, $reason);
+            if ($refund_id === '') {
+                return ['ok' => false, 'error' => 'gateway_failed'];
+            }
+        }
+
+        foreach ($sel as $t) {
+            $wpdb->update(Schema::tickets(), ['status' => 'refunded'], ['id' => (int) $t->id]);
+        }
+        $remaining = (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM " . Schema::tickets() . " WHERE order_id = %d AND status = 'active'",
+            $order_id
+        ));
+        if ($remaining === 0) {
+            $wpdb->update(Schema::orders(), ['status' => 'refunded', 'updated_at' => current_time('mysql', true)], ['id' => $order_id]);
+        }
+        AuditLog::record('order_refunded', $order_id, 'order', ($refund_id ?: 'manual') . ' ×' . $k . ($reason !== '' ? ' (' . $reason . ')' : ''));
+
+        if ((string) $order->email !== '') {
+            \OE\Mail\Transactional::send('order_refunded', [
+                'email' => (string) $order->email,
+                'name'  => (string) $order->name,
+            ], [
+                'event_name' => get_the_title((int) $order->event_id),
+                'amount'     => trim((string) $amount . ' ' . strtoupper((string) $order->currency)),
+                'partial'    => ($remaining > 0),
+                'count'      => $k,
+            ]);
+        }
+
+        // Freed seats — let the event's waitlist race for them.
+        if ((int) $order->event_id) {
+            Waitlist::notify_all_for_event((int) $order->event_id);
+        }
+
+        return ['ok' => true, 'refunded' => $k, 'amount' => $amount];
+    }
+
+    /**
+     * Active tickets for a set of orders, grouped by order id, in one query —
+     * for the per-order refund panel (avoids a query per row).
+     *
+     * @param array<int,int> $order_ids
+     * @return array<int,array<int,object>>
+     */
+    public static function active_tickets_for_orders(array $order_ids): array {
+        global $wpdb;
+        $ids = array_values(array_filter(array_map('intval', $order_ids)));
+        if (! $ids) {
+            return [];
+        }
+        $in   = implode(',', $ids); // ints only
+        $rows = $wpdb->get_results(
+            "SELECT id, order_id, ticket_number, total_in_order, ticket_type_label, attendee_name
+             FROM " . Schema::tickets() . " WHERE order_id IN ({$in}) AND status = 'active'
+             ORDER BY order_id ASC, ticket_number ASC"
+        ) ?: [];
+        $map = [];
+        foreach ($rows as $r) {
+            $map[(int) $r->order_id][] = $r;
+        }
+        return $map;
+    }
+
+    /**
      * Permanently delete an order and everything attached to it — its tickets
      * and any check-in scans. Unlike cancel() this leaves no trace and sends no
      * email; it's for clearing out test data. No refund is attempted, so cancel

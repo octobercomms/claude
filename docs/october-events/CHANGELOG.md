@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.12 — Registrations: partial (per-ticket) refunds
+
+The per-order **Refund** action on Registrations is now a panel where you pick
+**which tickets** to refund — all of them (full) or just some (partial) — and a
+reason.
+
+- Tick the tickets to refund (all ticked by default = full refund; untick to
+  refund only some), choose a Stripe reason (requested by customer / duplicate /
+  fraudulent), and refund.
+- A partial refund charges back the selected tickets' proportional share of the
+  order, voids just those tickets, and leaves the rest valid; the order flips to
+  "refunded" only once nothing active remains. The buyer is emailed (the email
+  now says how many tickets were refunded for partials), and freed seats are
+  offered to the waitlist.
+- PayPal orders keep the existing full-refund button (partial card refunds are
+  Stripe-only).
+
 ## 1.66.11 — Tickets: Failed payments tab
 
 A new **Failed payments** tab on the Tickets screen, pulling declined/failed

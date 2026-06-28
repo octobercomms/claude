@@ -173,13 +173,19 @@ final class StripeConnector {
     }
 
     /**
-     * Full refund of a PaymentIntent (§4 — full refund only). Returns the
-     * refund id, or '' on failure.
+     * Refund a PaymentIntent — the whole charge, or a partial $amount_cents for
+     * a per-ticket refund. $reason maps to a Stripe enum (requested_by_customer,
+     * duplicate, fraudulent). Returns the refund id, or '' on failure.
      */
-    public static function refund(string $payment_intent_id): string {
-        $refund = self::request('POST', '/refunds', [
-            'payment_intent' => $payment_intent_id,
-        ]);
+    public static function refund(string $payment_intent_id, int $amount_cents = 0, string $reason = ''): string {
+        $params = ['payment_intent' => $payment_intent_id];
+        if ($amount_cents > 0) {
+            $params['amount'] = $amount_cents;
+        }
+        if (in_array($reason, ['requested_by_customer', 'duplicate', 'fraudulent'], true)) {
+            $params['reason'] = $reason;
+        }
+        $refund = self::request('POST', '/refunds', $params);
         return (string) ($refund['id'] ?? '');
     }
 

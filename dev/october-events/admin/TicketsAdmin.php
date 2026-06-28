@@ -32,6 +32,7 @@ final class TicketsAdmin {
         add_action('admin_post_oe_create_order', [$this, 'handle_create_order']);
         add_action('admin_post_oe_cancel_order', [$this, 'handle_cancel_order']);
         add_action('admin_post_oe_delete_order', [$this, 'handle_delete_order']);
+        add_action('admin_post_oe_refund_tickets', [$this, 'handle_refund_tickets']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
@@ -216,6 +217,8 @@ final class TicketsAdmin {
         $orders = $wpdb->get_results("SELECT * FROM " . Schema::orders() . " {$where} ORDER BY id DESC LIMIT 500");
         // One query to load every event title the rows need (vs one per row).
         self::prime_event_titles($orders);
+        // Active tickets per order (one query) for the inline refund panel.
+        $order_tickets = Orders::active_tickets_for_orders(array_map(static fn($o) => (int) $o->id, (array) ($orders ?: [])));
 
         // Events that have ticket types, for the manual-add form + filter.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
@@ -250,6 +253,18 @@ final class TicketsAdmin {
         $refund   = ! empty($_REQUEST['refund']);
         Orders::cancel($order_id, $refund);
         wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=oe-tickets'));
+        exit;
+    }
+
+    /** Refund selected tickets in an order (partial or full), with a reason. */
+    public function handle_refund_tickets(): void {
+        $this->guard('oe_refund_tickets');
+        $order_id   = absint($_REQUEST['id'] ?? 0);
+        $ticket_ids = array_map('absint', (array) ($_POST['ticket_ids'] ?? []));
+        $reason     = sanitize_text_field((string) ($_POST['reason'] ?? ''));
+        $res = Orders::refund_tickets($order_id, $ticket_ids, $reason);
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
+        wp_safe_redirect(add_query_arg('oe_msg', ! empty($res['ok']) ? 'refunded' : 'refund_failed', remove_query_arg('oe_msg', $back)));
         exit;
     }
 

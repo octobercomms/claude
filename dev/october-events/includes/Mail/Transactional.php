@@ -115,9 +115,18 @@ final class Transactional {
                 return self::event_reminder_body($hi, $params);
 
             case 'order_refunded':
-                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled and refunded.', 'october-events'),
-                    '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>') . '</p>'
-                    . (! empty($params['amount']) ? '<p><strong>' . esc_html__('Refund amount:', 'october-events') . '</strong> ' . esc_html((string) $params['amount']) . '</p>' : '')
+                $ev = '<strong>' . esc_html((string) ($params['event_name'] ?? '')) . '</strong>';
+                $amt_row = ! empty($params['amount']) ? '<p><strong>' . esc_html__('Refund amount:', 'october-events') . '</strong> ' . esc_html((string) $params['amount']) . '</p>' : '';
+                if (! empty($params['partial'])) {
+                    $n = max(1, (int) ($params['count'] ?? 1));
+                    return $hi . '<p>' . sprintf(
+                        esc_html(_n('We\'ve refunded %1$d ticket from your order for %2$s.', 'We\'ve refunded %1$d tickets from your order for %2$s.', $n, 'october-events')),
+                        $n, $ev
+                    ) . '</p>' . $amt_row
+                    . '<p>' . esc_html__('The refund goes back to your original payment method and usually appears within 5–10 business days. Any tickets you kept are still valid.', 'october-events') . '</p>';
+                }
+                return $hi . '<p>' . sprintf(esc_html__('Your order for %s has been cancelled and refunded.', 'october-events'), $ev) . '</p>'
+                    . $amt_row
                     . '<p>' . esc_html__('The refund goes back to your original payment method and usually appears within 5–10 business days. Your tickets are no longer valid.', 'october-events') . '</p>';
 
             case 'order_cancelled':
