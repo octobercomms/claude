@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.3 — check-in log: collapse rescans + add visuals
+
+The Check-in log now reads as one line per ticket per door, with charts above it.
+
+- **Rescans no longer spam the log.** Scanning the same ticket again at the
+  **same door** used to add a whole new row; it now collapses into one row with
+  a **Rescans** count (e.g. ×2) and a "last scanned" time. A scan at a
+  **different door** is still its own row.
+- **Three visuals** above the table:
+  - **Scans by door** — each event split out by door (a single-door event just
+    shows the event name).
+  - **Time of day** — a 24-hour chart of when scans happened (in local time).
+  - **Most popular door** — the busiest stop per event, to spot the most
+    popular home on the tour at a glance.
+
 ## 1.66.2 — fix: ticket numbering, email subject + event date
 
 Three ticket-email fixes:

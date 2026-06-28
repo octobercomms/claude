@@ -322,11 +322,19 @@ final class TicketsAdmin {
         $per_page     = 50;
         $offset       = ($paged - 1) * $per_page;
 
-        $rows  = \OE\Ticketing\CheckIn::log($event_filter, $per_page, $offset);
+        // Log rows are collapsed to one per ticket + door (repeat scans at the
+        // same door become a "rescans" count); a different door is a new row.
+        $rows   = \OE\Ticketing\CheckIn::log_grouped($event_filter, $per_page, $offset);
+        $groups = \OE\Ticketing\CheckIn::log_groups_total($event_filter);
         self::prime_event_titles($rows);
         $total = \OE\Ticketing\CheckIn::log_total($event_filter);
         $stats = $event_filter ? \OE\Ticketing\CheckIn::stats($event_filter) : null;
-        $pages = (int) ceil($total / $per_page);
+        $pages = (int) ceil($groups / $per_page);
+
+        // Chart data: scans per event+door, and scans by hour of the local day.
+        $by_venue = \OE\Ticketing\CheckIn::scans_by_event_venue($event_filter);
+        self::prime_event_titles($by_venue);
+        $by_hour  = \OE\Ticketing\CheckIn::scans_by_hour($event_filter);
 
         // Events that have ticket types, for the filter dropdown.
         $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
