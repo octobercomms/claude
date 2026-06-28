@@ -309,6 +309,67 @@ final class TicketsAdmin {
     }
 
     /* ------------------------------------------------------------------ *
+     * Failed payments
+     * ------------------------------------------------------------------ */
+
+    public function render_failed_payments(): void {
+        $ready = \OE\Connectors\StripeConnector::is_ready();
+        $days  = 90;
+        // Cache the Stripe pull briefly — this tab can be reloaded often and each
+        // load otherwise pages the charges API. A Refresh link busts it.
+        $cache_key = 'oe_failed_charges_' . $days;
+        if (! empty($_GET['refresh'])) {
+            delete_transient($cache_key);
+        }
+        $charges = $ready ? get_transient($cache_key) : [];
+        if ($ready && ! is_array($charges)) {
+            $charges = \OE\Connectors\StripeConnector::failed_charges($days, 300);
+            set_transient($cache_key, $charges, 5 * MINUTE_IN_SECONDS);
+        }
+        $charges = is_array($charges) ? $charges : [];
+
+        // Tally failures by reason for the pie chart (most common first).
+        $reasons = [];
+        foreach ($charges as $c) {
+            $label = self::failure_label((string) ($c['code'] ?? ''));
+            $reasons[$label] = ($reasons[$label] ?? 0) + 1;
+        }
+        arsort($reasons);
+        require OE_DIR . 'admin/views/failed-payments.php';
+    }
+
+    /** Map a Stripe decline/failure code to a short, human label for the chart. */
+    public static function failure_label(string $code): string {
+        $map = [
+            'insufficient_funds'      => __('Insufficient funds', 'october-events'),
+            'generic_decline'         => __('Bank declined (generic)', 'october-events'),
+            'do_not_honor'            => __('Bank declined (do not honor)', 'october-events'),
+            'card_declined'           => __('Card declined', 'october-events'),
+            'transaction_not_allowed' => __('Not allowed on this card', 'october-events'),
+            'fraudulent'              => __('Flagged as fraud', 'october-events'),
+            'lost_card'               => __('Reported lost', 'october-events'),
+            'stolen_card'             => __('Reported stolen', 'october-events'),
+            'expired_card'            => __('Expired card', 'october-events'),
+            'incorrect_cvc'           => __('Wrong security code (CVC)', 'october-events'),
+            'invalid_cvc'             => __('Wrong security code (CVC)', 'october-events'),
+            'incorrect_number'        => __('Wrong card number', 'october-events'),
+            'incorrect_zip'           => __('Wrong ZIP / postcode', 'october-events'),
+            'card_not_supported'      => __('Card not supported', 'october-events'),
+            'currency_not_supported'  => __('Currency not supported', 'october-events'),
+            'processing_error'        => __('Processing error', 'october-events'),
+            'authentication_required' => __('3-D Secure not completed', 'october-events'),
+            'approve_with_id'         => __('Bank needs ID verification', 'october-events'),
+            'try_again_later'         => __('Temporary — try again later', 'october-events'),
+            'call_issuer'             => __('Call issuer', 'october-events'),
+            'card_velocity_exceeded'  => __('Card limit reached', 'october-events'),
+            'withdrawal_count_limit_exceeded' => __('Card limit reached', 'october-events'),
+            'unknown'                 => __('Unknown', 'october-events'),
+            ''                        => __('Unknown', 'october-events'),
+        ];
+        return $map[$code] ?? ucwords(str_replace('_', ' ', $code));
+    }
+
+    /* ------------------------------------------------------------------ *
      * Waitlist
      * ------------------------------------------------------------------ */
 
