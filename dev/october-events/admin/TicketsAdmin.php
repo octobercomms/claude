@@ -365,7 +365,7 @@ final class TicketsAdmin {
         // Cache the Stripe pull briefly — this tab can be reloaded often and each
         // load otherwise pages the charges API. A Refresh link busts it.
         $cache_key = 'oe_failed_charges_' . $days;
-        if (! empty($_GET['refresh'])) {
+        if (! empty($_GET['refresh']) && check_admin_referer('oe_failed_refresh')) {
             delete_transient($cache_key);
         }
         $charges = $ready ? get_transient($cache_key) : [];

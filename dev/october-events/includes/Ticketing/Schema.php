@@ -51,7 +51,8 @@ final class Schema {
             KEY event_id (event_id),
             KEY email (email),
             KEY payment_id (payment_id),
-            KEY status (status)
+            KEY status (status),
+            KEY event_status (event_id, status)
         ) {$charset};");
 
         $tickets = self::tickets();
@@ -69,7 +70,9 @@ final class Schema {
             PRIMARY KEY  (id),
             UNIQUE KEY token (token),
             KEY order_id (order_id),
-            KEY event_id (event_id)
+            KEY event_id (event_id),
+            KEY order_status (order_id, status),
+            KEY event_status (event_id, status)
         ) {$charset};");
 
         $checkins = self::checkins();
@@ -81,7 +84,9 @@ final class Schema {
             scanned_at DATETIME NOT NULL,
             PRIMARY KEY  (id),
             KEY ticket_id (ticket_id),
-            KEY event_id (event_id)
+            KEY event_id (event_id),
+            KEY ticket_venue (ticket_id, venue_name),
+            KEY event_venue_ticket (event_id, venue_name, ticket_id)
         ) {$charset};");
 
         $promos = self::promos();

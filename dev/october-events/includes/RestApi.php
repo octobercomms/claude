@@ -279,6 +279,9 @@ final class RestApi {
     }
 
     public function confirm_payment(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('confirm_payment', 30)) {
+            return $this->too_many();
+        }
         $intent_id = (string) $req->get_param('intent_id');
         // Verify with Stripe that the intent actually succeeded before advancing.
         $intent = StripeConnector::retrieve_payment_intent($intent_id);
@@ -357,6 +360,9 @@ final class RestApi {
     }
 
     public function volunteer_shifts(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('volunteer_shifts', 60)) {
+            return $this->too_many();
+        }
         $opportunity_id = (int) $req->get_param('opportunity_id');
         $out = [];
         foreach (Volunteers::shifts($opportunity_id) as $s) {
@@ -636,6 +642,9 @@ final class RestApi {
      * ----------------------------------------------------------------- */
 
     public function checkin_events(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('checkin_events', 30)) {
+            return $this->too_many();
+        }
         return new \WP_REST_Response(\OE\Ticketing\CheckIn::events(), 200);
     }
 
@@ -744,6 +753,9 @@ final class RestApi {
 
 
     public function map_pins(\WP_REST_Request $req): \WP_REST_Response {
+        if (! $this->rl('map_pins', 60)) {
+            return $this->too_many();
+        }
         $cats = array_filter(array_map('sanitize_key', explode(',', (string) $req->get_param('categories'))));
         return new \WP_REST_Response(MapsConnector::pins($cats), 200);
     }
