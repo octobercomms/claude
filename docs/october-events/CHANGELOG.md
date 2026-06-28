@@ -5,6 +5,14 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.6 — checkout: clearer sold-out styling
+
+- The **"Sold out"** label is now full red and the **same size as the ticket
+  name**, instead of small faded italics — sold-out rows stay full-strength
+  rather than dimmed like other unavailable states, so they read clearly.
+- The **Join Waitlist** button now matches the **Apply** button (solid dark
+  pill with the accent hover) instead of the small outline style.
+
 ## 1.66.5 — waitlist auto-offer on capacity increase + delete orders
 
 - **Raising capacity now offers seats to the waitlist automatically.** Before,

@@ -39,7 +39,7 @@ $unavailable_states = ['coming_soon', 'sale_ended', 'sold_out', 'unavailable'];
             $has_sale    = isset($tt['sale_price']) && $tt['sale_price'] !== null && (float) $tt['sale_price'] < (float) $tt['price'];
             $is_first    = (! $unavailable && ! $first_available_done);
             if ($is_first) { $first_available_done = true; }
-            $row_class   = 'oct-ticket-row' . ($is_first ? ' oct-ticket-row--selected' : '') . ($unavailable ? ' oct-ticket-row--unavailable' : '');
+            $row_class   = 'oct-ticket-row' . ($is_first ? ' oct-ticket-row--selected' : '') . ($unavailable ? ' oct-ticket-row--unavailable' : '') . ($state === 'sold_out' ? ' oct-ticket-row--soldout' : '');
         ?>
           <div class="<?php echo esc_attr($row_class); ?>"
                data-key="<?php echo esc_attr((string) $tt['key']); ?>"
