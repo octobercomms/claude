@@ -137,6 +137,38 @@ final class Ics {
         return $s ? wp_date('F j, Y', $s) : '';
     }
 
+    /**
+     * A Google Calendar "add event" template URL — a clickable alternative to
+     * the .ics attachment in the ticket email (webmail clients honour it even
+     * when they hide attachments). '' if the event has no parseable start.
+     */
+    public static function gcal_url(int $event_id): string {
+        $start = self::ts((string) Events::get($event_id, 'start_datetime', ''));
+        if (! $start) {
+            return '';
+        }
+        $end = self::ts((string) Events::get($event_id, 'end_datetime', ''));
+        if (! $end || $end <= $start) {
+            $end = $start + 2 * HOUR_IN_SECONDS;
+        }
+        $name = (string) Events::get($event_id, 'name', '') ?: get_the_title($event_id);
+        $args = [
+            'action' => 'TEMPLATE',
+            'text'   => $name,
+            'dates'  => gmdate('Ymd\THis\Z', $start) . '/' . gmdate('Ymd\THis\Z', $end),
+        ];
+        $loc = (string) Events::get($event_id, 'location', '');
+        if ($loc !== '') {
+            $args['location'] = $loc;
+        }
+        $desc = wp_strip_all_tags((string) Events::get($event_id, 'description', ''));
+        if ($desc !== '') {
+            $args['details'] = $desc;
+        }
+        // add_query_arg URL-encodes the values for us.
+        return add_query_arg($args, 'https://calendar.google.com/calendar/render');
+    }
+
     /** Parse a local datetime string (site timezone) to a UTC timestamp, 0 if unparseable. */
     private static function ts(string $val): int {
         $val = trim($val);

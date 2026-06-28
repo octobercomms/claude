@@ -251,6 +251,8 @@ final class Orders {
             'when'       => $event_id ? Ics::when_label($event_id) : '',
             'location'   => $event_id ? (string) \OE\Planning\Events::get($event_id, 'location', '') : '',
             'logo'       => TicketTypes::logo_url($event_id),
+            'cal_url'    => $event_id ? Ics::gcal_url($event_id) : '',
+            'has_ics'    => $ics !== '',
             'tickets'    => array_map(static fn($t) => [
                 'number'   => $t->ticket_number . ' / ' . $t->total_in_order,
                 'attendee' => (string) $t->attendee_name,

@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.4 — ticket email "add to calendar" + a Checkout settings tab
+
+- **"Add to calendar" is now a real link.** The ticket email's calendar line
+  was static underlined text that only looked clickable, and it always claimed
+  ".ics attached" even when none was. It's now a clickable **Google Calendar**
+  link, and the ".ics attached" note only shows when an invite is actually
+  attached. (The missing attachment itself is fixed in 1.66.2 — events whose
+  start was stored as a Unix epoch couldn't produce an .ics.)
+- **Checkout settings are easy to find.** The "Terms & Conditions URL" setting
+  (plus the pre-event reminder and PayPal) lived under *Keys & platform →
+  Planning platform*, where nobody would look. They now have their own
+  **Checkout** tab in Settings. Setting the Terms URL still adds the required
+  "I agree to the Terms & Conditions" checkbox to the checkout.
+
 ## 1.66.3 — check-in log: collapse rescans + add visuals
 
 The Check-in log now reads as one line per ticket per door, with charts above it.

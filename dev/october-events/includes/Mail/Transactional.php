@@ -191,6 +191,18 @@ final class Transactional {
         $ev_meta = trim($when . ($where !== '' ? ($when !== '' ? '<br>' : '') . esc_html($where) : ''));
         if ($when !== '') { $ev_meta = esc_html($when) . ($where !== '' ? '<br>' . esc_html($where) : ''); }
 
+        // "Add to calendar" — a real clickable Google Calendar link when we can
+        // build one, with the .ics attachment noted only when one is attached.
+        $cal_url = (string) ($params['cal_url'] ?? '');
+        $has_ics = ! empty($params['has_ics']);
+        $cal_html = '';
+        if ($cal_url !== '' || $has_ics) {
+            $note  = $has_ics ? ' <span style="font-weight:400;color:#888">' . esc_html__('(.ics attached)', 'october-events') . '</span>' : '';
+            $cal_html = $cal_url !== ''
+                ? '<div style="margin-top:10px"><a href="' . esc_url($cal_url) . '" target="_blank" rel="noopener" style="font-size:13px;font-weight:700;color:#111">' . esc_html__('Add to calendar', 'october-events') . '</a>' . $note . '</div>'
+                : '<div style="margin-top:10px;font-size:13px;color:#111">' . esc_html__('Add to calendar', 'october-events') . $note . '</div>';
+        }
+
         return '<!doctype html><html><body style="margin:0;background:#eceae6">'
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceae6;padding:24px;font-family:Arial,Helvetica,sans-serif">'
             . '<tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#fff;border:2px solid #111">'
@@ -207,7 +219,7 @@ final class Transactional {
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:2px solid #111;margin:0 0 18px"><tr><td style="padding:14px 16px">'
             . '<div style="font-size:18px;font-weight:800;color:#111;line-height:1.2;margin-bottom:' . ($ev_meta !== '' ? '6px' : '0') . '">' . esc_html($event) . '</div>'
             . ($ev_meta !== '' ? '<div style="font-size:13px;color:#444;line-height:1.5">' . $ev_meta . '</div>' : '')
-            . '<div style="margin-top:10px;font-size:13px;font-weight:700;color:#111;text-decoration:underline">' . esc_html__('Add to calendar (.ics attached)', 'october-events') . '</div>'
+            . $cal_html
             . '</td></tr></table>'
             // tickets
             . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">' . $rows . '</table>'
