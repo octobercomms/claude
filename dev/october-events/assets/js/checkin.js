@@ -115,8 +115,14 @@
         // The manifest carries token *hashes*, not raw tokens.
         var tokens = {};
         (data.tickets || []).forEach(function (t) { tokens[t.token_hash] = { attendee: t.attendee, type: t.type }; });
+        // checked is keyed by "<hash>|<venue>" so a repeat is only flagged at the
+        // same door. Older manifests sent a bare hash string (any door) — keep
+        // reading those so a stale cache still works after an update.
         var checked = {};
-        (data.checked_in || []).forEach(function (h) { checked[h] = true; });
+        (data.checked_in || []).forEach(function (c) {
+            if (typeof c === 'string') { checked[c + '|'] = true; checked[c] = true; }
+            else if (c && c.token_hash) { checked[c.token_hash + '|' + (c.venue || '')] = true; }
+        });
         return { tokens: tokens, checked: checked, generated: data.generated || '' };
     }
     function loadManifest() {
@@ -313,9 +319,12 @@
         sha256hex(token).then(function (h) {
             var t = manifest.tokens[h];
             if (!t) { overlay('invalid', {}); return; }
-            var already = !!manifest.checked[h];
-            manifest.checked[h] = true; // remember locally so a repeat flags here too
-            enqueue(token);             // queue the RAW token; the server re-validates on sync
+            // Door-aware: a repeat is only "already" at the *same* door; a new
+            // door is a fresh valid check-in (matches the online behaviour).
+            var key = h + '|' + state.venue;
+            var already = !!manifest.checked[key];
+            manifest.checked[key] = true; // remember locally so a repeat here flags too
+            enqueue(token);               // queue the RAW token; the server re-validates on sync
             if (!already) { state.count++; document.getElementById('oe-ci-count').textContent = state.count; }
             overlay(already ? 'already' : 'valid', { attendee: t.attendee, type: t.type, offline: true });
         }).catch(function () { overlay('invalid', {}); });
@@ -329,8 +338,8 @@
                 overlay(s.status, s);
                 if (s.status === 'valid') {
                     state.count++; document.getElementById('oe-ci-count').textContent = state.count;
-                    // Keep the local (hash-keyed) checked set current in case we drop offline.
-                    if (manifest) { sha256hex(token).then(function (h) { manifest.checked[h] = true; }).catch(function () {}); }
+                    // Keep the local checked set current (per door) in case we drop offline.
+                    if (manifest) { var v = state.venue; sha256hex(token).then(function (h) { manifest.checked[h + '|' + v] = true; }).catch(function () {}); }
                 }
                 refreshStats();
             })

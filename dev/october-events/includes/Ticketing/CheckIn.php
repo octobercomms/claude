@@ -121,7 +121,7 @@ final class CheckIn {
      * validating (and flagging repeats) when the venue Wi-Fi drops. Small by
      * design — a few KB even at ~1,000 tickets.
      *
-     * @return array{tickets:array<int,array{token:string,attendee:string,type:string}>,checked_in:array<int,string>,generated:string}
+     * @return array{tickets:array<int,array{token:string,attendee:string,type:string}>,checked_in:array<int,array{token_hash:string,venue:string}>,generated:string}
      */
     public static function manifest(int $event_id): array {
         if ($event_id === self::TEST_EVENT_ID) {
@@ -150,14 +150,20 @@ final class CheckIn {
             'attendee'   => (string) $r->attendee_name,
             'type'       => (string) $r->ticket_type_label,
         ], $rows);
-        // Hashes of tokens already scanned anywhere — lets an offline device flag repeats.
-        $checked = $wpdb->get_col($wpdb->prepare(
-            "SELECT DISTINCT t.token FROM {$c} c INNER JOIN {$t} t ON t.id = c.ticket_id WHERE c.event_id = %d",
+        // Tokens already scanned, paired with the door — so an offline device flags
+        // a repeat only at the *same* door (a new door is a fresh valid check-in,
+        // matching the online behaviour). Token is shipped hashed, never raw.
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT DISTINCT t.token AS token, c.venue_name AS venue FROM {$c} c INNER JOIN {$t} t ON t.id = c.ticket_id WHERE c.event_id = %d",
             $event_id
         )) ?: [];
+        $checked = array_map(static fn($r) => [
+            'token_hash' => self::token_hash((string) $r->token),
+            'venue'      => (string) $r->venue,
+        ], $rows);
         return [
             'tickets'    => $tickets,
-            'checked_in' => array_map([self::class, 'token_hash'], array_map('strval', $checked)),
+            'checked_in' => $checked,
             'generated'  => current_time('mysql', true),
         ];
     }

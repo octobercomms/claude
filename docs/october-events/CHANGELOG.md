@@ -5,6 +5,16 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.7 — check-in: offline rescans are door-aware
+
+Online, a scan at a **new door** is always a fresh valid check-in; only a repeat
+at the **same door** is flagged "already". Offline (when the venue Wi-Fi drops),
+the cached check was door-agnostic, so a ticket already scanned at one door would
+wrongly show "already" at a different door. The offline manifest now pairs each
+scanned token with its door, so offline matches online — a new door reads valid,
+a same-door repeat reads "already". (Stale caches from before this update still
+work; they just fall back to the old any-door behaviour until the next refresh.)
+
 ## 1.66.6 — checkout: clearer sold-out styling
 
 - The **"Sold out"** label is now full red and the **same size as the ticket
