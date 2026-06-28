@@ -31,6 +31,7 @@ final class TicketsAdmin {
 
         add_action('admin_post_oe_create_order', [$this, 'handle_create_order']);
         add_action('admin_post_oe_cancel_order', [$this, 'handle_cancel_order']);
+        add_action('admin_post_oe_delete_order', [$this, 'handle_delete_order']);
         add_action('admin_post_oe_resend_confirmation', [$this, 'handle_resend_confirmation']);
         add_action('admin_post_oe_save_promo', [$this, 'handle_save_promo']);
         add_action('admin_post_oe_delete_promo', [$this, 'handle_delete_promo']);
@@ -190,6 +191,18 @@ final class TicketsAdmin {
         update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => sanitize_text_field($n)], $venues)));
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
         update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
+
+        // Raising a sold-out type's capacity (or re-activating it) opens seats —
+        // offer them to anyone already on the waitlist for that type, first come
+        // first served. promote() marks each notified, so nobody is emailed twice.
+        foreach (TicketTypes::types($post_id) as $tt) {
+            $key = (string) ($tt['key'] ?? '');
+            if ($key !== ''
+                && \OE\Ticketing\Waitlist::count($post_id, $key) > 0
+                && TicketTypes::availability($post_id, $tt)['state'] === 'available') {
+                \OE\Ticketing\Waitlist::notify_for_type($post_id, $key);
+            }
+        }
     }
 
     /* ------------------------------------------------------------------ *
@@ -237,6 +250,15 @@ final class TicketsAdmin {
         $refund   = ! empty($_REQUEST['refund']);
         Orders::cancel($order_id, $refund);
         wp_safe_redirect(wp_get_referer() ?: admin_url('admin.php?page=oe-tickets'));
+        exit;
+    }
+
+    /** Permanently delete an order + its tickets + check-ins (e.g. test data). */
+    public function handle_delete_order(): void {
+        $this->guard('oe_delete_order');
+        Orders::delete(absint($_REQUEST['id'] ?? 0));
+        $back = wp_get_referer() ?: admin_url('admin.php?page=oe-tickets');
+        wp_safe_redirect(add_query_arg('oe_msg', 'deleted', remove_query_arg('oe_msg', $back)));
         exit;
     }
 

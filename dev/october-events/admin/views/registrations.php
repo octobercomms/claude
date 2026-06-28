@@ -30,6 +30,7 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
             'created'       => ['success', __('Order created and tickets issued.', 'october-events')],
             'resent'        => ['success', __('Confirmation email re-sent to the buyer.', 'october-events')],
             'resend_failed' => ['error', __('Could not re-send — that order has no email address.', 'october-events')],
+            'deleted'       => ['success', __('Order deleted, along with its tickets and any check-in scans.', 'october-events')],
         ];
         $note = $messages[$m] ?? ['error', __('Could not create that order — check the event has a ticket type.', 'october-events')]; ?>
         <div class="notice notice-<?php echo esc_attr($note[0]); ?> is-dismissible"><p><?php echo esc_html($note[1]); ?></p></div>
@@ -77,7 +78,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         <?php foreach (($orders ?: []) as $o) :
             $cancel = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&id=' . $o->id), 'oe_cancel_order');
             $refund = wp_nonce_url(admin_url('admin-post.php?action=oe_cancel_order&refund=1&id=' . $o->id), 'oe_cancel_order');
-            $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_resend_confirmation&id=' . $o->id), 'oe_resend_confirmation'); ?>
+            $resend = wp_nonce_url(admin_url('admin-post.php?action=oe_resend_confirmation&id=' . $o->id), 'oe_resend_confirmation');
+            $delete = wp_nonce_url(admin_url('admin-post.php?action=oe_delete_order&id=' . $o->id), 'oe_delete_order'); ?>
             <tr>
                 <td><?php echo (int) $o->id; ?></td>
                 <td><?php echo esc_html(get_the_title((int) $o->event_id)); ?></td>
@@ -96,7 +98,8 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
                         <?php if ($o->payment_id) : ?>
                             <a class="button button-small" href="<?php echo esc_url($refund); ?>" onclick="return confirm('<?php echo esc_js(__('Refund this order via Stripe and void its tickets? The customer will be emailed their refund.', 'october-events')); ?>')"><?php esc_html_e('Refund', 'october-events'); ?></a>
                         <?php endif; ?>
-                    <?php else : ?>—<?php endif; ?>
+                    <?php endif; ?>
+                    <a class="button button-small button-link-delete" href="<?php echo esc_url($delete); ?>" title="<?php esc_attr_e('Permanently delete (for test data)', 'october-events'); ?>" onclick="return confirm('<?php echo esc_js(__('Permanently delete this order, its tickets and any check-in scans? This cannot be undone, and no refund is issued.', 'october-events')); ?>')"><?php esc_html_e('Delete', 'october-events'); ?></a>
                 </td>
             </tr>
         <?php endforeach; ?>

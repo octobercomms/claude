@@ -115,6 +115,27 @@ final class Waitlist {
         return $n;
     }
 
+    /**
+     * Offer a freed-up spot to everyone still waiting for a specific ticket type
+     * (first come, first served) — used when a sold-out type's capacity is
+     * raised. Each is emailed a checkout link and marked notified, so the same
+     * person isn't offered twice. Returns how many were notified.
+     */
+    public static function notify_for_type(int $event_id, string $type_key): int {
+        global $wpdb;
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM " . Schema::waitlist() . " WHERE event_id = %d AND ticket_type_key = %s AND status = 'waiting' ORDER BY id ASC",
+            $event_id, $type_key
+        )) ?: [];
+        $n = 0;
+        foreach ($ids as $id) {
+            if (self::promote((int) $id)) {
+                $n++;
+            }
+        }
+        return $n;
+    }
+
     public static function remove(int $id): void {
         global $wpdb;
         $wpdb->delete(Schema::waitlist(), ['id' => $id]);

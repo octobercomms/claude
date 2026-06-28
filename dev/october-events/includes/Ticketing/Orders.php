@@ -233,6 +233,29 @@ final class Orders {
         }
     }
 
+    /**
+     * Permanently delete an order and everything attached to it — its tickets
+     * and any check-in scans. Unlike cancel() this leaves no trace and sends no
+     * email; it's for clearing out test data. No refund is attempted, so cancel
+     * (with refund) a real paid order first if money changed hands.
+     */
+    public static function delete(int $order_id): void {
+        global $wpdb;
+        $order = self::get($order_id);
+        if (! $order) {
+            return;
+        }
+        $ticket_ids = $wpdb->get_col($wpdb->prepare('SELECT id FROM ' . Schema::tickets() . ' WHERE order_id = %d', $order_id));
+        if ($ticket_ids) {
+            $ids = implode(',', array_map('intval', $ticket_ids));
+            // IDs are cast to int above, so this interpolation is safe.
+            $wpdb->query("DELETE FROM " . Schema::checkins() . " WHERE ticket_id IN ({$ids})");
+        }
+        $wpdb->delete(Schema::tickets(), ['order_id' => $order_id]);
+        $wpdb->delete(Schema::orders(), ['id' => $order_id]);
+        AuditLog::record('order_deleted', $order_id, 'order', (string) $order->payment_id);
+    }
+
     /* ------------------------------------------------------------------ */
 
     public static function send_confirmation(int $order_id): void {
