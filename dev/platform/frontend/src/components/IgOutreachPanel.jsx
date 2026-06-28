@@ -45,6 +45,7 @@ export default function IgOutreachPanel({ clientId }) {
   const [draftingAll, setDraftingAll] = useState(false);
   const [enriching, setEnriching] = useState(null);
   const [expanded, setExpanded] = useState({}); // ids the AM manually re-opened after collapse
+  const [queueTab, setQueueTab] = useState('todo'); // 'todo' = still to work · 'done' = messaged/replied/skipped
   // New-search form
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -222,99 +223,106 @@ export default function IgOutreachPanel({ clientId }) {
             </div>
           )}
 
-          {!prospects.length ? (
-            <p className="body-sm text-subtle">No prospects yet — hit Run on this search.</p>
-          ) : (
-            <div className="stack stack-sm">
-              {(() => {
-                const workedCount = (counts.messaged || 0) + (counts.replied || 0) + (counts.skipped || 0);
-                // First currently-collapsed card marks the start of the "worked"
-                // section — we drop a labelled divider above it so the done
-                // prospects are obviously still here, just tucked away.
-                const firstCollapsedIdx = prospects.findIndex(p => ['messaged', 'replied', 'skipped'].includes(p.status) && !expanded[p.id]);
-                return prospects.map((p, idx) => {
-                const st = STATUS[p.status] || STATUS.new;
-                const done = p.status === 'messaged' || p.status === 'replied';
-                const isSkipped = p.status === 'skipped';
-                // Messaged/replied (green) and skipped (grey) collapse to a slim
-                // one-line row to keep the queue focused on who's still to work.
-                // Click the row to re-open it (copy/redraft/unskip).
-                const collapsed = (done || isSkipped) && !expanded[p.id];
-                const divider = idx === firstCollapsedIdx ? (
-                  <div className="caption text-subtle" style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '6px 2px 2px' }}>
-                    <span style={{ flex: '0 0 auto' }}>✓ Worked — {counts.messaged || 0} messaged · {counts.replied || 0} replied · {counts.skipped || 0} skipped</span>
-                    <span style={{ flex: 1, height: 1, background: 'var(--card-border)' }} />
-                    <span style={{ flex: '0 0 auto', fontWeight: 400 }}>click any to re-open</span>
+          {(() => {
+            // Split the queue into "To work" (still to contact) and "Done"
+            // (messaged / replied / skipped) tabs, so finished prospects live in
+            // their own place instead of cluttering — or hiding at the bottom of
+            // — the active list. Nothing is ever removed; it just moves tab.
+            const DONE = ['messaged', 'replied', 'skipped'];
+            const todoList = prospects.filter(p => !DONE.includes(p.status));
+            const doneList = prospects.filter(p => DONE.includes(p.status));
+            const list = queueTab === 'done' ? doneList : todoList;
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--s4)' }}>
+                  {[['todo', 'To work', todoList.length], ['done', 'Done', doneList.length]].map(([key, label, n]) => (
+                    <button key={key} type="button" onClick={() => setQueueTab(key)}
+                      className={`btn btn-sm ${queueTab === key ? 'btn-primary' : 'btn-secondary'}`}>
+                      {label} ({n})
+                    </button>
+                  ))}
+                </div>
+
+                {!list.length ? (
+                  <p className="body-sm text-subtle">
+                    {queueTab === 'done'
+                      ? 'Nothing worked yet — messaged, replied and skipped prospects collect here.'
+                      : (prospects.length ? 'All caught up — every prospect has been worked. 🎉 See the Done tab.' : 'No prospects yet — hit Run on this search.')}
+                  </p>
+                ) : (
+                  <div className="stack stack-sm">
+                    {list.map(p => {
+                      const st = STATUS[p.status] || STATUS.new;
+                      const done = p.status === 'messaged' || p.status === 'replied';
+                      const isSkipped = p.status === 'skipped';
+                      // In the Done tab rows start collapsed to a slim green/grey
+                      // line; click to re-open (copy / redraft / restore).
+                      const collapsed = queueTab === 'done' && !expanded[p.id];
+
+                      if (collapsed) {
+                        return (
+                          <div
+                            key={p.id}
+                            onClick={() => setExpanded(prev => ({ ...prev, [p.id]: true }))}
+                            title="Click to re-open"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                              padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                              border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                              borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                              background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',
+                              opacity: isSkipped ? 0.6 : 1,
+                            }}
+                          >
+                            <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
+                            {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
+                            <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
+                            <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: isSkipped ? 0.55 : 1, borderLeft: done ? '4px solid var(--positive)' : undefined, background: done ? 'var(--positive-soft)' : undefined }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
+                              {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
+                              {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
+                              {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+                              <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
+                              {queueTab === 'done' && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(prev => { const n = { ...prev }; delete n[p.id]; return n; })} title="Collapse">▴</button>}
+                            </div>
+                          </div>
+
+                          {p.draft && (
+                            <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
+                              <div className="body-sm">{p.draft}</div>
+                              <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => copy(p.draft)}>Copy message</button>
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
+                            <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
+                            <button className="btn btn-secondary btn-sm" onClick={() => draft(p.id)} disabled={drafting === p.id}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
+                            {!p.email && <button className="btn btn-secondary btn-sm" onClick={() => enrich(p.id)} disabled={enriching === p.id}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
+                            {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
+                            {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
+                            {p.status === 'skipped' ? (
+                              <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'new')}>↩ Restore to queue</button>
+                            ) : (
+                              <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                ) : null;
-
-                if (collapsed) {
-                  return (
-                    <React.Fragment key={p.id}>
-                    {divider}
-                    <div
-                      onClick={() => setExpanded(prev => ({ ...prev, [p.id]: true }))}
-                      title="Click to re-open"
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-                        padding: '8px 14px', borderRadius: 'var(--r-sm)',
-                        border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
-                        borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
-                        background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',
-                        opacity: isSkipped ? 0.6 : 1,
-                      }}
-                    >
-                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
-                      {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
-                      <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
-                      <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
-                    </div>
-                    </React.Fragment>
-                  );
-                }
-                return (
-                  <React.Fragment key={p.id}>
-                  {divider}
-                  <div className="card" style={{ padding: 'var(--s4)', opacity: isSkipped ? 0.55 : 1, borderLeft: done ? '4px solid var(--positive)' : undefined, background: done ? 'var(--positive-soft)' : undefined }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
-                        {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
-                        {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
-                        {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
-                        <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
-                        {(done || isSkipped) && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(prev => { const n = { ...prev }; delete n[p.id]; return n; })} title="Collapse">▴</button>}
-                      </div>
-                    </div>
-
-                    {p.draft && (
-                      <div style={{ marginTop: 10, padding: '10px 12px', background: 'var(--surface-sunken)', borderRadius: 'var(--r-sm)' }}>
-                        <div className="body-sm">{p.draft}</div>
-                        <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => copy(p.draft)}>Copy message</button>
-                      </div>
-                    )}
-
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12 }}>
-                      <a href={`https://ig.me/m/${p.username}`} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Open DM ↗</a>
-                      <button className="btn btn-secondary btn-sm" onClick={() => draft(p.id)} disabled={drafting === p.id}>{drafting === p.id ? 'Drafting…' : (p.draft ? '↻ Redraft' : '✦ Draft message')}</button>
-                      {!p.email && <button className="btn btn-secondary btn-sm" onClick={() => enrich(p.id)} disabled={enriching === p.id}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
-                      {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
-                      {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
-                      {p.status === 'skipped' ? (
-                        <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'new')}>↩ Restore to queue</button>
-                      ) : (
-                        <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>
-                      )}
-                    </div>
-                  </div>
-                  </React.Fragment>
-                );
-                });
-              })()}
-            </div>
-          )}
+                )}
+              </>
+            );
+          })()}
         </>
       )}
     </div>
