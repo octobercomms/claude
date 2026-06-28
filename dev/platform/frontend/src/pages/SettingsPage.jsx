@@ -550,9 +550,18 @@ export default function SettingsPage() {
                         )}
                         {group.scopes && <ScopesBlock scopes={group.scopes} />}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: group.hint || group.note ? 12 : 0 }}>
-                          {group.keys.map(({ key, label, placeholder, type }) => (
-                            <div key={key} className="field">
-                              <label className="field-label">{label}</label>
+                          {group.keys.map(({ key, label, placeholder, type }) => {
+                            // Each row turns green on its own once stored, so a
+                            // group with one field deliberately left blank still
+                            // shows clearly which keys ARE set (the whole cell only
+                            // goes green when every required key is filled).
+                            const fieldSet = values[key] === '••••••••';
+                            return (
+                            <div key={key} className="field" style={{ borderLeft: `3px solid ${fieldSet && !groupSet ? 'var(--positive)' : 'transparent'}`, background: fieldSet && !groupSet ? 'var(--positive-soft)' : 'transparent', borderRadius: 'var(--r-sm)', padding: fieldSet && !groupSet ? '8px 10px' : '0', marginLeft: fieldSet && !groupSet ? '-10px' : '0', transition: 'background .15s, border-color .15s' }}>
+                              <label className="field-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {label}
+                                {fieldSet && <span className="chip chip-success" style={{ fontSize: 9, flex: '0 0 auto' }}>✓ set</span>}
+                              </label>
                               <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                                 <input
                                   type={visibleKeys[key] ? 'text' : type}
@@ -575,7 +584,8 @@ export default function SettingsPage() {
                               </div>
                               <span className="body-xs text-subtle"><code>{key}</code></span>
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                         {group.test === 'dataforseo' && (
                           <div style={{ marginTop: 12 }}>
