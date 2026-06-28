@@ -303,6 +303,7 @@ const SECTIONS = [
   { key: 'workspace', label: 'Workspace', subs: [
     { k: 'contacts', label: 'Contacts' },
     { k: 'publications', label: 'Publications' },
+    { k: 'praddon', label: 'PR Gmail add-on' },
     { k: 'tags', label: 'Tags' },
     { k: 'strategy', label: 'Strategy templates' },
   ] },
@@ -492,10 +493,10 @@ export default function SettingsPage() {
       {tab === 'strategy' && <StrategyTemplatesPanel />}
       {tab === 'costs' && (<>
       <CostsPanel />
-      <CostLogPanel />
       <KeywordSpendPanel />
-      <PrAddonPanel />
+      <CostLogPanel />
       </>)}
+      {tab === 'praddon' && <PrAddonPanel />}
 
       {tab === 'ai' && <AiModelsPanel />}
 

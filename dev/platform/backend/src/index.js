@@ -134,11 +134,13 @@ const authLimiter = rateLimit({
 
 // Global per-IP cap to make UUID brute-forcing of public endpoints
 // (report HTML, approval links, open-tracking pixel) non-trivial and
-// to cap accidental loops in client code. Generous limit so normal
-// dashboard use never trips it.
+// to cap accidental loops in client code. A single dashboard load fans
+// out to many panel requests, so this is set high enough that repeatedly
+// refreshing never locks a legitimate user out — brute-force protection
+// on the sensitive endpoints lives in authLimiter, not here.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: 2500,
   message: { error: 'Too many requests. Slow down and try again shortly.' },
 });
 app.use('/api', globalLimiter);
