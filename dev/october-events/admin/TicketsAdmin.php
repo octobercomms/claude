@@ -65,7 +65,6 @@ final class TicketsAdmin {
                 <th><?php esc_html_e('Price', 'october-events'); ?></th>
                 <th><?php esc_html_e('Sale', 'october-events'); ?></th>
                 <th><?php esc_html_e('Admits', 'october-events'); ?></th>
-                <th><?php esc_html_e('Capacity', 'october-events'); ?></th>
                 <th><?php esc_html_e('On sale from', 'october-events'); ?></th>
                 <th><?php esc_html_e('until', 'october-events'); ?></th>
                 <th><?php esc_html_e('Active', 'october-events'); ?></th>
@@ -76,6 +75,23 @@ final class TicketsAdmin {
             </tbody>
         </table>
         <p><button type="button" class="button" id="oe-tt-add"><?php esc_html_e('+ Add ticket type', 'october-events'); ?></button></p>
+
+        <?php
+        // Event-wide capacity (replaces the old per-ticket-type capacity). For
+        // events saved before this change, pre-fill from the sum of the old
+        // per-type caps so the existing limit carries over on the next save.
+        $event_cap = get_post_meta($post->ID, TicketTypes::META_CAPACITY, true);
+        if ($event_cap === '' || $event_cap === false) {
+            $legacy = 0; $had = false;
+            foreach ($types as $t) {
+                if (($t['capacity'] ?? null) !== null) { $legacy += (int) $t['capacity']; $had = true; }
+            }
+            $event_cap = $had ? (string) $legacy : '';
+        }
+        ?>
+        <p><label><strong><?php esc_html_e('Event capacity', 'october-events'); ?></strong>
+            <input type="number" min="0" name="oe_event_capacity" value="<?php echo esc_attr((string) $event_cap); ?>" style="width:90px" placeholder="∞"></label>
+            <span class="description"><?php esc_html_e('Total tickets across all types for this event. Leave blank (or 0) for unlimited. When it’s reached, every ticket type shows “Sold out”.', 'october-events'); ?></span></p>
 
         <p><label><strong><?php esc_html_e('Close all sales at', 'october-events'); ?></strong>
             <input type="datetime-local" name="oe_sale_until" value="<?php echo esc_attr($this->dt_local((string) get_post_meta($post->ID, TicketTypes::META_SALE_UNTIL, true))); ?>"></label></p>
@@ -150,7 +166,6 @@ final class TicketsAdmin {
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][price]" value="<?php echo $g('price'); ?>" style="width:80px"></td>
             <td><input type="number" step="0.01" min="0" name="oe_tt[<?php echo $i; ?>][sale_price]" value="<?php echo esc_attr($t['sale_price'] ?? ''); ?>" style="width:80px"></td>
             <td><input type="number" min="1" max="20" name="oe_tt[<?php echo $i; ?>][qty_per_purchase]" value="<?php echo $g('qty_per_purchase', '1'); ?>" style="width:55px"></td>
-            <td><input type="number" min="0" name="oe_tt[<?php echo $i; ?>][capacity]" value="<?php echo esc_attr($t['capacity'] ?? ''); ?>" style="width:70px" placeholder="∞"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_from]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_from'] ?? ''))); ?>"></td>
             <td><input type="datetime-local" name="oe_tt[<?php echo $i; ?>][sale_until]" value="<?php echo esc_attr($this->dt_local((string) ($t['sale_until'] ?? ''))); ?>"></td>
             <td style="text-align:center"><input type="checkbox" name="oe_tt[<?php echo $i; ?>][active]" value="1" <?php checked(! empty($t['active']) || $t === []); ?>></td>
@@ -179,7 +194,6 @@ final class TicketsAdmin {
                 'price'            => $r['price'] ?? 0,
                 'sale_price'       => $r['sale_price'] ?? '',
                 'qty_per_purchase' => $r['qty_per_purchase'] ?? 1,
-                'capacity'         => $r['capacity'] ?? '',
                 'active'           => ! empty($r['active']),
                 'sale_from'        => $this->from_local((string) ($r['sale_from'] ?? '')),
                 'sale_until'       => $this->from_local((string) ($r['sale_until'] ?? '')),
@@ -192,10 +206,12 @@ final class TicketsAdmin {
         update_post_meta($post_id, TicketTypes::META_VENUES, wp_json_encode(array_map(static fn($n) => ['name' => sanitize_text_field($n)], $venues)));
         update_post_meta($post_id, TicketTypes::META_PIN, preg_replace('/\D/', '', (string) ($_POST['oe_checkin_pin'] ?? '')));
         update_post_meta($post_id, TicketTypes::META_LOGO, absint($_POST['oe_ticket_logo'] ?? 0));
+        // Event-wide capacity (blank/0 = unlimited).
+        update_post_meta($post_id, TicketTypes::META_CAPACITY, max(0, absint($_POST['oe_event_capacity'] ?? 0)));
 
-        // Raising a sold-out type's capacity (or re-activating it) opens seats —
-        // offer them to anyone already on the waitlist for that type, first come
-        // first served. promote() marks each notified, so nobody is emailed twice.
+        // Raising the event capacity (or re-activating a type) opens seats — offer
+        // them to anyone already on the waitlist, first come first served.
+        // promote() marks each notified, so nobody is emailed twice.
         foreach (TicketTypes::types($post_id) as $tt) {
             $key = (string) ($tt['key'] ?? '');
             if ($key !== ''
