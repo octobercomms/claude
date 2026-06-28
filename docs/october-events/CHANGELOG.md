@@ -5,6 +5,21 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.13 — capacity is now event-wide, not per ticket type
+
+Capacity has moved off individual ticket types onto the event. An event now has
+one **Event capacity** (total tickets across all types); when it's reached,
+every ticket type shows "Sold out".
+
+- The per-ticket-type **Capacity** column is gone; there's a single **Event
+  capacity** field under the ticket types (blank or 0 = unlimited).
+- Availability, the sold-out state and the checkout capacity guard all count
+  admissions across the whole event now.
+- Existing events: their old per-type caps are **summed and pre-filled** into the
+  new Event capacity field (and used as a fallback until you re-save), so a
+  current limit carries over rather than silently becoming unlimited. Set the
+  number you actually want and save.
+
 ## 1.66.12 — Registrations: partial (per-ticket) refunds
 
 The per-order **Refund** action on Registrations is now a panel where you pick

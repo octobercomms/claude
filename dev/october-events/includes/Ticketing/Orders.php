@@ -76,10 +76,10 @@ final class Orders {
             if ($avail['state'] !== 'available') {
                 return new \WP_Error('oe_unavailable', __('Those tickets are no longer available.', 'october-events'));
             }
-            $cap = $type['capacity'] ?? null;
+            $cap = TicketTypes::event_capacity($event_id);
             if ($cap !== null) {
-                $would = TicketTypes::sold_count($event_id, $type['key']) + ($qty * (int) $type['qty_per_purchase']);
-                if ($would > (int) $cap) {
+                $would = TicketTypes::event_sold_count($event_id) + ($qty * (int) $type['qty_per_purchase']);
+                if ($would > $cap) {
                     return new \WP_Error('oe_capacity', __('Not enough tickets remain for that quantity.', 'october-events'));
                 }
             }

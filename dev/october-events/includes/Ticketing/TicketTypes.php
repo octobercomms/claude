@@ -19,6 +19,7 @@ final class TicketTypes {
     public const META_VENUES     = '_oe_checkin_venues';
     public const META_PIN        = '_oe_checkin_pin';
     public const META_LOGO       = '_oe_ticket_logo'; // attachment id for the per-event ticket/email logo
+    public const META_CAPACITY   = '_oe_event_capacity'; // event-wide ticket capacity (0/empty = unlimited)
 
     /**
      * Logo shown top-left on the ticket page and confirmation email for an
@@ -58,7 +59,6 @@ final class TicketTypes {
                 'price'            => round((float) ($t['price'] ?? 0), 2),
                 'sale_price'       => ($t['sale_price'] ?? '') === '' ? null : round((float) $t['sale_price'], 2),
                 'qty_per_purchase' => min(20, max(1, (int) ($t['qty_per_purchase'] ?? 1))),
-                'capacity'         => ($t['capacity'] ?? '') === '' ? null : max(0, (int) $t['capacity']),
                 'active'           => ! empty($t['active']),
                 'sale_from'        => sanitize_text_field((string) ($t['sale_from'] ?? '')),
                 'sale_until'       => sanitize_text_field((string) ($t['sale_until'] ?? '')),
@@ -101,6 +101,45 @@ final class TicketTypes {
     }
 
     /**
+     * Total admissions sold across all ticket types for an event (paid orders,
+     * active tickets) — capacity is now event-wide, not per type.
+     */
+    public static function event_sold_count(int $event_id): int {
+        global $wpdb;
+        $o = Schema::orders();
+        $t = Schema::tickets();
+        return (int) $wpdb->get_var($wpdb->prepare(
+            "SELECT COUNT(*) FROM {$t} t INNER JOIN {$o} o ON t.order_id = o.id
+             WHERE o.event_id = %d AND o.status = 'paid' AND t.status = 'active'",
+            $event_id
+        ));
+    }
+
+    /**
+     * The event's total ticket capacity, or null for unlimited. Reads the
+     * event-wide setting; for events saved before capacity moved off the ticket
+     * type, it falls back to the sum of the old per-type caps so an existing
+     * limit is preserved until the event is re-saved.
+     */
+    public static function event_capacity(int $event_id): ?int {
+        $raw = get_post_meta($event_id, self::META_CAPACITY, true);
+        if ($raw !== '' && $raw !== false && $raw !== null) {
+            $n = (int) $raw;
+            return $n > 0 ? $n : null; // 0 / blank = unlimited
+        }
+        // Legacy fallback — sum any per-type caps still stored on the event.
+        $sum = 0;
+        $had = false;
+        foreach (self::types($event_id) as $t) {
+            if (($t['capacity'] ?? null) !== null) {
+                $sum += (int) $t['capacity'];
+                $had  = true;
+            }
+        }
+        return $had ? $sum : null;
+    }
+
+    /**
      * Availability state for a type: available | coming_soon | sale_ended |
      * sold_out | unavailable. Returns [state, extra].
      *
@@ -121,8 +160,8 @@ final class TicketTypes {
         if ($event_close !== '' && strtotime($event_close) < $now) {
             return ['state' => 'sale_ended', 'opens' => ''];
         }
-        $capacity = $type['capacity'] ?? null;
-        if ($capacity !== null && self::sold_count($event_id, $type['key']) >= (int) $capacity) {
+        $capacity = self::event_capacity($event_id);
+        if ($capacity !== null && self::event_sold_count($event_id) >= $capacity) {
             return ['state' => 'sold_out', 'opens' => ''];
         }
         return ['state' => 'available', 'opens' => ''];
