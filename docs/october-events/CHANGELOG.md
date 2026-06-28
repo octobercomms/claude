@@ -5,6 +5,20 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.5 — waitlist auto-offer on capacity increase + delete orders
+
+- **Raising capacity now offers seats to the waitlist automatically.** Before,
+  the waitlist was only worked when an order was cancelled/refunded — bumping a
+  sold-out ticket type's capacity left everyone sitting at "pending". Now, when
+  you save an event and a sold-out type has open seats again, everyone waiting
+  for that type is emailed a checkout link (first come, first served; each
+  person is only offered once).
+- **Delete orders.** Registrations now has a **Delete** action that permanently
+  removes an order, its tickets and any check-in scans — for clearing out test
+  data. It's distinct from Cancel (which voids + refunds and emails the buyer);
+  Delete leaves no trace and sends nothing. No refund is issued, so Cancel a
+  real paid order first if money changed hands.
+
 ## 1.66.4 — ticket email "add to calendar" + a Checkout settings tab
 
 - **"Add to calendar" is now a real link.** The ticket email's calendar line
