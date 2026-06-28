@@ -2,7 +2,7 @@
 Contributors: octobercomms
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 1.66.11
+Stable tag: 1.66.12
 License: GPL-2.0-or-later
 
 Consolidated operations platform for the Atlanta Design Festival: accounts,
