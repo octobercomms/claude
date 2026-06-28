@@ -5,6 +5,19 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.11 — Tickets: Failed payments tab
+
+A new **Failed payments** tab on the Tickets screen, pulling declined/failed
+charges live from Stripe (last 90 days) so you can see what's turning buyers
+away and act on patterns.
+
+- A **pie chart** breaking down failures by reason (insufficient funds, bank
+  declines, expired card, wrong CVC, etc.), with counts and percentages.
+- A **table** of each failed charge — when, email, card, amount and the
+  plain-English reason (plus Stripe's own message).
+- Cached for a few minutes with a Refresh button; shows a "connect Stripe"
+  prompt if no key is set, and a clean "no failures" state when there are none.
+
 ## 1.66.10 — fix: stop browsers autofilling the login password over API keys
 
 The Settings → API keys fields are masked (password-type), so browser password

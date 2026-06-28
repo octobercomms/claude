@@ -89,6 +89,62 @@ final class StripeConnector {
     }
 
     /**
+     * Failed charges in the last $days, with the decline reason + card details —
+     * for the Failed payments dashboard. Pages through Stripe (the charges list
+     * can't filter by status server-side) up to a bounded number of pages.
+     *
+     * @return array<int,array{id:string,created:int,amount:float,currency:string,email:string,brand:string,last4:string,code:string,message:string}>
+     */
+    public static function failed_charges(int $days = 90, int $max = 300): array {
+        if (! self::is_ready()) {
+            return [];
+        }
+        $days  = max(1, min(365, $days));
+        $max   = max(1, min(1000, $max));
+        $since = time() - $days * DAY_IN_SECONDS;
+        $out   = [];
+        $after = '';
+        $pages = 0;
+        do {
+            $params = ['limit' => 100, 'created' => ['gte' => $since]];
+            if ($after !== '') {
+                $params['starting_after'] = $after;
+            }
+            $res  = self::request('GET', '/charges', $params);
+            $data = is_array($res['data'] ?? null) ? $res['data'] : [];
+            if (! $data) {
+                break;
+            }
+            foreach ($data as $ch) {
+                $after = (string) ($ch['id'] ?? $after); // cursor advances over every charge
+                if (($ch['status'] ?? '') !== 'failed') {
+                    continue;
+                }
+                $outcome = is_array($ch['outcome'] ?? null) ? $ch['outcome'] : [];
+                $card    = is_array($ch['payment_method_details']['card'] ?? null) ? $ch['payment_method_details']['card'] : [];
+                $out[] = [
+                    'id'       => (string) ($ch['id'] ?? ''),
+                    'created'  => (int) ($ch['created'] ?? 0),
+                    'amount'   => isset($ch['amount']) ? $ch['amount'] / 100 : 0.0,
+                    'currency' => strtoupper((string) ($ch['currency'] ?? '')),
+                    'email'    => (string) ($ch['billing_details']['email'] ?? ($ch['receipt_email'] ?? '')),
+                    'brand'    => (string) ($card['brand'] ?? ''),
+                    'last4'    => (string) ($card['last4'] ?? ''),
+                    // The issuer's decline reason is the most useful bucket; fall
+                    // back to the charge-level failure code.
+                    'code'     => (string) ($outcome['reason'] ?? ($ch['failure_code'] ?? 'unknown')),
+                    'message'  => (string) ($ch['failure_message'] ?? ($outcome['seller_message'] ?? '')),
+                ];
+                if (count($out) >= $max) {
+                    return $out;
+                }
+            }
+            $pages++;
+        } while (! empty($res['has_more']) && $pages < 10);
+        return $out;
+    }
+
+    /**
      * Recent failed charges (for the assistant's "failed payments" answers).
      *
      * @return array<int,array<string,mixed>>
