@@ -6,16 +6,18 @@ import EditContactModal from '../components/EditContactModal';
 import ManageUsersPage from './ManageUsersPage';
 import SecurityPanel from '../components/SecurityPanel';
 import StrategyTemplatesPanel from '../components/StrategyTemplatesPanel';
+import AiModelsPanel from '../components/AiModelsPanel';
 import IntegrationsPage from './IntegrationsPage';
 
 const KEY_GROUPS = [
   {
-    title: 'Claude AI',
+    title: 'AI models',
     category: 'AI & Email',
-    hint: 'Used for generating executive summaries, social posts, ad creative and report narratives. The Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API; without it, Anthropic spend is tracked via your dashboard.',
+    hint: 'Claude powers report narratives, summaries, social, ad creative and the AI Data Analyst. The Anthropic Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API. DeepSeek is optional and selectable per question in the Data Analyst (a cheap, fast model) — but it sends data to DeepSeek, so use it for non-sensitive questions only.',
     keys: [
       { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
       { key: 'ANTHROPIC_ADMIN_KEY', label: 'Anthropic Admin Key (optional — for cost tracking)', placeholder: 'sk-ant-admin-…', type: 'password' },
+      { key: 'DEEPSEEK_API_KEY', label: 'DeepSeek API Key (optional)', placeholder: 'sk-… from platform.deepseek.com — enables DeepSeek in the Data Analyst', type: 'password' },
     ],
   },
   {
@@ -423,6 +425,7 @@ export default function SettingsPage() {
       <div className="tabs">
         {[
           { key: 'general', label: 'General' },
+          { key: 'aimodels', label: 'AI models' },
           { key: 'integrations', label: 'Integrations' },
           { key: 'contacts', label: 'Contacts' },
           { key: 'publications', label: 'Publications' },
@@ -438,6 +441,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {tab === 'aimodels' && <AiModelsPanel />}
       {tab === 'integrations' && <IntegrationsPage embedded />}
       {tab === 'contacts' && <ContactsLibrary />}
       {tab === 'publications' && <PublicationsPanel />}

@@ -28,6 +28,8 @@ const SETTINGS_KEYS = [
   'OMI_FORWARD_SECRET',
   'ZOHO_CLIENT_ID', 'ZOHO_CLIENT_SECRET', 'ZOHO_REDIRECT_URI',
   'CLAUDE_API_KEY', 'ANTHROPIC_ADMIN_KEY',
+  // DeepSeek — selectable per question in the AI Data Analyst (cheap/fast model).
+  'DEEPSEEK_API_KEY',
   'DATAFORSEO_LOGIN', 'DATAFORSEO_PASSWORD',
   'REPLICATE_API_TOKEN', 'IDEOGRAM_API_KEY',
   'ADOBE_CLIENT_ID', 'ADOBE_CLIENT_SECRET',
@@ -173,6 +175,33 @@ router.post('/platform-keys', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// AI model routing — which model runs each text/JSON feature (Settings → AI
+// models). The Data Analyst has its own per-question picker (routes/chat.js).
+router.get('/ai-models', async (req, res) => {
+  try {
+    const aiModels = require('../services/aiModels');
+    res.json({ models: aiModels.MODELS, default: aiModels.DEFAULT_MODEL, features: aiModels.FEATURES, map: await aiModels.getMap() });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/ai-models', async (req, res) => {
+  try {
+    const aiModels = require('../services/aiModels');
+    const incoming = (req.body && req.body.map) || {};
+    const clean = {};
+    for (const [k, v] of Object.entries(incoming)) {
+      if (aiModels.FEATURE_KEYS.has(k) && aiModels.MODELS[v] && v !== aiModels.DEFAULT_MODEL) clean[k] = v;
+    }
+    await db.query(
+      `INSERT INTO platform_settings (key, value, updated_at) VALUES ('AI_MODEL_MAP', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(encrypt(JSON.stringify(clean)))]
+    );
+    aiModels.clearCache();
+    res.json({ map: clean });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // POST test DataForSEO credentials (uses supplied values, or the saved ones)

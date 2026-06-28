@@ -1,8 +1,9 @@
 const Anthropic = require('@anthropic-ai/sdk');
 const axios = require('axios');
-const { recordClaudeCost } = require('./costLog');
+const { recordClaudeCost, recordApiCost } = require('./costLog');
 
 const MODEL = 'claude-sonnet-4-6';
+const DEEPSEEK_PRICES = { input: 0.27, output: 1.10 }; // $/M tokens, approx (deepseek-chat)
 
 // Fetch a domain's homepage, strip the HTML, return a chunk of plain text
 // suitable for stuffing into a prompt. Best-effort — failures return ''.
@@ -54,17 +55,44 @@ function cacheableSystem(system) {
 // Single-shot text call used by the template renderer for each narrative
 // section. Returns the concatenated text content (no tool use). Keep this
 // generic — section-specific framing lives in templateRenderer.js.
-async function callClaude({ max_tokens, system, user, model = MODEL, feature = 'report_narrative', clientId = null }) {
+// Plain text completion via DeepSeek's OpenAI-compatible API. Used when a
+// feature is routed to DeepSeek in Settings → AI models.
+async function callDeepSeekText({ max_tokens, system, user, feature, clientId }) {
+  const { getSetting } = require('../utils/settings');
+  const key = process.env.DEEPSEEK_API_KEY || await getSetting('DEEPSEEK_API_KEY');
+  if (!key) throw new Error('DeepSeek not configured — add a key in Settings → AI models, or set this feature back to Claude.');
+  const { data } = await callWithRetry(() => axios.post('https://api.deepseek.com/chat/completions', {
+    model: 'deepseek-chat',
+    messages: [{ role: 'system', content: system || SYSTEM_PROMPT }, { role: 'user', content: typeof user === 'string' ? user : JSON.stringify(user) }],
+    max_tokens: Math.min(max_tokens || 4000, 8000),
+    stream: false,
+  }, { headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, timeout: 120000 }));
+  const u = data.usage || {};
+  recordApiCost({
+    provider: 'deepseek', feature, clientId,
+    costUsd: ((u.prompt_tokens || 0) / 1e6) * DEEPSEEK_PRICES.input + ((u.completion_tokens || 0) / 1e6) * DEEPSEEK_PRICES.output,
+    meta: { model: 'deepseek-chat', ...u },
+  });
+  return String(data.choices?.[0]?.message?.content || '').trim();
+}
+
+// Single-shot text call. Routes per-feature to Claude (any model) or DeepSeek,
+// per the AM's Settings → AI models map. An explicit `model` argument overrides
+// the routing. No tool use — that path stays on Claude (see routes/chat.js).
+async function callClaude({ max_tokens, system, user, model = null, feature = 'report_narrative', clientId = null }) {
+  const aiModels = require('./aiModels');
+  const chosen = (model && aiModels.MODELS[model]) ? model : await aiModels.resolveModel(feature);
+  if (aiModels.MODELS[chosen]?.provider === 'deepseek') {
+    return callDeepSeekText({ max_tokens, system, user, feature, clientId });
+  }
+  const useModel = aiModels.MODELS[chosen] ? chosen : MODEL;
   const message = await callWithRetry(() => getClient().messages.create({
-    model,
+    model: useModel,
     max_tokens,
     system: cacheableSystem(system),
     messages: [{ role: 'user', content: user }],
   }));
-  // Record cost — fire-and-forget. The feature label defaults to
-  // 'report_narrative' (the original use site) but callers can override
-  // e.g. callClaude({ ..., feature: 'beat_suggestion', clientId }).
-  recordClaudeCost({ model, response: message, feature, clientId });
+  recordClaudeCost({ model: useModel, response: message, feature, clientId });
   const blocks = (message.content || []).filter(b => b.type === 'text' && b.text);
   return blocks.map(b => b.text).join('\n').trim();
 }

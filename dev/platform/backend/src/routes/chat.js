@@ -18,6 +18,19 @@ router.use(requireClientAccess({ paramNames: ['clientId'] }));
 const MODEL = 'claude-sonnet-4-6';
 const MAX_TOOL_ROUNDS = 6;
 
+// Models the AM can pick per question in the Data Analyst. DeepSeek is the
+// cheap/fast option for simple lookups; Opus for deep analysis. All three run
+// the same tool loop — Claude via the Anthropic SDK, DeepSeek via its
+// OpenAI-compatible function-calling API.
+const CHAT_MODELS = {
+  'claude-fable-5':    { provider: 'anthropic', label: 'Claude Fable' },
+  'claude-sonnet-4-6': { provider: 'anthropic', label: 'Claude Sonnet' },
+  'claude-opus-4-8':   { provider: 'anthropic', label: 'Claude Opus' },
+  'deepseek-chat':     { provider: 'deepseek',  label: 'DeepSeek' },
+};
+const DEFAULT_CHAT_MODEL = 'claude-sonnet-4-6';
+const DEEPSEEK_PRICES = { input: 0.27, output: 1.10 }; // $/M tokens, approx (deepseek-chat)
+
 function getClaude() {
   return new Anthropic({ apiKey: process.env.CLAUDE_API_KEY });
 }
@@ -716,6 +729,57 @@ Client: ${client.name} | Domain: ${client.domain || 'not set'} | Monthly focus: 
 British English. Commercially minded. When you use tools, briefly mention what you checked so the account manager can see your reasoning.`;
 }
 
+// Run the analyst tool loop against DeepSeek's OpenAI-compatible API. Same
+// tools and executeTool as the Claude path — just translated to OpenAI's
+// function-calling shape (tools[].function, assistant tool_calls, role:'tool'
+// results). Returns { finalText, toolsUsed }. DeepSeek is text-only, so the
+// caller routes image/PDF turns to Claude before getting here.
+async function runDeepSeekChat({ systemText, messages, clientId, win, maxTokens }) {
+  const axios = require('axios');
+  const { getSetting } = require('../utils/settings');
+  const key = process.env.DEEPSEEK_API_KEY || await getSetting('DEEPSEEK_API_KEY');
+  if (!key) { const e = new Error("DeepSeek isn't configured — add a DeepSeek API key in Settings, or pick a Claude model."); e.status = 400; throw e; }
+
+  const tools = TOOLS.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.input_schema } }));
+  const msgs = [{ role: 'system', content: systemText }, ...messages.map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : '' }))];
+  const toolsUsed = [];
+  let finalText = '';
+
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    const { data } = await axios.post('https://api.deepseek.com/chat/completions', {
+      model: 'deepseek-chat', messages: msgs, tools, tool_choice: 'auto', max_tokens: maxTokens, stream: false,
+    }, { headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' }, timeout: 120000 });
+
+    const u = data.usage || {};
+    require('../services/costLog').recordApiCost({
+      provider: 'deepseek', feature: 'ai_data_analyst_chat', clientId,
+      costUsd: ((u.prompt_tokens || 0) / 1e6) * DEEPSEEK_PRICES.input + ((u.completion_tokens || 0) / 1e6) * DEEPSEEK_PRICES.output,
+      meta: { model: 'deepseek-chat', ...u },
+    });
+
+    const m = data.choices?.[0]?.message;
+    if (!m) break;
+    if (m.tool_calls && m.tool_calls.length) {
+      msgs.push(m);
+      for (const tc of m.tool_calls) {
+        toolsUsed.push(tc.function?.name);
+        let result;
+        try {
+          let input = {};
+          try { input = JSON.parse(tc.function?.arguments || '{}'); } catch { /* bad args */ }
+          if (win && tc.function?.name === 'get_connector_data') input = { ...input, start_date: win.start, end_date: win.end, days: undefined };
+          result = await executeTool(tc.function?.name, input, clientId);
+        } catch (err) { result = { error: err.message }; }
+        msgs.push({ role: 'tool', tool_call_id: tc.id, content: JSON.stringify(result) });
+      }
+      continue;
+    }
+    finalText = m.content || '';
+    break;
+  }
+  return { finalText, toolsUsed };
+}
+
 // ── Routes ─────────────────────────────────────────────────────────────────
 
 router.get('/:clientId', async (req, res) => {
@@ -733,8 +797,14 @@ router.get('/:clientId', async (req, res) => {
 });
 
 router.post('/:clientId', async (req, res) => {
-  const { message, image, start_date, end_date } = req.body;
+  const { message, image, start_date, end_date, model } = req.body;
   if (!message?.trim() && !image) return res.status(400).json({ error: 'message required' });
+
+  // Which model the AM picked for this question. DeepSeek is text-only, so an
+  // image/PDF turn falls back to the default Claude model.
+  let chosenModel = CHAT_MODELS[model] ? model : DEFAULT_CHAT_MODEL;
+  let provider = CHAT_MODELS[chosenModel].provider;
+  if (image && provider === 'deepseek') { chosenModel = DEFAULT_CHAT_MODEL; provider = 'anthropic'; }
 
   // Optional analysis window selected in the chat box. When both dates are
   // present we instruct the analyst to use exactly this range for every data
@@ -807,9 +877,16 @@ router.post('/:clientId', async (req, res) => {
       ? `\n\nDATA WINDOW (set by the account manager): ${win.start} to ${win.end}. Every get_connector_data result this turn is already constrained to exactly this period — the figures you receive cover ${win.start} to ${win.end} and nothing else. Report on this period and refer to it by these exact dates. Do NOT describe the data as "90 days", "the last quarter", or any window other than ${win.start} to ${win.end}.`
       : '';
 
+    const systemText = buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix;
+
+    if (provider === 'deepseek') {
+      const r = await runDeepSeekChat({ systemText, messages, clientId, win, maxTokens: 8000 });
+      finalText = r.finalText;
+      r.toolsUsed.filter(Boolean).forEach(t => toolsUsed.push(t));
+    } else
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
       const response = await getClaude().messages.create({
-        model: MODEL,
+        model: chosenModel,
         // Generous output budget so long analyses and multi-section /report
         // replies aren't truncated. You're billed per token generated, so a
         // high cap only bites when the answer genuinely needs the room; both
@@ -817,14 +894,14 @@ router.post('/:clientId', async (req, res) => {
         max_tokens: reportRequested ? 32000 : 16000,
         // Cache the (stable) system prompt so each tool-loop round reuses it at
         // ~10% input cost instead of re-sending the full analyst context.
-        system: require('../services/claude').cacheableSystem(buildSystemPrompt(client, connectorsRes.rows) + reportSuffix + windowSuffix),
+        system: require('../services/claude').cacheableSystem(systemText),
         tools: TOOLS,
         messages,
       });
       // Cost log per round — chat sessions can be tool-heavy and the multi-
       // round shape means a single "what happened last week?" question
       // easily fires 3-6 Claude calls.
-      require('../services/costLog').recordClaudeCost({ model: MODEL, response, feature: 'ai_data_analyst_chat', clientId });
+      require('../services/costLog').recordClaudeCost({ model: chosenModel, response, feature: 'ai_data_analyst_chat', clientId });
 
       if (response.stop_reason === 'end_turn') {
         finalText = response.content.find(b => b.type === 'text')?.text || '';
