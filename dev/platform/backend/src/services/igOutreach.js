@@ -80,6 +80,24 @@ async function listProspects(clientId, searchId) {
   return rows;
 }
 
+// Every prospect the AM has worked (messaged / replied / skipped) for a client,
+// ACROSS all of their searches — including ones now detached from a deleted
+// search. "Worked" is a fact about a person, not a search, so the Done view is
+// client-wide and a prospect can never vanish when searches are reorganised.
+// Each row carries the name of the search it currently belongs to (or null).
+async function listClientWorked(clientId) {
+  const { rows } = await pool.query(
+    `SELECT p.*, s.name AS search_name
+       FROM ig_outreach_prospects p
+       LEFT JOIN ig_outreach_searches s ON s.id = p.search_id
+      WHERE p.client_id = $1 AND p.status IN ('messaged', 'replied', 'skipped')
+      ORDER BY CASE p.status WHEN 'messaged' THEN 0 WHEN 'replied' THEN 1 ELSE 2 END,
+               COALESCE(p.messaged_at, p.found_at) DESC`,
+    [clientId]
+  );
+  return rows;
+}
+
 // Run one search's query and insert any profiles not already in the client's
 // queue (deduped across ALL searches), tagging them to this search.
 async function runDiscovery(search) {
@@ -232,6 +250,6 @@ async function runAutopilot() {
 
 module.exports = {
   listSearches, createSearch, updateSearch, deleteSearch,
-  listProspects, runSearch, setStatus, draftMessage, draftAll, enrichEmail, runAutopilot,
+  listProspects, listClientWorked, runSearch, setStatus, draftMessage, draftAll, enrichEmail, runAutopilot,
   countUnassigned, reclaimOrphans,
 };

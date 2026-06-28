@@ -53,6 +53,11 @@ router.get('/clients/:clientId/prospects', async (req, res) => {
   try { res.json({ prospects: await ig.listProspects(req.params.clientId, req.query.searchId ? parseInt(req.query.searchId, 10) : null) }); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }
 });
+// Worked prospects (messaged/replied/skipped) across ALL of the client's searches.
+router.get('/clients/:clientId/worked', async (req, res) => {
+  try { res.json({ prospects: await ig.listClientWorked(req.params.clientId) }); }
+  catch (err) { res.status(err.status || 500).json({ error: err.message }); }
+});
 router.patch('/clients/:clientId/prospects/:id', async (req, res) => {
   try { res.json(await ig.setStatus(req.params.clientId, pid(req), req.body || {})); }
   catch (err) { res.status(err.status || 500).json({ error: err.message }); }

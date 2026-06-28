@@ -39,6 +39,7 @@ export default function IgOutreachPanel({ clientId }) {
   const [unassigned, setUnassigned] = useState(0);
   const [selected, setSelected] = useState(null);
   const [prospects, setProspects] = useState([]);
+  const [worked, setWorked] = useState([]); // messaged/replied/skipped across ALL the client's searches
   const [loaded, setLoaded] = useState(false);
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(null);
@@ -66,6 +67,11 @@ export default function IgOutreachPanel({ clientId }) {
   async function loadProspects(searchId) {
     const r = await api.get(`/ig-outreach/clients/${clientId}/prospects?searchId=${searchId}`);
     setProspects(r.prospects || []);
+    loadWorked();
+  }
+  async function loadWorked() {
+    try { const r = await api.get(`/ig-outreach/clients/${clientId}/worked`); setWorked(r.prospects || []); }
+    catch { /* non-fatal — Done tab just shows what it can */ }
   }
   useEffect(() => {
     (async () => { try { await loadSearches(); } catch (e) { toast(e.message, 'error'); } finally { setLoaded(true); } })();
@@ -127,7 +133,7 @@ export default function IgOutreachPanel({ clientId }) {
     // Messaged / replied / skipped collapse the card, so drop any manual
     // re-open for this prospect; re-activating (new) re-opens it.
     setExpanded(prev => { const next = { ...prev }; if (['messaged', 'replied', 'skipped'].includes(status)) delete next[id]; else next[id] = true; return next; });
-    try { const r = await api.patch(`/ig-outreach/clients/${clientId}/prospects/${id}`, { status }); setProspects(prev => prev.map(p => p.id === id ? r : p)); }
+    try { const r = await api.patch(`/ig-outreach/clients/${clientId}/prospects/${id}`, { status }); setProspects(prev => prev.map(p => p.id === id ? r : p)); loadWorked(); }
     catch (e) { toast(e.message, 'error'); }
   }
   async function draft(id) {
@@ -230,24 +236,27 @@ export default function IgOutreachPanel({ clientId }) {
             // — the active list. Nothing is ever removed; it just moves tab.
             const DONE = ['messaged', 'replied', 'skipped'];
             const todoList = prospects.filter(p => !DONE.includes(p.status));
-            const doneList = prospects.filter(p => DONE.includes(p.status));
-            const list = queueTab === 'done' ? doneList : todoList;
+            // "To work" is this search's queue; "Done" is client-wide (every
+            // worked prospect across ALL searches) so nothing vanishes when
+            // searches are reorganised or deleted.
+            const list = queueTab === 'done' ? worked : todoList;
             return (
               <>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--s4)' }}>
-                  {[['todo', 'To work', todoList.length], ['done', 'Done', doneList.length]].map(([key, label, n]) => (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 'var(--s4)', alignItems: 'center', flexWrap: 'wrap' }}>
+                  {[['todo', 'To work', todoList.length], ['done', 'Done', worked.length]].map(([key, label, n]) => (
                     <button key={key} type="button" onClick={() => setQueueTab(key)}
                       className={`btn btn-sm ${queueTab === key ? 'btn-primary' : 'btn-secondary'}`}>
                       {label} ({n})
                     </button>
                   ))}
+                  {queueTab === 'done' && <span className="body-xs text-subtle">across all searches for this client</span>}
                 </div>
 
                 {!list.length ? (
                   <p className="body-sm text-subtle">
                     {queueTab === 'done'
-                      ? 'Nothing worked yet — messaged, replied and skipped prospects collect here.'
-                      : (prospects.length ? 'All caught up — every prospect has been worked. 🎉 See the Done tab.' : 'No prospects yet — hit Run on this search.')}
+                      ? 'Nothing worked yet — everyone you mark messaged, replied or skipped (in any search) collects here.'
+                      : (prospects.length ? 'All caught up — every prospect in this search has been worked. 🎉 See the Done tab.' : 'No prospects yet — hit Run on this search.')}
                   </p>
                 ) : (
                   <div className="stack stack-sm">
@@ -276,6 +285,7 @@ export default function IgOutreachPanel({ clientId }) {
                           >
                             <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
                             {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
+                            {queueTab === 'done' && <span className="body-xs text-subtle" style={{ flex: '0 0 auto', whiteSpace: 'nowrap' }}>· {p.search_name || 'no search'}</span>}
                             <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
                             <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
                           </div>
@@ -288,6 +298,7 @@ export default function IgOutreachPanel({ clientId }) {
                               <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
                               {p.display_name && p.display_name !== p.username && <span className="text-subtle"> · {p.display_name}</span>}
                               {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
+                              {queueTab === 'done' && <span className="chip chip-outline" style={{ fontSize: 10, marginLeft: 8 }}>{p.search_name || 'no search'}</span>}
                               {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
