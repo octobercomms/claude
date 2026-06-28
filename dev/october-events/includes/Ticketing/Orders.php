@@ -25,6 +25,30 @@ final class Orders {
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM " . Schema::orders() . " WHERE id = %d", $id)) ?: null;
     }
 
+    /**
+     * Acquire a MySQL advisory lock (server-global) to serialize the capacity
+     * check + issue, and payment idempotency, across concurrent requests. Fails
+     * OPEN: if it can't be acquired (timeout / unsupported) we proceed rather
+     * than block a sale — worst case reverts to the pre-lock behaviour.
+     */
+    private static function lock(string $key, int $timeout = 8): bool {
+        if ($key === '') {
+            return false;
+        }
+        global $wpdb;
+        $got = $wpdb->get_var($wpdb->prepare('SELECT GET_LOCK(%s, %d)', $key, $timeout));
+        return (string) $got === '1';
+    }
+
+    /** Release a lock taken by self::lock(); no-op for '' or a lock we don't hold. */
+    private static function unlock(string $key): void {
+        if ($key === '') {
+            return;
+        }
+        global $wpdb;
+        $wpdb->query($wpdb->prepare('SELECT RELEASE_LOCK(%s)', $key));
+    }
+
     public static function by_payment(string $payment_id): ?object {
         global $wpdb;
         if ($payment_id === '') {
@@ -70,16 +94,27 @@ final class Orders {
         $type     = (array) $data['type'];
         $qty      = max(1, (int) ($data['qty'] ?? 1));
 
+        // Serialize the capacity check + issue per event so concurrent buyers
+        // can't all read "under cap" and oversell. Held only across the count +
+        // inserts below (released before the email); fails open so it can never
+        // block a sale. Public sales only — manual/comp aren't capacity-checked.
+        $cap_lock = $source === 'public' ? 'oe_cap_' . $event_id : '';
+        if ($cap_lock !== '') {
+            self::lock($cap_lock);
+        }
+
         // Capacity guard for public sales.
         if ($source === 'public') {
             $avail = TicketTypes::availability($event_id, $type);
             if ($avail['state'] !== 'available') {
+                self::unlock($cap_lock);
                 return new \WP_Error('oe_unavailable', __('Those tickets are no longer available.', 'october-events'));
             }
             $cap = TicketTypes::event_capacity($event_id);
             if ($cap !== null) {
                 $would = TicketTypes::event_sold_count($event_id) + ($qty * (int) $type['qty_per_purchase']);
                 if ($would > $cap) {
+                    self::unlock($cap_lock);
                     return new \WP_Error('oe_capacity', __('Not enough tickets remain for that quantity.', 'october-events'));
                 }
             }
@@ -121,6 +156,7 @@ final class Orders {
         ]);
         $order_id = (int) $wpdb->insert_id;
         if (! $order_id) {
+            self::unlock($cap_lock);
             return new \WP_Error('oe_order_failed', __('Could not create the order.', 'october-events'));
         }
 
@@ -136,24 +172,37 @@ final class Orders {
         $seq_total = $p_total > 0 ? $p_total : $total_t;
         $tickets = [];
         for ($i = 1; $i <= $total_t; $i++) {
-            $token = bin2hex(random_bytes(32));
-            $seq   = $p_total > 0 ? $p_offset + $i : $i;
-            $wpdb->insert(Schema::tickets(), [
-                'order_id'          => $order_id,
-                'event_id'          => $event_id,
-                'ticket_type_label' => (string) $type['label'],
-                'attendee_name'     => ($attendees[$i - 1] ?? '') !== '' ? $attendees[$i - 1] : $name,
-                'token'             => $token,
-                'ticket_number'     => $seq,
-                'total_in_order'    => $seq_total,
-                'status'            => 'active',
-                'created_at'        => $now,
-            ]);
+            $seq = $p_total > 0 ? $p_offset + $i : $i;
+            // Insert the admission; the token column is UNIQUE, so on the (vanishingly
+            // rare) clash or any insert failure, retry with a fresh token rather than
+            // silently reusing the previous insert_id.
+            $token = '';
+            $ok    = false;
+            for ($try = 0; $try < 3 && ! $ok; $try++) {
+                $token = bin2hex(random_bytes(32));
+                $ok = (bool) $wpdb->insert(Schema::tickets(), [
+                    'order_id'          => $order_id,
+                    'event_id'          => $event_id,
+                    'ticket_type_label' => (string) $type['label'],
+                    'attendee_name'     => ($attendees[$i - 1] ?? '') !== '' ? $attendees[$i - 1] : $name,
+                    'token'             => $token,
+                    'ticket_number'     => $seq,
+                    'total_in_order'    => $seq_total,
+                    'status'            => 'active',
+                    'created_at'        => $now,
+                ]);
+            }
+            if (! $ok) {
+                continue; // couldn't write this admission; skip rather than reuse a stale id
+            }
             $tickets[] = (object) [
                 'id' => (int) $wpdb->insert_id, 'token' => $token,
                 'ticket_number' => $seq, 'total_in_order' => $seq_total,
             ];
         }
+
+        // Issued — release the per-event lock before the (slower) email + promo work.
+        self::unlock($cap_lock);
 
         if (! empty($data['promo']['promo_id'])) {
             Promo::increment_usage((int) $data['promo']['promo_id']);
@@ -695,6 +744,21 @@ final class Orders {
      * @return array{tickets:array}|\WP_Error
      */
     public static function create_cart(int $event_id, array $lines, array $buyer, string $payment_id = '', string $method = 'stripe', string $source = 'public', ?array $promo = null, array $attendee_names = [], float $discount = 0.0) {
+        // Serialize per payment so a Stripe webhook and the client /ticket-confirm
+        // can't both pass the idempotency check and double-issue. Fails open.
+        $pay_lock = $payment_id !== '' ? 'oe_pay_' . $payment_id : '';
+        if ($pay_lock !== '') {
+            self::lock($pay_lock);
+        }
+        try {
+            return self::create_cart_inner($event_id, $lines, $buyer, $payment_id, $method, $source, $promo, $attendee_names, $discount);
+        } finally {
+            self::unlock($pay_lock);
+        }
+    }
+
+    /** @return array{tickets:array}|\WP_Error */
+    private static function create_cart_inner(int $event_id, array $lines, array $buyer, string $payment_id, string $method, string $source, ?array $promo, array $attendee_names, float $discount) {
         // Cart-level idempotency: if this payment already produced orders, reuse.
         if ($payment_id !== '' && self::by_payment($payment_id)) {
             return ['tickets' => self::ticket_dtos_for($payment_id)];
