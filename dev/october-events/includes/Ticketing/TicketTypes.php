@@ -100,19 +100,31 @@ final class TicketTypes {
         ));
     }
 
+    /** @var array<int,int> per-request memo for event_sold_count() */
+    private static array $sold_cache = [];
+
     /**
      * Total admissions sold across all ticket types for an event (paid orders,
      * active tickets) — capacity is now event-wide, not per type.
+     *
+     * Memoized per request: checkout renders call this once per ticket type, and
+     * the count is event-wide (identical for all types). Pass $fresh = true for
+     * the authoritative read inside the capacity lock (Orders::create), which must
+     * not see a stale value.
      */
-    public static function event_sold_count(int $event_id): int {
+    public static function event_sold_count(int $event_id, bool $fresh = false): int {
+        if (! $fresh && isset(self::$sold_cache[$event_id])) {
+            return self::$sold_cache[$event_id];
+        }
         global $wpdb;
         $o = Schema::orders();
         $t = Schema::tickets();
-        return (int) $wpdb->get_var($wpdb->prepare(
+        $n = (int) $wpdb->get_var($wpdb->prepare(
             "SELECT COUNT(*) FROM {$t} t INNER JOIN {$o} o ON t.order_id = o.id
              WHERE o.event_id = %d AND o.status = 'paid' AND t.status = 'active'",
             $event_id
         ));
+        return self::$sold_cache[$event_id] = $n;
     }
 
     /**
@@ -121,11 +133,17 @@ final class TicketTypes {
      * type, it falls back to the sum of the old per-type caps so an existing
      * limit is preserved until the event is re-saved.
      */
+    /** @var array<int,int|null> per-request memo for event_capacity() */
+    private static array $cap_cache = [];
+
     public static function event_capacity(int $event_id): ?int {
+        if (array_key_exists($event_id, self::$cap_cache)) {
+            return self::$cap_cache[$event_id];
+        }
         $raw = get_post_meta($event_id, self::META_CAPACITY, true);
         if ($raw !== '' && $raw !== false && $raw !== null) {
             $n = (int) $raw;
-            return $n > 0 ? $n : null; // 0 / blank = unlimited
+            return self::$cap_cache[$event_id] = ($n > 0 ? $n : null); // 0 / blank = unlimited
         }
         // Legacy fallback — sum any per-type caps still stored on the event.
         $sum = 0;
@@ -136,7 +154,7 @@ final class TicketTypes {
                 $had  = true;
             }
         }
-        return $had ? $sum : null;
+        return self::$cap_cache[$event_id] = ($had ? $sum : null);
     }
 
     /**

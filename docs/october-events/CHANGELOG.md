@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.17 — scale: indexes, fewer queries, tighter throttling
+
+The "make it fast under load" half of the audit.
+
+- **Database indexes** added for the hot ticketing queries — sold-count and
+  availability (`orders(event_id,status)`, `tickets(order_id,status)` /
+  `(event_id,status)`), the check-in log and door-scan dedupe
+  (`checkins(event_id,venue_name,ticket_id)`, `(ticket_id,venue_name)`). They're
+  applied automatically on update (DB version bump → `dbDelta`).
+- **Fewer queries on every checkout render.** The event-wide "sold" count and
+  capacity are now computed once per request instead of once per ticket type
+  (a 5-type event was running the same count 5×). The capacity check at purchase
+  still reads fresh inside the lock, so it can't go stale.
+- **Throttling** added to the remaining public read endpoints (`checkin-events`,
+  `volunteer-shifts`, `map`, and the logged-in `confirm-payment`), and the
+  Failed-payments "Refresh" now verifies its nonce.
+
 ## 1.66.16 — concurrency: stop overselling / double-issue under load
 
 A security + scale audit (see `docs/october-events/security-audit.md`) found the

@@ -112,7 +112,8 @@ final class Orders {
             }
             $cap = TicketTypes::event_capacity($event_id);
             if ($cap !== null) {
-                $would = TicketTypes::event_sold_count($event_id) + ($qty * (int) $type['qty_per_purchase']);
+                // Authoritative read inside the lock — bypass the per-request memo.
+                $would = TicketTypes::event_sold_count($event_id, true) + ($qty * (int) $type['qty_per_purchase']);
                 if ($would > $cap) {
                     self::unlock($cap_lock);
                     return new \WP_Error('oe_capacity', __('Not enough tickets remain for that quantity.', 'october-events'));
