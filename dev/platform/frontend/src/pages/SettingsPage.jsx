@@ -12,7 +12,7 @@ import IntegrationsPage from './IntegrationsPage';
 const KEY_GROUPS = [
   {
     title: 'AI models',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Claude powers report narratives, summaries, social, ad creative and the AI Data Analyst. The Anthropic Admin key is optional — if set, the Costs panel pulls monthly spend from the Anthropic usage API. DeepSeek is optional and selectable per question in the Data Analyst (a cheap, fast model) — but it sends data to DeepSeek, so use it for non-sensitive questions only.',
     keys: [
       { key: 'CLAUDE_API_KEY', label: 'Claude API Key', placeholder: 'sk-ant-…', type: 'password' },
@@ -22,7 +22,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Replicate (Flux 1.1 Pro)',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Used by the Social tab to generate post images. Pay-per-call, around $0.04 per image. Get a token at replicate.com/account/api-tokens.',
     keys: [
       { key: 'REPLICATE_API_TOKEN', label: 'Replicate API Token', placeholder: 'r8_…', type: 'password' },
@@ -30,7 +30,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Ideogram',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Alternative image generator used by the Social tab — best when the post needs clean legible on-image text. Around $0.08 per image. Get a key at ideogram.ai/manage-api.',
     keys: [
       { key: 'IDEOGRAM_API_KEY', label: 'Ideogram API Key', placeholder: '…', type: 'password' },
@@ -38,7 +38,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Adobe (Firefly + Photoshop)',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Third image option, commercially-safe training data — good for regulated clients. Photoshop generative resize fans one image out to every aspect ratio. Set up a Firefly Services project at developer.adobe.com → Console.',
     keys: [
       { key: 'ADOBE_CLIENT_ID', label: 'Adobe Client ID', placeholder: '…', type: 'text' },
@@ -47,7 +47,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Arcads (UGC video)',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'UGC-style talking-head video from a script. ~$2 per video. Used per-post on the Social tab — the storyboard\'s voiceover lines become the script by default.',
     keys: [
       { key: 'ARCADS_API_KEY', label: 'Arcads API Key', placeholder: '…', type: 'password' },
@@ -55,7 +55,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'ElevenLabs (voiceover)',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Text-to-speech voiceovers for storyboards. Pay-per-character (~$0.30/min at creator tier).',
     keys: [
       { key: 'ELEVENLABS_API_KEY', label: 'ElevenLabs API Key', placeholder: '…', type: 'password' },
@@ -63,7 +63,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Apify (TikTok trending sounds)',
-    category: 'AI & Email',
+    category: 'AI',
     hint: 'Powers the "Refresh trending sounds" action on the Social tab. ~$0.25 per scrape; cached for 7 days so weekly refreshes are plenty.',
     keys: [
       { key: 'APIFY_API_TOKEN', label: 'Apify API Token', placeholder: 'apify_api_…', type: 'password' },
@@ -71,7 +71,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Email Provider',
-    category: 'AI & Email',
+    category: 'Email',
     hint: 'Choose whether to send reports via Gmail or Amazon SES. SES is recommended for production.',
     keys: [
       { key: 'EMAIL_PROVIDER', label: 'Provider', placeholder: 'gmail or ses', type: 'text' },
@@ -79,7 +79,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Gmail SMTP',
-    category: 'AI & Email',
+    category: 'Email',
     hint: 'Used when EMAIL_PROVIDER is set to "gmail". Requires a Gmail App Password — Google Account → Security → 2-Step Verification → App passwords.',
     keys: [
       { key: 'GMAIL_USER', label: 'Gmail Address', placeholder: 'octobercommsreports@gmail.com', type: 'text' },
@@ -88,7 +88,7 @@ const KEY_GROUPS = [
   },
   {
     title: 'Amazon SES',
-    category: 'AI & Email',
+    category: 'Email',
     hint: 'Amazon SES handles report email (SMTP) and outreach (preferred via the SES API). Set the API access keys for outreach — they enable the SESv2 path which is lower latency than SMTP and gives better error responses. Keep the SMTP credentials too for the report transport.',
     keys: [
       { key: 'SES_FROM_EMAIL', label: 'From Email (verified in SES)', placeholder: 'reports@octobercomms.com', type: 'text' },
@@ -276,7 +276,8 @@ const KEY_GROUPS = [
 
 // Top-level categories displayed as collapsible cards in a responsive grid.
 const CATEGORIES = [
-  { title: 'AI & Email', description: 'Claude for report generation; email transport for reports and outreach.', hasTestEmail: true },
+  { title: 'AI', description: 'Claude & DeepSeek models, plus image / video / voice generation.' },
+  { title: 'Email', description: 'Email transport for reports and outreach — Gmail or Amazon SES.', hasTestEmail: true },
   { title: 'Ad Platforms', description: 'Google Ads, Meta Ads and Instagram Insights.' },
   { title: 'Ecommerce & Inventory', description: 'Shopify, Amazon Seller and Zoho Inventory.' },
   { title: 'SEO', description: 'Keyword rank tracking, backlinks and search volume.' },
@@ -290,9 +291,11 @@ const CATEGORIES = [
 const SECTIONS = [
   { key: 'connections', label: 'Connections', subs: [
     { k: 'costs', label: 'Costs & usage' },
-    { k: 'ai', label: 'AI & email' },
+    { k: 'ai', label: 'AI' },
+    { k: 'email', label: 'Email' },
     { k: 'ads', label: 'Ad platforms' },
-    { k: 'commerce', label: 'E-commerce & data' },
+    { k: 'commerce', label: 'E-commerce' },
+    { k: 'seo', label: 'SEO' },
     { k: 'outreach', label: 'Outreach finders' },
     { k: 'integrations', label: 'Integrations' },
     { k: 'other', label: 'Other' },
@@ -310,9 +313,11 @@ const SECTIONS = [
 ];
 // Sub-tab → which CATEGORIES of provider-key groups it shows.
 const SUBTAB_CATS = {
-  ai: ['AI & Email'],
+  ai: ['AI'],
+  email: ['Email'],
   ads: ['Ad Platforms'],
-  commerce: ['Ecommerce & Inventory', 'SEO'],
+  commerce: ['Ecommerce & Inventory'],
+  seo: ['SEO'],
   outreach: ['Outreach'],
   other: ['Other'],
 };
@@ -501,7 +506,7 @@ export default function SettingsPage() {
         <input type="text" name="username" style={{ display: 'none' }} autoComplete="username" readOnly />
         <input type="password" name="password" style={{ display: 'none' }} autoComplete="current-password" readOnly />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 16, alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 16, alignItems: 'start' }}>
           {CATEGORIES.filter(cat => SUBTAB_CATS[tab].includes(cat.title)).map(cat => {
             const groupsInCat = KEY_GROUPS.filter(g => g.category === cat.title);
             const open = openCategories[cat.title] !== false;
@@ -519,16 +524,25 @@ export default function SettingsPage() {
                     {cat.description && <div className="body-sm text-muted">{cat.description}</div>}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span className="chip chip-accent">{configuredCount} / {groupsInCat.length}</span>
+                    <span className={`chip ${configuredCount === groupsInCat.length ? 'chip-success' : 'chip-accent'}`}>{configuredCount} / {groupsInCat.length}</span>
                     <span style={{ fontSize: 14, color: 'var(--text-muted)' }}>{open ? '▾' : '▸'}</span>
                   </div>
                 </button>
 
                 {open && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 18, marginTop: 16 }}>
-                    {groupsInCat.map(group => (
-                      <div key={group.title} style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 14 }}>
-                        <div className="h3 mb-2">{group.title}</div>
+                    {groupsInCat.map(group => {
+                      // "Set" = every required key (those without "optional" in the
+                      // label) is stored. Turns the section green, like a connected
+                      // connector, so configured providers are obvious at a glance.
+                      const reqKeys = group.keys.filter(k => !/optional/i.test(k.label));
+                      const groupSet = reqKeys.length > 0 && reqKeys.every(k => values[k.key] === '••••••••');
+                      return (
+                      <div key={group.title} style={{ borderLeft: `4px solid ${groupSet ? 'var(--positive)' : 'var(--card-border)'}`, background: groupSet ? 'var(--positive-soft)' : 'var(--surface-raised)', borderRadius: 'var(--r-sm)', padding: '14px 16px' }}>
+                        <div className="row between center" style={{ marginBottom: 8 }}>
+                          <div className="h3" style={{ margin: 0 }}>{group.title}</div>
+                          {groupSet && <span className="chip chip-success" style={{ fontSize: 10, flex: '0 0 auto' }}>✓ Set</span>}
+                        </div>
                         {group.hint && <p className="body-sm text-muted">{group.hint}</p>}
                         {group.note && (
                           <div className="callout callout-warning"><strong>Developer app required.</strong> {group.note}</div>
@@ -612,7 +626,8 @@ export default function SettingsPage() {
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
 
                     {cat.hasTestEmail && (
                       <div style={{ borderTop: "2px solid var(--accent-soft)", paddingTop: 14 }}>
