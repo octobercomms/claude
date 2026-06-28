@@ -5,6 +5,22 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.10 — fix: stop browsers autofilling the login password over API keys
+
+The Settings → API keys fields are masked (password-type), so browser password
+managers were autofilling the WordPress **login password** into them — and on
+save that overwrote the real key (e.g. the Stripe secret key), breaking payments
+with "Invalid API Key provided".
+
+- The key fields now tell the browser not to autofill credentials
+  (`autocomplete="new-password"` plus 1Password/LastPass/Bitwarden ignore hints),
+  and stay read-only until you click into them, which defeats Chrome's on-load
+  autofill. They still mask and have the show/hide toggle.
+- Belt and braces: on save, a value that doesn't match the key's known prefix
+  (Stripe `sk_`/`rk_`, publishable `pk_`, webhook `whsec_`, Claude `sk-ant-`) is
+  **rejected and the existing key kept**, with a clear notice — so a stray
+  autofill can never silently replace a working key again.
+
 ## 1.66.9 — fix: card payments broken when the Stripe PHP SDK is installed
 
 Card checkout failed with *"Unrecognized request URL (POST: /payment_intents)"*

@@ -146,18 +146,42 @@ final class Settings {
         // API keys: store any that aren't pinned by a wp-config.php constant. The
         // form never echoes saved secrets back, so a BLANK field means "keep the
         // existing value" — only overwrite when a new value was actually entered.
-        $secrets = [];
+        // Known key prefixes — a value that doesn't match is almost certainly a
+        // mistake (e.g. a browser autofilling the login password over the key),
+        // so we refuse it rather than silently overwriting a working key.
+        $prefixes = [
+            'stripe_secret_key'      => ['sk_', 'rk_'],
+            'stripe_publishable_key' => ['pk_'],
+            'stripe_webhook_secret'  => ['whsec_'],
+            'claude_api_key'         => ['sk-ant-'],
+        ];
+        $secrets  = [];
+        $rejected = [];
         foreach (array_keys(Config::secret_keys()) as $key) {
             if (Config::secret_is_constant($key)) {
                 continue;
             }
             if (isset($in['secret_' . $key]) && trim((string) $in['secret_' . $key]) !== '') {
+                $val = sanitize_text_field((string) $in['secret_' . $key]);
+                if (isset($prefixes[$key])) {
+                    $ok = false;
+                    foreach ($prefixes[$key] as $p) {
+                        if (strpos($val, $p) === 0) { $ok = true; break; }
+                    }
+                    if (! $ok) {
+                        $rejected[$key] = $prefixes[$key][0];
+                        continue; // keep the existing key untouched
+                    }
+                }
                 // ADF-05: encrypt at rest.
-                $secrets[$key] = \OE\Crypto::encrypt(sanitize_text_field((string) $in['secret_' . $key]));
+                $secrets[$key] = \OE\Crypto::encrypt($val);
             }
         }
         if ($secrets) {
             Config::update($secrets);
+        }
+        if ($rejected) {
+            set_transient('oe_settings_key_errors', $rejected, 60);
         }
         // Existing (encrypted) values, so the non-constant secrets below can also
         // honour "blank = keep" instead of wiping on every save.
