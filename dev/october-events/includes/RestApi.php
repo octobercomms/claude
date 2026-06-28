@@ -511,7 +511,14 @@ final class RestApi {
             'attendees' => $att_json,
         ]);
         if (($intent['id'] ?? '') === '') {
-            return new \WP_REST_Response(['error' => 'payment_init_failed'], 502);
+            // Surface the Stripe reason to the buyer only when it's safe + useful
+            // (a card or validation problem they can act on). Config/auth/API
+            // errors stay generic — the full reason is logged server-side.
+            $safe_types = ['card_error', 'invalid_request_error'];
+            $message = (in_array((string) ($intent['error_type'] ?? ''), $safe_types, true) && (string) ($intent['error'] ?? '') !== '')
+                ? (string) $intent['error']
+                : __('We couldn’t start the payment. Please try again, or use a different card.', 'october-events');
+            return new \WP_REST_Response(['error' => 'payment_init_failed', 'message' => $message], 502);
         }
         return new \WP_REST_Response([
             'client_secret' => $intent['client_secret'],
