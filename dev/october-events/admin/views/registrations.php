@@ -39,14 +39,29 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
     <?php endif; ?>
 
     <h2><?php esc_html_e('Add a registration manually', 'october-events'); ?></h2>
+    <?php if (! $events) : ?>
+        <div class="notice notice-warning inline" style="margin:0 0 12px"><p>
+            <?php printf(
+                /* translators: %s: link to create an event */
+                esc_html__('You don’t have any published events yet. %s, add a ticket type to it, then you can issue tickets here.', 'october-events'),
+                '<a href="' . esc_url(admin_url('post-new.php?post_type=' . \OE\PostTypes::slug('event'))) . '">' . esc_html__('Create an event', 'october-events') . '</a>'
+            ); ?>
+        </p></div>
+    <?php elseif (! $event_types) : ?>
+        <div class="notice notice-warning inline" style="margin:0 0 12px"><p>
+            <?php esc_html_e('None of your events have ticket types yet. Open an event and add at least one ticket type (in its “Tickets” box) — only then can tickets be issued for it.', 'october-events'); ?>
+        </p></div>
+    <?php endif; ?>
     <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="oe-manual-order" style="background:#fff;border:1px solid #e3ded3;border-radius:12px;padding:16px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
         <input type="hidden" name="action" value="oe_create_order">
         <?php wp_nonce_field('oe_create_order'); ?>
         <label><?php esc_html_e('Event', 'october-events'); ?><br>
             <select name="event_id" id="oe-mo-event" required>
                 <option value=""><?php esc_html_e('Choose…', 'october-events'); ?></option>
-                <?php foreach ($events as $ev) : if (empty($event_types[$ev->ID])) { continue; } ?>
-                    <option value="<?php echo (int) $ev->ID; ?>"><?php echo esc_html(get_the_title($ev)); ?></option>
+                <?php foreach ($events as $ev) : $has = ! empty($event_types[$ev->ID]); ?>
+                    <option value="<?php echo (int) $ev->ID; ?>" data-edit="<?php echo esc_url((string) get_edit_post_link($ev->ID, '')); ?>">
+                        <?php echo esc_html(get_the_title($ev) ?: ('#' . (int) $ev->ID)); ?><?php echo $has ? '' : ' — ' . esc_html__('no ticket types', 'october-events'); ?>
+                    </option>
                 <?php endforeach; ?>
             </select></label>
         <label><?php esc_html_e('Ticket type', 'october-events'); ?><br>
@@ -56,13 +71,33 @@ $export_attendee = wp_nonce_url(admin_url('admin.php?page=oe-tickets&oe_export=a
         <label><?php esc_html_e('Email', 'october-events'); ?><br><input type="email" name="email" required></label>
         <label><?php esc_html_e('Mode', 'october-events'); ?><br>
             <select name="mode"><option value="comp"><?php esc_html_e('Comp (free)', 'october-events'); ?></option><option value="paid"><?php esc_html_e('Mark paid', 'october-events'); ?></option></select></label>
-        <button class="button button-primary"><?php esc_html_e('Issue tickets', 'october-events'); ?></button>
+        <button class="button button-primary" id="oe-mo-submit"><?php esc_html_e('Issue tickets', 'october-events'); ?></button>
+        <p id="oe-mo-hint" class="description" style="flex-basis:100%;margin:4px 0 0;color:#b32d2e;display:none"></p>
     </form>
     <script>
     (function(){
         var map = <?php echo wp_json_encode($event_types); ?>;
-        var ev = document.getElementById('oe-mo-event'), ty = document.getElementById('oe-mo-type');
-        function fill(){ ty.innerHTML=''; (map[ev.value]||[]).forEach(function(t){ var o=document.createElement('option'); o.value=t.key; o.textContent=t.label; ty.appendChild(o); }); }
+        var noTypes = <?php echo wp_json_encode(__('This event has no ticket types yet — open it and add one in its “Tickets” box before issuing.', 'october-events')); ?>;
+        var openLbl = <?php echo wp_json_encode(__('Open the event', 'october-events')); ?>;
+        var ev = document.getElementById('oe-mo-event'),
+            ty = document.getElementById('oe-mo-type'),
+            btn = document.getElementById('oe-mo-submit'),
+            hint = document.getElementById('oe-mo-hint');
+        function fill(){
+            ty.innerHTML='';
+            var types = map[ev.value] || [];
+            types.forEach(function(t){ var o=document.createElement('option'); o.value=t.key; o.textContent=t.label; ty.appendChild(o); });
+            var blocked = !!ev.value && !types.length;
+            ty.disabled = !types.length;
+            btn.disabled = blocked;
+            if (blocked) {
+                var opt = ev.options[ev.selectedIndex], edit = opt && opt.getAttribute('data-edit');
+                hint.innerHTML = noTypes + (edit ? ' <a href="' + edit + '">' + openLbl + ' ↗</a>' : '');
+                hint.style.display = 'block';
+            } else {
+                hint.style.display = 'none';
+            }
+        }
         ev.addEventListener('change', fill); fill();
     })();
     </script>

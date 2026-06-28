@@ -237,8 +237,9 @@ final class TicketsAdmin {
         // by payment id so a mixed cart's sibling orders all appear together.
         $txn_tickets = Orders::active_tickets_for_payments(array_map(static fn($o) => (string) $o->payment_id, (array) ($orders ?: [])));
 
-        // Events that have ticket types, for the manual-add form + filter.
-        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200]);
+        // All published events, for the manual-add form + filter (the form marks
+        // which have ticket types — only those can have tickets issued).
+        $events = get_posts(['post_type' => PostTypes::slug('event'), 'post_status' => 'publish', 'posts_per_page' => 200, 'orderby' => 'title', 'order' => 'ASC']);
         $event_types = [];
         foreach ($events as $ev) {
             $t = TicketTypes::types($ev->ID);

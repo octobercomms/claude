@@ -5,6 +5,23 @@ The plugin self-updates from GitHub Releases tagged `oe-v<version>`. Bump the
 and merge to `main`; the release workflow builds and publishes the release
 automatically.
 
+## 1.66.15 — manual registration: clearer event picker
+
+The "Add a registration manually" event dropdown used to silently hide any event
+without ticket types, so it could look empty even with live events — with no
+explanation.
+
+- The dropdown now lists **all published events**; ones without ticket types are
+  labelled **"— no ticket types"**.
+- Pick one of those and you get a plain-English hint (with a link to open the
+  event and add a type), and the "Issue tickets" button is disabled until the
+  event actually has a ticket type.
+- A notice appears when you have no events, or events but none with ticket types,
+  pointing you to the fix. Events are sorted by name.
+
+(Tickets still need a ticket type to be issued against — this just makes *why*
+obvious instead of showing an empty list.)
+
 ## 1.66.14 — transaction-wide refunds + a Transactions tab
 
 A cart with several ticket types pays once but is stored as one order per type,
