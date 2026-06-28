@@ -238,6 +238,18 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             'google_maps_key'        => __('Google Cloud Console → APIs & Services → Credentials → API key, with “Maps JavaScript API” enabled. Used by the [oe_design_map] shortcode.', 'october-events'),
         ];
         ?>
+        <?php if ($key_errors = get_transient('oe_settings_key_errors')) : delete_transient('oe_settings_key_errors'); ?>
+            <div class="notice notice-error" style="margin:0 0 12px"><p>
+                <strong><?php esc_html_e('Some keys weren’t saved.', 'october-events'); ?></strong>
+                <?php printf(
+                    /* translators: %s: list of "label (must start with prefix)" */
+                    esc_html__('These didn’t look right and were left unchanged: %s. A common cause is the browser autofilling your login password into a key field — re-enter the key manually.', 'october-events'),
+                    esc_html(implode('; ', array_map(static function ($k, $p) use ($labels) {
+                        return ($labels[$k] ?? $k) . ' (' . sprintf(__('must start with %s', 'october-events'), $p) . ')';
+                    }, array_keys((array) $key_errors), (array) $key_errors)))
+                ); ?>
+            </p></div>
+        <?php endif; ?>
         <table class="form-table" style="max-width:720px">
             <?php foreach ($secrets as $key => $const) :
                 $is_const = \OE\Settings::secret_is_constant($key);
@@ -252,7 +264,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                             <p class="description"><?php printf(/* translators: %s: constant */ esc_html__('Locked — defined by the %s constant in wp-config.php.', 'october-events'), '<code>' . esc_html($const) . '</code>'); ?></p>
                         <?php else : ?>
                             <span class="oe-secret-wrap">
-                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="" placeholder="<?php echo $is_set ? esc_attr__('•••••••• saved — leave blank to keep', 'october-events') : ''; ?>" autocomplete="off" spellcheck="false">
+                                <input type="password" id="oe-sec-<?php echo esc_attr($key); ?>" class="regular-text oe-secret" name="secret_<?php echo esc_attr($key); ?>" value="" placeholder="<?php echo $is_set ? esc_attr__('•••••••• saved — leave blank to keep', 'october-events') : ''; ?>" autocomplete="new-password" spellcheck="false" data-1p-ignore data-lpignore="true" data-form-type="other">
                                 <button type="button" class="button oe-secret-toggle" aria-label="<?php esc_attr_e('Show / hide', 'october-events'); ?>" title="<?php esc_attr_e('Show / hide', 'october-events'); ?>"><span class="dashicons dashicons-visibility"></span></button>
                             </span>
                         <?php endif; ?>
@@ -563,6 +575,22 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 input.type = show ? 'text' : 'password';
                 if (icon) { icon.classList.toggle('dashicons-visibility', !show); icon.classList.toggle('dashicons-hidden', show); }
             });
+        });
+        // Stop the browser's password manager from autofilling the WP login
+        // password into these key fields (it can silently overwrite a saved API
+        // key on save). Belt and braces: explicit autocomplete + manager-ignore
+        // hints, plus readonly-until-focus to defeat Chrome's on-load autofill.
+        document.querySelectorAll('input.oe-secret').forEach(function (input) {
+            if (input.disabled) { return; }
+            input.setAttribute('autocomplete', 'new-password');
+            input.setAttribute('data-1p-ignore', '');
+            input.setAttribute('data-lpignore', 'true');
+            input.setAttribute('data-bwignore', '');
+            input.setAttribute('data-form-type', 'other');
+            input.setAttribute('readonly', 'readonly');
+            var unlock = function () { input.removeAttribute('readonly'); };
+            input.addEventListener('focus', unlock);
+            input.addEventListener('pointerdown', unlock);
         });
         // Open (and scroll to) an accordion when linked via #anchor.
         function openTarget() {
