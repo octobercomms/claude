@@ -20,6 +20,7 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
         <nav class="oe-set-nav" id="oe-set-nav">
             <button type="button" class="is-active" data-tab="general"><?php esc_html_e('General', 'october-events'); ?></button>
             <button type="button" data-tab="events"><?php esc_html_e('Events', 'october-events'); ?></button>
+            <button type="button" data-tab="checkout"><?php esc_html_e('Checkout', 'october-events'); ?></button>
             <button type="button" data-tab="ai"><?php esc_html_e('AI', 'october-events'); ?></button>
             <button type="button" data-tab="theme"><?php esc_html_e('Platform theme', 'october-events'); ?></button>
             <button type="button" data-tab="keys"><?php esc_html_e('Keys & platform', 'october-events'); ?></button>
@@ -279,10 +280,17 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
                 <td><input type="url" name="checkin_page_url" value="<?php echo esc_attr((string) ($cfg['checkin_page_url'] ?? '')); ?>" placeholder="https://your-site.com/check-in/" class="regular-text">
                     <p class="description"><?php esc_html_e('The page where you placed the [oe_checkin] shortcode. When set, a “Scan tickets” button appears on the Dashboard and Tickets screens.', 'october-events'); ?></p></td>
             </tr>
+        </tbody></table>
+        </div></details>
+
+        </section>
+        <section class="oe-set-panel" data-tab="checkout">
+        <details class="oe-acc" id="checkout" open><summary><?php esc_html_e('Checkout & tickets', 'october-events'); ?></summary><div class="oe-acc-body">
+        <table class="form-table" role="presentation"><tbody>
             <tr>
-                <th scope="row"><label><?php esc_html_e('Checkout Terms & Conditions URL', 'october-events'); ?></label></th>
+                <th scope="row"><label><?php esc_html_e('Terms & Conditions URL', 'october-events'); ?></label></th>
                 <td><input type="url" name="checkout_terms_url" value="<?php echo esc_attr((string) ($cfg['checkout_terms_url'] ?? '')); ?>" placeholder="https://your-site.com/terms/" class="regular-text">
-                    <p class="description"><?php esc_html_e('When set, the ticket checkout shows an “I agree to the Terms & Conditions” checkbox linking here.', 'october-events'); ?></p></td>
+                    <p class="description"><?php esc_html_e('When set, the ticket checkout shows a required “I agree to the Terms & Conditions” checkbox linking here.', 'october-events'); ?></p></td>
             </tr>
             <tr>
                 <th scope="row"><?php esc_html_e('Pre-event reminder', 'october-events'); ?></th>
@@ -309,8 +317,8 @@ $webhook_url = esc_url_raw(rest_url('oe/v1/stripe-webhook'));
             </tr>
         </tbody></table>
         </div></details>
-
         </section>
+
         <section class="oe-set-panel" data-tab="emailsms">
         <details class="oe-acc" id="email"><summary><?php esc_html_e('Email sending (Amazon SES)', 'october-events'); ?></summary><div class="oe-acc-body">
         <p class="description"><?php esc_html_e('Route all site email through Amazon SES (SMTP). Off by default — until enabled and fully configured, the site keeps using its current mail transport. Generate SMTP credentials in the SES console (they are not your AWS keys).', 'october-events'); ?></p>
