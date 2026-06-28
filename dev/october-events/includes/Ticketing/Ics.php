@@ -128,11 +128,29 @@ final class Ics {
         return $out;
     }
 
+    /**
+     * Concise start-date label for an event, e.g. "March 14, 2026" (date only,
+     * no time). Used in the ticket email subject. '' if there's no date.
+     */
+    public static function date_label(int $event_id): string {
+        $s = self::start_ts($event_id);
+        return $s ? wp_date('F j, Y', $s) : '';
+    }
+
     /** Parse a local datetime string (site timezone) to a UTC timestamp, 0 if unparseable. */
     private static function ts(string $val): int {
         $val = trim($val);
         if ($val === '') {
             return 0;
+        }
+        // A bare Unix epoch (some events store start/end as a numeric timestamp,
+        // optionally @-prefixed). DateTime/strtotime can't parse those, so handle
+        // them first: 13-digit values are JavaScript milliseconds.
+        if ($val[0] === '@' && ctype_digit(substr($val, 1))) {
+            return (int) substr($val, 1);
+        }
+        if (ctype_digit($val)) {
+            return strlen($val) >= 13 ? (int) ((int) $val / 1000) : (int) $val;
         }
         try {
             $d = new \DateTime($val, wp_timezone());

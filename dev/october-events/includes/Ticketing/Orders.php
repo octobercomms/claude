@@ -127,23 +127,31 @@ final class Orders {
         // Generate admissions: qty × qty_per_purchase.
         $per     = max(1, (int) $type['qty_per_purchase']);
         $total_t = $qty * $per;
+        // Number tickets across the whole purchase when the caller knows it (a
+        // cart splits one purchase into several orders — see create_cart). Without
+        // it, number within this order. So two tickets bought together read
+        // "1 of 2" / "2 of 2" instead of both showing "1 of 1".
+        $p_total  = max(0, (int) ($data['purchase_total'] ?? 0));
+        $p_offset = max(0, (int) ($data['purchase_offset'] ?? 0));
+        $seq_total = $p_total > 0 ? $p_total : $total_t;
         $tickets = [];
         for ($i = 1; $i <= $total_t; $i++) {
             $token = bin2hex(random_bytes(32));
+            $seq   = $p_total > 0 ? $p_offset + $i : $i;
             $wpdb->insert(Schema::tickets(), [
                 'order_id'          => $order_id,
                 'event_id'          => $event_id,
                 'ticket_type_label' => (string) $type['label'],
                 'attendee_name'     => ($attendees[$i - 1] ?? '') !== '' ? $attendees[$i - 1] : $name,
                 'token'             => $token,
-                'ticket_number'     => $i,
-                'total_in_order'    => $total_t,
+                'ticket_number'     => $seq,
+                'total_in_order'    => $seq_total,
                 'status'            => 'active',
                 'created_at'        => $now,
             ]);
             $tickets[] = (object) [
                 'id' => (int) $wpdb->insert_id, 'token' => $token,
-                'ticket_number' => $i, 'total_in_order' => $total_t,
+                'ticket_number' => $seq, 'total_in_order' => $seq_total,
             ];
         }
 
@@ -253,13 +261,39 @@ final class Orders {
         ];
         // Branded, self-styled document (matches the printable ticket); $wrap=false.
         $html = \OE\Mail\Transactional::ticket_email_html(array_merge($params, ['name' => (string) $order->name]));
+        // Subject: "Ticket: <event> <date> <n/total>" — specific beats "Your
+        // tickets". The date is the event's start (formatted, not a raw epoch).
+        $subject = self::ticket_subject($event_id, (string) $params['event_name'], $tickets);
         \OE\Mail\Transactional::send('ticket_delivery', [
             'email' => $order->email,
             'name'  => $order->name,
-        ], $params, '', $html, $ics !== '' ? [$ics] : [], false);
+        ], $params, $subject, $html, $ics !== '' ? [$ics] : [], false);
         if ($ics !== '') {
             Ics::cleanup($ics);
         }
+    }
+
+    /**
+     * Build the ticket-email subject: "Ticket: <event> <date> <n/total>". For an
+     * order carrying several tickets it reads "Tickets: <event> <date> <a–b/total>".
+     *
+     * @param array<int,object> $tickets
+     */
+    private static function ticket_subject(int $event_id, string $event_name, array $tickets): string {
+        $date = $event_id ? Ics::date_label($event_id) : '';
+        $count = count($tickets);
+        $num = '';
+        if ($count === 1) {
+            $t = $tickets[0];
+            $num = (string) $t->ticket_number . '/' . (string) $t->total_in_order;
+        } elseif ($count > 1) {
+            $first = $tickets[0];
+            $last  = $tickets[$count - 1];
+            $num = (string) $first->ticket_number . '–' . (string) $last->ticket_number . '/' . (string) $first->total_in_order;
+        }
+        $label = $count > 1 ? __('Tickets', 'october-events') : __('Ticket', 'october-events');
+        $body  = trim(implode(' ', array_filter([$event_name, $date, $num])));
+        return $body !== '' ? $label . ': ' . $body : $label;
     }
 
     /**
@@ -436,6 +470,13 @@ final class Orders {
         if ($payment_id !== '' && self::by_payment($payment_id)) {
             return ['tickets' => self::ticket_dtos_for($payment_id)];
         }
+        // Tickets are numbered across the whole purchase, not per split order, so
+        // a cart of N admissions reads "1 of N" … "N of N". Tally the grand total
+        // up front and feed each order its running offset.
+        $grand = 0;
+        foreach ($lines as $line) {
+            $grand += max(1, (int) $line['qty']) * max(1, (int) (((array) $line['type'])['qty_per_purchase'] ?? 1));
+        }
         $tickets = [];
         $offset  = 0;
         $first   = true;
@@ -447,16 +488,18 @@ final class Orders {
             $unit  = TicketTypes::effective_price($type);
             $line_disc = $first ? $discount : 0.0;
             $res = self::create([
-                'event_id'       => $event_id,
-                'type'           => $type,
-                'qty'            => $qty,
-                'email'          => $buyer['email'] ?? '',
-                'name'           => $buyer['name'] ?? '',
-                'unit_price'     => $unit,
-                'discount'       => $line_disc,
-                'total'          => max(0, round($unit * $qty - $line_disc, 2)),
-                'promo'          => $first ? $promo : null,
-                'attendee_names' => array_slice($attendee_names, $offset, $count),
+                'event_id'        => $event_id,
+                'type'            => $type,
+                'qty'             => $qty,
+                'email'           => $buyer['email'] ?? '',
+                'name'            => $buyer['name'] ?? '',
+                'unit_price'      => $unit,
+                'discount'        => $line_disc,
+                'total'           => max(0, round($unit * $qty - $line_disc, 2)),
+                'promo'           => $first ? $promo : null,
+                'attendee_names'  => array_slice($attendee_names, $offset, $count),
+                'purchase_total'  => $grand,
+                'purchase_offset' => $offset,
             ], $payment_id, $method, $source, true);
             if (is_wp_error($res)) {
                 return $res;
