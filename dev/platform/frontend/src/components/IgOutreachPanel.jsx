@@ -44,6 +44,7 @@ export default function IgOutreachPanel({ clientId }) {
   const [drafting, setDrafting] = useState(null);
   const [draftingAll, setDraftingAll] = useState(false);
   const [enriching, setEnriching] = useState(null);
+  const [expanded, setExpanded] = useState({}); // ids the AM manually re-opened after collapse
   // New-search form
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -122,6 +123,9 @@ export default function IgOutreachPanel({ clientId }) {
   }
 
   async function setStatus(id, status) {
+    // Messaged / replied / skipped collapse the card, so drop any manual
+    // re-open for this prospect; re-activating (new) re-opens it.
+    setExpanded(prev => { const next = { ...prev }; if (['messaged', 'replied', 'skipped'].includes(status)) delete next[id]; else next[id] = true; return next; });
     try { const r = await api.patch(`/ig-outreach/clients/${clientId}/prospects/${id}`, { status }); setProspects(prev => prev.map(p => p.id === id ? r : p)); }
     catch (e) { toast(e.message, 'error'); }
   }
@@ -224,8 +228,37 @@ export default function IgOutreachPanel({ clientId }) {
             <div className="stack stack-sm">
               {prospects.map(p => {
                 const st = STATUS[p.status] || STATUS.new;
+                const done = p.status === 'messaged' || p.status === 'replied';
+                const isSkipped = p.status === 'skipped';
+                // Messaged/replied (green) and skipped (grey) collapse to a slim
+                // one-line row to keep the queue focused on who's still to work.
+                // Click the row to re-open it (copy/redraft/unskip).
+                const collapsed = (done || isSkipped) && !expanded[p.id];
+
+                if (collapsed) {
+                  return (
+                    <div
+                      key={p.id}
+                      onClick={() => setExpanded(prev => ({ ...prev, [p.id]: true }))}
+                      title="Click to re-open"
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
+                        padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                        border: `1px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                        borderLeft: `4px solid ${done ? 'var(--positive)' : 'var(--card-border)'}`,
+                        background: done ? 'var(--positive-soft)' : 'var(--surface-raised)',
+                        opacity: isSkipped ? 0.6 : 1,
+                      }}
+                    >
+                      <span style={{ fontWeight: 700, whiteSpace: 'nowrap' }}>@{p.username}</span>
+                      {p.display_name && p.display_name !== p.username && <span className="text-subtle" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>· {p.display_name}</span>}
+                      <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto', marginLeft: 'auto' }}>{done ? '✓ ' : ''}{st.label}</span>
+                      <span className="body-xs text-subtle" style={{ flex: '0 0 auto' }}>▸</span>
+                    </div>
+                  );
+                }
                 return (
-                  <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: p.status === 'skipped' ? 0.55 : 1 }}>
+                  <div key={p.id} className="card" style={{ padding: 'var(--s4)', opacity: isSkipped ? 0.55 : 1, borderLeft: done ? '4px solid var(--positive)' : undefined, background: done ? 'var(--positive-soft)' : undefined }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'baseline' }}>
                       <div style={{ minWidth: 0 }}>
                         <a href={p.profile_url || `https://www.instagram.com/${p.username}/`} target="_blank" rel="noreferrer" style={{ fontWeight: 700 }}>@{p.username}</a>
@@ -233,7 +266,10 @@ export default function IgOutreachPanel({ clientId }) {
                         {p.email && <span className="chip chip-success" style={{ fontSize: 10, marginLeft: 8 }}>✉ {p.email}</span>}
                         {p.bio && <div className="body-xs text-subtle" style={{ marginTop: 2 }}>{p.bio}</div>}
                       </div>
-                      <span className={`chip ${st.cls}`} style={{ fontSize: 10, flex: '0 0 auto' }}>{st.label}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '0 0 auto' }}>
+                        <span className={`chip ${st.cls}`} style={{ fontSize: 10 }}>{st.label}</span>
+                        {(done || isSkipped) && <button className="btn btn-ghost btn-sm" onClick={() => setExpanded(prev => { const n = { ...prev }; delete n[p.id]; return n; })} title="Collapse">▴</button>}
+                      </div>
                     </div>
 
                     {p.draft && (
@@ -249,7 +285,11 @@ export default function IgOutreachPanel({ clientId }) {
                       {!p.email && <button className="btn btn-secondary btn-sm" onClick={() => enrich(p.id)} disabled={enriching === p.id}>{enriching === p.id ? 'Finding…' : 'Find email'}</button>}
                       {p.status !== 'messaged' && p.status !== 'replied' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'messaged')}>Mark messaged</button>}
                       {p.status === 'messaged' && <button className="btn btn-secondary btn-sm" onClick={() => setStatus(p.id, 'replied')}>Mark replied</button>}
-                      {p.status !== 'skipped' && <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>}
+                      {p.status === 'skipped' ? (
+                        <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'new')}>↩ Restore to queue</button>
+                      ) : (
+                        <button className="btn btn-ghost btn-sm" onClick={() => setStatus(p.id, 'skipped')}>Skip</button>
+                      )}
                     </div>
                   </div>
                 );
