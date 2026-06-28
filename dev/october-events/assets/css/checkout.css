@@ -570,29 +570,39 @@
 }
 
 /* ---------- Waitlist ---------- */
+/* Match the "Apply" button (.oct-btn--secondary): solid dark pill, accent hover. */
 .oct-btn-waitlist {
-  background: none;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 12px;
+  background: #222222;
+  border: none;
+  border-radius: 50px;
+  padding: 7.5px 20px;
+  font-size: 1em;
   font-weight: 600;
+  line-height: 1;
   cursor: pointer;
-  color: #1a1a1a;
-  margin-top: 6px;
-  display: block;
+  color: #ffffff;
+  margin-top: 8px;
+  display: inline-block;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
   font-family: inherit;
 }
 .oct-btn-waitlist:hover {
-  background: #1a1a1a;
+  background: var(--oct-accent);
   color: #fff;
 }
+/* A sold-out row stays full-strength (it's still actionable — join the waitlist)
+   rather than dimmed like other unavailable states. */
+.oct-ticket-row--soldout.oct-ticket-row--unavailable {
+  opacity: 1;
+}
+/* "Sold out" reads as prominently as the ticket name (.oct-ticket-row__name). */
 .oct-ticket-row__status--soldout {
   color: #e53935;
   font-weight: 600;
   font-style: normal;
+  font-size: 1.5em;
+  line-height: 1;
 }
 .oct-waitlist-modal {
   position: fixed;
